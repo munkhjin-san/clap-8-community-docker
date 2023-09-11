@@ -1,0 +1,19 @@
+[  
+{"light": "#EFE0E8","dark": "#25161d","id": 0, "name": "pink-soft"},  
+{"light": "#FFF1CF","dark": "#2b1d00","id": 1, "name": "yellow-soft"},  
+{"light": "#EBF3DC","dark": "#1a220b","id": 2, "name": "green-soft"},  
+{"light": "#EAF4FC","dark": "#151f28","id": 3, "name": "blue-soft"},  
+{"light": "#E7E7EB","dark": "#1b1a1f","id": 4, "name": "purple-soft"}, 
+
+{"light": "#F6BFBC","dark": "#400906","id": 5, "name": "pink-med"}, 
+{"light": "#F2F2B0","dark": "#242400","id": 6, "name": "yellow-med"},  
+{"light": "#D6E9CA","dark": "#112406","id": 7, "name": "green-med"},  
+{"light": "#C1E4E9","dark": "#012428","id": 8, "name": "blue-med"},  
+{"light": "#DBD0E6","dark": "#20142a","id": 9, "name": "purple-med"},
+
+{"light": "#F09199","dark": "#560000","id": 10, "name": "pink-hard"},  
+{"light": "#F3F47F","dark": "#282901","id": 11, "name": "yellow-hard"},  
+{"light": "#BADCAD","dark": "#052800","id": 12, "name": "green-hard"},  
+{"light": "#A0D8EF","dark": "#01273e","id": 13, "name": "blue-hard"},  
+{"light": "#BBBCDE","dark": "#141436","id": 14, "name": "purple-hard"}
+]

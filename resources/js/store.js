@@ -1,0 +1,181 @@
+import { createStore } from 'vuex'
+const store = createStore({
+    state () {
+        return {
+            user: null,
+            menu: {
+                name: null,
+                id: null,
+            },
+            boardBadge: [],
+            taskBadge: [],
+            quot_reply: {
+                active: false,
+                message: null,
+                which: null,
+                text: null,
+                file: false,
+                height: 100,
+                width: 100
+            },
+            activeBoard: null,
+            focused: true,
+            keyword: '',
+            fromFilesToBoard: {
+                active: false,
+                list: [],
+                source_board_id: null,
+                drag: false
+            },
+            fromBoardToFiles: {
+                active: false,
+                list: [],
+                drag: false
+            },
+            taskModal: {
+                active: false,
+                record: null,
+                taskColor: null
+            },
+            filePreview: {
+                active: false,
+                files: [],
+                source: null,
+                source_board_id: null,
+                index: 0,
+                message: null
+            },
+            copyMoveFiles: {
+                active: null,
+                objects: [],
+                source_record_id: null,
+                target_record_id: null,
+                target_parent_id: null,
+                type: ''
+            },
+            urlBoardId: null,
+            urlMessageId: null,
+            urlTaskId: null,
+            urlTaskEditFlag: false,
+            instantUser: {
+                id: null,
+                cX: null,
+                cY: null
+            },
+            tempUniqueId: [],
+            messageContainerIndex: 20,
+            baseLocation: window.location.origin,
+            boardList: [],
+            scrollRemember: 0,
+            myBoard: null,
+            mentionAbleUsers: [],
+            undoAbleFiles: {
+                active: false,
+                files: [],
+                old_parent: null,
+                type: null,
+                message: null,
+            },
+            fileInstance: null,
+            mTransition: '',
+            messageShareToMemo: null,
+            messageShareToTask: null,
+            scrollUkey: -1,
+            downloadProgress: {
+                view: false,
+                state: null,
+                percentage: 0
+            },
+            fileShareTo: {
+                active: false,
+                target: null,
+                message: null,
+                files: []
+            },
+            sharingMemo: {
+                active: false,
+                memo: null,
+                drag: false,
+                window: false
+            },
+            remember:{
+                favorite_tray: 1,
+                my_task_priority: 1,
+                file_sort_by: 0,
+                file_sort_desc: 1,
+                task_sort_desc: 1
+            },
+            taskFeedBack:{
+                active: false,
+                data: null
+            },
+            mobile: window.innerWidth < 959,
+            dark: false,
+            local: 'ja',
+            listView: true,
+            apiAction: false,
+            forwarding: null,
+            qoutWindowActive: false,
+            sideMenuView: false,
+            skeleton: 0,
+            badge: 0,
+            messageUsers:{
+                active: false,
+                userList: [],
+                title: ''
+            },
+            activeInput: ''
+        }
+    },
+    mutations: {
+        setActiveInput(state, data){state.activeInput = data},
+        setBadge(state, data){state.badge = data},
+        setSkeleton(state, data){ state.skeleton = data },
+        setSideMenuView(state, data){ state.sideMenuView = data },
+        setQoutWindowActive(state, data){ state.qoutWindowActive = data },
+        setForwarding(state, data){ state.forwarding = data },
+        setDark(state, data){ state.dark = data },
+        setTaskFeedback(state, data){ state.taskFeedBack = data },
+        setUrlTaskEditFlag(state, data){ state.urlTaskEditFlag = data },
+        setMobile(state, data){ state.mobile = data },
+        setRemember(state, data){ state.remember = data },
+        setSharingMemo(state, data){ state.sharingMemo = data },
+        setFileShareTo(state, data){ state.fileShareTo = data },
+        setDownloadProgress(state, data){ state.downloadProgress = data },
+        setScrollUkey(state, data){ state.scrollUkey = data },
+        setMessageShareToTask(state, data){ state.messageShareToTask = data },
+        setMessageShareToMemo(state, data){ state.messageShareToMemo = data },
+        setmTransition(state,data){ state.mTransition = data },
+        setFileInstance(state,data){ state.fileInstance = data },
+        setundoAbleFiles(state, data){ state.undoAbleFiles = data },     
+        setMentionAbleUsers(state, data){ state.mentionAbleUsers = data },
+        setSignAbleUsers(state, data){ state.signAbleUsers = data },
+        setMyBoard(state, data){ state.myBoard = data },
+        setScrollRemember(state, data){ state.scrollRemember = data },
+        setBoardList(state, data){ state.boardList = data },
+        setMessageContainerIndex(state,data){ state.ContainerIndex = data },
+        setFromBoardToFiles(state, data){ state.fromBoardToFiles = data },
+        setTempUniqueId(state, data){ state.tempUniqueId = data },
+        setInstantUser(state, data){ state.instantUser = data },
+        setUrlBoardId(state, data){ state.urlBoardId = data },
+        setUrlMessageId(state, data){ state.urlMessageId = data },
+        setUrlTaskId(state, data){ state.urlTaskId = data },
+        setCopyMoveFiles(state, data){ state.copyMoveFiles = data },
+        setFilePreview(state, data){ state.filePreview = data },
+        setFromFilesToBoard(state, data){ state.fromFilesToBoard = data },
+        setKeyword(state, data){ state.keyword = data },
+        setFocused(state, data){ state.focused = data },
+        setActiveBoard(state, data){ state.activeBoard = data },
+        setTaskBadge(state, data){ state.taskBadge = data },
+        setBoardBadge(state, data){ state.boardBadge = data },
+        setQuoteReply(state, data){ state.quot_reply = data }, 
+        setUser (state, data) { state.user = data },
+        setMenu(state, data) { state.menu = data },
+        setLocale(state, data) { state.local = data },
+        setCalendarView(state, data) {state.calendarView = data},
+        setListView(state, data) {state.listView = data},
+        setTaskModal(state, data) {state.taskModal = data},
+        setMessageUsers(state, data){ state.messageUsers = data },
+    }
+})
+export default store;

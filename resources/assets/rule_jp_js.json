@@ -1,0 +1,100 @@
+[   
+    {
+        "calendar_create" : "カレンダー作成"
+    },
+    {
+        "calendar_view" : "カレンダー閲覧"
+    },
+    {
+        "challenge_chargeable" : "チャレンジチャージ"
+    },
+    {
+        "challenge_create" : "チャレンジ作成"
+    },
+    {
+        "challenge_view" : "チャレンジ閲覧"
+    },
+    {
+        "nice_create" : "ナイス作成"
+    },
+    {
+        "nice_view" : "ナイス閲覧"
+    },
+    {
+        "knowledge_create" : "ナレッジ作成"
+    },
+    {
+        "knowledge_view" : "ナレッジ閲覧"
+    },
+    {
+        "board_memo" : "ボードノート機能"
+    },
+    {
+        "board_file" : "ボードファイル機能"
+    },
+    {
+        "board_task" : "ボードタスク機能"
+    },
+    {
+        "board_create" : "ボード作成"
+    },
+    {
+        "board_view" : "ボード閲覧"
+    },
+    {
+        "home_notice_view" : "ホームお知らせ閲覧"
+    },
+    {
+        "home_banner_view" : "ホームバナー閲覧"
+    },
+    {
+        "support_view" : "サポート閲覧"
+    },
+    {
+        "support_create" : "サポート作成"
+    },
+    {
+        "work_view" : "ワーク閲覧"
+    },
+    {
+        "work_create" : "ワーク作成"
+    },
+    {
+        "employee_view" : "メンバー閲覧"
+    },
+    {
+        "profile_view" : "プロフィール閲覧"
+    },
+    {
+        "home" : "ホーム(すべての権限)"
+    },
+    {
+        "board" : "ボード(すべての権限)"
+    },
+    {
+        "knowledge" : "ナレッジ(すべての権限)"
+    },
+    {
+        "nice" : "ナイス(すべての権限)"
+    },
+    {
+        "challenge" : "チャレンジ(すべての権限)"
+    },
+    {
+        "calendar" : "カレンダー(すべての権限)"
+    },
+    {
+        "work" : "ワーク(すべての権限)"
+    },
+    {
+        "support" : "サポート(すべての権限)"
+    },
+    {
+        "employee" : "メンバ(すべての権限)"
+    },
+    {
+        "profile" : "プロフィール(すべての権限)"
+    }
+]
+
+
