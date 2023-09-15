@@ -32,11 +32,6 @@ import moment from 'moment';
                 return now > date_end ? 'tomato' : 'var(--primary-color)'
             },
             colorCalendar(){
-                // for(let record_user of this.record.task_users){
-                //     if(record_user.user_id == this.$store.state.user.id){
-                //         return this.myColor
-                //     }
-                // }
                 return this.thisMonth ? 'var(--kebab-bg1)' : 'var(--normalBorder)'
             }
         },

@@ -290,35 +290,8 @@ import { nextTick } from 'vue'
                 
                 const message = this.message.message
                 if(message.info_flag == 0) return
-                const encoded = JSON.parse(message)
-                if(encoded){
-                    const userList = encoded.members.join(", ")
-                    if(encoded.type == 'added_members'){
-                        const plural = encoded.members && encoded.members.length > 1 ? 'addedMultipleMembers' : 'addedOneMember'
-                        
-                        return this.$t(plural, {userList: userList})                        
-                    }else if(encoded.type == 'removed_members'){
-                        const plural = encoded.members && encoded.members.length > 1 ? 'removedMultipleMembers' : 'removedOneMember'
-                        return this.$t(plural, {userList: userList})                    
-                    }
-                    else if(encoded.type == 'invited_members'){
-                        const plural = encoded.members && encoded.members.length > 1 ? 'invitedMultipleMembers' : 'invitedOneMember'
-                        return this.$t(plural, {userList: userList})                    
-                    }
-                    else if(encoded.type == 'rejected_request'){
-                        const plural = 'rejectedRequest'
-                        return this.$t(plural, {userList: userList})
-                    }
-                    else if(encoded.type == 'created_new_private_chat'){
-                        const plural = 'created_new_private_chat'
-                        return this.$t('createdNewPrivateChat')
-                    }
-                    else if(encoded.type == 'left_members'){
-                        const plural = encoded.members && encoded.members.length > 1 ? 'leftMultipleMembers' : 'leftOneMember'
-                        return this.$t(plural, {userList: userList})                    
-                    }
-                }
-                return ''
+                
+                return this.message.message
             },
             messageUserName(){                
                 return this.message.user && this.message.user.deleted_at == null
@@ -342,12 +315,13 @@ import { nextTick } from 'vue'
                 }
             },
             messageBody(){
+                if(!this.message.message) return this.message.message
                 if(this.message.id == this.searchTargetId && this.messageListType == 'search'){
                     // const highlightRegex = new RegExp(`(?<!https?:\/\/\S*)\\b(${this.$store.state.keyword})\\b`, 'gi');
                     // const highlightedText = this.message.message.replace(highlightRegex, (match) => {
                     //     return `<span style="background-color: yellow;">${match}</span>`;
                     // });
-                    if(!this.message.message) return this.message.message
+                    
                     const br_remove = this.message.message.replace(/&lt;br&gt;/g," ");
                     let text = this.urlCheck(br_remove)
                     const anchorTagRegex = /<a.*?href="(.*?)".*?>(.*?)<\/a>/gi;

@@ -1,6 +1,6 @@
 <template>
 
-    <div :key="postKey" class="post-root">
+    <div class="post-root">
         <div class="post-header">
             <HamBurger/>
             <div class="post-search-wrap">
@@ -8,30 +8,33 @@
             </div>
             
         </div>
-        <Transition name="modalFade">
-                              
-                <PostCreate 
-                    v-if="create"
-                    :key="componentKey" 
-                    :formIs="formIs" 
-                    :currentStatus="null" 
-                    :editRecord="editRecord"
-                    :sharedFrom="sharedFrom"
-                    @postFinish="postFinish"
-                    :filesToShare="filesToShare"  
-                    :appName="appName"
-                    :appNameJp="appNameJp"                  
-                />
+        <Transition name="modalFade">                              
+            <PostCreate 
+                v-if="create"
+                :key="componentKey" 
+                :formIs="formIs" 
+                :currentStatus="null" 
+                :editTarget="editTarget"
+                :sharedFrom="sharedFrom"
+                @postFinish="postFinish"
+                :filesToShare="filesToShare"  
+                :appName="appName"
+                :appNameJp="appNameJp"                
+            />
             
         </Transition> 
         
-        <div class="post-container scrollable">
+        <div class="post-container scrollable" @scroll="scrollListen">
             <PostRecord 
                 v-for="record in records"
                 :record="record"
                 :appName="appName"
                 :appNameJp="appNameJp"  
                 @setChargeTarget=" val => chargeTarget = val"
+                @setCommentCount="setCommentCount"
+                @setClap="setClap"
+                @editRecord="editRecord"
+                @updateStatus="val => updateTarget = val"
             />
                 
             
@@ -44,7 +47,18 @@
 
         <router-link v-if="defaultListShow" :to="`/${appName}`" class="post-list-reset">一覧表示に戻す</router-link>
         <Transition name="modalFade">
-            <Charge v-if="chargeTarget" @close="chargeTarget = null"/>
+            <Charge 
+                v-if="chargeTarget" 
+                @close="closeCharge" 
+                :chargeTarget="chargeTarget"
+            />
+        </Transition>
+        <Transition name="modalFade">
+            <Status 
+                v-if="updateTarget" 
+                :record="updateTarget"
+                @close="closeStatus" 
+            />
         </Transition>
 
     </div>
@@ -55,6 +69,7 @@ import PostRecord from './PostRecord.vue';
 import PostCreate from './PostCreate.vue';
 import PostSearchBar from './PostSearchBar.vue'
 import Charge from './Charge.vue';
+import Status from './Status.vue';
 
 export default{
     data(){
@@ -63,18 +78,14 @@ export default{
             create: false,
             componentKey: 0,
             formIs: '',
-            editRecord: null,
             sharedFrom: null,
             filesToShare: null,
             postKey: 0,
             defaultListShow: false,
-            chargeTarget: null
+            chargeTarget: null,
+            editTarget: null,
+            updateTarget: null
 
-        }
-    },
-    watch:{
-        '$route.query'(after){
-            console.log('changed', after)
         }
     },
     computed:{
@@ -92,14 +103,9 @@ export default{
         if(this.$route.meta.data && this.$route.meta.data.length){
             this.postList = this.$route.meta.data;
         }else{
-                const id = this.$route.query.hasOwnProperty('id') && this.$route.query.id ? this.$route.query.id : null
-                const search_tags = this.$route.query.hasOwnProperty('search_tags') && this.$route.query.search_tags ? this.$route.query.search_tags : null
-                const query = {
-                    id: id,
-                    search_tags: search_tags
-                }
                 
-                this.fetchPosts(query)
+            const query = this.getQuery()
+            this.fetchPosts(query, null)
         }
         
         this.defaultListShow = Object.getOwnPropertyNames(this.$route.query).length ? true : false
@@ -113,30 +119,104 @@ export default{
         PostRecord,
         PostCreate,
         PostSearchBar,
-        Charge
+        Charge,
+        Status
     },
     methods:{
-        postFinish(){
+        scrollListen(){
+            var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);  
+            if(percent > 99){          
+                if (this.infiniteLoader){
+                    return;
+                }                       
+                this.infiniteLoader = true;
+                let query = this.getQuery()
+                this.fetchPosts(query)                                   
+            }
+        },
+        closeStatus(id){
+            this.updateTarget = false
+            if(id){
+                let query = this.getQuery()
+                if(!query.hasOwnProperty('id') || !query.id){
+                    query['id'] = id
+                }
+                this.fetchPosts(query, id)
+            }
+        },
+        editRecord(record){
+            this.editTarget = record
+            this.create = true
+        },
+        closeCharge(id){
+            this.chargeTarget = null
+            let query = this.getQuery()
+            if(!query.hasOwnProperty('id') || !query.id){
+                query['id'] = id
+            }
+            this.fetchPosts(query, id)
+        },
+        getQuery(){
+            const id = this.$route.query.hasOwnProperty('id') && this.$route.query.id ? this.$route.query.id : null
+            const search_tags = this.$route.query.hasOwnProperty('search_tags') && this.$route.query.search_tags ? this.$route.query.search_tags : null
+            const query = {
+                id: id,
+                search_tags: search_tags
+            }
+            return query
+        },
+        postFinish(flag){
             this.create = false
+            this.editTarget = null
+            console.log('flag',flag)
+            if(flag){
+                let query = this.getQuery()
+                this.fetchPosts(query)
+            }
         },
         newRecord(){
             this.formIs = 1
             this.create = true
         },
-        fetchPosts(query){
+        fetchPosts(query, replace){
             axios.post('/get_posts', {
                 path: this.appName,
-                query: query
+                query: query,
+                skip: this.postList.length
                 
             })
             .then(response => {
-                this.postList = response.data
-                this.postKey ++
+                if(replace ){
+                    const index = this.postList.findIndex(ob => ob.id == replace)
+                    if(index > -1 && response.data.length){
+                        this.postList[index] = response.data[0]
+                    }
+                }else{
+                    this.postList.push(...response.data);
+                }
+                setTimeout(() => {
+                    this.infiniteLoader = false
+                }, 300);
             })
             .catch(error => {
                 
             });
-        }
+        },
+        setCommentCount(num, id){
+            const index = this.postList.findIndex(item => item.id === id);
+            if(index > -1){
+                this.postList[index].comments_count = num
+            }
+        },
+        setClap(val, id){
+            if(id){
+                let query = this.getQuery()
+                if(!query.hasOwnProperty('id') || !query.id){
+                    query['id'] = id
+                }
+                this.fetchPosts(query, id)
+            }
+        },
     }
 }
 </script>

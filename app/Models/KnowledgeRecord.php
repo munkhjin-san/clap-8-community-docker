@@ -13,7 +13,7 @@ class KnowledgeRecord extends Model
         'title', 'description',
     ];
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'a_path', 'a_version');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'icon_id');
     }
     public function files(){
         return $this->belongsToMany(FileRecord::class, 'knowledge_use_files', 'record_id', 'file_id')->where('file_records.deleted_flag', 0);
@@ -24,6 +24,12 @@ class KnowledgeRecord extends Model
     }
     public function comment_records(){
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'knowledge')->with('user');
+    }
+    public function comments(){
+        return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'knowledge')->where('deleted_flag', 0);
+    }
+    public function claps(){
+        return $this->hasMany(ClapRecord::class, 'record_id')->where('app_name', 'knowledge')->where('deleted_flag', 0)->select('record_id', 'from_user');
     }
     protected $casts = [
         'user_id' => 'int',       

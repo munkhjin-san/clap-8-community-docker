@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\VerifyEmail;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
-    use Notifiable;
+    // use Notifiable;
     use SoftDeletes;
     /**
      * The attributes that are mass assignable.
@@ -19,7 +19,7 @@ class User extends Authenticatable implements MustVerifyEmail
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'email_or_phone', 'phone', 'password','a_path', 'a_version', 'login', 'phone_isVerified', 'phone_prefix', 'q_token', 'is_public', 'color', 'language'
+        'name', 'email', 'email_or_phone', 'phone', 'password','icon_id', 'login', 'phone_isVerified', 'phone_prefix', 'q_token', 'is_public', 'color', 'language'
     ];
 
     /**
@@ -47,7 +47,7 @@ class User extends Authenticatable implements MustVerifyEmail
     ];
     public function friends()
     {
-        return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')->select('users.id', 'users.name', 'users.a_path', 'users.a_version', 'users.q_token');
+        return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')->select('users.id', 'users.name', 'users.icon_id', 'users.q_token');
     }
     //board message relation
     public function message_records(){
@@ -99,7 +99,6 @@ class User extends Authenticatable implements MustVerifyEmail
                         'pin_flag',
                         'ghost',
                         'invited_by',
-                        'member_status'
                     ]);
     }
     public function reactions()
@@ -114,11 +113,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->belongsToMany(messageFile::class, 'message_sign_users');
     }
-    public function blockedUsers(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'block_list', 'user_id', 'blocked_user_id')->select('users.id', 'users.name', 'users.a_path', 'users.a_version')
-            ->withTimestamps();
-    }
+
 
     /**
      * Get the users who have blocked the current user.

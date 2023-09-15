@@ -6,9 +6,9 @@
                     <div :id="'task_box_' + item.id" class="task-box-inner" :style="{background: taskColor, color: 'var(--primary-color)', position: 'relative', margin: '0 10px', cursor: 'pointer', width:'100%'}">
                         <div class="task-box-header" :style="{display: 'flex', width: '100%', position: 'relative', marginTop: $store.state.mobile ? '0' : '5px'}">
                             <div @click.stop="$store.commit('setMenu', {name: 'taskUsers', id: item.id})" style="display:flex;width: fit-content;">
-                                <div v-for="user in item.task_users.slice(0, 3)" style="position:relative;">
-                                    <div v-if="user.user" :title="user.user.name" class="column-01">
-                                        <UserIcon size="30" :user="user.user" imgClass="u_icon_15"/>                            
+                                <div v-for="user in taskUsers.slice(0, 3)" style="position:relative;">
+                                    <div v-if="user" :title="user.name" class="column-01">
+                                        <UserIcon size="30" :user="user" imgClass="u_icon_15"/>                            
                                     </div>
                                     <div class="column-01" v-else>
                                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" class="u_icon_15">
@@ -21,7 +21,7 @@
                                         </svg>                                           
                                     </div>                                   
                                 </div>                                                                                       
-                                <p style="margin-top:2px;cursor:pointer;font-size: 12px;" v-if="item.task_users && item.task_users.length > 3">...({{item.task_users.length}})</p>                                            
+                                <p style="margin-top:2px;cursor:pointer;font-size: 12px;" v-if="taskUsers && taskUsers.length > 3">...({{taskUsers.length}})</p>                                            
                             </div>  
                             <div v-if="canModify" @click.stop="$store.commit('setMenu', {name: 'taskBMenu', id: item.id})" class="taskMenuWrap cursor-pointer">
                                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="13" viewBox="0 0 7 32" fill="var(--primary-color)" style="width: -webkit-fill-available;">
@@ -88,6 +88,9 @@
             } 
         },
         computed:{
+            taskUsers(){
+                return this.item.to_users ? this.item.to_users : []
+            },
             taskColor(){
                 return this.$store.state.taskModal.taskColor
             },
@@ -95,7 +98,7 @@
                 return this.$store.state.taskModal.record
             },
             canModify(){
-                const users = this.item.task_users.map(ob => ob.user_id);
+                const users = this.taskUsers.map(ob => ob.user_id);
                 const me = users.filter(ob => ob == this.$store.state.user.id)
                 return me && me.length
             },  
@@ -117,7 +120,7 @@
             },
             isExpired(){
                 const taskIncomplete = this.item.comp_flag
-                const me = this.item.task_users.filter( ob => ob.user_id == this.$store.state.user.id)
+                const me = this.taskUsers.filter( ob => ob.id == this.$store.state.user.id)
                 const taskIncompleteforMe = me.length ? me[0].comp_flag : false
                 const expired = this.item.end_at < moment().format('YYYY-MM-DD')
 
@@ -125,7 +128,7 @@
             },
             isToday(){
                 const taskIncomplete = this.item.comp_flag
-                const me = this.item.task_users.filter( ob => ob.user_id == this.$store.state.user.id)
+                const me = this.taskUsers.filter( ob => ob.id == this.$store.state.user.id)
                 const taskIncompleteforMe = me.length ? me[0].comp_flag : false
                 const expired = this.item.end_at <= moment().format('YYYY-MM-DD HH:mm:ss')
 
@@ -208,8 +211,8 @@
                 moment.locale('mn');
                 return moment(value).format('M/D (dd)')                           
             }, 
-            completeButtonFilter(task){            
-                var userData = task.task_users.filter(obj => obj.user_id == this.$store.state.user.id);
+            completeButtonFilter(){            
+                var userData = this.taskUsers.filter(obj => obj.user_id == this.$store.state.user.id);
                 if(userData.length) return true;
                 else return false;             
             },

@@ -55,11 +55,7 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>   
-                        <div class="divTableRow">
-                            <div class="divTableCell">{{ $t('lastActivity') }}</div>
-                            <div class="divTableCell">{{lastActivity}}</div>
-                        </div>               
+                        </div>                
                     </div>
                 </div>        
                 <div style="margin: 20px auto 0;" @click.stop="$emit('close')" class="commentEditButton">{{ $t('close') }}</div>
@@ -98,21 +94,6 @@ import moment from 'moment'
                 const date = this.board.created_at
                 return moment(date).format('LLL')                    
             }, 
-            lastActivity(){
-                
-                moment.locale(this.$store.state.local);
-                const date = this.board.last_activity
-                const act = moment(date).format('LLL')   
-                const deletionDate = moment(this.board.last_activity).add(180, 'days');
-                const currentDate = moment();
-                const duration = moment.duration(deletionDate.diff(currentDate));
-                const days = Math.ceil(duration.asDays());
-                if(this.board.private_flag == 3){
-                    return act
-                }
-                return days >= 0 ? `${act} (${this.$tc('untilDeletion', days, {days: days})})` : `${act}`                
-                
-            },
             boardType(){
                 return this.board.private_flag == 0 ? this.$t('groupBoard') : this.board.private_flag == 1 ? this.$t('privateBoard') : this.board.private_flag == 3 ? this.$t('myChat') : ''
             }

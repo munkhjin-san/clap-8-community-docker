@@ -6,7 +6,7 @@ export default {
     props: ['tag'],
     computed:{
         sanitized(){
-            const sanitizedString = this.tag.text.replace(/#|♯|＃/g, '');
+            const sanitizedString = this.tag.text ? this.tag.text.replace(/#|♯|＃/g, '') : '';
             return sanitizedString;
         }
     }

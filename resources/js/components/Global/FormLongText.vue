@@ -23,11 +23,11 @@
     <script>
    import { Field, Form , ErrorMessage } from 'vee-validate'
     export default{
-        props: ['placeHolder', 'name', 'rules', 'uId',],
+        props: ['placeHolder', 'name', 'rules', 'uId', 'initialValue'],
         emits: ['setValue'],
         data(){
             return{
-                value: ''
+                value: this.initialValue ? this.initialValue : ''
             }
         },
         components: {

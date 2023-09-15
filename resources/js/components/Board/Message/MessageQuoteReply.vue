@@ -37,7 +37,8 @@
         </div>
       
         <div v-else class="quotBody">
-            <read-more v-if="which == 'reply' && message.message !== ''" style="line-height: 1.5;white-space: pre-line;" class="contentsText" :more-str="$t('moreView')" :text="messageBody" :textNoTag="message.message_text" link="#" :less-str="$t('lessView')" :max-chars="20"></read-more>
+            <p v-if="which == 'reply'" style="line-height: 1.5;white-space: pre-line;" v-html="truncatedMessageBody"></p>
+            <span @click="showAll = !showAll" class="jump-link" v-if="truncated && which == 'reply'">{{ showAll ? '閉じる' : '続きを表示する' }}</span>
             <p v-if="which == 'forward'" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
             <p v-if="which == 'quot' && quotMessage" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
             <MessageFiles 
@@ -78,6 +79,12 @@ import MessageFiles from "./MessageFiles.vue";
             'openImageView', 
             'quotMessage'
         ],
+        data(){
+            return{
+                truncated: false,
+                showAll: false
+            }
+        },
         computed:{
             messageBody(){
                 const t_text = this.which == 'quot' ? this.quotMessage : this.message.message
@@ -91,9 +98,34 @@ import MessageFiles from "./MessageFiles.vue";
                 ? this.message.user.name
                 : this.$t('unAvailableUserName');
             },
+            truncatedMessageBody(){
+                const text = this.messageBody
+                const truncate = this.cutter(text, 20)
+                return truncate
+            }
         },
         components:{
             MessageFiles
         },
+        methods:{
+            cutter(string, len){
+                if(!string){
+                    return ''
+                }
+                if(this.showAll || string.length <= len || string.length <= len + 50){
+                    return string
+                }
+                const last = string.substring(len - 5, len + 5)
+                const check_emoji = last.match(/[\p{Emoji}\u200d]+/gu)
+                if(!check_emoji){
+                    this.truncated = true
+                    return string.substring(0, len) + '...'
+                
+                }else{
+                    return this.cutter(string, len + 5)
+                }
+                
+            }
+        }
     }
 </script>

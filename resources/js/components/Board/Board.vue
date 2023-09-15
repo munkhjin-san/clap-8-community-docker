@@ -448,7 +448,7 @@
                 },
                 hasAccessibleChat(){
                     if(this.openedBoard){
-                        return this.openedBoard.board_to_users.filter(ob => ob.user_id == this.$store.state.user.id && ob.member_status == 1).length
+                        return this.openedBoard.board_to_users.filter(ob => ob.user_id == this.$store.state.user.id).length
                     }
                     return false
                 },
@@ -934,7 +934,7 @@
                         }
                         this.$router.push(`/chat/${item.id}`);
 
-                    const mentionable = item.board_to_users.filter(ob => ob.user_id !== this.$store.state.user.id && ob.user && ob.member_status == 1)
+                    const mentionable = item.board_to_users.filter(ob => ob.user_id !== this.$store.state.user.id && ob.user)
                     this.$store.commit('setMentionAbleUsers',mentionable)
                     this.$store.commit('setMyBoard',this.myBoard)
                     this.$store.commit('setSignAbleUsers',item.board_to_users)

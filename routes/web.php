@@ -41,12 +41,15 @@ use App\Http\Controllers\AutoJobController;
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+Route::get('/reacted_users_make', [AutoJobController::class, 'reactedUsersMake']);
+Route::get('/change_to_dummy', [AutoJobController::class, 'change_to_dummy']);
 Route::get('/help/{any?}', function () {
     return view('help');
 })->where('any', '.*')->name('help');
 Route::match(['get', 'post'], '/cron-trigger', [AutoJobController::class, 'cronTest']);
 
-Auth::routes(['verify' => true]);
+Auth::routes();
 // CDN for External API
 Route::get('/storage/app/private/{folder}/{folder_id}/{path}', [FileController::class, 'getFile']);
 Route::get('/shared_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentController::class, 'docTransfer']);
@@ -105,7 +108,7 @@ Route::group(["middleware"=>"auth"],function(){
     Route::get('/profile/{id}/{settings}',  [BoardController::class, "index"]);
     // Route::get('/profile', [UserController::class, 'index']);
     // Route::get('/invite', [MembersController::class, 'inviteToMember']);
-    Route::group(['middleware' => ['verified.user']], function() {
+    // Route::group(['middleware' => ['verified.user']], function() {
         Route::get('/' ,function () {
             {return Redirect::route('board');}
         });
@@ -294,7 +297,6 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/check_join', [MembersController::class, 'checkJoin']);
         Route::post('/set_member_link', [MembersController::class, 'toggleFriend']);
         Route::post('/respond_partner_request', [MembersController::class, 'respondPartnerRequest']);
-        Route::post('/member_get_partner_requests', [MembersController::class, 'getPartnerRequests']);
         Route::post('/block_user', [MembersController::class, 'blockUser']);
         Route::post('/member_get_block_list', [MembersController::class, 'getBlockList']);
         // ->middleware('throttle:3,1');
@@ -303,15 +305,22 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/get_posts', [PostController::class, 'get_posts']);
         Route::post('/post_get_users', [PostController::class, 'post_get_users']);
         Route::post('/post_get_tags', [PostController::class, 'post_get_tags']);
-        Route::post('/post_create', [PostController::class, 'post_create']);
         Route::post('/post_file_upload', [PostController::class, 'post_file_upload']);
         Route::post('/post_add_record', [PostController::class, 'post_add_record']);
         Route::post('/post_delete_file', [PostController::class, 'post_delete_file']);
         Route::get('/post_get_possible_charge', function (Request $request){
             return Auth::user()->award_charge;
         });
+        Route::post('/challenge_charge_to', [PostController::class, 'challenge_charge_to']);
+        Route::post('/get_post_comments', [PostController::class, 'get_post_comments']);
+        Route::post('/post_comment_add', [PostController::class, 'post_comment_add']);
+        Route::post('/post_add_clap', [PostController::class, 'post_add_clap']);
+        Route::post('/post_comment_edit', [PostController::class, 'post_comment_edit']);
+        Route::post('/post_comment_delete', [PostController::class, 'post_comment_delete']);
+        Route::post('/post_status_update', [PostController::class, 'post_status_update']);
 
-    });    
+
+    // });    
 
     
 });

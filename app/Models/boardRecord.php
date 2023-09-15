@@ -11,7 +11,7 @@ class boardRecord extends Model
    
     //ユーザー情報取得リレーション
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'a_path', 'a_version');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id');
     }
     public function board_to_users(){
         return $this->hasMany(boardToUser::class, 'record_id');
@@ -37,6 +37,6 @@ class boardRecord extends Model
     ];
     protected $fillable = [
         'q_token',
-        'last_activity',
+        'icon_id'
     ];
 }

@@ -158,7 +158,6 @@ class SocialLoginController extends Controller
         $board = new boardRecord;
         $board->user_id = $user->id;
         $board->title = 'My chat';
-        $board->last_activity = now();
         $board->private_flag = 3;
         $board->save();
 
@@ -167,7 +166,6 @@ class SocialLoginController extends Controller
         $self->user_id = $user->id;
         $self->invited_by = $user->id;
         $self->joined_at = now();
-        $self->member_status = 1;
         $self->invited_at = now();
         $self->admin_flag = 1;
         $self->save();

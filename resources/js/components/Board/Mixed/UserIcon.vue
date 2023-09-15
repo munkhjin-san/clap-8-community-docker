@@ -1,6 +1,9 @@
 <template>
     <div :title="user && user.name ? user.name : ''">
-        <img draggable="false" :class="[imgClass, themeIcon]" v-lazy="{src: userIcon}" :style="imgStyle" />
+        <img v-if="userIcon" draggable="false" :class="[imgClass, themeIcon]" v-lazy="{src: userIcon}" :style="imgStyle" />
+        <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
+            <circle cx="15" cy="15" r="15" fill="#ddd"/>
+        </svg>
     </div>
 </template>
 <script>
@@ -15,13 +18,13 @@
                 
             },
             userIcon(){
-                if(this.user && this.user.a_path){
+                if(this.user && this.user.icon_id){
                     const devicePixelRatio = window.devicePixelRatio || 1;
-                    const imageFileName = devicePixelRatio > 1 ? `${this.user.id}_${this.user.a_path}_200.jpg` : `${this.user.id}_${this.user.a_path}_${this.size ? this.size : '30'}.jpg`
+                    const imageFileName = devicePixelRatio > 1 ? `${this.user.icon_id}_${this.user.id}_200.jpg` : `${this.user.icon_id}_${this.user.id}_${this.size ? this.size : '30'}.jpg`
                     return `${window.location.origin}/content/profile_icon/${imageFileName}`;
                     
                 }else{
-                    return this.$store.state.baseLocation + '/content/profile_icon/noimage.jpg'
+                    return null
                 }
             },
         }

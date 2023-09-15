@@ -7,15 +7,7 @@
 
             
             <div id="searchContainer" class="left-panel-outer" @scroll="scrollListen">       
-                <div v-for="(item) in inActiveList">
-                    <BoardItem 
-                        :item="item"                        
-                        :isOpened="isOpened(item.id)"
-                        :openedBoard="openedBoard"
-                        :active="false"
-                        @openBoard="openBoard"
-                    />
-                </div>             
+                           
                 <div 
                     :key="item.id" 
                     @click="boardListDropEnterFromFile(item)" 
@@ -121,24 +113,12 @@ import BoardCreateButton from './BoardCreateButton.vue'
                     return 'calc(100% - 90px)'
                 }
             },
-            inActiveList(){
-                let res = []
-                this.list.forEach((board, index) => {
-                    
-                    let users = board.board_to_users  
-                    let inactive = users.filter( obj => obj.user_id == this.$store.state.user?.id && obj.member_status == 0)
-                    if(inactive.length){
-                        res.push(board)
-                    }
-                }); 
-                return res
-            },
             pinnedBoards(){
                 let res = []
                 this.list.forEach((board, index) => {
                     
                     let users = board.board_to_users  
-                    let pinned = users.filter( obj => obj.user_id == this.$store.state.user?.id  && obj.member_status == 1)
+                    let pinned = users.filter( obj => obj.user_id == this.$store.state.user?.id)
                     if(pinned.length && pinned[0].pin_flag){
                         res.push(board)
                     }
@@ -149,7 +129,7 @@ import BoardCreateButton from './BoardCreateButton.vue'
                 let res = []
                 this.list.forEach((board, index) => {
                     let users = board.board_to_users      
-                    let pinned = users.filter( obj => obj.user_id == this.$store.state.user?.id  && obj.member_status == 1)
+                    let pinned = users.filter( obj => obj.user_id == this.$store.state.user?.id)
                     if(pinned.length && !pinned[0].pin_flag){                    
                         res.push(board)
                     }

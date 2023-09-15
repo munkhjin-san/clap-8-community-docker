@@ -26,44 +26,31 @@ use InvalidArgumentException;
 class SharedService
 {
     public function getUserState($target_id, $self){
-        $is_friend = $target_id == $self->id ? "self" : $self->friends()->where('friend_id', $target_id)->where('status', 1)->exists();
-        $is_waiting = $target_id == $self->id ? "self" : $self->friends()->where('friend_id', $target_id)->where('status', 0)->exists();
-        $is_blocked = $target_id == $self->id ? "self" : $self->blockedUsers()->where('blocked_user_id', $target_id)->exists();
-        $is_blocked_by = $self->usersWhoBlockedMe()->where('user_id', $target_id)->exists();
         
         $data = User::where('id', $target_id)
         ->select(
             'id', 
             'name', 
-            'a_path', 
-            'a_version', 
-            // 'phone', 
-            // 'email', 
-            'q_token', 
-            // 'phone_prefix', 
-            'is_public', 
-            // 'color', 
-            // 'email_verified_at', 
-            // 'phone_isVerified', 
-            'created_at'
+            'created_at',
+            'icon_id'
         )
         ->with('user_detail')
         ->first();
         if(empty($data)){
             return null;
         }
-        $is_recieved_request = $data->friends()->where('friend_id', $self->id)->where('status', 0)->exists();
+       
         $has_mutual_chat = boardRecord::where('private_flag', 0)->whereHas('board_to_users', function($q) use ($target_id){
             $q->where('user_id', $target_id)->where('deleted_status', 0);
         })->whereHas('board_to_users', function($q) use($self){
             $q->where('user_id', $self->id)->where('deleted_status', 0);
         })->exists();
-        $data["is_blocked"] = $is_blocked;
-        $data["is_friend"] = $is_friend;
-        $data["is_waiting"] = $is_waiting;
-        $data["is_blocked_by"] = $is_blocked_by;
-        $data["is_recieved_request"] = $is_recieved_request;
-        $data["has_mutual_chat"] = $has_mutual_chat;
+        $data["is_blocked"] = false;
+        $data["is_friend"] = false;
+        $data["is_waiting"] = false;
+        $data["is_blocked_by"] = false;
+        $data["is_recieved_request"] = false;
+        $data["has_mutual_chat"] = false;
         return $data;
     }
     public function createUserDefaultIcon($user){
@@ -90,22 +77,24 @@ class SharedService
         });
 
         $size_variants = [200, 120, 80, 45, 30, 25, 20, 15];
-        if (!Storage::disk('local')->exists('temp')) {
-            Storage::disk('local')->makeDirectory('temp');
+        if (!Storage::disk('local')->exists('profile_icon')) {
+            Storage::disk('local')->makeDirectory('profile_icon');
         }
-        if (!Storage::disk('s3')->exists('profile_icon')) {
-            Storage::disk('s3')->makeDirectory('profile_icon');
-        }
+        $icon = new Icons;
+                
+        $icon->mime_type = 'image';
+        $icon->extension = 'jpg';       
+        $icon->user_id = $user->id;
+        $icon->profile_id = $user->id;
+        $icon->use_of = "profile_default";
+        $icon->save();
         foreach($size_variants as $size){
             $img_rsz = $img->resize($size, $size);
-            Storage::disk('s3')->delete('profile_icon/' . $user->id . '_' . $user->a_path . '_' . $size . '.jpg');   
-            $set_path = $user->id . '_' . $new_a_path . '_' . $size . '.jpg';
-            $temp_path = storage_path('app/temp/'.$set_path);
-            $img_rsz->save($temp_path);            
-            Storage::disk('s3')->put('profile_icon/' . $user->id . '_' . $new_a_path . '_' . $size . '.jpg', file_get_contents($temp_path));
-            unlink($temp_path); 
+            $set_path = $icon->id . '_' . $user->id . '_' . $size . '.jpg';
+            $temp_path = storage_path('app/profile_icon/'.$set_path);
+            $img_rsz->save($temp_path);
         }
-        $user->update(['a_path' => $new_a_path, 'a_version' => 0]);
+        $user->update(['icon_id' => $icon->id]);
         return true;
     }
     public function newUserQrCode ($path, $id, $current_token) {   
@@ -167,7 +156,7 @@ class SharedService
             $rmv = Icons::where('record_id', '=', $board->id)->where('use_of', '=', 'board')->get();
             if($rmv){
                 foreach($rmv as $del){
-                    Storage::disk('s3')->delete('board_icon/board_' . $del->id . '.' . $del->extension);
+                    Storage::disk('local')->delete('board_icon/board_' . $del->id . '.' . $del->extension);
                     $del->delete();
                     $del->save();
                 }
@@ -181,7 +170,7 @@ class SharedService
         $icon->record_id = $board->id;                
         $icon->use_of = "board";
         $icon->save();
-        $board->icon_id = $icon->id;
+        $board->update(['icon_id' => $icon->id]);
         
         
         
@@ -318,16 +307,11 @@ class SharedService
             $pos_y = 22; 
         }                 
         $set_path = 'board' . '_' . $icon->id . '.' . 'png';
-        if (!Storage::disk('s3')->exists('board_icon')) {
-            Storage::disk('s3')->makeDirectory('board_icon');
+        if (!Storage::disk('local')->exists('board_icon')) {
+            Storage::disk('local')->makeDirectory('board_icon');
         }
-        if (!Storage::disk('local')->exists('temp')) {
-            Storage::disk('local')->makeDirectory('temp');
-        }
-        $temp_path = storage_path('app/temp/'.$set_path);
+        $temp_path = storage_path('app/board_icon/'.$set_path);
         $img->save($temp_path);
-        Storage::disk('s3')->put( 'board_icon/board_' . $icon->id . '.png', file_get_contents($temp_path));
-        unlink($temp_path);   
         return true;
     }
     public function createInfoMessage ($userList, $boardId, $type, $userId){

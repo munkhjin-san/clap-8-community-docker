@@ -45,9 +45,7 @@
         v-if="taskModalView" 
         @closeTaskModal="closeTaskModal" 
         @taskDeleted="taskDeleted"
-        :editFlag="editFlag"
-        :editTaskData="editTaskData"
-        :calendarDay="calendarDay"/>
+        :editTaskData="editTaskData"/>
     </Transition>
     <div v-if="$store.state.listView" style="height:100%;overflow: hidden scroll;position: relative;background:inherit" @scroll="scrollEvent">
             <div class="no-comment-text" v-if="!incompletedTasks.length && !completedTasks.length && !expiredTasks.length" style="font-size:14px;">
@@ -181,7 +179,6 @@ export default {
             taskList: [],
             taskPathSelector: 0,
             taskModalView: false,
-            editFlag: false,
             editTaskData: null,
             taskUserViewFlag: false,
             taskUserViewId: null,
@@ -197,7 +194,6 @@ export default {
                 myRecord: 1
             },
             viewAsList: true,
-            calendarDay: null,
             calendarHide: true,
             tooManyTask: null,
             taskMemberOpen: false,
@@ -286,7 +282,7 @@ export default {
         myTasks() {
             let list = [];
             this.taskList.map(ob => {
-                const me = ob.task_users.filter(user => user.user_id == this.$store.state.user.id);
+                const me = ob.to_users.filter(user => id == this.$store.state.user.id);
                 if (me.length) {
                     list.push(ob);
                 }
@@ -308,8 +304,8 @@ export default {
             }
             else if (this.ftSelector == 1) {
                 this.myTasks.map(ob => {
-                    const me = ob.task_users.filter(user => user.user_id == this.$store.state.user.id);
-                    me.length && me[0].comp_flag === 0 ? list.push(ob) : false;
+                    const me = ob.to_users.filter(user => id == this.$store.state.user.id);
+                    me.length && me[0].pivot.comp_flag === 0 ? list.push(ob) : false;
                 });
                 return list;
             }
@@ -384,16 +380,15 @@ export default {
 
             if (this.ftSelector == 0) {
                 sortAbleTasks.map(ob => {
-                    const me = ob.task_users.filter(user => user.user_id == this.$store.state.user.id);
-                    // me.length && me[0].comp_flag === 0 ? list.push(ob) : false       
-                    if (me.length && me[0].comp_flag === 1) {
+                    const me = ob.to_users.filter(user => user.id == this.$store.state.user.id);    
+                    if (me.length && me[0].pivot.comp_flag === 1) {
                         list.push(ob);
                     }
                     else if (ob.comp_flag == 1) {
                         list.push(ob);
                     }else {
-                        const all_members = ob.task_users
-                        const has_all_completed = all_members.filter(ob => ob.comp_flag == 1)
+                        const all_members = ob.to_users
+                        const has_all_completed = all_members.filter(ob => ob.pivot.comp_flag == 1)
                         if(all_members.length == has_all_completed.length){
                             list.push(ob);
                         }
@@ -433,7 +428,7 @@ export default {
                     const today = moment().format('YYYY-MM-DD')
                     const end = moment(ob.end_at).format('YYYY-MM-DD')
                     const overdue = today > end
-                    if(overdue && ob.comp_flag == 0){
+                    if(overdue && ob.pivot.comp_flag == 0){
                         list.push(ob)
                     }
                 });
@@ -442,8 +437,8 @@ export default {
             }
             else if (this.ftSelector == 1) {
                 this.myTasks.map(ob => {
-                    const me = ob.task_users.filter(user => user.user_id == this.$store.state.user.id);
-                    me.length && me[0].comp_flag === 0 ? list.push(ob) : false;
+                    const me = ob.to_users.filter(user => id == this.$store.state.user.id);
+                    me.length && me[0].pivot.comp_flag === 0 ? list.push(ob) : false;
                 });
                 return list;
             }
@@ -473,7 +468,7 @@ export default {
                 this.checkedMemberIds = members
                 const membersSet = new Set(members);
                 this.taskSelectedMembers = this.taskList.filter(task => {
-                    const taskUserIDs = task.task_users.map(user => user.user_id.toString());
+                    const taskUserIDs = task.to_users.map(user => id.toString());
                     return taskUserIDs.some(userID => membersSet.has(userID));
                 });
                 this.sortIs.myRecord = 0
@@ -516,12 +511,7 @@ export default {
         },
        
         newTask(day) {
-            const isValidDate = Date.parse(day)
-            if(isValidDate){
-                this.calendarDay = day
-            }
             this.editTaskData = null;
-            this.editFlag = false;
             this.taskModalView = true;
         },
         taskDeleted() {
@@ -530,10 +520,9 @@ export default {
             this.$parent.$emit("updateTaskNotify");
         },
         editTask(task) {
-            const usersId = task.task_users.map(ob => ob.user_id);
+            const usersId = task.to_users.map(ob => ob.id);
             if (usersId.indexOf(this.$store.state.user.id) > -1) {
                 this.editTaskData = task;
-                this.editFlag = true;
                 this.taskModalView = true;
             }
         },
@@ -565,9 +554,9 @@ export default {
                 }
             }
            
-            var userData = task.task_users.filter(obj => obj.user_id == this.$store.state.user.id);
+            var userData = task.to_users.filter(obj => obj.id == this.$store.state.user.id);
             if (userData.length) {
-                if (userData[0].comp_flag == 1 || userData[0].comp_flag == "1") {
+                if (userData[0].pivot.comp_flag == 1 || userData[0].pivot.comp_flag == "1") {
                     this.completeTask(task.id, 0);
                 }
                 else {
@@ -597,7 +586,6 @@ export default {
             });
         },
         closeTaskModal(update) {
-            this.calendarDay = null
             this.taskModalView = false
             if (update) {
                 this.getTask(this.taskPathSelector);

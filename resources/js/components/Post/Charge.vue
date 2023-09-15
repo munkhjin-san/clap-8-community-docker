@@ -101,11 +101,11 @@ import LoaderButton from '../Global/LoaderButton.vue'
             challengeChargeBet(){
 
 
-                if(this.chargeLock || !this.chargeTarget || this.charge_bet.value == 0 || this.charge_bet.value == '0') return
+                if(this.chargeLock || !this.chargeTarget || !this.charge_bet || this.charge_bet.value == 0 || this.charge_bet.value == '0') return
                 this.chargeLock = true
                 axios.post('challenge_charge_to',{ charge_bet: this.charge_bet.value, record_id: this.chargeTarget } ).then(response => { 
                     setTimeout(() => {     
-                        
+                        var uniqueChannell = Math.random().toString(36).substring(5);
                         emitter.emit('setToast', {
                             active: true,  
                             type: 'info', 
@@ -115,7 +115,7 @@ import LoaderButton from '../Global/LoaderButton.vue'
                             answers: ['OK'],
                             channel: uniqueChannell
                         })  
-                        this.closeChargeModal(true)                    
+                        this.closeChargeModal(this.chargeTarget)                    
                         this.chargeLock = false                   
                     }, 1000);
 

@@ -1,8 +1,8 @@
 <template>
     <div >
-        <img v-if="item.private_flag == 0" draggable="false" loading="lazy" :class="[imgClass, themeIcon]" v-lazy="{src: boardIcon}" :style="imgStyle">
-        <UserIcon v-else-if="correspondUser" :user="correspondUser" :imgClass="imgClass" size="45"/>
-        <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
+        <img v-if="item.private_flag == 0 && boardIcon" draggable="false" loading="lazy" :class="[imgClass, themeIcon]" v-lazy="{src: boardIcon}" :style="imgStyle">
+        <UserIcon v-if="item.private_flag > 0 && correspondUser" :user="correspondUser" :imgClass="imgClass" size="45"/>
+        <svg v-if="!boardIcon && !correspondUser" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
             <circle cx="15" cy="15" r="15" fill="#ddd"/>
         </svg>
     </div>
@@ -37,7 +37,7 @@ import UserIcon from './UserIcon.vue';
                 return null
             },
             boardIcon(){
-                var path = this.$store.state.baseLocation + '/profile_icon/noimage.jpg';
+                var path = null
                 if(this.item.icons){
                     var path = `${this.$store.state.baseLocation}/content/board_icon/board_${this.item.icon_id}.${this.item.icons.extension}`;
                 }

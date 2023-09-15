@@ -441,17 +441,17 @@ class UserController extends Controller{
     public function deleteAccount (Request $request){                
         $user = Auth::user();   
         $adminPrivilageBoards = boardRecord::where('private_flag', 0)->whereHas('board_to_users', function ($q){
-            $q->where('user_id', Auth::id())->where('admin_flag', 1)->where('member_status', 1);
+            $q->where('user_id', Auth::id())->where('admin_flag', 1);
         })->with('board_to_users')->get();
         foreach($adminPrivilageBoards as $board){
-            $hasOtherMember = $board->board_to_users()->where('user_id', '!=', Auth::id())->where('member_status', 1)->count();
+            $hasOtherMember = $board->board_to_users()->where('user_id', '!=', Auth::id())->count();
             if($hasOtherMember){
-                $hasOtherAdmin = $board->board_to_users()->where('user_id', '!=', Auth::id())->where('admin_flag', 1)->where('member_status', 1)->exists();
+                $hasOtherAdmin = $board->board_to_users()->where('user_id', '!=', Auth::id())->where('admin_flag', 1)->exists();
                 if(!$hasOtherAdmin){
                     $board->board_to_users()
                     ->where('user_id', '!=', Auth::id())
                     ->where('admin_flag', 0)
-                    ->where('member_status', 1)
+                    
                     ->orderBy('id')
                     ->limit(1)
                     ->update(['admin_flag' => 1]);

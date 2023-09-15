@@ -18,4 +18,7 @@ class taskRecord extends Model
     public function task_users(){
         return $this->hasMany(taskUser::class, 'record_id', 'id')->with('user');
     }
+    public function to_users(){
+        return $this->belongsToMany(User::class, 'task_users', 'record_id', 'user_id')->withPivot('id', 'comp_flag')->select(['users.id as id', 'users.name','users.icon_id']);
+    }
 }

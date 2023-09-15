@@ -162,6 +162,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                 }
             },
             messageBody(){
+                if(!this.message.message) return this.message.message
                 const to_all = this.message.message.replace('<span class="toAll">@allMemberMention</span>', `<a class="toAll">@${this.$t('allMemberMention')}</a>`)
                 const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                 const br_remove = converterd.replace(/&lt;br&gt;/g," ");

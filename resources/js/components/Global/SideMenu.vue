@@ -170,12 +170,11 @@ import UserIcon from '../Board/Mixed/UserIcon.vue';
                     this.notifyGet()
                 }
                 if(this.$store.state.user && e.message && e.message.partner_request_to == this.$store.state.user.id){
-                    this.getPartnerRequests();
+                    
                     emitter.emit('getFriends', true)
                 }
             });
-            emitter.on('getPartnerRequests', () => this.getPartnerRequests());
-            this.getPartnerRequests()
+            
             
         },
         watch: {
@@ -254,13 +253,7 @@ import UserIcon from '../Board/Mixed/UserIcon.vue';
                 if(this.$store.state.mobile){
                     this.$store.commit('setSideMenuView', false)
                 }
-            },
-            getPartnerRequests(){
-                axios.post('/member_get_partner_requests').then(response => {  
-                    this.partnerRequestBadge = response.data
-            
-                })
-            },   
+            },  
             authCheck(){
                 axios.post('/auth_check', {id: this.$store.state.user.id}).catch(function (error) {
                     if (error.response) {

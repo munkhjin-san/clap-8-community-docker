@@ -9,6 +9,6 @@ class memoRecord extends Model
 {   
     use SoftDeletes;
     public function user(){
-        return $this->hasOne(User::class, 'id', 'user_id')->withTrashed()->select('id', 'name', 'a_version', 'a_path');
+        return $this->hasOne(User::class, 'id', 'user_id')->withTrashed()->select('id', 'name', 'icon_id');
     }
 }
