@@ -124,10 +124,15 @@ const store = createStore({
                 userList: [],
                 title: ''
             },
-            activeInput: ''
+            activeInput: '',
+            calendarOffset: {
+                left: 0,
+                top: 0
+            }
         }
     },
     mutations: {
+        setCalendarOffset(state, data){state.calendarOffset = data},
         setActiveInput(state, data){state.activeInput = data},
         setBadge(state, data){state.badge = data},
         setSkeleton(state, data){ state.skeleton = data },

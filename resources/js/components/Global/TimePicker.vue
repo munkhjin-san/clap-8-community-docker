@@ -4,7 +4,8 @@
             <Field 
                 class="taskDateTimePicker" 
                 :class="[{'date-color' : $store.state.dark }]" 
-                :name="name" type="date" 
+                :name="name" 
+                type="time" 
                 :rules="rules" 
                 v-model="value"
                 @input="$emit('setValue', $event.target.value)"

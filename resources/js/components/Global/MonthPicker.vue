@@ -7,7 +7,7 @@
             <div></div>
             
         </div>
-        <div id="taskYearPicker" class="month-grid" v-if="$store.state.menu.id == 42 && $store.state.menu.name == 'taskYearPicker'">
+        <div id="taskYearPicker" class="month-grid" v-if="$store.state.menu.id == 42 && $store.state.menu.name == 'taskYearPicker'" :style="{right : right ? right : 'auto'}">
             <div class="grid-container">
                 <div @click.stop="decreaseYear" class="grid-item grid-picker">
                     <svg version="1.1" width="13" height="13" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
@@ -36,7 +36,7 @@
 import { nextTick } from 'vue'
 import moment from 'moment'
     export default {        
-        props: ['selectedMonth', 'selectedYear'],
+        props: ['selectedMonth', 'selectedYear', 'right'],
         emits: ['setDate'],
         data(){
             return{
@@ -157,7 +157,7 @@ import moment from 'moment'
         position: absolute;
         top: 40px;
         box-shadow: 0 1px 2px 0 rgb(60 64 67 / 30%), 0 2px 6px 2px rgb(60 64 67 / 15%);
-        z-index: 10;
+        z-index: 15;
     }
     .grid-item {
         height: 50px;

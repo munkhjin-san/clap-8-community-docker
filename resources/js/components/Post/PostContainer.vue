@@ -221,49 +221,5 @@ export default{
 }
 </script>
 <style>
-.post-root{
-    width: 100%;
-    background: var(--bg2);
-    height: 100%;
-    overflow: hidden;
-    position: relative;
-}
-.post-container{
-    width: 100%;
-    height: calc(100% - 60px);
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-}
-.post-header{
-    width: 100%;
-    height: 60px;
-    display: flex;
-    align-items: center;
-}
-.post-search-wrap{
-    width: 30%;
-}
-.post-list-reset{
-    background: var(--primary-color);
-    color: var(--background-color);
-    padding: 5px 15px;
-    text-align: center;
-    margin: auto;
-    border-radius: 13px;
-    font-size: 12px;
-    line-height: 2;
-    position: absolute;
-    bottom: 30px;
-    left: 0;
-    right: 0;
-    width: fit-content;
-    cursor: pointer;
-}
-.post-list-reset:hover{
-    text-decoration: none !important;
-    color: var(--background-color) !important;
-    font-weight: unset !important;
 
-}
 </style>

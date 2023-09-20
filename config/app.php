@@ -81,7 +81,7 @@ return [
     |
     */
 
-    'timezone' => 'Asia/Ulaanbaatar',
+    'timezone' => 'Asia/Tokyo',
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

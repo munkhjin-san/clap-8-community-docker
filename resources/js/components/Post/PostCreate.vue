@@ -17,7 +17,7 @@
                 <div v-if="!editTarget || (editTarget && editTarget.award_entry == 0)" class="selectSwitchArea" style="display: flex;width: 100%;">    
                     <input type="checkbox" id="switchEntrySelect" v-model="switchEntrySelectModel">
                     <label for="switchEntrySelect" style="min-width: 80px;" class="cursor-pointer"><span></span></label>
-                    <div id="swImgEntrySelect">
+                    <div class="switch-toggle">
                     </div>
                 </div>
                 <div v-if="editTarget && editTarget.award_entry == 1" class="selectSwitchArea" style="display: flex;width: 100%;">
@@ -265,8 +265,7 @@ import moment from 'moment'
                     .catch(function (error) {
                         if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                         else if (error.request) this.errorToast('エラーが発生しました。')
-                        else this.errorToast('エラーが発生しました。 ' + error.message)   
-                        this.$store.commit('setUrlMessageId', null)      
+                        else this.errorToast('エラーが発生しました。 ' + error.message)      
                         this.processing = false                    
                     }.bind(this));
                     
@@ -298,94 +297,6 @@ import moment from 'moment'
 </script>
 <style>
 
-    .post-error{
-        bottom: -12px !important;
-    }
-    .selectSwitchArea {
-        line-height    : 32px;            
-        letter-spacing : 0;                   /* 文字間             */
-        text-align     : center;              /* 文字位置は中央     */
-        font-size      : 14px;                /* 文字サイズ         */
-        position       : relative;            /* 親要素が基点       */
-        /*margin         : auto;*/                /* 中央寄せ           */
-        width          : 80px;               /* ボタンの横幅       */
-        /*background     : #fff;*/                /* デフォルト背景色   */
-        margin-top: 20px;
-    }
-
-    /* === チェックボックス ==================================== */
-    .selectSwitchArea input[type="checkbox"]{
-        display        : none;            /* チェックボックス非表示 */
-    }
-
-    /* === チェックボックスのラベル（標準） ==================== */
-    .selectSwitchArea label{
-        display        : block;               /* ボックス要素に変更 */
-        box-sizing     : border-box;          /* 枠線を含んだサイズ */
-        height         : 32px;                /* ボタンの高さ       */
-        /*border         : 2px solid #000000;*/   /* 未選択タブのの枠線 */
-        border-radius  : 30px;                /* 角丸               */
-        background     : var(--check-inactive);
-    }
-
-    /* === チェックボックスのラベル（ONのとき） ================ */
-    .selectSwitchArea input[type="checkbox"]:checked +label{
-                /* 選択タブの枠線     */
-        background     : #424242;
-    }
-
-    /* === 表示する文字（標準） ================================ */
-    .selectSwitchArea label span:after{
-        content        : "OFF";               /* 表示する文字       */
-        padding        : 0 0 0 38px;          /* 表示する位置       */
-        color          : #000000;             /* 文字色             */
-    }
-
-    /* === 表示する文字（ONのとき） ============================ */
-    .selectSwitchArea input[type="checkbox"]:checked + label span:after{
-        content        : "ON";                /* 表示する文字       */
-        padding        : 0 40px 0 10px;          /* 表示する位置       */
-        color          : #ffffff;             /* 文字色             */
-    }
-
-    /* === 丸部分のSTYLE（標準） =============================== */
-    .selectSwitchArea #swImgEntrySelect{
-        position       : absolute;            /* 親要素からの相対位置*/
-        width          : 22px;                /* 丸の横幅           */
-        height         : 22px;                /* 丸の高さ           */
-        background     : #fff;             /* カーソルタブの背景 */
-        top            : 4px;                 /* 親要素からの位置   */
-        left           : 5px;                 /* 親要素からの位置   */
-        border-radius  : 26px;                /* 角丸               */
-        transition     : .2s;                 /* 滑らか変化         */
-        color          : #ffffff;
-        line-height    : 22px;
-        border: 1px solid #ccc;
-    }
-
-    /* === 丸部分のSTYLE（ONのとき） =========================== */
-    .selectSwitchArea input[type="checkbox"]:checked ~ #swImgEntrySelect{
-        transform      : translateX(46px);    /* 丸も右へ移動       */
-        background     : #fff;             /* カーソルタブの背景 */
-        border: 1px solid #ccc;
-    }
-    .switchElement{
-        width: 100%;
-    }
-    .switchLabel{
-        width: calc(100% / 5 - 30px);
-        text-align: left;
-        line-height: 30px;
-    }
-    .form-title-small{
-        white-space: nowrap;
-        color:gray;
-        font-size:14px;
-        transition: color 0.3s ease;
-    }
-    .form-title-active{
-        color: var(--primary-color);
-    }
 
 </style>
     

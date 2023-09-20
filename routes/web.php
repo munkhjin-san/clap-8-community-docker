@@ -128,7 +128,7 @@ Route::group(["middleware"=>"auth"],function(){
         // Route::get('/nice', [BoardController::class, "index"]);
         // Route::get('/challenge', [BoardController::class, "index"]);
 
-        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members)');
+        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|calendar)');
         
         // Route::get('/{name}',function () {
         //     {return Redirect::route('board');}
@@ -318,6 +318,13 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/post_comment_edit', [PostController::class, 'post_comment_edit']);
         Route::post('/post_comment_delete', [PostController::class, 'post_comment_delete']);
         Route::post('/post_status_update', [PostController::class, 'post_status_update']);
+
+
+
+        Route::post('/get_calendar_data', [CalendarController::class, 'get_calendar_data']);
+        Route::post('/get_possible_facilities', [CalendarController::class, 'get_possible_facilities']);
+        Route::post('/calendar_add_record', [CalendarController::class, 'calendar_add_record']);
+
 
 
     // });    
