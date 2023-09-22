@@ -10,11 +10,11 @@ class CommentRecord extends Model
     use HasFactory;
 
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'icon_id');
     }
 
     protected $fillable = [
-        'messages'
+        'messages', 'deleted_flag'
     ];
     protected $casts = [
         'user_id' => 'int',  

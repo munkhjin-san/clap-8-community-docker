@@ -156,7 +156,20 @@ const routes = [
         beforeEnter: (to, from, next) => {
             fetchPosts(to, next, from, 'work');
         },
+    },
+    {
+        path: '/calendar',
+        name: 'calendar',
+        component: () => import('./components/Calendar/CalendarContainer.vue'),
+        beforeEnter: (to, from, next) => {
+            document.body.style.height = '100%';
+            document.body.style.position = 'fixed';
+            document.body.style.overflow = 'hidden';
+            next();
+        }, 
+        
     }
+
 
 ]
 function resolveBeforeEnter(to, next, from) {

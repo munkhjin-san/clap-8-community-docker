@@ -11,8 +11,8 @@
                     </div>
                     <div style="display:flex;flex-direction:column;overflow: hidden;font-size:14px;overflow: hidden;font-size: 14px;margin-left: 13px;min-height: 72px;place-content: center;">   
                         <div style="font-weight:600;margin-bottom:10px;"><router-link class="user-link" :to="'/profile/' + user.id">{{user.name}}</router-link></div>
-                        <div v-if="!user.is_blocked_by && user.user_detail.email" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'mailto:' + user.user_detail.email">{{user.user_detail.email}}</a></div>
-                        <div v-if="!user.is_blocked_by && user.user_detail.phone" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'tel:' + user.user_detail.phone">{{user.user_detail.phone}}</a></div>   
+                        <div v-if="!user.is_blocked_by && user.work_email" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'mailto:' + user.work_email">{{user.work_email}}</a></div>
+                        <div v-if="!user.is_blocked_by && user.phone_number" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'tel:' + user.phone_number">{{user.phone_number}}</a></div>   
                         
 
                     </div>

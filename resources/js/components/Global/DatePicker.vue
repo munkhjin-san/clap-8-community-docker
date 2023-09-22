@@ -5,7 +5,7 @@
                 class="taskDateTimePicker" 
                 :class="[{'date-color' : $store.state.dark }]" 
                 :name="name" type="date" 
-                rules="required" 
+                :rules="rules" 
                 v-model="value"
                 @input="$emit('setValue', $event.target.value)"
             />
@@ -17,11 +17,11 @@
     <script>
     import { Field, Form , ErrorMessage } from 'vee-validate'
     export default{
-        props: ['placeHolder', 'name', 'rules', 'uId'],
+        props: ['placeHolder', 'name', 'rules', 'uId', 'initialValue'],
         emits: ['setValue'],
         data(){
             return{
-                value: ''
+                value: this.initialValue ? this.initialValue : ''
             }
         },
         components: {

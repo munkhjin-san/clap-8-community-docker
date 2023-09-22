@@ -1,0 +1,45 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class CalendarRecord extends Model
+{
+    use HasFactory;
+    use SoftDeletes;
+    public function calendar_users(){
+        return $this->belongsToMany(User::class, 'calendar_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_id']);
+    }
+    public function updated_by(){
+        return $this->hasOne(User::class, 'id', 'updated_user')->select('id', 'name', 'icon_id', 'icon_id');
+    }
+    protected $hidden = [
+        'color', 
+        'comp_flag', 
+        'date_end_text', 
+        'date_start_text', 
+        'day_end_text', 
+        'day_start_text', 
+        'h_height', 
+        'h_top', 
+        'qualified_users', 
+        'release_flag', 
+        'task_date_end_text', 
+        'task_end', 
+        'task_h_top', 
+        'task_time_end_text', 
+        'time_end_text', 
+        'time_start_text',
+        'type',
+
+    ];
+    protected $fillable = [
+        'user_id', 
+        'title', 
+        'date_start',
+        'date_end'
+    ];
+}

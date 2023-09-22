@@ -133,13 +133,7 @@ class MembersController extends Controller
         $tagIds = $request->tag;
         $userId = Auth::id();
         $key = $request->key;
-        $usersQuery = Auth::user()->friends()
-            ->whereDoesntHave('usersWhoBlockedMe', function ($query) {
-                $query->where('user_id', Auth::id());
-            })
-            ->whereDoesntHave('blockedUsers', function ($query) {
-                $query->where('blocked_user_id', Auth::id());
-            })
+        $usersQuery = Auth::user()->friends()            
             ->when($key, function ($query, $key ) {
                 $query->where(function ($query) use ($key) {
                     $query->where('name', 'like', "%$key%")
@@ -204,7 +198,7 @@ class MembersController extends Controller
         //     }  
             
         // }
-        // $users = $usersQuery->select('id', 'name', 'q_token', 'a_path', 'a_version')->with('user_detail')->with('tags')->get();
+        // $users = $usersQuery->select('id', 'name', 'q_token', 'icon_id')->with('user_detail')->with('tags')->get();
 
         return response()->json($users);
     }
@@ -213,12 +207,6 @@ class MembersController extends Controller
         $userId = Auth::id();
         $key = $request->key;
         $usersQuery = User::where('is_public', 1)
-            ->whereDoesntHave('usersWhoBlockedMe', function ($query) {
-                $query->where('user_id', Auth::id());
-            })
-            ->whereDoesntHave('blockedUsers', function ($query) {
-                $query->where('blocked_user_id', Auth::id());
-            })
             ->where('id', '!=', $userId)
             ->whereNotExists(function ($query) use ($userId) {
                 $query->select(DB::raw(1))
@@ -251,7 +239,7 @@ class MembersController extends Controller
             }  
             
         }
-        $users = $usersQuery->select('id', 'name', 'q_token', 'a_path', 'a_version')->with('user_detail')->with('tags')->paginate(30);
+        $users = $usersQuery->select('id', 'name', 'q_token', 'icon_id')->with('user_detail')->with('tags')->paginate(30);
         return response()->json($users);
         
     }
@@ -334,7 +322,6 @@ class MembersController extends Controller
             $board->user_id = Auth::id();
             $board->private_flag = 1;  
             $board->title = 'NoTitle';
-            $board->last_activity = now();
             $board->save();           
             
 
@@ -345,11 +332,7 @@ class MembersController extends Controller
                 $boardToUser->user_id = $to_user;    
                 $boardToUser->admin_flag = 1;      
                 $boardToUser->invited_by = Auth::id(); 
-                if($to_user == Auth::id()){
-                    $boardToUser->member_status = 1;   
-                }else{
-                    $boardToUser->member_status = 0;                       
-                }
+                
                  
                 $boardToUser->save();
 
@@ -367,36 +350,7 @@ class MembersController extends Controller
         }
         
 
-        // $boardRecord = BoardRecord::where('private_flag', 1)->whereHas('board_to_users', function ($query) use ($targetId) {
-        //     $query->where('user_id', $targetId)->where('member_status', 1);                
-        // })->whereHas('board_to_users', function ($query) {
-        //     $query->where('user_id', Auth::id())->where('member_status', 1);                
-        // })->first();
-        // if(!empty($boardRecord)){
-        //     echo $boardRecord;      
-        //     echo url('/');
-        //     return redirect(url('/?id=' . $boardRecord->id));
-        // }else{
-        //     $board = new boardRecord;
-        //     $board->user_id = Auth::id();
-        //     $board->private_flag = 1;  
-        //     $board->title = 'NoTitle';
-        //     $board->save();           
-            
-
-        //     $to_users = [Auth::id(), $targetId];
-        //     foreach($to_users as $to_user){
-        //         $boardToUser = new boardToUser;
-        //         $boardToUser->record_id = $board->id;
-        //         $boardToUser->user_id = $to_user;    
-        //         $boardToUser->admin_flag = 1;      
-        //         $boardToUser->invited_by = Auth::id(); 
-        //         $boardToUser->member_status = 1;    
-        //         $boardToUser->save();
-
-        //     }   
-            
-        // }
+      
 
 
 
@@ -427,13 +381,11 @@ class MembersController extends Controller
             $boardToUser->invited_by = Auth::id();
             $boardToUser->invited_at = now();
             
-            $boardToUser->member_status = $targetBoard->able_join == 1 ? 1 : 0;
             $boardToUser->joined_at = now();
             $boardToUser->save();  
-            $result = [ "message" => $boardToUser->member_status == 1 ? 'directJoin' : 'joinRequestSuccess'];
-            if($boardToUser->member_status == 1){
-                $createInfo = $this->sharedService->createInfoMessage([Auth::user()->name], $targetId, 'added_members', Auth::id()); 
-            }
+            $result = [ "message" => 'directJoin'];
+            $createInfo = $this->sharedService->createInfoMessage([Auth::user()->name], $targetId, 'added_members', Auth::id()); 
+            
 
             return response()->json($result, 200);         
             
@@ -495,7 +447,6 @@ class MembersController extends Controller
             $board->user_id = Auth::id();
             $board->private_flag = 1;  
             $board->title = 'NoTitle';
-            $board->last_activity = now();
             $board->save();           
             
 
@@ -507,11 +458,7 @@ class MembersController extends Controller
                 $boardToUser->admin_flag = 1;      
                 $boardToUser->invited_by = Auth::id(); 
                 $boardToUser->joined_at = now();
-                if($to_user == Auth::id()){
-                    $boardToUser->member_status = 1;   
-                }else{
-                    $boardToUser->member_status = 0;                       
-                }
+                
                  
                 $boardToUser->save();
 
@@ -626,7 +573,7 @@ class MembersController extends Controller
         }
         
         if(Auth::check()){
-            $target_user = User::where('id', $request->id)->where('q_token', $request->token)->select('id', 'name', 'a_path', 'a_version', 'q_token')->first();
+            $target_user = User::where('id', $request->id)->where('q_token', $request->token)->select('id', 'name', 'icon_id', 'q_token')->first();
             
             if(!empty($target_user)){    
                  
@@ -642,7 +589,7 @@ class MembersController extends Controller
                 return;
             }
         }else{
-            $target_user = User::where('id', $request->id)->where('q_token', $request->token)->select('id', 'name', 'a_path', 'a_version', 'q_token')->first();
+            $target_user = User::where('id', $request->id)->where('q_token', $request->token)->select('id', 'name', 'icon_id', 'q_token')->first();
             if(!empty($target_user)){ 
                 return view('bypass',['target_user' => $target_user, 'target_board' => null]);
             }else{
@@ -662,11 +609,9 @@ class MembersController extends Controller
         $key = $request->key;
         $userId = Auth::id();
         $notInclude = $request->exc ? $request->exc : [];
-        $block_list = Auth::user()->blockedUsers()->pluck('id')->toArray();
         $blocked_by_list = Auth::user()->usersWhoBlockedMe()->get();
         $blocked_by_list_ids = $blocked_by_list->pluck('id')->toArray();
-        $blockMerge = array_merge($block_list, $blocked_by_list_ids);
-        $friendQuery = User::whereNotIn('id', $notInclude)->whereNotIn('id', $blockMerge)->when($key, function ($query, $key ) {
+        $friendQuery = User::whereNotIn('id', $notInclude)->when($key, function ($query, $key ) {
                 $query->where(function ($query) use ($key) {
                     $query->where('name', 'like', "%$key%")
                         ->orWhere('email', 'like', "%$key%")
@@ -683,7 +628,7 @@ class MembersController extends Controller
             })
             ->where('id', '!=', $userId);
 
-        $friends = $friendQuery->select('id', 'name','a_path', 'a_version')->get();
+        $friends = $friendQuery->select('id', 'name','icon_id')->get();
 
         
 
@@ -703,7 +648,7 @@ class MembersController extends Controller
             ->where('id', '!=', $userId)
             ->orderByRaw('RAND()')
             ->take(10)
-            ->select('id', 'name','a_path', 'a_version')
+            ->select('id', 'name','icon_id')
             ->get();
 
         $res = [
@@ -738,7 +683,7 @@ class MembersController extends Controller
             'id' => 'required',
             'token' => 'required'
         ]);
-        $target_user = User::where('id', $request->id)->where('q_token', $request->token)->select('id', 'name', 'a_path', 'a_version')->first();
+        $target_user = User::where('id', $request->id)->where('q_token', $request->token)->select('id', 'name', 'icon_id')->first();
         $user = Auth::user();
         if(!empty($target_user)){   
             if (!$user->friends()->where('friend_id', $target_user->id)->exists()) {
@@ -764,34 +709,6 @@ class MembersController extends Controller
         $friend_requests = Friend::where('friend_id', Auth::id())->where('status', 0)->with('user')->count();
         return response()->json($friend_requests);
     }
-    public function blockUser (Request $request){
-        $validatedData = $request->validate([
-            'id' => 'required',
-            'block' => 'required'
-        ]);
-        $target_user = User::findOrFail($request->id);
-            $user = Auth::user();
-        if($request->block){            
-            if($user->blockedUsers()->where('blocked_user_id', $target_user->id)->exists()){
-                throw ValidationException::withMessages(['message' => 'alreadyBlocked']);
-            }
-            else{
-                $user->blockedUsers()->attach($target_user->id);
-                $res = ["message" => "blockSuccess"];
-                return response()->json($res, 200);
-            }
-            
-            
-        }else if(!$request->block){
-            $user->blockedUsers()->detach($target_user->id);
-            $res = ["message" => "unBlockSuccess"];
-            return response()->json($res, 200);
-        }
-
-    }
-    public function getBlockList (Request $request){
-        $list = Auth::user()->blockedUsers()->get();
-        return response()->json($list);
-    }
+   
 
 }

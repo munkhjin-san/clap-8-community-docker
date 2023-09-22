@@ -49,7 +49,7 @@ class AutoJobController extends Controller
         $time_limit_alert = Carbon::today()->subDays(90);
         $alert_dates = boardRecord::where('private_flag', '!=', 3)->whereDate('last_activity', '=', $time_limit_alert)->get();
         foreach($alert_dates as $board){
-            $board_users = $board->board_to_users()->where('deleted_status', 0)->where('member_status', 1)->pluck('user_id')->toArray();
+            $board_users = $board->board_to_users()->where('deleted_status', 0)->pluck('user_id')->toArray();
             
             
             $target_users = User::whereIn('id', $board_users)->whereNotNull('email')->get();
@@ -127,5 +127,45 @@ class AutoJobController extends Controller
     }
     public function removePasswordResets(){
         PasswordReset::where('created_at', '<', Carbon::now()->subDay())->delete();
+    }
+    public function reactedUsersMake(){
+        $messages = MessageRecord::whereNotNull('reacted_users')->skip(280000)->take(20000)->get();
+        $userExist = User::pluck('id')->toArray();
+        $modelCollection = collect($userExist);
+        // echo(count($userExist));
+        // exit;
+        foreach($messages as $message){
+            $list = explode(',', $message->reacted_users);
+            if(!empty($list)){
+
+                // Convert $modelArray to a collection
+                
+
+                // Use the filter method to remove elements not in $modelCollection
+                $filteredSecondArray = collect($list)->filter(function ($item) use ($modelCollection) {
+                    return $modelCollection->contains($item);
+                })->toArray();
+                $message->reactedUsers()->sync($filteredSecondArray);
+                
+            }
+            
+        }
+        echo('success280000');
+        return ;
+    }
+    public function change_to_dummy(){
+        $list = BoardRecord::where('private_flag', 0)->get();
+
+        foreach($list as $user){
+            $createIcon = $this->sharedService->createBoardDefaultIcon($user, Auth::id());   
+        }
+        // $icons = Icons::where('use_of', 'board')->forceDelete();
+
+        // $board = BoardRecord::where('id', 1143)->first();
+        // $createIcon = $this->sharedService->createBoardDefaultIcon($board, Auth::id());   
+        return 'hhh';
+     
+
+
     }
 }

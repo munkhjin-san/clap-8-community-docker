@@ -114,7 +114,6 @@ class RegisterController extends Controller
             $board->user_id = $user->id;
             $board->title = 'My chat';
             $board->private_flag = 3;
-            $board->last_activity = now();
             $board->save();
 
             $self = new boardToUser;
@@ -122,7 +121,6 @@ class RegisterController extends Controller
             $self->user_id = $user->id;
             $self->invited_by = $user->id;
             $self->joined_at = now();
-            $self->member_status = 1;
             $self->invited_at = now();
             $self->admin_flag = 1;
             $self->save();

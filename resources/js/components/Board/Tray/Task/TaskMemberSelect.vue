@@ -46,7 +46,7 @@ import UserIconPreLoad from '../../Mixed/UserIcon.vue'
         computed: {
             usersWithTask(){
                 const users = this.$store.state.signAbleUsers.filter(user => {
-                    return this.taskList.some(task => task.task_users.some(taskUser => taskUser.user_id === user.user_id));
+                    return this.taskList.some(task => task.to_users.some(taskUser => taskUser.id === user.user_id));
                 });
                 
                 return users

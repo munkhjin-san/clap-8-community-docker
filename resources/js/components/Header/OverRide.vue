@@ -272,7 +272,7 @@
     --side-menu-bg: #f5f5f5;
     --side-menu-border: #cdcdcd;
     --link-color: #1a73e8;
-    --task-background: #ebebeb
+    --task-background: #dddddd
 }
 
 // If the app is in dark mode, update the variables

@@ -19,13 +19,18 @@ class ContentController extends Controller
 {
     public function iconTransfer(Request $request){   
         try {       
-            $filePath = $request->which .'/' . $request->path;
-            $fileContents = Storage::disk('s3')->get($request->which .'/' . $request->path);
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $contentType = finfo_buffer($finfo, $fileContents);
-            finfo_close($finfo);
-
-            return response($fileContents)->header('Content-Type', $contentType);
+            // $filePath = $request->which .'/' . $request->path;
+            $exists = Storage::disk('local')->exists($request->which .'/' . $request->path);
+            if($exists){            
+                $fileContents = Storage::disk('local')->get($request->which .'/' . $request->path);            
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $contentType = finfo_buffer($finfo, $fileContents);
+                finfo_close($finfo);
+                return response($fileContents)->header('Content-Type', $contentType);
+            }else{
+                return response()->file(public_path('images/backup.svg'));
+            }
+            
         } catch (FileNotFoundException $exception) {
             abort(404);
         }
@@ -34,16 +39,16 @@ class ContentController extends Controller
         try {
             $filePath = $request->token .'_' . $request->id;
 
-            // if (!Storage::disk('s3')->exists('user_qr_code/' . $filePath)) {
-            //     if (!Storage::disk('s3')->exists('user_qr_code')) {
-            //         Storage::disk('s3')->makeDirectory('user_qr_code');
+            // if (!Storage::disk('local')->exists('user_qr_code/' . $filePath)) {
+            //     if (!Storage::disk('local')->exists('user_qr_code')) {
+            //         Storage::disk('local')->makeDirectory('user_qr_code');
             //     }
             //     $client = new \GuzzleHttp\Client();        
             //     $qrCodeUrl = 'https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=' . urlencode($url = url('/?external=true&token=' . $request->token . '&id=' . $request->id));           
             //     $response = $client->get($qrCodeUrl);    
-            //     Storage::disk('s3')->put('user_qr_code/'.$filePath, $response->getBody());    
+            //     Storage::disk('local')->put('user_qr_code/'.$filePath, $response->getBody());    
             // }
-            $fileContents = Storage::disk('s3')->get('user_qr_code/' . $filePath);
+            $fileContents = Storage::disk('local')->get('user_qr_code/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);
@@ -55,7 +60,7 @@ class ContentController extends Controller
     public function chatQrTransfer(Request $request){
         try {
             $filePath = $request->token .'_' . $request->id;
-            $fileContents = Storage::disk('s3')->get('board_qr_code/' . $filePath);
+            $fileContents = Storage::disk('local')->get('board_qr_code/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);
@@ -69,7 +74,7 @@ class ContentController extends Controller
 
         try {
             $filePath = $request->board_id .'/' . $request->path;
-            $fileContents = Storage::disk('s3')->get('message_files/' . $filePath);
+            $fileContents = Storage::disk('local')->get('message_files/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);
@@ -85,7 +90,7 @@ class ContentController extends Controller
 
         try {
             $filePath = $request->board_id .'/thumbs/' . $request->path;
-            $fileContents = Storage::disk('s3')->get('message_files/' . $filePath);
+            $fileContents = Storage::disk('local')->get('message_files/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);
@@ -104,7 +109,7 @@ class ContentController extends Controller
             
 
             $filePath = $request->board_id .'/' . $request->path;
-            $fileContents = Storage::disk('s3')->get('managed_files/' . $filePath);
+            $fileContents = Storage::disk('local')->get('managed_files/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);
@@ -123,7 +128,7 @@ class ContentController extends Controller
             
 
             $filePath = $request->board_id . '/' . $request->sub_folder .'/' . $request->path;
-            $fileContents = Storage::disk('s3')->get('managed_files/' . $filePath);
+            $fileContents = Storage::disk('local')->get('managed_files/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);
@@ -149,7 +154,7 @@ class ContentController extends Controller
             if($request->keyword == $user->file_key){
                 try {
                     $filePath = $request->board_id .'/' . $request->path;
-                    $fileContents = Storage::disk('s3')->get('message_files/' . $filePath);
+                    $fileContents = Storage::disk('local')->get('message_files/' . $filePath);
                     $finfo = finfo_open(FILEINFO_MIME_TYPE);
                     $contentType = finfo_buffer($finfo, $fileContents);
                     finfo_close($finfo);
@@ -167,7 +172,7 @@ class ContentController extends Controller
     }   
     public function getSignature(Request $request){   
         try {       
-            $fileContents = Storage::disk('s3')->get('user_signature/' . $request->path);
+            $fileContents = Storage::disk('local')->get('user_signature/' . $request->path);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);
@@ -198,11 +203,11 @@ class ContentController extends Controller
                 $file_extension = $file->getClientOriginalExtension();
                 $p = 'report_files/case_' . $report->id;
 
-                Storage::disk('s3')->makeDirectory($p);
+                Storage::disk('local')->makeDirectory($p);
                 $unique_path = uniqid('', true);
                 
                 $set_path = $unique_path . '.' .$file_extension;
-                Storage::disk('s3')->putFileAs(
+                Storage::disk('local')->putFileAs(
                     $p , $file, $set_path
                 );               
             }

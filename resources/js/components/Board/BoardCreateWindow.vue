@@ -664,6 +664,7 @@ import 'cropperjs/dist/cropper.css';
         box-sizing: border-box;
         border: solid thin transparent;
         color: var(--primary-color);
+        background: var(--bg3);
         cursor: pointer;
     }
     .chSelected {

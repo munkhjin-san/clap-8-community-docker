@@ -9,6 +9,8 @@ use App\Models\NiceRecord;
 use App\Models\ChallengeRecord;
 use App\Models\TagRecord;
 use App\Models\FileRecord;
+use App\Models\ClapRecord;
+use App\Models\CommentRecord;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
@@ -40,6 +42,7 @@ class PostController extends Controller
         $model = $nameSpace . ucfirst($request->path) . 'Record'; 
         $params = $request['query'];
         $search_tags = [];
+        $skip = $request->skip;
         if(array_key_exists('search_tags', $params) && $params['search_tags']){
             $parts = explode('|', $params['search_tags']);
             if (count($parts)) {
@@ -72,13 +75,20 @@ class PostController extends Controller
         ->with('user')
         ->with('tags')
         ->with('files')
+        ->withCount('comments')
+        ->with('claps')
         ->when($request->path == 'challenge' || $request->path == 'nice', function ($query) {
             $query->with('to_users');
         })
         ->when($request->path == 'challenge', function ($query) {
-            $query->with('challenge_awards');
+            $query->with('challenge_awards')->with('result_files');
         })
         ->orderBy('created_at', 'desc')
+        ->when(!array_key_exists('id', $params), function ($query) use($skip) {
+            $query->skip($skip);
+            
+        })
+        ->take(10)
         ->get();
 
         return response()->json($qr);
@@ -113,143 +123,8 @@ class PostController extends Controller
             'id',
             'name',
             'icon_id',
-            'a_path',
-            'a_version'
         ]);
         return response()->json($all_users);
-    }
-    public function post_create(Request $request){
-        
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();   
-        
-
-  
-        return response()->json($request);
-            if(!empty($request->to_users)){
-
-                $to_users = $request->to_users;
-
-                foreach($to_users as $to_user){
-
-                    $knowlegeToUser = new knowledgeToUser;
-                    $knowlegeToUser->record_id = $knowledge->id;
-                    $knowlegeToUser->user_id = $to_user;
-                    $knowlegeToUser->save();
-
-                }
-
-            }
-
-            if(!empty($request->tags)){
-
-                $tags = $request->tags;
-
-                foreach($tags as $tag){
-                    $existTag = tagRecord::where('text', '=', $tag)->first();
-                    if(empty($existTag)){
-                        $tagRecord = new tagRecord;
-                        $tagRecord->text = $tag;
-                        $tagRecord->save();
-                        $knowledgeUseTag = new knowledgeUseTag;
-                        $knowledgeUseTag->record_id = $knowledge->id;
-                        $knowledgeUseTag->tag_id = $tagRecord->id;
-                        $knowledgeUseTag->save();
-                        
-                    }else{
-                        $knowledgeUseTag = new knowledgeUseTag;
-                        $knowledgeUseTag->record_id = $knowledge->id;
-                        $knowledgeUseTag->tag_id = $existTag->id;
-                        $knowledgeUseTag->save();
-                    }
-                    
-
-                    
-
-                }
-
-            }
-            $keyTags = knowledgeUseTag::where('record_id', '=', $knowledge->id)->where('deleted_flag', '=', 0)->with(['tag_records' => function($q){
-                $q->where('deleted_flag','=', 0)->select('id', 'text');
-            }])->get();
-            
-                $tags = [];
-                foreach($keyTags as $keyTag){
-                    $tags[] = $keyTag->tag_records->text;
-                }
-                $new_tag_list = implode(",",$tags);
-                $knowledge->key_tags = $new_tag_list;
-                $knowledge->save();
-
-            if(!empty($file_id_array)){
-
-                foreach($file_id_array as $file_id){
-
-                    //ファイル使用中間テーブル保存処理
-                    $knowlegeUseFile = new knowledgeUseFile;
-                    $knowlegeUseFile->record_id = $knowledge->id;
-                    $knowlegeUseFile->file_id = $file_id;
-                    $knowlegeUseFile->save();
-
-                }
-
-            }
-            if($request->forwarded_files){
-                $root_path = base_path();
-                $replaced = Str::replaceLast('public_html/', '', Str::replaceLast('app', '', $root_path));
-                foreach($request->forwarded_files as $file){  
-                    $file_path = date("YmdHis") . md5(uniqid());  
-                    $path_managed_files = $replaced . 'managed_files/' . $file['source_board_id'] . '/';   
-                    $fileRecord = new fileRecord;
-                    $fileRecord->path =  $file_path;
-                    $fileRecord->name = $file['name'];
-                    $fileRecord->mime_type = $file['mime_type'];
-                    $fileRecord->extension = $file['extension'];
-                    $fileRecord->size = $file['size'];
-                    $fileRecord->user_id = $auth_user_id;
-                    $fileRecord->save();
-                    $knowlegeUseFile = new knowledgeUseFile;
-                    $knowlegeUseFile->record_id = $knowledge->id;
-                    $knowlegeUseFile->file_id = $fileRecord->id;
-                    $knowlegeUseFile->save();                    
-                    $path = 'root/post_files/'; 
-                    $set_path = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
-
-                    File::copy($path_managed_files . $file['path'] . '.' . $file['extension'], $replaced . $path . $set_path);    
-
-                }
-            }
-            if($request->shared_temp_files){
-                $root_path = base_path();
-                $replaced = Str::replaceLast('public_html/', '', Str::replaceLast('app', '', $root_path));
-                
-                foreach($request->shared_temp_files as $file){  
-                    $file_path = date("YmdHis") . md5(uniqid());   
-                    $fileRecord = new fileRecord;
-                    $fileRecord->path =  $file_path;
-                    $fileRecord->name = $file['name'];
-                    $fileRecord->mime_type = $file['mime_type'];
-                    $fileRecord->extension = $file['extension'];
-                    $fileRecord->size = $file['size'];
-                    $fileRecord->user_id = $auth_user_id;
-                    $fileRecord->save();
-                    $knowlegeUseFile = new knowledgeUseFile;
-                    $knowlegeUseFile->record_id = $knowledge->id;
-                    $knowlegeUseFile->file_id = $fileRecord->id;
-                    $knowlegeUseFile->save();
-                    $path = 'root/post_files/'; 
-                    $set_path = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
-                    File::copy($replaced . 'shared_files/' . $file['source_board_id'] . '/' . $file['id'] . '_' . $file['user_id'] . '_' . $file['message_id'] . '.' . $file['extension'], $replaced . $path .  $set_path);
-                    
-
-                }
-            }
-            Auth::user()->user_last_record->last_knowledge = $knowledge->id;
-            Auth::user()->user_last_record->save();
-            event(new Message("added_new_record"));
-            return response()->json($request->shared_temp_files);
-  
-        
     }
     public function post_file_upload(Request $request ){    
         $ids = [];
@@ -288,15 +163,12 @@ class PostController extends Controller
         
             $fileRecord->size = $sizeAfter;
             $fileRecord->save(); 
-            $ids[] = $fileRecord;
-            
+            $ids[] = $fileRecord;          
 
             
                     
         }
-        return response()->json($ids);      
-
-        
+        return response()->json($ids);             
 
     }
     public function post_add_record(Request $request ){  
@@ -310,7 +182,7 @@ class PostController extends Controller
             ]);
             $nameSpace = '\\App\\Models\\'. ucfirst($request->path) . 'Record'; 
 
-            $record = new $nameSpace; 
+            $record = $request->edit_id ? $nameSpace::findOrFail($request->edit_id) : new $nameSpace; 
             $record->user_id = Auth::id();
             $record->title = $request->title;
             if($request->path == 'challenge'){
@@ -321,19 +193,20 @@ class PostController extends Controller
                 $record->award_entry = $request->award_entry;
             }else{
                 $record->content = $request->content;
-            }
-            
-            $record->referrer = $request->referrer;           
-
+            }            
+            $record->referrer = $request->referrer;          
             $record->save();
-
-            $record->to_users()->attach($request->to_users);
+            if($request->path !== 'knowledge'){
+                $record->to_users()->sync($request->to_users);
+            }            
             $tagIds = [];
             foreach ($request->tags as $text) {
                 $tag = TagRecord::firstOrCreate(['text' => $text]);
                 $tagIds[] = $tag->id;
             }
-            $record->tags()->attach($tagIds);
+            $record->tags()->sync($tagIds);
+
+
             // return response()->json($record); 
 
             // if(!empty($request->to_users)){
@@ -369,19 +242,12 @@ class PostController extends Controller
 
 
                 // return response()->json($request->file_ids);
-                $record->files()->attach($request->file_ids);
-                // foreach($file_id_array as $file_id){
-
-                //     //ファイル使用中間テーブル保存処理
-                //     $challengeUseFile = new challengeUseFile;
-                //     $challengeUseFile->record_id = $challenge->id;
-                //     $challengeUseFile->file_id = $file_id;
-                //     $challengeUseFile->save();
-
-                // }
+                $record->files()->sync($request->file_ids);
+                
 
             
             return response()->json($record);
+
             if($request->forwarded_files){
                 $root_path = base_path();
                 $replaced = Str::replaceLast('public_html/', '', Str::replaceLast('app', '', $root_path));
@@ -439,7 +305,7 @@ class PostController extends Controller
             return response()->json();
         }
     }
-    public function postBetMessage(Request $request){
+    public function challenge_charge_to(Request $request){
 
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
@@ -450,17 +316,19 @@ class PostController extends Controller
         ]);
 
 
+        $record = ChallengeRecord::findOrFail($request->record_id);
+        $record->challenge_awards()->attach(Auth::id(), ['award_bet' => $request->charge_bet]);
+        return response()->json();
 
-
-        $award = new challengeAward;
-        $award->record_id = $request->record_id;
-        $award->award_bet = $request->charge_bet;
-        $award->user_id = $auth_user_id;
-        $award->save();
+        // $award = new challengeAward;
+        // $award->record_id = $request->record_id;
+        // $award->award_bet = $request->charge_bet;
+        // $award->user_id = $auth_user_id;
+        // $award->save();
             
-        $user = $auth_user;
-        $user->award_charge = $user->award_charge - $request->charge_bet;
-        $user->save();
+        // $user = $auth_user;
+        // $user->award_charge = $user->award_charge - $request->charge_bet;
+        // $user->save();
 
         // #20201202_0013 Tumur　通知機能追加
         // $challenge = challengeRecord::find($request->record_id);
@@ -485,5 +353,94 @@ class PostController extends Controller
         return response()->json();  
         
 
+    }
+    public function get_post_comments(Request $request){
+        $validatedData = $request->validate([
+            'app_name' => 'required',
+            'record_id' => 'required'
+        ]);
+        $comments = CommentRecord::where('record_id', $request->record_id)->where('app_name', $request->app_name)->where('deleted_flag', 0)->with('user')->get();
+        return response()->json($comments);  
+    }
+    public function post_comment_add(Request $request){
+        $validatedData = $request->validate([
+            'app_name' => 'required',
+            'record_id' => 'required',
+            'message' => 'required'
+        ]);
+        $comment = new CommentRecord;
+        $comment->app_name = $request->app_name;
+        $comment->record_id = $request->record_id;
+        $comment->messages = $request->message;
+        $comment->user_id = Auth::id();
+        $comment->emoji_flag = $request->emoji_flag;
+        $comment->save();
+        return response()->json();  
+    }
+    public function post_add_clap(Request $request){
+        $validatedData = $request->validate([
+            'app_name' => 'required',
+            'record_id' => 'required',
+            'action' => 'required'
+        ]);
+        $existingRecord = ClapRecord::where([
+            'record_id' => $request->record_id,
+            'from_user' => Auth::id(),
+            'app_name' => $request->app_name
+        ])->first();
+        
+        if ($existingRecord) {
+            // If a record exists, delete it
+            $existingRecord->delete();
+        } else {
+            // If no record exists, create a new one
+            ClapRecord::create([
+                'record_id' => $request->record_id,
+                'from_user' => Auth::id(),
+                'app_name' => $request->app_name
+            ]);
+        }
+        return response()->json(); 
+    }
+    public function post_comment_edit(Request $request){
+        $validatedData = $request->validate([
+            'id' => 'required',
+            'message' => 'required'
+        ]);
+        $comment = CommentRecord::findOrFail($request->id)->update([
+            "messages" => $request->message
+        ]);
+        return response()->json();  
+    }
+    public function post_comment_delete(Request $request){
+        $validatedData = $request->validate([
+            'id' => 'required',
+        ]);
+        $comment = CommentRecord::findOrFail($request->id)->update([
+            "deleted_flag" => 1
+        ]);
+        return response()->json();  
+    }
+    public function post_status_update(Request $request){
+        $validatedData = $request->validate([
+            'id' => 'required',
+            'status' => 'required'
+        ]);
+        $record = ChallengeRecord::findOrFail($request->id);
+        
+        $fileIds = $request->resultFiles;
+        $pivotValues = [];
+        foreach ($fileIds as $fileId) {
+            $pivotValues[$fileId] = ['result_flag' => 1];
+        }
+        $record->result_files()->sync($pivotValues);
+        // $record->update([
+        //     "status_flag" => $request->status,
+        //     "result" => $request->result
+        // ]);
+        $record->status_flag = $request->status;
+        $record->result = $request->result;
+        $record->save();
+        return response()->json($record);  
     }
 }

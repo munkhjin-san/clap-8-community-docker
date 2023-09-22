@@ -13,18 +13,18 @@
                 <div class="login-group row">
                     <!-- <label for="login" class="col-md-4 col-form-label text-md-right">{{$t('emailAddress')}}</label> -->
                     <div class="col-md-6" style="position: relative;">
-                        <span :class="{smallPlc : $store.state.activeInput == 'email' || user_login.length}" class="form-plc">{{ $t('emailAddress') }}</span>
+                        <span :class="{smallPlc : $store.state.activeInput == 'login' || user_login.length}" class="form-plc">{{ $t('emailAddress') }}</span>
                         <Field 
-                            id="email" 
-                            type="email"  
-                            @focus="$store.commit('setActiveInput', 'email')" 
+                            id="login" 
+                            type="text"  
+                            @focus="$store.commit('setActiveInput', 'login')" 
                             @blur="$store.commit('setActiveInput', '')"  
                             v-model="user_login" 
                             class="login-plc" 
-                            name="username" 
+                            name="login" 
                             rules="required|max:100" 
                             required 
-                            autocomplete="email" 
+                            autocomplete="login" 
                             autofocus
                         />
                         <span class="valid-error post-error" v-if="vali">{{ errors.username }}</span>

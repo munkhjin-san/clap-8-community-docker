@@ -20,7 +20,7 @@
                 <div :style="{maxWidth: openedBoard.private_flag == 0 ? 'calc(100% - 120px)' : '100%'}">
                     <BoardTitle :item="openedBoard" titleStyle="font-weight:600;font-size:14px;line-height: 40px;" titleClass="board-title text"/>  
                 </div>
-                <div v-if="openedBoard && openedBoard.private_flag == 0 && validMember" style="margin-left: 10px;white-space: nowrap;position:relative;height:40px">
+                <div v-if="openedBoard && openedBoard.private_flag == 0" style="margin-left: 10px;white-space: nowrap;position:relative;height:40px">
                     <div @click.stop="viewBoardMembers" style="overflow:hidden;height:40px">
                         <div style="display: flex;height:40px;align-items:center">
                             <div :key="user.id" v-for="user in confirmedMembers.slice(0, 3)" style="position:relative;">                                
@@ -32,7 +32,7 @@
                 </div>
 
             </div>
-            <div v-if="hasAccessibleChat" style="width: 163px;display:flex;min-height:40px;justify-content: flex-end;fill:var(--primary-color);">
+            <div style="width: 163px;display:flex;min-height:40px;justify-content: flex-end;fill:var(--primary-color);">
                 <div @click="$parent.$emit('startPrivateSearch')" style="width:40px;height:40px;display:flex;border-radius:50px" @touchstart="$event.currentTarget.classList.add('mobileHeaderButton')">
                     <svg style="margin:auto" version="1.1" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 32 32">
                         <path d="M31.875 28.185c-0.034-0.444-0.159-0.888-0.376-1.275-0.102-0.194-0.239-0.387-0.387-0.547-0.171-0.194-0.239-0.251-0.342-0.353-0.752-0.752-1.526-1.492-2.278-2.232-0.387-0.376-0.763-0.74-1.15-1.116l-0.865-0.831-0.091-0.091c-0.034-0.034-0.080-0.068-0.125-0.102-0.080-0.068-0.171-0.137-0.262-0.194-0.729-0.49-1.651-0.626-2.471-0.376-0.148 0.046-0.285 0.091-0.421 0.159-0.068 0.034-0.148 0.023-0.205-0.034-0.251-0.262-0.854-0.9-1.139-1.207-0.057-0.068-0.068-0.159-0.011-0.228 0.717-0.911 1.275-1.902 1.697-2.938 0.592-1.469 0.888-3.029 0.888-4.589s-0.296-3.12-0.888-4.601c-0.592-1.469-1.492-2.847-2.676-4.043-1.173-1.196-2.54-2.095-4.009-2.688-1.469-0.604-3.029-0.9-4.589-0.9-1.549 0-3.109 0.296-4.578 0.9-1.469 0.592-2.847 1.492-4.031 2.688-1.184 1.184-2.084 2.562-2.676 4.031s-0.888 3.041-0.888 4.601 0.296 3.12 0.888 4.589c0.592 1.469 1.492 2.847 2.676 4.043s2.562 2.084 4.031 2.688c1.469 0.604 3.029 0.9 4.589 0.9s3.12-0.296 4.578-0.9c1.036-0.421 2.038-1.002 2.949-1.72 0.046-0.034 0.114-0.034 0.159 0.011 0.273 0.273 1.002 0.957 1.253 1.196 0.034 0.034 0.046 0.091 0.023 0.137-0.205 0.444-0.307 0.945-0.285 1.446 0.023 0.421 0.137 0.854 0.342 1.23 0.102 0.194 0.228 0.376 0.364 0.535 0.171 0.194 0.228 0.251 0.33 0.353 0.74 0.774 1.469 1.549 2.209 2.3l1.116 1.15 0.558 0.569 0.376 0.376c0.034 0.034 0.080 0.080 0.125 0.114 0.080 0.068 0.171 0.137 0.262 0.205 0.74 0.512 1.708 0.683 2.574 0.444 0.433-0.114 0.843-0.319 1.196-0.615 0.046-0.034 0.091-0.068 0.125-0.114l0.114-0.102 0.421-0.421c0.319-0.319 0.558-0.706 0.717-1.127s0.216-0.877 0.182-1.321zM15.795 21.159c-1.15 0.467-2.391 0.706-3.621 0.706s-2.46-0.239-3.621-0.706c-1.15-0.467-2.243-1.173-3.177-2.118-0.945-0.945-1.64-2.027-2.118-3.189-0.467-1.162-0.706-2.403-0.706-3.633 0-1.241 0.239-2.471 0.706-3.633s1.173-2.243 2.118-3.189c0.945-0.957 2.027-1.651 3.189-2.13 1.15-0.467 2.38-0.706 3.621-0.706 1.23 0 2.46 0.239 3.621 0.706 1.15 0.467 2.232 1.173 3.177 2.118v0c0.945 0.945 1.64 2.027 2.118 3.189 0.467 1.162 0.706 2.403 0.706 3.633 0 1.241-0.239 2.471-0.706 3.633s-1.173 2.243-2.118 3.189c-0.957 0.957-2.038 1.663-3.189 2.13zM29.153 28.823l-0.478 0.478c-0.057 0.057-0.137 0.091-0.216 0.114-0.159 0.046-0.342 0.011-0.478-0.080-0.011-0.011-0.034-0.023-0.046-0.034l-0.068-0.068-0.285-0.273-1.708-1.674c-0.763-0.752-1.526-1.48-2.3-2.221-0.239-0.239-0.251-0.239-0.319-0.342-0.057-0.080-0.091-0.182-0.102-0.285-0.034-0.205 0.046-0.433 0.182-0.592 0.125-0.159 0.364-0.399 0.558-0.535 0.273-0.194 0.604-0.125 0.797 0.068s1.697 1.754 2.061 2.141c0.74 0.763 1.48 1.537 2.232 2.289 0.239 0.239 0.239 0.239 0.285 0.33 0.034 0.068 0.057 0.159 0.068 0.239 0.011 0.159-0.057 0.319-0.182 0.444z"></path>
@@ -67,7 +67,7 @@
 <script>
 import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
     export default {
-        props: ['openedBoard', 'hasAccessibleChat'],
+        props: ['openedBoard'],
         data(){
             return{
                 
@@ -79,15 +79,9 @@ import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
         mounted() {
         },
         computed: {
-            validMember(){
-                const record = this.openedBoard.board_to_users.filter(obj => obj.user_id == this.$store.state.user.id);
-                return (record && record[0].member_status == 1)       
-                
-            },
             confirmedMembers(){
                 const allMembers = this.openedBoard.board_to_users;
-                const pendingMembers = allMembers.filter(ob => ob.member_status == 1)
-                return pendingMembers
+                return allMembers
             },
             taskBadge(){
                 const nm = this.$store.state.taskBadge && this.openedBoard ? this.$store.state.taskBadge[this.openedBoard.id] : null

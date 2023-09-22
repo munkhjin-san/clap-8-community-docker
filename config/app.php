@@ -81,7 +81,7 @@ return [
     |
     */
 
-    'timezone' => env('APP_TIMEZONE', 'UTC'),
+    'timezone' => 'Asia/Tokyo',
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

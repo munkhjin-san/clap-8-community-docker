@@ -97,13 +97,13 @@ import { ref, onMounted } from 'vue';
         watch:{
             '$store.state.focused' (after, before) {
                 if(after){
-                    this.getIncompletedTasks()
+                    // this.getIncompletedTasks()
                 }
                 
             },
             '$store.state.taskFeedBack.active' (after, before) {
                 if(after == false){
-                    this.getIncompletedTasks()
+                    // this.getIncompletedTasks()
                 }
                 
             },

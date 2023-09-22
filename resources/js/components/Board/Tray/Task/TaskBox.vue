@@ -13,9 +13,9 @@
 
                 <div class="task-box-header" :style="{display: 'flex', width: '100%', position: 'relative', marginTop: $store.state.mobile ? '0' : '5px'}">
                     <div @click.stop="$store.commit('setMenu', {name: 'taskUsers', id: item.id})" style="display:flex;width: fit-content;">
-                        <div v-for="user in item.task_users.slice(0, 3)" style="position:relative;">
-                            <div v-if="user.user" :title="user.user.name" class="column-01">
-                                <UserIcon size="30" :user="user.user" imgClass="u_icon_15"/>                            
+                        <div v-for="user in taskUsers.slice(0, 3)" style="position:relative;">
+                            <div v-if="user" :title="user.name" class="column-01">
+                                <UserIcon size="30" :user="user" imgClass="u_icon_15"/>                            
                             </div>
                             <div class="column-01" v-else>
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" class="u_icon_15">
@@ -28,15 +28,15 @@
                                 </svg>                                           
                             </div>                                   
                         </div>                                                                                       
-                        <p style="margin-top:2px;cursor:pointer;font-size: 12px;margin-left: 3px;" v-if="item.task_users && item.task_users.length > 3">({{item.task_users.length}})</p>                                            
+                        <p style="margin-top:2px;cursor:pointer;font-size: 12px;margin-left: 3px;" v-if="taskUsers && taskUsers.length > 3">({{taskUsers.length}})</p>                                            
                     </div> 
                     <Transition name="modalFade"> 
                     <div v-if="$store.state.menu.name == 'taskUsers' && $store.state.menu.id == item.id" id="taskUsers" class="taskUsersList" style="left: 0;top:25px;right:auto;">
-                        <div @click.stop="pushInstantUser(user.user.id)" class="mentionBox-inner" v-for="user in item.task_users">                                                
+                        <div @click.stop="pushInstantUser(user.id)" class="mentionBox-inner" v-for="user in taskUsers">                                                
                             <div class="column-01">  
-                                <UserIcon size="25" :user="user.user" imgClass="userMidIcon"/>                                   
+                                <UserIcon size="25" :user="user" imgClass="userMidIcon"/>                                   
                             </div>                        
-                            <p class="cursor-pointer" style="margin: auto auto auto 5px;font-size:13px">{{ user.user ? user.user.name : $t('unAvailableUserName')}}</p>
+                            <p class="cursor-pointer" style="margin: auto auto auto 5px;font-size:13px">{{ user ? user.name : $t('unAvailableUserName')}}</p>
                                                                                     
                             <div :title="$t('taskComplete')" v-if="user.comp_flag == 1" style="background:rgb(100, 188, 68);width: 15px;height: 15px;display: flex;border-radius: 50%;margin:auto 3px;">
                                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill:#fff;margin:auto;">
@@ -77,7 +77,7 @@
                     </div>
 
                 </div>
-                <div v-if="completeButtonFilter(item)" style="display:flex;align-items: center;margin-top: 20px;position:relative;white-space: nowrap;flex-wrap: wrap;gap: 10px 0;">
+                <div v-if="completeButtonFilter" style="display:flex;align-items: center;margin-top: 20px;position:relative;white-space: nowrap;flex-wrap: wrap;gap: 10px 0;">
                     <button class="shift-button" style="margin-right: 7px;" @dblclick.stop @click="$emit('completeTaskBefore', item)" >{{ completeFlag ? $t('inComplete') : $t('finish') }}</button>
                     <button v-if="isToday" @dblclick.stop @click="$emit('editTask', item)" class="shift-button" style="margin-right: 7px;">{{$t('edit')}}</button>
                     <button v-if="isExpired" @dblclick.stop class="shift-button" @click="untilTomorrow">{{$t('finishToday')}}</button>
@@ -119,16 +119,16 @@
             // console.log(this.item)
         },
         computed:{
-            // taskColor(){
-            //     for(let task_user of this.item.task_users){
-            //         if(task_user.user_id == this.$store.state.user.id){
-            //             return this.myColor
-            //         }
-            //     }
-            //     return 'var(--skItem2)'
-            // },
+            completeButtonFilter(){            
+                var userData = this.taskUsers.filter(obj => obj.id == this.$store.state.user.id);
+                if(userData.length) return true;
+                else return false;             
+            },
+            taskUsers(){
+                return this.item.to_users ? this.item.to_users : []
+            },
             canModify(){
-                const users = this.item.task_users.map(ob => ob.user_id);
+                const users = this.taskUsers.map(ob => ob.id);
                 const me = users.filter(ob => ob == this.$store.state.user.id)
                 return me && me.length
             },
@@ -150,7 +150,7 @@
             },
             isExpired(){
                 const taskIncomplete = this.item.comp_flag
-                const me = this.item.task_users.filter( ob => ob.user_id == this.$store.state.user.id)
+                const me = this.taskUsers.filter( ob => ob.id == this.$store.state.user.id)
                 const taskIncompleteforMe = me.length ? me[0].comp_flag : false
                 const expired = this.item.end_at < moment().format('YYYY-MM-DD')
 
@@ -158,7 +158,7 @@
             },
             isToday(){
                 const taskIncomplete = this.item.comp_flag
-                const me = this.item.task_users.filter( ob => ob.user_id == this.$store.state.user.id)
+                const me = this.taskUsers.filter( ob => ob.id == this.$store.state.user.id)
                 const taskIncompleteforMe = me.length ? me[0].comp_flag : false
                 const expired = this.item.end_at <= moment().format('YYYY-MM-DD HH:mm:ss')
 
@@ -286,21 +286,6 @@
             dayDetail(value){            
                 return  moment(value).format('D')
             }, 
-            completeButtonFilter(task){            
-                var userData = task.task_users.filter(obj => obj.user_id == this.$store.state.user.id);
-                if(userData.length) return true;
-                else return false;             
-            },
-            completeTaskButtonColor(task){
-                var userData = task.task_users.filter(obj => obj.user_id == this.$store.state.user.id);
-                if(userData && userData[0]){
-                    if(userData[0].comp_flag == 1 || userData[0].comp_flag == "1"){
-                        return 'background: #64bc44;color:#fff'
-                    }else{
-                        return 'background: #fff;color:#000'
-                    } 
-                } 
-            },
             pushInstantUser(id){
                 if(id == this.$store.state.user.id) return
                 const cX = event.clientX;

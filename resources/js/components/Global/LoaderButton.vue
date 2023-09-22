@@ -26,7 +26,7 @@
     .l-button{
         background: var(--primary-button);
         color: #fff;
-        font-size: 12px;
+        font-size: 14px;
         white-space: nowrap;
         width: fit-content;
         margin:auto;

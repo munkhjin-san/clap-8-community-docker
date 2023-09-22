@@ -42,6 +42,9 @@ use App\Http\Controllers\AutoJobController;
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+Route::get('/reacted_users_make', [AutoJobController::class, 'reactedUsersMake']);
+Route::get('/change_to_dummy', [AutoJobController::class, 'change_to_dummy']);
 Route::get('/help/{any?}', function () {
     return view('help');
 })->where('any', '.*')->name('help');
@@ -106,6 +109,7 @@ Route::group(["middleware"=>"auth"],function(){
     Route::get('/profile/{id}/{settings}',  [BoardController::class, "index"]);
     // Route::get('/profile', [UserController::class, 'index']);
     // Route::get('/invite', [MembersController::class, 'inviteToMember']);
+    // Route::group(['middleware' => ['verified.user']], function() {
         Route::get('/' ,function () {
             {return Redirect::route('board');}
         });
@@ -126,6 +130,7 @@ Route::group(["middleware"=>"auth"],function(){
         // Route::get('/challenge', [BoardController::class, "index"]);
 
         Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|work)');
+        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|calendar)');
         
         // Route::get('/{name}',function () {
         //     {return Redirect::route('board');}
@@ -294,7 +299,6 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/check_join', [MembersController::class, 'checkJoin']);
         Route::post('/set_member_link', [MembersController::class, 'toggleFriend']);
         Route::post('/respond_partner_request', [MembersController::class, 'respondPartnerRequest']);
-        Route::post('/member_get_partner_requests', [MembersController::class, 'getPartnerRequests']);
         Route::post('/block_user', [MembersController::class, 'blockUser']);
         Route::post('/member_get_block_list', [MembersController::class, 'getBlockList']);
         // ->middleware('throttle:3,1');
@@ -303,14 +307,29 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/get_posts', [PostController::class, 'get_posts']);
         Route::post('/post_get_users', [PostController::class, 'post_get_users']);
         Route::post('/post_get_tags', [PostController::class, 'post_get_tags']);
-        Route::post('/post_create', [PostController::class, 'post_create']);
         Route::post('/post_file_upload', [PostController::class, 'post_file_upload']);
         Route::post('/post_add_record', [PostController::class, 'post_add_record']);
         Route::post('/post_delete_file', [PostController::class, 'post_delete_file']);
         Route::get('/post_get_possible_charge', function (Request $request){
             return Auth::user()->award_charge;
         });
+        Route::post('/challenge_charge_to', [PostController::class, 'challenge_charge_to']);
+        Route::post('/get_post_comments', [PostController::class, 'get_post_comments']);
+        Route::post('/post_comment_add', [PostController::class, 'post_comment_add']);
+        Route::post('/post_add_clap', [PostController::class, 'post_add_clap']);
+        Route::post('/post_comment_edit', [PostController::class, 'post_comment_edit']);
+        Route::post('/post_comment_delete', [PostController::class, 'post_comment_delete']);
+        Route::post('/post_status_update', [PostController::class, 'post_status_update']);
 
+
+
+        Route::post('/get_calendar_data', [CalendarController::class, 'get_calendar_data']);
+        Route::post('/get_possible_facilities', [CalendarController::class, 'get_possible_facilities']);
+        Route::post('/calendar_add_record', [CalendarController::class, 'calendar_add_record']);
+
+
+
+    // });    
 
         Route::post('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::post('/get_shift_data', [WorkController::class, 'getShiftData']);
