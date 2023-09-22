@@ -129,8 +129,7 @@ Route::group(["middleware"=>"auth"],function(){
         // Route::get('/nice', [BoardController::class, "index"]);
         // Route::get('/challenge', [BoardController::class, "index"]);
 
-        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|work)');
-        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|calendar)');
+        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|calendar|work)');
         
         // Route::get('/{name}',function () {
         //     {return Redirect::route('board');}
@@ -338,8 +337,10 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/daily_report_add', [WorkController::class, 'dailyReportAdd']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/save_time_card', [WorkController::class, 'saveTimeCard']);
+        Route::post('/delete_time_card', [WorkController::class, 'deleteTimeCard']);
         Route::post('/get_attendance_data', [WorkController::class, 'getAttendanceData']);
         Route::post('/remand_time_card', [WorkController::class, 'remandTimeCard']);
         Route::post('/approve_time_card', [WorkController::class, 'approveTimeCard']);
         Route::post('/cancel_time_card', [WorkController::class, 'cancelTimeCard']);
+        Route::post('/attendance_confirm', [WorkController::class, 'attendanceConfirm']);
 });

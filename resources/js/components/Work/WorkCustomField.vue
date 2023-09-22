@@ -87,8 +87,10 @@
                             this.incident = field.value_int
                         }else if(field.type_id == 41){
                             this.achievement = field.value_int
-                        }else if(field.type_id == 37){
-                            this.allowance.push(field.value_int)
+                        }else if(field.length > 0){
+                            for(let item of field){
+                                this.allowance.push(item.value_int)
+                            }
                         }
                     }
                 }

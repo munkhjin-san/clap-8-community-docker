@@ -413,12 +413,30 @@ class WorkController extends Controller
         }
         $new_custom_data->save();
     }
+    public function deleteTimeCard(Request $request){
+        $is_exist = timecardRecord::where('day', $request->date)->where('user_id', $request->userId)->first();
+        if($is_exist){
+            $custom_field = customFieldDataRecord::where('table_record_id', $is_exist->id)
+            ->where('user_id', $request->userId)
+            ->where('date', $request->date)
+            ->get();
+            if($custom_field){
+                $custom_field->each->delete();
+            }
+            $is_exist->delete();
+
+            return 'deleted';
+        }
+
+        return 'not exist';
+    }
     public function getAttendanceData(Request $request){
         $user_list = $request->work_group;
         [$currentYear, $currentMonth] = explode('-', $request->current_date);
+        $formattedDate = date('Y-m', strtotime($request->current_date));
         $user = User::with([
-            'attendance_records' => function ($query) use ($request) {
-                $query->where('date_year_month', $request->current_date);
+            'attendance_records' => function ($query) use ($formattedDate) {
+                $query->where('date_year_month', $formattedDate);
             },
             'shift_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->whereYear('shift_day', $currentYear)
@@ -436,7 +454,7 @@ class WorkController extends Controller
                     ->whereMonth('date', $currentMonth)
                     ->select('value_int', 'user_id');
             }
-        ])->select('id','name','work_type', 'work_time_day')->findOrFail($user_list[0]);
+        ])->select('id','name','work_type', 'work_time_day', 'user_code')->findOrFail($user_list[0]);
         // Now you can access the related data without issuing additional queries
         $userData = $user->makeHidden('attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records');
         $attendance = $user->attendance_records->first();
@@ -526,6 +544,40 @@ class WorkController extends Controller
 
         return response()->json($time_card_record);
 
+    }
+    public function attendanceConfirm(Request $request){
+        if(!empty($request)){
+            $attendance_record = new attendanceRecord;
+            $attendance_record->date_year_month = $request->date_year_month;
+            $attendance_record->user_id = $request->user['id'];
+            $attendance_record->user_code = $request->user['user_code'];
+            $attendance_record->name = $request->user['name'];
+            $attendance_record->pay_day = 20;
+            $attendance_record->prescribed_working_hours = $request->shift_working_hours;
+            if($request->user['work_type'] == 0){
+                $attendance_record->work_type = 'フレックス';
+            }else{
+                $attendance_record->work_type = '通常';
+            }
+            $attendance_record->month_petition = '済';
+            $attendance_record->working_days_shift = $request->shift_working_days;
+            $attendance_record->normal_working_days = $request->worked_days;
+            $attendance_record->holiday_working_days = $request->holiday_worked_days;
+            $attendance_record->paid_holiday_hours = $request->annual_leave;
+            $attendance_record->condolence_holiday = $request->condolence_leave;
+            $attendance_record->closed_day = 0;
+            $attendance_record->working_hours = $request->worked_hours;
+            $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
+            $attendance_record->over_time = $request->over_time;
+            $attendance_record->night_work_time = $request->night_work_time;
+            $attendance_record->stay_pay = $request->stay_pay;
+            $attendance_record->move_pay = $request->move_pay;
+
+            $attendance_record->save();
+
+            return response()->json($attendance_record);
+        }
+        
     }
 }
 

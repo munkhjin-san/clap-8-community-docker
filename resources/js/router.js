@@ -150,14 +150,6 @@ const routes = [
         },
     },
     {
-        path: '/work',
-        name: 'work',
-        component: () => import('./components/Work/WorkContainer.vue'),
-        beforeEnter: (to, from, next) => {
-            fetchPosts(to, next, from, 'work');
-        },
-    },
-    {
         path: '/calendar',
         name: 'calendar',
         component: () => import('./components/Calendar/CalendarContainer.vue'),
@@ -168,7 +160,16 @@ const routes = [
             next();
         }, 
         
+    },
+    {
+        path: '/work',
+        name: 'work',
+        component: () => import('./components/Work/WorkContainer.vue'),
+        beforeEnter: (to, from, next) => {
+            fetchPosts(to, next, from, 'work');
+        },
     }
+    
 
 
 ]

@@ -173,7 +173,7 @@
                 <WorkReport
                     @reload="reload"
                     @closeModal="reportModal = false"
-                    :choosenDate="choosenDate"
+                    :chosenDate="chosenDate"
                     :todayStartTime="formatTime(todayStartTime)"
                     :todayEndTime="formatTime(todayEndTime)"
                     :todayBreakTime="todayBreakTime"
@@ -222,7 +222,7 @@
                    
                 ],
                 reportModal: false,
-                choosenDate: null,
+                chosenDate: null,
                 todayStartTime: null,
                 todayEndTime: null,
                 todayBreakTime: 0,
@@ -396,7 +396,7 @@
                 this.todayStartTime = data.start_time ? data.start_time : data.shift_start_time
                 this.todayEndTime = data.end_time ? data.end_time : data.shift_end_time
                 this.todayBreakTime = data.break_time ? data.break_time : 0
-                this.choosenDate = data.day ? data.day : data.shift_day
+                this.chosenDate = data.day ? data.day : data.shift_day
                 const fields = ['allowance', 'incident', 'achievement', 'comment'];
                 fields.forEach(field => {
                     if (data[field]) {
