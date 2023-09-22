@@ -115,14 +115,6 @@ class User extends Authenticatable
     }
 
 
-    /**
-     * Get the users who have blocked the current user.
-     */
-    public function usersWhoBlockedMe(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'block_list', 'blocked_user_id', 'user_id')
-            ->withTimestamps();
-    }
    
     // public function sendEmailVerificationNotification()
     // {

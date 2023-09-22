@@ -154,10 +154,10 @@ class AutoJobController extends Controller
         return ;
     }
     public function change_to_dummy(){
-        $list = BoardRecord::where('private_flag', 0)->get();
+        $list = User::get();
 
         foreach($list as $user){
-            $createIcon = $this->sharedService->createBoardDefaultIcon($user, Auth::id());   
+            $createIcon = $this->sharedService->createUserDefaultIcon($user, Auth::id());   
         }
         // $icons = Icons::where('use_of', 'board')->forceDelete();
 

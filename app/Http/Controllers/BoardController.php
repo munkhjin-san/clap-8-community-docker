@@ -162,10 +162,6 @@ class BoardController extends Controller
                     $q->with('user');
                 }]);
                 
-                $item["is_friend"] = $correspond ? $correspond["is_friend"] : false;
-                $item["is_blocked"] = $correspond ? $correspond["is_blocked"] : false;
-                $item["is_blocked_by"] = $correspond ? $correspond["is_blocked_by"] : false;
-                $item["is_waiting"] = $correspond ? $correspond["is_waiting"] : false;
                 
             }else{
                 $item->load(['board_to_users' => function($q){
@@ -666,15 +662,7 @@ class BoardController extends Controller
             throw ValidationException::withMessages(['message' => 'commonError']);            
         }   
         $boardRecord = boardRecord::findOrFail($request->record_id);
-        if($boardRecord->private_flag == 1){
-            $targetUserId = $boardRecord->board_to_users()->where('user_id', '!=', Auth::id())->withTrashed()->first();
-            if($targetUserId){
-                $targetUser = $this->sharedService->getUserState($targetUserId->user_id, Auth::user());
-                if(!$targetUser || ($targetUser->is_blocked || $targetUser->is_blocked_by)){
-                    throw ValidationException::withMessages(['message' => 'unableToSendMessageDueBlockAction']);  
-                }
-            }
-        }     
+          
         if($request->message_id){
             $chat = messageRecord::findOrFail($request->message_id);
         }else{
@@ -1882,16 +1870,7 @@ class BoardController extends Controller
             if(!empty($selfRecord)){
                 $selfRecord->joined_at = $selfRecord->invited_at;
                 $selfRecord->save();
-                if($targetBoard->private_flag == 1){
-                    $correspond = $targetBoard->board_to_users()->where('user_id', '!=', Auth::id())->first();
-                    if($correspond){
-                        $target_user = User::findOrFail($correspond->user_id);
-                        if (!Auth::user()->friends()->where('friend_id', $target_user->id)->exists()) {
-                            Auth::user()->friends()->attach($target_user->id, ['created_at' => now(), 'updated_at' => now(), 'status' => 1]);
-                        }
-                        $target_user->friends()->where('friend_id', Auth::id())->update(['status' => 1]);
-                    }
-                }
+                
                 
                 return response()->json("respondConfirmed", 200);
             }

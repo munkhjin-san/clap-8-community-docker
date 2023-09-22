@@ -22,6 +22,7 @@
 import moment from 'moment';
 import HourRow from './HourRow.vue';
 import SeparateLine from './SeparateLine.vue';
+import { nextTick } from 'vue';
 export default{
     props: ['day', 'hoursOfDay', 'dayRecords'],
     emits: ['releaseScroll', 'load'],
@@ -42,16 +43,22 @@ export default{
     },
     mounted(){
         
-        if(this.$refs[`cal_${this.day.full}`] && this.isToday){
-            this.$refs[`cal_${this.day.full}`].scrollIntoView({block: 'center', behaviour: 'smooth'})
-            setTimeout(() => {
-                this.$emit('releaseScroll', true)
-            }, 100);
-        }
+        this.jumpToToday()
         
         
     },
     methods:{
+        jumpToToday(){
+            if(this.$refs[`cal_${this.day.full}`] && this.isToday){
+                nextTick(() => {
+                    this.$refs[`cal_${this.day.full}`].scrollIntoView({block: 'center'})
+                })
+                
+                setTimeout(() => {
+                    this.$emit('releaseScroll', true)
+                }, 100);
+            }
+        },
         computedDay(day){
             moment.locale('ja')
             const top = moment(day.full).format('D')

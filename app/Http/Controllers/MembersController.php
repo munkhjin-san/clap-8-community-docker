@@ -509,7 +509,6 @@ class MembersController extends Controller
         ]);
         
         $target_user = User::where('id', $request->id)->where('q_token', $request->token)->exists();
-        // $me_blocked = Auth::user()->usersWhoBlockedMe()->where('user_id', $target_user->id)->exists();
         if($target_user){        
             // $isFriend = Auth::user()->friends()->where('friend_id', $target_user->id)->where('status', 1)->exists();
             // $targetId = $target_user->id;
@@ -609,8 +608,6 @@ class MembersController extends Controller
         $key = $request->key;
         $userId = Auth::id();
         $notInclude = $request->exc ? $request->exc : [];
-        $blocked_by_list = Auth::user()->usersWhoBlockedMe()->get();
-        $blocked_by_list_ids = $blocked_by_list->pluck('id')->toArray();
         $friendQuery = User::whereNotIn('id', $notInclude)->when($key, function ($query, $key ) {
                 $query->where(function ($query) use ($key) {
                     $query->where('name', 'like', "%$key%")

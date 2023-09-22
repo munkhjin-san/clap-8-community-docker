@@ -467,12 +467,14 @@ export default{
             .then(response =>  {
                 // this.closeModal(true)
                 this.processing = false
+                this.$emit('close', true)     
             })
             .catch(function (error) {
                 if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                 else if (error.request) this.errorToast('エラーが発生しました。')
                 else this.errorToast('エラーが発生しました。 ' + error.message)      
-                this.processing = false                    
+                this.processing = false     
+                          
             }.bind(this));
         },
         errorToast(message){

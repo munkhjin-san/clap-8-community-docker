@@ -6,8 +6,11 @@
             <div class="post-search-wrap">
                 <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="`スケジュールを検索`"/>
             </div>
-            <div style="flex: 1;display: flex;justify-content: end;">
-                <div style="margin-right: 10px;">
+            <div style="flex: 1;display: flex;">
+                <CalendarBar
+                    @jumpToday="jumpToToday"
+                />
+                <div style="margin: auto 10px auto auto;">
                     <MonthPicker 
                         :selectedMonth="selectedMonth"
                         :selectedYear="selectedYear"
@@ -53,6 +56,7 @@ import MonthPicker from '../Global/MonthPicker.vue'
 import { nextTick } from 'vue'
 import { dragscroll } from 'vue-dragscroll'
 import CalendarCreate from './CalendarCreate.vue';
+import CalendarBar from './CalendarBar.vue'
 export default{
     data() {
         return {
@@ -78,7 +82,8 @@ export default{
         PostSearchBar,
         DayView,
         MonthPicker,
-        CalendarCreate
+        CalendarCreate,
+        CalendarBar
     },
     mounted(){
         const date = moment().format('YYYY-MM-DD')
@@ -108,11 +113,27 @@ export default{
         }
     },
     methods:{
+        jumpToToday(){
+            this.appendLock = true
+            this.topOffset = 0
+            this.bottomOffset = 0
+            const year = moment().year()
+            const month = moment().month()
+            const date = {
+                year: year,
+                month: month + 1
+            }
+            this.setDate(date)
+        },
         closeCreate(val){
             this.createWindow = false
             this.editTarget = null
+            if(val){
+                const date = moment().format('YYYY-MM-DD')
+                this.getCalendar(date, 'today')
+            }
         },
-        setDate(date){
+        setDate(date, param){
             this.appendLock = true
             this.bottomOffset = 0
             this.topOffset = 0
@@ -122,7 +143,7 @@ export default{
             this.selectedYear = date.year
             
             this.records = []
-            this.getCalendar(`${date.year}-${date.month}-01`)
+            this.getCalendar(`${date.year}-${date.month}-01`, param)
             
             
         },
@@ -235,9 +256,13 @@ export default{
                     if (!existingItem) {
                         this.records.push(item);
                     }
+                    if(method == 'today'){
+                        this.$store
+                    }
                     setTimeout(() => {
                         this.appendLock = false
                     }, 200);
+
                 });
                 
         
