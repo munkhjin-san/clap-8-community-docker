@@ -23,8 +23,8 @@
     <link rel="icon" type="image/x-icon" sizes="36x36" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="36x36" href="/favicon.png">
     <link rel="icon" type="image/svg+xml" sizes="36x36" href="/favicon.svg">
-    <link rel="manifest" href="/site.webmanifest">
-    <link rel="canonical" href="https://glowd.app/auth">
+    <!-- <link rel="manifest" href="/site.webmanifest">
+    <link rel="canonical" href="https://glowd.app/auth"> -->
     <title>GLOWD</title>
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.gstatic.com">

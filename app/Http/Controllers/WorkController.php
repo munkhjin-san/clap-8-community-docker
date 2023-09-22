@@ -1,0 +1,583 @@
+<?php
+
+namespace App\Http\Controllers;
+use DB;
+
+use DateTime;
+use App\Models\User;
+
+use App\Models\shiftType;
+use App\Models\shiftRecord;
+
+use App\Models\timecardRecord;
+use App\Models\timecardBreakRecord;
+
+use App\Models\customFieldDataRecord;
+use App\Models\customFieldPartsRecord;
+
+use App\Models\workGroup;
+use App\Models\workGroupUser;
+
+use App\Models\attendanceRecord;
+use App\Events\Message;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+use Illuminate\Support\Facades\Storage;
+
+use Carbon\Carbon;
+
+use Log;
+
+class WorkController extends Controller
+{
+    //
+    public function index(Request $request){
+        
+    }
+    public function getWorkData(Request $request) {
+        //ログインユーザー関連
+        $auth_user = Auth::user();
+        $auth_user_id = Auth::id();
+        [$currentYear, $currentMonth] = explode('-', $request->current_date);
+    
+        if($request->member_flag == 'myself'){
+            $users_list = [$auth_user_id];
+        }else{
+            $users_list = $request->work_group;
+        }
+        $time_card_record = timecardRecord::whereYear('day', $currentYear)
+            ->whereMonth('day', $currentMonth)
+            ->whereIn('user_id', $users_list)
+            ->with([
+                'custom_field_data_records' => function ($q) {
+                    $q->whereIn('type_id', [37, 40, 39, 41])->orderBy('created_at', 'desc');
+                },
+                'user' => function ($q) {
+                    $q->select('name', 'id', 'work_type', 'work_time_day', 'work_authority')
+                        ->with('icons');
+                },
+                'shift_records' => function ($q) {
+                    $q->select('shift_type', 'shift_day', 'start_time', 'end_time')->orderBy('created_at', 'desc')->with(['shiftType']);
+                },
+                'timecard_break_records'
+            ])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $month_user_data_array = [];
+        $month_achievement_time_array = [];
+        $addition_work_time_array = [];
+        $custom_field_data = [];
+        $month_over_time = [];
+        $month_work_time = [];
+        $grouped_reserved_dates = [];
+        foreach ($time_card_record as $reserved_date) {
+            $custom_field_data = $reserved_date['custom_field_data_records'] ? $reserved_date['custom_field_data_records']->groupBy('type_id') : [];
+            if (!empty($custom_field_data)) {
+                $allowance = $custom_field_data->has(37) ? $custom_field_data[37] : '--';
+
+                $incidents_group = $custom_field_data->has(40) ? $custom_field_data[40] : [];
+                $incident = !empty($incidents_group) ? $incidents_group[0] : '';
+            
+                $manzoku_group = $custom_field_data->has(38) ? $custom_field_data[38] : [];
+                $manzoku = !empty($manzoku_group) ? $manzoku_group[0] : '';
+            
+                $comment_group = $custom_field_data->has(39) ? $custom_field_data[39] : [];
+                $comment = !empty($comment_group) ? $comment_group[0] : '';
+
+                $achievement_group = $custom_field_data->has(41) ? $custom_field_data[41] : [];
+                $achievement = !empty($achievement_group) ? $achievement_group[0] : '';
+            }
+            $user_id = $reserved_date['user_id'];
+            if (isset($reserved_date['over_time'])) {
+                if (!isset($month_over_time[$user_id])) {
+                    $month_over_time[$user_id] = 0;
+                }
+                $month_over_time[$user_id] += $reserved_date['over_time'];
+            }
+            if($month_over_time && isset($reserved_date['late_time'])){
+                $month_over_time[$user_id] -= $reserved_date['late_time'];
+            }
+            if (isset($reserved_date['work_time'])) {
+                if (!isset($month_work_time[$user_id])) {
+                    $month_work_time[$user_id] = 0;
+                }
+                $month_work_time[$user_id] += $reserved_date['work_time'];
+            }
+            $grouped_reserved_dates[$reserved_date['day']][$user_id] = array(
+                'day' => $reserved_date['day'],
+                'over_time' => $reserved_date['over_time'],
+                'work_time' => $reserved_date['work_time'],
+                'start_time' => $reserved_date['start_time'],
+                'end_time' => $reserved_date['end_time'],
+                'incident' => $incident,
+                'manzoku' => $manzoku,
+                'comment' => $comment,
+                'break_time' => $reserved_date['break_time'],
+                'allowance' => $allowance,
+                'achievement' => $achievement,
+                'status_flag' => $reserved_date['status_flag'],
+                'stamp_flag' => $reserved_date['stamp_flag']
+            );
+        }
+        $user_record = User::whereIn('id', $users_list)->select('name', 'id', 'work_type', 'work_time_day', 'work_authority')->get();
+
+        $custom_weather_data = customFieldDataRecord::whereIn('user_id', $users_list)->whereYear('date', $currentYear)->whereMonth('date', $currentMonth)->where('type_id', 43)->get()->groupBy('user_id')->map(function ($userRecords) {
+            return $userRecords->keyBy('date'); // Key the records by date within each user group
+        });
+        $custom_achievement_data = customFieldDataRecord::whereIn('user_id', $users_list)->whereYear('date', $currentYear)->whereMonth('date', $currentMonth)->where('type_id', 41)->get()->groupBy('user_id')->map(function ($userRecords) {
+            return $userRecords->keyBy('date'); // Key the records by date within each user group
+        });
+        $mostCommonAchievementPerUser = [];
+        foreach($custom_achievement_data as $user_id => $userRecords) {
+            $valueCounts = $userRecords->pluck('label')->countBy();
+            $mostCommonValue = $valueCounts->sortDesc()->keys()->first();
+            $mostCommonAchievementPerUser[$user_id] = $mostCommonValue;
+        }
+        $mostCommonWeatherPerUser = [];
+
+        foreach ($custom_weather_data as $user_id => $userRecords) {
+            $valueCounts = $userRecords->pluck('value_int')->countBy();
+            $mostCommonValue = $valueCounts->sortDesc()->keys()->first();
+            $mostCommonWeatherPerUser[$user_id] = $mostCommonValue;
+        }
+        $month_average_data = [];
+        foreach($user_record as $user){
+            $month_average_data[$user->id] = array(
+                'month_over_time' => $month_over_time[$user->id] ?? null,
+                'month_work_time' => $month_work_time[$user->id] ?? null,
+                'month_weather_average' => $mostCommonWeatherPerUser[$user->id] ?? null,
+                'month_achievement_average' => $mostCommonAchievementPerUser[$user->id] ?? null,
+            );
+        }
+        $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
+                        ->whereMonth('shift_day', $currentMonth)
+                        ->whereIn('user_id', $users_list)
+                        ->with(['user' => function($q){
+                            $q->select('name', 'id', 'work_authority');
+                        }])
+                        ->with(['shiftType'])
+                        ->orderBy('created_at', 'desc')
+                        ->get();
+        $grouped_reserved_shifts = [];
+        foreach($shift_record as $reserved_date){
+            $date = $reserved_date->shift_day;
+            $shift_type = $reserved_date->shift_type;
+            $userId = $reserved_date->user->id;
+            $shiftTypeName = $reserved_date->shiftType->name;
+            $shiftTypeAbbreviation = $reserved_date->shiftType->abbreviation;
+            $shiftTypeColor = $reserved_date->shiftType->color;
+            $grouped_reserved_shifts[$date][$userId] = [
+                'shift_day' => $date,
+                'shift_type' => $shift_type,
+                'name' => $shiftTypeName,
+                'abbreviation' => $shiftTypeAbbreviation,
+                'color' => $shiftTypeColor,
+                'user' => $reserved_date->user,
+                'shift_start_time' => $reserved_date->start_time,
+                'shift_end_time' => $reserved_date->end_time
+            ];                
+        }
+
+        $responseArray = array(
+            'record_array' => $grouped_reserved_dates,
+            'weather' => $custom_weather_data,
+            'user_data' => $user_record,
+            'shift_array' => $grouped_reserved_shifts,
+            'month_average' => $month_average_data
+        );
+
+        return response()->json($responseArray);
+    }
+    public function getShiftData(Request $request){
+        $auth_user = Auth::user();
+        $auth_user_id = Auth::id();
+        [$currentYear, $currentMonth] = explode('-', $request->current_date);
+        $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
+                        ->whereMonth('shift_day', $currentMonth)
+                        ->whereIn('user_id', $request->work_group)
+                        ->with(['shiftType'])
+                        ->orderBy('created_at', 'desc')
+                        ->get();
+        if($auth_user->position_id <= 11){
+            $shift_type = shiftType::get();
+        }else{
+            $shift_type = shiftType::where('id','!=', 14)->where('id','!=', 15)->get();
+        }
+        $data = [
+            "shift_record" => $shift_record,
+            "shift_type" => $shift_type
+        ];
+
+        return response()->json(
+            $data
+        );
+    }
+    public function shiftAdd(Request $request)
+    {
+        // ログインユーザー情報取得
+        $auth_user_id = Auth::id();
+        $user_id = $request->userId;
+        if (!empty($request->shift_array)) {
+            $shift_array = $request->shift_array;
+            $start_time_val = $request->shiftTimeStart . ':00';
+            $end_time_val = $request->shiftEndStart . ':00';
+
+            $shift_days = collect($shift_array)->pluck('date')->toArray();
+            $shift_record_check = shiftRecord::where('user_id', $auth_user_id)
+                ->whereIn('shift_day', $shift_days)
+                ->get()
+                ->keyBy('shift_day'); // Key the collection by shift_day for easy comparison
+            foreach ($shift_array as $shift) {
+                // Check if there's a shift record for the current date
+                if ($shift_record_check->has($shift['date'])) {
+                    $shift_record = $shift_record_check[$shift['date']];
+                    if ($shift_record->shift_type !== $shift['type']) {
+                        // Update shift type if it's different
+                        $shift_record->shift_type = $shift['type'];
+                        $shift_record->update();
+                    }
+                } else {
+                    // Create a new shift record
+                    shiftRecord::create([
+                        'user_id' => $auth_user_id,
+                        'shift_day' => $shift['date'],
+                        'shift_type' => $shift['type'],
+                        'start_time' => $start_time_val,
+                        'end_time' => $end_time_val,
+                    ]);
+                }
+            }
+        }
+
+        return response()->json($request);
+    }
+    public function getWorkGroup(Request $request){
+        $work_group_list = workGroup::whereHas('work_group_user', function ($q) {
+            $q->whereIn('user_id', [Auth::id()]);
+        })->with(['user.icons', 'work_group_user.user'])->get();
+        
+        $work_group_array = $work_group_list->map(function ($work_group_list_value) {
+            $work_group_users = $work_group_list_value->work_group_user->map(function ($work_group_user_value) {
+                return [
+                    'id' => $work_group_user_value->user ? $work_group_user_value->user->id : null,
+                    'name' => $work_group_user_value->user ? $work_group_user_value->user->name : null,
+                ];
+            });
+        
+            return [
+                'group_id' => $work_group_list_value->id,
+                'group_title' => $work_group_list_value->name,
+                'group_users' => $work_group_users,
+            ];
+        });
+        return response()->json($work_group_array);
+    }
+    public function dailyReportAdd(Request $request){
+        $auth_user_id = Auth::id();
+        
+        $exist_timecard = timecardRecord::where('day', $request->day)->where('user_id', $auth_user_id)->first();
+        if($exist_timecard && $exist_timecard->start_time){
+            $exist_timecard->end_time = $request->end_time;
+            $exist_timecard->stamp_flag = 1;
+            $exist_timecard->save();
+            return response()->json($exist_timecard);
+        }else{
+            $timecard = new timecardRecord;
+            $timecard->user_id = $auth_user_id;
+            $timecard->day = $request->day;
+            $timecard->start_time = $request->start_time;
+            $timecard->stamp_flag = 0;
+            $timecard->save();
+            return response()->json($timecard);
+        }
+    }
+    public function saveTimeCard(Request $request){
+        
+        $is_exist = timecardRecord::where('day', $request->day)->where('user_id', $request->userId)->first();
+        $fields = ['comment', 'incident', 'achievement', 'allowance'];
+        $start_time = Carbon::parse($request->day . ' ' . $request->start_time);
+        $end_time = Carbon::parse($request->day . ' ' . $request->end_time);
+        $shift_start_time = Carbon::parse($request->day . ' ' . $request->shift_start_time);
+        $shift_end_time = Carbon::parse($request->day . ' ' . $request->shift_end_time);
+        $shift_time_difference_seconds = $shift_end_time->diffInSeconds($shift_start_time);
+        $shift_time_difference_seconds -= $request->breakTime * 60;
+        $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
+        $time_difference_seconds = $end_time->diffInSeconds($start_time);
+        $time_difference_seconds -= $request->breakTime * 60;
+        $time_difference_seconds = max(0, $time_difference_seconds);
+        
+        if($is_exist){
+            $is_exist->start_time = $request->start_time;
+            $is_exist->end_time = $request->end_time;
+            if ($time_difference_seconds > $shift_time_difference_seconds) {                
+                $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
+                $overtimeMinutes = floor($overtimeSeconds / 60);
+                $is_exist->over_time = $overtimeMinutes;
+            } else {
+                $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
+                $latetimeMinutes = floor($latetimeSeconds / 60);
+                $is_exist->late_time = $latetimeMinutes;
+            }
+            $minutes = floor($time_difference_seconds / 60);
+            $is_exist->work_time = $minutes;
+            $is_exist->edit_start_time = $request->start_time;
+            $is_exist->edit_end_time = $request->end_time;
+            $is_exist->work_time_edit_flag = 1;
+            $is_exist->break_time = $request->breakTime;
+            $is_exist->stamp_flag = 1;
+            if($request->status_flag == 1){
+                $is_exist->status_flag = 1;
+            }
+            $is_exist->save();
+            
+
+            foreach ($fields as $field) {
+                if ($request->$field) {
+                    $fieldData = $request->$field;
+                    $customFieldData = customFieldDataRecord::where('table_record_id', $is_exist->id)
+                        ->where('user_id', $request->userId)
+                        ->where('type_id', $fieldData['field_type_id'])
+                        ->first();
+                    if($customFieldData){
+                        $customFieldData->delete();
+                    }
+                    if ($field == 'allowance') {
+                        foreach ($fieldData['value'] as $val) {
+                            $this->saveCustomData($request->day, $is_exist->id, $request->userId, $val, $fieldData['field_type_id']);
+                        }
+                    } else {
+                        $this->saveCustomData($request->day, $is_exist->id, $request->userId, $fieldData['value'], $fieldData['field_type_id']);
+                    }
+                }
+            }
+        }else{
+            $new_time_card = new timecardRecord;
+            $new_time_card->start_time = $request->start_time;
+            $new_time_card->day = $request->day;
+            $new_time_card->user_id = $request->userId;
+            $new_time_card->end_time = $request->end_time;
+            if ($time_difference_seconds > $shift_time_difference_seconds) {                
+                $overtimeSeconds = $time_difference_seconds - $regularHoursThreshold;
+                $overtimeMinutes = floor($overtimeSeconds / 60);
+                $new_time_card->over_time = $overtimeMinutes;
+            } else {
+                $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
+                $latetimeMinutes = floor($latetimeSeconds / 60);
+                $new_time_card->late_time = $latetimeMinutes;
+            }
+            $minutes = floor($time_difference_seconds / 60);
+            $new_time_card->work_time = $minutes;
+            $new_time_card->edit_start_time = $request->start_time;
+            $new_time_card->edit_end_time = $request->end_time;
+            $new_time_card->work_time_edit_flag = 1;
+            $new_time_card->break_time = $request->breakTime;
+            $new_time_card->stamp_flag = 1;
+            if($request->status_flag == 1){
+                $new_time_card->status_flag = 1;
+            }
+            $new_time_card->save();
+            
+    
+            foreach ($fields as $field) {
+                if ($request->$field) {
+                    $fieldData = $request->$field;
+                    if ($field == 'allowance') {
+                        foreach ($fieldData['value'] as $val) {
+                            $this->saveCustomData($request->day, $new_time_card->id, $request->userId, $val, $fieldData['field_type_id']);
+                        }
+                    } else {
+                        $this->saveCustomData($request->day, $new_time_card->id, $request->userId, $fieldData['value'], $fieldData['field_type_id']);
+                    }
+                }
+            }
+        }
+    }
+    private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id){
+        $new_custom_data = new customFieldDataRecord;
+        $new_custom_data->date = $date;
+        $new_custom_data->table_record_id = $table_record_id;
+        $new_custom_data->user_id = $user_id;
+        $new_custom_data->type_id = $type_id;
+        if($type_id == 39){ // comment
+            $new_custom_data->value_text = $value;
+        } else { // incident, achievement, allowance
+            $new_custom_data->value_int = $value;
+            $partsRecord = customFieldPartsRecord::where('record_id', $type_id)
+                                                  ->where('parts_value', $value)
+                                                  ->select('parts_lavel')
+                                                  ->first();
+            $new_custom_data->label	= $partsRecord->parts_lavel;
+        }
+        $new_custom_data->save();
+    }
+    public function deleteTimeCard(Request $request){
+        $is_exist = timecardRecord::where('day', $request->date)->where('user_id', $request->userId)->first();
+        if($is_exist){
+            $custom_field = customFieldDataRecord::where('table_record_id', $is_exist->id)
+            ->where('user_id', $request->userId)
+            ->where('date', $request->date)
+            ->get();
+            if($custom_field){
+                $custom_field->each->delete();
+            }
+            $is_exist->delete();
+
+            return 'deleted';
+        }
+
+        return 'not exist';
+    }
+    public function getAttendanceData(Request $request){
+        $user_list = $request->work_group;
+        [$currentYear, $currentMonth] = explode('-', $request->current_date);
+        $formattedDate = date('Y-m', strtotime($request->current_date));
+        $user = User::with([
+            'attendance_records' => function ($query) use ($formattedDate) {
+                $query->where('date_year_month', $formattedDate);
+            },
+            'shift_records' => function ($query) use ($currentYear, $currentMonth) {
+                $query->whereYear('shift_day', $currentYear)
+                    ->whereMonth('shift_day', $currentMonth)
+                    ->select('user_id', 'shift_day', 'shift_type');
+            },
+            'time_card_records' => function ($query) use ($currentYear, $currentMonth) {
+                $query->whereYear('day', $currentYear)
+                    ->whereMonth('day', $currentMonth)
+                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time');
+            },
+            'custom_field_data_records' => function ($query) use ($currentYear, $currentMonth) {
+                $query->where('type_id', 37)
+                    ->whereYear('date', $currentYear)
+                    ->whereMonth('date', $currentMonth)
+                    ->select('value_int', 'user_id');
+            }
+        ])->select('id','name','work_type', 'work_time_day', 'user_code')->findOrFail($user_list[0]);
+        // Now you can access the related data without issuing additional queries
+        $userData = $user->makeHidden('attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records');
+        $attendance = $user->attendance_records->first();
+        $shift_count = $user->shift_records->where('shift_type', '!=', 0)->pluck('shift_day');
+        $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
+        $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->count();
+        $workedday_count = $user->time_card_records->whereIn('day', $shift_count)->count();
+        $worked_time = $user->time_card_records->sum('work_time');
+        $holiday_worked_time = $user->time_card_records->whereIn('day', $shift_holidays)->sum('work_time');
+        $approved_count = $user->time_card_records->where('status_flag', 2)->count();
+        $unapproved_count = $user->time_card_records->where('status_flag', 1)->count();
+        $annual_leave = $user->shift_records->where('shift_type', 5)->count();
+        $condolence_leave = $user->shift_records->where('shift_type', 14)->count();
+        $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
+        $over_time = $user->time_card_records->sum('over_time');
+        $late_time = $user->time_card_records->sum('late_time');
+        if($over_time >= $late_time){
+            $month_over_time = $over_time - $late_time;
+        }else{
+            $month_over_time = 0;
+        }
+        
+        $month_stay_allowance_count = $user->custom_field_data_records->where('value_int', 0)->count();
+        $month_move_allowance_count = $user->custom_field_data_records->where('value_int', 1)->count();
+        
+        if(!empty($attendance)){
+            $attendance_flag = true;
+        }else{
+            $attendance_flag = false;
+        }
+        $responseArray = array(
+            'user' => $userData,
+            'attendance_flag' => $attendance_flag,
+            'shift_count' => $shift_count->count(),
+            'shift_holidays' => $shift_holidays->count(),
+            'holiday_count' => $worked_holiday_count,
+            'workedday_count' => $workedday_count,
+            'approved_count' => $approved_count,
+            'unapproved_count' => $unapproved_count,
+            'annual_leave' => $annual_leave,
+            'condolence_leave' => $condolence_leave,
+            'transfer_leave' => $transfer_leave,
+            'over_time' => $month_over_time,
+            'month_stay_allowance_count' => $month_stay_allowance_count,
+            'month_move_allowance_count' => $month_move_allowance_count,
+            'worked_time' => $worked_time,
+            'holiday_worked_time' => $holiday_worked_time
+        );
+
+        return response()->json($responseArray);
+    }
+    public function remandTimeCard(Request $request){
+
+        $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', '=' , $request->record_day )->first();
+
+        if(!empty($time_card_record)){
+                $time_card_record->status_flag = 10;
+                $time_card_record->save();
+        }
+
+        return response()->json($time_card_record);
+
+    }
+    public function approveTimeCard(Request $request){
+
+        $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', $request->record_day )->first();
+
+        if(!empty($time_card_record)){
+            $time_card_record->status_flag = 2;
+            $time_card_record->save();
+        }
+
+        return response()->json($time_card_record);
+
+    }
+
+
+    public function cancelTimeCard(Request $request){
+
+        $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', $request->record_day )->first();
+
+        if(!empty($time_card_record)){
+            $time_card_record->status_flag = 1;
+            $time_card_record->save();
+        }
+        
+
+        return response()->json($time_card_record);
+
+    }
+    public function attendanceConfirm(Request $request){
+        if(!empty($request)){
+            $attendance_record = new attendanceRecord;
+            $attendance_record->date_year_month = $request->date_year_month;
+            $attendance_record->user_id = $request->user['id'];
+            $attendance_record->user_code = $request->user['user_code'];
+            $attendance_record->name = $request->user['name'];
+            $attendance_record->pay_day = 20;
+            $attendance_record->prescribed_working_hours = $request->shift_working_hours;
+            if($request->user['work_type'] == 0){
+                $attendance_record->work_type = 'フレックス';
+            }else{
+                $attendance_record->work_type = '通常';
+            }
+            $attendance_record->month_petition = '済';
+            $attendance_record->working_days_shift = $request->shift_working_days;
+            $attendance_record->normal_working_days = $request->worked_days;
+            $attendance_record->holiday_working_days = $request->holiday_worked_days;
+            $attendance_record->paid_holiday_hours = $request->annual_leave;
+            $attendance_record->condolence_holiday = $request->condolence_leave;
+            $attendance_record->closed_day = 0;
+            $attendance_record->working_hours = $request->worked_hours;
+            $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
+            $attendance_record->over_time = $request->over_time;
+            $attendance_record->night_work_time = $request->night_work_time;
+            $attendance_record->stay_pay = $request->stay_pay;
+            $attendance_record->move_pay = $request->move_pay;
+
+            $attendance_record->save();
+
+            return response()->json($attendance_record);
+        }
+        
+    }
+}
+

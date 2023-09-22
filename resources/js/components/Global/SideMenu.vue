@@ -51,6 +51,17 @@
                     <span>{{ $t('calendar') }}</span>                    
                 </div>                
             </div>
+            <div @click="pushRoute(`work`)" :class="['side-menu-route', { selectedRoute: selectedRoute == 'work'}]">
+                <div class="side-menu-route-inner">   
+                    <svg class="file-icon dot-menu" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="width: 17px !important; height: 18px;min-width:17px">
+                        <path d="M30.827 10.021c-0.79-1.951-1.963-3.748-3.442-5.253s-3.264-2.716-5.214-3.531c-1.963-0.816-4.080-1.237-6.183-1.237-2.116 0.013-4.233 0.433-6.183 1.249s-3.723 2.040-5.202 3.544c-1.479 1.504-2.652 3.289-3.442 5.24-0.778 1.951-1.173 4.054-1.16 6.132 0.013 2.091 0.433 4.182 1.237 6.107 0.816 1.925 1.989 3.697 3.48 5.151s3.264 2.626 5.189 3.391c1.925 0.778 4.207 1.147 6.069 1.147 0.956 0 2.065-0.115 3.085-0.306s2.014-0.484 2.983-0.867c1.925-0.765 3.697-1.925 5.189-3.378s2.69-3.213 3.493-5.138c0.816-1.925 1.249-4.016 1.262-6.107 0.025-2.091-0.37-4.194-1.16-6.145zM28.367 21.304c-0.65 1.632-1.645 3.123-2.869 4.386s-2.716 2.282-4.335 2.983-3.57 1.071-5.176 1.071-3.544-0.382-5.163-1.084c-1.619-0.688-3.111-1.708-4.335-2.971s-2.218-2.754-2.881-4.373c-0.663-1.619-1.007-3.378-0.994-5.138s0.382-3.493 1.071-5.1c0.688-1.606 1.696-3.060 2.932-4.284 2.486-2.435 5.916-3.837 9.383-3.812 3.468-0.013 6.884 1.39 9.358 3.825 1.237 1.211 2.244 2.677 2.92 4.284 0.688 1.594 1.045 3.34 1.058 5.087s-0.319 3.493-0.969 5.125z"></path>
+                        <path d="M17.594 16.064c-0.026-0.038-0.064-0.064-0.089-0.102l-0.79-9.74c-0.026-0.357-0.306-0.65-0.676-0.676-0.408-0.038-0.765 0.268-0.803 0.676l-0.841 10.441c0 0.076-0.013 0.178 0 0.255 0.013 0.102 0.025 0.191 0.051 0.293 0.013 0.51 0.242 1.020 0.688 1.364l6.489 5.049c0.293 0.229 0.727 0.242 1.033-0.013 0.357-0.28 0.408-0.803 0.128-1.16l-5.189-6.387z"></path>
+                    </svg>
+                    <span>{{ $t('work') }}</span>                    
+                </div>                
+            </div>
+                        
+            
 
 
 
@@ -139,29 +150,29 @@ import UserIcon from '../Board/Mixed/UserIcon.vue';
             }
         },
         mounted() {
-            console.log('aaaa', this.auth_user)
-            window.addEventListener('resize', (event) => {
-                const mobile = window.innerWidth < 959
-                if(this.$store.state.mobile !== mobile){
-                    this.$store.commit('setMobile', mobile)
-                }
-            }, true);
-            window.addEventListener("focus", (event) => { 
-                this.authCheck();
-                this.$store.commit('setFocused', true);
-            }, false);
-            window.addEventListener("blur", (event) => { 
-                this.$store.commit('setFocused', false);            
-            }, false);
-            this.notifyGet('mounted');
+            // console.log('aaaa', this.auth_user)
+            // window.addEventListener('resize', (event) => {
+            //     const mobile = window.innerWidth < 959
+            //     if(this.$store.state.mobile !== mobile){
+            //         this.$store.commit('setMobile', mobile)
+            //     }
+            // }, true);
+            // window.addEventListener("focus", (event) => { 
+            //     this.authCheck();
+            //     this.$store.commit('setFocused', true);
+            // }, false);
+            // window.addEventListener("blur", (event) => { 
+            //     this.$store.commit('setFocused', false);            
+            // }, false);
+            // this.notifyGet('mounted');
 
-            if(this.remember){
-                this.$store.commit('setRemember',this.remember)
-            }
+            // if(this.remember){
+            //     this.$store.commit('setRemember',this.remember)
+            // }
 
 
-            emitter.on('notifyUpdate', (data) => this.notifyUpdate(data));
-            emitter.on('notifyGet', (data) => this.notifyGet(data));
+            // emitter.on('notifyUpdate', (data) => this.notifyUpdate(data));
+            // emitter.on('notifyGet', (data) => this.notifyGet(data));
             
             // #20201202_0013 Tumur　通知機能追加
             if(this.session){

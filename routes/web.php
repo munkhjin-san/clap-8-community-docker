@@ -21,7 +21,8 @@ use App\Http\Controllers\NiceRecordsController;
 use App\Http\Controllers\ChallengeRecordsController;
 use App\Http\Controllers\EmployeeRecordsController;
 use App\Http\Controllers\SupportRecordsController;
-use App\Http\Controllers\WorkRecordsController;
+use App\Http\Controllers\WorkController;
+use App\Http\Controllers\CustomfieldController;
 use App\Http\Controllers\Auth\VerificationController;
 use App\Http\Controllers\SocialLoginController;
 use App\Http\Controllers\Auth\LoginController;
@@ -128,7 +129,7 @@ Route::group(["middleware"=>"auth"],function(){
         // Route::get('/nice', [BoardController::class, "index"]);
         // Route::get('/challenge', [BoardController::class, "index"]);
 
-        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|calendar)');
+        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|calendar|work)');
         
         // Route::get('/{name}',function () {
         //     {return Redirect::route('board');}
@@ -329,5 +330,17 @@ Route::group(["middleware"=>"auth"],function(){
 
     // });    
 
-    
+        Route::post('/get_work_data', [WorkController::class, 'getWorkData']);
+        Route::post('/get_shift_data', [WorkController::class, 'getShiftData']);
+        Route::post('/add_shift', [WorkController::class, 'shiftAdd']);
+        Route::get('/get_work_group', [WorkController::class, 'getWorkGroup']);
+        Route::post('/daily_report_add', [WorkController::class, 'dailyReportAdd']);
+        Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
+        Route::post('/save_time_card', [WorkController::class, 'saveTimeCard']);
+        Route::post('/delete_time_card', [WorkController::class, 'deleteTimeCard']);
+        Route::post('/get_attendance_data', [WorkController::class, 'getAttendanceData']);
+        Route::post('/remand_time_card', [WorkController::class, 'remandTimeCard']);
+        Route::post('/approve_time_card', [WorkController::class, 'approveTimeCard']);
+        Route::post('/cancel_time_card', [WorkController::class, 'cancelTimeCard']);
+        Route::post('/attendance_confirm', [WorkController::class, 'attendanceConfirm']);
 });

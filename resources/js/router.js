@@ -160,7 +160,16 @@ const routes = [
             next();
         }, 
         
+    },
+    {
+        path: '/work',
+        name: 'work',
+        component: () => import('./components/Work/WorkContainer.vue'),
+        beforeEnter: (to, from, next) => {
+            fetchPosts(to, next, from, 'work');
+        },
     }
+    
 
 
 ]
