@@ -8,7 +8,7 @@
                 :name="name" 
                 :rules="rules" 
                 v-model="value"
-                @input="$emit('setValue', $event.target.value)"
+                @change="$emit('setValue', $event.target.value)"
                 style="height: 40px; font-size: 14px; border: solid 1px var(--formBorder);"
             >
             <option :value="option" v-for="option in options" v-html="`${option}${unit}`"></option>

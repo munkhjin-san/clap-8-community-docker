@@ -9,11 +9,13 @@
             name="selected_items" 
             :options="options"
             @search:focus="$store.commit('setActiveInput', uId), getPossibleItems()"
-            @search:blur="$store.commit('setActiveInput', '')"
+            @search:blur="$store.commit('setActiveInput', ''), options = []"
             @input="value = $event.target.value"
+            @option:selected="$emit('setItems', selected_items)"
+            @option:deselected="$emit('setItems', selected_items)"
             :inputId="uId"
             :components="{Deselect}"
-            :selectable="(option) => option"
+            :selectable="(option) => option.availablity"
         >
             <template #no-options="{ search, searching, loading }">
                 <div style="font-size: 14px;opacity: 0.8;padding:10px 0;">アイテムはありません。</div>        
@@ -36,7 +38,7 @@
 import { markRaw, onDeactivated } from 'vue';
 import { Field, Form } from 'vee-validate'
 export default{
-    props: ['uId', 'initialSelected', 'placeHolder', 'name', 'rules', 'normalSpan', 'repeatSpan', 'repetitionFlag', 'target'],
+    props: ['uId', 'initialSelected', 'placeHolder', 'name', 'rules', 'normalSpan', 'repeatSpan', 'repetitionFlag', 'target', 'time_start', 'time_end', 'once_date'],
     emit: ['setItems'],
     data(){
         return{
@@ -49,7 +51,7 @@ export default{
         }
     },
     mounted(){
-        if(this.initialSelected){
+        if(this.initialSelected){            
             this.$emit('setItems', this.initialSelected)
         }
         if(this.board){
@@ -58,22 +60,31 @@ export default{
     },
     watch:{
         selected_items(after){
+            console.log('yapapa')
             this.$emit('setItems', after)
         },        
     },
     methods:{   
         getPossibleItems(){
-            this.$refs[this.uId].toggleLoading(true);
+            console.log('refff', this.$refs[this.uId])
+            if(this.$refs[this.uId]){
+                this.$refs[this.uId].toggleLoading(true);
+            }
+            
             const params = {
                 target: this.target,
                 repeat: this.repetitionFlag, 
-                normal_span: this.normalSpan, 
-                repeat_span: this.repeatSpan 
+                repeat_span: this.repeatSpan,
+                time_start: this.time_start,
+                time_end: this.time_end,
+                once_date: this.once_date 
             }
             axios.post('/get_possible_facilities', params)
             .then(response => {
                 this.options = response.data
-                this.$refs[this.uId].toggleLoading(false);
+                if(this.$refs[this.uId]){
+                    this.$refs[this.uId].toggleLoading(false);
+                }
             })
             
         }

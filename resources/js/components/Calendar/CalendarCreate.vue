@@ -90,7 +90,7 @@
                                 uId="yearSelectorSelectedMonth"
                                 name="yearSelectorSelectedMonth"
                                 rules="required"
-                                @setValue="val => repeat_span.yearly.selected_month"
+                                @setValue="val => repeat_span.yearly.selected_month = parseInt(val)"
                             />
                             <FormOptionSelector
                                 :initialValue="repeat_span.yearly.selected_day"
@@ -100,7 +100,7 @@
                                 uId="yearSelectorSelectedDay"
                                 name="yearSelectorSelectedDay"
                                 rules="required"
-                                @setValue="val => repeat_span.yearly.selected_day"
+                                @setValue="val => repeat_span.yearly.selected_day = parseInt(val)"
                             />
                         </div>
 
@@ -126,7 +126,7 @@
                             uId="monthlyDaySelector"
                             name="monthlyDaySelector"
                             rules="required"
-                            @setValue="val => repeat_span.monthly.selected_day = val"
+                            @setValue="val => repeat_span.monthly.selected_day = parseInt(val)"
                         />
 
                     </div>
@@ -195,7 +195,7 @@
                                 uId="yearSelectorStart"
                                 name="yearSelectorStart"
                                 rules="required"
-                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_from = val"
+                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_from = parseInt(val)"
                             />
                             <FormOptionSelector
                                 :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_to"
@@ -205,7 +205,7 @@
                                 uId="yearSelectorEnd"
                                 name="yearSelectorEnd"
                                 rules="required"
-                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_to = val"
+                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_to = parseInt(val)"
                             />
                         </div>
                     </div>
@@ -216,10 +216,13 @@
                         :initialSelected="facility.qualified_institution"
                         :repeatSpan="repeat_span"
                         :repetitionFlag="repetition_type"
-                        target="facilities"
+                        :time_end="time_end"
+                        :time_start="time_start"
+                        :once_date="once_date"
+                        target="qualified_institution"
                         placeHolder="施設選択"
                         rules=""
-                        @setItems="val => facility.qualified_institution = val"
+                        @setItems="val => facility.qualified_institution = val ? val.value : null"
                         uId="calendarFacility"
                         name="calendarFacility"
                         ref="calendarFacility"
@@ -230,10 +233,13 @@
                         :initialSelected="facility.qualified_zoom"
                         :repeatSpan="repeat_span"
                         :repetitionFlag="repetition_type"
-                        target="zooms"
+                        :time_end="time_end"
+                        :time_start="time_start"
+                        :once_date="once_date"
+                        target="qualified_zoom"
                         placeHolder="WEB会議選択"
                         rules=""
-                        @setItems="val => facility.qualified_zoom = val"
+                        @setItems="val => facility.qualified_zoom = val ? val.value : null"
                         uId="calendarZoom"
                         name="calendarZoom"
                         ref="calendarZoom"
@@ -254,10 +260,13 @@
                         :initialSelected="facility.qualified_car"
                         :repeatSpan="repeat_span"
                         :repetitionFlag="repetition_type"
-                        target="cars"
+                        :time_end="time_end"
+                        :time_start="time_start"
+                        :once_date="once_date"
+                        target="qualified_car"
                         placeHolder="車両選択"
                         rules=""
-                        @setItems="val => facility.qualified_car = val"
+                        @setItems="val => facility.qualified_car = val ?  val.value : null"
                         uId="calendarCars"
                         name="calendarCars"
                         ref="calendarCars"
@@ -369,7 +378,10 @@ export default{
                 
             try {                    
                 let result = true
-                let checkRef = ['calendarUsers', 'calendarTitle', 'calendarNormalTimeStart', 'calendarNormalTimeEnd'];
+                let checkRef = ['calendarUsers', 'calendarTitle']
+                if(!this.all_day){
+                    checkRef.push('calendarNormalTimeStart', 'calendarNormalTimeEnd')
+                }   
                 if(this.repetition_type == 0){
                     checkRef.push('calendarNormalDate')
                 }else if(this.repetition_type == 1){
@@ -396,6 +408,29 @@ export default{
             }               
             
         },
+        async second_validation(){
+            if(this.time_start == this.time_end){
+                return {
+                    valid: false,
+                    error: '開始時間と終了時間は同じにすることが出来ません。'
+                }
+            }else {
+                const model = moment().format('YYYY-MM-DD')
+                const a = `${model} ${this.time_end}:00`
+                const b = `${model} ${this.time_start}:00`
+                if(moment(a).isBefore(moment(b))){
+                    return {
+                        valid: false,
+                        error: '終了時間は開始時間より先にすることが出来ません。'
+                    }
+                }
+                
+            }
+            return {
+                valid: true,
+                error: ''
+            }
+        },
         async createSend(){
             this.processing = true
             const valid = await this.validation()
@@ -403,7 +438,14 @@ export default{
                 this.processing = false
                 return
             }
-
+            const second_validate = await this.second_validation()
+            console.log(second_validate)
+            if(!second_validate.valid){
+                this.errorToast(second_validate.error)
+                this.processing = false
+                return
+            }
+            
             const params = {
                 editId: this.editTarget ? this.editTarget.id : null,
                 title: this.title,
@@ -412,11 +454,10 @@ export default{
                 referrer: this.referrer,
                 release_flag: this.release_flag,
                 edit_all: this.edit_all,
-                all_day: this.all_day,
                 repetition_type: this.repetition_type,
                 zoom_waiting_room: this.zoom_waiting_room,
-                time_start: this.time_start,
-                time_end: this.time_end,
+                time_start:  this.all_day ? '00:00' : this.time_start,
+                time_end: this.all_day ? '23:59' : this.time_end,
                 once_date: this.once_date,
                 repeat_span: this.repeat_span,
                 facility: this.facility,
@@ -457,12 +498,14 @@ export default{
             return true
         },
         avialableDay(){
+            this.repeat_span
             if(this.repeat_span.yearly.selected_month){
                 const month = this.repeat_span.yearly.selected_month
                 if (month === 2) {
                     return Array.from({ length: 28 }, (_, index) => index + 1);
                 } else {
                     const is31DaysMonth = moment(`${moment().year()}-${month}-31`, 'YYYY-MM-DD').isValid();
+                    console.log(is31DaysMonth)
                     return Array.from({ length: is31DaysMonth ? 31 : 30 }, (_, index) => index + 1);
                 }
             }else{
