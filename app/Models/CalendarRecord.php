@@ -40,6 +40,21 @@ class CalendarRecord extends Model
         'user_id', 
         'title', 
         'date_start',
-        'date_end'
+        'date_end',
+        "title",
+        "remarks",
+        "referrer",
+        "release_flag",
+        "edit_all",
+        "repetition_type",
+        "created_user",
+        "updated_user",
+        "user_id",
+        "r_group_id",
+        "expiration_start",
+        "expiration_end",
+        "qualified_institution",
+        "qualified_zoom",
+        "qualified_car"
     ];
 }
