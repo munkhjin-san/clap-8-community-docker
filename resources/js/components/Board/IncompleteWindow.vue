@@ -90,8 +90,8 @@ import { ref, onMounted } from 'vue';
             UncheckedMessageItem
         },
         mounted() {
-                this.getIncompletedTasks()
-                this.getUnsignedMessages()
+                // this.getIncompletedTasks()
+                // this.getUnsignedMessages()
                 this.isJumpToMessage
         },
         watch:{

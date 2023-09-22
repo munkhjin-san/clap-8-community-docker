@@ -43,14 +43,12 @@ class LoginController extends Controller
     public function __construct()
     {
         $this->middleware('guest')->except('logout');
-        $this->middleware('throttle:3,1')->only('login');
+       
     }
     public function login(Request $request)
     {
 
-        $user = User::where('email', $request->login)->where(function ($query) {
-            $query->whereNull('social_login');
-        })->first();
+        $user = User::where('login', $request->login)->first();
 
         
         if($user){

@@ -481,6 +481,7 @@ const ja =  {
     knowledge: 'ナレッジ',
     nice: 'ナイス',
     challenge: 'チャレンジ',
+    work: 'ワーク',
     help: {
         helpTitle: 'ヘルプ',
         AccountManagement: 'アカウント管理',

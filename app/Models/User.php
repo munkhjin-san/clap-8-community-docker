@@ -128,7 +128,18 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(User::class, 'block_list', 'blocked_user_id', 'user_id')
             ->withTimestamps();
     }
-   
+    public function time_card_records(){
+        return $this->hasMany(timecardRecord::class, 'user_id');
+    }
+    public function shift_records(){
+        return $this->hasMany(shiftRecord::class, 'user_id');
+    }
+    public function attendance_records(){
+        return $this->hasMany(attendanceRecord::class, 'user_id');
+    }
+    public function custom_field_data_records(){
+        return $this->hasMany(customFieldDataRecord::class, 'user_id');
+    }
     // public function sendEmailVerificationNotification()
     // {
     //     if($this->phone){

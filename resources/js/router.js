@@ -148,6 +148,14 @@ const routes = [
         beforeEnter: (to, from, next) => {
             fetchPosts(to, next, from, 'challenge');
         },
+    },
+    {
+        path: '/work',
+        name: 'work',
+        component: () => import('./components/Work/WorkContainer.vue'),
+        beforeEnter: (to, from, next) => {
+            fetchPosts(to, next, from, 'work');
+        },
     }
 
 ]
