@@ -48,7 +48,7 @@
                 </div>
             </div>
             <div v-if="$store.state.filePreview.files.length" class="mySwiper-container">
-                <div v-if="source == 'post' || source == 'message' || source == 'notice'" style="height:100%;">
+                <div v-if="source == 'post' || source == 'message' || source == 'notice' || source == 'user'" style="height:100%;">
                     <div class="mySwiper-wrapper" ref="mySwiper">                   
                         <swiper class="firstswiper" style="background:none;border:none;width:100%;" 
                             :space-between="10"
@@ -63,16 +63,20 @@
                             <swiper-slide style="background:none;border:none;width:100%" :key="file.id" v-for="(file, index) in $store.state.filePreview.files"> 
                                 <div v-if="f_index == index" class="swiper-zoom-container width90">
                                     
-                                    <img style="max-width:100%;margin:auto;max-height:100%;" v-if="file.mime_type == 'image' && source == 'message'" :src="$store.state.baseLocation + '/shared_files/'+ file.board_id + '/' + file.id + '_' + file.user_id + '_' + file.message_id + '.' + file.extension"> 
+                                    <img
+                                        v-if="file.mime_type == 'image'"
+                                        style="max-width: 100%; margin: auto; max-height: 100%;"
+                                        :src="imageSource(file)"
+                                    />
                                                             
                                     <div v-else-if="canPreview && file.mime_type == 'video'" style="display:flex;height: -webkit-fill-available;max-height: 70vh;">
                                         <video controls="controls" style="max-width: 79vw;max-height: 66vh;height: auto;background: #000;margin: auto;">
-                                            <source :src="fileUrlSource">
+                                            <source :src="fileUrlSource(file)">
                                         </video>
                                     </div>
                                     <div v-else-if="canPreview && file.mime_type == 'audio'" style="display:flex;height: -webkit-fill-available;max-height: 70vh;">                    
                                         <audio controls style="margin: auto;">
-                                            <source :src="fileUrlSource">
+                                            <source :src="fileUrlSource(file)">
                                         </audio>
                                     </div>
                                     <div id="docViewer" v-if="canPreview && file.mime_type == 'application'">
@@ -84,14 +88,14 @@
                                                 <span  style="font-size:16px; color:black;z-index:1;line-height:30px;">{{ $t('signBelow') }}</span>
                                             </div>
                                             <div v-if="isDrawing" :id="'signImage' + file.id + '_' + file.message_id" style="z-index: 2;display:flex; flex-direction: column;position:relative;">
-                                                <img class="resizeable" v-if="isDrawing && file.extension == 'pdf'" :src="imgData" style="z-index:2; border: 1px solid black;touch-action:none;" />
+                                                <img class="resizeable" id="resizeable" v-if="isDrawing && file.extension == 'pdf'" :src="imgData" style="z-index:2; border: 1px solid black;touch-action:none;" />
                                                 <!-- <span v-if="isDrawing" style="font-size:small;color:black;z-index:1;line-height:30px;background:#ddd;">{{ $t('dragSign') }}</span> -->
                                                 <div class="corner" id="topRight"></div>
                                                 <!-- <div class="corner" id="topLeft"></div>
                                                 <div class="corner" id="bottomRight"></div> -->
                                                 <div class="corner" id="bottomLeft"></div>
                                             </div>
-                                            
+                                            <span style="position:fixed;top:20px;color:black;word-break:keep-all;z-index:1;font-size:15px;" v-if="isDrawing">サインは拡大縮小でき、好きな場所にドラッグで移動することができます。</span>
                                           
                                             <!-- <div style="position:absolute; bottom:0; z-index: 1; display:flex; flex-direction: column; align-items: flex-start;">
                                                
@@ -102,7 +106,7 @@
                                                 <img v-for="imgUrl in imageUrls" :src="imgUrl.src" style="position:absolute; z-index: 1;" :style="{ top: `${imgUrl.y}px`, left: `${imgUrl.x}px`, width: `${imgUrl.width}px`, height: `${imgUrl.height}px`}"/>
                                             </div> -->
                                             <!-- <PDFviewer :docUrl="docUrl"></PDFviewer> -->
-                                            <vue-pdf-embed @loaded="onPdfLoaded(file)" style="position:relative;" :disableTextLayer="true" :disableAnnotationLayer="true" ref="pdf" :id="'pdfElement_' + file.id + '_' + file.message_id" :source="docUrl"/>
+                                            <vue-pdf-embed style="position:relative;" :disableTextLayer="true" :disableAnnotationLayer="true" ref="pdf" :id="'pdfElement_' + file.id + '_' + file.message_id" :source="docUrl"/>
                                         </div>
                                         <div v-if="docLoader" style="position:absolute;width:100%;height:100%;left:0;top:0;background:green;display:flex;">
                                             <div id="loaderMini" style="background:var(--background-color);">
@@ -118,10 +122,26 @@
                                                     <div class="spinner-nano" style="border: 4px #ffffff solid;border-top: 4px black solid;"></div>
                                                 </div>
                                             </button>
+                                            <div class="signatureButton cursor-pointer" v-show="canvasElementShow && !isDragging" style="margin-right:5px;position:relative;">
+                                                <button type="button" style="height:100%;" @click="toggleOptions">
+                                                    ペンの幅を選択                    
+                                                </button>
+                                                <div v-if="showOptions" class="lineOptions">
+                                                    <div class="lineOption" @click="selectLineWidth(1)" :class="{ selected: selectedLineWidth === 1 }">
+                                                    <div class="line" style="border-bottom: 1px solid black;"></div>
+                                                    </div>
+                                                    <div class="lineOption" @click="selectLineWidth(2)" :class="{ selected: selectedLineWidth === 2 }">
+                                                    <div class="line" style="border-bottom: 2px solid black;"></div>
+                                                    </div>
+                                                    <div class="lineOption" @click="selectLineWidth(3)" :class="{ selected: selectedLineWidth === 3 }">
+                                                    <div class="line" style="border-bottom: 3px solid black;"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             <button v-show="canvasElementShow && !isDragging" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="clear">{{$t('eraseSignature')}}</button>
                                             <button v-show="canvasElementShow && !isDragging" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="reset">{{$t('resetSignature')}}</button>
                                             <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="savePdf(file)">
-                                                <span v-if="!processing">{{$t('signStamp')}}</span>
+                                                <span v-if="!processing">サインを置きます</span>
                                                 <div v-if="processing" id="loaderMini">
                                                     <div class="spinner-nano" style="border: 4px #ffffff solid;border-top: 4px black solid;"></div>
                                                 </div>
@@ -129,13 +149,13 @@
                                             <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="cancelSign(file)">
                                                 <span>{{$t('cancelSignature')}}</span>
                                             </button>
-                                            
+                                            <button v-if="file.multiple_flag == 1 && !file.unsigned_users.length && file.user_id == $store.state.user.id" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="downloadAll()">すべてダウンロード</button>
                                         </div>
                                     </div>
                                     <div v-else-if="canPreview && file.mime_type == 'text'" style="height: calc(100% - 37px);width:100%;">
                                         <object
                                             v-if="file.extension === 'txt'"
-                                            :data="fileUrlSource"
+                                            :data="fileUrlSource(file)"
                                             type="text/html"
                                             width="100%"
                                             height="100%"
@@ -160,9 +180,8 @@
                             >
                                 <swiper-slide :key="file.id" v-for="(file) in $store.state.filePreview.files"> 
                                     <div class="swiper-zoom-container ssliderItem">
-                                        
-                                        <img style="max-width:100%;margin:auto;max-height:100%;" v-if="file.mime_type == 'image' && source == 'message'" :src="$store.state.baseLocation + '/shared_files/'+ file.board_id + '/' + file.id + '_' + file.user_id + '_' + file.message_id + '.' + file.extension">                                                                               
-                                         <div v-if="file.mime_type !== 'image'" style="position:relative;">
+                                        <img style="max-width:100%;margin:auto;max-height:100%;" v-if="file.mime_type == 'image'" :src="imageSource(file)">
+                                        <div v-if="file.mime_type !== 'image'" style="position:relative;">
                                             <FileIcon :ext="file.extension"/>
                                         </div>
                                     </div>
@@ -188,10 +207,10 @@
     import VuePdfEmbed from 'vue-pdf-embed'
     import { filesize } from 'filesize';
     import ConfirmWindow from '../../../Board/Message/ConfirmWindow.vue'
-    import { PDFDocument } from 'pdf-lib'
     import SignaturePad from 'signature_pad'
-    import interact from 'interactjs'
     import FileIcon from '../../Mixed/FileIcon.vue';
+    import Hammer from 'hammerjs'
+
     export default {
         components: {
             Swiper,
@@ -230,19 +249,40 @@
                 signaturePad: null,
                 imgData: null,
                 imageUrls: [],
-                pdfViewer: null
+                pdfViewer: null,
+                selectedLineWidth: 1,
+                showOptions: false,
+                signFlag: false,
+                interact: null,
+                PDFDocument: null
             }
         },
         beforeUnmount() {
             if(this.pdfViewer){
-                this.pdfViewer.removeEventListener('scroll', this.scrollEvent)
+                this.pdfViewer.removeEventListener('mouseover', this.handleMouseOver)
+                this.pdfViewer.removeEventListener('touchstart', this.handleMouseOver)
             }
-            
+        },
+        watch: {
+            signFlag(newVal){
+                if (newVal){
+                    import('pdf-lib').then(module => {
+                        this.PDFDocument = module.PDFDocument;
+                    });
+                    import('interactjs').then(module => {
+                        this.interact = module.default;
+                    });
+                }
+            }
         },
         mounted() {
-            
+            if(this.currentFile.sign_flag == 1){
+                this.signFlag = this.currentFile.sign_flag
+                this.onPdfLoaded(this.currentFile)
+                this.canvasCreate(this.currentFile) 
+            }
             this.f_index = this.$store.state.filePreview.index
-            if(this.source == 'message'){
+            if(this.source == 'message' || this.source == 'user' || this.source == 'post'){
                 this.topSwiper.slideTo(this.f_index, false)
                 this.thumbsSwiper.slideTo(this.f_index, false)
             }
@@ -257,10 +297,11 @@
             }
         },
         computed:{
+            
             canSign(){
                 const unsignedUsers = this.currentFile.unsigned_users;
-                if(unsignedUsers){
-                    const includesUser = Object.values(unsignedUsers).some(user => user.id === this.$store.state.user.id);
+                if(unsignedUsers && (this.currentFile.multiple_flag == 2 || this.currentFile.multiple_flag == 0)){
+                    const includesUser = Object.values(unsignedUsers).some(user => user.id === this.$store.state.user.id && user.pivot.cancel_flag === 0);
                     return includesUser
                 }
                 return false
@@ -283,19 +324,6 @@
             currentFile(){
                 return this.$store.state.filePreview.files[this.f_index]
             },
-            fileUrlSource(){
-                
-                if(this.source == 'message'){                    
-                    return this.$store.state.baseLocation + 
-                        '/shared_files/'+ 
-                        this.currentFile.board_id + '/' + 
-                        this.currentFile.id + '_' + 
-                        this.currentFile.user_id + '_' + 
-                        this.currentFile.message_id + '.' + 
-                        this.currentFile.extension
-                }
-            },
-            
             canPreview(){
                 const supported = [
                     'image', 'text','video', 'audio'
@@ -322,6 +350,127 @@
                     
         },
         methods:{
+            fileUrlSource(file){
+                const { source, $store } = this;
+                const baseLocation = $store.state.baseLocation;
+                if(source == 'message'){          
+                    return baseLocation + 
+                        '/shared_files/'+ 
+                        file.source_board_id + '/' + 
+                        file.id + '_' + 
+                        file.user_id + '_' + 
+                        file.message_id + '.' + 
+                        file.extension
+                }else if(source == 'post'){
+                    return baseLocation + '/post_files/' + 
+                        file.id + '_' +
+                        file.user_id + '_' + 
+                        file.path + '.' + 
+                        file.extension
+                }
+                else if(source == 'calendar'){
+                    return baseLocation + '/calendar/' + 
+                        file.id + '_' +
+                        file.user_id + '_' + 
+                        file.path + '.' + 
+                        file.extension
+                } else if (source === 'user') {
+                    return `${baseLocation}/user_files/${file.user_id}/${file.id}_${file.user_id}_${file.path}.${file.extension}`;
+                }
+            },
+            imageSource(file) {
+                const { source, $store } = this;
+                const baseLocation = $store.state.baseLocation;
+                    if (source === 'post') {
+                        return `${baseLocation}/post_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`;
+                    } else if (source === 'message') {
+                        return `${baseLocation}/shared_files/${$store.state.filePreview.message.record_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`;
+                    } else if (source === 'user') {
+                        return `${baseLocation}/user_files/${file.user_id}/${file.id}_${file.user_id}_${file.path}.${file.extension}`;
+                    }
+                return '';
+            },
+            downloadAll(){
+                let src, name;
+                for(let file of this.$store.state.filePreview.files){
+                    if(file.multiple_flag == 2){
+                        const path = file.source_board_id + '/' + file.id + '_' + file.user_id + '_' + file.message_id + '.' + file.extension        
+                        name = file.name
+                        src = this.$store.state.baseLocation + '/shared_files/'+ path;
+                        const link = document.createElement('a');
+                        link.href = src;
+                        link.download = '';
+                        link.setAttribute('download', name);
+                        document.body.appendChild(link);            
+                        link.click();  
+                        document.body.removeChild(link); 
+                    }
+                    
+                }
+                this.$store.commit('setMenu', {name: '', id: null})
+            },
+            selectLineWidth(width) {
+                this.signaturePad.maxWidth = width;
+                console.log(width)
+                this.showOptions = false; 
+            },
+            toggleOptions() {
+                this.showOptions = !this.showOptions;
+            },
+            imageZoom(file) {
+                const imageContainer = document.getElementById("docViewer");
+                const image = document.getElementById('signImage' + file.id + '_' + file.message_id);
+
+                if (image) {
+                    const hammertime = new Hammer(imageContainer);
+
+                    let lastScale = 1;
+                    let lastPosX = 0;
+                    let lastPosY = 0;
+                    let posX = 0;
+                    let posY = 0;
+                    const minScale = 0.3; // Minimum scale
+                    const maxScale = 2;
+
+                    // Use a higher pan sensitivity for smoother panning
+
+                    hammertime.get("pinch").set({ enable: true });
+                    hammertime.get("pan").set({ direction: Hammer.DIRECTION_ALL });
+
+                    hammertime.on("panmove", (event) => {
+                    if (event.target.tagName.toLowerCase() === "img") {
+                        posX = lastPosX + event.deltaX
+                        posY = lastPosY + event.deltaY
+                        image.style.transform = `translate3d(${posX}px, ${posY}px, 0) scale(${lastScale})`;
+                    }
+                    });
+
+                    hammertime.on("panend", () => {
+                    lastPosX = posX;
+                    lastPosY = posY;
+                    });
+
+                    hammertime.on("pinchmove", (event) => {
+                    if (event.target.tagName.toLowerCase() === "img") {
+                        const newScale = lastScale * event.scale;
+                        if (newScale > minScale && newScale < maxScale) {
+                        // Use requestAnimationFrame() to update the image transform
+                        requestAnimationFrame(() => {
+                            image.style.transform = `translate3d(${posX}px, ${posY}px, 0) scale(${newScale})`;
+                        });
+                        }
+                    }
+                    });
+
+                    hammertime.on("pinchend", (event) => {
+                    const newScale = lastScale * event.scale;
+                        if (newScale > minScale && newScale < maxScale) {
+                            lastScale = newScale;
+                        }
+                    });
+                }
+            },
+
             interactPDF(file){
                 const angleScale = {
                     angle: 0,
@@ -331,7 +480,7 @@
                 let y = ''
                 var gestureArea = document.getElementById('docViewer')
                 
-                interact(`${'#' + 'signImage' + file.id + '_' + file.message_id}`).resizable({
+                this.interact(`${'#' + 'signImage' + file.id + '_' + file.message_id}`).resizable({
                     // resize from all edges and corners
                     edges: { 
                         right: '#topRight',  
@@ -355,15 +504,15 @@
                     },
                     modifiers: [
                     // keep the edges inside the parent
-                        interact.modifiers.restrictEdges({
+                        this.interact.modifiers.restrictEdges({
                             outer: 'parent'
                         }),
-                        interact.modifiers.aspectRatio({
+                        this.interact.modifiers.aspectRatio({
                             ratio: 'preserve',
                         }),
 
                         // minimum size
-                        interact.modifiers.restrictSize({
+                        this.interact.modifiers.restrictSize({
                             min: { width: 100, height: 50 }
                         })
                     ],
@@ -374,25 +523,25 @@
                     listeners: { move: dragMoveListener },
                     inertia: true,
                     modifiers: [
-                    interact.modifiers.restrictRect({
+                    this.interact.modifiers.restrictRect({
                             restriction: 'parent',
                             endOnly: true
                         })
                     ]
                 })
-                interact(gestureArea).gesturable({
-                    listeners: {
-                        move (event) {
-                            var scaleElement = document.getElementById('signImage' + file.id + '_' + file.message_id)
-                            var currentScale = event.scale * angleScale.scale
+                // interact(gestureArea).gesturable({
+                //     listeners: {
+                //         move (event) {
+                //             var scaleElement = document.getElementById('signImage' + file.id + '_' + file.message_id)
+                //             var currentScale = event.scale * angleScale.scale
                             
-                            scaleElement.style.transform = `translate(${x}px, ${y}px) scale(${currentScale})`
-                        },
-                        end (event) {
-                            angleScale.scale = angleScale.scale * event.scale
-                        }
-                    }
-                })
+                //             scaleElement.style.transform = `translate(${x}px, ${y}px) scale(${currentScale})`
+                //         },
+                //         end (event) {
+                //             angleScale.scale = angleScale.scale * event.scale
+                //         }
+                //     }
+                // })
                 function dragMoveListener(event){
                     const target = event.target;
                     x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
@@ -412,24 +561,6 @@
                 this.confirmWindow = true
                 this.requestType = 'sign'
             },
-            scrollEvent(){
-                const container = this.$refs.scrollParent[0];
-                if(container){
-
-                
-                    const scrollTop = container.scrollTop;
-                    let newPage = 0
-                    if(this.$store.state.mobile){
-                        newPage = Math.round(scrollTop / this.pageHeight);
-                    }else{
-                        newPage = Math.ceil(scrollTop / this.pageHeight);
-                    }
-                    
-                    if (newPage !== this.currentPage) {
-                        this.currentPage = newPage;
-                    }
-                }
-            },
             reset(){
                 this.signaturePad.clear()
             },
@@ -440,19 +571,29 @@
                     this.signaturePad.fromData(data);
                 }            
             },
+            handleMouseOver(event) {
+                const parent = event.target.parentElement.id
+                const pattern = /-(\d+)$/; 
+
+                const match = parent.match(pattern);
+
+                if (match && match[1]) {
+                    const extractedNumber = parseInt(match[1]);
+                    this.currentPage = extractedNumber
+                    console.log(this.currentPage)
+                } 
+            },
             canvasCreate(file){
                 setTimeout(() =>{
                     const canvas = document.getElementById('canvas' + file.id + '_' + file.message_id);
                     this.signaturePad = new SignaturePad(canvas)
-                    // canvas.style.position = 'absolute';
-                    // canvas.style.right = 0 + 'px';
-                    // canvas.style.bottom = 0 + 'px';
+
                     if(this.$store.state.mobile){
-                        canvas.width = 300
-                        canvas.height = 150
+                        canvas.width = 350
+                        canvas.height = 200
                     }else{
-                        canvas.width = 500
-                        canvas.height = 250
+                        canvas.width = 600
+                        canvas.height = 300
                     }
                 })
                 
@@ -460,28 +601,21 @@
             onPdfLoaded(file) {
                 setTimeout(() => {
                     this.pdfViewer = document.getElementById('pdfElement_' + file.id + '_' + file.message_id);
-                    this.pdfViewer.addEventListener('scroll', this.scrollEvent)
+                    this.pdfViewer.addEventListener('mouseover', this.handleMouseOver)
+                    this.pdfViewer.addEventListener('touchstart', this.handleMouseOver)                    
                     this.pageHeight = this.pdfViewer.firstElementChild.clientHeight
-                    
-                    this.canvasCreate(file)
-                        
-                    this.interactPDF(file) 
-
-                
                        
                 }, 1000)
-                
             },
             
             savePdf: async function(file){
                 
 
                 let pageIndex = 0
-                if(this.$store.state.mobile){
-                    pageIndex = this.currentPage
-                }else{
-                    pageIndex = this.currentPage - 1
-                }
+               
+                    
+                pageIndex = this.currentPage - 1
+                
                 if(pageIndex < 0){
                     pageIndex = 0
                 }
@@ -504,10 +638,10 @@
                 
                 console.log(markX, Math.floor(markY))
                 if(this.modifiedPdfBytes){
-                    pdfDoc = await PDFDocument.load(this.modifiedPdfBytes);
+                    pdfDoc = await this.PDFDocument.load(this.modifiedPdfBytes);
                 }else{
                     const existingPdfBytes = await fetch(this.docUrl).then(res => res.arrayBuffer());
-                    pdfDoc = await PDFDocument.load(existingPdfBytes);
+                    pdfDoc = await this.PDFDocument.load(existingPdfBytes);
                 }
                 imageBytes = await fetch(this.imgData).then(res => res.arrayBuffer());
                 pngImage = await pdfDoc.embedPng(imageBytes);
@@ -523,32 +657,14 @@
                 
                 const imgWidth = pageWidth * perImgWidth / 100;
                 const imgHeight = pageHeight * perImgHeight / 100;
-                // let newY = markY
-                // if(pageIndex > 0){
-                //    newY = markY + (contentRect.height * pageIndex)
-                // }
-                
-                // const newImage = {
-                //     src: this.imgData,
-                //     x: markX,
-                //     y: newY,
-                //     width: markRect.width,
-                //     height: markRect.height
-                // }
-                // this.imageUrls.push(newImage)
-
-                // console.log(this.imageUrls)
                 page.drawImage(pngImage, {
                     x: x1,
                     y: y1,
                     width: imgWidth,
                     height: imgHeight,
                 });
-                // Save the modified PDF
                 this.modifiedPdfBytes = await pdfDoc.save();
-                console.log(this.modifiedPdfBytes)
                 this.downloadPdf(file)
-                
                 
             },
             cancelSign(file){
@@ -643,9 +759,6 @@
                     return;
 
                 }else{
-                    // if(this.$store.state.mobile){
-                    //     this.$refs.signature[this.f_index].style.pointerEvents = 'none'
-                    // }
                     
                     const params = {
                         file_id: this.currentFile.id,
@@ -681,6 +794,14 @@
                                     this.isDragging = true
                                     this.isDrawing = true
                                     this.canvasElementShow = true
+                                    if(this.$store.state.mobile){
+                                        setTimeout(() => {
+                                            this.imageZoom(this.currentFile)
+                                        }, 500);
+                                        
+                                    }else{
+                                        this.interactPDF(this.currentFile)
+                                    }
                                 }else{
                                     this.canvasElementShow = true;
                                 }
@@ -768,7 +889,13 @@
                     })
                     this.isDragging = true
                     this.isDrawing = true
-                    
+                    if(this.$store.state.mobile){
+                        setTimeout(() => {
+                            this.imageZoom(this.currentFile)
+                        }, 500);
+                    }else{
+                        this.interactPDF(this.currentFile)
+                    } 
                 }else{
                     emitter.emit('setToast', {
                         active: true,  
@@ -779,12 +906,6 @@
                         answers: ['OK'],
                     }) 
                 }
-                
-                // canvasData = canvasData.replace(/^data:image\/png;base64,/, '');
-                // localStorage.setItem('imgData', canvasData)
-                // setTimeout(() => {
-                //     this.savePdf()
-                // }, 500)
             },
             onSwiper(swiper){
                 this.topSwiper = swiper
@@ -822,15 +943,14 @@
                         + '/' + response.data
                         + '/' +this.$store.state.user.id
                     }
-                    
+                    const encodedUrl = encodeURIComponent(url);
                     axios.get(url, {responseType: 'blob'}).then(res => {
                         // this.docUrl = window.URL.createObjectURL(new Blob([res.data]));
                         if(this.currentFile.extension == 'pdf'){
                             const durl = 'https://docs.google.com/gview?url=' + url + '&embedded=true'
-                            console.log(url)
                             this.docUrl = url
                         }else{
-                            const durl = 'https://view.officeapps.live.com/op/embed.aspx?src=' + url
+                            const durl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`
                             this.docUrl = durl
                         }
                         setTimeout(() => {
@@ -992,6 +1112,38 @@
     // .vue-pdf-embed > div {
       //  margin-bottom: 8px;
     //}
+    .lineOptions {
+        position: absolute;
+        bottom: 100%;
+        margin-bottom: 10px; 
+        display: flex;
+        flex-direction: column;
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        z-index: 1;
+    }
+    
+    .lineOption {
+        display: flex;
+        align-items: center; /* Center the line vertically */
+        padding: 10px;
+        cursor: pointer;
+        width: 100px;
+    }
+    
+    .lineOption:hover {
+        background-color: #f0f0f0;
+    }
+    
+    .lineOption .line {
+        flex-grow: 1;
+    }
+    
+    .lineOption.selected .line {
+        background-color: black; /* Highlight the selected line */
+    }
     .canvasClass{
         -webkit-user-select: none;
         -ms-user-select: none;
@@ -1173,7 +1325,7 @@
     }
     .signatureButton{
         padding: 5px 10px 5px 10px;
-        font-size: 14px;
+        font-size: 12px;
         line-height: 1.5;
         border-radius: 0px;
         background: var(--primary-button);
@@ -1184,7 +1336,9 @@
     @media screen and (min-width: 760px) {
         .swiper-zoom-container.width90{
             width: 90%;
-            height: 95%;           
+            height: calc(100% - 48px);
+            display: flex;
+            justify-content: center;
         }
         .swiper{
             &.gallery-thumbs .swiper-wrapper{
@@ -1243,9 +1397,10 @@
             height: 20px;
         }
         .signatureButton{
-            height: 35px;
-            font-size: 14px;
+            height: 30px;
+            font-size: 12px;
             line-height: 0;
+            padding: 0;
         }
     }
 </style>

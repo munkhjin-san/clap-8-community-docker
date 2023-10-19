@@ -1,11 +1,11 @@
 <template>
 <div style="position:relative;background: inherit;">
-    <span style="z-index: 5;" :class="{smallPlc : $store.state.activeInput == 'tagSelector'|| (value.length) || selectedTag.length}" class="form-plc">{{ placeHolder }}</span> 
+    <span style="z-index: 5;" class="form-plc smallPlc">{{ placeHolder }}</span> 
     <v-select
         @search:focus="superFetch"
         @search:blur="$store.commit('setActiveInput', '')"
         @input="value = $event.target.value"
-        :class="['taskUserSelecArea', 'tagSelectorIndepend', {selectorFocus : $store.state.activeInput == 'tagSelector'}]"   
+        :class="['taskUserSelecArea', 'tagSelectorIndepend', 'selectorFocus']"   
         @search="fetchOptions" 
         :create-option="tag => ({ text: tag, id: null})"
         style="background-image: unset; margin:0px;" 

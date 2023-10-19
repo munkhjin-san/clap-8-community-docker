@@ -1,29 +1,19 @@
 <template>
-<div class="hour-slot">
-        <!-- <div class="min-slot" v-for="minutes in hour">
-            
-        </div> -->
-    <div>
-        <div class="calendar-card" 
-            v-for="record in hourRecords"
-            :style="{
-                width: recordWidth(record), 
-                marginTop: `${(record.order * 60) + (record.order + 1) * 10}px`,
-                left: recordLeft(record)
-            }"
-        >
-            <div class="calendar-card-inner" :id="`cal_${record.id}`">
-                <div style="display: flex;">
-                    <UserIcon v-for="user in record.calendar_users.slice(0, 3)" :user="user" imgClass="userSmallIcon" size="15"/>
-                </div>
-                <div style="white-space: nowrap;">
-                    {{ time(record) }}
-                </div>
-                <div>
-                    {{ record.title }}
-                </div>
-            </div>
-
+<div @mousedown="setBeforeState" @touchstart="setBeforeState" @click.self.stop="createAtTime" class="hour-slot" @mouseenter="enter" @mouseleave="leave">
+    <DayRecord 
+        v-for="record in hourRecords"
+        :record="record"
+        :key="record.id"
+        :colors="colors"
+        :facilitiesList="facilitiesList"
+        @scrollToTime="val => $emit('scrollToTime', val)"
+        @edit="val => $emit('edit', val)"
+        @delete="val => $emit('delete', val)"
+        @setParentDroppable="dragActive = true"
+    />
+    <div v-if="dragActive && $store.state.draggingCalendar" style="position: absolute;left: 0;top:0;z-index: 9;height: 100%;width: 100%;display: flex;">
+        <div @mouseup="gotMove(val)" v-for="val in hours" class="min-separete">
+            <div class="min-popup">{{ fullDate(val) }}</div>
         </div>
     </div>
 </div>
@@ -33,44 +23,100 @@
 <script>
 import moment  from 'moment';
 import UserIcon from '../../Board/Mixed/UserIcon.vue';
+import DayRecord from './DayRecord.vue';
+
 export default {
-    components:{
-        UserIcon
+    data(){
+        return{
+            dragActive: false,
+            beforeState: 0
+        }
     },
-    props: ['hourRecords'],
+    components:{
+        UserIcon,
+        DayRecord
+    },
+    props: ['hourRecords', 'facilitiesList', 'hour', 'day'],
+    emits: ['scrollToTime', 'edit', 'dropFinish', 'delete', 'viewDetails', 'create'],
     computed: {
-        hour(){
+        hours(){
             return [
-                { val: 0 },
-                { val: 15 },
-                { val: 30 },
-                { val: 45 }
+                { val: '00' },
+                { val: '30' },
             ]
         },
+        colors(){
+                return [
+                "#f7d5d5",
+                "#ffd4a8",
+                "#f8f2a6",
+                "#cee4d2",
+                "#c2d2e4",
+                "#d6cfed"
+            ]
+        }
     },
     methods:{
-        recordWidth(record){
-            const minutesDifference = Math.abs(moment(record.date_start).diff(moment(record.date_end), 'minutes'))
-            const steps = Math.floor(minutesDifference / 15)
-            const until_start = Math.abs(moment(record.date_start).startOf('day').diff(moment(record.date_start), 'minutes'))
+        setBeforeState(event){
             
-            const before_limiter = Math.floor(until_start / 15) 
-            if(record.id == 6110){
-                console.log(until_start, before_limiter)
+            const el = document.getElementById('cal_day_view')
+            this.beforeState = event.x   
+        },
+        createAtTime(event){
+            if(Math.abs(event.x - this.beforeState) > 15) {
+                return
             }
-            const max_block = 96 - before_limiter
-            const computed_width = steps > max_block ? max_block : steps
-            const unit = this.$store.state.mobile ? '500vw' : '200vw'
-            return `calc(((${unit} - 30px) / 96 * ${computed_width}) - 3px)`
+            const targetElement = event.target;
+            const elementWidth = targetElement.offsetWidth;
+            const clickX = event.clientX - targetElement.getBoundingClientRect().left;
+            let min = ''
+            if (clickX < elementWidth / 2) {
+                min = '00'
+            } else {
+                min = '30'
+            }
+            const date = this.day.full
+            const time = this.hour.split(":");
+            const minute = min
+            const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
+            const d = {
+                x: event.x,
+                y: event.y,
+                time: merge,
+                stamp: moment()
+            }
+            this.$emit('create', d)
+            
         },
-        time(record){
-            return `${moment(record.date_start).format('H:mm')} ～ ${moment(record.date_end).format('H:mm')}`
+        enter(){
+            if(this.$store.state.draggingCalendar){
+                this.dragActive = true
+            }
+            
         },
-        recordLeft(record){
-            const diff = Math.abs(moment(record.date_start).diff(moment(record.date_start).startOf('hour'), 'minutes'))
-            const steps = Math.floor(diff / 15) 
-            const unit = this.$store.state.mobile ? '500vw' : '200vw'
-            return `calc(((${unit}  - 30px) / 96 * ${steps}) + 1px)`
+        leave(){
+            this.dragActive = false
+        },
+        gotMove(val){
+            if(this.$store.state.draggingCalendar){
+                const record = this.$store.state.draggingCalendar
+                this.$store.commit('setDraggingCalendar', null)
+                const date = this.day.full
+                const time = this.hour.split(":");
+                const min = val.val
+                const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
+                this.dragActive = false
+                this.$emit('dropFinish', record, merge)
+            }
+            
+            
+        },
+        fullDate(val){
+            const date = this.day.full
+            const time = this.hour.split(":");
+            const min = val.val
+            const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm');
+            return merge
         }
     }
 }

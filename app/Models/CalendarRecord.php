@@ -16,6 +16,12 @@ class CalendarRecord extends Model
     public function updated_by(){
         return $this->hasOne(User::class, 'id', 'updated_user')->select('id', 'name', 'icon_id', 'icon_id');
     }
+    public function created_by(){
+        return $this->hasOne(User::class, 'id', 'created_user')->select('id', 'name', 'icon_id', 'icon_id');
+    }
+    public function files(){
+        return $this->belongsToMany(FileRecord::class, 'calendar_use_files', 'record_id', 'file_id')->where('file_records.deleted_flag', 0);
+    }
     protected $hidden = [
         'color', 
         'comp_flag', 
@@ -26,7 +32,6 @@ class CalendarRecord extends Model
         'h_height', 
         'h_top', 
         'qualified_users', 
-        'release_flag', 
         'task_date_end_text', 
         'task_end', 
         'task_h_top', 
@@ -54,7 +59,16 @@ class CalendarRecord extends Model
         "expiration_start",
         "expiration_end",
         "qualified_institution",
-        "qualified_zoom",
-        "qualified_car"
+        "zoom_value",
+        "qualified_car",
+        "repeat_week",
+        "repeat_days",
+        "repeat_month",
+        "zoom_url",
+        "zoom_id",
+        "zoom_pass",
+        "zoom_account",
+        "zoom_account_pass",
+        "created_at"
     ];
 }

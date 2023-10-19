@@ -27,5 +27,7 @@ class timecardRecord extends Model
         'deleted_flag' => 'int',
     ];
 
-
+    protected $fillable = [
+        'day', 'start_time', 'end_time', 'stamp_flag', 'user_id'
+    ];
 }

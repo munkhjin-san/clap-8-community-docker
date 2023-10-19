@@ -46,32 +46,28 @@
                     </div>
                 </div>
             </div>
-            <Form v-slot="{ errors }" ref="shiftTime">
+            <Form v-slot="{ errors }" @submit.prevent ref="shiftTime">
                 <div class="shift-title">
                     <p>基本就業時間の入力</p>
                 </div>
                 <div class="shift-workTime">
                     <div>
-                        <p>始業時間</p>
+                        <p v-if="!$store.state.mobile">始業時間</p>
                     </div>
                     <div class="shift-workingTime">
-                        <Field type="time" v-model="startTime" name="start_time" rules="required"/>
+                        <Field type="time" v-model="startTime" name="start_time" rules="required" :class="{'clock-color' : $store.state.dark == true }"/>
                         <span class="valid-error post-error">{{ errors.start_time }}</span>
                     </div>
                     <div>
-                        <p>終業時間</p>
+                        <p>{{$store.state.mobile ? '～' : '終業時間'}}</p>
                     </div>
                     <div class="shift-workingTime">
-                        <Field type="time" v-model="endTime" name="end_time" rules="required"/>
+                        <Field type="time" v-model="endTime" name="end_time" rules="required" :class="{'clock-color' : $store.state.dark == true }"/>
                         <span class="valid-error post-error">{{ errors.end_time }}</span>
                     </div>
                 </div>
-                <div class="l-button cursor-pointer" style="margin-top:30px;" @click="shiftAdd()">
-                    <span v-if="!loading">{{$t('save')}}</span>
-                    <div v-else id="loaderMini">
-                        <div class="spinner-mini" style="border: 4px #ffffff solid;border-top: 4px var(--primary-button) solid;"></div>
-                    </div> 
-                </div>
+                <LoaderButton style="margin-top:30px;" @triggered="shiftAdd" :loading="loading" :content="attendanceFlag ? '勤怠確定後は編集できません' : '保存'"/>
+                
             </Form>
         </div>
     </div>
@@ -80,8 +76,16 @@
 <script>
     import moment from 'moment'
     import { Field, Form } from 'vee-validate'
+    import LoaderButton from '../Global/LoaderButton.vue'
     export default{
-        props: ['selectedMonth', 'selectedYear', 'shiftTypes', 'shiftRecords', 'calendarData'],
+        props: [
+            'selectedMonth', 
+            'selectedYear', 
+            'shiftTypes', 
+            'shiftRecords', 
+            'calendarData',
+            'attendanceFlag'
+            ],
         data() {
             return {
                 selectedShiftType: 0,
@@ -101,8 +105,8 @@
         methods: {
             isShiftRecord(){
                 if(this.shiftRecords){
-                    this.startTime = this.shiftRecords[0].start_time
-                    this.endTime = this.shiftRecords[0].end_time
+                    this.startTime = this.shiftRecords[0] ? this.shiftRecords[0].start_time : ''
+                    this.endTime = this.shiftRecords[0] ? this.shiftRecords[0].end_time : ''
                     for(let shift of this.shiftRecords){
                         let date = {
                             day_full : shift.shift_day,
@@ -134,6 +138,7 @@
                 }).join('');
             },
             async shiftAdd(){
+                if(this.attendanceFlag) return
                 if(this.holidayCount >= 9){
                     const result = await this.$refs.shiftTime.validate();
                     if (this.loading) return
@@ -151,7 +156,11 @@
                                 this.$emit('closeModal')
                                 this.$emit('reload')
                             }
-                        )
+                        ).catch(function (error) {
+                            if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                            else if (error.request) this.errorToast('エラーが発生しました。')
+                            else this.errorToast('エラーが発生しました。 ' + error.message)     
+                        }.bind(this))
                     }
                 }else{
                     emitter.emit('setToast', {
@@ -163,6 +172,16 @@
                     })
                 }
                 
+            },
+            errorToast(message){
+                emitter.emit('setToast', {
+                    active: true,  
+                    type: 'info', 
+                    content: message,
+                    closeButton: false, 
+                    autoClose: false,
+                    answers: ['OK']
+                })                
             },
             selectByWeek(num){
                 let selectedDays = []
@@ -191,7 +210,8 @@
         },
         components: {
             Form,
-            Field
+            Field,
+            LoaderButton
         }
     }
 </script>

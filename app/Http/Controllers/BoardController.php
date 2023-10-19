@@ -15,6 +15,8 @@ use App\Models\appRememberRecord;
 use App\Models\searchHistoryRecord;
 use App\Models\taskRecord;
 use App\Models\taskUser;
+use App\Models\CalendarRecord;
+use App\Models\messageRemindUser;
 use App\Events\Message;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -36,6 +38,10 @@ use Aws\Sns\SnsClient;
 use Aws\Ses\SesClient;
 use App\Services\SharedService;
 use App\Models\userDetail;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Completions\CreateResponse;
+use App\Mail\Mention;
+use App\Mail\Confirm;
 class BoardController extends Controller
 {
     protected $sharedService;
@@ -46,7 +52,9 @@ class BoardController extends Controller
     }
     public function index(Request $request){ 
         
-       
+        // $messages = messageRecord::where('id', '>', 0)->forceDelete();
+        // return $messages;
+        
 
         // $accountId = 'L3W-GByoTl2mpGHNg012IA';
         // $clientId = 'z52yTnebQw6CcsupLdAOrA';
@@ -104,7 +112,29 @@ class BoardController extends Controller
         //     return response()->json(['error' => 'Invalid response status'], $response->status());
         // }
         // return 'error';
-        return view('board');
+        // echo(url()->full());
+        // return;
+        $id = $request->query('id');
+        $m = $request->query('m');
+        if($id && $m){
+            $newUrl = url('board/' . $id . '?m=' . $m);
+            return redirect($newUrl);
+        }
+        
+        $date = null;
+        $name = $request->name;
+        $id = $request->id;
+        if($name && $name == 'calendar' && $id){
+            $find = CalendarRecord::where('id', $id)->first();
+            if(!empty($find)){
+                $date = Carbon::parse($find->date_start)->format('Y-m-d');
+                //echo $date; 
+                // return;
+            }
+        }
+        // echo $id; 
+        // return;
+        return view('board')->with(array('initialDate'=> $date));;
     } 
     public function getPossibleMembers(Request $request) {  
         // $all_users = User::where('id', '!=', Auth::id())
@@ -149,9 +179,9 @@ class BoardController extends Controller
                 
                 $correspond = $this->sharedService->getUserState($item->board_to_users()->where('user_id', '!=', Auth::id())->first()->user_id, Auth::user()); 
                 
-                if($selfcheck->joined_at){
+                if($selfcheck->created_at){
                     $item['deleted'] = 'yes';
-                    $message = messageRecord::where('record_id', $item->id)->where('created_at', '>=',  $selfcheck->joined_at)->latest('created_at')->with('message_files')->select('id', 'message', 'message_text', 'record_id', 'info_flag')->first();
+                    $message = messageRecord::where('record_id', $item->id)->where('created_at', '>=',  $selfcheck->created_at)->latest('created_at')->with('message_files')->select('id', 'message', 'message_text', 'record_id', 'info_flag')->first();
                     $item['last_message'] = $message;
                     
                 }else{
@@ -186,7 +216,7 @@ class BoardController extends Controller
         }
         return response()->json($request);
     }    
-    public function postAddMessage(Request $request){
+    public function create_new_board(Request $request){
 
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
@@ -213,27 +243,18 @@ class BoardController extends Controller
 
 
                     if(!empty($checkCurrentBoard)){ 
-                        $restoreUsers = $checkCurrentBoard->board_to_users();
-                        if(!empty($restoreUsers)){
-                            $restored = false;
-                            foreach($restoreUsers as $restoreUser){
-                                
-                                if($restoreUser->deleted_status){
-                                    $restored = true;
-                                    $restoreUser->deleted_status = null;
-                                    $restoreUser->delete();
-                                }
-                                
-                            }
-                            $arr = [
-                                "restored" => $restored,
-                                "message" => "existAndAccessable",
-                                "success" => true,
-                                "data" => $checkCurrentBoard
-                            ];   
-                            $checkCurrentBoard->touch(); 
-                            return response()->json($arr);
-                        } 
+                        $restoreUsers = $checkCurrentBoard->board_to_users()->where('deleted_status', 1)->update([
+                            'deleted_status' => 0,
+                            'created_at' => now()
+                        ]);                        
+                        $arr = [
+                            "restored" => $restoreUsers,
+                            "message" => "existAndAccessable",
+                            "success" => true,
+                            "data" => $checkCurrentBoard
+                        ];   
+                        $checkCurrentBoard->touch(); 
+                        return response()->json($arr);
                     }
                 $defaultTitle = 'NoTitle';                   
             }            
@@ -247,14 +268,7 @@ class BoardController extends Controller
             
             $board = new boardRecord;
             $board->user_id = $auth_user_id;
-            $board->private_flag = $request->private_flag;
-            if($request->private_flag == 0){
-                $board->able_join = $request->able_join;
-                $board->message_from = $request->message_from;
-            }else{
-                $board->able_join = 2;
-                $board->message_from = 0;
-            }
+            $board->private_flag = $request->private_flag;           
             
 
 
@@ -273,10 +287,7 @@ class BoardController extends Controller
             foreach($to_users as $to_user){
                 $boardToUser = new boardToUser;
                 $boardToUser->record_id = $board->id;
-                $boardToUser->user_id = $to_user;    
-                $boardToUser->joined_at = now();
-                $boardToUser->invited_at = now();
-                $boardToUser->invited_by = Auth::id();
+                $boardToUser->user_id = $to_user; 
                 if($to_user == $auth_user_id){
                     $boardToUser->admin_flag = 1;
                 }                
@@ -293,40 +304,21 @@ class BoardController extends Controller
                     $createIcon = $this->sharedService->createBoardDefaultIcon($board, Auth::id());             
                    
                     if ($createIcon) {
-                        $board->a_version = 0;
                         $board->save();
                     } else {
                         $board->delete();
-                        throw ValidationException::withMessages(['message' => 'Icon create failed.']);
+                        throw ValidationException::withMessages(['message' => $createIcon]);
                     }   
                 } catch (\Exception $e) {           
                     $board->delete();       
-                    throw ValidationException::withMessages(['message' => 'Icon create failed.']);
+                    throw ValidationException::withMessages(['message' => $createIcon]);
                 }               
 
             }
-            if($request->private_flag == 0){
-
-                $type = 'board_qr_code';
-                try {
-                    $newQrCode = $this->sharedService->newUserQrCode($type, $board->id, null);
-                    if($newQrCode){
-                        $board->update(['q_token' => $newQrCode]);
-                    }
-                } catch (ValidationException $exception) {
-                    throw ValidationException::withMessages(['message' => 'commonError']);
-                }
-
-                
-            } 
             if(!empty($file_id_array)){
                 $board->icon_id = $request->icon_id;
-                $board->a_version = $board->a_version + 1;
                 $board->save();
             }       
-            if($request->private_flag == 0){
-                $createInfo = $this->sharedService->createInfoMessage($new_members, $board->id, 'invited_members', Auth::id());  
-            }
             
             $arr = [
                 "message" => "success",
@@ -367,25 +359,22 @@ class BoardController extends Controller
                 throw ValidationException::withMessages(['message' => 'Sufficient administrative permission.']);
             }
             $update_icon = false;
-            if($request->icon_delete_flag == 1 || ($request->title !== $board->title && empty($request->icon_id) && $board->a_version == 0)){
+            if($request->icon_delete_flag == 1 || ($request->title !== $board->title && empty($request->icon_id))){
                 $update_icon = true;
             }
             $board->title = $request->title; 
-            $board->able_join = $request->able_join;
-            $board->message_from = $request->message_from;
             if(!empty($request->icon_id)){
                 if($board->icon_id){
                     $rmv = Icons::where('record_id', '=', $board->id)->where('use_of', '=', 'board')->get();
                     if($rmv){
                         foreach($rmv as $del){
-                            Storage::disk('s3')->delete('board_icon/board_' . $del->id . '.' . $del->extension);
+                            Storage::disk('local')->delete('board_icon/board_' . $del->id . '.' . $del->extension);
                             $del->delete();
                         }
                                 
                     }  
                 }
                 $board->icon_id = $request->icon_id;
-                $board->a_version = $board->a_version + 1;
                 $icon = Icons::findOrFail($request->icon_id)->update(['record_id' => $board->id]);
             }else{   
                 if($update_icon){                             
@@ -394,7 +383,6 @@ class BoardController extends Controller
                         $createIcon = $this->sharedService->createBoardDefaultIcon($board, Auth::id());             
                        
                         if ($createIcon) {
-                            $board->a_version = 0;
                             $board->save();
                         } else {
                             throw ValidationException::withMessages(['message' => 'Icon create failed.']);
@@ -420,52 +408,25 @@ class BoardController extends Controller
         
         if(!empty($request)){
             
-                $board = boardRecord::findOrFail($request->id);
-
-                if(!empty($board)){
-                    if($board->private_flag == 0){
-                        $admin_access = $board->board_to_users()->where('user_id', $request->user()->id)->where('admin_flag', 1)->exists();
-                        if(!$admin_access){
-                            throw ValidationException::withMessages(['message' => 'Sufficient administrative permission.']);
-                        }
-                        $createIcon = $this->sharedService->removeBoard($board);     
-                        return response()->json($createIcon);
-                    }else if($board->private_flag == 1){
-                        $member_access = $board->board_to_users()->where('user_id', $request->user()->id)->first();
-                        if(!empty($member_access)){
-                            $member_access->deleted_status = 1;
-                            $member_access->save();
-                            return response()->json('success');
-                        }
+            $board = boardRecord::findOrFail($request->id);
+            if(!empty($board)){
+                if($board->private_flag == 0){
+                    $admin_access = $board->board_to_users()->where('user_id', $request->user()->id)->where('admin_flag', 1)->exists();
+                    if(!$admin_access){
+                        throw ValidationException::withMessages(['message' => 'Sufficient administrative permission.']);
+                    }
+                    $createIcon = $this->sharedService->removeBoard($board);     
+                    return response()->json($createIcon);
+                }else if($board->private_flag == 1){
+                    $member_access = $board->board_to_users()->where('user_id', $request->user()->id)->first();
+                    if(!empty($member_access)){
+                        $member_access->deleted_status = 1;
+                        $member_access->save();
+                        return response()->json('success');
                     }
                 }
-
-                // if(!empty($board) && $board->private_flag == 0){
-                //     $board->delete();
-                //     $board->save();
-                //     $users = boardToUser::where('record_id', '=', $request->id)->get();
-                //     foreach( $users as $user ){
-                //         $user->delete();
-                //         $user->save();
-                //     }
-                    
-                //     //corresponding message delete 
-                //     return response()->json('deleted');
-                // }elseif(!empty($board) && $board->private_flag == 1){
-                //     $user = boardToUser::where('record_id', '=', $request->id)->where('user_id', '=', $auth_user_id)->first();
-                //     $user->joined_at = now();
-                //     $user->deleted_status = 1;
-                //     $user->save();
-                //     return response()->json($user);
-                // }
-                
-           
-            
-            
+            }               
         }
-
-        
-    
     }
     public function saveSignature(Request $request){
         $auth_id = Auth::id();
@@ -474,11 +435,11 @@ class BoardController extends Controller
         $current_timestamp = time(); 
         $new_a_path = $current_timestamp . $unique_number; 
         $set_path = $user_detail->user_id . '_' . $new_a_path . '.png';
-        if (!Storage::disk('s3')->exists('user_signature')) {
-            Storage::disk('s3')->makeDirectory('user_signature');
+        if (!Storage::disk('local')->exists('user_signature')) {
+            Storage::disk('local')->makeDirectory('user_signature');
         }
-        Storage::disk('s3')->put('user_signature/' . $set_path, file_get_contents($request->sign));
-        Storage::disk('s3')->delete('user_signature/' . $user_detail->user_id . '_' . $user_detail->sign_path . '.png');
+        Storage::disk('local')->put('user_signature/' . $set_path, file_get_contents($request->sign));
+        Storage::disk('local')->delete('user_signature/' . $user_detail->user_id . '_' . $user_detail->sign_path . '.png');
         $user_detail->sign_path = $new_a_path;
         $user_detail->save();
         return response()->json($user_detail);
@@ -527,21 +488,33 @@ class BoardController extends Controller
         }
         foreach($request->file() as $file){           
             $newFile = messageFile::find($request->file_id);
-            $path = storage_path('app') . '/' . 'shared_files/' . $request->board_id;
+            $root_path = base_path();
+            $replaced = Str::replaceLast('public_html/', '', Str::replaceLast('app', '', $root_path));            
+            $path = $replaced . 'shared_files/' . $request->board_id;
             $set_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
-            Storage::disk('s3')->delete('message_files/' . $request->board_id . '/' . $set_path);
-            Storage::disk('s3')->put( 'message_files/' . $request->board_id . '/' .  $set_path, file_get_contents($file));
-            $sizeAfter = Storage::disk('s3')->size('message_files/' . $request->board_id . '/' .  $set_path);
+            File::delete($path.'/'.$set_path);
+            Storage::disk('local')->putFileAs(
+                'shared_files/' . $request->board_id, $file, $set_path
+            );
+            $sizeAfter = Storage::disk('local')->size('shared_files/' . $request->board_id .'/'. $set_path);
             $newFile->size = $sizeAfter;
             $newFile->edit_flag = null;
             $newFile->save();
+            
             $signUser = $newFile->signUsers()->where('user_id', Auth::id())->first();
+            if($newFile->multiple_flag == 2){
+                $originalFile = messageFile::find($newFile->original_file_id);
+                $originalSignUser = $originalFile->signUsers()->where('user_id', Auth::id())->first();
+                if($originalSignUser){
+                    $originalSignUser->pivot->signed = true;
+                    $originalSignUser->pivot->save();
+                }
+            }
             if ($signUser) {
-                
                 $signUser->pivot->signed = true;
                 $signUser->pivot->save();
-            }        
-        }       
+            }         
+        }      
         return response()->json("success");
     }
     public function getUnsignedUsers(Request $request){
@@ -553,12 +526,15 @@ class BoardController extends Controller
         foreach($list as $board){
                 $selfcheck = boardToUser::where('record_id', '=', $board->id)->where('user_id', '=', Auth::id())->first();
                 $comment_list_pre = messageRecord::whereHas('message_files', function ($query) use ($auth_id) {
-                    $query->where('sign_flag', 1)->where('removed_at', null)->whereHas('unsignedUsers', function ($q) use ($auth_id) {
+                    $query->where('sign_flag', 1)->whereHas('unsignedUsers', function ($q) use ($auth_id) {
                         $q->where('user_id', $auth_id);
                     });
                 })
                 ->with('user')
                 ->with(['message_files', 'message_files.unsignedUsers', 'message_files.signedUsers'])
+                ->with('reactedUsers')
+                ->with('checkedUsers')
+                ->with('uncheckedUsers')
                 ->get();
                 $result = $result->merge($comment_list_pre);
            
@@ -629,7 +605,7 @@ class BoardController extends Controller
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
         $usercheck = boardToUser::where('user_id','=', $auth_user_id)->where('record_id', '=', $request->record_id)->first();       
-        $timeLimit = $usercheck->joined_at;    
+        $timeLimit = $usercheck->created_at;    
         $targetBoard = boardRecord::findOrFail($request->record_id);
         $messageFrom = $targetBoard->message_from;     
         $time_condition = $messageFrom == 0 && $timeLimit;   
@@ -647,6 +623,9 @@ class BoardController extends Controller
         ->with('reactedUsers')
         ->with('checkedUsers')
         ->with('uncheckedUsers')
+        ->with('messageRemindUsers')
+        ->with('memo')
+        ->with('task')
         ->latest('created_at')
         ->take($pagenate)
         ->get();
@@ -654,8 +633,7 @@ class BoardController extends Controller
         return response()->json($comment_list_pre);
 
     }
-    public function chatAdd(Request $request)
-    {   
+    public function chatAdd(Request $request){   
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
         if($request->quot_flag == 1 && $request->reply_flag == 1){
@@ -695,104 +673,92 @@ class BoardController extends Controller
             $chat->save();
             
             if($request->attached_temp_files){ 
-                try {                   
-                    
-                    foreach($request->attached_temp_files as $item){
-                        $path_shared_files = $request->record_id;       
-                        $path_temp_files = 'shared_files/temp_upload';   
-                        $file = messageFile::findOrFail($item['id']);
-                        $file->board_id = $chat->record_id;
-
-                        $file->message_id = $chat->id;                            
-                        $file->save(); 
-                        if (!Storage::disk('s3')->exists('message_files/' . $path_shared_files)) {
-                            Storage::disk('s3')->makeDirectory('message_files/' . $path_shared_files);
-                        }
-                        
-
-                        $srcPath = $file->id . '.' .$file->extension;
-                        $destPath = $file->id . '_' . $file->user_id . '_' . $chat->id . '.' . $file->extension;
-                        $temp_path = storage_path('app/temp_upload/' . $srcPath);
-                        Storage::disk('s3')->put( 'message_files/' . $path_shared_files . '/' .  $destPath, file_get_contents($temp_path));
-                        if($file->mime_type == 'image'){
-                            $thumb_50_path = $file->id . '_' . $file->user_id . '_' . $chat->id . '_50.' . $file->extension;
-                            $thumb_100_path = $file->id . '_' . $file->user_id . '_' . $chat->id . '_100.' . $file->extension;
-                            $thumbnail = Image::make($temp_path)->fit(50, 50, function ($constraint) {
-                                $constraint->upsize();
-                            });
-                            $thumb_stream = $thumbnail->stream();        
-                            $thumbnail_big = Image::make($temp_path)->fit(100, 100, function ($constraint) {
-                                $constraint->upsize();
-                            });
-                            $thumbBig_stream = $thumbnail_big->stream();
-                            if (!Storage::disk('s3')->exists('message_files/' . $path_shared_files . '/thumbs')) {
-                                Storage::disk('s3')->makeDirectory('message_files/' . $path_shared_files . '/thumbs');
-                            }
-                            Storage::disk('s3')->put('message_files/' . $path_shared_files . '/thumbs/' .  $thumb_50_path, $thumb_stream);
-                            Storage::disk('s3')->put('message_files/' . $path_shared_files . '/thumbs/' .  $thumb_100_path, $thumbBig_stream);
-
-                        }
-                        unlink($temp_path);  
-                            
-                        
-                        
-                    }
-                }   
-                catch (\Exception $e) {           
-                    $chat->forceDelete();       
-                    throw ValidationException::withMessages(['message' => 'failedToUploadFile']);
-                } 
-            }
-            if($request->imported_files){           
-                foreach($request->imported_files as $file){
-                    $path_shared_files = 'shared_files/' . $request->record_id;     
-                    $path_managed_files = 'managed_files/' . $file->board_id;   
-                    $newFile = new messageFile;
+                foreach($request->attached_temp_files as $item){
+                    $path_shared_files = $request->record_id;       
+                    $path_temp_files = 'shared_files/temp_upload';   
+                    $file = messageFile::findOrFail($item['id']);
                     $file->board_id = $chat->record_id;
-                    $newFile->message_id = $chat->id;
-                    $newFile->name = $file['name'] . '.' . $file['extension'];
-                    $newFile->extension = $file['extension'];
-                    
-                    $newFile->user_id = $auth_user_id;
-                    $newFile->mime_type = $file['mime_type'];  
-                    $newFile->size = $file['size'];      
-                    $newFile->save(); 
-                    if (!Storage::disk('s3')->exists('message_files/' . $path_shared_files)) {
-                        Storage::disk('s3')->makeDirectory('message_files/' . $path_shared_files);
-                    }  
 
-                    $app_file_path = $file['path'] . '.' .$file['extension'];
-                    $msg_file_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
-                    File::copy(storage_path('app') . '/' . $path_managed_files . '/' . $app_file_path , storage_path('app') . '/' . $path_shared_files . '/' . $msg_file_path );                    
-                    $newFile->save(); 
+                    $file->message_id = $chat->id;                            
+                    $file->save(); 
+                    $path = 'shared_files/' . $chat->record_id;
+                    File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);             
+                    
+
+                    $srcPath = $file->id . '.' .$file->extension;
+                    $destPath = $chat->record_id . '/' . $file->id . '_' . $file->user_id . '_' . $chat->id . '.' . $file->extension;
+                    $temp_path = storage_path('app/temp_upload/' . $srcPath);
+                    Storage::disk('local')->move('temp_upload/' .  $file->id . '.' .$file->extension, 'shared_files/' . $destPath);
+                        
+                    
+                    
                 }
             }
-            if($request->forwarded_files){             
-                foreach($request->forwarded_files as $file){
-                    $path_shared_files = $request->record_id;     
-                    $path_managed_files = $file['board_id'];   
+            if($request->sharing_files){   
+                $path_shared_files = 'shared_files/' . $request->record_id;
+                foreach($request->sharing_files as $file){
+                   
                     $newFile = new messageFile;
-                    $newFile->board_id = $chat->record_id;
-                    $newFile->message_id = $chat->id;
-                    $newFile->name = $file['name'];
-                    $newFile->extension = $file['extension'];
-                    
+                    $newFile->board_id = $chat['record_id'];
+                    $newFile->message_id = $chat['id'];
+                    $newFile->name = $file['record']['name'];
+                    $newFile->extension = $file['record']['extension'];                    
                     $newFile->user_id = $auth_user_id;
-                    $newFile->mime_type = $file['mime_type'];  
-                    $newFile->size = $file['size'];      
+                    $newFile->mime_type = $file['record']['mime_type'];  
+                    $newFile->size = $file['record']['size'];      
                     $newFile->save(); 
-                    if (!Storage::disk('s3')->exists('message_files/' . $path_shared_files)) {
-                        Storage::disk('s3')->makeDirectory('message_files/' . $path_shared_files);
-                    } 
-                    $app_file_path = $file['id'] . '_' .$file['user_id'] . '_' . $file['message_id'] . '.' . $file['extension'];
                     $msg_file_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
-                    $sourcePath = 'message_files/' . $path_managed_files . '/' . $app_file_path;
-                    $destinationPath = 'message_files/' . $path_shared_files . '/' . $msg_file_path;
-                    Storage::disk('s3')->copy($sourcePath, $destinationPath);
-                    
-                    $newFile->save(); 
+                    File::isDirectory(storage_path('app/shared_files/' . $request->record_id)) or File::makeDirectory(storage_path('app/shared_files/' . $request->record_id), 0755, true, true); 
+                    Storage::disk('local')->copy($file['path'], $path_shared_files . '/' . $msg_file_path);
                 }
             }
+            // if($request->imported_files){           
+            //     foreach($request->imported_files as $file){
+            //         $path_shared_files = 'shared_files/' . $request->record_id;     
+            //         $path_managed_files = 'managed_files/' . $file['record_id'];   
+            //         $newFile = new messageFile;
+            //         $newFile->board_id = $chat['record_id'];
+            //         $newFile->message_id = $chat['id'];
+            //         $newFile->name = $file['name'] . '.' . $file['extension'];
+            //         $newFile->extension = $file['extension'];
+                    
+            //         $newFile->user_id = $auth_user_id;
+            //         $newFile->mime_type = $file['mime_type'];  
+            //         $newFile->size = $file['size'];      
+            //         $newFile->save(); 
+            //         File::isDirectory(storage_path('app/shared_files/' . $request->record_id)) or File::makeDirectory(storage_path('app/shared_files/' . $request->record_id), 0755, true, true); 
+
+            //         $app_file_path = $file['path'] . '.' .$file['extension'];
+            //         $msg_file_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
+            //         // File::copy(storage_path('app') . '/' . $path_managed_files . '/' . $app_file_path , storage_path('app') . '/' . $path_shared_files . '/' . $msg_file_path );                    
+            //         Storage::disk('local')->copy($path_managed_files . '/' . $app_file_path, $path_shared_files . '/' . $msg_file_path);
+            //         $newFile->save(); 
+            //     }
+            // }
+            // if($request->forwarded_files){             
+            //     foreach($request->forwarded_files as $file){
+            //         $path_shared_files = $request->record_id;     
+            //         $path_managed_files = $file['board_id'];   
+            //         $newFile = new messageFile;
+            //         $newFile->board_id = $chat->record_id;
+            //         $newFile->message_id = $chat->id;
+            //         $newFile->name = $file['name'];
+            //         $newFile->extension = $file['extension'];
+                    
+            //         $newFile->user_id = $auth_user_id;
+            //         $newFile->mime_type = $file['mime_type'];  
+            //         $newFile->size = $file['size'];      
+            //         $newFile->save(); 
+            //         File::isDirectory(storage_path('app/shared_files/' . $request->record_id)) or File::makeDirectory(storage_path('app/shared_files/' . $request->record_id), 0755, true, true); 
+            //         $app_file_path = $file['id'] . '_' .$file['user_id'] . '_' . $file['message_id'] . '.' . $file['extension'];
+            //         $msg_file_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
+            //         $sourcePath = 'shared_files/' . $path_managed_files . '/' . $app_file_path;
+            //         $destinationPath = 'shared_files/' . $path_shared_files . '/' . $msg_file_path;
+            //         Storage::disk('local')->copy($sourcePath, $destinationPath);
+                    
+            //         $newFile->save(); 
+            //     }
+            // }
           
             
             $boardRecord->touch();
@@ -801,39 +767,34 @@ class BoardController extends Controller
                 if(!empty($restoreUsers)){
                     foreach($restoreUsers as $restoreUser){
                         $restoreUser->deleted_status = 0;
-                        $restoreUser->joined_at = now();
+                        $restoreUser->created_at = now();
                         $restoreUser->save();
                     }
                     $chat->touch();
                 }
                 
             }
-            if(!empty($request->mentioned_users)){               
+            if(!empty($request->mentioned_users)){                  
+                $board = boardRecord::where('id', '=', $request->record_id)->first();              
                 
-               
-                $msg_id = $chat->id;
-                $url = url('/chat/' . $request->record_id . '/?m=' . $chat->id);           
-                $chat_title = $boardRecord->private_flag == 1 ? $auth_user->name : $boardRecord->title;
-                                                   
+                if(!empty($board) && $board->private_flag == 1){
+                    $b_title = $auth_user->name;
                     
-                $content = $chat->message_text;                                                
-                foreach($request->mentioned_users as $user){
-                    $target_user = User::where('id','=', $user)->select('id', 'email', 'language')->first();
-                    $language = $target_user->language ? $target_user->language : 'en';
-                    if(!empty($target_user->email)){
-                        Mail::to($target_user->email)
-                        ->send(new Notify(
-                            $url, 
-                            $content, 
-                            $msg_id, 
-                            $language, 
-                            $chat_title, 
-                            $auth_user->name,
-                            'mention'
-                        ));
+                }else{
+                    $b_title = $board->title;
+                }                                    
+                $content = $chat->message_text;
+                $block_flag = false;
+                $blocked_words = ['password', 'PASSWORD', 'PW', 'pw','pass','PASS', 'パスワード','ﾊﾟｽﾜｰﾄﾞ', 'パス', 'ﾊﾟｽ'];
+                foreach($blocked_words as $word){
+                    if (str_contains($chat->message_text, $word)) { 
+                        $block_flag = true;
                     }
-                    
+                }         
                 
+                $mails = User::whereIn('id', $request->mentioned_users)->whereNotNull('email')->pluck('email')->toArray();
+                foreach($mails as $to){
+                    Mail::to($to)->send(new Mention($b_title, $content, $block_flag, $board->id, $chat->id));
                 }
             }
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
@@ -843,8 +804,8 @@ class BoardController extends Controller
                 "board_members" => $related_members,
                 "board_id" => $request->record_id,
                 "sender" => $auth_user_id
-            );
-            event(new MessageSent($rebound));
+            );                      
+            event(new MessageSent($rebound));         
             $data = [
                 "success" => true,
                 "u_id" => $request->u_id,
@@ -871,8 +832,8 @@ class BoardController extends Controller
         $files = messageFile::where('message_id', '=', $chat_record->id)->get();
         if($files){                
             foreach($files as $file){             
-                $path = 'message_files/' . $chat_record->record_id . '/' . $file->id . '_' . $file->user_id . '_' . $chat_record->id . '.' . $file->extension;
-                Storage::disk('s3')->delete($path);
+                $path = 'shared_files/' . $chat_record->record_id . '/' . $file->id . '_' . $file->user_id . '_' . $chat_record->id . '.' . $file->extension;
+                Storage::disk('local')->delete($path);
                 $file->delete();
             }               
             
@@ -957,17 +918,23 @@ class BoardController extends Controller
         $result = [];
         foreach($savedLastMessages as $record){
             $last = $record->last_message;
-            $unread_count = $record->messageRecords()
-            ->when($last, function ($q) use ($last) {
-                $q->where('id', '>', $last);
-            })
-            ->when($record->joined_at, function ($q) use ($record) {
-                $q->where('created_at', '>=', $record->joined_at);
-            })->count();
+            if(!empty($last)){
+                $unread_count = $record->messageRecords()->where('info_flag', 0)
+                ->when($last, function ($q) use ($last) {
+                    $q->where('id', '>', $last);
+                })
+                ->when($record->created_at, function ($q) use ($record) {
+                    $q->where('created_at', '>=', $record->created_at);
+                })->count();
 
-            if($unread_count > 0) {
-                $result[$record->record_id] = $unread_count;
-            }               
+                if($unread_count > 0) {
+                    $result[$record->record_id] = $unread_count;
+                }  
+            }else{
+                // $result[$record->record_id] = 1;
+            }
+             
+                     
         }
         return response()->json($result);       
     }
@@ -1333,18 +1300,137 @@ class BoardController extends Controller
                 return response()->json($task);
             }
     }
+    public function sendMail($request){
+
+        $auth_user = Auth::user();
+        $auth_user_id = Auth::id();
+
+        if(!empty($request['send_list']) && !empty($auth_user_id) && !empty($request['msg_id'])){
+            $msg_id = $request['msg_id'];
+            $content = '';
+            $messageRecord1 = messageRecord::find($msg_id);
+            if(!empty($messageRecord1)){                        
+                $content = $messageRecord1->message_text;
+            }
+            $board = boardRecord::where('id', '=', $request['board_id'])->first();
+            $subject;
+            $b_title;
+            $type;
+            if(!empty($board) && $board->private_flag == 1){
+                $b_title = $auth_user->name;
+                
+            }else{
+                $b_title = $board->title;
+            }
+            if($request['send_condition'] == 1)
+            {
+                $subject ='【確認依頼】' . $b_title;
+                $type = 'confirm';
+            }elseif($request['send_condition'] == 2){
+                $subject = '【再確認依頼】' . $b_title;
+                $messageRecord = messageRecord::find($msg_id);
+                $type = 'reconfirm';
+                if(!empty($messageRecord)){
+                    $messageRecord->check_request_at = now();
+                    $messageRecord->save();                         
+                }
+               
+            }elseif($request['send_condition'] == 3){
+                $subject ='【サイン依頼】' . $b_title;
+                $type = 'sign';
+            }
+            $mailList = [];
+            $block_flag = false;
+            $blocked_words = ['password', 'PASSWORD', 'PW', 'pw','pass','PASS', 'パスワード','ﾊﾟｽﾜｰﾄﾞ', 'パス', 'ﾊﾟｽ'];
+            foreach($blocked_words as $word){
+                if (str_contains($messageRecord1->message_text, $word)) { 
+                    $block_flag = true;
+                }
+            }
+            $mails = User::whereIn('id', $request['send_list'])->whereNotNull('email')->pluck('email')->toArray();
+            foreach($mails as $to){
+                Mail::to($to)->send(new Confirm($b_title, $content, $block_flag, $request['board_id'], $request['msg_id'], $type));
+            }
+     
+            
+            return response()->json($msg_id);   
+        }
+        return response()->json('error');   
+    }
+    public function send_reconfirm_email(Request $request){
+        $mail = $this->sendMail($request);
+        return $mail;
+    }
+    public function getRemindMessage(){
+        $user = Auth::user();
+        $remindedMessages = messageRecord::whereHas('messageRemindUsers', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                      ->where('reminded', 1);
+            })
+            ->with('messageRemindUsers')
+            ->with('user')
+            ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
+            ->with('reactedUsers')
+            ->with('checkedUsers')
+            ->with('uncheckedUsers')
+            ->get();
+            
+        return response()->json($remindedMessages);
+    }
+    public function remindRequest(Request $request){
+        $auth_user_id = Auth::id();
+
+        $message_remind = messageRemindUser::where('message_id', $request->id)->where('user_id', $auth_user_id)->first();
+
+        if ($message_remind) {
+            $message_remind->reminded = !$message_remind->reminded;
+            $message_remind->save();
+            return response()->json($message_remind->reminded);
+        } else {
+            $remind_user = new messageRemindUser;
+            $remind_user->message_id = $request->id;
+            $remind_user->user_id = $auth_user_id;
+            $remind_user->reminded = 1;
+            $remind_user->save();
+            return response()->json($remind_user->reminded);
+        }
+
+        
+    }
+    public function getUncheckedMessage(Request $request){
+        $user = Auth::user();
+        $checkMessages = messageRecord::whereHas('checkUsers', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                      ->where('checked', 0);
+            })
+            ->with('messageRemindUsers')
+            ->with('user')
+            ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
+            ->with('reactedUsers')
+            ->with('checkedUsers')
+            ->with('uncheckedUsers')
+            ->get();
+            
+        return response()->json($checkMessages);
+    }
     public function checkRequest(Request $request){
 
-
+        $path_shared_files = 'shared_files/' . $request->board_id;
         if($request->type == 'confirm'){
             $message = messageRecord::findOrFail($request->msg_id);
             $message->check_flag = 1;
             
             $message->checkUsers()->attach($request->users);
             $message->save();
-            $record_id = $message->record_id;
-            $message_id = $message->id;
-            $content = $message->message_text;
+            $board = boardRecord::where('id', '=', $message->record_id)->first(); 
+            $req = [
+                "send_list" => $request->users,
+                "board_id" => $board->id,
+                "msg_id" => $message->id,
+                "send_condition" => 1,              
+
+            ];
+            $this->sendMail($req);
             
         }else if($request->type == 'sign'){
             $messageFile = messageFile::findOrFail($request->msg_file_id);
@@ -1354,30 +1440,44 @@ class BoardController extends Controller
             $record_id = $messageFile->board_id;
             $message_id = $messageFile->message_id;
             $content = messageRecord::findOrFail($message_id)->message_text;
-            
-        }
-        $boardRecord = boardRecord::findOrFail($record_id);
-        $url = url('/chat/' . $request->record_id . '/?m=' . $message_id);           
-        $chat_title = $boardRecord->private_flag == 1 ? Auth::user()->name : $boardRecord->title;
-        $pattern = $request->type;                                                         
-        foreach($request->users as $user){
-            $target_user = User::where('id','=', $user)->select('id', 'email', 'language')->first();
-            $language = $target_user->language ? $target_user->language : 'en';
-            if(!empty($target_user->email)){
-                Mail::to($target_user->email)
-                ->send(new Notify(
-                    $url, 
-                    $content, 
-                    $message_id, 
-                    $language, 
-                    $chat_title, 
-                    Auth::user()->name,
-                    $pattern
-                ));
+            $req = [
+                "send_list" => $request->users,
+                "board_id" => $record_id,
+                "msg_id" => $message_id,
+                "send_condition" => 3,              
+
+            ];
+            $this->sendMail($req);
+            if($request->prepare == true){
+                $original_name = $messageFile->name;
+                $messageFile->multiple_flag = 1;
+                $existed_path = $messageFile->id . '_' . $messageFile->user_id . '_' . $messageFile->message_id . '.' . $messageFile->extension;
+                
+                $other_users = $request->users;
+                foreach($other_users as $user){
+                    $messageFile_loop = new messageFile;
+                    $messageFile_loop->message_id = $messageFile->message_id;
+                    $messageFile_loop->user_id = $user;
+                    $messageFile_loop->mime_type = $messageFile->mime_type;
+                    $messageFile_loop->extension = $messageFile->extension;
+                    $messageFile_loop->board_id = $messageFile->board_id;
+                    $messageFile_loop->size = $messageFile->size;
+                    $other_user = User::findOrFail($user);
+                    $other_name = str_replace(' ', '', $other_user->name);
+                    $messageFile_loop->name = $other_name . '_' . $original_name;
+                    $messageFile_loop->sign_flag = 1;
+                    $messageFile_loop->multiple_flag = 2;
+                    $messageFile_loop->original_file_id = $messageFile->id;
+                    $messageFile_loop->save();
+                    $messageFile_loop->signUsers()->attach($user);
+                    $new_path = $messageFile_loop->id . '_' . $messageFile_loop->user_id . '_' . $messageFile_loop->message_id . '.' . $messageFile_loop->extension;
+                    File::copy(storage_path('app/') . $path_shared_files . '/' . $existed_path , storage_path('app/') . $path_shared_files . '/' . $new_path ); 
+                }
+                $messageFile->save();
+                return response()->json($messageFile);
             }
-            
-        
         }
+
         return response()->json();
             
         
@@ -1403,7 +1503,7 @@ class BoardController extends Controller
         //         if($message->reacted_users){
         //             $list = explode(',',$message->reacted_users);
         //             if(in_array($auth_user_id, $list)) {
-                        
+                            
         //                 $reacted = array_map("intval", explode(",", $message->reacted_users));            
         //                 unset($reacted[array_search($auth_user_id, $reacted)]);
         //                 $reacted_subbed = implode(",",$reacted);
@@ -1440,6 +1540,13 @@ class BoardController extends Controller
             'task_end_date' => 'required'
 
         ]);
+        $infoMessage = new messageRecord;
+        $infoMessage->user_id = Auth::id();
+        $infoMessage->info_flag = 2;
+        $infoMessage->record_id = $request->board_id;
+        $infoMessage->message = '新しいタスクが追加されました。';
+        $infoMessage->message_text = '新しいタスクが追加されました。';
+        $infoMessage->save();
         $end_time = '00:00:00';
         if($request->task_end_time){
             $end_time = $request->task_end_time;
@@ -1453,44 +1560,37 @@ class BoardController extends Controller
             $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT));
         }
         if($request->edit_id){
-            $schedule = taskRecord::findOrFail($request->edit_id);
+            $task = taskRecord::findOrFail($request->edit_id);
         }else{
-            $schedule = new taskRecord;
+            $task = new taskRecord;
         }
         
 
-        $schedule->user_id = Auth::id();
-        $schedule->updated_user = Auth::id();
+        $task->user_id = Auth::id();
+        $task->updated_user = Auth::id();
 
-        $schedule->title = $request->title;
+        $task->title = $request->title;
 
-        $schedule->end_at = $combinedDT;
+        $task->end_at = $combinedDT;
+        $task->message_id = $infoMessage->id;
+        $task->remarks = $request->remarks;
+        $task->board_id = $request->board_id;
 
-        $schedule->remarks = $request->remarks;
-        $schedule->board_id = $request->board_id;
+        $task->save();
+       
 
-        $schedule->save();
+        $task->to_users()->syncWithPivotValues($request->qualified_users, ['updated_at' => now()]);
+        $related_members = boardToUser::where('record_id','=', $request->board_id)->where('deleted_status', '=', 0)->where('user_id', '!=', Auth::id())->pluck('user_id');
+        $update_last_message = boardToUser::where('record_id','=', $request->board_id)->where('user_id', '=', Auth::id())->update(["last_message" => $infoMessage->id]);
         $rebound = array(
-            "updateId" => $request->board_id
-        );
-
-        $schedule->to_users()->syncWithPivotValues($request->qualified_users, ['updated_at' => now()]);
-        // if(!empty($request->qualified_users)){
-
-        //     $qualified_users = $request->qualified_users;
-
-        //     foreach($qualified_users as $qualified_user){
-
-        //         $taskUser = new taskUser;
-        //         $taskUser->record_id = $schedule->id;
-        //         $taskUser->user_id = $qualified_user;
-        //         $taskUser->save();
-
-        //     }                                
-        // }                   
-        
-        event(new MessageSent($rebound));
-        return response()->json($schedule->id);
+            "type" => "new_message",
+            "board_members" => $related_members,
+            "board_id" => $request->record_id,
+            "sender" => Auth::id()
+        );                      
+        event(new MessageSent($rebound)); 
+                      
+        return response()->json($task->id);
                 
 
 
@@ -1519,7 +1619,7 @@ class BoardController extends Controller
         foreach($list as $board){
             if($board->private_flag == 0 || $board->private_flag == 3){
                 $selfcheck = $board->board_to_users()->where('user_id', Auth::id())->first();
-                $time_limit = $selfcheck->joined_at;
+                $time_limit = $selfcheck->created_at;
                 $messageFrom = $board->message_from;     
                 $time_condition = $messageFrom == 0 && $time_limit;   
                 $comment_list_pre = messageRecord::when($time_condition, function ($query) use($time_limit) {
@@ -1535,9 +1635,9 @@ class BoardController extends Controller
                 $result = $result->merge($comment_list_pre);
             }else if($board->private_flag == 1){
                 $selfcheck = boardToUser::where('record_id', '=', $board->id)->where('user_id', '=', Auth::id())->first();
-                if($selfcheck->joined_at){
+                if($selfcheck->created_at){
                     $comment_list_pre = messageRecord::where('record_id', $board->id)
-                    ->where('created_at', '>=',  $selfcheck->joined_at)->where('message_text', 'LIKE', '%' . $request->keyword . '%')
+                    ->where('created_at', '>=',  $selfcheck->created_at)->where('message_text', 'LIKE', '%' . $request->keyword . '%')
                     ->whereHas('user')->with('user')
                     ->latest('created_at')
                     ->select('id', 'user_id', 'record_id', 'created_at', 'message', 'message_text')
@@ -1597,7 +1697,7 @@ class BoardController extends Controller
         $target = messageRecord::findOrFail($request->id);
         $board = boardRecord::findOrFail($target->record_id);
         $board_user = boardToUser::where('record_id', $target->record_id)->where('user_id', Auth::id())->first();
-        $time_limit = $board_user->joined_at;
+        $time_limit = $board_user->created_at;
             $messageFrom = $board->message_from;     
             $time_condition = $messageFrom == 0 && $time_limit;   
 
@@ -1614,6 +1714,7 @@ class BoardController extends Controller
             ->with('reactedUsers')
             ->with('checkedUsers')
             ->with('uncheckedUsers')
+            ->with('memo')
             ->take(14)
             ->get();
 
@@ -1629,6 +1730,7 @@ class BoardController extends Controller
             ->with('reactedUsers')
             ->with('checkedUsers')
             ->with('uncheckedUsers')
+            ->with('memo')
             ->take(15)->get()->reverse()->values();
     
             $target_q = messageRecord::withTrashed()->where('id', '=', $request->id)
@@ -1643,6 +1745,7 @@ class BoardController extends Controller
             ->with('reactedUsers')
             ->with('checkedUsers')
             ->with('uncheckedUsers')
+            ->with('memo')
             ->get();
             $united = $next->merge($target_q)->merge($pre);
             
@@ -1654,7 +1757,7 @@ class BoardController extends Controller
         $last_message = messageRecord::withTrashed()->findOrFail($request->last_message_id);
         $targetBoard = boardRecord::findOrFail($last_message->record_id);
         $board_user = boardToUser::where('record_id', $targetBoard->id)->where('user_id', Auth::id())->first();
-        $time_limit = $board_user->joined_at;
+        $time_limit = $board_user->created_at;
         $messageFrom = $targetBoard->message_from;     
         $time_condition = $messageFrom == 0 && $time_limit;   
         if($request->direction === 'down'){
@@ -1671,6 +1774,7 @@ class BoardController extends Controller
             ->with('reactedUsers')
             ->with('checkedUsers')
             ->with('uncheckedUsers')
+            ->with('memo')
             ->take(30)->get()->reverse()->values();
 
 
@@ -1688,6 +1792,7 @@ class BoardController extends Controller
             ->with('reactedUsers')
             ->with('checkedUsers')
             ->with('uncheckedUsers')
+            ->with('memo')
             ->take(30)->get();
         }
         return response()->json($bottom_messages);
@@ -1738,46 +1843,29 @@ class BoardController extends Controller
         $auth_user_id = Auth::id();
         if($request->hasFile('file')) {
             $file_path = date("YmdHis") . md5(uniqid());
-            //ファイル拡張子取得
             $file_extension = $request->file('file')->getClientOriginalExtension();
-            //ファイルMIMEタイプ取得
             $mime_type = $request->file('file')->getMimeType();
             $mime_type_array = explode('/',$mime_type);
             $file_type = $mime_type_array[0];
-            //ファイルサイズ取得
             $file_size = $request->file('file')->getSize();     
 
             $fileRecord = new Icons;
-            // $fileRecord->path =  $file_path;
             $fileRecord->mime_type = $file_type;
             $fileRecord->extension = 'jpg';
-            // $fileRecord->size = $file_size;
             $fileRecord->user_id = $auth_user_id;
             $fileRecord->use_of = 'board';
             $fileRecord->save();
-
+            $path = '/board_icon';
             $set_path = 'board'. '_' . $fileRecord->id  . '.jpg';
             $img = Image::make($request->file('file'))->encode('jpg')->orientate();
-            // $path = 'board_icon';
-            // File::isDirectory(storage_path('app/board_icon')) or File::makeDirectory(storage_path('app/board_icon'), 0755); 
-            
-            // $set_path = 'board' . '_' . $fileRecord->id . '.' . 'jpg';
-            if (!Storage::disk('s3')->exists('board_icon')) {
-                Storage::disk('s3')->makeDirectory('board_icon');
-            }
-            $temp_path = storage_path('app/temp/'.$set_path);
-            // $img->save($temp_path);
-            
+            File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                
 
-            
+            $save_path = (storage_path('app') . '/' . $path . '/' . $set_path);
             if($file_size > 2000000){
-                $img->save(($temp_path), 30);
+                $img->save(($save_path), 30);
             }else{
-                $img->save($temp_path);  
-            }       
-            Storage::disk('s3')->put( 'board_icon/board_' . $fileRecord->id . '.jpg', file_get_contents($temp_path));
-            unlink($temp_path);     
-            $temp_url = Storage::disk('s3')->url('board_icon/board_' . $fileRecord->id . '.jpg');
+                $img->save($save_path);  
+            }         
             $ret = array ( 
                 "set_path" =>  $set_path,
                 "icon_id" => $fileRecord->id
@@ -1790,18 +1878,46 @@ class BoardController extends Controller
         $list = memoRecord::where('board_id', $request->record_id)->with('user')->orderBy('created_at', 'desc')->get();
         return response()->json($list);
     }
+    public function set_memo_edit_user(Request $request){
+        $memo_list = memoRecord::findOrFail($request->memo_id);
+        if($memo_list->edit_user){
+            return response()->json($memo_list);
+        }else{
+            $memo_list->edit_user = $request->user_id;
+            $memo_list->save();
+            return response()->json($memo_list);
+        }
+    }
     public function addMemo(Request $request ){
         $validatedData = $request->validate([
             'board_id' => 'required',
             'text' => 'required',
         ]);
+        $infoMessage = new messageRecord;
+        $infoMessage->user_id = Auth::id();
+        $infoMessage->info_flag = 2;
+        $infoMessage->record_id = $request->board_id;
+        $infoMessage->message = '新しいノートが追加されました。';
+        $infoMessage->message_text = '新しいノートが追加されました。';
+        $infoMessage->save();
         $memo = new memoRecord;
         $memo->user_id = Auth::id();
         $memo->board_id = $request->board_id;
-        $memo->message_id = $request->message_id;
+        $memo->message_id = $infoMessage->id;
         $memo->content = $request->text;
         $memo->save();
         $boardRecord = boardRecord::findOrFail($request->board_id);
+
+        $related_members = boardToUser::where('record_id','=', $request->board_id)->where('deleted_status', '=', 0)->where('user_id', '!=', Auth::id())->pluck('user_id');
+        $update_last_message = boardToUser::where('record_id','=', $request->board_id)->where('user_id', '=', Auth::id())->update(["last_message" => $infoMessage->id]);
+        $rebound = array(
+            "type" => "new_message",
+            "board_members" => $related_members,
+            "board_id" => $request->record_id,
+            "sender" => Auth::id()
+        );                      
+        event(new MessageSent($rebound));         
+
 
         return response()->json($memo);
     }
@@ -1813,6 +1929,7 @@ class BoardController extends Controller
         $memo = memoRecord::findOrFail($request->id);
         $memo->content = $request->text;
         $memo->timestamps = false;
+        $memo->edit_user = null;
         $memo->save();
         $boardRecord = boardRecord::findOrFail($memo->board_id);
         return response()->json($memo);
@@ -1844,110 +1961,28 @@ class BoardController extends Controller
     public function getIncompletedTasks(Request $request ){
         $today = Carbon::today();
         $list = taskRecord::where('comp_flag', '=', 0)
-        ->whereHas('task_users', function($q){
-            $q->where('user_id', Auth::id())->where('comp_flag', 0);
-        })        
-        ->whereDate('end_at', '<', $today)
-        ->select('id', 'board_id', 'comp_flag', 'created_at', 'end_at', 'title', 'user_id', 'remarks')        
-        ->with(['task_users' => function($q){
-            $q->with(['user' => function($q){
-                $q->with(['icons' => function($q){
-                    $q->select('id', 'extension', 'profile_id', 'user_id');
-                }])->select('id', 'name', 'icon_id');
-            }]);
-        }])->orderBy('created_at', 'desc')->get();
+                ->whereHas('task_users', function($q){
+                    $q->where('user_id', Auth::id())->where('comp_flag', 0);
+                })
+                ->with('to_users')
+                ->whereDate('end_at', '<=', $today)
+                ->orderBy('created_at', 'desc')->get();
+        // $list = taskRecord::where('comp_flag', '=', 0)
+        // ->whereHas('task_users', function($q){
+        //     $q->where('user_id', Auth::id())->where('comp_flag', 0);
+        // })        
+        // ->whereDate('end_at', '<', $today)
+        // ->select('id', 'board_id', 'comp_flag', 'created_at', 'end_at', 'title', 'user_id', 'remarks')        
+        // ->with(['task_users' => function($q){
+        //     $q->with(['user' => function($q){
+        //         $q->with(['icons' => function($q){
+        //             $q->select('id', 'extension', 'profile_id', 'user_id');
+        //         }])->select('id', 'name', 'icon_id');
+        //     }]);
+        // }])->orderBy('created_at', 'desc')->get();
         return response()->json($list);
     }
-    public function respondInviteRequest(Request $request){
-        $validatedData = $request->validate([
-            'target' => 'required',
-            'response' => 'required',
-        ]);
-        $target = $request->target;
-        $targetBoard = boardRecord::findOrFail($target);
-        if($request->response == 1){
-            $selfRecord = boardToUser::where('record_id', $target)->where('user_id', Auth::id())->first();
-            if(!empty($selfRecord)){
-                $selfRecord->joined_at = $selfRecord->invited_at;
-                $selfRecord->save();
-                
-                
-                return response()->json("respondConfirmed", 200);
-            }
-            throw ValidationException::withMessages(['message' => 'commonError']);
-            
-        }else if($request->response == 0){
-            
-            if($targetBoard->private_flag == 0){
-                $selfRecord = boardToUser::where('record_id', $target)->where('user_id', Auth::id())->first();
-                if(!empty($selfRecord)){
-                    $selfRecord->delete();                   
-
-                    $createInfo = $this->sharedService->createInfoMessage([Auth::user()->name], $targetBoard->id, 'rejected_request', Auth::id());  
-                    return response()->json("respondDeleted", 200);
-                }else{
-                    throw ValidationException::withMessages(['message' => 'commonError']);
-                }
-                
-            }else if($targetBoard->private_flag == 1){
-                $delete = $this->sharedService->removeBoard($targetBoard);
-                return response()->json($delete, 200);
-            }
-            throw ValidationException::withMessages(['message' => 'commonError']);
-            
-        }
-        
-    }
-    public function respondJoinRequest(Request $request){
-        $validatedData = $request->validate([
-            'target_id' => 'required',
-            'response' => 'required',
-            'record_id' => 'required'
-        ]);        
-        $checkPrivilage = boardToUser::where('record_id', $request->record_id)->where('user_id', Auth::id())->exists();
-        if(!$checkPrivilage){
-            throw ValidationException::withMessages(['message' => 'sufficientAdministrativePermission']);
-        }
-        $selfRecord = boardToUser::where('record_id', $request->record_id)->where('user_id', $request->target_id)->first();
-        if(!empty($selfRecord)){
-            if($request->response == 1){               
-                
-                $newUserRecord = User::find($selfRecord->user_id);
-                if($newUserRecord){                    
-                    $createInfo = $this->sharedService->createInfoMessage([$newUserRecord->name], $selfRecord->record_id, 'added_members', Auth::id());                      
-                }
-                $selfRecord->joined_at = now();
-                $selfRecord->save();
-                $checkBoard = boardRecord::findOrFail($request->record_id);
-                $related_id = $checkBoard->board_to_users()->pluck('user_id');
-                $rebound = array(
-                    "new_board_members" => $related_id->toArray()
-                );
-                event(new MessageSent($rebound));
-                return response()->json("respondConfirmed", 200);
-            }else if($request->response == 0){
-                $selfRecord->delete();
-                return response()->json("respondConfirmed", 200);
-            }
-        }
-        throw ValidationException::withMessages(['message' => 'commonError']);      
-        
-    }
-    public function cancelJoinRequest(Request $request){
-        $validatedData = $request->validate([
-            'target' => 'required',
-        ]);        
-
-        $selfRecord = boardToUser::where('record_id', $request->target)->where('user_id', Auth::id())->first();
-        if(!empty($selfRecord)){
-            
-            $selfRecord->delete();
-            return response()->json("respondConfirmed", 200);
-           
-        }
-        throw ValidationException::withMessages(['message' => 'commonError']);      
-        
-    }
+   
     public function setAdminRole(Request $request){
         $validatedData = $request->validate([
             'record_id' => 'required',
@@ -1991,7 +2026,7 @@ class BoardController extends Controller
                 $newUserRecord = User::find($request->user_id);
                 if($newUserRecord){
                     
-                    $createInfo = $this->sharedService->createInfoMessage([$newUserRecord->name], $checkBoard->id, 'removed_members', Auth::id());  
+                    $createInfo = $this->sharedService->createInfoMessage($newUserRecord->name, $checkBoard->id, 'removed_members', Auth::id());  
                     
                 }
                 $related_id = $checkBoard->board_to_users()->pluck('user_id');
@@ -2017,19 +2052,16 @@ class BoardController extends Controller
             
             $targetUser = $checkBoard->board_to_users()->where('user_id', $request->user_id)->first();
             if($targetUser){
-                throw ValidationException::withMessages(['message' => 'memberAlreadyExists']);
+                throw ValidationException::withMessages(['message' => '既にメンバーに追加されています。']);
             }else{
                 $newUser = new boardToUser;
                 $newUser->user_id = $request->user_id;
-                $newUser->record_id = $request->record_id;
-                $newUser->invited_by = Auth::id();
-                $newUser->joined_at = now();
-                $newUser->invited_at = now();
+                $newUser->record_id = $request->record_id;  
                 $newUser->save();
 
                 $newUserRecord = User::find($request->user_id);
                 if($newUserRecord){                    
-                    $createInfo = $this->sharedService->createInfoMessage([$newUserRecord->name], $checkBoard->id, 'invited_members', Auth::id()); 
+                    $createInfo = $this->sharedService->createInfoMessage($newUserRecord->name, $checkBoard->id, 'added_members', Auth::id()); 
                 }
                 $related_id = $checkBoard->board_to_users()->pluck('user_id');
                 $rebound = array(
@@ -2059,6 +2091,35 @@ class BoardController extends Controller
         
         return response()->json("complete", 200); 
 
+    }
+    public function board_possible_users(Request $request){
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $all_users = User::where('deleted_flag', 0)
+        ->where('retire', 0)
+        ->whereNotIn('name', $ng_list)
+        ->select('id', 'name', 'icon_id')
+        ->get();
+        return response()->json($all_users);
+    }
+    public function get_review_text(Request $request){
+
+        $q = '文章を修正してください。';
+
+        $full = $q . $request->text;
+        // return $full;
+        $result = OpenAI::chat()->create([
+            'model' => 'gpt-3.5-turbo-16k',
+            // 'model' => 'gpt-4',
+            'messages' => [
+                ['role' => 'assistant', 'content' => $full],
+            ],
+            'max_tokens' => 5000,
+            'temperature' => 0.8
+        ]);
+        // return response()->json($result );
+
+        $answer = $result['choices'][0]['message']['content'];
+        return $answer;
     }
 
 

@@ -3,14 +3,17 @@
         <div :class="['commentInner']" :style="{position:'relative',padding:'15px',borderRadius: '0', border: isEditing, boxSizing: 'border-box', float: comment.user_id == $store.state.user.id ? 'right' : 'left'}">
             <div class="commentHeder" style="position:relative;">                                            
                 <div class="column-01">
-                    <UserIcon size="30" :user="comment.user" imgClass="userNormalIcon"/>    
+                    <UserIcon v-if="comment.user" size="30" :user="comment.user" imgClass="userNormalIcon"/>    
+                    <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
+                        <circle cx="15" cy="15" r="15" fill="#ddd"/>
+                    </svg>
                 </div>
-                <div class="column-02">
-                    
-                    <p class="userName" style="margin-left:10px;height:30px;line-height: 30px;">{{ comment.user.name }}</p>
-                    
+                <div class="column-02" style="margin-right: 15px;line-height: 30px;height: 30px;">
+                    <router-link class="memberNameLink" :to="`/user/${ comment.user_id }`">
+                        <p class="userName" style="margin-left:10px;height:30px;line-height: 30px;">{{ comment.user ? comment.user.name : '非アクティブユーザー' }}</p>
+                    </router-link>
                 </div>
-                <div class="column-03" style="position: absolute;top: -50px;right: -8px;">
+                <div class="column-03" style="position: absolute;top: -45px;right: -8px;">
                     <p style="font-size: 12px;color: grey;">{{ momentMessage }}</p>
                 </div>
                 <div v-if="comment.user_id == $store.state.user.id && comment.deleted_flag == 0 && editing !== comment.id" class="boardMenuContainer cursor-pointer" @click.stop="$store.commit('setMenu', {id: comment.id, name: 'commentBoxMenu'})">
@@ -47,7 +50,7 @@
                 </p>
                 <Transition name="slidePop">   
                 <div v-if="editing == comment.id" style="position: absolute;bottom: -50px;left: 0;">
-                    <ul>
+                    <ul  style="white-space: nowrap;">
                         <li @click="$emit('editSend', comment.id, comment.messages)" class="commentEditButton">保存</li>
                         <li @click="$emit('editCancel',comment.id, comment.messages)" class="commentEditButton">キャンセル</li>
                     </ul>

@@ -1,7 +1,7 @@
 <template>
     <!-- <Transition name="smLeave"> -->
         <div class="boardOuterContainer" style="width: 100%;height: 100%;display:flex;flex-grow: 1;overflow: hidden;">     
-            <div class="boardInnerContainer">            
+            <div class="boardInnerContainer">        
                 <Transition name="searchHide">
                 <BoardSearchBar 
                     v-if="searchView"
@@ -77,7 +77,8 @@
                         @addQueue="addQueue"
                         @sendError="sendError"
                         @sentMessage="sentMessage"      
-                        @checkRequest="checkRequest"  
+                        @checkRequest="checkRequest"
+                        @remindRequest="remindRequest"  
                         @resetPageIndex="resetPageIndex" 
                         @appendSearchResult="appendSearchResult"
                         @afterRequestHandled="afterRequestHandled"
@@ -119,7 +120,7 @@
                 <ConfirmWindow @reload="getMessageList" v-if="confirmWindow" :requestType="requestType" :message="checkRequestData" @closeMe="confirmWindow = false"/>
             </Transition>  
             <Transition name="modalFade">
-                <InviteMember @close="inviteTarget = null" v-if="inviteTarget" :item="inviteTarget"/>
+                <InviteMember @close="inviteTarget = null" v-if="inviteTarget" :item="inviteTarget" @reload="boardEditFinished"/>
             </Transition>      
             <Transition name="modalFade">
                 <BoardCreateWindow 
@@ -145,7 +146,6 @@
     </template>
     
     <script>
-    import boardStyle from './boardStyle.scss'
     import BoardList from './BoardList.vue'
     import { defineAsyncComponent } from 'vue'
     import MessageContainer from './Message/MessageContainer.vue'
@@ -317,9 +317,9 @@
                 //         this.$i18n.locale = 'en'
                 //     }
                 // }
-                window.document.title = `GLOWD - ${this.$t('titleBoard')}`; 
+                window.document.title = `ボード`; 
             },    
-            beforeUnmount() {
+            unmounted() {
                 this.$store.commit('setMenu', {name: '', id: null})
             },
             mounted() {
@@ -362,20 +362,15 @@
                                
                 }
                 const c_id = url.searchParams.get("correspond_target");
-                emitter.on('messageShareToMemo', (data) => {  
-                    if(this.trayItemWhich !== 2){
-                        this.setTrayItem(2);
+                emitter.on('messageShareTo', (data) => {  
+                    if(this.trayItemWhich !== data){
+                        this.setTrayItem(data);
                     }                            
                 })
                 emitter.on('openPrivateBoardIntant', (id) => {  
                     this.openPrivateBoardIntant(id)                         
                 })
                 emitter.on('openMessageSearch', () => this.openMessageSearch(''))
-                emitter.on('messageShareToTask', (data) => {  
-                    if(this.trayItemWhich !== 1){
-                        this.setTrayItem(1);
-                    }                            
-                })
                 emitter.on('openForwardTargetBoard', (data) => {  
     
                     this.openBoard(data)          
@@ -830,6 +825,32 @@
                     
     
                 },
+                remindRequest(data){
+                    axios.post('/remind_add', {
+                            id: data.id
+                    }).then(response => {
+                        if(response.data == true){
+                            emitter.emit('setToast', {
+                                active: true,  
+                                type: 'info', 
+                                content: 'リマインドしました。',
+                                closeButton: false, 
+                                autoClose: false,
+                                answers: ['OK']
+                            })
+                        }else{
+                            emitter.emit('setToast', {
+                                active: true,  
+                                type: 'info', 
+                                content: 'リマインドを取り消しました。',
+                                closeButton: false, 
+                                autoClose: false,
+                                answers: ['OK']
+                            })
+                        }
+                        this.getMessageList()
+                    });
+                },
                 checkRequest(data, request){
                     this.checkRequestData = data
                     this.confirmWindow = true
@@ -932,7 +953,7 @@
                         if(second_atr == 'search'){
                             this.routeWatchLock = true
                         }
-                        this.$router.push(`/chat/${item.id}`);
+                        this.$router.push(`/board/${item.id}`);
 
                     const mentionable = item.board_to_users.filter(ob => ob.user_id !== this.$store.state.user.id && ob.user)
                     this.$store.commit('setMentionAbleUsers',mentionable)
@@ -943,7 +964,7 @@
                     
                     const b_title = this.boardTitle(item)
                     if(b_title){
-                        window.document.title = `GLOWD - ${b_title}`; 
+                        window.document.title = `ボード - ${b_title}`; 
                     }
                     
                     
@@ -997,10 +1018,7 @@
                                 },500)
                             }
                             this.infiniteLock = this.currentLen == this.messageList.length
-                            if(source == 'first_load'){
-                                // if(!this.$store.state.fromBoardToFiles.active){
-                                //     this.messageContainerKey ++
-                                // }                        
+                            if(source == 'first_load'){                    
                                 this.updateBadge(this.openedBoard)
                             }
                             
@@ -1107,7 +1125,6 @@
                         try {                  
                             axios.post('/chat_list').then(
                                 response => {
-                                // if(this.load_first == 0){
                                     this.allBoardList = response.data;
                                     if(second_atr){
                                         const target = this.allBoardList.filter(ob => ob.id == second_atr)
@@ -1116,66 +1133,29 @@
                                         }
                                           
                                     }
-                                    
-                                    // setTimeout(() => {
-                                        // this.$store.commit('setSkeleton', false)
-                                        if(atr == 'mounted'){
-                                            // if(this.$store.state.urlBoardId && window.history.length < 2){
-                                            // if(this.$store.state.urlBoardId){
-                                            //     const targetBoard = this.allBoardList.filter(ob => ob.id == this.$store.state.urlBoardId)
-                                            //     if(targetBoard.length){
-                                            //         this.openTargetBoard(targetBoard[0])                                                
-                                            //     }else{                                                    
-                                            //         emitter.emit('setToast', {
-                                            //             active: true,  
-                                            //             type: 'info', 
-                                            //             content: this.$t('canNotAccessChat'),                                                        
-                                            //             closeButton: true, 
-                                            //             autoClose: true,
-                                            //             answers: ['OK']
+                                    if(atr == 'mounted'){
+                                        if (this.$route.params.hasOwnProperty('chatId')) {
+                                            const targetBoard = this.allBoardList.filter(ob => ob.id == this.$route.params.chatId)
+                                            if(targetBoard.length){
+                                                this.openTargetBoard(targetBoard[0], false)                                                
+                                            }else{                                                    
+                                                emitter.emit('setToast', {
+                                                    active: true,  
+                                                    type: 'info', 
+                                                    content: this.$t('canNotAccessChat'),                                                        
+                                                    closeButton: true, 
+                                                    autoClose: true,
+                                                    answers: ['OK']
 
-                                            //         })  
-                                            //     }  
-                                            // }
-                                            // const url_string = window.location.href;
-                                            // const url = new URL(url_string);
-                                            // const c_id_t = url.searchParams.get("correspond_target");
-                                            // if(c_id_t && window.history.length <= 2){  
-                                            //     const c_id = parseInt(c_id_t)
-                                            //     const privateBoards = this.allBoardList.filter(ob => ob.private_flag == 1)
-                                            //     for(const board of privateBoards){
-                                            //         const target = board.board_to_users.filter(ob => ob.user_id == c_id)
-                                            //         const self = board.board_to_users.filter(ob => ob.user_id == this.$store.state.user.id)
-                                            //         if(target.length && self.length){
-                                            //             this.openTargetBoard(board);
-                                            //             return;
-                                            //         }
-                                            //     }   
-                                                        
-                                            // }
-                                            if (this.$route.params.hasOwnProperty('chatId')) {
-                                                const targetBoard = this.allBoardList.filter(ob => ob.id == this.$route.params.chatId)
-                                                if(targetBoard.length){
-                                                    this.openTargetBoard(targetBoard[0], false)                                                
-                                                }else{                                                    
-                                                    emitter.emit('setToast', {
-                                                        active: true,  
-                                                        type: 'info', 
-                                                        content: this.$t('canNotAccessChat'),                                                        
-                                                        closeButton: true, 
-                                                        autoClose: true,
-                                                        answers: ['OK']
-
-                                                    })  
-                                                }  
-
-                                            }
+                                                })  
+                                            }  
 
                                         }
-                                    // },500)
+
+                                    }
                                     setTimeout(() => {
                                         this.$store.commit('setSkeleton', this.$store.state.skeleton + 1)    
-                                    }, 500);
+                                    }, 0);
                                     
 
                             }).catch(function (error) {

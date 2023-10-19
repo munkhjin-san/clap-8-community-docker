@@ -36,7 +36,7 @@ export default {
         window.addEventListener('keyup', this.submitOk);
 
     },
-    beforeUnmount() {
+    unmounted() {
         window.removeEventListener('keyup', this.submitOk);
     },
     methods: {

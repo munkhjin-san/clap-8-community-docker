@@ -60,33 +60,6 @@
                         </div> 
                                                     
                     </div>
-                    <div>
-                        <p style="font-size: 14px;margin: 15px 0px;">{{ $t('privacySettings') }}</p>
-                        <div class="form-border" style="padding:10px">
-                            
-                            <p style="font-size: 14px;margin-bottom: 15px;">{{ $t('newMemberRequest') }}</p>
-                            <div style="display: flex;gap: 15px;flex-wrap: wrap;">
-                                <div v-for="num in [0, 1, 2]">
-                                    <label :for="`chat_pr_st_${num}`" class="check-container privacy-check" style="align-self: center;">
-                                        <input v-model="ableJoin" :value="num" :id="`chat_pr_st_${num}`" name="privacy" type="radio">
-                                        <span class="checkmark-mini"></span>
-                                        {{ $t(privacyTitle(num)) }}
-                                    </label>  
-                                </div>   
-                            </div>   
-                            
-                            <p style="font-size: 14px;margin: 15px 0px;">{{ $t('messagePermission') }}</p>
-                            <div style="display: flex;gap: 15px;flex-wrap: wrap;">
-                                <div v-for="num in [0, 1]">
-                                    <label :for="`msg_pr_st_${num}`" class="check-container privacy-check" style="align-self: center;">
-                                        <input v-model="messageFrom" :value="num" :id="`msg_pr_st_${num}`" name="messagePermission" type="radio">
-                                        <span class="checkmark-mini"></span>
-                                        {{ $t(permissionTitle(num)) }}
-                                    </label>  
-                                </div>  
-                            </div>
-                        </div>
-                    </div>
                     
                 </div>                
                 <div style="text-align: center;margin-top: auto;padding-top: 30px;">
@@ -299,8 +272,6 @@ import boardIcon from './Mixed/BoardIcon.vue'
                     id: this.id,
                     title: this.title,
                     file: UpFileArray,
-                    message_from: this.messageFrom,
-                    able_join: this.ableJoin
                 }).then(response => {   
                     setTimeout(() => {
                         if(response.data == 'saved'){
@@ -309,7 +280,7 @@ import boardIcon from './Mixed/BoardIcon.vue'
                             emitter.emit('setToast', {
                                 active: true,  
                                 type: 'info', 
-                                content: 'Алдаа гарлаа',
+                                content: 'エラーが発生しました。',
                                 closeButton: true, 
                                 autoClose: true,
 

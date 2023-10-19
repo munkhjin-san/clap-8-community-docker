@@ -1,6 +1,6 @@
 <template>
     <div class="searchBarOuter">     
-        <HamBurger/>
+        <HamBurger v-if="$store.state.mobile"/>
         <div class="searchBarInner">   
             <input 
                 class="searchBarArea searchInputArea" 

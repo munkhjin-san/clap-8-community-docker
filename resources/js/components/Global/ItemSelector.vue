@@ -1,14 +1,14 @@
 <template>
     <div style="position:relative;background:inherit;">
         <Form :ref="uId" v-slot="{ errors }" style=";background:inherit">
-        <span style="z-index:5" :class="{smallPlc : $store.state.activeInput == uId|| (value.length) || selected_items}" class="form-plc">{{ placeHolder }}</span> 
+        <span style="z-index:5" class="form-plc smallPlc">{{ placeHolder }}</span> 
         <v-select 
             :ref="uId"
-            :class="['taskUserSelecArea', 'itemSelector', {selectorFocus : $store.state.activeInput == uId}]"            
+            :class="['taskUserSelecArea', 'itemSelector', 'selectorFocus']"            
             v-model="selected_items" 
             name="selected_items" 
             :options="options"
-            @search:focus="$store.commit('setActiveInput', uId), getPossibleItems()"
+            @search:focus="getPossibleItems"
             @search:blur="$store.commit('setActiveInput', ''), options = []"
             @input="value = $event.target.value"
             @option:selected="$emit('setItems', selected_items)"
@@ -38,11 +38,11 @@
 import { markRaw, onDeactivated } from 'vue';
 import { Field, Form } from 'vee-validate'
 export default{
-    props: ['uId', 'initialSelected', 'placeHolder', 'name', 'rules', 'normalSpan', 'repeatSpan', 'repetitionFlag', 'target', 'time_start', 'time_end', 'once_date'],
+    props: ['uId', 'initialSelected', 'placeHolder', 'name', 'rules', 'normalSpan', 'repeatSpan', 'repetitionFlag', 'target', 'time_start', 'time_end', 'once_date', 'facility'],
     emit: ['setItems'],
     data(){
         return{
-            selected_items: this.initialSelected,
+            selected_items: null,
             options: [],
             value: '',
             Deselect: markRaw({
@@ -57,20 +57,21 @@ export default{
         if(this.board){
             this.options = this.board.board_to_users.map(ob => ob.user)
         }
+        if(this.initialSelected !== null && this.facility){                
+            const val = this.facility[this.target].filter(ob => ob.value == this.initialSelected)
+            if(val && val.length){
+                this.selected_items = val[0]
+            }
+        }
     },
     watch:{
         selected_items(after){
-            console.log('yapapa')
             this.$emit('setItems', after)
         },        
     },
     methods:{   
-        getPossibleItems(){
-            console.log('refff', this.$refs[this.uId])
-            if(this.$refs[this.uId]){
-                this.$refs[this.uId].toggleLoading(true);
-            }
-            
+        getPossibleItems(loading){
+            this.$store.commit('setActiveInput', this.uId)            
             const params = {
                 target: this.target,
                 repeat: this.repetitionFlag, 
@@ -82,9 +83,6 @@ export default{
             axios.post('/get_possible_facilities', params)
             .then(response => {
                 this.options = response.data
-                if(this.$refs[this.uId]){
-                    this.$refs[this.uId].toggleLoading(false);
-                }
             })
             
         }

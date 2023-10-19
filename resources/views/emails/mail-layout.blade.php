@@ -8,14 +8,14 @@
     <body>
         <header>
             <!-- Your header content here -->
-            <p style="color:black; font-size: 18px;">GLOWD APP<p>
+            <p style="color:black; font-size: 18px;">CLAP APP<p>
         </header>
         <main>
             @yield('content')
         </main>
         <!-- <footer> -->
             <!-- Your footer content here -->
-            <!-- <p>&copy; {{ date('Y') }} GLOWD APP. All rights reserved.</p> -->
+            <!-- <p>&copy; {{ date('Y') }} CLAP APP. All rights reserved.</p> -->
         <!-- </footer> -->
     </body>
 </html>

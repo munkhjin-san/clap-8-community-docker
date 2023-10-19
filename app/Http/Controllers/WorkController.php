@@ -37,31 +37,45 @@ class WorkController extends Controller
         
     }
     public function getWorkData(Request $request) {
-        //ログインユーザー関連
-        $auth_user = Auth::user();
         $auth_user_id = Auth::id();
-        [$currentYear, $currentMonth] = explode('-', $request->current_date);
-    
-        if($request->member_flag == 'myself'){
-            $users_list = [$auth_user_id];
-        }else{
+        
+        if($request->work_group){
             $users_list = $request->work_group;
+        }else{
+            $users_list = [$auth_user_id];
         }
+        
+          
+        if($request->current_date){
+            [$currentYear, $currentMonth] = explode('-', $request->current_date);
+        }else{
+            $current_date = Carbon::now()->format('Y-m');
+            [$currentYear, $currentMonth] = explode('-', $current_date);
+        }
+        $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
+
+        if ($currentMonth == 12) {
+            $holidayNum = 10;
+        } elseif ($currentMonth == 1) {
+            $holidayNum = 12;
+        } else {
+            if ($lastDay >= 29) {
+                $holidayNum = 9;
+            } elseif ($lastDay <= 28) {
+                $holidayNum = 8;
+            }
+        }
+        $workdayNum = $lastDay - $holidayNum;
         $time_card_record = timecardRecord::whereYear('day', $currentYear)
             ->whereMonth('day', $currentMonth)
             ->whereIn('user_id', $users_list)
             ->with([
-                'custom_field_data_records' => function ($q) {
-                    $q->whereIn('type_id', [37, 40, 39, 41])->orderBy('created_at', 'desc');
+                'custom_field_data_records' => function ($q) use($users_list){
+                    $q->whereIn('type_id', [37, 40, 39, 41])->whereIn('user_id', $users_list)->orderBy('created_at', 'desc');
                 },
                 'user' => function ($q) {
-                    $q->select('name', 'id', 'work_type', 'work_time_day', 'work_authority')
-                        ->with('icons');
+                    $q->select('name', 'id', 'work_type', 'work_time_day', 'work_authority');
                 },
-                'shift_records' => function ($q) {
-                    $q->select('shift_type', 'shift_day', 'start_time', 'end_time')->orderBy('created_at', 'desc')->with(['shiftType']);
-                },
-                'timecard_break_records'
             ])
             ->orderBy('created_at', 'desc')
             ->get();
@@ -72,11 +86,12 @@ class WorkController extends Controller
         $custom_field_data = [];
         $month_over_time = [];
         $month_work_time = [];
+        $month_late_time = [];
         $grouped_reserved_dates = [];
         foreach ($time_card_record as $reserved_date) {
             $custom_field_data = $reserved_date['custom_field_data_records'] ? $reserved_date['custom_field_data_records']->groupBy('type_id') : [];
             if (!empty($custom_field_data)) {
-                $allowance = $custom_field_data->has(37) ? $custom_field_data[37] : '--';
+                $allowance = $custom_field_data->has(37) ? $custom_field_data[37] : '';
 
                 $incidents_group = $custom_field_data->has(40) ? $custom_field_data[40] : [];
                 $incident = !empty($incidents_group) ? $incidents_group[0] : '';
@@ -90,6 +105,7 @@ class WorkController extends Controller
                 $achievement_group = $custom_field_data->has(41) ? $custom_field_data[41] : [];
                 $achievement = !empty($achievement_group) ? $achievement_group[0] : '';
             }
+            $user = $reserved_date['user'];
             $user_id = $reserved_date['user_id'];
             if (isset($reserved_date['over_time'])) {
                 if (!isset($month_over_time[$user_id])) {
@@ -97,8 +113,11 @@ class WorkController extends Controller
                 }
                 $month_over_time[$user_id] += $reserved_date['over_time'];
             }
-            if($month_over_time && isset($reserved_date['late_time'])){
-                $month_over_time[$user_id] -= $reserved_date['late_time'];
+            if(isset($reserved_date['late_time'])){
+                if(!isset($month_late_time[$user_id])){
+                    $month_late_time[$user_id] = 0;
+                }
+                $month_late_time[$user_id] += $reserved_date['late_time'];
             }
             if (isset($reserved_date['work_time'])) {
                 if (!isset($month_work_time[$user_id])) {
@@ -119,10 +138,11 @@ class WorkController extends Controller
                 'allowance' => $allowance,
                 'achievement' => $achievement,
                 'status_flag' => $reserved_date['status_flag'],
-                'stamp_flag' => $reserved_date['stamp_flag']
+                'stamp_flag' => $reserved_date['stamp_flag'],
+                'work_time_edit_flag' => $reserved_date['work_time_edit_flag']
             );
         }
-        $user_record = User::whereIn('id', $users_list)->select('name', 'id', 'work_type', 'work_time_day', 'work_authority')->get();
+        $user_record = User::whereIn('id', $users_list)->select('name', 'id', 'work_type', 'work_time_day', 'work_authority', 'icon_id')->get();
 
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $users_list)->whereYear('date', $currentYear)->whereMonth('date', $currentMonth)->where('type_id', 43)->get()->groupBy('user_id')->map(function ($userRecords) {
             return $userRecords->keyBy('date'); // Key the records by date within each user group
@@ -143,25 +163,16 @@ class WorkController extends Controller
             $mostCommonValue = $valueCounts->sortDesc()->keys()->first();
             $mostCommonWeatherPerUser[$user_id] = $mostCommonValue;
         }
-        $month_average_data = [];
-        foreach($user_record as $user){
-            $month_average_data[$user->id] = array(
-                'month_over_time' => $month_over_time[$user->id] ?? null,
-                'month_work_time' => $month_work_time[$user->id] ?? null,
-                'month_weather_average' => $mostCommonWeatherPerUser[$user->id] ?? null,
-                'month_achievement_average' => $mostCommonAchievementPerUser[$user->id] ?? null,
-            );
-        }
+        
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->whereIn('user_id', $users_list)
-                        ->with(['user' => function($q){
-                            $q->select('name', 'id', 'work_authority');
-                        }])
                         ->with(['shiftType'])
                         ->orderBy('created_at', 'desc')
                         ->get();
         $grouped_reserved_shifts = [];
+        $annual_leave = 0;
+        $shift_count = $shift_record->where('shift_type', '!=', 0)->count();
         foreach($shift_record as $reserved_date){
             $date = $reserved_date->shift_day;
             $shift_type = $reserved_date->shift_type;
@@ -169,18 +180,33 @@ class WorkController extends Controller
             $shiftTypeName = $reserved_date->shiftType->name;
             $shiftTypeAbbreviation = $reserved_date->shiftType->abbreviation;
             $shiftTypeColor = $reserved_date->shiftType->color;
+            $value = $reserved_date->shiftType->value;
+            $annual_leave += $value;
             $grouped_reserved_shifts[$date][$userId] = [
                 'shift_day' => $date,
                 'shift_type' => $shift_type,
                 'name' => $shiftTypeName,
                 'abbreviation' => $shiftTypeAbbreviation,
-                'color' => $shiftTypeColor,
-                'user' => $reserved_date->user,
                 'shift_start_time' => $reserved_date->start_time,
                 'shift_end_time' => $reserved_date->end_time
             ];                
         }
-
+        $month_average_data = [];
+        foreach($user_record as $user){
+            $shift_work_hours = $workdayNum * $user->work_time_day;
+            if($user->work_type == 0 && $month_over_time && $month_work_time){
+                if(isset($month_work_time[$user->id]) && isset($month_over_time[$user->id])){
+                    $all_work_hours = $annual_leave + $month_work_time[$user->id];
+                    $month_over_time[$user->id] = $all_work_hours - $shift_work_hours; 
+                }  
+            }
+            $month_average_data[$user->id] = array(
+                'month_over_time' => (isset($month_over_time[$user->id]) && $month_over_time[$user->id] >= 0) ? $month_over_time[$user->id] : null,
+                'month_work_time' => $month_work_time[$user->id] ?? null,
+                'month_weather_average' => $mostCommonWeatherPerUser[$user->id] ?? null,
+                'month_achievement_average' => $mostCommonAchievementPerUser[$user->id] ?? null,
+            );
+        }
         $responseArray = array(
             'record_array' => $grouped_reserved_dates,
             'weather' => $custom_weather_data,
@@ -255,31 +281,38 @@ class WorkController extends Controller
         return response()->json($request);
     }
     public function getWorkGroup(Request $request){
-        $work_group_list = workGroup::whereHas('work_group_user', function ($q) {
-            $q->whereIn('user_id', [Auth::id()]);
+        $auth_user_id = Auth::id();
+        $work_group_list = workGroup::whereHas('work_group_user', function ($q) use($auth_user_id) {
+            $q->whereIn('user_id', [$auth_user_id]);
         })->with(['user.icons', 'work_group_user.user'])->get();
         
-        $work_group_array = $work_group_list->map(function ($work_group_list_value) {
-            $work_group_users = $work_group_list_value->work_group_user->map(function ($work_group_user_value) {
+        $work_group_users = $work_group_list->flatMap(function ($work_group_list_value) {
+            return $work_group_list_value->work_group_user->map(function ($work_group_user_value) {
                 return [
                     'id' => $work_group_user_value->user ? $work_group_user_value->user->id : null,
                     'name' => $work_group_user_value->user ? $work_group_user_value->user->name : null,
+                    'icon_id' => $work_group_user_value->user ? $work_group_user_value->user->icon_id : null,
+                    'name_kana' => $work_group_user_value->user ? $work_group_user_value->user->name_kana : null,
                 ];
             });
-        
-            return [
-                'group_id' => $work_group_list_value->id,
-                'group_title' => $work_group_list_value->name,
-                'group_users' => $work_group_users,
-            ];
-        });
-        return response()->json($work_group_array);
+        })->unique('id')->values()->all();
+        $authUserIndex = array_search($auth_user_id, array_column($work_group_users, 'id'));
+
+        if ($authUserIndex !== false) {
+            // Remove the authenticated user from its current position
+            $authUser = array_splice($work_group_users, $authUserIndex, 1);
+
+            // Add the authenticated user back to the beginning of the array
+            array_unshift($work_group_users, $authUser[0]);
+        }
+
+        return response()->json($work_group_users);
     }
     public function dailyReportAdd(Request $request){
         $auth_user_id = Auth::id();
         
         $exist_timecard = timecardRecord::where('day', $request->day)->where('user_id', $auth_user_id)->first();
-        if($exist_timecard && $exist_timecard->start_time){
+        if($exist_timecard && !empty($exist_timecard->start_time)){
             $exist_timecard->end_time = $request->end_time;
             $exist_timecard->stamp_flag = 1;
             $exist_timecard->save();
@@ -295,24 +328,60 @@ class WorkController extends Controller
         }
     }
     public function saveTimeCard(Request $request){
-        
+        $today = Carbon::now()->isoFormat('YYYY-MM-DD');
         $is_exist = timecardRecord::where('day', $request->day)->where('user_id', $request->userId)->first();
+        $user = User::select('work_time_day', 'work_type', 'id', 'name')->findOrFail($request->userId);
         $fields = ['comment', 'incident', 'achievement', 'allowance'];
-        $start_time = Carbon::parse($request->day . ' ' . $request->start_time);
-        $end_time = Carbon::parse($request->day . ' ' . $request->end_time);
-        $shift_start_time = Carbon::parse($request->day . ' ' . $request->shift_start_time);
-        $shift_end_time = Carbon::parse($request->day . ' ' . $request->shift_end_time);
-        $shift_time_difference_seconds = $shift_end_time->diffInSeconds($shift_start_time);
-        $shift_time_difference_seconds -= $request->breakTime * 60;
-        $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
-        $time_difference_seconds = $end_time->diffInSeconds($start_time);
+        $startTime = $request->start_time;
+        $endTime = $request->end_time;
+        $start = Carbon::createFromFormat('H:i', $startTime);
+        $end = Carbon::createFromFormat('H:i', $endTime);
+        $nightOvertimeStart = Carbon::createFromFormat('H:i', '22:00')->subDay();
+        $nightOvertimeEnd = Carbon::createFromFormat('H:i', '05:00');
+        $todayNightOverTime = Carbon::createFromFormat('H:i', '22:00');
+        if($end->lt($start)){
+            $start->subDay();
+        }
+        if($request->shift_start_time && $request->shift_end_time){
+            $shift_start_time = Carbon::createFromFormat('H:i:s', $request->shift_start_time);
+            $shift_end_time = Carbon::createFromFormat('H:i:s', $request->shift_end_time);
+            $shift_time_difference_seconds = $shift_end_time->diffInSeconds($shift_start_time);
+            $shift_time_difference_seconds -= $request->breakTime * 60;
+            $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
+        }else{
+            $shift_time_difference_seconds = ($user->work_time_day * 60) + 3600;
+            $shift_time_difference_seconds -= $request->breakTime * 60;
+            $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
+        }
+        $time_difference_seconds = $end->diffInSeconds($start);
         $time_difference_seconds -= $request->breakTime * 60;
         $time_difference_seconds = max(0, $time_difference_seconds);
         
+        
+        
+        $night_difference_seconds = 0;
+        
+        if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
+            if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
+                $night_difference_seconds = $end->diffInSeconds($start);
+            } else {
+                $night_difference_seconds = $nightOvertimeEnd->diffInSeconds($start);
+            }
+        } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
+            $night_difference_seconds = $end->diffInSeconds($nightOvertimeStart);
+        } else if ($end->greaterThan($todayNightOverTime)){
+            $night_difference_seconds = $end->diffInSeconds($todayNightOverTime);
+        } else {
+            $night_difference_seconds = 0;
+        }
+        if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
+            $night_difference_seconds -= $request->breakTime * 60;
+        }
+         
         if($is_exist){
             $is_exist->start_time = $request->start_time;
             $is_exist->end_time = $request->end_time;
-            if ($time_difference_seconds > $shift_time_difference_seconds) {                
+            if ($time_difference_seconds >= $shift_time_difference_seconds) {                
                 $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
                 $overtimeMinutes = floor($overtimeSeconds / 60);
                 $is_exist->over_time = $overtimeMinutes;
@@ -321,15 +390,24 @@ class WorkController extends Controller
                 $latetimeMinutes = floor($latetimeSeconds / 60);
                 $is_exist->late_time = $latetimeMinutes;
             }
+            if (isset($night_difference_seconds) && $night_difference_seconds > 0) {
+                $nighttimeMinutes = floor($night_difference_seconds / 60);
+                $is_exist->night_over_time = $nighttimeMinutes;
+            }else{
+                $is_exist->night_over_time = 0;
+            }
             $minutes = floor($time_difference_seconds / 60);
             $is_exist->work_time = $minutes;
             $is_exist->edit_start_time = $request->start_time;
             $is_exist->edit_end_time = $request->end_time;
-            $is_exist->work_time_edit_flag = 1;
+            
             $is_exist->break_time = $request->breakTime;
             $is_exist->stamp_flag = 1;
             if($request->status_flag == 1){
                 $is_exist->status_flag = 1;
+            }
+            if($today != $request->day){
+                $is_exist->work_time_edit_flag = 1;
             }
             $is_exist->save();
             
@@ -340,9 +418,9 @@ class WorkController extends Controller
                     $customFieldData = customFieldDataRecord::where('table_record_id', $is_exist->id)
                         ->where('user_id', $request->userId)
                         ->where('type_id', $fieldData['field_type_id'])
-                        ->first();
+                        ->get();
                     if($customFieldData){
-                        $customFieldData->delete();
+                        $customFieldData->each->delete();;
                     }
                     if ($field == 'allowance') {
                         foreach ($fieldData['value'] as $val) {
@@ -359,14 +437,20 @@ class WorkController extends Controller
             $new_time_card->day = $request->day;
             $new_time_card->user_id = $request->userId;
             $new_time_card->end_time = $request->end_time;
-            if ($time_difference_seconds > $shift_time_difference_seconds) {                
-                $overtimeSeconds = $time_difference_seconds - $regularHoursThreshold;
+            if ($time_difference_seconds >= $shift_time_difference_seconds) {                
+                $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
                 $overtimeMinutes = floor($overtimeSeconds / 60);
                 $new_time_card->over_time = $overtimeMinutes;
             } else {
                 $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
                 $latetimeMinutes = floor($latetimeSeconds / 60);
                 $new_time_card->late_time = $latetimeMinutes;
+            }
+            if (isset($night_difference_seconds) && $night_difference_seconds > 0) {
+                $nighttimeMinutes = floor($night_difference_seconds / 60);
+                $new_time_card->night_over_time = $nighttimeMinutes;
+            }else{
+                $new_time_card->night_over_time = 0;
             }
             $minutes = floor($time_difference_seconds / 60);
             $new_time_card->work_time = $minutes;
@@ -441,12 +525,12 @@ class WorkController extends Controller
             'shift_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->whereYear('shift_day', $currentYear)
                     ->whereMonth('shift_day', $currentMonth)
-                    ->select('user_id', 'shift_day', 'shift_type');
+                    ->select('user_id', 'shift_day', 'shift_type')->with('shiftType');
             },
             'time_card_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->whereYear('day', $currentYear)
                     ->whereMonth('day', $currentMonth)
-                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time');
+                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time', 'night_over_time');
             },
             'custom_field_data_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->where('type_id', 37)
@@ -454,27 +538,64 @@ class WorkController extends Controller
                     ->whereMonth('date', $currentMonth)
                     ->select('value_int', 'user_id');
             }
-        ])->select('id','name','work_type', 'work_time_day', 'user_code')->findOrFail($user_list[0]);
-        // Now you can access the related data without issuing additional queries
+        ])->select('id','name','work_type', 'work_time_day', 'user_code')->findOrFail($user_list[0]);        
+        $monthNum = (int)$currentMonth;
+
+        // Calculate the last day of the current month
+        $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
+
+        if ($monthNum == 12) {
+            $holidayNum = 10;
+        } elseif ($monthNum == 1) {
+            $holidayNum = 12;
+        } else {
+            if ($lastDay >= 29) {
+                $holidayNum = 9;
+            } elseif ($lastDay <= 28) {
+                $holidayNum = 8;
+            }
+        }
+        $workdayNum = $lastDay - $holidayNum;
         $userData = $user->makeHidden('attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records');
         $attendance = $user->attendance_records->first();
         $shift_count = $user->shift_records->where('shift_type', '!=', 0)->pluck('shift_day');
         $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
         $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->count();
-        $workedday_count = $user->time_card_records->whereIn('day', $shift_count)->count();
+        $workedday_count = $user->time_card_records->count();
         $worked_time = $user->time_card_records->sum('work_time');
         $holiday_worked_time = $user->time_card_records->whereIn('day', $shift_holidays)->sum('work_time');
         $approved_count = $user->time_card_records->where('status_flag', 2)->count();
         $unapproved_count = $user->time_card_records->where('status_flag', 1)->count();
-        $annual_leave = $user->shift_records->where('shift_type', 5)->count();
+        $night_over_time = $user->time_card_records->sum('night_over_time');
+        $annual_leave = 0;
+        foreach ($user->shift_records as $shift_record) {
+            $shiftType = $shift_record->shiftType;
+            $annual_leave += $shiftType->value;
+        }
+        $shift_work_hours = ($user->work_time_day * $workdayNum);
+        
         $condolence_leave = $user->shift_records->where('shift_type', 14)->count();
         $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
         $over_time = $user->time_card_records->sum('over_time');
         $late_time = $user->time_card_records->sum('late_time');
         if($over_time >= $late_time){
-            $month_over_time = $over_time - $late_time;
+            if($user->work_type == 1){
+                $over_time = $over_time;
+            }else{
+                $over_time = $over_time - $late_time;
+            }
         }else{
-            $month_over_time = 0;
+            if($user->work_type == 1){
+                $over_time = $over_time;
+            }else{
+                $over_time = 0;
+            }
+            
+        }
+        
+        if($user->work_type == 0){
+            $all_worked_time = $worked_time + $annual_leave + $over_time;
+            $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
         }
         
         $month_stay_allowance_count = $user->custom_field_data_records->where('value_int', 0)->count();
@@ -489,6 +610,8 @@ class WorkController extends Controller
             'user' => $userData,
             'attendance_flag' => $attendance_flag,
             'shift_count' => $shift_count->count(),
+            'should_work' => $shift_work_hours,
+            'should_work_days' => $workdayNum,
             'shift_holidays' => $shift_holidays->count(),
             'holiday_count' => $worked_holiday_count,
             'workedday_count' => $workedday_count,
@@ -497,11 +620,13 @@ class WorkController extends Controller
             'annual_leave' => $annual_leave,
             'condolence_leave' => $condolence_leave,
             'transfer_leave' => $transfer_leave,
-            'over_time' => $month_over_time,
+            'month_over_time' => $month_over_time > 0 ? $month_over_time : 0,
+            'over_time' => $over_time,
             'month_stay_allowance_count' => $month_stay_allowance_count,
             'month_move_allowance_count' => $month_move_allowance_count,
             'worked_time' => $worked_time,
-            'holiday_worked_time' => $holiday_worked_time
+            'holiday_worked_time' => $holiday_worked_time,
+            'night_over_time' => $night_over_time
         );
 
         return response()->json($responseArray);
@@ -547,13 +672,56 @@ class WorkController extends Controller
     }
     public function attendanceConfirm(Request $request){
         if(!empty($request)){
+            [$currentYear, $currentMonth] = explode('-', $request->date_year_month);
+            $shift_records = shiftRecord::whereYear('shift_day', $currentYear)
+                            ->whereMonth('shift_day', $currentMonth)
+                            ->where('user_id', $request->user['id'])->get();
+            $user_work_time_day = $request->user['work_time_day'];
+            $half_day_holiday = $shift_records->where('shift_type', 6)->count();
+            $petitionType8_count = $shift_records->where('shift_type', 5)->count();
+            $petitionType7_count = $shift_records->where('shift_type', 13)->count();
+            $petitionType6_count = $shift_records->where('shift_type', 12)->count();
+            $petitionType5_count = $shift_records->where('shift_type', 11)->count();
+            $petitionType4_count = $shift_records->where('shift_type', 10)->count();
+            $petitionType3_count = $shift_records->where('shift_type', 9)->count();
+            $petitionType2_count = $shift_records->where('shift_type', 8)->count();
+            $petitionType1_count = $shift_records->where('shift_type', 7)->count();
+            $closed_day = $shift_records->where('shift_type', 2)->count();
+            $working_hour_low = $shift_records->whereIn('shift_type', [13, 12, 11, 10, 9, 8, 7])->count();
+            $half_day_hours = ($user_work_time_day / 2) * $half_day_holiday;
+            $condolence_hours = $user_work_time_day * $request->condolence_leave;
+            $transfer_hours = $user_work_time_day * $request->transfer_leave;
+            $closed_hours = $user_work_time_day * $closed_day;
+            $absence_days = ($working_hour_low - $request->worked_days) + $request->holiday_worked_days;
             $attendance_record = new attendanceRecord;
+            $attendance_record->half_day_holiday = $half_day_holiday;
+            $attendance_record->petitionType8_count = $petitionType8_count;
+            $attendance_record->petitionType7_count = $petitionType7_count;
+            $attendance_record->petitionType6_count = $petitionType6_count;
+            $attendance_record->petitionType5_count = $petitionType5_count;
+            $attendance_record->petitionType4_count = $petitionType4_count;
+            $attendance_record->petitionType3_count = $petitionType3_count;
+            $attendance_record->petitionType2_count = $petitionType2_count;
+            $attendance_record->petitionType1_count = $petitionType1_count;
+            $attendance_record->closed_day = $closed_day;
+            if($absence_days >= 0){
+                $attendance_record->absence_days = $absence_days;
+            }else{
+                $attendance_record->absence_days = 0;
+            }
+            $absence_hours = $request->shift_working_hours - (($request->annual_leave * 60) + $condolence_hours + $transfer_hours + $closed_hours + $request->worked_hours);
+            if($absence_hours >= 0){
+                $attendance_record->absence_hour = $absence_hours;
+            }else{
+                $attendance_record->absence_hour = 0;
+            }
             $attendance_record->date_year_month = $request->date_year_month;
             $attendance_record->user_id = $request->user['id'];
             $attendance_record->user_code = $request->user['user_code'];
             $attendance_record->name = $request->user['name'];
             $attendance_record->pay_day = 20;
-            $attendance_record->prescribed_working_hours = $request->shift_working_hours;
+            $attendance_record->month_petition = '済';
+            $attendance_record->prescribed_working_hours = $request->shift_working_hours / 60;
             if($request->user['work_type'] == 0){
                 $attendance_record->work_type = 'フレックス';
             }else{
@@ -565,6 +733,7 @@ class WorkController extends Controller
             $attendance_record->holiday_working_days = $request->holiday_worked_days;
             $attendance_record->paid_holiday_hours = $request->annual_leave;
             $attendance_record->condolence_holiday = $request->condolence_leave;
+            $attendance_record->special_holiday = $request->transfer_leave;
             $attendance_record->closed_day = 0;
             $attendance_record->working_hours = $request->worked_hours;
             $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
@@ -579,5 +748,100 @@ class WorkController extends Controller
         }
         
     }
+    public function attendanceDelete(Request $request){
+        
+        $attendance_record = attendanceRecord::where('user_id', $request->user_id)->where('date_year_month', $request->date_year_month)->first();
+        if(!empty($attendance_record)){
+            $attendance_record->delete();
+        }
+
+        return 'deleted';
+    }
+    public function notSubmitted(Request $request){
+        $auth_user = Auth::user();
+        $auth_user_id = Auth::id();
+        $notificationUser = User::where('deleted_flag', 0)->where('id', 610)->select('name', 'id', 'icon_id')->orderBy('created_at', 'desc')->first();
+        $yesterday = date("Y-m-d",strtotime('-1 day'));
+        $today = date("Y-m");
+        $year = date("Y");
+        $month = date("m");
+        $day = date("d");
+        if(in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
+            $resposnsArray = array(
+                'debug' => [],
+                'yesterday' => $yesterday,
+                'shiftNotSubmittedList' => [],
+                'timecardNotSubmittedList' => []
+            );
+            return response()->json($resposnsArray);
+        }
+        $attendancePrevMonth = date("Y-m",strtotime('-1 month'));
+        $attendanceThisMonth = date("Y-m");
+        $attendance_prev_record = attendanceRecord::where('user_id', '=' , $auth_user_id )->where('date_year_month', '=' , $attendancePrevMonth )->first();
+        $attendance_this_record = attendanceRecord::where('user_id', '=' , $auth_user_id )->where('date_year_month', '=' , $attendanceThisMonth )->first();
+        if(empty($attendance_prev_record)){
+            $prevMonth = $month - 1;
+            $prev_shift_record = shiftRecord::where('user_id','=',$auth_user_id)->whereYear('shift_day','=',$year)->whereMonth('shift_day', $prevMonth)->orderBy('created_at', 'desc')->get();
+        }
+        $shift_record = shiftRecord::where('user_id','=',$auth_user_id)->whereYear('shift_day','=',$year)->whereMonth('shift_day', $month)->orderBy('created_at', 'desc')->get();
+    
+        $shiftNotSubmittedList = [];
+        $shiftSubmittedList = [];
+        $timecardNotSubmittedList = [];
+        if(empty($shift_record)){
+            $shiftNotSubmittedList[] = array('year' => $year, 'month' => $month , 'value' => $today , 'month_flag' => 0 ,'notification_user' => $notificationUser);
+        }else{
+            if(empty($attendance_this_record)){
+                foreach($shift_record as $key => $value){
+                    $shiftSubmittedList[$value->shift_day] = $value->shift_type;
+                }
+                if(!empty($prev_shift_record)){
+                    foreach($prev_shift_record as $keyPrev => $valuePrev){
+                        $shiftSubmittedList[$valuePrev->shift_day] = $valuePrev->shift_type;        
+                    }
+                }
+                foreach($shiftSubmittedList as $key2 => $value2){
+                    if($value2 == "1"){
+                        if($key2 <= $yesterday){
+                            $timecard = timecardRecord::where('deleted_flag','=', 0)->where('user_id', '=' , $auth_user_id )->where('day' , '=' , $key2)->first();
+                            if($timecard === null){
+                                $dateExplode = explode("-",$key2);
+                                $timecardNotSubmittedList[] = array(
+                                    'year' => (int) $dateExplode[0],
+                                    'month' => (int) $dateExplode[1],
+                                    'day' =>  (int) $dateExplode[2],
+                                    'value' => $key2,
+                                    'shiftType' => $auth_user->work_type,
+                                    'notification_user' => $notificationUser,
+                                    'shiftEndTime' => $shift_record[0]->end_time,
+                                    'shiftStartTime' => $shift_record[0]->start_time
+                                );
+
+                            }
+
+                        }
+
+                    }
+                }
+            }
+        }
+        if(!empty($shift_record)){
+            if(!empty($timecardNotSubmittedList)){
+                foreach ($timecardNotSubmittedList as $key => $Detail) {
+                    $ArrDate[] = $Detail['value'];
+                }
+                array_multisort($ArrDate, SORT_DESC, SORT_NUMERIC, $timecardNotSubmittedList);
+            }
+        }
+        $nextShiftSubmittedList = [];
+        $resposnsArray = array(
+            'debug' => $attendanceThisMonth,
+            'yesterday' => $yesterday,
+            'shiftNotSubmittedList' => $shiftNotSubmittedList,
+            'timecardNotSubmittedList' => $timecardNotSubmittedList
+        );
+        return response()->json($resposnsArray);
+    }
+
 }
 

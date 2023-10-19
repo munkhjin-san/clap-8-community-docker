@@ -1,7 +1,7 @@
 <template>
     <div style="position: relative;background:inherit">
         <Form :ref="uId" v-slot="{ errors }" style="background:inherit">
-            <span :class="['form-plc', {smallPlc : $store.state.activeInput == uId || (value.length)}] ">{{placeHolder}}</span> 
+            <span class="form-plc smallPlc">{{placeHolder}}</span> 
             <Field 
                 as="textarea"
                 autocomplete="off" 
@@ -28,6 +28,14 @@
         data(){
             return{
                 value: this.initialValue ? this.initialValue : ''
+            }
+        },
+        mounted(){
+            if(!this.initialValue || !this.initialValue.length){
+                if(this.$store.state.sharingData && this.$store.state.sharingData.text && (this.uId == 'recordBody' || this.uId == 'calendarRemark' || this.uId == 'taskContent')){                    
+                    this.value = this.$store.state.sharingData.text
+                    this.$emit('setValue', this.value)
+                }
             }
         },
         components: {

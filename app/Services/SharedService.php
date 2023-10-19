@@ -39,18 +39,6 @@ class SharedService
         if(empty($data)){
             return null;
         }
-       
-        $has_mutual_chat = boardRecord::where('private_flag', 0)->whereHas('board_to_users', function($q) use ($target_id){
-            $q->where('user_id', $target_id)->where('deleted_status', 0);
-        })->whereHas('board_to_users', function($q) use($self){
-            $q->where('user_id', $self->id)->where('deleted_status', 0);
-        })->exists();
-        $data["is_blocked"] = false;
-        $data["is_friend"] = false;
-        $data["is_waiting"] = false;
-        $data["is_blocked_by"] = false;
-        $data["is_recieved_request"] = false;
-        $data["has_mutual_chat"] = false;
         return $data;
     }
     public function createUserDefaultIcon($user){
@@ -152,6 +140,7 @@ class SharedService
         return "respondDeleted";
     }
     public function createBoardDefaultIcon($board, $user_id){
+        
         if($board->id){
             $rmv = Icons::where('record_id', '=', $board->id)->where('use_of', '=', 'board')->get();
             if($rmv){
@@ -162,7 +151,8 @@ class SharedService
                 }
                         
             }   
-        }              
+        }      
+        
         $icon = new Icons;    
         $icon->user_id =  $user_id;            
         $icon->mime_type = 'image';
@@ -172,7 +162,7 @@ class SharedService
         $icon->save();
         $board->update(['icon_id' => $icon->id]);
         
-        
+      
         
         $boardname = $board->title;
         $boardname_no_space = preg_replace('/\s+/', '', $board->title);
@@ -181,8 +171,7 @@ class SharedService
         
         $input = array("#000");
         $random = $input[array_rand($input, 1)];
-        $img = Image::canvas(200, 200, $random);
-        
+        $img = Image::canvas(200, 200, $random);   
         $length = mb_strlen($boardname_no_space);
         $font_size = '20';
         $pos_x;
@@ -192,6 +181,7 @@ class SharedService
         $regex = '/[А-Яа-яЁёөү]/u';
         $is_mn = preg_match($regex, $firstChar);
         $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';
+        
         switch(true){
         case $length == 1:
             $font_size = '100';
@@ -305,24 +295,27 @@ class SharedService
             $font_size = '70';
             $pos_x = 23;
             $pos_y = 22; 
-        }                 
+        }    
+                 
         $set_path = 'board' . '_' . $icon->id . '.' . 'png';
         if (!Storage::disk('local')->exists('board_icon')) {
             Storage::disk('local')->makeDirectory('board_icon');
         }
         $temp_path = storage_path('app/board_icon/'.$set_path);
         $img->save($temp_path);
+        
         return true;
     }
-    public function createInfoMessage ($userList, $boardId, $type, $userId){
-        $body = [
-            "members" => $userList,
-            "type" => $type
+    public function createInfoMessage ($userName, $boardId, $type, $userId){
+        $patterns = [
+            "added_members" => "がボードメンバーに追加されました。",
+            "removed_members" => "がボードを退出しました。",
+            "left_members" => "がボードを退出しました。"
         ];
-        $encoded_body = json_encode($body);
+        $addedMembers = ' <span class="addedMembers">' . $userName . '</span>' . $patterns[$type];
         $first_message = new messageRecord;
         $first_message->info_flag = 1;
-        $first_message->message = $encoded_body;
+        $first_message->message = $addedMembers;
         $first_message->record_id = $boardId;
         $first_message->user_id = $userId;
         $first_message->save();

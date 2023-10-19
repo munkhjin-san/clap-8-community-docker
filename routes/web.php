@@ -23,15 +23,11 @@ use App\Http\Controllers\EmployeeRecordsController;
 use App\Http\Controllers\SupportRecordsController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\CustomfieldController;
-use App\Http\Controllers\Auth\VerificationController;
-use App\Http\Controllers\SocialLoginController;
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\ForgotPasswordController;
-use App\Http\Controllers\Auth\PhoneVerificationController;
-use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\AutoJobController;
+use App\Http\Controllers\AdminWorkController;
+use App\Http\Controllers\MemberController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -42,6 +38,14 @@ use App\Http\Controllers\AutoJobController;
 | contains the "web" middleware group. Now create something great!
 |
 */
+Route::get('app/public/{app_name}', function ($app_name, Request $request) {    
+    $query = $request->getQueryString(); 
+    $url = "/{$app_name}";    
+    if ($query) {
+        $url .= '?' . $query;
+    }    
+    return redirect($url);
+});
 
 Route::get('/reacted_users_make', [AutoJobController::class, 'reactedUsersMake']);
 Route::get('/change_to_dummy', [AutoJobController::class, 'change_to_dummy']);
@@ -57,79 +61,48 @@ Route::get('/shared_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentControl
 Route::get('/managed_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentController::class, 'docTransfer']);
 Route::get('/{app_name}/root/{sub_folder}/{path}/{keyword}/{user_id}', [PostController::class, 'cdnExtractDocsPost']);
 Route::get('/firstload', [NotificationController::class, "index"]);
-//Social Login
-Route::get('auth/facebook', [SocialLoginController::class, 'redirectToFacebook']);
-Route::get('auth/facebook/callback', [SocialLoginController::class, 'facebookSignin']);
-Route::get('auth/google', [SocialLoginController::class, 'redirectToGoogle']);
-Route::get('auth/google/callback', [SocialLoginController::class, 'googleSignin']);
-Route::get('auth/twitter', [SocialLoginController::class, 'redirectToTwitter']);
-Route::get('auth/twitter/callback', [SocialLoginController::class, 'twitterSignin']);
-Route::get('support/docs/{lang}/privacy-policy', function ($lang) {    
-    return view('privacy.' . $lang . '.privacy');
-});
-Route::get('support/docs/{lang}/terms-of-service', function ($lang) {    
-    return view('terms.' . $lang . '.terms');
-});
-Route::get('support/docs/{lang}/data-deletion', function ($lang) {    
-    return view('data-deletion.' . $lang . '.dataDeletion');
-});
-Route::view('/auth', 'auth.login')->name('auth')->middleware('guest');
-Route::view('/auth/{lang}/terms-of-service', 'auth.login');
-Route::view('/auth/{lang}/privacy-policy', 'auth.login');
-Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
-Route::post('/register/complete', [RegisterController::class, "register"])->name('register.complete')->middleware('guest');
-Route::post('/register', [RegisterController::class, "guestregister"])->name('register.post')->middleware('guest');
 
-Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('forgot.password');
-Route::get('/phone/verify', function () {
-    return view('auth.verify_phone_number');
-})->name('verify.phone');
-Route::post('/phone/verification', [PhoneVerificationController::class, 'verify'])->name('verification.phone');
-// Route::post('/phone/verification', [PhoneVerificationController::class, 'verifyPhone'])->name('verification.phone');
-Route::post('/phone/send-code-again', [PhoneVerificationController::class, 'sendCodeAgain'])->name('phone.sendCodeAgain');
-Route::post('/password/reset/phone', [ResetPasswordController::class, 'sendResetLinkPhone'])->name('password.send.phone');
-Route::get('/password/reset/phone/token/{token}', [ResetPasswordController::class, 'showResetFormPhone'])->name('password.reset.phone');
-Route::post('/password/reset/phone/reset', [ResetPasswordController::class, 'resetPasswordPhone'])->name('password.update.phone');
+Route::view('/auth', 'auth.login')->name('auth')->middleware('guest');
+Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
+
+
 
 Route::get('/health', function () {
     return response('OK', 200)->header('Content-Type', 'text/plain');
 })->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\RedirectIfAuthenticated::class]);
 
-    Route::get('/invite', [MembersController::class, 'inviteToGuest']);
-    Route::get('/join', [MembersController::class, 'joinToChat']);
 
 Route::post('/report_send', [ContentController::class, 'reportSend']);
 Route::group(["middleware"=>"auth"],function(){
     $id = Auth::id();
-    // Route::get('/email/verify', [VerificationController::class, 'show'])->name('verification.notice');
-    // Route::get('/email/verify/{id}/{hash}', [VerificationController::class ,'verify'])->name('verification.verify')->middleware(['signed']);
-    // Route::post('/email/resend', [VerificationController::class, 'resend'])->name('verification.resend');
     Route::get('request_private_chat/{id}',[MembersController::class, 'chatRequest']);
-    Route::get('/profile/{id}',  [BoardController::class, "index"]);
-    Route::get('/profile/{id}/{settings}',  [BoardController::class, "index"]);
-    // Route::get('/profile', [UserController::class, 'index']);
-    // Route::get('/invite', [MembersController::class, 'inviteToMember']);
-    // Route::group(['middleware' => ['verified.user']], function() {
+    Route::get('/user/{id}',  [BoardController::class, "index"]);
+    Route::get('/user', function () {
+        $id = Auth::id();
+        return redirect("/user/{$id}");
+    });
+    Route::get('/user/{id}/{settings}',  [BoardController::class, "index"]);
         Route::get('/' ,function () {
             {return Redirect::route('board');}
         });
-        Route::get('/chat', [BoardController::class, "index"])->name('board');
-        Route::get('/chat/{id}', [BoardController::class, "index"])->name('board_room');
-        Route::get('/chat/{id}/{app_name}/{folder_id}' ,function ($id) {
-            return redirect("/chat/{$id}");
+        Route::get('/board', [BoardController::class, "index"])->name('board');
+        Route::get('/board/{id}', [BoardController::class, "index"])->name('board_room');
+        Route::get('/board/{id}/{app_name}/{folder_id}' ,function ($id) {
+            return redirect("/board/{$id}");
         });
-        Route::get('/chat/{id}/{app_name}' ,function ($id) {
-            return redirect("/chat/{$id}");
-        });
+        Route::get('/board/{id}/{app_name}' ,function ($id) {
+            return redirect("/board/{$id}");
+        })->where('app_name', '(task|memo|file)');;
         Route::get('/home',function () {
             {return Redirect::route('board');}
         });
+        Route::get('/employee', function () {return redirect("/members");});
         // Route::get('/members', [BoardController::class, "index"]);
         // Route::get('/knowledge', [BoardController::class, "index"]);
         // Route::get('/nice', [BoardController::class, "index"]);
         // Route::get('/challenge', [BoardController::class, "index"]);
 
-        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|calendar|work)');
+        Route::get('/{name}/{path?}',[BoardController::class, "index"])->where('name', '(challenge|knowledge|nice|members|calendar|work|admin_control)');
         
         // Route::get('/{name}',function () {
         //     {return Redirect::route('board');}
@@ -155,17 +128,18 @@ Route::group(["middleware"=>"auth"],function(){
         Route::get('/temp_upload/{path}', [ContentController::class, 'tempUploadFile']);
         Route::get('/user_signature/{path}', [ContentController::class, 'getSignature']);
         Route::get('/user/root/user_album/{folder_id}/{path}', [UserController::class, 'cdnMovie']);
-        // Route::get('/{app_name}/managed_files/{board_id}/{path}', [FileController::class, 'cdnExtract']);
-        // Route::get('/{app_name}/managed_files/{board_id}/{sub_folder}/{path}', [FileController::class, 'cdnSubExtract']);
+        Route::get('/{app_name}/managed_files/{board_id}/{path}', [FileController::class, 'cdnExtract']);
+        Route::get('/{app_name}/managed_files/{board_id}/{sub_folder}/{path}', [FileController::class, 'cdnSubExtract']);
 
         Route::get('/managed_files/{board_id}/{path}', [ContentController::class, 'managedFileTransfer']);
         Route::get('/managed_files/{board_id}/{sub_folder}/{path}', [ContentController::class, 'managedFileThumbTransfer']);
 
         Route::get('/post_files/{path}', [ContentController::class, 'postFileTransfer']);
-        
+        Route::get('/calendar_files/{path}', [ContentController::class, 'calendarFileTransfer']);
+        Route::get('/user_files/{user_id}/{path}', [ContentController::class, 'userFileTransfer']);
         // Board
         Route::post('/chat_list', [BoardController::class, 'getAllMessage']); // 一覧表示API
-        Route::post('/chat_create', [BoardController::class, 'postAddMessage']); // 作成API
+        Route::post('/chat_create', [BoardController::class, 'create_new_board']); // 作成API
         Route::post('/messages_edit_api', [BoardController::class, 'postEditMessage']); // 編集API
         Route::post('/messages_delete_api', [BoardController::class, 'postDeleteMessage']); // 削除API
         Route::post('/get_messages', [BoardController::class, 'getCommentList']); // コメント一覧表示API
@@ -191,7 +165,8 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/task_delete_api', [BoardController::class, 'taskDelete']); 
         Route::post('/attach_upload_api', [BoardController::class, 'attachUpload']); 
         Route::post('/remove_temp_file', [BoardController::class, 'removeTemp']); 
-        Route::post('/check_request_api', [BoardController::class, 'checkRequest']); 
+        Route::post('/check_request_api', [BoardController::class, 'checkRequest']);
+        Route::post('/remind_add', [BoardController::class, 'remindRequest']); 
         Route::post('/send_reaction_api', [BoardController::class, 'sendReaction']); 
         Route::post('/add_task_api', [BoardController::class, 'addTask']); 
         Route::post('/message_search', [BoardController::class, 'messageSearch']);
@@ -200,12 +175,11 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/get_instant_user', [BoardController::class, 'getInstantUser']); 
         Route::post('/add_memo', [BoardController::class, 'addMemo']); 
         Route::post('/edit_memo', [BoardController::class, 'editMemo']);     
-        Route::post('/delete_memo', [BoardController::class, 'deleteMemo']); 
-        // Route::post('/update_remember', [BoardController::class, 'updateRemember']); 
+        Route::post('/delete_memo', [BoardController::class, 'deleteMemo']);
+        Route::post('/set_memo_edit_user', [BoardController::class, 'set_memo_edit_user']);
+        Route::post('/update_remember', [BoardController::class, 'updateRemember']); 
         Route::post('/get_all_members', [BoardController::class, 'getPossibleMembers']); 
         Route::post('/get_incompleted_tasks', [BoardController::class, 'getIncompletedTasks']); 
-        Route::post('/respond_invite_request', [BoardController::class, 'respondInviteRequest']); 
-        Route::post('/respond_join_request', [BoardController::class, 'respondJoinRequest']); 
         Route::post('/set_admin_role', [BoardController::class, 'setAdminRole']); 
         Route::post('/remove_group_member', [BoardController::class, 'removeGroupMember']); 
         Route::post('/group_add_member', [BoardController::class, 'groupAddMember']); 
@@ -214,25 +188,12 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/signature_upload_api', [BoardController::class, 'signFile']);
         Route::post('/save_user_signature', [BoardController::class, 'saveSignature']);
         Route::post('/leave_board', [BoardController::class, 'leaveBoard']);
-        Route::post('/cancel_join_request', [BoardController::class, 'cancelJoinRequest']);
-        // file
-        // Route::post('/file_get_file_list', [FileController::class, 'getFileList']); 
-        // Route::post('/file_delete_folder', [FileController::class, 'deleteFolder']); 
-        // Route::post('/file_delete_file', [FileController::class, 'deleteFile']);
-        // Route::post('/file_create_new_folder', [FileController::class, 'createNewFolder']); 
-        // Route::post('/file_move_to_folder', [FileController::class, 'moveToFolder']);
-        // Route::post('/file_copy_paste_items', [FileController::class, 'copyPasteItems']);
-        // Route::post('/file_move_paste_items', [FileController::class, 'movePasteItems']);
-        // Route::post('/file_upload_new_file', [FileController::class, 'uploadNewFile']);
-        // Route::post('/file_edit_folder', [FileController::class, 'editFolder']);
-        // Route::post('/file_restore_items', [FileController::class, 'restoreItems']);
-        // Route::post('/file_get_folders', [FileController::class, 'folderStructure']);
-        // Route::post('/file_get_quota', [FileController::class, 'getQuota']);
-        // Route::post('/file_import_from_message', [FileController::class, 'importFromBoard']);
-        // Route::post('/file_get_search_result', [FileController::class, 'getSearch']);
-        // Route::get('/file_download_request', [FileController::class, 'downloadRequest']);
-        // Route::post('/file_download_managed_files', [FileController::class, 'downloadManagedFiles']);
-        // Route::post('/file_remove_temp_path', [FileController::class, 'removeTempPath']);
+        Route::post('/board_possible_users', [BoardController::class, 'board_possible_users']);
+        Route::post('/get_review_text', [BoardController::class, 'get_review_text']);
+        Route::post('/send_reconfirm_email', [BoardController::class, 'send_reconfirm_email']);
+        Route::post('/get_remind_messages', [BoardController::class, 'getRemindMessage']);
+        Route::post('/get_unchecked_messages', [BoardController::class, 'getUncheckedMessage']);
+        Route::get('/shared_docs/{board_id}/{path}/{keyword}/{user_id}', [BoardController::class, 'cdnDocs']);
 
         Route::post('/get_file_list', [FileController::class, 'fetchFileList']); 
 
@@ -243,11 +204,11 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/notification/update_list_api', [NotificationController::class, 'updateNotify']); 
 
         // Admin Panel User:
-        Route::get('/admin_account_control', [AdminAccountController::class, 'index']);
-        Route::get('/admin_account_control/get_user_list', [AdminAccountController::class, 'getUser']);
-        Route::post('/admin_account_control/user_add', [AdminAccountController::class, 'addUser']);
-        Route::post('/admin_account_control/user_delete', [AdminAccountController::class, 'deleteUser']);
-        Route::post('/admin_account_control/user_edit', [AdminAccountController::class, 'editUser']);
+        Route::get('/admin_control', [AdminAccountController::class, 'index']);
+        Route::get('/get_user_list', [AdminAccountController::class, 'getUserList']);
+        Route::post('/user_add', [AdminAccountController::class, 'addUser']);
+        Route::post('/user_delete', [AdminAccountController::class, 'deleteUser']);
+        Route::post('/user_edit', [AdminAccountController::class, 'editUser']);
         // Admin Panel Rule
         Route::get('/admin_account_control/get_rule_list', [AppRuleController::class, 'getRule']);
         Route::post('/admin_account_control/rule_add', [AppRuleController::class, 'addRule']);
@@ -259,15 +220,16 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/admin_account_control/position_edit', [AdminPositionController::class, 'editPosition']);
         Route::post('/admin_account_control/position_delete', [AdminPositionController::class, 'deletePosition']);
         // Admin Panel Office
-        Route::get('/admin_account_control/get_office_list', [AdminOfficeController::class, 'getOffice']);
-        Route::post('/admin_account_control/office_add', [AdminOfficeController::class, 'addOffice']);
-        Route::post('/admin_account_control/office_edit', [AdminOfficeController::class, 'editOffice']);
+        Route::post('/office_add', [AdminAccountController::class, 'addOffice']);
+        Route::post('/office_edit', [AdminAccountController::class, 'editOffice']);
+        Route::post('/office_delete', [AdminAccountController::class, 'deleteOffice']);
         // Admin Panel Work Group
-        Route::get('/admin_account_control/get_work_group', [AdminWorkGroupController::class, 'getWorkGroup']);
-        Route::post('/admin_account_control/work_group_add', [AdminWorkGroupController::class, 'addWorkGroup']);
-        Route::post('/admin_account_control/work_group_edit', [AdminWorkGroupController::class, 'editWorkGroup']);
-        Route::post('/admin_account_control/work_group_sort', [AdminWorkGroupController::class, 'workgroupSort']);
-
+        Route::post('/work_group_add', [AdminAccountController::class, 'workgroupAdd']);
+        Route::post('/work_group_edit', [AdminAccountController::class, 'workgroupEdit']);
+        Route::post('/work_group_delete', [AdminAccountController::class, 'workgroupDelete']);
+        Route::post('/work_group_sort', [AdminAccountController::class, 'workgroupSort']);
+        // Admin Panel Work
+        Route::post('/get_admin_work', [AdminWorkController::class, 'getAllMessage']);
 
 
 
@@ -282,11 +244,17 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/profile_delete_api', [UserController::class, 'deleteEdit']);
         Route::post('/profile_get_user_tags', [UserController::class, 'getTags']);
         Route::post('/profile_get_search_tags', [UserController::class, 'getSearchTags']);
-        Route::post('/profile_get_update_user', [UserController::class, 'getUpdateUser']);
+        Route::post('/profile_get_update_user', [UserController::class, 'profile_get_update_user']);
         Route::post('/profile_set_privacy', [UserController::class, 'setPrivacy']);
         Route::post('/profile_generate_new_code', [UserController::class, 'generateNewUserQrCode']);
         Route::post('/profile_set_color', [UserController::class, 'setColor']);
         Route::post('/set_language', [UserController::class, 'setLanguage']);
+        Route::post('/get_user_claps', [UserController::class, 'getClaps']);
+        Route::post('/user_file_upload', [UserController::class, 'userFileUpload']);
+        Route::post('/user_delete_file', [UserController::class, 'userDeleteFile']);
+        Route::post('/mov_up', [UserController::class, 'uploadMov']);
+        Route::post('/mov_delete', [UserController::class, 'deleteMov']);
+        Route::post('/save_user_signature', [UserController::class, 'saveSignature']);
 
         Route::post('/members_get_list', [MembersController::class, 'getList']);
         Route::post('/members_get_friends', [MembersController::class, 'getFriends']);
@@ -300,6 +268,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/respond_partner_request', [MembersController::class, 'respondPartnerRequest']);
         Route::post('/block_user', [MembersController::class, 'blockUser']);
         Route::post('/member_get_block_list', [MembersController::class, 'getBlockList']);
+        
         // ->middleware('throttle:3,1');
 
 
@@ -319,23 +288,57 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/post_comment_edit', [PostController::class, 'post_comment_edit']);
         Route::post('/post_comment_delete', [PostController::class, 'post_comment_delete']);
         Route::post('/post_status_update', [PostController::class, 'post_status_update']);
+        Route::post('/post_get_nice_users', [PostController::class, 'post_get_nice_users']);
+        Route::post('/post_get_challenge_users', [PostController::class, 'post_get_challenge_users']);
+        Route::get('/get_post_badge', [PostController::class, 'get_post_badge']);
+        Route::patch('/update_post_badge', [PostController::class, 'update_post_badge']);
+        Route::patch('/set_footer_view ', function(Request $request){
+            $update = Auth::user()->update([
+                "footer_view" => $request->value
+            ]);
+            return $update;
+        }); 
+        Route::post('/get_featured_tags', [PostController::class, 'get_featured_tags']);
+        Route::post('/post_advanced_search', [PostController::class, 'post_advanced_search']);
+        Route::post('/get_history', [PostController::class, 'get_history']);
+        Route::post('/prepare_sharing_files', [PostController::class, 'prepare_sharing_files']);
 
 
 
         Route::post('/get_calendar_data', [CalendarController::class, 'get_calendar_data']);
         Route::post('/get_possible_facilities', [CalendarController::class, 'get_possible_facilities']);
         Route::post('/calendar_add_record', [CalendarController::class, 'calendar_add_record']);
+        Route::post('/get_my_groups', [CalendarController::class, 'get_my_groups']);
+        Route::post('/update_selected_calendar_members', [CalendarController::class, 'update_selected_calendar_members']);
+        Route::post('/calendar_more_users', [CalendarController::class, 'calendar_more_users']);
+        Route::post('/set_more_members', [CalendarController::class, 'set_more_members']);
+        Route::post('/get_calendar_search', [CalendarController::class, 'get_calendar_search']);
+        Route::post('/get_all_facilities', [CalendarController::class, 'get_all_facilities']);
+        Route::post('/calendar_drop', [CalendarController::class, 'calendar_drop']);
+        Route::post('/calendar_delete_record', [CalendarController::class, 'calendar_delete_record']);
 
+        Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
 
+        Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
+        Route::post('/get_kadai_reviev', [MemberController::class, 'get_kadai_reviev']);
+        Route::post('/update_kadai', [MemberController::class, 'update_kadai']);
+        Route::post('/save_kadai_template', [MemberController::class, 'save_kadai_template']);
+        Route::post('/get_kadai_template', [MemberController::class, 'get_kadai_template']);
+        Route::post('/check_kadai_record', [MemberController::class, 'check_kadai_record']);
+        Route::post('/delete_kadai_template', [MemberController::class, 'delete_kadai_template']);
+        Route::post('/delete_applied_issue', [MemberController::class, 'delete_applied_issue']);
+        Route::get('/get_kadai_themes', [MemberController::class, 'get_kadai_themes']);
+        Route::post('/get_applied_issues', [MemberController::class, 'get_applied_issues']);
+
+        Route::get('/proxy', [MemberController::class, 'proxy']);
 
     // });    
 
         Route::post('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::post('/get_shift_data', [WorkController::class, 'getShiftData']);
         Route::post('/add_shift', [WorkController::class, 'shiftAdd']);
-        Route::get('/get_work_group', [WorkController::class, 'getWorkGroup']);
+        Route::post('/get_work_group', [WorkController::class, 'getWorkGroup']);
         Route::post('/daily_report_add', [WorkController::class, 'dailyReportAdd']);
-        Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/save_time_card', [WorkController::class, 'saveTimeCard']);
         Route::post('/delete_time_card', [WorkController::class, 'deleteTimeCard']);
         Route::post('/get_attendance_data', [WorkController::class, 'getAttendanceData']);
@@ -343,4 +346,10 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/approve_time_card', [WorkController::class, 'approveTimeCard']);
         Route::post('/cancel_time_card', [WorkController::class, 'cancelTimeCard']);
         Route::post('/attendance_confirm', [WorkController::class, 'attendanceConfirm']);
+        Route::post('/attendance_delete', [WorkController::class, 'attendanceDelete']);
+        Route::post('/not_submitted', [WorkController::class, 'notSubmitted']);
+
+        Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
+        Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
+        Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);
 });

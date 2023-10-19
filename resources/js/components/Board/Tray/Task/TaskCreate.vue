@@ -33,7 +33,7 @@
                 <div class="memberSelectSwitchArea" style="display: flex;width: 100%;">
                     <input v-model="selecAllMembers" type="checkbox" id="switchMemberSelect">
                     <label for="switchMemberSelect" style="min-width: 80px;" class="cursor-pointer"><span></span></label>
-                    <div id="swImgMemberSelect" class="cursor-pointer">
+                    <div @click="selecAllMembers = !selecAllMembers" id="swImgMemberSelect" class="cursor-pointer">
                     </div>                             
                 </div>                    
             </div> 
@@ -67,7 +67,7 @@
             </div>
 
 
-            <div style="margin-top: 20px;position:relative;">
+            <div class="si-box">
                 <p class="form-lbl" style="font-size: 14px;">{{$t('setTime')}}</p>
                     <div style="display:flex; align-items: center; margin-top:10px;">
                     <div class="timeSelectSwitchArea" style="display: flex;margin:4px 0;">
@@ -94,7 +94,7 @@
             </div>
 
             <div class="si-box">
-                <LoaderButton @click="complete" :loading="loading" content="保存する"/>
+                <LoaderButton @triggered="complete" :loading="loading" content="保存する"/>
             </div> 
         </div>
     </div>   
@@ -110,7 +110,7 @@ import DatePicker from '../../../Global/DatePicker.vue'
 import LoaderButton from '../../../Global/LoaderButton.vue';
 
 export default {
-        props: ['editTaskData', 'calendarDay'],  
+    props: ['editTaskData'],  
     data() {      
         return { 
             title: this.editTaskData ? this.editTaskData.title : '', 
@@ -137,14 +137,7 @@ export default {
             return this.$store.state.activeBoard ? this.$store.state.activeBoard : null
         }
     },
-    mounted() {      
-        if(this.$store.state.messageShareToTask){
-            setTimeout(() => {
-                this.content = this.$store.state.messageShareToTask.message_text
-                this.$store.commit('setMessageShareToTask', null)
-            },0)
-        }  
-    },
+    
     watch: {
         qualified_users(after){
             const allUserCount = this.openedBoard.board_to_users.length
@@ -375,7 +368,7 @@ export default {
     /*margin         : auto;*/                /* 中央寄せ           */
     width          : 80px;               /* ボタンの横幅       */
     /*background     : #fff;*/                /* デフォルト背景色   */
-    margin-top: 20px;
+    margin-top: 10px;
     }
 
     /* === チェックボックス ==================================== */

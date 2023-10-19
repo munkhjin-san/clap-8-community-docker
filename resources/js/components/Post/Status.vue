@@ -31,6 +31,7 @@
                 <FormFileUploader
                     :initialValue="uploadedFiles"
                     @updated="val => uploadedFiles = val"
+                    path="/post_files"
                 />
             </div>
             <div class="si-box">

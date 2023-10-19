@@ -14,18 +14,19 @@
     <meta name="robots" content="index, follow">
     <meta name="googlebot" content="index, follow">
     <meta name="csrf-token" content="{{ csrf_token() }}">    
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-    <link rel="apple-touch-icon" size="152x152" href="/glowd_icon_192.png">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+    <!-- <link rel="apple-touch-icon" size="152x152" href="/glowd_icon_192.png">
     <link rel="icon" type="image/png" size="152x152" href="/glowd_icon_192-152.png"> 
     <link rel="apple-touch-icon" sizes="180x180" href="/glowd_icon_180.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="icon" type="image/x-icon" sizes="36x36" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="36x36" href="/favicon.png">
-    <link rel="icon" type="image/svg+xml" sizes="36x36" href="/favicon.svg">
-    <!-- <link rel="manifest" href="/site.webmanifest">
-    <link rel="canonical" href="https://glowd.app/auth"> -->
-    <title>GLOWD</title>
+    <link rel="icon" type="image/png" sizes="36x36" href="/favicon.png"> -->
+    <link rel="apple-touch-icon" size="152x152" href="/app/public/icon-152x152.png">
+    <link rel="icon" type="image/png" size="152x152" href="/app/public/icon-152x152.png">
+    <!-- <link rel="manifest" href="/site.webmanifest"> -->
+    <!-- <link rel="canonical" href="https://glowd.app/auth"> -->
+    <title>CLAP</title>
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
@@ -53,7 +54,7 @@
 </head>
 <body style="height:100%;">
     <div id="app" style="height:100%;width:100%;" data-user-id="{{ Auth::id() }}">
-    <over-ride :is-logged='@json(Auth::check())'></over-ride>                
+    <over-ride :is-logged='@json(Auth::check())' :auth_user="{{Auth::user()}}"></over-ride>                
         @if(Auth::check())                
             <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
                 @csrf
@@ -62,16 +63,5 @@
         @yield('content')
     </div>
 </body>
-<!-- Scripts -->
 <script src="{{ mix('js/app.js') }}" defer></script>
-<!-- Google tag (gtag.js) -->
-<!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-R10D99EB95"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-R10D99EB95');
-</script> -->
-
 </html>

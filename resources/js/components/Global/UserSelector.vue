@@ -1,16 +1,15 @@
 <template>
     <div style="position:relative;background:inherit;">
         <Form :ref="uId" v-slot="{ errors }" style=";background:inherit">
-        <span style="z-index:5" :class="{smallPlc : $store.state.activeInput == 'taskUserSelector'|| (value.length) || qualified_users.length}" class="form-plc">{{ placeHolder }}</span> 
+        <span style="z-index:5" class="form-plc smallPlc">{{ placeHolder }}</span> 
         <v-select 
             label="name"
-            :class="['taskUserSelecArea', 'independSelector', {selectorFocus : $store.state.activeInput == 'taskUserSelector'}]"            
+            :class="['taskUserSelecArea', 'independSelector', 'selectorFocus']"            
             v-model="qualified_users" 
             name="qualified_users" 
             :options="options"
-            :filterable="false"
             multiple
-            @search="fetchOptions" 
+            :noDrop="noDrop"
             @search:focus="$store.commit('setActiveInput', 'taskUserSelector')"
             @search:blur="$store.commit('setActiveInput', '')"
             @input="value = $event.target.value"
@@ -58,7 +57,7 @@ import UserIcon from '../Board/Mixed/UserIcon.vue';
 import { markRaw, onDeactivated } from 'vue';
 import { Field, Form } from 'vee-validate'
 export default{
-    props: ['uId', 'selfInclude', 'initialSelected', 'placeHolder', 'name', 'rules', 'board', 'selectAll'],
+    props: ['uId', 'selfInclude', 'initialSelected', 'placeHolder', 'name', 'rules', 'board', 'selectAll', 'path', 'limit'],
     emit: ['setUser'],
     data(){
         return{
@@ -78,6 +77,7 @@ export default{
         if(this.board){
             this.options = this.board.board_to_users.map(ob => ob.user)
         }
+        this.getPossibleMembers()
     },
     watch:{
         qualified_users(after){
@@ -87,57 +87,29 @@ export default{
             if (after) {
                 this.qualified_users = this.options
             }else{
-                // this.qualified_users = []
+                this.qualified_users = []
             }
         }
         
     },
     methods:{   
-        localLoad(search, loading){
-            let users = this.board.board_to_users.map(ob => ob.user)
-            let filtered = users.filter(user => user.name.toLowerCase().includes(search.toLowerCase()))
-            this.options = filtered
-            setTimeout(() => {
-                loading(false);
-            }, 0);
-        },
-        fetchOptions(search, loading) {
-            if(search.length) {
-                
-                loading(true);
-                
-                  
-                if(this.board){
-                    this.localLoad(search, loading)   
-                }else{
-                    this.search(loading, search, this);
-                }                     
-                        
-                                  
-
-                
-
-            }else{
-                if(this.board){
-                    this.options = this.board.board_to_users.map(ob => ob.user)
-                }else{
-                    this.options = []
-                }
-                
+        getPossibleMembers(){
+            if(this.path){
+                axios.post(`/${this.path}`)
+                .then(response => {
+                    this.options = response.data
+                })
             }
         },
-        search: _.debounce((loading, search, vm) => {
-            
-            axios.post('/post_get_users', {key: search, self: vm.selfInclude, board_id: vm.board ? vm.board.id : null})
-            .then(response => {
-                vm.options = response.data
-                loading(false);
-            })
-            
-            
-        }, 350),
+       
     },
     computed:{
+        noDrop(){
+            if(this.limit){
+                return this.qualified_users.length >= this.limit
+            }
+            return false
+        },
         fakeValue(){
             return this.qualified_users.length ? 'value' : ''
         }

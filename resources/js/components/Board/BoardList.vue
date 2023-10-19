@@ -10,7 +10,7 @@
                            
                 <div 
                     :key="item.id" 
-                    @click="boardListDropEnterFromFile(item)" 
+                    @mouseenter="boardListDropEnterFromFile(item)" 
                     @mouseleave="boardListDropLeaveFromFile(item)" 
                     class="left-panel-inner cursor-pointer" 
                     v-for="(item) in pinnedBoards"
@@ -27,7 +27,7 @@
                 </div>
                 <div 
                     :key="item.id" 
-                    @click="boardListDropEnterFromFile(item)" 
+                    @mouseenter="boardListDropEnterFromFile(item)" 
                     @mouseleave="boardListDropLeaveFromFile(item)" 
                     class="left-panel-inner cursor-pointer" 
                     v-for="(item) in unPinnedBoards"
@@ -40,6 +40,7 @@
                         :hasFailedMessage="failedMessageLen(item.id)"
                         @openBoard="openBoard"
                         @pinBoard="pinBoard"
+                        @setDetailedBoard="item => $emit('setDetailedBoard', item)"
                     />
                 </div>
                 
@@ -57,7 +58,7 @@ import SkeletonBoard from './SkeletonBoard.vue'
 import BoardCreateButton from './BoardCreateButton.vue'
     export default {
         props: ['list', 'openedBoard', 'skeletonBoard', 'failedMessagesList'],
-        emits: ['reload', 'openBoard', 'setSearchView'],
+        emits: ['reload', 'openBoard', 'setSearchView', 'setDetailedBoard', 'boardCreate', 'viewMembers', 'boardEdit', 'leaveBoard', 'delete'],
         data(){
             return{
                 createSelector: false,
@@ -141,9 +142,8 @@ import BoardCreateButton from './BoardCreateButton.vue'
             boardListDropEnterFromFile(board){
                 if(this.$store.state.mobile) return 
                 this.bounceId = board.id
-                if((this.$store.state.fromFilesToBoard.active && this.$store.state.fromFilesToBoard.drag) || (this.$store.state.fromBoardToFiles.active && this.$store.state.fromBoardToFiles.active) || (this.$store.state.sharingMemo.active && this.$store.state.sharingMemo.drag)){
-                    if(!this.openedBoard || this.openedBoard.id !== board.id){
-                        
+                if(this.$store.state.sharingData && this.$store.state.sharingData.drag){
+                    if(!this.openedBoard || this.openedBoard.id !== board.id){                        
                         setTimeout(() => {
                             if(this.bounceId == board.id){
                                 this.openBoard(board)
@@ -155,7 +155,7 @@ import BoardCreateButton from './BoardCreateButton.vue'
             },
             boardListDropLeaveFromFile(board){
                 if(this.$store.state.mobile) return 
-                if((this.$store.state.fromFilesToBoard.active && this.$store.state.fromFilesToBoard.drag) || (this.$store.state.fromBoardToFiles.active && this.$store.state.fromBoardToFiles.active) || (this.$store.state.sharingMemo.active && this.$store.state.sharingMemo.drag)){
+                if(this.$store.state.sharingData && this.$store.state.sharingData.drag){
                     this.bounceId = null
                 }
             },

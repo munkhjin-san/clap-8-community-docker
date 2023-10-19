@@ -1,38 +1,16 @@
 <template>
     <div style="position:fixed;left:0;top:0;width:0px;height:0px;background:red;z-index:1999">
-        <!-- <div>
-            <button @click="isDarkMode = !isDarkMode">D</button>
-        </div> -->
-        <!-- <DraggingBox v-if="($store.state.fromFilesToBoard.active && $store.state.fromFilesToBoard.drag) || ($store.state.fromBoardToFiles.active && $store.state.fromBoardToFiles.drag)"/>       -->
-        <!-- <CopyMoveBox v-if="$store.state.copyMoveFiles.active"/>    
-         
- 
-        <Transition name="modalFade">
-            <UndoFiles v-if="$store.state.undoAbleFiles.active"/>
-        </Transition> 
-        <Transition name="modalFade">
-            <MemoDragging v-if="($store.state.sharingMemo.active && $store.state.sharingMemo.drag)"/>
-        </Transition> 
-        <Transition name="modalFade">
-            <MemoDragAlert v-if="($store.state.sharingMemo.active && !$store.state.sharingMemo.drag && $store.state.sharingMemo.window)"/>
-        </Transition>
-        
-        <DownloadProgress v-if="$store.state.downloadProgress.view"/>-->
-        <FileForwardTo v-if="$store.state.fileShareTo.active"/> 
-        <IncompleteWindow v-if="$store.state.user"/> 
+            
+        <IncompleteWindow v-if="$store.state.user && viewIncompleteWindow" @closePopup="closePopup"/> 
         <Transition name="modalFade">
             <IncompleteFeedBack v-if="$store.state.taskFeedBack.active"/>
         </Transition>
         <Transition name="modalFade">
             <MessageUsers v-if="$store.state.messageUsers.active"/>
         </Transition>
-        <!-- <CopyMoveBox v-if="$store.state.copyMoveFiles.active"/>   -->
-        <Transition name="modalFade">
-            <Forward v-if="$store.state.forwarding"/>
-        </Transition>
-        <Transition name="modalFade">
+        <!-- <Transition name="modalFade">
             <MonthTaskBox v-if="$store.state.taskModal.active"/>
-        </Transition> 
+        </Transition>  -->
         <Transition name="modalFade">
             <FilePreview v-if="$store.state.filePreview.active"/>
         </Transition> 
@@ -40,39 +18,28 @@
         <Transition name="modalFade">
             <Toast v-if="toast.active" :data="toast" @close="resetToast"/>
         </Transition>
-        <Transition name="modalFade">
-            <QrScanner 
-                :inviting="inviting" 
-                :joining="joining"
-                :active="cameraActive" 
-                v-if="scannerOn" 
-                @close="scannerOn = false"
-                @setActive="(flag) => cameraActive = flag"
-            />
+        <Transition name="slidePop">
+            <Info v-if="$store.state.info.view"/>
         </Transition>
         <Transition name="modalFade">
-            <QrZoom v-if="qrPreview.state" :content="qrPreview" @closeModal="closeModal"/>
+            <WeatherComponent v-if="$store.state.user"/>
         </Transition> 
+        <SharingData v-if="$store.state.sharingData"/>
 
     </div>
 </template>
 
 <script>
-    import SideMenu from '../Global/SideMenu.vue'
     import IncompleteWindow from '../Board/IncompleteWindow.vue'
     import IncompleteFeedBack from '../Board/IncompleteFeedBack.vue'
     import Toast from './Toast/Toast'
-    import { defineAsyncComponent } from 'vue'
-    import Forward from '../Board/Forward'
-    import QrScanner from './QrScanner'
-    import QrZoom from '../Global/QrZoom.vue'
-    import MonthTaskBox from '../Board/Tray/Task/Calendar/Month/MonthTaskBox.vue'
-    import UserIconEdit from '../Profile/UserEditComps/UserIconEdit.vue'
     import theme from '../../../assets/theme.json'
     import MessageUsers from '../Board/Message/MessageUsers.vue'
-    import FileForwardTo from '../Board/Tray/File/FileForwardTo.vue'
+    import Info from './Toast/Info.vue'
+    import WeatherComponent from '../Global/WeatherComponent.vue'
+    import SharingData from '../Global/SharingData.vue'
     export default {
-        props: ['isLogged'],
+        props: ['auth_user'],
         data() {
             return {
                 toast: {
@@ -87,21 +54,11 @@
                 },
                 scannerOn: false,
                 isDarkMode: false,
-                inviting: null,
-                joining: null,
-                cameraActive: true,
-                qrPreview: {
-                    state: false,
-                    user: null,
-                    board: null,
-                },
-                
+                viewIncompleteWindow: false
             }
         },
         created() {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                // this.isDarkMode = true;
-            }
+
 
             const customTheme = localStorage.getItem('dark')
             if(customTheme == 0 || customTheme == '0' || !customTheme){
@@ -116,22 +73,6 @@
                 this.$store.commit('setDark', false)
             }
 
-
-            // const customLocale = localStorage.getItem('lang')
-            // if(customLocale){
-            //     this.$store.commit('setLocale', customLocale)
-            //     this.$i18n.locale = customLocale
-            // }else {
-            //     const browserLang = navigator.language.substring(0, 2)
-            //     if (browserLang === 'ja' || browserLang === 'mn') {
-            //         this.$store.commit('setLocale', browserLang)
-            //         this.$i18n.locale = browserLang
-            //     } else {
-            //         this.$store.commit('setLocale', 'en')
-            //         this.$i18n.locale = 'en'
-            //     }
-            // }
-            
         },
         watch:{
             '$store.state.dark' (newVal) {                
@@ -142,11 +83,20 @@
                 }                
             },
         },
-        beforeUnmount(){
+        unmounted(){
             window.removeEventListener('click', this.onClick);
             window.removeEventListener('touchstart', this.onClick);
         },
         mounted() {
+           
+            const string = '/user/' + this.auth_user.id
+            const currentUrl = window.location.href;
+            if(currentUrl.includes(string)){
+                this.viewIncompleteWindow = true
+            }
+            if (this.hasOneHourPassed(this.auth_user.id)) {
+                this.viewIncompleteWindow = true
+            }
             window.addEventListener('click', this.onClick);
             window.addEventListener('touchstart', this.onClick);
             emitter.on('setToast', e => {
@@ -160,44 +110,46 @@
                 e.hasOwnProperty('autoClose') ? this.toast.autoClose = e.autoClose : false
                 e.hasOwnProperty('touchClose') ? this.toast.touchClose = e.touchClose : false
             })
+            emitter.on('setInfo', e => {
+                this.resetInfo()
+                this.$store.commit('setInfo', e)
+                setTimeout(() => {
+                    if(e.channel == this.$store.state.info.channel){
+                        this.resetInfo()
+                    }
+                }, 4000);
+            })
             emitter.on('resetToast', e => this.resetToast())
-            emitter.on('scannerOn', e => { 
-                this.scannerOn = e
-                this.cameraActive = true
-                localStorage.removeItem("invite_user");
-                localStorage.removeItem("join_board")
-            })
-            emitter.on('setQrPreview', e => { 
-                this.qrPreview = e
-            })
-            const preInvited = localStorage.getItem("invite_user");
-            if(preInvited && this.isLogged){
-                const parsed = JSON.parse(preInvited)
-                this.inviting = parsed
-                this.cameraActive = false
-                this.scannerOn = true
-                localStorage.removeItem("invite_user");
-
-            }
-            const preJoin = localStorage.getItem("join_board");
-            if(preJoin && this.isLogged){
-                const parsed_join = JSON.parse(preJoin)
-                this.joining = parsed_join
-                this.cameraActive = false
-                this.scannerOn = true
-                localStorage.removeItem("join_board");
-
-            }
-
+            
         },
         methods:{
-            closeModal(){
-                const d = {
-                    state: false,
-                    user: null,
-                    board: null,
+            hasOneHourPassed(user_id) {
+                const lastCloseTime = localStorage.getItem('popupCloseTime_' + user_id);
+                console.log(lastCloseTime)
+                if (!lastCloseTime) {
+                    return true; // If no timestamp found, treat it as an hour has passed
                 }
-                this.qrPreview = d
+
+                const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+                const currentTime = new Date().getTime();
+                const elapsedTime = currentTime - parseInt(lastCloseTime, 10);
+
+                return elapsedTime >= oneHour;
+            },
+            closePopup() {
+                const user_id = this.auth_user.id
+                const string = '/user/' + user_id
+                const currentUrl = window.location.href;
+                if(currentUrl.includes(string)){
+                    this.viewIncompleteWindow = false
+                }else{
+                    const currentTime = new Date().getTime();
+                    localStorage.setItem('popupCloseTime_' + user_id, currentTime);
+                    this.viewIncompleteWindow = false
+                }
+                
+            },
+            closeModal(){
             },
             onClick(){
                 if(this.$store.state.menu.name && this.$store.state.menu.id){
@@ -207,6 +159,15 @@
                         this.$store.commit('setMenu', menu);
                     } 
                 }
+            },
+            resetInfo(){
+                const data = {
+                    view: false,
+                    text: '',
+                    icon: 0,
+                    channel: ''
+                }
+                this.$store.commit('setInfo', data)
             },
             resetToast(){
                 
@@ -224,18 +185,14 @@
             }
         },  
         components:{
-            Toast,
-            QrScanner,
-            QrZoom,
-            MonthTaskBox,
-            Forward,
-            // CopyMoveBox: defineAsyncComponent(() => import('../Board/Tray/File/CopyMoveBox.vue')),
             IncompleteWindow,
             IncompleteFeedBack,
-            SideMenu,
             MessageUsers,
-            FileForwardTo
-},
+            Toast,
+            Info,
+            WeatherComponent,
+            SharingData
+        },
         computed:{
             
             theme() {

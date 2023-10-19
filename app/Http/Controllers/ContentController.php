@@ -74,7 +74,7 @@ class ContentController extends Controller
 
         try {
             $filePath = $request->board_id .'/' . $request->path;
-            $fileContents = Storage::disk('local')->get('message_files/' . $filePath);
+            $fileContents = Storage::disk('local')->get('shared_files/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);
@@ -251,6 +251,42 @@ class ContentController extends Controller
         
 
     }
+    public function calendarFileTransfer(Request $request){     
         
+
+        try {           
+            
+
+            $filePath = $request->path;
+            $fileContents = Storage::disk('local')->get('calendar_files/' . $filePath);
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $contentType = finfo_buffer($finfo, $fileContents);
+            finfo_close($finfo);
+            return response($fileContents)->header('Content-Type', $contentType);
+        } catch (FileNotFoundException $exception) {
+            abort(404);
+        }      
+        
+
+    }
+    
+    public function userFileTransfer(Request $request){     
+        
+
+        try {           
+            
+
+            $filePath = $request->user_id . '/' . $request->path;
+            $fileContents = Storage::disk('local')->get('user_files/' . $filePath);
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $contentType = finfo_buffer($finfo, $fileContents);
+            finfo_close($finfo);
+            return response($fileContents)->header('Content-Type', $contentType);
+        } catch (FileNotFoundException $exception) {
+            abort(404);
+        }      
+        
+
+    }   
 
 }

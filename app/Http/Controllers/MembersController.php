@@ -310,7 +310,7 @@ class MembersController extends Controller
             if(!$restore_users->isEmpty()){
                 foreach($restore_users as $restore){
                     $restore->deleted_status = 0;
-                    $restore->joined_at = now();
+                    $restore->created_at = now();
                     $restore->save();
                 }
                 
@@ -331,7 +331,6 @@ class MembersController extends Controller
                 $boardToUser->record_id = $board->id;
                 $boardToUser->user_id = $to_user;    
                 $boardToUser->admin_flag = 1;      
-                $boardToUser->invited_by = Auth::id(); 
                 
                  
                 $boardToUser->save();
@@ -378,10 +377,8 @@ class MembersController extends Controller
             $boardToUser = new boardToUser;
             $boardToUser->user_id = Auth::id();
             $boardToUser->record_id = $targetId;
-            $boardToUser->invited_by = Auth::id();
-            $boardToUser->invited_at = now();
             
-            $boardToUser->joined_at = now();
+            $boardToUser->created_at = now();
             $boardToUser->save();  
             $result = [ "message" => 'directJoin'];
             $createInfo = $this->sharedService->createInfoMessage([Auth::user()->name], $targetId, 'added_members', Auth::id()); 
@@ -422,7 +419,7 @@ class MembersController extends Controller
             if(!$restore_users->isEmpty()){
                 foreach($restore_users as $restore){
                     $restore->deleted_status = 0;
-                    $restore->joined_at = now();
+                    $restore->created_at = now();
                     $restore->save();
                 }
                 // $res = [
@@ -456,8 +453,6 @@ class MembersController extends Controller
                 $boardToUser->record_id = $board->id;
                 $boardToUser->user_id = $to_user;    
                 $boardToUser->admin_flag = 1;      
-                $boardToUser->invited_by = Auth::id(); 
-                $boardToUser->joined_at = now();
                 
                  
                 $boardToUser->save();
@@ -533,126 +528,16 @@ class MembersController extends Controller
         }
         
     }
-    public function joinToChat (Request $request){
-        if(empty($request->token) || empty($request->id)){
-            abort(404);
-            return;
-        }
-        if(Auth::check()){
-
-            $target_board = boardRecord::where('id', $request->id)->where('q_token', $request->token)->first();
-            if($target_board){
-
-                $check_exist = $target_board->board_to_users()->where('user_id', Auth::id())->exists();
-
-                if($check_exist){
-                    return redirect(url('/chat/' . $target_board->id));
-                }else{                    
-                    return view('bypass',['target_user' => null, 'target_board' => $target_board]);
-                }
-            }else{
-                throw ValidationException::withMessages(['message' => 'userNotFound']);
-            }
-        }else{
-            
-            $target_board = boardRecord::where('id', $request->id)->where('q_token', $request->token)->first();
-            if(!empty($target_board)){ 
-                return view('bypass',['target_user' => null, 'target_board' => $target_board]);
-            }else{
-                abort(404); 
-                return;
-            }
-        }
-        
-    }
-    public function inviteToGuest (Request $request){
-      
-        if(empty($request->token) || empty($request->id)){
-            
-        }
-        
-        if(Auth::check()){
-            $target_user = User::where('id', $request->id)->where('q_token', $request->token)->select('id', 'name', 'icon_id', 'q_token')->first();
-            
-            if(!empty($target_user)){    
-                 
-                $isFriend = Auth::user()->friends()->where('friend_id', $target_user->id)->exists();
-                $targetId = $target_user->id;
-             
-                
-                return view('invite',['invite_user' => $target_user]);
-            }else{
-
-
-                abort(404);
-                return;
-            }
-        }else{
-            $target_user = User::where('id', $request->id)->where('q_token', $request->token)->select('id', 'name', 'icon_id', 'q_token')->first();
-            if(!empty($target_user)){ 
-                return view('bypass',['target_user' => $target_user, 'target_board' => null]);
-            }else{
-                abort(404);
-                return;
-            }
-            
-        }
-
-    }
-    public function inviteToMember (Request $request){
-        echo 'reached';
-        return;
-    }
+    
 
     public function getPossibleMemberList(Request $request){
         $key = $request->key;
         $userId = Auth::id();
         $notInclude = $request->exc ? $request->exc : [];
-        $friendQuery = User::whereNotIn('id', $notInclude)->when($key, function ($query, $key ) {
-                $query->where(function ($query) use ($key) {
-                    $query->where('name', 'like', "%$key%")
-                        ->orWhere('email', 'like', "%$key%")
-                        ->orWhere('phone', 'like', "%$key%");                     
-                        
-                });
-            })
-            ->whereExists(function ($query) use ($userId) {
-                $query->select(DB::raw(1))
-                    ->from('friends')
-                    ->whereRaw('users.id = friends.friend_id')
-                    ->where('friends.user_id', $userId)
-                    ->where('friends.status', 1);
-            })
-            ->where('id', '!=', $userId);
-
-        $friends = $friendQuery->select('id', 'name','icon_id')->get();
+        $friendQuery = User::whereNotIn('id', $notInclude)->where('id', '!=', $userId)->where('retire', 0)->where('id', '>', 105)->select('id', 'name','icon_id')->get();
 
         
-
-        $suggested = User::whereNotIn('id', $notInclude)->whereNotIn('id', $blockMerge)->when($key, function ($query, $key ) {
-                $query->where(function ($query) use ($key) {
-                    $query->where('name', 'like', "%$key%")
-                        ->orWhere('email', 'like', "%$key%")
-                        ->orWhere('phone', 'like', "%$key%");                     
-                        
-                });
-            })->whereNotExists(function ($query) use ($userId) {
-                $query->select(DB::raw(1))
-                    ->from('friends')
-                    ->whereRaw('users.id = friends.friend_id')
-                    ->where('friends.user_id', $userId);
-            })
-            ->where('id', '!=', $userId)
-            ->orderByRaw('RAND()')
-            ->take(10)
-            ->select('id', 'name','icon_id')
-            ->get();
-
-        $res = [
-            'suggested' => $suggested,
-            'friends' => $friends
-        ];
-        return response()->json($res);
+        return response()->json($friendQuery);
 
 
     }

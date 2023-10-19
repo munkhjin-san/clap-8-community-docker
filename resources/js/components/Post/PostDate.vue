@@ -8,7 +8,7 @@
     import moment from 'moment';
     moment.locale('ja');  
     export default {
-        props: ['record', 'dateClass',],
+        props: ['record', 'dateClass'],
         
         mounted(){
             

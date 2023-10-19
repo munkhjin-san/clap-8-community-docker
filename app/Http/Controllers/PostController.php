@@ -10,10 +10,17 @@ use App\Models\ChallengeRecord;
 use App\Models\TagRecord;
 use App\Models\FileRecord;
 use App\Models\ClapRecord;
+use App\Models\KnowledgeUseTag;
+use App\Models\ChallengeUseTag;
+use App\Models\NiceUseTag;
+use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
+use App\Models\UserLastRecord;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
+use App\Events\MessageSent;
+use DB;
 use Auth;
 
 
@@ -23,14 +30,14 @@ class PostController extends Controller
         $validatedData = $request->validate([
             'list' => 'required',
         ]);
-        $result = $this->delete_file_execute($request->list);
+        $result = $this->delete_file_execute($request->list, $request->path);
         return $result;
 
     }
-    private function delete_file_execute($list){
+    private function delete_file_execute($list, $path){
         $files = FileRecord::whereIn('id', $list)->get();
         foreach($files as $file){
-            Storage::disk('local')->delete('post_files/' . $file->id . '_' . $file->user_id . '_' . $file->path . '.' . $file->extension);
+            Storage::disk('local')->delete($path . '/' . $file->id . '_' . $file->user_id . '_' . $file->path . '.' . $file->extension);
             $file->update(["deleted_flag" => 1]);
         }
         return $files;
@@ -43,6 +50,7 @@ class PostController extends Controller
         $params = $request['query'];
         $search_tags = [];
         $skip = $request->skip;
+        $has_id = array_key_exists('id', $params) && $params['id'] !== null;
         if(array_key_exists('search_tags', $params) && $params['search_tags']){
             $parts = explode('|', $params['search_tags']);
             if (count($parts)) {
@@ -84,7 +92,7 @@ class PostController extends Controller
             $query->with('challenge_awards')->with('result_files');
         })
         ->orderBy('created_at', 'desc')
-        ->when(!array_key_exists('id', $params), function ($query) use($skip) {
+        ->when(!$has_id, function ($query) use($skip) {
             $query->skip($skip);
             
         })
@@ -126,8 +134,35 @@ class PostController extends Controller
         ]);
         return response()->json($all_users);
     }
+    public function prepare_sharing_files(Request $request ){  
+        $path = $request['path'];
+        $ids = [];
+        foreach($request->list as $file){
+            $exists = Storage::disk('local')->exists($file['path']);
+            if($exists){
+                $file_path = date("YmdHis") . md5(uniqid());                 
+                $fileRecord = new fileRecord;
+                $fileRecord->path =  $file_path;
+                $fileRecord->name = $file['record']['name'];       
+                $fileRecord->mime_type = $file['record']['mime_type'];       
+                $fileRecord->extension = $file['record']['extension'];
+                $fileRecord->size = $file['record']['size'];
+                $fileRecord->user_id = Auth::id();
+                $fileRecord->save();
+                $set_path = $path . '/' . $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
+                Storage::disk('local')->copy( $file['path'], $set_path );
+                $ids[] = $fileRecord;  
+            }
+            
+        }
+        return response()->json($ids);   
+        
+        
+    }
     public function post_file_upload(Request $request ){    
         $ids = [];
+        $path = $request['path'];
+        // return response()->json($path);
         foreach($request->file() as $file ){
             $file_path = date("YmdHis") . md5(uniqid());           
             $file_extension = $file->getClientOriginalExtension();
@@ -147,19 +182,19 @@ class PostController extends Controller
             $fileRecord->save();
             $set_path = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
 
-            $path = '/post_files';
+            
             if($file_type == 'image' && $file_extension !== 'svg'){
                 $img = Image::make($file)->orientate();
                     
-                File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
-                $img->save(storage_path('app') . '/' . $path .'/'. $set_path, 30);  
+                File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
+                $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
                 
             }else{
                 Storage::disk('local')->putFileAs(
                     $path, $file, $set_path
                 );
             }
-            $sizeAfter = File::size(storage_path('app/post_files/' . $set_path));
+            $sizeAfter = File::size(storage_path('app' . $path . '/' . $set_path));
         
             $fileRecord->size = $sizeAfter;
             $fileRecord->save(); 
@@ -243,8 +278,16 @@ class PostController extends Controller
 
                 // return response()->json($request->file_ids);
                 $record->files()->sync($request->file_ids);
+                $list = UserLastRecord::where('user_id', '=', Auth::id())->where('deleted_flag', '=', 0)->update([
+                    'last_' . $request->path => $record->id
+                ]);
                 
-
+            $rebound = array(
+                "new_post_from" => Auth::id(),
+                "app_name" => $request->path,
+                "record_id" => $record->id
+            );
+            event(new MessageSent($rebound));
             
             return response()->json($record);
 
@@ -331,7 +374,7 @@ class PostController extends Controller
         // $user->save();
 
         // #20201202_0013 Tumur　通知機能追加
-        // $challenge = challengeRecord::find($request->record_id);
+        // $challenge = ChallengeRecord::find($request->record_id);
         // $to_users = challengeToUser::where('record_id', '=', $request->record_id)->where('deleted_flag', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
         // $param01 = $challenge->id;
         // $param02 = null;
@@ -442,5 +485,230 @@ class PostController extends Controller
         $record->result = $request->result;
         $record->save();
         return response()->json($record);  
+    }
+    public function post_get_challenge_users(Request $request){
+        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
+        return response()->json($other_users); 
+    }
+    public function post_get_nice_users(Request $request){
+        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '!=', Auth::id())->where('id', '>', 99)->select('id', 'name', 'icon_id')->get();
+        return response()->json($other_users); 
+    }
+    public function get_post_badge(Request $request){
+        $auth_user = Auth::user();
+        $auth_user_id = Auth::id();
+        $result = [];
+        if(!empty($auth_user_id)){
+            $list = UserLastRecord::where('user_id', '=', $auth_user_id)->where('deleted_flag', '=', 0)->first();
+            $kn = KnowledgeRecord::latest('created_at')->first();
+            $nc = NiceRecord::latest('created_at')->first();
+            $ch = ChallengeRecord::latest('created_at')->first();
+            if(empty($list)){
+                $newls = new UserLastRecord;
+                $newls->user_id = $auth_user_id;
+                $newls->last_knowledge = $kn->id;
+                $newls->last_nice = $nc->id;
+                $newls->last_challenge = $ch->id;
+                $newls->save();
+                $list = $newls;
+            }
+            
+            $kn_from = $list->last_knowledge;            
+            $kn_to = $kn->id;
+            $kn_difference = KnowledgeRecord::whereBetween('id', [$kn_from, $kn_to])->count(); 
+            if($kn_difference > 0){
+                $kn_difference = $kn_difference - 1;
+            }
+            $result[0] =  $kn_difference;
+
+            
+            
+            $nc_from = $list->last_nice;            
+            $nc_to = $nc->id;
+            $nc_difference = NiceRecord::whereBetween('id', [$nc_from, $nc_to])->count(); 
+            if($nc_difference > 0){
+                $nc_difference = $nc_difference - 1;
+            }
+            $result[1] =  $nc_difference;
+
+            
+            $ch_from = $list->last_challenge;            
+            $ch_to = $ch->id;
+            $ch_difference = ChallengeRecord::whereBetween('id', [$ch_from, $ch_to])->count(); 
+            if($ch_difference > 0){
+                $ch_difference = $ch_difference - 1;
+            }
+            $result[2] =  $ch_difference;
+
+            return response()->json($result);
+        }
+        
+    }
+    public function update_post_badge(Request $request){
+        $auth_user = Auth::user();
+        $auth_user_id = Auth::id();
+        if(!empty($auth_user_id)){
+            $last_update = UserLastRecord::where('user_id', '=', $auth_user_id)->where('deleted_flag', '=', 0)->first();
+            $nameSpace = '\\App\\Models\\'; 
+            $model = $nameSpace . ucfirst($request->which) . 'Record'; 
+            $rec = $model::latest('created_at')->first();
+            if(!empty($rec)){                
+                if(!empty($last_update)){
+                    $last_update['last_' . $request->which] = $rec->id;
+                    $last_update->save();
+                }
+            }
+            $update = $this->get_post_badge($request);
+            return $update;         
+            
+        }
+        
+    }
+    public function get_featured_tags(Request $request){
+        $nameSpace = '\\App\\Models\\'; 
+        $model = $nameSpace . ucfirst($request->app_name) . 'UseTag';     
+        if($request->pattern === 'first' || $request->pattern === 'reset'){
+            
+            $use_tags = $model::where('deleted_flag', 0)
+            ->whereHas('app_record', function($q){
+                $q->where('deleted_flag', 0);
+            })
+            ->pluck('tag_id')->toArray();
+            $unique_list = array_unique($use_tags);
+            $tags = TagRecord::where('deleted_flag', 0)->whereIn('id', $unique_list)->orderBy('hits', 'desc')->take($request->offset * 50)->get();
+            $indexed = array_count_values($use_tags);
+            $tags->map(function ($item) use($indexed) {
+                $num = 0;
+                if($indexed[$item->id]){
+                    $num = $indexed[$item->id];
+                }
+                $item['occurrence'] = $num;
+            });
+            $tags = $tags->sortBy('occurrence');
+            return response()->json($tags);
+
+        }else if($request->pattern === 'afterSearch'){
+            $nameSpace = '\\App\\Models\\'; 
+            $model = $nameSpace . ucfirst($request->app_name) . 'Record';  
+            $tag_list = $request->tags;
+
+            $query = $model::query()->where(DB::raw('deleted_flag'), '=', '0'); 
+            if(!empty($request->key_list)){
+                foreach($request->key_list as $key){ 
+                    if($request->app_name == 'challenge'){
+                        $query->where(DB::raw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result)"), 'LIKE', '%' . $key . '%');
+                    }else if($request->app_name == 'nice'){
+                        $query->where(DB::raw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags)"), 'LIKE', '%' . $key . '%');
+                    }else if($request->app_name == 'knowledge'){
+                        $query->where(DB::raw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags)"), 'LIKE', '%' . $key . '%');
+                    }
+                    
+                }
+            }
+            
+            $tag_texts = TagRecord::whereIn('id', $tag_list)->pluck('text')->toArray();
+            $tag_hit = TagRecord::whereIn('id', $tag_list)->increment('hits');
+            if(count($tag_texts)){    
+                foreach($tag_texts as $tag){ 
+                    
+                    $query->whereHas('tags', function ($q) use($tag){
+                        $q->where('text', $tag);
+                    });
+                }
+            }
+                   
+                    
+            $result = $query->with('tags')->get();
+            $used_tags = [];
+            
+            foreach($result as $record){
+                $list = $record['tags'];
+                foreach($list as $tag){
+                    
+                    // if(!in_array($tag['tag_records'], $used_tags)){
+                        $used_tags[] = $tag['id'];
+                    // }
+                    
+                }
+            }
+
+            $unique_list = array_unique($used_tags);
+            $tags = TagRecord::where('deleted_flag', 0)->whereIn('id', $unique_list)->orderBy('hits', 'desc')->take($request->offset * 50)->get();
+            $indexed = array_count_values($used_tags);
+            $tags->map(function ($item) use($indexed) {
+                $num = 0;
+                if($indexed[$item->id]){
+                    $num = $indexed[$item->id];
+                }
+                $item['occurrence'] = $num;
+            });
+            return response()->json($tags);
+            
+            
+        }
+        
+
+
+        
+    }
+    public function post_advanced_search(Request $request){
+        
+        $path = $request->app_name;
+        $nameSpace = '\\App\\Models\\'; 
+        $model = $nameSpace . ucfirst($request->app_name) . 'Record';  
+        $tag_list = $request->tags;
+        $tag_texts = TagRecord::whereIn('id', $tag_list)->pluck('text')->toArray();
+        if($request->key_word){
+            $history = SearchHistoryRecord::where('deleted_flag', 0)->where('user_id', Auth::id())->where('content', $request->key_word)->first();
+            if(!$history){
+                $new_history = new SearchHistoryRecord;
+                $new_history->content = $request->key_word;
+                $new_history->user_id = Auth::id();
+                $new_history->save();
+            }else if($history){
+                $history->touch();
+            }
+        }                
+            
+        $query = $model::query();
+        if(count($tag_texts)){    
+            foreach($tag_texts as $tag){ 
+                $query->whereHas('tags', function ($query) use ($tag) {
+                    $query->where('text', $tag);
+                });                       
+            }
+        }                
+        foreach($request->key_list as $key){ 
+            $query->when(($path == 'knowledge' || $path == 'nice'), function($q) use($key){
+                $q->where(DB::raw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags)"), 'LIKE', '%' . $key . '%');
+            });
+            $query->when($path == 'challenge', function($q) use($key){
+                $q->where(DB::raw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result)"), 'LIKE', '%' . $key . '%');
+            });           
+        }                   
+            
+        $q_result = $query->with('user')
+        ->when($path == 'challenge' || $path == 'nice', function ($query) {
+            $query->with('to_users');
+        })
+        ->with('tags')
+        ->with('files')
+        ->orderBy('created_at', $request->order)
+        ->paginate(10);
+        
+        return response()->json($q_result);
+           
+        
+       
+    }
+    public function get_history(Request $request){
+        if($request->key == ''){
+            $list = SearchHistoryRecord::where('deleted_flag', 0)->where('user_id', Auth::id())->orderBy('updated_at', 'desc')->take(8)->get();
+            return response()->json($list);
+        }else{
+            $list = SearchHistoryRecord::where('deleted_flag', 0)->where('user_id', Auth::id())->where('content', 'LIKE', '%' . $request->key . '%')->orderBy('updated_at', 'desc')->take(8)->get();
+            return response()->json($list);
+        }
+        
     }
 }

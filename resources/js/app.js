@@ -9,10 +9,9 @@ import VueLazyload from 'vue3-lazyload';
 const app = createApp({});
 
 
-
 if ("serviceWorker" in navigator) {
     navigator.serviceWorker
-      .register("service-worker.js")
+      .register("/service-worker.js")
       .then(function (reg) {
         console.log("Yes, it did.");
       })
@@ -95,7 +94,6 @@ app
 .component('UserIcon', defineAsyncComponent(() => import('./components/Board/Mixed/UserIcon.vue')))
 .component('UserComponent', defineAsyncComponent(() => import('./components/Profile/UserComponent.vue')))
 .component('LoginComponent', defineAsyncComponent(() => import('./components/Auth/LoginComponent.vue')))
-.component('ByPass', defineAsyncComponent(() => import('./components/Members/ByPass.vue')))
 .component('InstantProfile', defineAsyncComponent(() => import('./components/Board/InstantProfile.vue')))
 .component('FilePreview', defineAsyncComponent(() => import('./components/Board/Tray/File/FilePreview.vue')))
 // Board //

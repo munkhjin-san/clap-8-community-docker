@@ -36,8 +36,8 @@
                 <div v-for="(input, index) in inputs" :key="index">
                     <!-- <span class="form-lbl">{{input.label}}</span> -->
                     <div class="infoCard" :class="{'align-center' : input.type === 'v-select'}">
-                        <div class="input-wrapper" :style="{opacity: $store.state.activeInput.length && $store.state.activeInput !== 'input-' + index ? '0.2' : '1'}">
-                            <span :class="{smallPlc : $store.state.activeInput == 'input-' + index || (inputValues[input.name] && inputValues[input.name].length)}" class="form-plc">{{ input.label }}</span> 
+                        <div class="input-wrapper" >
+                            <span style="background-color: var(--background-color);" class="form-plc smallPlc">{{ input.label }}</span> 
                             <textarea
                                 @focus="$store.commit('setActiveInput', 'input-' + index)"
                                 class="recordTextArea slide-plc profileEditInput"
@@ -90,7 +90,7 @@
                                 @blur="$store.commit('setActiveInput', '')"
                             >
                             <small class="text-danger" v-if="this.inputValues[input.name] && !input.valid && input.name == 'userPhone'">{{$t('validPhone') }}</small>
-                            <v-select
+                            <!-- <v-select
                                 @search:focus="$store.commit('setActiveInput', 'input-' + index)"
                                 @option:deselected="$store.commit('setActiveInput', 'input-' + index)"
                                 v-else-if="input.type === 'v-select'" 
@@ -113,7 +113,17 @@
                                 <span style="font-size: 13px;opacity: 0.5" v-else>{{ $t('typeToSearchTags') }}</span>
                             </template>
 
-                            </v-select>
+                            </v-select> -->
+                            <div class="si-box" v-else-if="input.type === 'file-drop'" style="margin-top: auto;">
+                                <UserFileUploader
+                                    :initialValue="albumImages ? albumImages : inputValues[input.name]"
+                                    @updated="val => inputValues[input.name] = val"
+                                    @saved="val => saved = val"
+                                    @getUserInfo="getUserInfo"
+                                    path="/user_files"
+                                    :userId='UserAllData.id'
+                                />
+                            </div>
                             
                             <!-- <input v-else-if="input.type === 'text' && input.name == 'userPhone'" class="recordText slide-plc" @blur="profileEditSend(index)" @input="validPhone()" autocomplete="phoneNumber" v-model="inputValues[input.name]" type="text" name="phoneNumber"> -->
                            
@@ -132,9 +142,13 @@
 </div>
 </template>
 <script>
+import UserFileUploader from './UserFileUploader.vue'
 import { markRaw } from 'vue';
     export default {
-        props: ['UserAllData',],
+        components: {
+            UserFileUploader
+        },
+        props: ['UserAllData', 'albumImages'],
         data(){
             return{
                 mustEmailPhone: '',
@@ -146,39 +160,39 @@ import { markRaw } from 'vue';
                 // userPhonePrefix: this.UserAllData.phone_prefix,
                 tagOptions: [],
                 // userPhone: '',
-                // selectedTags: [],
                 editFlag: false,
                 saved: false,
                 inputs: [
-                    { label: this.$t('name'), name: 'userName', type: 'text', enabled: false, valid: true, required: true },
                     { label: this.$t('phoneNumber'), name: 'userPhone', type: 'text', enabled: false, valid: true, required: true},
                     { label: this.$t('emailAddress'), name: 'userMail', type: 'text', enabled: false, valid: true, required: true },
-                    { label: this.$t('company'), name: 'userCompany', type: 'text', enabled: false, valid: true, required: false },
-                    { label: this.$t('occupation'), name: 'userOccupation', type: 'text', enabled: false, valid: true, required: false },
-                    { label: this.$t('profession'), name: 'userProfession', type: 'text', enabled: false, valid: true, required: false },                    
-                    { label: this.$t('userTag'), name: 'selectedTags', type: 'v-select', enabled: true, valid: true, required: false },
-                    { label: this.$t('introduction'), name: 'userIntro', type: 'textarea', enabled: false, valid: true, required: false },
+                    { label: '好きな言葉', name: 'userMotto', type: 'text', enabled: false, valid: true, required: false },
+                    { label: '私の「楽」', name: 'userEnjoy', type: 'text', enabled: false, valid: true, required: false },
+                    { label: '自己紹介', name: 'userIntro', type: 'textarea', enabled: false, valid: true, required: false },
+                    { label: '推し', name: 'userRecommend', type: 'text', enabled: false, valid: true, required: false },                    
+                    { label: '', name: 'userImages', type: 'file-drop', enabled: true, valid: true, required: false },
+                    { label: '自己認識', name: 'userAwareness', type: 'textarea', enabled: false, valid: true, required: true },
+                    
                     // add more inputs here
                 ],
                 inputValues: {
                     userMail: '',
                     userIntro: '',
-                    userName: '',
-                    userCompany: '',
-                    userOccupation: '',
-                    userProfession: '',
+                    userAwareness: '',
+                    userMotto: '',
+                    userEnjoy: '',
+                    userRecommend: '',
                     userPhone: '',
-                    selectedTags: [],
+                    userImages: [],
                 },
                 initialValues: {
                     userMail: '',
                     userIntro: '',
-                    userName: '',
-                    userCompany: '',
-                    userOccupation: '',
-                    userProfession: '',
+                    userAwareness: '',
+                    userMotto: '',
+                    userEnjoy: '',
+                    userRecommend: '',
                     userPhone: '',
-                    selectedTags: [],
+                    userImages: [],
                 },
                 phoneVali: true,
                 showName: null,
@@ -186,10 +200,11 @@ import { markRaw } from 'vue';
                 oldValue: null,
                 Deselect: markRaw({
                     template: `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 32 32"><path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path></svg>`
-                })  
+                }),
+                isEnter: false,
+                uploading: false,
+                noUploading: true
             }
-        },
-        components: {
         },
         computed:{
             
@@ -200,6 +215,7 @@ import { markRaw } from 'vue';
             }
         },
         methods: {
+            
             saveTags(newValue, index){
                 setTimeout(() => {
                     if (JSON.stringify(newValue) !== JSON.stringify(this.oldValue)) {
@@ -226,10 +242,10 @@ import { markRaw } from 'vue';
                 const params = {
                     inputs: this.inputValues
                 }               
-
+                
                 if(this.processing) return
 
-                if(this.inputs[index].valid && this.inputValues['userName']){
+                if(this.inputs[index].valid){
                     this.processing = true
                     axios.post('/profile_profile_edit_api', params)
                         .then(response => {
@@ -276,7 +292,6 @@ import { markRaw } from 'vue';
             },
             cancelEdit(index, input){
                 this.inputValues[input.name] = this.initialValues[input.name]
-                // this.initialValues['selectedTags'] = this.initialValues['selectedTags']
                 this.$store.commit('setActiveInput', '')
                 document.getElementById(`input-${index}`)?.blur()    
             },
@@ -287,32 +302,22 @@ import { markRaw } from 'vue';
                 this.$emit('closeModal')
             },
             editInfo(){
-                this.inputValues['userName'] = this.UserAllData.name
-                this.initialValues['userName'] = this.UserAllData.name
-                
-                if(this.UserAllData.user_detail){
-                    this.inputValues['userCompany'] = this.UserAllData.user_detail.company
-                    this.inputValues['userOccupation'] = this.UserAllData.user_detail.occupation
-                    this.inputValues['userProfession'] = this.UserAllData.user_detail.profession
-                    this.inputValues['userIntro'] = this.UserAllData.user_detail.intro
-                    this.inputValues['userMail'] = this.UserAllData.user_detail.email
-                    this.inputValues['userPhone'] = this.UserAllData.user_detail.phone
+                this.inputValues['userAwareness'] = this.UserAllData.awareness
+                this.inputValues['userMotto'] = this.UserAllData.motto
+                this.inputValues['userEnjoy'] = this.UserAllData.enjoy
+                this.inputValues['userRecommend'] = this.UserAllData.recommend
+                this.inputValues['userIntro'] = this.UserAllData.intro
+                this.inputValues['userMail'] = this.UserAllData.work_email
+                this.inputValues['userPhone'] = this.UserAllData.phone_number
 
-                    this.initialValues['userCompany'] = this.UserAllData.user_detail.company
-                    this.initialValues['userOccupation'] = this.UserAllData.user_detail.occupation
-                    this.initialValues['userProfession'] = this.UserAllData.user_detail.profession
-                    this.initialValues['userIntro'] = this.UserAllData.user_detail.intro
-                    this.initialValues['userMail'] = this.UserAllData.user_detail.email
-                    this.initialValues['userPhone'] = this.UserAllData.user_detail.phone
-                }
-                setTimeout(() => {
-                    if(this.UserAllData.tags.length){
-                        this.inputValues['selectedTags'] = this.UserAllData.tags.map(ob => ob.name)
-                        this.initialValues['selectedTags'] = this.UserAllData.tags.map(ob => ob.name)
-
-                    }
-                }, 100)
-                  
+                this.initialValues['userMotto'] = this.UserAllData.motto
+                this.initialValues['userEnjoy'] = this.UserAllData.enjoy
+                this.initialValues['userRecommend'] = this.UserAllData.recommend
+                this.initialValues['userIntro'] = this.UserAllData.intro
+                this.initialValues['userMail'] = this.UserAllData.work_email
+                this.initialValues['userPhone'] = this.UserAllData.phone_number
+                this.initialValues['userAwareness'] = this.UserAllData.awareness  
+               
             },
             validateInput(index) {
                 const input = document.getElementById("input-" + index);
@@ -349,7 +354,6 @@ import { markRaw } from 'vue';
             this.$nextTick(() => {      
                 if(this.UserAllData){
                     this.editInfo();
-                    this.oldValue = this.inputValues['selectedTags'].slice()
                 }
             })
 

@@ -9,7 +9,7 @@
                 :rules="rules" 
                 v-model="value"
                 @change="$emit('setValue', $event.target.value)"
-                style="height: 40px; font-size: 14px; border: solid 1px var(--formBorder);"
+                style="height: 40px; font-size: 14px; border: solid 1px var(--primary-color);"
             >
             <option :value="option" v-for="option in options" v-html="`${option}${unit}`"></option>
             </Field>

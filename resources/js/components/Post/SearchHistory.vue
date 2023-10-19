@@ -1,6 +1,6 @@
 <template>
-    <div class="historyContainer" style="background:#fff;overflow:hidden">
-        <div style="box-sizing: border-box;border: thin solid rgb(221, 221, 221);border-top:none !important;">
+    <div class="historyContainer" style="background:var(--background-color);overflow:hidden">
+        <div style="box-sizing: border-box;border: thin solid var(--formBorder);border-top:none !important;">
             <ul>
                 <li 
                     @click.prevent.stop="setkey(item)" 

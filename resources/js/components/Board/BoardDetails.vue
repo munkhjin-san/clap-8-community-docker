@@ -24,7 +24,7 @@
                                 <div class="member-out">
                                     
                                     <div class="member" v-for="admin in admins">
-                                        <router-link class="user-link" :to="`/profile/${admin.id}`">{{admin.name}}</router-link>
+                                        <router-link class="user-link" :to="`/user/${admin.id}`">{{admin.name}}</router-link>
                                     </div>
                                 </div>
                             </div>
@@ -34,7 +34,7 @@
                             <div class="divTableCell">
                                 <div class="member-out">
                                     <div class="member" v-for="member in members">
-                                        <router-link class="user-link" :to="`/profile/${member.id}`">{{member.name}}</router-link>
+                                        <router-link class="user-link" :to="`/user/${member.id}`">{{member.name}}</router-link>
                                     </div>
                                 </div>
                             </div>
@@ -48,9 +48,9 @@
                             <div class="divTableCell">
                                 <div class="member-out">
                                     <div class="member" v-if="board.user">
-                                        <router-link class="user-link" :to="`/profile/${board.user.id}`">{{board.user.name}}</router-link>
+                                        <router-link class="user-link" :to="`/user/${board.user.id}`">{{board.user.name}}</router-link>
                                     </div>
-                                    <div class="member" v-if="else">
+                                    <div class="member" v-else>
                                         <p class="user-link">{{$t('unAvailableUserName')}}</p>
                                     </div>
                                 </div>
@@ -129,6 +129,7 @@ div.blueTable {
 }
 .divTable.blueTable .divTableBody .divTableCell {
     font-size: 13px;
+    white-space: nowrap;
 }
 .divTable.blueTable .divTableCell:nth-child(even) {
     background: var(--background-color);
@@ -160,9 +161,9 @@ div.blueTable {
 .divTableBody { display: table-row-group;}
 @media screen and (max-width: 959px) {
     .detailed-window{
-        width: 100%;
-        max-width: 100%;
-        max-height: calc(100% - 40px);
+        width: 85%;
+        max-width: 85%;
+        max-height: calc(85% - 40px);
     }
 }
 </style>

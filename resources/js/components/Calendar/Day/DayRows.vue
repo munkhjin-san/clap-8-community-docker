@@ -3,18 +3,26 @@
     <div :ref="`cal_${day.full}`" :class="['day-label', {isToday : isToday}]" v-html="computedDay(day)"></div>
     <HourRow
         v-for="(hour, hourIndex) in hoursOfDay" 
+        :hour="hour"
+        :day="day"
         :key="hourIndex"
         :hourRecords="hourRecords(hourIndex)"
+        @scrollToTime="val => $emit('scrollToTime', val)"
+        @edit="val => $emit('edit', val)"
+        @create="val => $emit('create', val)"
+        @delete="val => $emit('delete', val)"
+        @dropFinish="(record, date) => $emit('dropFinish', record, date)"
+        :facilitiesList="facilitiesList"
     />
     
     <!-- <div ref="cal_separetor" class="month-separetor" v-if="fistDayOfMonth">
         <div class="month-separetor-text">{{ fistDay }}</div>
         <div class="month-separetor-line"></div>
     </div> -->
-    <SeparateLine 
+    <!-- <SeparateLine 
         v-if="fistDayOfMonth"
         :day="day"
-    />
+    /> -->
 
 </div>
 </template>
@@ -22,10 +30,9 @@
 import moment from 'moment';
 import HourRow from './HourRow.vue';
 import SeparateLine from './SeparateLine.vue';
-import { nextTick } from 'vue';
 export default{
-    props: ['day', 'hoursOfDay', 'dayRecords'],
-    emits: ['releaseScroll', 'load'],
+    props: ['day', 'hoursOfDay', 'dayRecords', 'facilitiesList'],
+    emits: ['releaseScroll', 'load', 'scrollToTime', 'edit', 'dropFinish', 'delete', 'create'],
     components: {HourRow, SeparateLine},
     computed:{
         layer(){
@@ -43,31 +50,25 @@ export default{
     },
     mounted(){
         
-        this.jumpToToday()
+        // if(this.$refs[`cal_${this.day.full}`] && this.isToday){
+        //     // this.$refs[`cal_${this.day.full}`].scrollIntoView({block: 'center', behaviour: 'smooth'})
+        //     // setTimeout(() => {
+        //     //     this.$emit('releaseScroll', true)
+        //     // }, 100);
+        // }
         
         
     },
     methods:{
-        jumpToToday(){
-            if(this.$refs[`cal_${this.day.full}`] && this.isToday){
-                nextTick(() => {
-                    this.$refs[`cal_${this.day.full}`].scrollIntoView({block: 'center'})
-                })
-                
-                setTimeout(() => {
-                    this.$emit('releaseScroll', true)
-                }, 100);
-            }
-        },
         computedDay(day){
             moment.locale('ja')
             const top = moment(day.full).format('D')
             const bottom =  moment(day.full).format('ddd')
+            // const holiday = day.day_holiday ? `<span class="day-holiday">${day.day_holiday}</span>` : ''
             return `<span>${top}</span><span>${bottom}</span>`
         },
         hourRecords(hour){
-            if(this.dayRecords && this.dayRecords.length){
-               
+            if(this.dayRecords && this.dayRecords.length){               
                 return this.dayRecords.filter(ob => moment(ob.date_start).format('H') == hour)
             }
             return []

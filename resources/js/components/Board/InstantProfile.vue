@@ -10,7 +10,7 @@
                         <UserIcon size="80" :user="user" imgClass="userLargeIcon"/> 
                     </div>
                     <div style="display:flex;flex-direction:column;overflow: hidden;font-size:14px;overflow: hidden;font-size: 14px;margin-left: 13px;min-height: 72px;place-content: center;">   
-                        <div style="font-weight:600;margin-bottom:10px;"><router-link class="user-link" :to="'/profile/' + user.id">{{user.name}}</router-link></div>
+                        <div style="font-weight:600;margin-bottom:10px;"><router-link class="user-link" :to="'/user/' + user.id">{{user.name}}</router-link></div>
                         <div v-if="!user.is_blocked_by && user.work_email" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'mailto:' + user.work_email">{{user.work_email}}</a></div>
                         <div v-if="!user.is_blocked_by && user.phone_number" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'tel:' + user.phone_number">{{user.phone_number}}</a></div>   
                         
@@ -41,9 +41,6 @@
 </template>
 
 <script>
-import moment from 'moment'
-import Autolinker from 'autolinker';
-import MemberInteraction from '../Members/MemberInteraction.vue';
     export default {
         data(){
             return{
@@ -54,14 +51,8 @@ import MemberInteraction from '../Members/MemberInteraction.vue';
                 inviteLock: false
             }
         },
-        mounted() {
-            
-                
+        mounted() {           
             this.getInstantUser()
-
-        },
-        components:{
-            MemberInteraction
         },
         computed:{
             is_blocked(){

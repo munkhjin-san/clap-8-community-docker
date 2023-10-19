@@ -32,12 +32,12 @@
                     <p class="report-header">就業時間の変更</p>
                     <div class="report-input">
                         <div class="report-input-wrapper">
-                            <input type="radio" name="reportTimeEdit" v-model="reportTimeEdit" value="0" v-on:change="showTime">
+                            <input type="radio" name="reportTimeEdit" id="reportTimeEdit" v-model="reportTimeEdit" value="0" v-on:change="showTime">
                             <label for="reportTimeEdit">変更なし</label>
                         </div>
                         <div class="report-input-wrapper">
-                            <input type="radio" name="reportTimeEdit" v-model="reportTimeEdit" value="1" v-on:change="showTime">
-                            <label for="reportTimeEdit">変更あり</label>
+                            <input type="radio" name="reportTimeEdit" id="reportTimeEdit1" v-model="reportTimeEdit" value="1" v-on:change="showTime">
+                            <label for="reportTimeEdit1">変更あり</label>
                         </div>
                     </div>
                 </div>
@@ -45,12 +45,20 @@
                     <p class="report-header">就業時間の入力</p>
                     <div class="report-input-time">
                         <div class="report-input-wrapper">
-                            <input type="time" v-model="editStartTime">
+                            <input :class="{'clock-color' : $store.state.dark == true }" type="time" v-model="editStartTime" step="900">
                         </div>
                         <div class="between-line">～</div>
                         <div class="report-input-wrapper">
-                            <input type="time" v-model="editEndTime">
+                            <input :class="{'clock-color' : $store.state.dark == true }" type="time" v-model="editEndTime" step="900">
                         </div>
+                        <!-- <div class="night-over-time">
+                            <input type="radio" name="nightOverTime" id="nightOverTime" v-model="nightOverTime" value="0" v-on:change="nightOver">
+                            <label for="nightOverTime">深夜なし</label>
+                        </div>
+                        <div class="night-over-time">
+                            <input type="radio" name="nightOverTime" id="nightOverTime1" v-model="nightOverTime" value="1" v-on:change="nightOver">
+                            <label for="nightOverTime1">深夜あり</label>
+                        </div> -->
                     </div>
                 </div>
                 <div class="report-field">
@@ -64,11 +72,11 @@
                 <div class="report-field">
                     <p class="report-header">休憩時間の変更</p>
                     <div class="report-input">
-                        <div class="report-input-wrapper"><input type="radio" name="breakTimeEdit" v-model="breakTimeEdit" value="0" v-on:change="showBreakTime">
+                        <div class="report-input-wrapper"><input type="radio" id="breakTimeEdit" name="breakTimeEdit" v-model="breakTimeEdit" value="0" v-on:change="showBreakTime">
                             <label for="breakTimeEdit">変更なし</label>
                         </div>
-                        <div class="report-input-wrapper"><input type="radio" name="breakTimeEdit" v-model="breakTimeEdit" value="1" v-on:change="showBreakTime">
-                            <label for="breakTimeEdit">変更あり</label>
+                        <div class="report-input-wrapper"><input type="radio" id="breakTimeEdit1" name="breakTimeEdit" v-model="breakTimeEdit" value="1" v-on:change="showBreakTime">
+                            <label for="breakTimeEdit1">変更あり</label>
                         </div>
                     </div>
                 </div>
@@ -99,6 +107,8 @@
 </template>
 <script>
     import WorkCustomField from './WorkCustomField.vue'
+    import moment from 'moment'
+
     export default{
         props: [
             'chosenDate', 
@@ -116,6 +126,7 @@
             return{
                 reportTimeEdit: 0,
                 breakTimeEdit: 0,
+                nightOverTime: 0,
                 loading: false,
                 editTime: false,
                 breakTime: false,
@@ -152,6 +163,37 @@
                     this.breakTimeSelect = 0;
                 }
             }
+            if(this.customFieldData && this.customFieldData.length){
+                for(let field of this.customFieldData){
+                    if(field.type_id == 39){
+                        this.reportComment = {
+                           value: field.value_text,
+                           field_type_id: field.type_id
+                        }
+                    }else if(field.type_id == 40){
+                        this.reportIncident = {
+                           value: field.value_int,
+                           field_type_id: field.type_id
+                        }
+                    }else if(field.type_id == 41){
+                        this.reportAchievement = {
+                           value: field.value_int,
+                           field_type_id: field.type_id
+                        }
+                    }else if(field.length > 0){
+                        const values = []
+                        let type_id = ''
+                        for(let item of field){
+                            values.push(item.value_int)
+                            type_id = item.type_id
+                        }
+                        this.reportAllowance = {
+                            value: values,
+                            field_type_id: type_id
+                        }
+                    }
+                }
+            }
         },
         computed: {
             formatedDay(){
@@ -161,7 +203,6 @@
         },
         methods: {
             updateData(data){
-                console.log(data)
                 if(data.field_type_id == 39){
                     this.reportComment = data
                 }else if(data.field_type_id == 40){
@@ -219,7 +260,31 @@
                 }
                 
                 if(this.loading) return
+                if(this.editTime == true){
+                    const [endhours, endminutes] = this.editEndTime.split(":");
 
+                    const endnearestMinute = Math.floor(endminutes / 15) * 15;
+
+                    this.editEndTime = `${endhours}:${String(endnearestMinute).padStart(2, "0")}`;
+                    const [hours, minutes] = this.editStartTime.split(":");
+
+                    const nearestMinute = Math.ceil(minutes / 15) * 15;
+
+                    this.editStartTime = `${hours}:${String(nearestMinute).padStart(2, "0")}`;
+                }
+                let nextDay = ''
+                const endTime = moment(this.editEndTime, "HH:mm")
+                const startTime = moment(this.editStartTime, "HH:mm")
+                const midnight = moment("23:59", "HH:mm")
+                // if(this.nightOverTime == 1){
+                    
+                //     if(endTime >= moment("00:00", "HH:mm") && endTime <= moment("05:00", "HH:mm")){
+                //         nextDay = moment(this.chosenDate).add(1, 'day').format('YYYY-MM-DD');
+                //     }
+                // }
+                // if (endTime.isAfter(midnight)) {
+                //     nextDay = moment(this.chosenDate).add(1, 'day').format('YYYY-MM-DD');
+                // }
                 this.loading = true
                 const params = {
                     comment: this.reportComment,
@@ -233,7 +298,9 @@
                     status_flag: status_flag,
                     userId: this.chosenUserId,
                     shift_start_time: this.shiftStartTime,
-                    shift_end_time: this.shiftEndTime
+                    shift_end_time: this.shiftEndTime,
+                    nextday: nextDay ? nextDay : this.chosenDate,
+                    night_over_time: this.nightOverTime
                 }
                 if(status_flag == 1){
                     const uniqueChannell = Math.random().toString(36).substring(5);
@@ -253,7 +320,14 @@
                                     this.$emit('reload')
                                     this.loading = false
                                 }
-                            )
+                            ).catch(function (error) {
+                                if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                                else if (error.request) this.errorToast('エラーが発生しました。')
+                                else this.errorToast('エラーが発生しました。 ' + error.message)     
+                                this.loading = false
+                            }.bind(this))
+                        }else{
+                            this.loading = false
                         } 
                     });
                     
@@ -263,9 +337,25 @@
                             this.$emit('reload')
                             this.loading = false
                         }
-                    )
+                    ).catch(function (error) {
+                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                        else if (error.request) this.errorToast('エラーが発生しました。')
+                        else this.errorToast('エラーが発生しました。 ' + error.message)     
+                        this.loading = false
+                    }.bind(this))
                 }
                 
+            },
+            
+            errorToast(message){
+                emitter.emit('setToast', {
+                    active: true,  
+                    type: 'info', 
+                    content: message,
+                    closeButton: false, 
+                    autoClose: false,
+                    answers: ['OK']
+                })                
             },
             deleteTimeCard(){
                 const uniqueChannell = Math.random().toString(36).substring(5);
@@ -288,7 +378,11 @@
                             response => {
                                 this.$emit('reload')
                             }
-                        )
+                        ).catch(function (error) {
+                            if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                            else if (error.request) this.errorToast('エラーが発生しました。')
+                            else this.errorToast('エラーが発生しました。 ' + error.message)     
+                        }.bind(this))
                     } 
                 }); 
             }

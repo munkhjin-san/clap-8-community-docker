@@ -149,6 +149,7 @@ export default {
             axios.post('/update_remember',val).then(response => {  
                             
                 this.$store.commit('setRemember',response.data)
+                console.log(this.$store.state.remember)
             }).catch(function (error) {                
                                         
             }.bind(this));

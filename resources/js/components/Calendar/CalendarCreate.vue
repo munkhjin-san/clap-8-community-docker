@@ -1,5 +1,4 @@
-<template>
-    
+<template>    
     <div class="overlay" @mousedown="closeModal(false)">                         
         <div class="chatCreate scrollable" @mousedown.stop>     
             <div class="recordFormTitle" style="display:flex">
@@ -10,7 +9,7 @@
                     </svg>                        
                 </div> 
             </div>
-
+ 
             <div class="si-box">
                 <FormShortText
                     :initialValue="title"
@@ -34,12 +33,13 @@
                     uId="calendarUsers"
                     name="calendarUsers"
                     ref="calendarUsers"
+                    path="calendar_more_users"
                 />
             </div>
 
-            <div class="si-box" style="position:relative;">
+            <div v-if="!edit_all" class="si-box" style="position:relative;">
                 <div>
-                    <p :class="['form-title-small', {'form-title-active' : release_flag}]">非公開設定</p>
+                    <p :class="['form-title-small', 'form-title-active']">非公開設定</p>
                 </div>
                 <div class="selectSwitchArea" style="display: flex;width: 100%;">    
                     <input type="checkbox" id="release_flag" v-model="release_flag">
@@ -48,9 +48,9 @@
                 </div>  
             </div>  
 
-            <div class="si-box" style="position:relative;">
+            <div v-if="!release_flag" class="si-box" style="position:relative;">
                 <div>
-                    <p :class="['form-title-small', {'form-title-active' : edit_all}]">編集許可</p>
+                    <p :class="['form-title-small', 'form-title-active']">編集許可</p>
                 </div>
                 <div class="selectSwitchArea" style="display: flex;width: 100%;">    
                     <input type="checkbox" id="edit_all" v-model="edit_all">
@@ -58,9 +58,11 @@
                     <div class="switch-toggle"></div>
                 </div>  
             </div>  
-
-            <div class="si-box">
-                <div style="display: flex; gap: 15px;font-size: 14px;flex-wrap: wrap;">
+            <div style="margin: 30px 0 -10px 0;">
+                <p :class="['form-title-small', 'form-title-active']">繰り返し設定</p>
+            </div>
+            <div class="si-box">                
+                <div v-if="!editTarget || edit_all_record" style="display: flex; gap: 15px;font-size: 14px;flex-wrap: wrap;">
                     <div @click="repetition_type = 0" :class="['ch-selector', { chSelected: repetition_type == 0}]">1回のみ</div>
                     <div @click="repetition_type = 1" :class="['ch-selector', { chSelected: repetition_type == 1}]">毎週</div>
                     <div @click="repetition_type = 2" :class="['ch-selector', { chSelected: repetition_type == 2}]">毎月</div>
@@ -132,8 +134,8 @@
                     </div>
                     <div style="display: flex;gap: 10px;">                        
                         <div style="display: flex;">
-                            <label for="all_day_on" class="check-container privacy-check" style="align-self: center;">
-                                <input v-model="all_day" id="all_day_on" name="all_day_on" type="checkbox">
+                            <label for="all_day_on" class="check-container privacy-check" style="align-self: center;white-space: nowrap;">
+                                <input @change="setAllDay" v-model="all_day" id="all_day_on" name="all_day_on" type="checkbox">
                                 <span :class="['checkmark-mini', {'checkmark-mini-checked' : all_day}]"></span>
                                 終日
                             </label>  
@@ -159,53 +161,53 @@
                     </div>
                 </div>
                 <div class="si-box" style="margin-top: 20px;">
-                    <div v-if="repetition_type == 1">
+                    <div v-if="repetition_type == 1 || repetition_type == 2">
                         <div>
                             <p :class="['form-title-small']">有効期限設定</p>
                         </div>
                         <div style="display: flex;gap: 10px;margin-top: 20px;">
                             <DatePicker
-                                :initialValue="repeat_span.weekly.repeat_date_to"
+                                :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_from"
                                 ref="calendarRepeatSpanStart"
                                 uId="calendarRepeatSpanStart"
                                 name="calendarRepeatSpanStart"
                                 :rules="'required'"
-                                @setValue="val => repeat_span.weekly.repeat_date_to = val"
+                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_from = val"
                             />
                             <DatePicker
-                                :initialValue="repeat_span.weekly.repeat_date_from"
+                                :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_to"
                                 ref="calendarRepeatSpanEnd"
                                 uId="calendarRepeatSpanEnd"
                                 name="calendarRepeatSpanEnd"
                                 :rules="'required'"
-                                @setValue="val => repeat_span.weekly.repeat_date_from = val"
+                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_to = val"
                             />
                         </div>
                     </div>
-                    <div v-if="repetition_type == 2 || repetition_type == 3">
+                    <div v-if="repetition_type == 3">
                         <div>
                             <p :class="['form-title-small']">有効期限設定</p>
                         </div>
                         <div style="display: flex;gap: 10px;margin-top: 20px;">
                             <FormOptionSelector
-                                :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_from"
+                                :initialValue="repeat_span.yearly.year_from"
                                 :options="avialabeStartYear"
                                 unit="年"
                                 ref="yearSelectorStart"
                                 uId="yearSelectorStart"
                                 name="yearSelectorStart"
                                 rules="required"
-                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_from = parseInt(val)"
+                                @setValue="val => repeat_span.yearly.year_from = parseInt(val)"
                             />
                             <FormOptionSelector
-                                :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_to"
+                                :initialValue="repeat_span.yearly.year_to"
                                 :options="avialabeEndYear"
                                 unit="年"
                                 ref="yearSelectorEnd"
                                 uId="yearSelectorEnd"
                                 name="yearSelectorEnd"
                                 rules="required"
-                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'yearly'].year_to = parseInt(val)"
+                                @setValue="val => repeat_span.yearly.year_to = parseInt(val)"
                             />
                         </div>
                     </div>
@@ -219,6 +221,7 @@
                         :time_end="time_end"
                         :time_start="time_start"
                         :once_date="once_date"
+                        :facility="facilitiesList"
                         target="qualified_institution"
                         placeHolder="施設選択"
                         rules=""
@@ -230,22 +233,23 @@
                 </div>
                 <div class="si-box">
                     <ItemSelector 
-                        :initialSelected="facility.qualified_zoom"
+                        :initialSelected="facility.zoom_value"
                         :repeatSpan="repeat_span"
                         :repetitionFlag="repetition_type"
                         :time_end="time_end"
                         :time_start="time_start"
                         :once_date="once_date"
-                        target="qualified_zoom"
+                        :facility="facilitiesList"
+                        target="zoom_value"
                         placeHolder="WEB会議選択"
                         rules=""
-                        @setItems="val => facility.qualified_zoom = val ? val.value : null"
+                        @setItems="val => facility.zoom_value = val ? val.value : null"
                         uId="calendarZoom"
                         name="calendarZoom"
                         ref="calendarZoom"
                     />
                 </div>
-                <div v-if="facility.qualified_zoom" class="si-box" style="position:relative;">
+                <div v-if="facility.zoom_value" class="si-box" style="position:relative;">
                     <div>
                         <p :class="['form-title-small', {'form-title-active' : release_flag}]">WEB会議待機室</p>
                     </div>
@@ -263,6 +267,7 @@
                         :time_end="time_end"
                         :time_start="time_start"
                         :once_date="once_date"
+                        :facility="facilitiesList"
                         target="qualified_car"
                         placeHolder="車両選択"
                         rules=""
@@ -285,15 +290,27 @@
                         @setValue="val => remarks = val"
                     />                    
                 </div>
+                <div class="si-box">
+                    <FormShortText
+                        :initialValue="referrer"  
+                        placeHolder="参照元URLを入力"
+                        uId="calendarUrl"
+                        name="calendarUrl"
+                        rules=""
+                        label="タイトル"
+                        @setValue="(val) => referrer = val"
+                    />
+                </div>  
 
                 <div class="si-box">
                     <FormFileUploader
                         :initialValue="uploadedFiles"
                         @updated="val => uploadedFiles = val"
+                        path="/calendar_files"
                     />
                 </div>
                 <div class="si-box">
-                    <LoaderButton @click="createSend" :loading="processing" content="保存する"/>
+                    <LoaderButton @triggered="checkConfirm" :loading="processing" content="保存する"/>
                 </div>  
             </div>
         </div>
@@ -312,7 +329,7 @@ import ItemSelector from '../Global/ItemSelector.vue';
 import FormOptionSelector from '../Global/FormOptionSelector.vue';
 import moment from 'moment';
 export default{
-    props:['editTarget'],
+    props:['editTarget', 'facilitiesList', 'preSelected', 'edit_all_record'],
     emits: ['close'],
     data(){
         return{
@@ -320,45 +337,64 @@ export default{
             remarks: this.editTarget && this.editTarget.remarks ? this.editTarget.remarks : "",
             calendar_users: this.editTarget && this.editTarget.calendar_users ? this.editTarget.calendar_users : [this.$store.state.user],
             referrer: this.editTarget && this.editTarget.referrer ? this.editTarget.referrer : "",
-            release_flag: this.editTarget && this.editTarget.release_flag ? this.editTarget.release_flag : 0,
-            edit_all: this.editTarget && this.editTarget.edit_all ? this.editTarget.edit_all : 0,
+            release_flag: this.editTarget && this.editTarget.release_flag ? true : false,
+            edit_all: this.editTarget && this.editTarget.edit_all ? true : false,
             zoom_waiting_room: this.editTarget && this.editTarget.zoom_waiting_room ? this.editTarget.zoom_waiting_room : 0,
-            repetition_type: this.editTarget && this.editTarget.repetition_type ? this.editTarget.repetition_type : 0,            
+            repetition_type: this.editTarget && this.editTarget.repetition_type && this.edit_all_record ? this.editTarget.repetition_type : 0,            
             all_day: this.editTarget && moment(this.editTarget.date_start).format('HH:mm') == '00:00' && moment(this.editTarget.date_end).format('HH:mm') == '23:59' ? 1 : 0,
             
             
-            time_start: this.editTarget && this.editTarget.date_start ? moment(this.editTarget.date_start).format('HH:mm') : moment().add(1, 'hour').startOf('hour').format('HH:mm'),
-            time_end: this.editTarget && this.editTarget.time_end ? moment(this.editTarget.time_end).format('HH:mm') : moment().add(2, 'hour').startOf('hour').format('HH:mm'),
-            once_date: moment().format('YYYY-MM-DD'),
-            
+            time_start: this.editTarget && this.editTarget.date_start ? moment(this.editTarget.date_start).format('HH:mm') : this.preSelected ? moment(this.preSelected).format('HH:mm') : moment().add(1, 'hour').startOf('hour').format('HH:mm'),
+            time_end: this.editTarget && this.editTarget.date_end ? moment(this.editTarget.date_end).format('HH:mm') : this.preSelected ? moment(this.preSelected).add(1, 'hour').format('HH:mm') : moment().add(2, 'hour').startOf('hour').format('HH:mm'),
+            once_date: this.editTarget && this.editTarget.date_end ? moment(this.editTarget.date_start).format('YYYY-MM-DD') : this.preSelected ? moment(this.preSelected).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
+            referrer: this.editTarget && this.editTarget.referrer ? this.editTarget.referrer : "",
             repeat_span: {
                 weekly: {
                     selected_days: [true, false, false, false, false, false, false],
-                    repeat_date_from: moment().format('YYYY-MM-DD'),
-                    repeat_date_to: moment().format('YYYY-MM-DD'),
+                    repeat_date_from: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_start).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
+                    repeat_date_to: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_end).format('YYYY-MM-DD') : moment().add(1, 'week').format('YYYY-MM-DD'),
                 },
                 monthly: {
-                    selected_day: 1,   
-                    year_from: moment().year(),
-                    year_to: moment().add(1, 'year').year()    
+                    selected_day: this.editTarget && this.editTarget.repeat_days !== null ? parseInt(this.editTarget.repeat_days) : moment().date(), 
+                    repeat_date_from: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_start).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
+                    repeat_date_to: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_end).format('YYYY-MM-DD') : moment().add(1, 'month').format('YYYY-MM-DD'),
                 },
                 yearly: {
                     selected_month: moment().month() + 1,
-                    selected_day: moment().date(),
-                    year_from: moment().year(),
-                    year_to: moment().add(1, 'year').year()
+                    selected_day: this.editTarget && this.editTarget.repeat_days !== null ? parseInt(this.editTarget.repeat_days) : moment().date(),
+                    year_from: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_start).year() : moment().year(),
+                    year_to: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_start).year() : moment().add(1, 'year').year()
                 }
             },
             facility: {
-                qualified_institution: this.editTarget && this.editTarget.qualified_institution ? this.editTarget.qualified_institution : null,
-                qualified_car: this.editTarget && this.editTarget.qualified_car ? this.editTarget.qualified_car : null,
-                qualified_zoom: this.editTarget && this.editTarget.qualified_zoom ? this.editTarget.qualified_zoom : null,
+                qualified_institution: this.editTarget && this.editTarget.qualified_institution !== null ? this.editTarget.qualified_institution : null,
+                qualified_car: this.editTarget && this.editTarget.qualified_car !== null ? this.editTarget.qualified_car : null,
+                zoom_value: this.editTarget && this.editTarget.zoom_value !== null ? this.editTarget.zoom_value : null,
             },
-            uploadedFiles: [],
-            processing: false
+            uploadedFiles: this.editTarget && this.editTarget.files ? this.editTarget.files : [],
+            processing: false,
             
         }
     },    
+    mounted(){
+        if(this.editTarget && this.editTarget.repetition_type == 1 && this.editTarget.repeat_week){
+            const repeats = this.editTarget.repeat_week.split(',').map(Number);
+            console.log(repeats)
+            let pre = [false, false, false, false, false, false, false]
+            repeats.forEach(val => {
+                // console.log('val',val)
+                pre[val] = true
+            });
+            this.repeat_span.weekly.selected_days = pre
+            // for(const i in this.repeat_span.weekly.selected_days){
+            //     console.log('i', i)
+            //     if(repeats.includes(i)){
+            //         console.log('hihi', i)
+            //         this.repeat_span.weekly.selected_days[i] = true
+            //     }
+            // }
+        }
+    },
     components:{
         FormShortText, 
         FormLongText, 
@@ -371,7 +407,17 @@ export default{
         FormOptionSelector,
     },
     methods:{
+        setEditAll(){
+            this.repetition_type = event.target.checked == false ? 0 : this.editTarget.repetition_type           
+        },
+        setAllDay(){
+            if(event.target.checked){
+                this.time_start = '00:00'
+                this.time_end = '23:59'
+            }
+        },
         closeModal(val){
+            this.$store.commit('setSharingData', null)
             this.$emit('close', val)
         },
         async validation(){               
@@ -388,7 +434,7 @@ export default{
                     checkRef.push('calendarRepeatSpanEnd', 'calendarRepeatSpanStart')
                 }
                 else if(this.repetition_type == 2){
-                    checkRef.push('monthlyDaySelector', 'yearSelectorEnd', 'yearSelectorStart')
+                    checkRef.push('monthlyDaySelector', 'calendarRepeatSpanEnd', 'calendarRepeatSpanStart')
                 }
                 else if(this.repetition_type == 3){
                     checkRef.push('yearSelectorSelectedDay','yearSelectorSelectedMonth', 'yearSelectorEnd', 'yearSelectorStart')
@@ -431,6 +477,28 @@ export default{
                 error: ''
             }
         },
+        checkConfirm(){
+            // if(this.editTarget && this.editTarget.repetition_type > 0){
+            //     const uniqueChannell = Math.random().toString(36).substring(5);
+            //     const content = this.edit_all_record ? '繰り返しスケジュールのすべてのレコードを編集します。<br>よろしいですか。' : 'このスケジュールのみを編集します。<br>よろしいですか。'
+            //     emitter.emit('setToast', {
+            //         active: true,   
+            //         type: 'info', 
+            //         content: content,
+            //         closeButton: false, 
+            //         autoClose: false,
+            //         answers: ['OK', 'キャンセル'],
+            //         channel: uniqueChannell
+
+            //     })
+            //     let ans = false
+            //     emitter.on(uniqueChannell, (data) => {                                        
+            //         data.answer == 'OK' ? this.createSend()  : false                                  
+            //     });  
+            // }else{
+                this.createSend()
+            // }
+        },
         async createSend(){
             this.processing = true
             const valid = await this.validation()
@@ -448,12 +516,13 @@ export default{
             
             const params = {
                 editId: this.editTarget ? this.editTarget.id : null,
+                edit_repeat: this.edit_all_record,
                 title: this.title,
                 remarks: this.remarks,
                 users: this.calendar_users.map(ob => ob.id),
                 referrer: this.referrer,
                 release_flag: this.release_flag,
-                edit_all: this.edit_all,
+                edit_all: !this.release_flag ? this.edit_all : false,
                 repetition_type: this.repetition_type,
                 zoom_waiting_room: this.zoom_waiting_room,
                 time_start:  this.all_day ? '00:00' : this.time_start,
@@ -461,12 +530,20 @@ export default{
                 once_date: this.once_date,
                 repeat_span: this.repeat_span,
                 facility: this.facility,
-                uploadedFiles: this.uploadedFiles
+                file_ids: this.uploadedFiles.length ? this.uploadedFiles.map(ob => ob.id) : []
             }
             axios.post('/calendar_add_record',params)
             .then(response =>  {
                 // this.closeModal(true)
+                const data = {
+                    text: this.editTarget ? '編集しました。' : '作成しました。',
+                    channel: Math.random().toString(36).substring(5),
+                    icon: 0,
+                    view: true
+                }
+                emitter.emit('setInfo', data)
                 this.processing = false
+                this.$store.commit('setSharingData', null)
                 this.$emit('close', true)     
             })
             .catch(function (error) {
@@ -517,13 +594,15 @@ export default{
             
         },
         week(){
-            const daysOfWeek = [];
-            moment.locale('ja')
-            for (let day = 0; day < 7; day++) {
-                const dayName = moment().day(day).format('ddd'); // Get the day name in Japanese
-                daysOfWeek.push({ num: day, name: dayName });
-            }
-            return daysOfWeek
+            return [
+                { num: 1, name: '月'},
+                { num: 2, name: '火'},
+                { num: 3, name: '水'},
+                { num: 4, name: '木'},
+                { num: 5, name: '金'},
+                { num: 6, name: '土'},
+                { num: 0, name: '日'}
+            ]
         },
         avialabeStartYear(){
             const thisYear = moment().year()

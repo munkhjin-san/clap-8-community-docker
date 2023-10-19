@@ -1,6 +1,6 @@
 <template>
 <Transition :name="'smLoad'">
-    <div class="mobileMessageWrap">
+    <div class="mobileMessageWrap" v-window="onResize">
         <div class="boardHeader" style="border-bottom:none;max-width: 100%;overflow: hidden;height:40px;box-shadow: rgba(0, 0, 0, 0.04) 0px 3px 5px;position:unset;">
             <div class="mb-header">
                 <div @click="$router.go(-1)"  style="width: 40px;
@@ -53,5 +53,10 @@ import MemoContainer from '../Board/Tray/Memo/MemoContainer.vue'
                 return this.$store.state.activeBoard ? this.$store.state.activeBoard : null
             }
         },
+        methods:{
+            onResize(){
+                alert()
+            }
+        }
     }
 </script>

@@ -3,7 +3,7 @@
         <div>
             
             <div></div>
-            <div @click.stop="openMonthPicker" id="activateButton" class="grid-item grid-picker" style="white-space: nowrap;">{{ formatDate }}</div>
+            <div @click.stop="openMonthPicker" id="activateButton" class="" style="white-space: nowrap;font-size: 15px;height: 30px;line-height: 30px;user-select: none;cursor: pointer;color: var(--primary-color);">{{ formatDate }}</div>
             <div></div>
             
         </div>
@@ -146,7 +146,7 @@ import moment from 'moment'
         display:flex;
         justify-content: center;
         position: relative;
-        border-left: solid thin var(--normalBorder) !important;
+        // border-left: solid thin var(--normalBorder) !important;
     }
     .grid-container {
         display: grid;

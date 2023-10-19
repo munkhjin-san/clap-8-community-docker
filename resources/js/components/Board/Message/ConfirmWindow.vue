@@ -67,6 +67,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
         data(){
             return {
                 processing: false,
+                prepare: false
             }
         },
         props: ['message', 'requestType', 'file'],
@@ -119,28 +120,48 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                         errorMsg.style.display = "block"
                         return
                     }                
-                }         
-                
-                if(this.processing) return
+                }
+                var uniqueChannell = Math.random().toString(36).substring(5);
+                console.log(this.requestType)
+                if(this.requestType === 'sign'){
+                    if(checkboxes.length > 1){
+                        emitter.emit('setToast', {
+                            active: true,  
+                            type: 'info', 
+                            content: 'ユーザーが複数人選択されています。\nファイルは１枚でよろしいですか？それとも人数分準備しますか？',
+                            closeButton: false, 
+                            autoClose: false,
+                            answers: ['連名', '個別'],
+                            channel: uniqueChannell
 
-                this.processing = true
-                    var uniqueChannell = Math.random().toString(36).substring(5);
+                        })            
+                        emitter.on(uniqueChannell, (data) => { 
+                            if(data.answer === '個別'){
+                                this.prepare = true
+                            }
+                            this.checkRequest(id)
+                        });
+                    }else{
+                        this.checkRequest(id)
+                    }
+                }else{
                     emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: this.requestType === 'sign' ? this.$t('signatureRequest') + '\n' + this.$t('requestEmail') + '\n' + this.$t('emailSendVerify') : this.$t('checkRequest') + '\n' + this.$t('requestEmail') + '\n' + this.$t('emailSendVerify'),
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: [this.$t('confirmToAction'), this.$t('cancelToAction')],
-                        channel: uniqueChannell
+                    active: true,  
+                    type: 'info', 
+                    content: '確認依頼をオンにします。\n選択したメンバーへ確認依頼の通知メールが送信されます。\nよろしいですか?',
+                    closeButton: false, 
+                    autoClose: false,
+                    answers: ['はい', 'いいえ'],
+                    channel: uniqueChannell
+
                     })            
                     emitter.on(uniqueChannell, (data) => { 
-                        if(data.answer == this.$t('confirmToAction')){
+                        if(data.answer === 'はい'){
                             this.checkRequest(id)
-                        }else{
-                            this.processing = false
                         }
-                    });  
+                    });
+                }  
+                
                   
             },
             checkRequest(id){
@@ -158,11 +179,13 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                         msg_file_id:this.file.id,
                         type:this.requestType,
                         users:values,
+                        prepare: this.prepare,
+                        board_id:this.file.source_board_id
                     };
                 }else{
                     params = {
                         msg_id:this.message.id,
-                        users:values,
+                        users:list,
                         type:this.requestType
                     }
                 }

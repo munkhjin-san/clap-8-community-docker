@@ -128,10 +128,32 @@ const store = createStore({
             calendarOffset: {
                 left: 0,
                 top: 0
-            }
+            },
+            tempRecord: null,
+            draggingCalendar: null,
+            aiData: {
+                user_text: '',
+                edited_text: '',
+                view: false
+            },
+            info: {
+                view: false,
+                text: '',
+                icon: 0,
+                channel: ''
+            },
+            postBadge: [0,0,0],
+            sharingData: null
         }
     },
     mutations: {
+        setSharingData(state, data){state.sharingData = data},
+        setFooterView(state, data){state.user.footer_view = data},
+        setPostBadge(state, data){state.postBadge = data},
+        setInfo(state, data){state.info = data},
+        setAiData(state, data){state.aiData = data},
+        setDraggingCalendar(state, data){state.draggingCalendar = data},
+        setTempRecord(state, data){state.tempRecord = data},
         setCalendarOffset(state, data){state.calendarOffset = data},
         setActiveInput(state, data){state.activeInput = data},
         setBadge(state, data){state.badge = data},

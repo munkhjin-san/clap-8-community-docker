@@ -1,5 +1,5 @@
 <template>
-    <div style="width: 100%;height:100%;left:0;top:55px;" class="user-conteiner-inner" :class="{scrollable : !showModalContent && !showSettingModalContent}">   
+    <div v-if="UserAllData" style="width: 100%;height:100%;left:0;top:55px;" class="user-conteiner-inner" :class="{scrollable : !showModalContent && !showSettingModalContent}">   
         
         <router-view v-slot="{ Component }">
             <transition name="modalFade">
@@ -7,6 +7,7 @@
                     :is="Component" 
                     :user="UserAllData"
                     :UserAllData="UserAllData"
+                    :albumImages="albumImages"
                     @close="closeModal"
                     @reload="updateUser"
                     :errorToast="errorToast"
@@ -15,26 +16,14 @@
             </transition>
         </router-view>        
         <div style="position:relative;height: 100%;">
-            <div style="height: 60px;
-            display: flex;
-            align-items: center;
-            position: absolute;
-            z-index:2;
-            left: 0;
-            top: 0;">
+            
+            <div style="height: 60px;display: flex;align-items: center;position: absolute;z-index:2;left: 0;top: 0;" v-if="$store.state.mobile">
                 <HamBurger/>
             </div>
             
             <div>
                 <div v-if="UserAllData && $store.state.user && UserAllData !== null" class="row justify-content-center user-icon-content">  
                     <div class="user-three-menu">
-
-                    
-                        <div v-if="isAccessible" @click="introduceWindow = true" style="right:60px">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" height="13" class="dot-menu" viewBox="0 0 32 32">
-                                <path d="M32.088 26.495c-0.044-0.117-0.103-0.22-0.161-0.338-0.059-0.103-0.117-0.22-0.176-0.308l-0.103-0.147-0.044-0.073-0.073-0.088c-0.088-0.117-0.191-0.235-0.279-0.352l-0.117-0.132-0.015-0.015c-0.073-0.059-0.132-0.103-0.206-0.161l-0.088-0.059-0.22-0.132c-0.103-0.059-0.206-0.117-0.323-0.176-0.103-0.059-0.22-0.117-0.338-0.161-0.455-0.191-0.969-0.294-1.483-0.308-0.998-0.029-2.011 0.338-2.76 1.028-0.044 0.029-0.088 0.044-0.132 0.015l-2.598-1.321-3.039-1.512-3.039-1.483-3.053-1.468c-1.028-0.484-2.040-0.954-3.068-1.439-0.881-0.411-1.776-0.822-2.672-1.218-0.088-0.044-0.132-0.132-0.132-0.235 0.015-0.117 0.029-0.235 0.029-0.367s0-0.279-0.015-0.411c-0.015-0.088 0.044-0.176 0.132-0.22 0.881-0.396 1.761-0.807 2.642-1.218 1.028-0.484 2.055-0.954 3.068-1.439l3.053-1.468 3.039-1.483 3.039-1.512 2.598-1.321c0.044-0.029 0.103-0.015 0.132 0.015 0.749 0.675 1.761 1.042 2.76 1.028 0.514-0.015 1.028-0.132 1.483-0.308 0.117-0.044 0.22-0.103 0.338-0.147 0.103-0.059 0.22-0.103 0.323-0.176l0.22-0.132 0.088-0.059c0.073-0.044 0.132-0.103 0.206-0.161l0.015-0.015 0.117-0.132c0.103-0.117 0.191-0.235 0.279-0.352l0.073-0.088 0.044-0.073 0.103-0.147c0.073-0.103 0.117-0.205 0.176-0.308s0.117-0.22 0.161-0.323c0.191-0.455 0.308-0.954 0.323-1.483 0.029-1.042-0.382-2.099-1.116-2.862-0.367-0.382-0.807-0.675-1.306-0.895-0.484-0.205-1.028-0.323-1.556-0.323s-1.057 0.103-1.527 0.279-0.91 0.44-1.292 0.719l-0.132 0.088-0.088 0.132c-0.279 0.382-0.543 0.807-0.719 1.292-0.176 0.47-0.279 0.998-0.279 1.527 0 0.117 0 0.235 0.015 0.352 0 0.059-0.029 0.103-0.073 0.117-0.881 0.396-1.747 0.807-2.628 1.218l-3.068 1.439-3.053 1.468-3.009 1.439c-1.013 0.499-2.026 1.013-3.024 1.512-0.851 0.426-1.688 0.851-2.525 1.292-0.147 0.073-0.338 0.059-0.47-0.044-0.294-0.235-0.602-0.426-0.939-0.572-0.484-0.206-1.028-0.323-1.556-0.323s-1.057 0.103-1.527 0.279-0.91 0.426-1.292 0.719l-0.147 0.103-0.088 0.117c-0.294 0.382-0.543 0.807-0.719 1.292-0.176 0.47-0.279 0.998-0.279 1.527 0 1.072 0.455 2.128 1.204 2.862 0.749 0.749 1.82 1.145 2.862 1.116 0.514-0.015 1.028-0.132 1.483-0.308 0.117-0.044 0.22-0.103 0.338-0.147 0.103-0.059 0.22-0.103 0.323-0.176l0.147-0.103 0.073-0.044 0.088-0.073 0.029-0.029c0.103-0.073 0.235-0.088 0.352-0.029 0.881 0.455 1.747 0.895 2.628 1.336 1.013 0.499 2.011 1.013 3.024 1.512l3.039 1.483 3.053 1.468 3.068 1.439c0.866 0.396 1.732 0.807 2.598 1.204 0.059 0.029 0.103 0.088 0.088 0.161-0.015 0.103-0.015 0.206-0.015 0.323 0 0.528 0.103 1.057 0.279 1.527s0.426 0.91 0.719 1.292l0.088 0.132 0.132 0.088c0.382 0.279 0.807 0.543 1.292 0.719 0.47 0.176 0.998 0.279 1.527 0.279s1.057-0.103 1.556-0.323c0.484-0.206 0.939-0.514 1.306-0.895 0.734-0.749 1.145-1.82 1.116-2.862 0-0.499-0.117-0.998-0.308-1.453z"></path>
-                            </svg>
-                        </div>
                         <div @click.stop="$store.commit('setMenu', {name:'userMenuList', id: 52})" v-if="UserAllData.id == $store.state.user.id">
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="dot-menu" width="7" height="15" viewBox="0 0 7 32" style="margin:auto;">
                                 <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path>
@@ -47,6 +36,7 @@
                         <ul>
                             <li @click="profileEdit()" class="boxMenuItems cursor-pointer">{{$t('profileEdit')}}</li>
                             <li @click="settingEdit()" class="boxMenuItems cursor-pointer">{{$t('personalEdit')}}</li>
+                            <li v-if="hasSalaryIncrease" @click="salaryEdit" class="boxMenuItems cursor-pointer">昇給課題</li>
                         </ul>
                     </div>
     
@@ -54,59 +44,91 @@
                         :UserAllData="UserAllData"
                         :deviceWidth="deviceWidth"
                         :isAccessible="isAccessible"
+                        :clapData="clapData"
                         @updateUser="updateUser"
+                        @getUserInfo="getUserInfo"
                     />
                     
-                    <div v-if="UserAllData && UserAllData.user_detail" class="second-bar" @click="userMenuToggle=false" >
-                        <div class="record-area" style="padding-right: 20px;" v-if="isAccessible">
-                            
-                            <div v-if="UserAllData.user_detail && UserAllData.user_detail.company" class="profile-info-box">
-                                <!-- <div class="title">
-                                    <p class="record-inner">{{ $t('company') }}</p>
-                                </div> -->
-                                <div class="record">
-                                    <p >{{UserAllData.user_detail.company}}</p>
+                    <div v-if="UserAllData" class="second-bar">
+                        <div class="record-area" style="padding-right: 20px;">
+                            <div style="display:flex">
+                                <div class="title">
+                                    <p class="record-inner">役職</p>
+                                </div>
+                                <div class="record" style="padding-left: 10px;">
+                                    <p v-if="UserAllData.positions == null"></p>
+                                    <p class="record-inner" v-else>{{UserAllData.positions.name}}</p>
                                 </div>
                             </div>
-                            <div v-if="UserAllData.user_detail && UserAllData.user_detail.occupation" class="profile-info-box">
-                                <!-- <div class="title">
-                                    <p class="record-inner">{{ $t('occupation') }}</p>
-                                </div> -->
-                                <div class="record">
-                                    <p >{{UserAllData.user_detail.occupation}}</p>
+                            <div style="display:flex">
+                                <div class="title">
+                                    <p class="record-inner">営業所</p>
+                                </div>
+                                <div class="record" style="padding-left: 10px;">
+                                    <p v-if="UserAllData.offices == null"></p>
+                                    <p class="record-inner" v-else>{{UserAllData.offices.name}}</p>
                                 </div>
                             </div>
-                            <div v-if="UserAllData.user_detail && UserAllData.user_detail.intro" class="profile-info-box">
-                                <!-- <div class="title">
-                                    <p class="record-inner">{{ $t('intro') }}</p>
-                                </div> -->
-                                <div class="record" style="word-break:break-word;white-space: break-spaces;">
-                                    <p style="line-height:1.8">{{UserAllData.user_detail.intro}}</p>
+                            <div v-if="UserAllData.motto !== null" class="title">
+                                <p class="record-inner">好きな言葉</p>
+                            </div>
+                            <div v-if="UserAllData.motto !== null" class="record">
+    
+                                <p class="record-inner">{{UserAllData.motto}}</p>
+                            </div>
+                            <div v-if="UserAllData.enjoy !== null" class="title">
+                                <p class="record-inner">私の「楽」</p>
+                            </div>
+                            <div v-if="UserAllData.enjoy !== null" class="record">
+    
+                                <p class="record-inner">{{UserAllData.enjoy}}</p>
+                            </div>
+                            <div v-if="UserAllData.intro !== null" class="title">
+                                <p class="record-inner">自己紹介</p>
+                            </div>
+                            <div v-if="UserAllData.intro !== null" class="record">
+    
+                                <p class="record-inner">{{UserAllData.intro}}</p>
+                            </div>
+                            <div v-if="UserAllData.recommend !== null || (albumImages && albumImages.length)" class="title">
+                                <p class="record-inner">推し</p>
+                            </div>
+                            <div v-if="UserAllData.recommend !== null" class="record">    
+                                <p class="record-inner" v-html="urlCheck(UserAllData.recommend)"></p>
+                            </div>
+                            <div v-if="albumImages && albumImages.length" class="record">    
+                                <div class="recordFile">                                                
+                                    <div class="recordFile-inner">                                        
+                                        <swiper class="swiper" :space-between="10" style="border:none;" >
+                                            <swiper-slide v-for="(image, index) in images" :key="index" style="background-color:var(--kebab-bg1);">
+                                                <img @click="previewImage(image, index)" class="cursor-pointer" :src="`${$store.state.baseLocation}/user_files/${UserAllData.id}/${image.id}_${image.user_id}_${image.path}.${image.extension}`" style="width: auto;max-width: 100%;max-height: 130px;padding:10px;">
+                                            </swiper-slide>                                                           
+                                        </swiper>        
+                                        <div class="file-area-content hasMessage" style="gap: 10px;">
+                                            <div @click="previewFile(file, index)" :key="index" class="file-wrap-rec" v-for="(file, index) in files">   
+                                                <FileIcon :ext="file.extension"/>
+                                                <p class="shared-file-name">{{fileNameFilter(file.name, file.extension)}}</p>                                            
+                                            </div> 
+                                        </div>                                                      
+                                    </div>
                                 </div>
-                            </div>                               
-                            <!-- <div class="profile-info-box qr-u-box" v-if="UserAllData.id == $store.state.user.id">
-                                <div class="title" style="display: flex;align-items:center;position: relative;">
-                                    <p class="record-inner">{{ $t('qrCode') }}</p>
-                                    <div class="h-chip">?
-                                        <div class="qr-exp">{{ $t('qrExplaination')}}<br>{{ $t('qrCaution')}}</div>
-                                    </div>                                  
-                                    
-                                </div>
-                                                            
-                            </div>           -->
+                            </div>
+                            <div v-if="UserAllData.awareness!== null" class="title">
+                                <p class="record-inner">自己認識</p>
+                            </div>
+                            <div v-if="UserAllData.awareness !== null" class="record">
+                                <p class="record-inner">{{UserAllData.awareness}}</p>
+                            </div>          
                                 
-                        </div>
-                        <div v-else class="private-wrapper">
-                            <p>{{$t('privateAccount')}}</p>
                         </div>
                     </div>
                     
                 </div>
             </div>
         </div>
-        <Transition name="modalFade">
-            <UserQRCode v-if="introduceWindow" :user="UserAllData" :loading="false" @close="introduceWindow = false"/>
-        </Transition>
+    </div>
+    <div v-else style="display:flex;width: 100%;height: 100%;display flex;align-items: center;justify-content: center;color: var(--primary-color);">
+        <p>メンバーが見つかりませんでした。</p>
     </div>
     </template>
     
@@ -117,6 +139,11 @@ import UserIconEdit from './UserEditComps/UserIconEdit.vue';
 import UserSettingEdit from './UserEditComps/UserSettingEdit.vue';
 import UserQRCode from './UserQRCode.vue'
 import HamBurger from '../Global/HamBurger.vue'
+import Salary from './Issue/Salary.vue'
+import { Swiper, SwiperSlide } from 'swiper/vue';
+import 'swiper/css'
+import Autolinker from 'autolinker';
+import FileIcon from '../Board/Mixed/FileIcon.vue';
 export default {
     data() {
         return {
@@ -128,7 +155,8 @@ export default {
             deviceWidth: 0,
             UserAllData: null,
             qrLock: false,
-            introduceWindow: false
+            introduceWindow: false,
+            clapData: null,
         }
     },
     components:{
@@ -136,7 +164,11 @@ export default {
         UserIconEdit,
         UserSettingEdit,
         UserQRCode,
-        HamBurger
+        HamBurger,
+        Salary,
+        Swiper,
+        SwiperSlide,
+        FileIcon
     },
     created(){
         const data = {
@@ -147,8 +179,8 @@ export default {
         this.$store.commit('setMessageUsers', data)
     },
     mounted() {
-        this.UserAllData = this.$route.meta.data;
-
+        this.UserAllData = this.$route.meta.data && Object.hasOwn(this.$route.meta.data, 'id') ? this.$route.meta.data : null;
+        console.log('ppppppppppp', this.UserAllData)
         document.body.style.height = '100%';
         document.body.style.position = 'fixed';
         document.body.style.overflow = 'hidden';
@@ -160,10 +192,13 @@ export default {
         window.addEventListener('resize', this.handleResize)  
         // this.getTags()
     },   
-    beforeUnmount(){
+    unmounted(){
         window.removeEventListener('resize', this.handleResize)
     },    
     computed:{
+        hasSalaryIncrease(){
+            return this.$store.state.user && this.UserAllData && this.$store.state.user.user_code && this.UserAllData.id == this.$store.state.user.id
+        },
         isAccessible(){
             if(this.UserAllData){
                 if(this.UserAllData.id == this.$store.state.user.id){
@@ -175,7 +210,28 @@ export default {
                 }
             }
             return false
-        }
+        },
+        albumImages(){
+            if(this.UserAllData && this.UserAllData.user_album){
+                let album = []
+                if(this.UserAllData && this.UserAllData.user_album.length){
+                    for(let img of this.UserAllData.user_album){
+                        if(img.intro_flag == 2){
+                            album.push(img)
+                        }
+                    }
+                    return album
+                }
+            }
+            return []
+            
+        },
+        images(){
+            return this.albumImages.filter(ob => ob.mime_type == 'image')
+        },
+        files(){
+            return this.albumImages.filter(ob => ob.mime_type !== 'image')
+        },
     },
     watch: {
         '$route.params.userId': {
@@ -183,11 +239,82 @@ export default {
             handler(newUserId, oldUserId) {
                 if (newUserId !== oldUserId) {
                     this.updateUser(newUserId, 1)
+                    this.getClaps(newUserId)
                 }
             }
         }
     },
-    methods: {        
+    methods: { 
+        iconColorFilter: function (ext) {
+            var extensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
+                "doc", "docm", "docx", "dot", "dotx",
+                "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx",
+                "pdf",
+            ]
+            var format = extensions.indexOf(ext);
+            var result;
+            switch (true) {
+                case (format >= 0 && format <= 9):
+                    result = "fill: #1D6F42";
+                    break;
+                case (format >= 10 && format <= 14):
+                    result = "fill: #0078d7";
+                    break;
+                case (format >= 15 && format <= 23):
+                    result = "fill: #d04423";
+                    break;
+                case (format == 24):
+                    result = "fill: #ff0000";
+                    break;
+                default:
+                    result = null;
+            }
+            return result;
+        },    
+        urlCheck (text) {
+            if(text){                
+                var linkedText = Autolinker.link(text, {stripPrefix: false});       
+                const catch_tag = '<a href=/app/public/user?id=' 
+                const rep_tag = '<a class="mntuser" style="cursor:pointer" id=' 
+                linkedText = linkedText.replaceAll(catch_tag, rep_tag);
+                return linkedText;                
+            }            
+        },
+        fileNameFilter(name, ext) {
+            var str_lenght = name.length;
+            if (str_lenght > 8) {
+                var sliced = name.slice(0, 8) + " ..." + ext;
+                return sliced;
+            }
+            return name;
+
+        },   
+        previewFile(file, index){
+                
+            const data = {
+                active: true,
+                files: this.files,
+                target: file,
+                source: 'user',
+                source_board_id: null,
+                index: index,
+                message: null
+            }
+            this.$store.commit('setFilePreview', data)
+        },
+        previewImage(file, index){
+                
+            const data = {
+                active: true,
+                files: this.images,
+                target: file,
+                source: 'user',
+                source_board_id: null,
+                index: index,
+                message: null
+            }
+            this.$store.commit('setFilePreview', data)
+        },
         errorToast(message){
             emitter.emit('setToast', {
                 active: true,  
@@ -209,7 +336,7 @@ export default {
                 if(!id) return
                 axios.post('/profile_get_update_user', {id: id}).then(               
                 response => {
-                    if(response.data){
+                    if(response.data && Object.hasOwn(response.data, 'id')){
                         this.UserAllData = response.data
                         if(this.UserAllData.id == this.$store.state.user.id){
                             this.$store.commit('setUser', response.data);
@@ -218,12 +345,40 @@ export default {
                             }
                             
                         }
-                        window.document.title = `GLOWD - ${response.data.name}`; 
+                        window.document.title = `プロフィール - ${response.data.name}`; 
                     }                    
 
-                });
+                }).catch(function (error) {
+                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                    else if (error.request) this.errorToast('エラーが発生しました。')
+                    else this.errorToast('エラーが発生しました。 ' + error.message)     
+                }.bind(this))
         },
-        
+        getClaps(targetId){
+            const id = targetId ? targetId : this.UserAllData ? this.UserAllData.id : null
+            if(!id) return
+            axios.post('/get_user_claps', {id: id}).then(
+                response => {
+                    if(response.data){
+                        this.clapData = response.data
+                    }
+                }
+            ).catch(function (error) {
+                if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                else if (error.request) this.errorToast('エラーが発生しました。')
+                else this.errorToast('エラーが発生しました。 ' + error.message)     
+            }.bind(this));
+        },
+        errorToast(message){
+            emitter.emit('setToast', {
+                active: true,  
+                type: 'info', 
+                content: message,
+                closeButton: false, 
+                autoClose: false,
+                answers: ['OK']
+            })                
+        },
         profileEdit(){
             // this.userMenuToggle = false;
             // this.userMenuToggle;
@@ -233,6 +388,12 @@ export default {
         },
         settingEdit(){
             this.$router.push({name: 'account-settings'})
+            this.$store.commit('setMenu', {name:'', id: null})
+            // this.userMenuToggle;
+            // this.showSettingModalContent = true;
+        },
+        salaryEdit(){
+            this.$router.push({name: 'salary-issue'})
             this.$store.commit('setMenu', {name:'', id: null})
             // this.userMenuToggle;
             // this.showSettingModalContent = true;
@@ -249,7 +410,7 @@ export default {
     },
 }
 </script>
-<style lang="scss">
+<style lang="scss" scoped>
 .private-wrapper{
     width: 100%;
     height: 100%;
@@ -458,10 +619,14 @@ export default {
   color: var(--background-color);
 }
 
-
+.swiper-slide{
+    max-width: 300px;
+}
 @media screen and (max-width: 959px) {
 
-    
+    .swiper-slide{
+        width: fit-content !important;
+    }
 
     .profile-info-box{
         display: block;

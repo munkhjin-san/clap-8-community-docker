@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\CalendarRecord;
-use App\Models\CalendarGroup;
 use App\Models\User;
+use App\Models\MyGroup;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Facades\Image;
@@ -15,92 +15,400 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
+use App\Mail\Calendar;
 use Auth;
+use DB;
 class CalendarController extends Controller
 {
-    public function get_calendar_data(Request $request){
+    public function urlsafe_base64_encode($str){
+        return str_replace(array('+', '/', '='), array('-', '_', ''), base64_encode($str));
+    }
+    private function zoom_account($index){
+        $account_information = [
+            [
+                'accountId' => '_ubCKWJlRVCgbgb8UdiG1w',
+                'clientId' => 'zWxB7QVSKa6cFHOi5W1BQ',
+                'clientSecret' => 'LN7dmUOI6odCli14m9s723dBZIlnS0UF',
+                'accountMail' => 'zoom1@glowd.co.jp',
+            ],
+            [
+                'accountId' => '_ubCKWJlRVCgbgb8UdiG1w',
+                'clientId' => 'WPER8r40QVWwa52loOCRzQ',
+                'clientSecret' => 'WWEJX8YHPh2gnxJgggZB6Y47LVnPaNE8',
+                'accountMail' => 'zoom2@glowd.co.jp',
+            ],
+            [
+                'accountId' => 'pjE0gLynQu-qFakQHtdFew',
+                'clientId' => 'I1s5DepQRs2umQuuqNO2mg',
+                'clientSecret' => 'P9gydADDvOsyi4HcAOXMNSz8RPA3Mb6o',
+                'accountMail' => 'zoom3@glowd.co.jp',
+            ]
+        ];
+        return $account_information[$index];
+    }
+    public function zoomToken($zoomValue){
+        
+        $account = $this->zoom_account($zoomValue);    
+        $baseUri = 'https://zoom.us/oauth/token';    
+        $token = $this->urlsafe_base64_encode($account['clientId'].':'.$account['clientSecret']);
+        $url = 'https://zoom.us/oauth/token?grant_type=account_credentials&account_id='.$account['accountId'];
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic ' . $token,
+            'Content-type' => 'application/json'
+        ])->post($url);
+        $data = $response->json();
+        return $data['access_token'];
+    }
+    private function today_meetings($index, $token, $date){
+        $account = $this->zoom_account($index); 
+        $meetings_url = 'https://api.zoom.us/v2/users/' . $account['accountMail'] . '/meetings';
+        $list = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $token,
+            'Content-type' => 'application/json'
+        ])->get($meetings_url, [
+            'page_size' => 300,
+            'from' => $date, 
+            'to' => $date
+        ]);       
+        $meetings = $list->json();
+        return $meetings['meetings'];
+    }
+    private function check_meeting_overlap($list, $start_check, $end_check, $exclude_id){
+        if(!empty($list)){
+            foreach($list as $meeting){
+                if($meeting['id'] !== (int)$exclude_id){
+                    $start = $meeting['start_time'];
+                    $carbonDate = Carbon::parse($start);
+                    $instance = $carbonDate->setTimezone('Asia/Tokyo');
+                    $start_at_mt = $instance->copy();
+                    $end_at_mt = $instance->copy()->add($meeting['duration'], 'minutes');
+                    $start_at_ck = Carbon::parse($start_check);
+                    $end_at_ck = Carbon::parse($end_check);
+                    $overlap = !($end_at_ck <= $start_at_mt || $start_at_ck >= $end_at_mt);
+                    if($overlap){
+                        return 'overlap';
+                    }
+                }
+                
+            }
+        }
+        return 'ok';
+    }
+    private function delete_zoom_meeting($params){
+        $account = $this->zoom_account($params['zoom_id']); 
+        $meetings_url = 'https://api.zoom.us/v2/meetings' . '/' . $params['meetingId'];
+        
+        $data_to_zoom_api = array(
+            'meetingId' => $params['meetingId'],
+        );        
+
+        $delete = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $params['token'],
+            'Content-type' => 'application/json'
+        ])
+        ->withBody(json_encode($data_to_zoom_api))
+        ->delete($meetings_url);  
+        return $delete->successful();
+        // if($delete->successful()){
+        //     $result = $delete->json();
+        //     return $result;
+        // }else{
+        //     throw ValidationException::withMessages(['message' => 'Zoom予約に失敗しました。']);
+        // }
+    }
+    private function update_zoom_meeting($params){
+        $account = $this->zoom_account($params['zoom_id']); 
+        $meetings_url = 'https://api.zoom.us/v2/meetings' . '/' . $params['meetingId'];
+        
+        $data_to_zoom_api = array(
+            'meetingId' => $params['meetingId'],
+            'duration' => $params['duration'],
+            'start_time' => $params['start_time'],
+            'timezone' => 'Asia/Tokyo',
+        );        
+
+        $create = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $params['token'],
+            'Content-type' => 'application/json'
+        ])
+        ->withBody(json_encode($data_to_zoom_api))
+        ->patch($meetings_url); 
+        $result = $create->json(); 
+        return $result;
+        // if($create->successful()){
+        //     $result = $create->json();
+        //     return $result;
+        // }else{
+        //     throw ValidationException::withMessages(['message' => 'Zoom予約に失敗しました。']);
+        // }
+    }
+    private function create_zoom_meeting($params){
+        
+        $account = $this->zoom_account($params['zoom_id']); 
+        $meetings_url = 'https://api.zoom.us/v2/users/' . $account['accountMail'] . '/meetings';
+        $settings = array(
+            'use_pmi' => 'false'
+        );
+        if($params['waiting_room']){
+            $settings['waiting_room'] = true;
+            $settings['join_before_host'] = false;
+        }else{
+            $settings['waiting_room'] = false;
+            $settings['join_before_host'] = true;
+            $settings['jbh_time'] = 0;
+        }
+        $data_to_zoom_api = array(
+            'topic' => $params['title'],
+            'type' => $params['type'],
+            'duration' => $params['duration'],
+            'start_time' => $params['start_time'],
+            'timezone' => 'Asia/Tokyo',
+            'default_password' => true,
+            'settings' => $settings
+        );        
+
+        $create = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $params['token'],
+            'Content-type' => 'application/json'
+        ])
+        ->withBody(json_encode($data_to_zoom_api))
+        ->post($meetings_url);  
+
+        if($create->successful()){
+            $result = $create->json();
+            return $result;
+        }else{
+            throw ValidationException::withMessages(['message' => 'Zoom予約に失敗しました。']);
+        }
+        
+    }
+    public function get_calendar_data(Request $request){    
+        
+        
         $validatedData = $request->validate([
             'day' => 'required',
         ]);
 
-        $groupCheck = CalendarGroup::where('user_id', Auth::id())->exists();
-
-        if(!$groupCheck){
+        $myGroupCheck = MyGroup::where('user_id', Auth::id())->exists();
+        
+        if(!$myGroupCheck){
             
-            $newGroup = CalendarGroup::create([
+            $newMyGroup = MyGroup::create([
                 'user_id' => Auth::id(),
-                'member_list' =>  Auth::id()
+                'name' =>  Auth::user()->name . 'カレンダーグループ'
             ]);
-            return response()->json($newGroup);
-        }
-
-        $group = CalendarGroup::where('user_id', Auth::id())->first();
-        $list = array_map('intval', explode(',', $group->member_list));
-
-        // return response()->json($list);
-
-
-
+            $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
+        }        
+        $gr = MyGroup::where('user_id', Auth::id())->latest()->first();
+        $list = $gr->selected_users()->pluck('id')->toArray();
         $date = $request["day"];
 
         $carbonDate = Carbon::parse($date);
+        $startOfMonth = $carbonDate->copy()->startOfMonth();
+        $previousMonday = $startOfMonth->startOfWeek()->startOfWeek();
+        
+        $endOfMonth = $carbonDate->copy()->endOfMonth();
+        $nextSunday = $endOfMonth->endOfWeek()->addWeek()->endOfWeek();
         $year = $carbonDate->year;
         $month = $carbonDate->month;
-        $records = CalendarRecord::whereHas('calendar_users', function ($query) use ($list) {
-            $query->whereIn('users.id', $list);
-        })->whereYear('date_start', $year)
-        ->whereMonth('date_start', $month)
+        $facility_check = !empty($request->facilities);
+        $facilities = $request->facilities;
+        
+        $records = CalendarRecord::query();
+        $filter = $records->when($facility_check, function ($query) use ($facilities, $list) {
+            $query->where(function ($query) use ($facilities, $list) {
+                foreach ($facilities as $index => $value) {
+                    $query->orWhereIn($index, $value)
+                        ->orWhereHas('calendar_users', function ($query) use ($list) {
+                            $query->whereIn('users.id', $list);
+                        });
+                }
+            });
+        })
+        ->when(!$facility_check, function ($query) use ($list) {           
+            $query->whereHas('calendar_users', function ($query) use ($list) {
+                $query->whereIn('users.id', $list);
+            });
+            
+        })->whereBetween('date_start', [$previousMonday, $nextSunday])    
         ->with('calendar_users')
         ->with('updated_by')
+        ->with('created_by')
+        ->with('files')
         ->get();
 
-        $res = [
-            $year . '-'. $month => $records
-        ];
-        return response()->json($records);
+        return response()->json($filter);
         
     }
     public function calendar_add_record(Request $request){
 
+
+
+        
+      
+        $data = $request;
+        $has_prev_date = null;
+        if($request->editId){
+            $target = CalendarRecord::findOrFail($request->editId);
+            $has_prev_date = $target;
+            if($request->edit_repeat){
+                
+                $all_recs = CalendarRecord::whereNotNull('r_group_id')->where('r_group_id', $target->r_group_id)->delete();
+                if($target['zoom_value'] && $target['zoom_id']){
+                    $token = $this->zoomToken($target['zoom_value']);
+                    $params = [
+                        "zoom_id" => $target['zoom_value'],
+                        "meetingId" => $target['zoom_id'],
+                        "token" => $token
+                    ];
+                    $delete_zoom = $this->delete_zoom_meeting($params);
+                }
+                $target->delete();
+                $data['editId'] = null;
+            }else{
+                $record = $this->edit_single_record($request, $target,true);
+                return response()->json('gggg');
+            }
+            
+        }
         $facility_check = $this->facility_validate($request, true);
         // NO_REPEAT
         if($request->repetition_type == 0){
             $from_once = Carbon::parse($request->once_date);            
-            $record = $this->execute_second_data_or_validate($request, $from_once, null, true);
-            $ids[] = $record->id;
-            $update_main_values = $this->execute_main_data($ids, $request, null);
+            $record = $this->execute_second_data_or_validate($data, $from_once, null, true);
+            $ids[] = $record->id;            
+            $update_main_values = $this->execute_main_data($ids, $data, null, $has_prev_date);
             return response()->json($update_main_values);
         }
         // WEEKLY_REPEAT
         if($request->repetition_type == 1){
-            $record_ids = $this->execute_weekly_record($request, [], true);
+            $record_ids = $this->execute_weekly_record($data, [], true);
             $r_group_id = $request['repeat_span']['weekly']['repeat_date_from'] . Auth::id() . uniqid();
-            $update_main_values = $this->execute_main_data($record_ids, $request, $r_group_id);
-            return response()->json($update_main_values);
+            $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
+            return response()->json($record_ids);
         }
         // MONTHLY_REPEAT
         if($request->repetition_type == 2){
-            $record_ids = $this->execute_monthly_record($request, [], true);
-            $r_group_id = $request['repeat_span']['monthly']['year_from'] . $request['repeat_span']['monthly']['selected_day'] . Auth::id() . uniqid();
-            $update_main_values = $this->execute_main_data($record_ids, $request, $r_group_id);
+            $record_ids = $this->execute_monthly_record($data, [], true);
+            $r_group_id = $request['repeat_span']['monthly']['repeat_date_from'] . Auth::id() . uniqid();
+            $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
             return response()->json($record_ids);
         }
         // YEARLY_REPEAT
         if($request->repetition_type == 3){
-            $record_ids = $this->execute_yearly_record($request, [], true);
+            $record_ids = $this->execute_yearly_record($data, [], true);
             $r_group_id = $request['repeat_span']['yearly']['year_from'] . $request['repeat_span']['yearly']['selected_month'] . Auth::id() . uniqid();
-            $update_main_values = $this->execute_main_data($record_ids, $request, $r_group_id);
+            $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
             return response()->json($record_ids);
         }
     }
-    private function facility_validate($request, $throw){        
+    public function calendar_delete_record(Request $request){
+        // return 'ff';
+        $record = CalendarRecord::findOrFail($request->id);
+        
+        if($record->repetition_type > 0 && $record->r_group_id){
+            if($request->all_delete){
+                $allRecords = CalendarRecord::where('r_group_id', $record->r_group_id)->get();
+                foreach($allRecords as $r_record){
+                    $r_record->calendar_users()->detach();
+                    $r_record->files()->detach();
+                    $r_record->delete();                    
+                }
+                if($record->zoom_value && $record->zoom_id){
+                    $token = $this->zoomToken($record['zoom_value']);
+                    $params = [
+                        "zoom_id" => $record['zoom_value'],
+                        "meetingId" => $record['zoom_id'],
+                        "token" => $token
+                    ];
+                    $delete_zoom = $this->delete_zoom_meeting($params);
+                }
+            }else{
+                $record->calendar_users()->detach();
+                $record->delete();
+            }           
+        }else{
+            if($record->zoom_value && $record->zoom_id){
+                $token = $this->zoomToken($record['zoom_value']);
+                $params = [
+                    "zoom_id" => $record['zoom_value'],
+                    "meetingId" => $record['zoom_id'],
+                    "token" => $token
+                ];
+                $delete_zoom = $this->delete_zoom_meeting($params);
+            }
+            $record->calendar_users()->detach();
+            $record->delete();
+        }
+        
+
+        return response()->json($request);
+    }
+    private function edit_single_record($request, $record, $keep_repeat){
+        $indexes = [];
+        $instance = Carbon::parse($request['once_date']); 
+        foreach ($request['facility'] as $index => $value) {
+            if ($value !== null) {
+                $date_start_ready = $this->time_parser($instance, $request['time_start']);
+                $date_end_ready = $this->time_parser($instance, $request['time_end']);
+                $inst = $this->check_duplicate_facility($index, $value, $date_start_ready, $date_end_ready, true);
+            }           
+        }       
+        
+        $date_start_ready = $this->time_parser($instance, $request['time_start']);
+        $date_end_ready = $this->time_parser($instance, $request['time_end']);
+
+        $new_record = $record->replicate()->fill([
+            "title" => $request['title'],
+            "remarks" => $request['remarks'],
+            "referrer" => $request['referrer'],
+            "release_flag" => $request['release_flag'],
+            "edit_all" => $request['edit_all'],
+            "updated_user" => Auth::id(),
+            "date_start" => $date_start_ready,
+            "date_end" => $date_end_ready
+        ]);
+
+        $new_record->save();
+        $new_record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now(),"created_at" => now()]);
+        if($request['facility']['qualified_institution'] !== null){            
+            $new_record->update([
+                "qualified_institution" => $request['facility']['qualified_institution']
+            ]);
+        }
+        if($request['facility']['zoom_value'] !== null){
+            $new_record->update([
+                "zoom_value" => $request['facility']['zoom_value']
+            ]);
+        }
+        if($request['facility']['qualified_car'] !== null){
+            $new_record->update([
+                "qualified_car" => $request['facility']['qualified_car']
+            ]);
+        }
+        if($record['zoom_value'] && $record['zoom_id']){
+            $token = $this->zoomToken($target['zoom_value']);
+            $params = [
+                "zoom_id" => $target['zoom_value'],
+                "meetingId" => $target['zoom_id'],
+                "token" => $token
+            ];
+            $delete_zoom = $this->delete_zoom_meeting($params);
+        }
+        $record->delete();
+        return $new_record;
+    }
+    private function facility_validate($request, $throw){ 
         $indexes = [];
         $inst = null;
         foreach ($request['facility'] as $index => $value) {
             if ($value !== null) {
                 $indexes[] = $index;
             }
-        }        
+        }      
+        if(empty($indexes) || !count($indexes)){
+            return true;
+        }  
         if($request['repetition_type'] == 0){            
             $from_once = Carbon::parse($request['once_date']);
             foreach($indexes as $index){                         
@@ -161,17 +469,43 @@ class CalendarController extends Controller
             "date_start" => $date_start_ready,
             "date_end" => $date_end_ready
         ]);
-        $record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now()]);
+        if($request['repetition_type'] == 1){
+            $selected_days = $request['repeat_span']['weekly']['selected_days'];        
+            $selected_days_indexes = array_keys($selected_days, true);
+            $record->update([
+                "repeat_week" => implode(',', $selected_days_indexes),                
+                "expiration_start" => $request['repeat_span']['weekly']['repeat_date_from'] . ' 00:00:00',
+                "expiration_end" => $request['repeat_span']['weekly']['repeat_date_to'] . ' 00:00:00'
+            ]);
+        }else if($request['repetition_type'] == 2){
+            $selectedDay = $request['repeat_span']['monthly']['selected_day'];            
+            $record->update([
+                "repeat_days" => $selectedDay,                
+                "expiration_start" => $request['repeat_span']['monthly']['repeat_date_from'] . ' 00:00:00',
+                "expiration_end" => $request['repeat_span']['monthly']['repeat_date_to'] . ' 00:00:00',
+                "repeat_days" => $selectedDay
+            ]);
+        }
+        else if($request['repetition_type'] == 3){
+            $selectedDay = $request['repeat_span']['yearly']['selected_day']; 
+            $selectedMonth = $request['repeat_span']['yearly']['selected_month']; 
+            $record->update([
+                "repeat_days" => $selectedDay,
+                "repeat_month" => $selectedMonth
+            ]);
+        }
+        $record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now(),"created_at" => now()]);
+        $record->files()->syncWithPivotValues($request['file_ids'], ["created_at" => now(),"created_at" => now()]);
         if($request['facility']['qualified_institution'] !== null){
             
             $record->update([
                 "qualified_institution" => $request['facility']['qualified_institution']
             ]);
         }
-        if($request['facility']['qualified_zoom'] !== null){
+        if($request['facility']['zoom_value'] !== null){
             $record->update([
-                "qualified_zoom" => $request['facility']['qualified_zoom']
-            ]);
+                "zoom_value" => $request['facility']['zoom_value']
+            ]);            
         }
         if($request['facility']['qualified_car'] !== null){
             $record->update([
@@ -180,21 +514,111 @@ class CalendarController extends Controller
         }
         return $record;
     }
-    private function execute_main_data($ids, $request, $r_group_id){
+    private function execute_main_data($ids, $request, $r_group_id, $has_prev_date){
+        
+        $zoom_values = array(
+            "zoom_url" => null,
+            "zoom_id" => null,
+            "zoom_pass" => null,
+            "zoom_account" => null,
+            "zoom_account_pass" => null
+        );
+
+        if($request['facility']['zoom_value'] !== null){
+            $instance = $request['repetition_type'] == 0 ? Carbon::parse($request['once_date']) : Carbon::now() ;
+            $date_start_ready = $this->time_parser($instance, $request['time_start']);
+            $date_end_ready = $this->time_parser($instance, $request['time_end']);
+
+            $index = $request['facility']['zoom_value'];
+            $token = $this->zoomToken($index);
+            $s_date = Carbon::parse($date_start_ready);
+            $e_date = Carbon::parse($date_end_ready);
+            $day = $s_date->format('Y-m-d H:i:s');
+            $meetings = $request['repetition_type'] == 0 ? $this->today_meetings($index, $token, $day) : [];
+
+            $s1 = $s_date->copy()->format('Y-m-d H:i:s');
+            $s2 = $e_date->copy()->format('Y-m-d H:i:s');
+
+            $check_overlap = $request['repetition_type'] == 0 ? $this->check_meeting_overlap($meetings, $s1, $s2, null) : 'ok';
+            if($check_overlap == 'ok'){
+
+                $start = Carbon::parse($s1);
+                $end = Carbon::parse($s2);
+                $record_duration = $start->diff($end);
+                $record_duration_minute = ($record_duration->h * 60 + $record_duration->i);
+                $carbonDate = Carbon::createFromFormat('Y-m-d H:i:s', $s1);
+                $carbonDate->setTimezone('UTC');
+                $formattedDate = $carbonDate->format('Y-m-d\TH:i:s\Z');
+                $params = [
+                    "token" => $token ,
+                    "duration" => $record_duration_minute,
+                    "title" => $request['title'],
+                    "start_time" => $formattedDate,
+                    "waiting_room" => $request['zoom_waiting_room'],
+                    "zoom_id" => $request['facility']['zoom_value'],
+                    "type" => $request['repetition_type'] == 0 ? 2 : 3            
+                    
+                ];
+                $json_result = $this->create_zoom_meeting($params);
+                $z_index = (int) $request['facility']['zoom_value'] + 1; 
+
+                $zoom_values = array(
+                    "zoom_url" => $json_result['join_url'],
+                    "zoom_id" => $json_result['id'],
+                    "zoom_pass" => $json_result['password'],
+                    "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
+                    "zoom_account_pass" => 'Glowd0802'
+                );
+                // $record->update([
+                //     "zoom_url" => $json_result['join_url'],
+                //     "zoom_id" => $json_result['id'],
+                //     "zoom_pass" => $json_result['password'],
+                //     "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
+                //     "zoom_account_pass" => 'Glowd0802'
+                // ]);
+                
+                
+
+            }
+        }
         $records = CalendarRecord::whereIn('id', $ids)->update([
-                "title" => $request['title'],
-                "remarks" => $request['remark'],
-                "referrer" => $request['referrer'],
-                "release_flag" => $request['release_flag'],
-                "edit_all" => $request['edit_all'],
-                "repetition_type" => $request['repetition_type'],
-                "created_user" => Auth::id(),
-                "updated_user" => Auth::id(),
-                "user_id" => Auth::id(),
-                "r_group_id" => $r_group_id,
-                "expiration_start" => $request['repeat_span']['weekly']['repeat_date_from'] . ' 00:00:00',
-                "expiration_end" => $request['repeat_span']['weekly']['repeat_date_to'] . ' 00:00:00'
+            "title" => $request['title'],
+            "remarks" => $request['remarks'],
+            "referrer" => $request['referrer'],
+            "release_flag" => $request['release_flag'],
+            "edit_all" => $request['edit_all'],
+            "repetition_type" => $request['repetition_type'],
+            "updated_user" => Auth::id(),
+            "user_id" => Auth::id(),
+            "r_group_id" => $r_group_id,
+            "zoom_url" => $zoom_values['zoom_url'],
+            "zoom_id" => $zoom_values['zoom_id'],
+            "zoom_pass" => $zoom_values['zoom_pass'],
+            "zoom_account" => $zoom_values['zoom_account'],
+            "zoom_account_pass" => $zoom_values['zoom_account_pass'],
+            "created_at" => $has_prev_date ? $has_prev_date['created_at'] : now(),
+            "created_user" => $has_prev_date ? $has_prev_date['created_user'] : Auth::id(),
         ]);
+
+        $targetIds = $request['users'];
+        $targetUsersMail = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $targetIds)->where('id', '!=', Auth::id())->pluck('email')->toArray();
+        $type = $has_prev_date ? '更新' : '作成';
+        $c_records = CalendarRecord::whereIn('id', $ids)->get();
+        $title = $c_records[0]['title'];
+        $details = [];
+        $recursion_types = ["1回のみ", "毎週", "毎月", "毎年"];
+        foreach($c_records as $rec){            
+            $d = [
+                "id" => $rec['id'],
+                "start_at" => Carbon::parse($rec['date_start'])->format('Y/m/d H:m'),
+                "recursion" => $recursion_types[$rec['repetition_type']],
+                "content" => $rec['remarks']
+            ];
+            $details[] = $d;
+        }
+        foreach($targetUsersMail as $to){
+            Mail::to($to)->send(new Calendar( $details, $title, $type));
+        }
         return $records;
     }
     private function time_parser($instance, $time){               
@@ -239,14 +663,17 @@ class CalendarController extends Controller
         return $ids;
     }
     private function execute_monthly_record($request, $validate_indexes, $throw){
+        $from = $request['repeat_span']['monthly']['repeat_date_from'] . '00:00:00';
+        $to = $request['repeat_span']['monthly']['repeat_date_to'] . '23:59:59';
+        $from = Carbon::parse($from);
+        $to = Carbon::parse($to);
+        if ($from->isAfter($to)) {
+            $temp = $from;
+            $from = $to;
+            $to = $temp;
+        }
         $selectedDay = $request['repeat_span']['monthly']['selected_day']; 
-        $yearFrom = $request['repeat_span']['monthly']['year_from'];
-        $yearTo = $request['repeat_span']['monthly']['year_to'];
-   
-        $startDate = Carbon::create($yearFrom, 1, 1); 
-        $endDate = Carbon::create($yearTo, 12, 31);   
-
-        $period = CarbonPeriod::create($startDate, '1 month', $endDate);
+        $period = CarbonPeriod::create($from, '1 month', $to);
         $currentDate = Carbon::now();
         $ids = [];
 
@@ -273,7 +700,7 @@ class CalendarController extends Controller
     }
     private function execute_weekly_record($request, $validate_indexes, $throw){
         $from = $request['repeat_span']['weekly']['repeat_date_from'] . '00:00:00';
-        $to = $request['repeat_span']['weekly']['repeat_date_to'] . '00:00:00';
+        $to = $request['repeat_span']['weekly']['repeat_date_to'] . '23:59:59';
 
         $from = Carbon::parse($from);
         $to = Carbon::parse($to);
@@ -289,8 +716,9 @@ class CalendarController extends Controller
         $selected_days_indexes = array_keys($selected_days, true);
 
         $daysWithinRange = array_filter($selected_days_indexes, function ($dayOfWeek) use ($from, $to) {
-            $startOfWeek = $to->copy()->startOfWeek()->addDay($dayOfWeek); 
-            $endOfWeek = $from->copy()->startOfWeek()->addDay($dayOfWeek); 
+            
+            $startOfWeek = $to->copy()->startOfWeek()->addDay($dayOfWeek);
+            $endOfWeek = $from->copy()->startOfWeek()->addDay($dayOfWeek);
             return $startOfWeek->between($to, $from) || $endOfWeek->between($from, $to);
         });
         
@@ -319,39 +747,45 @@ class CalendarController extends Controller
 
         return $ids;
     }
+    public function get_all_facilities(Request $request){
+        $list = $this->avialable_items('all');
+        return response()->json($list); 
+    }
     private function avialable_items($type){
         
         $list = [
             'qualified_institution' => [
-                [ 'label' =>  '本社会議室', 'value' =>  0 ],
-                [ 'label' =>  '本社休憩室', 'value' =>  1 ],
-                [ 'label' =>  '大阪会議室', 'value' =>  2 ],
-                [ 'label' =>  '東京会議室', 'value' =>  3 ],
-                [ 'label' =>  '仙台会議室', 'value' =>  4 ],
-                [ 'label' =>  '青森会議室', 'value' =>  5 ]
+                [ 'label' =>  '本社会議室', 'value' =>  0, 'selected' => false ],
+                [ 'label' =>  '本社休憩室', 'value' =>  1, 'selected' => false ],
+                [ 'label' =>  '大阪会議室', 'value' =>  2, 'selected' => false ],
+                [ 'label' =>  '東京会議室', 'value' =>  3, 'selected' => false ],
+                [ 'label' =>  '仙台会議室', 'value' =>  4, 'selected' => false ],
+                [ 'label' =>  '青森会議室', 'value' =>  5, 'selected' => false ]
             ],
-            'qualified_zoom' => [
-                [ 'label' => 'Zoom1', 'value' => 0 ],
-                [ 'label' => 'Zoom2', 'value' => 1 ],
-                [ 'label' => 'Zoom3', 'value' => 2 ]
+            'zoom_value' => [
+                [ 'label' => 'Zoom1', 'value' => 0, 'selected' => false ],
+                [ 'label' => 'Zoom2', 'value' => 1, 'selected' => false ],
+                [ 'label' => 'Zoom3', 'value' => 2, 'selected' => false ]
             ],
             'qualified_car' => [
-                [ 'label' => '福岡582く5617 ホンダライフ', 'value' => 0 ],
-                [ 'label' => '福岡582え8686 ダイハツミラ', 'value' => 1 ],
-                [ 'label' => '福岡580と5654 オッティ', 'value' => 2 ],
-                [ 'label' => '福岡480わ3206 クリッパー', 'value' => 3 ],
-                [ 'label' => '福岡480ね5019 バン', 'value' => 4 ],
-                [ 'label' => '福岡480ね5020 バン', 'value' => 5 ]
+                [ 'label' => '福岡582く5617 ホンダライフ', 'value' => 0, 'selected' => false ],
+                [ 'label' => '福岡582え8686 ダイハツミラ', 'value' => 1, 'selected' => false ],
+                [ 'label' => '福岡580と5654 オッティ', 'value' => 2, 'selected' => false ],
+                [ 'label' => '福岡480わ3206 クリッパー', 'value' => 3, 'selected' => false ],
+                [ 'label' => '福岡480ね5019 バン', 'value' => 4, 'selected' => false ],
+                [ 'label' => '福岡480ね5020 バン', 'value' => 5, 'selected' => false ]
             ]
         ];
-        return $list[$type];
-    }
-    public function get_possible_facilities(Request $request){
-
+        if( $type == 'all' ){
+            return $list;
+        }else{
+            return $list[$type];
+        }
         
+    }
+    public function get_possible_facilities(Request $request){        
 
         $list = $this->avialable_items($request->target);
-
         
         $id_list = collect($list)->pluck('value')->toArray();
         
@@ -360,7 +794,7 @@ class CalendarController extends Controller
             $rec = [
                 "time_start" => $request->time_start,
                 "time_end" => $request->time_end,
-                "once_date" => $request->once_time,
+                "once_date" => $request->once_date,
                 "repetition_type" => $request->repeat,
                 "repeat_span" => $request->repeat_span,
                 "facility" => [$request->target => $id]
@@ -376,9 +810,157 @@ class CalendarController extends Controller
 
         }
 
-        return response()->json($items);
-
-       
+        return response()->json($items);       
     }
+    public function get_my_groups(Request $request){
+        $myGroupCheck = MyGroup::where('user_id', Auth::id())->exists();        
+        if(!$myGroupCheck){            
+            $newMyGroup = MyGroup::create([
+                'user_id' => Auth::id(),
+                'name' =>  Auth::user()->name . 'カレンダーグループ'
+            ]);
+            $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
+        }
+
+        $user = MyGroup::where('user_id', Auth::id())->latest()->first();
+        $user_list = $user->users()->get();
+        
+        return response()->json($user_list); 
+    }
+    public function update_selected_calendar_members(Request $request){
+        if($request->id == -1){
+            $user = MyGroup::where('user_id', Auth::id())->latest()->first();
+            $rec = $user->users()->update([
+                'updated_at' => now(),
+                'selected_as_calendar_member' => $request->value
+            ]);
+            return response()->json($rec);
+        }else{
+            $user = MyGroup::where('user_id', Auth::id())->latest()->first();
+            $rec = $user->users()->where('user_id', $request->id)->update([
+                'updated_at' => now(),
+                'selected_as_calendar_member' => $request->value
+            ]);
+            return response()->json($rec); 
+        }
+        
+    } 
+    public function calendar_more_users(Request $request){
+        $user = MyGroup::where('user_id', Auth::id())->latest()->first();
+        $rec = $user->users()->pluck('id')->toArray();        
+        $close_users = User::whereIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
+        $other_users = User::whereNotIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
+        $merged_users = $close_users->concat($other_users)->toArray();
+        return response()->json($merged_users); 
+    }
+    public function set_more_members(Request $request){
+        $user = MyGroup::where('user_id', Auth::id())->latest()->first();
+        $user->users()->syncWithPivotValues($request->users, ['selected_as_calendar_member' => 1, "created_at" => now()]);  
+        return response()->json($request->users); 
+    }
+    public function get_calendar_search(Request $request){
+        $gr = MyGroup::where('user_id', Auth::id())->latest()->first();
+        $list = $gr->selected_users()->pluck('id')->toArray();
+        $key = $request->key;
+
+        $records = CalendarRecord::where(DB::raw("CONCAT_WS('', title, ' ', remarks, ' ', referrer)"), 'LIKE', '%' . $key . '%')
+        ->whereHas('calendar_users', function ($query) use ($list) {
+            $query->whereIn('users.id', $list);
+        })
+        ->where(function ($query) {
+            $query->where('release_flag', 0)
+            ->orWhereHas('calendar_users', function ($query) {
+                $query->whereIn('users.id', [Auth::id()]);
+            });
+        })
+        ->select('id', 'title', 'remarks', 'referrer', 'date_start', 'date_end', 'zoom_value', 'qualified_institution', 'qualified_car')
+        ->orderBy('date_start', 'desc')
+        ->get();
+        return response()->json($records); 
+    }
+    public function calendar_drop(Request $request){
+        $record = CalendarRecord::findOrFail($request->id);
+        $start = Carbon::parse($record->date_start);
+        $end = Carbon::parse($record->date_end);
+        $record_duration = $start->diff($end);
+        $record_duration_minute = ($record_duration->h * 60 + $record_duration->i);
+
+        $new_start = Carbon::parse($request->date);
+        $end_day = Carbon::now()->endOfDay();
+        $new_diff = $new_start->diff($end_day);
+        $new_diff_minute = ($new_diff->h * 60 + $new_diff->i);
+
+        $new_end_time = $new_start->copy()->add($record_duration_minute, 'minutes');
+        if($new_diff_minute < $record_duration_minute){
+            $new_end_time = Carbon::createFromFormat('Y-m-d H:i:s', $end_day);
+        }
+
+        $new_start_time = Carbon::createFromFormat('Y-m-d H:i:s', $new_start);
+        
+
+        if($record->repetition_flag == 0 && $record->zoom_value !== null){
+            $instance_start = Carbon::parse($new_start_time);
+            $instance_end = Carbon::parse($new_end_time);
+            $index = $record->zoom_value;
+            $token = $this->zoomToken($index);
+            $s_date = $instance_start->copy();
+            $e_date = $instance_end->copy();
+            $day = $s_date->format('Y-m-d H:i:s');
+            $meetings = $this->today_meetings($index, $token, $day);
+
+            $s1 = $s_date->copy()->format('Y-m-d H:i:s');
+            $s2 = $e_date->copy()->format('Y-m-d H:i:s');
+
+            $check_overlap = $this->check_meeting_overlap($meetings, $s1, $s2, $record->zoom_id);
+            
+            if($check_overlap == 'ok'){
+                
+                $start = Carbon::parse($s1);
+                $end = Carbon::parse($s2);
+                $record_duration = $start->diff($end);
+                $record_duration_minute = ($record_duration->h * 60 + $record_duration->i);
+                $carbonDate = Carbon::createFromFormat('Y-m-d H:i:s', $s1);
+                $carbonDate->setTimezone('UTC');
+                $formattedDate = $carbonDate->format('Y-m-d\TH:i:s\Z');
+                $params = [
+                    "meetingId" => $record->zoom_id,
+                    "token" => $token,
+                    "duration" => $record_duration_minute,
+                    "start_time" => $formattedDate,    
+                    "zoom_id" => $record->zoom_value      
+                    
+                ];
+                $json_result = $this->update_zoom_meeting($params);
+                // return response()->json($json_result); 
+                // return $json_result;
+                // return response()->json('hehe'); 
+                // return response()->json($json_result); 
+                // $z_index = (int) $request['facility']['zoom_value'] + 1; 
+
+                // $zoom_values = array(
+                //     "zoom_url" => $json_result['join_url'],
+                //     "zoom_id" => $json_result['id'],
+                //     "zoom_pass" => $json_result['password'],
+                //     "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
+                //     "zoom_account_pass" => 'Glowd0802'
+                // );
+            }else{
+                throw ValidationException::withMessages(['message' => '他のWEBミーティングにかぶっています。', "val" => $check_overlap]);
+            }
+        }
+        $record->update([
+            "date_start" => $new_start_time,
+            "date_end" => $new_end_time,
+            "updated_user" => Auth::id()
+        ]);
+        $res = CalendarRecord::where('id', $record->id)
+        ->with('calendar_users')
+        ->with('updated_by')
+        ->with('files')
+        ->with('created_by')
+        ->first();
+        return response()->json($res); 
+    }
+
     
 }

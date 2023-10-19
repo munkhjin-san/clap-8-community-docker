@@ -15,7 +15,11 @@ use App\Models\boardRecord;
 use App\Models\taskRecord;
 use App\Models\messageReactedUser;
 use App\Models\messageCheckUser;
-
+use App\Models\NiceRecord;
+use App\Models\ClapRecord;
+use App\Models\ChallengeRecord;
+use App\Models\UserAlbum;
+use Carbon\Carbon;
 
 use App\Events\Message;
 
@@ -71,7 +75,7 @@ class UserController extends Controller{
 
         $user_id = $request->id;
         if(empty($user_id)){
-            return redirect('/profile/'. Auth::id());
+            return redirect('/user/'. Auth::id());
         }
         $data = $this->sharedService->getUserState($request->id, Auth::user());
         return view('user', ['data' => $data]);
@@ -81,7 +85,23 @@ class UserController extends Controller{
         
 
     }
-    
+    public function saveSignature(Request $request){
+        $auth_id = Auth::id();
+        $user = User::findOrFail($auth_id);
+        $unique_number = rand(1000, 9999); 
+        $current_timestamp = time(); 
+        $new_a_path = $current_timestamp . $unique_number; 
+        $set_path = $user->id . '_' . $new_a_path . '.png';
+        File::isDirectory(storage_path('app/user_signatures')) or File::makeDirectory(storage_path('app/user_signatures'), 0755, true, true);
+        Storage::disk('local')->putFileAs(
+            '/user_signatures', $request->sign, $set_path
+        );  
+        Storage::disk('local')->delete('user_signatures/' . $user->id . '_' . $user->sign_path . '.png');
+        
+        $user->sign_path = $new_a_path;
+        $user->save();
+        return response()->json($user);
+    }
     public function userPreIconUp(Request $request) {    
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
@@ -124,21 +144,46 @@ class UserController extends Controller{
         $unique_number = rand(1000, 9999); 
         $current_timestamp = time(); 
         $new_a_path = $current_timestamp . $unique_number;        
-
+        
         $size_variants = [200, 120, 80, 45, 30, 25, 20, 15];
-        foreach($size_variants as $size){
-            $img_rsz = $img->resize($size, $size);               
-            $set_path = $user->id . '_' . $new_a_path . '_' . $size . '.jpg';
-            $temp_path = storage_path('app/temp/'.$set_path);
-            $img_rsz->save($temp_path);
-            if (!Storage::disk('s3')->exists('profile_icon')) {
-                Storage::disk('s3')->makeDirectory('profile_icon');
-            }
-            Storage::disk('s3')->put('profile_icon/' . $user->id . '_' . $new_a_path . '_' . $size . '.jpg', file_get_contents($temp_path));
-            unlink($temp_path); 
-            Storage::disk('s3')->delete('profile_icon/' . $user->id . '_' . $user->a_path . '_' . $size . '.jpg');
+        if (!Storage::disk('local')->exists('profile_icon')) {
+            Storage::disk('local')->makeDirectory('profile_icon');
         }
-        $user->update(['a_path' => $new_a_path, 'a_version' => $user->a_version + 1]);
+
+        $old_icon = Icons::where('user_id', $auth_user_id)->where('use_of', 'profile')->first();
+
+        $orgImage = json_decode($request->get('orgImage'), true);
+        $imageUrl = $orgImage['url'];
+
+        $imageData = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $imageUrl));
+        $org_img = Image::make($imageData)->orientate();
+        
+        $icon = new Icons;
+                
+        $icon->mime_type = 'image';
+        $icon->extension = 'jpg';       
+        $icon->user_id = $user->id;
+        $icon->profile_id = $user->id;
+        $icon->use_of = "profile";
+        $icon->save();
+        $org_path = $icon->id . '_' . $user->id . '_x.jpg';
+        $path_for_org = storage_path('app/profile_icon/'.$org_path);
+        $org_img->save($path_for_org);
+        foreach($size_variants as $size){
+            $img_rsz = $img->resize($size, $size);
+            $set_path = $icon->id . '_' . $user->id . '_' . $size . '.jpg';
+            $temp_path = storage_path('app/profile_icon/'.$set_path);
+            $img_rsz->save($temp_path);
+            if($old_icon){
+                Storage::disk('local')->delete('profile_icon/' . $old_icon->id . '_' . $auth_user_id . '_' . $size . '.jpg');
+               
+            }
+
+        }
+        if($old_icon){
+            $old_icon->delete();
+        }
+        $user->update(['icon_id' => $icon->id]);
         return response()->json();
        
     }
@@ -165,37 +210,15 @@ class UserController extends Controller{
 
              
             $user = Auth::user();
-            
-            $user->name = $request->inputs['userName'];         
-            
-            
-            $excludedChars = '/[^\p{L}\p{N}\s]/u'; 
-            $tagNames = $request->inputs['selectedTags'];                
-            $tagIds = collect($tagNames)->map(function ($tagName) use ($user, $excludedChars) {
-                $tagName = preg_replace($excludedChars, '', $tagName);
-                $tag = Tag::whereRaw('LOWER(name) = ?', [strtolower($tagName)])->first();
-            
-                if ($tag === null) {
-                    $tag = Tag::create(['name' => $tagName]);
-                }
-            
-                return $tag->id;
-            });
-            $user->tags()->sync($tagIds);
-            $detachedTagIds = $user->tags()->whereNotIn('tags.id', $tagIds)->pluck('tags.id')->toArray();
-            $user->tags()->detach($detachedTagIds);
-            $userDetail = $user->user_detail ?? new userDetail;
-            $userDetail->phone = $request->inputs['userPhone'];
-            $userDetail->email = $request->inputs['userMail'];
-            $userDetail->save();
-            $userDetail->fill([
-                'company' => $request->inputs['userCompany'],
-                'occupation' => $request->inputs['userOccupation'],
-                'profession' => $request->inputs['userProfession'],
-                'intro' => $request->inputs['userIntro']
-            ]);
-            $user->user_detail()->save($userDetail);
-
+            $user->awareness = $request->inputs['userAwareness'];         
+            $user->phone_number = $request->inputs['userPhone'];
+            $user->work_email = $request->inputs['userMail'];
+           
+            $user->motto = $request->inputs['userMotto'];
+            $user->enjoy = $request->inputs['userEnjoy'];
+            $user->recommend = $request->inputs['userRecommend'];
+            $user->intro = $request->inputs['userIntro'];
+                
             $user->save();
         
             return response()->json("saved");
@@ -398,12 +421,166 @@ class UserController extends Controller{
         $data = $this->sharedService->getUserState($request->id, Auth::user());
         
         if(!empty($data)){
-            $data->load('tags');
             return response()->json($data);
         }
         abort(404);
         
-    }    
+    }
+    public function deleteMov(Request $request){
+        if(!empty($request)){
+            $user_id_int = $request->delete_id;
+            $path = '/user_files' . '/' . $user_id_int;
+            $intro_record = userAlbum::where('deleted_flag', '=', 0)->where('user_id', $user_id_int)->where('intro_flag', '=', 1)->first();  
+            if(!empty($intro_record)){
+                $intro_record->delete();
+                Storage::disk('local')->delete($path . '/' . $intro_record->path);
+                return response()->json('saved');  
+            }
+        }
+    }
+    public function uploadMov(Request $request){
+        $user_id_int = (int)$request->user_id;
+        $intro_check = userAlbum::where('deleted_flag', 0)->where('user_id', $user_id_int)->where('intro_flag', '=', 1)->exists();  
+        $auth_user_id = Auth::id();
+          
+        if(empty($auth_user_id)){               
+            return response()->json("loggedOut");
+        }
+        if($intro_check){
+            return response()->json("introExists");
+        } 
+        
+       
+
+        
+        $path = '/user_files' . '/' . $user_id_int;
+        $file_path = 'intro_' . $user_id_int;        
+        $file_extension = $request->file('file')->getClientOriginalExtension();        
+        $mime_type = $request->file('file')->getMimeType();      
+        $file_size = $request->file('file')->getSize();
+        $file_real_name = request()->file->getClientOriginalName();  
+        if($file_extension !== 'mp4' && $file_extension !== 'MOV' && $file_extension !== 'mov' && $file_extension !== 'mkv'){
+            return response()->json("typeError");
+        } 
+        File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . $path, 0755, true, true);                      
+        
+        $set_path = $file_path . '.' . $file_extension;
+        Storage::disk('local')->putFileAs(
+            $path, $request->file('file'), $set_path
+        );
+       
+        
+        $album = new userAlbum;
+        $album->user_id = $user_id_int;
+        $album->path = $set_path;
+        $album->name = $file_real_name;
+        $album->created_by = $auth_user_id;
+        $album->mime_type = $mime_type;
+        $album->extension = $file_extension; 
+        $album->intro_flag = 1; 
+        $album->save();
+       
+        return response()->json($set_path);
+    }
+    public function userFileUpload(Request $request){
+        $ids = [];
+        $path = $request['path'] . '/' . $request['user_id'];
+        // return response()->json($path);
+        foreach($request->file() as $file ){
+            $file_path = date("YmdHis") . md5(uniqid());           
+            $file_extension = $file->getClientOriginalExtension();
+            $file_real_name = $file->getClientOriginalName();            
+            $mime_type = $file->getMimeType();
+            $mime_type_array = explode('/',$mime_type);
+            $file_type = $mime_type_array[0];            
+            $file_size = $file->getSize();  
+            if($file_type == 'video' || $file_type == 'image'){
+                $album = new UserAlbum;
+                $album->path =  $file_path;
+                $album->name = $file_real_name;
+                $album->mime_type = $file_type;
+                $album->extension = $file_extension;
+                $album->intro_flag = 2;
+                $album->created_by = Auth::id();
+                $album->user_id = Auth::id();
+                $album->save();
+                $set_path = "{$album->id}_{$album->user_id}_{$file_path}.{$album->extension}";
+
+                
+                if($file_type == 'image' && $file_extension !== 'svg'){
+                    $img = Image::make($file)->orientate();
+                        
+                    File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
+                    $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
+                    
+                }else{
+                    Storage::disk('local')->putFileAs(
+                        $path, $file, $set_path
+                    );
+                } 
+                $ids[] = $album;   
+            }                    
+        }
+        return response()->json($ids); 
+    }
+    private function delete_file_execute($list, $path){
+        $files = UserAlbum::whereIn('id', $list)->get();
+        foreach($files as $file){
+            Storage::disk('local')->delete($path . '/' . $file->id . '_' . $file->user_id . '_' . $file->path . '.' . $file->extension);
+            $file->delete();
+        }
+        return $files;
+    }
+    public function userDeleteFile(Request $request){
+        $validatedData = $request->validate([
+            'list' => 'required',
+        ]);
+        $result = $this->delete_file_execute($request->list, $request->path);
+        return $result;
+    }
+    public function profile_get_update_user (Request $request){
+        $today = Carbon::now()->format('Y-m-d');
+
+        //ログインユーザー関連
+        $auth_user = Auth::user();
+        $auth_user_id = Auth::id();
+
+        $list = User::where('id', '=', $request->id)
+        ->where('deleted_flag','=', 0)->with('positions')->with('offices')->with('icons')->with(['user_album' => function($q){
+            $q->where('deleted_flag','=', 0);
+        }])
+        ->with(['weathers' => function($q) use($today){
+            $q->where('type_id', 43)->where('date', $today);
+        }])->with(['days_weathers' => function($q) use($today){
+            $q->where('type_id', 43)->where('deleted_flag', 0)
+            ->where('date', '<', $today)
+            ->orderBy('date', 'desc')
+            ->limit(5);
+        }])
+        ->select(
+            'id',
+            'name',
+            'name_kana',
+            'icon_id',
+            'phone_number',
+            'work_email',
+            'motto',
+            'intro',
+            'recommend',
+            'office_id',
+            'position_id',
+            'user_code',
+            'enjoy',
+            'awareness',
+            'recommend',
+            'color',
+            'sign_path'
+        )
+        ->first();         
+
+        return response()->json($list);
+        
+    }  
     public function setPrivacy (Request $request){     
         $validatedData = $request->validate([
             'value' => 'required',
@@ -489,5 +666,35 @@ class UserController extends Controller{
         $request->user()->update(['language' => $request->value]);
     }  
       
-   
+    public function getClaps(Request $request){
+        $var_id = $request->id;
+
+        if(!empty($request)){
+            $niceTo = niceRecord::where('deleted_flag', '=', 0)->whereHas('to_users', function($q) use ($var_id){
+                $q->where('user_id', $var_id);
+            })->get()->pluck('clap_count')->sum();
+
+            $niceFrom = niceRecord::where('deleted_flag', '=', 0)->where('user_id', '=', $var_id)->get()->pluck('clap_count')->sum();
+
+            $allNiceClap = $niceTo + $niceFrom;
+
+            $allchallengeClap = challengeRecord::where('deleted_flag', '=', 0)->whereHas('to_users', function($q) use ($var_id){
+                $q->where('user_id', $var_id);
+            })->get()->pluck('clap_count')->sum();           
+
+
+            $allknowledgeClap = clapRecord::where('app_name', '=', 'knowledge')->where('to_users', '=', $request->id)->where('deleted_flag', '=', 0)->count();
+
+            $sum = $allNiceClap + $allchallengeClap + $allknowledgeClap;
+
+            $claps = [
+                "nice" => $allNiceClap,
+                "challenge" => $allchallengeClap,
+                "knowledge" => $allknowledgeClap,
+                "sum" => $sum
+             ];
+
+            return response()->json($claps);
+        }
+    }
 }

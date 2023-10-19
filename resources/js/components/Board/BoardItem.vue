@@ -5,14 +5,12 @@
             <Transition name="modalFade">
             <div id="boardBoxMenu" class="boxMenu boardMenuIcon" v-if="$store.state.menu.name == 'boardBoxMenu' && $store.state.menu.id == item.id" style="top: 25px;right: 40px;z-index:6;">
                 <ul>
-                    <li v-if="item.private_flag == 0 && checkAdminAccess(item)" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('boardEdit', item), closeMenu()">{{$t('editBoard')}}</li>
-                    
-                    <li class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('setDetailedBoard', item),closeMenu()">{{$t('detail')}}</li>
-                    <li v-if="item.private_flag == 0" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('viewMembers', item), closeMenu()">{{$t('groupMembers')}}</li>
-                    <li v-if="item.private_flag == 0" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('setInviteBoard', item), closeMenu()">{{$t('inviteMembers')}}</li>
-                    <li class="boxMenuItems cursor-pointer" @click.stop="$emit('pinBoard', item.id),closeMenu()">{{pinCheckOn ? $t('unpin') : $t('pin')}}</li>
-                    <li v-if="item.private_flag == 0" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('leaveBoard', item), closeMenu()">{{$t('leaveGroup')}}</li>
-                    <li v-if="item.private_flag == 1 || item.private_flag == 0 && checkAdminAccess(item)" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('delete', item.id),closeMenu()"> {{ item.private_flag == 0 ? $t('deleteGroupChat') : $t('deletePrivateChat')}}</li>
+                    <li v-if="item.private_flag == 0 && checkAdminAccess(item)" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('boardEdit', item), closeMenu()">編集する</li>
+                    <li v-if="item.private_flag == 0 && checkAdminAccess(item)" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('viewMembers', item), closeMenu()">メンバー管理</li>
+                    <li class="boxMenuItems cursor-pointer" @click.stop="$emit('setDetailedBoard', item),closeMenu()">詳細情報</li>                    
+                    <li class="boxMenuItems cursor-pointer" @click.stop="$emit('pinBoard', item.id),closeMenu()">{{pinCheckOn ? 'ピン留めを外す' : 'ピン留めする'}}</li>
+                    <li v-if="item.private_flag == 0" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('leaveBoard', item), closeMenu()">退出する</li>
+                    <li v-if="item.private_flag == 1 || item.private_flag == 0 && checkAdminAccess(item)" class="boxMenuItems cursor-pointer" @click.stop="$parent.$emit('delete', item.id),closeMenu()">削除する</li>
                 </ul>                                            
             </div>
             </Transition>
@@ -101,22 +99,18 @@ import moment from 'moment'
             },
             lastMessage(){
                 if(this.item.last_message){
-                    
-
-                    
                     if(this.item.last_message.message){
-                        const to_all = this.item.last_message.message.replace('<span class="toAll">@allMemberMention</span>', `<a class="toAll">@${this.$t('allMemberMention')}</a>`).replaceAll('<span class="addedMembers">', '<a class="addedMembers">').replaceAll('</span>', '</a>'); ; 
+                        const to_all = this.item.last_message.message.replaceAll('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>').replaceAll('<span class="addedMembers">', '<a class="addedMembers">').replaceAll('</span>', '</a>'); ; 
                         const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                         const br_remove = converterd.replace(/&lt;br&gt;/g," ");
                         return br_remove
                     }else if(this.item.last_message.message_files && this.item.last_message.message_files.length){
-                        return this.$t('fileMessage')
+                        return 'ファイルメッセージ'
                     }else{
-                        return this.$t('noMessage')
+                        return '現在メッセージはありません'
                     }
-                    
                 }else{
-                    return this.$t('noMessage')
+                    return '現在メッセージはありません'
                 }
                 
             },

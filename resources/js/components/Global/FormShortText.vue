@@ -1,7 +1,7 @@
 <template>
 <div style="position: relative;background:inherit">
-    <Form :ref="uId" v-slot="{ errors }" style="background:inherit">
-        <span :class="{smallPlc : $store.state.activeInput == uId || (value.length)}" class="form-plc">{{placeHolder}}</span> 
+    <Form :ref="uId" v-slot="{ errors }" style="background:inherit" @submit.prevent>
+        <span class="form-plc smallPlc">{{placeHolder}}</span> 
         <Field 
             autocomplete="off" 
             :id="uId" 

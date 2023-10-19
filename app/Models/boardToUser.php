@@ -9,7 +9,7 @@ class boardToUser extends Model
 {   
     use SoftDeletes;
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'name_kana');
     }
     public function board_records(){
         return $this->belongsTo(boardRecord::class, 'id');

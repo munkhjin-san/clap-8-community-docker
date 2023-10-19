@@ -4,11 +4,8 @@
             <div :style="{fontSize: '16px', color: dateColor}">{{yearMonthDetail(item.end_at)}}</div>                         
         </div> -->
         <div style="display:flex; justify-content:space-between;">
-            <div class="yearMonth" v-if="!reminder" :id="yearMonthDetail(item.end_at)">
-                <div :style="{fontSize: '12px', color: dateColor, lineHeight: '16px'}" v-if="!item.day">{{weekDetail(item.end_at)}}</div>
-                <div :style="{fontSize: '12px', color: dateColor, lineHeight: '16px'}" v-if="!item.day">{{dayDetail(item.end_at)}}</div>                         
-            </div>
-            <div :id="'task_box_' + item.id" class="task-box-inner" :style="{backgroundColor: 'var(--task-background)', color: 'var(--primary-color)', position: 'relative', cursor: 'pointer'}" @dblclick.prevent="$emit('editTask', item)">
+            
+            <div :id="'task_box_' + item.id" class="task-box-inner" :style="{backgroundColor: taskColor, position: 'relative', cursor: 'pointer'}" @dblclick.prevent="$emit('editTask', item)">
                 
 
                 <div class="task-box-header" :style="{display: 'flex', width: '100%', position: 'relative', marginTop: $store.state.mobile ? '0' : '5px'}">
@@ -71,16 +68,13 @@
                 </div>
                 <div style="margin-top:10px;line-height: 1.5;word-break: break-word;white-space: break-spaces;" v-html="urlCheck(item.remarks)"></div>
 
-                <div v-if="detailsDateText(item.end_at) != ' '" style="display:flex;align-items: center;margin-top: 20px;position:relative">
-                    <div style="">
-                        <div :style="{fontSize: '12px', color: dateColor}">{{detailsDateText(item.end_at)}}</div>                         
-                    </div>
-
+                <div style="margin-top: 20px;">
+                    <div :style="{fontSize: '12px', color: dateColor}">{{detailsDateText(item.end_at)}}</div>                         
                 </div>
                 <div v-if="completeButtonFilter" style="display:flex;align-items: center;margin-top: 20px;position:relative;white-space: nowrap;flex-wrap: wrap;gap: 10px 0;">
                     <button class="shift-button" style="margin-right: 7px;" @dblclick.stop @click="$emit('completeTaskBefore', item)" >{{ completeFlag ? $t('inComplete') : $t('finish') }}</button>
                     <button v-if="isToday" @dblclick.stop @click="$emit('editTask', item)" class="shift-button" style="margin-right: 7px;">{{$t('edit')}}</button>
-                    <button v-if="isExpired" @dblclick.stop class="shift-button" @click="untilTomorrow">{{$t('finishToday')}}</button>
+                    <button v-if="isToday" @dblclick.stop class="shift-button" @click="untilTomorrow">{{$t('finishToday')}}</button>
                 </div>
             </div>
         </div>
@@ -116,9 +110,14 @@
                     this.item.color = "#F7D5D5"
                 }
             } 
-            // console.log(this.item)
+           
         },
         computed:{
+            taskColor(){
+                const userIds = this.taskUsers.map(ob => ob.id)
+                const me = userIds.filter(ob => ob == this.$store.state.user.id)
+                return me && me.length ? this.myColor : "#efefef"
+            },
             completeButtonFilter(){            
                 var userData = this.taskUsers.filter(obj => obj.id == this.$store.state.user.id);
                 if(userData.length) return true;
@@ -130,7 +129,7 @@
             canModify(){
                 const users = this.taskUsers.map(ob => ob.id);
                 const me = users.filter(ob => ob == this.$store.state.user.id)
-                return me && me.length
+                return (me && me.length) || (this.item.user_id == this.$store.state.user.id)
             },
             dateColor(){
                 const now = moment().format('YYYY-MM-DD')
@@ -214,68 +213,13 @@
                 });
             },
             detailsDateText(value) {
-                let valueTime = moment(value).format('HH:mm')
-                const noTime = valueTime == '00:00'
-                moment.updateLocale('en', {
-                    parentLocale: 'en', 
-                    calendar : {
-                        lastDay : noTime ? '[Yesterday]' : '[Yesterday at] LT',
-                        sameDay : noTime ? '[Today]' : '[Today at] LT',
-                        nextDay : noTime ? '[Tomorrow]' : '[Tomorrow at] LT',
-                        lastWeek : noTime ? ' ' : ' ',
-                        nextWeek : noTime ? ' ' : ' ',
-                        sameElse : noTime ? ' ' : ' ',
-                        // lastWeek : noTime ? 'MMM D' : 'MMM D LT',
-                        // nextWeek : noTime ? 'MMM D' : 'MMM D LT',
-                        // sameElse : noTime ? 'MMM D' : 'MMM D LT',
-                    }
-                });
-                moment.updateLocale('ja', {
-                    parentLocale: 'ja', 
-                    calendar : {
-                        lastDay : noTime ? '[昨日]' : '[昨日] LT',
-                        sameDay : noTime ? '[今日]' : '[今日] LT',
-                        nextDay : noTime ? '[明日]' : '[明日] LT',
-                        lastWeek : noTime ? ' ' : ' ',
-                        nextWeek : noTime ? ' ' : ' ',
-                        sameElse : noTime ? ' ' : ' ',
-                        // lastWeek : noTime ? 'MMMDo' : 'MMMDo LT',
-                        // nextWeek : noTime ? 'MMMDo' : 'MMMDo LT',
-                        // sameElse : noTime ? 'MMMDo' : 'MMMDo LT',
-                    }
-                });
-                moment.updateLocale('mn', {
-                    parentLocale: 'mn', 
-                    calendar : {
-                        lastDay : noTime ? '[Өчигдөр]' : '[Өчигдөр] LT',
-                        sameDay : noTime ? '[Өнөөдөр]' : '[Өнөөдөр] LT',
-                        nextDay : noTime ? '[Маргааш]' : '[Маргааш] LT',
-                        lastWeek : noTime ? ' ' : ' ',
-                        nextWeek : noTime ? ' ' : ' ',
-                        sameElse : noTime ? ' ' : ' ',
-                        // lastWeek : noTime ? 'M сарын D' : 'M сарын D LT',
-                        // nextWeek : noTime ? 'M сарын D' : 'M сарын D LT',
-                        // sameElse : noTime ? 'M сарын D' : 'M сарын D LT',
-                    }
-                });
-                moment.locale(this.$store.state.local);
-                const taskDate = moment(value);
-                // const currentDate = moment();
-                // const duration = moment.duration(taskDate.diff(currentDate));
-                // const days = Math.round(duration.asDays());
-               
-                //    return taskDate.calendar({
-                //         lastDay : '[Өчигдөр] LT',
-                //         sameDay : noTime ? '[өнөөдөр]' : '[Өнөөдөр] LT',
-                //         nextDay : '[Маргааш] LT',
-                //         lastWeek : '[last] dddd [at] LT',
-                //         nextWeek : 'MMM D',
-                //         sameElse : 'MMM D'
-                //     }) 
-                return taskDate.calendar()
-                
-                              
-            }, 
+                moment.locale('ja');
+                const thisYear = moment().year();
+                const taskYear = moment(value).year();
+                const hasTime = moment(value).format('HH:mm:ss') !== '00:00:00' && moment(value).format('HH:mm:ss') !== '12:00:00'            
+                return (thisYear == taskYear) ? hasTime ? moment(value).format('M/D (dd) HH:mm') : moment(value).format('M/D (dd)')  :              
+                hasTime ? moment(value).format('YYYY/M/D (dd) HH:mm') : moment(value).format('YYYY/M/D (dd)')               
+            },
             yearMonthDetail(value){
                 moment.locale(this.$store.state.local);           
                 return moment(value).format('YYYY-MM-DD')             

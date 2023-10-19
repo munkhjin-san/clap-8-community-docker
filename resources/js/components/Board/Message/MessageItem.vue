@@ -7,7 +7,11 @@
             <p v-if="showDate">{{momentMessage}}</p>       
             <p style="cursor:pointer" @click="showDate = !showDate" v-html="infoMessage"></p>        
         </div>
-        <div v-else :style="messageBodyStyle" class="mobileMessageBody" :class="{ emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:commentEditToggle}">
+        <div class="infoMessageInner" v-if="message.info_flag == 2">   
+            <p v-if="showDate">{{momentMessage}}</p>       
+            <p style="cursor:pointer" @click="showDate = !showDate" v-html="memoInfoMessage ? memoInfoMessage : (taskInfoMessage ? taskInfoMessage : '')"></p>        
+        </div>
+        <div v-else-if="message.info_flag == 0" :style="messageBodyStyle" class="mobileMessageBody" :class="{ emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:commentEditToggle}">
             <div id="commentBody">
                 <div :id="'reply_' + message.id" class="commentHeder" style="position:relative;">
                     <div v-if="message.user && message.user.deleted_at == null" @click.stop="pushInstantUser($event, message.user_id)" class="column-01 cursor-pointer">                        
@@ -19,56 +23,71 @@
                         </svg>
                     </div>                 
                     <div @click.stop="pushInstantUser($event, message.user_id)" class="column-02 cursor-pointer" style="margin-top: 7px;line-height: unset;">                        
-                        <p :id="'messageSender_' + message.id" class="userName" @dragstart.prevent style="margin-left:10px;">{{ messageUserName }}</p>                        
+                        <p :id="'messageSender_' + message.id" class="userName" @dragstart.prevent style="margin:0 10px;">{{ messageUserName }}</p>                        
                     </div>                    
-                    <div class="column-03" style="position: absolute;top: -50px;right: -13px;">                                                    
+                    <div class="column-03" style="position: absolute;top: -40px;right: -13px;">                                                    
                         <p @dragstart.prevent class="dateText" style="font-size:12px;color:grey">{{momentMessage}}</p>
-                    </div>                    
-                    <div 
-                        v-if="commentEditToggle == false && message.deleted_at == null"
-                        @click.stop="messageMenu"
-                        style="margin-left: 10px;" 
-                        id="boardMessageMenuButton"  
-                        class="messageMenuContainer cursor-pointer">
-                       
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="13" class="dot-menu" viewBox="0 0 7 32" style="margin:auto;min-width: 3px;">
-                            <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path>
-                            <path d="M3.405 12.33c-0.447 0.013-0.881 0.115-1.272 0.278-0.1 0.038-0.195 0.085-0.287 0.135-0.093 0.047-0.185 0.097-0.27 0.154l-0.129 0.083-0.064 0.042-0.124 0.088c-0.050 0.039-0.132 0.104-0.181 0.145l-0.040 0.035c-0.111 0.096-0.214 0.202-0.302 0.319-0.001 0-0.001 0.001-0.001 0.001l-0.058 0.081-0.040 0.064-0.082 0.134c-0.056 0.086-0.104 0.179-0.15 0.271-0.049 0.095-0.095 0.189-0.132 0.289-0.164 0.394-0.262 0.832-0.27 1.277-0.025 0.899 0.324 1.82 0.967 2.467 0.636 0.651 1.549 1.038 2.465 1.037 0.456 0.003 0.906-0.086 1.315-0.239 0.41-0.156 0.781-0.374 1.112-0.619l0.188-0.188c0.246-0.331 0.463-0.701 0.619-1.112 0.157-0.408 0.245-0.858 0.245-1.315 0.003-0.918-0.392-1.832-1.043-2.465-0.648-0.639-1.567-0.991-2.464-0.961z"></path>
-                            <path d="M6.162 5.606c0.282-0.359 0.493-0.767 0.622-1.187 0.129-0.417 0.186-0.842 0.196-1.255l-0.035-0.263c-0.107-0.399-0.264-0.799-0.493-1.174-0.224-0.376-0.526-0.721-0.888-1-0.721-0.569-1.682-0.821-2.582-0.694-0.903 0.117-1.746 0.622-2.276 1.347-0.267 0.36-0.451 0.767-0.563 1.174-0.033 0.103-0.054 0.206-0.071 0.307-0.021 0.103-0.038 0.207-0.043 0.309l-0.015 0.152-0.007 0.078-0.003 0.096c-0.003 0.132-0.001 0.262 0.004 0.39l0.008 0.16c0.018 0.077 0.033 0.152 0.056 0.227l0.028 0.092 0.028 0.075 0.053 0.145c0.032 0.096 0.077 0.191 0.122 0.287 0.043 0.096 0.089 0.189 0.145 0.282 0.21 0.371 0.494 0.717 0.84 1.002 0.691 0.57 1.633 0.863 2.538 0.754 0.904-0.099 1.771-0.58 2.336-1.302z"></path>
-                        </svg>
                     </div>
+                    <div class="messageIconContainer">
+                        <div class="bell-icon cursor-pointer" v-if="reminded" @click="remindRequestModal(message)">
+                            <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/" style="margin:auto;" version="1.1" x="0px" y="0px" height="13" viewBox="0 0 26 29" enable-background="new 0 0 26 29" xml:space="preserve">
+                                <defs>
+                                </defs>
+                                <path d="M25.469,20.171c-0.7-0.206-1.325-0.619-1.875-1.108c-0.156-0.436-0.258-1.137-0.337-1.714  c-0.223-1.772-0.337-3.599-0.568-5.4c-0.225-1.931-0.658-4.1-1.937-5.683c-1.059-1.357-2.512-2.479-4.189-2.918  c-0.066-0.017-0.112-0.075-0.112-0.143c0.001-0.889,0.002-1.944,0.002-1.944C16.452,0.563,15.887,0,15.19,0  c-0.003,0.001-3.967,0-3.97,0.001c-0.696,0.001-1.261,0.566-1.26,1.262l0.002,1.943c0,0.068-0.046,0.126-0.111,0.143  c-1.678,0.44-3.13,1.561-4.189,2.918c-1.867,2.38-1.902,5.581-2.224,8.422c-0.086,0.902-0.167,1.799-0.277,2.661  c-0.085,0.601-0.146,1.16-0.335,1.698c-0.004,0.01-0.008,0.021-0.012,0.029c-0.19,0.17-0.688,0.562-0.969,0.706  c-0.289,0.167-0.585,0.305-0.9,0.394c0.041-0.03-0.948,1.155-0.945,1.155c0.001,0.015,0.017,2.729,0.019,2.741  c0.004,0.636,0.522,1.147,1.159,1.143c2.012-0.012,5.394-0.045,8.306-0.076c-0.027,0.112-0.038,0.231-0.025,0.354  c0.007,0.051,0.015,0.156,0.024,0.206c0.131,0.869,0.464,1.659,1.089,2.321c1.045,1.095,2.678,1.354,4.108,0.914  c1.402-0.504,2.303-2.001,2.318-3.443c0.008-0.115-0.001-0.222-0.02-0.32c2.899,0.021,6.253,0.041,8.257,0.053  c0.642,0.004,1.165-0.513,1.168-1.154c0.003-0.012,0.012-2.726,0.016-2.737C26.423,21.332,25.428,20.14,25.469,20.171   M23.537,19.014c0,0,0.002,0.002,0.003,0.002c-0.006-0.005-0.012-0.01-0.012-0.01C23.52,18.998,23.533,19.01,23.537,19.014   M4.502,20.775c0.779-0.735,0.893-2.135,1.055-3.106c0.127-0.933,0.216-1.84,0.31-2.74c0.187-1.71,0.342-3.536,0.779-5.15  c0.507-1.773,1.895-3.339,3.644-3.939c0.332-0.112,0.729-0.203,1.012-0.277c0.796-0.209,1.008-0.459,1.009-1.151  c0,0,0.001-1.216,0.002-2.071c0-0.092,0.074-0.167,0.168-0.167h1.491c0.093,0,0.168,0.075,0.168,0.168  c0.001,0.854,0.002,2.07,0.002,2.07c0,0.693,0.302,1.014,1.031,1.188c2.149,0.252,4.041,2.189,4.595,4.18  c0.653,2.528,0.717,5.269,1.085,7.892c0.083,0.588,0.178,1.231,0.356,1.842c0.126,0.409,0.271,0.817,0.612,1.182  c0.651,0.607,1.407,1.135,2.236,1.486c0.002,0.307,0.002,0.365,0.004,0.714c-3.2,0.019-8.211,0.051-10.854,0.078  c-0.094,0.004-0.181,0.019-0.263,0.038c-2.706-0.032-7.499-0.083-10.598-0.105c0.002-0.355,0.003-0.416,0.005-0.728  C3.143,21.84,3.866,21.341,4.502,20.775 M14.984,25.282c-0.001-0.019-0.008,0.005-0.012,0.012l-0.017,0.036  c-0.16,0.356-0.385,0.793-0.687,1.014c-0.139,0.112-0.296,0.146-0.448,0.225c-0.31,0.149-0.857,0.176-1.188,0.07  c-0.591-0.15-0.941-0.739-1.098-1.311l-0.01-0.037c-0.003-0.007-0.007-0.03-0.006-0.011c-0.006-0.057-0.018-0.11-0.031-0.162  c0.529-0.006,1.019-0.012,1.455-0.017c0.082,0.021,0.169,0.034,0.263,0.038c0.521,0.005,1.132,0.012,1.802,0.017  C14.999,25.197,14.99,25.238,14.984,25.282"/>
+                            </svg>
+                        </div>
+                        <div 
+                            v-if="commentEditToggle == false && message.deleted_at == null"
+                            @click.stop="messageMenu"
+                            
+                            id="boardMessageMenuButton"  
+                            class="boardMenuContainer cursor-pointer">
+                        
+                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="13" class="dot-menu" viewBox="0 0 7 32" style="margin:auto;min-width: 3px;">
+                                <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path>
+                                <path d="M3.405 12.33c-0.447 0.013-0.881 0.115-1.272 0.278-0.1 0.038-0.195 0.085-0.287 0.135-0.093 0.047-0.185 0.097-0.27 0.154l-0.129 0.083-0.064 0.042-0.124 0.088c-0.050 0.039-0.132 0.104-0.181 0.145l-0.040 0.035c-0.111 0.096-0.214 0.202-0.302 0.319-0.001 0-0.001 0.001-0.001 0.001l-0.058 0.081-0.040 0.064-0.082 0.134c-0.056 0.086-0.104 0.179-0.15 0.271-0.049 0.095-0.095 0.189-0.132 0.289-0.164 0.394-0.262 0.832-0.27 1.277-0.025 0.899 0.324 1.82 0.967 2.467 0.636 0.651 1.549 1.038 2.465 1.037 0.456 0.003 0.906-0.086 1.315-0.239 0.41-0.156 0.781-0.374 1.112-0.619l0.188-0.188c0.246-0.331 0.463-0.701 0.619-1.112 0.157-0.408 0.245-0.858 0.245-1.315 0.003-0.918-0.392-1.832-1.043-2.465-0.648-0.639-1.567-0.991-2.464-0.961z"></path>
+                                <path d="M6.162 5.606c0.282-0.359 0.493-0.767 0.622-1.187 0.129-0.417 0.186-0.842 0.196-1.255l-0.035-0.263c-0.107-0.399-0.264-0.799-0.493-1.174-0.224-0.376-0.526-0.721-0.888-1-0.721-0.569-1.682-0.821-2.582-0.694-0.903 0.117-1.746 0.622-2.276 1.347-0.267 0.36-0.451 0.767-0.563 1.174-0.033 0.103-0.054 0.206-0.071 0.307-0.021 0.103-0.038 0.207-0.043 0.309l-0.015 0.152-0.007 0.078-0.003 0.096c-0.003 0.132-0.001 0.262 0.004 0.39l0.008 0.16c0.018 0.077 0.033 0.152 0.056 0.227l0.028 0.092 0.028 0.075 0.053 0.145c0.032 0.096 0.077 0.191 0.122 0.287 0.043 0.096 0.089 0.189 0.145 0.282 0.21 0.371 0.494 0.717 0.84 1.002 0.691 0.57 1.633 0.863 2.538 0.754 0.904-0.099 1.771-0.58 2.336-1.302z"></path>
+                            </svg>
+                        </div>
+                    </div>                    
+                    
                  
                     
                     <Transition name="modalFade"> 
                     <div id="boardMessageMenu" class="boxMenuComment cursor-pointer" v-if="$store.state.menu.name == 'boardMessageMenu' && $store.state.menu.id == message.id" :style="topOrBottom,right" style="z-index:2;box-shadow:none;background-color: unset;">
                   
                         <ul v-if="commentMenuLayer == 0" class="messageMenuList">
-                            <li @click="commentEdit(message.id), closeMenu()" v-if="message.user_id == $store.state.user.id && message.message !== null && message.emoji_flag == 0" class="boxMenuItems cursor-pointer">{{$t('editMessage')}}</li>
-                            <li @click="replyQuotStart(message, 'reply'), closeMenu()" v-if="message.user_id !== $store.state.user.id" class="boxMenuItems cursor-pointer">{{$t('replyMessage')}}</li>                          
-                            <li @click="replyQuotStart(message, 'quot'), closeMenu()" class="boxMenuItems cursor-pointer">{{$t('quotMessage')}}</li>
+                            <li @click="commentEdit(message.id), closeMenu()" v-if="message.user_id == $store.state.user.id && message.message !== null && message.emoji_flag == 0" class="boxMenuItems cursor-pointer">編集する</li>
+                            <li @click="replyQuotStart(message, 'reply'), closeMenu()" v-if="message.user_id !== $store.state.user.id" class="boxMenuItems cursor-pointer">返信する</li>                          
+                            <li @click="replyQuotStart(message, 'quot'), closeMenu()" class="boxMenuItems cursor-pointer">引用する</li>
                             
-                            <li @click="copyTextStart(message.id), closeMenu()" v-if="message.message !== null && message.message !== ''" class="boxMenuItems cursor-pointer">{{$t('copyMessage')}}</li>
+                            <li @click="copyTextStart(message.id), closeMenu()" v-if="message.message !== null && message.message !== ''" class="boxMenuItems cursor-pointer">コピー</li>
                             <li @click.stop="commentMenuLayer = 1" v-if="$store.state.user.partner_flag !== 1 && message.message !== null && message.message !== ''" class="boxMenuItems cursor-pointer" style="display: flex;">
-                                <span style="margin-right: 10px;">{{$t('shareMessage')}}</span>
+                                <span style="margin-right: 10px;">シェア</span>
                                 <svg style="transform:rotate(180deg);margin: auto 0 auto auto;" version="1.1" width="10" height="10" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
                                 </svg>  
                             </li>
-                            <li @click="checkRequestModal(message), closeMenu()" v-if="message.user_id == $store.state.user.id && !message.check_flag && message.emoji_flag == 0 && openedBoard.private_flag !== 3" class="boxMenuItems cursor-pointer">{{$t('checkRequest')}}</li>                                                                                              
-                            
+                            <li @click="remindRequestModal(message), closeMenu()" v-if="message.user_id" class="boxMenuItems cursor-pointer">リマインド</li>                                                                                               
+                            <li @click="checkRequestModal(message), closeMenu()" v-if="message.user_id == $store.state.user.id && !message.check_flag && message.emoji_flag == 0 && openedBoard.private_flag !== 3" class="boxMenuItems cursor-pointer">確認依頼</li>                                                                                              
+                            <li @click="sendMailConfirm(message, openedBoard.id, 2, message.id), closeMenu()" v-if="message.user_id == $store.state.user.id && message.check_flag == 1 && message.emoji_flag == 0" class="boxMenuItems cursor-pointer">再確認依頼</li>
 
 
-                            <li @click="commentDeleteConfirm(message.id)" v-if="message.user_id == $store.state.user.id" class="boxMenuItems cursor-pointer">{{$t('deleteMessage')}}</li>
+                            <li @click="commentDeleteConfirm(message.id)" v-if="message.user_id == $store.state.user.id" class="boxMenuItems cursor-pointer">削除する</li>
                         </ul>
                         <ul v-if="commentMenuLayer == 1" class="messageMenuList">  
                             <li @click.stop="commentMenuLayer = 0" v-if="message.message !== null" class="boxMenuItems cursor-pointer">
                             <svg version="1.1" width="10" height="10" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
                             </svg>  
-                            <span style="margin-left: 10px;">{{$t('back')}}</span></li>      
-                            <li @click="shareTo('board')" class="boxMenuItems cursor-pointer">{{$t('toChat')}}</li>                                              
-                            <li @click="shareTo('task')" v-if="message.message !== null" class="boxMenuItems cursor-pointer">{{$t('toTask')}}</li>
-                            <li @click="shareTo('memo')" v-if="message.message !== null" class="boxMenuItems cursor-pointer">{{$t('toNote')}}</li>
+                            <span style="margin-left: 10px;">戻る</span></li>      
+                            <li @click="shareTo('board')" class="boxMenuItems cursor-pointer">ボード</li>    
+                            <li @click="shareTo('knowledge')" class="boxMenuItems cursor-pointer">ナレッジ</li>                                           
+                            <li @click="shareTo('nice')" class="boxMenuItems cursor-pointer">ナイス</li> 
+                            <li @click="shareTo('challenge')" class="boxMenuItems cursor-pointer">チャレンジ</li> 
+                            <li @click="shareTo('calendar')" class="boxMenuItems cursor-pointer">カレンダー</li> 
+                            <li @click="shareTo('task')" class="boxMenuItems cursor-pointer">タスク</li>
+                            <li @click="shareTo('memo')" class="boxMenuItems cursor-pointer">ノート</li>
                             
                         </ul>                                                    
                     </div>
@@ -132,6 +151,7 @@
                             v-if="message.message_files && message.message_files.length"
                             :list="message.message_files"
                             :message="message"
+                            :mIndex="mIndex"
                         /> 
                                 
                     
@@ -171,7 +191,7 @@
                     <p @click.stop="viewunCheckedUserList"  class="cursor-pointer" :class="{activeCheck : $store.state.menu.name == 'uncheckedUsersList' && $store.state.menu.id == message.id && message.unchecked_users !== null}" style="margin-top: auto;padding: 8px 8px 9px 8px;margin-bottom:-8px;">{{$t('unchecked')}} ({{ message.unchecked_users.length}})</p>                                               
                     <Transition name="modalFade">
                     <div id="uncheckedUsersList" style="top: 38px;"  v-if="$store.state.menu.name == 'uncheckedUsersList' && $store.state.menu.id == message.id && message.unchecked_users !== null" class="checkUsersList" :class="{rightSide : message.unchecked_users && message.user_id == $store.state.user.id}">                                
-                        <a v-for="(user, index) in message.unchecked_users" :key="index" class="boardUsersListInner" :href="'/profile/'+user.id">
+                        <a v-for="(user, index) in message.unchecked_users" :key="index" class="boardUsersListInner" :href="'/user/'+user.id">
                             <p class="cursor-pointer" style="font-size:small;">{{user.name}}</p>
                         </a>                                
                     </div>
@@ -189,8 +209,8 @@
             <Transition name="slidePop">                 
             <div v-if="commentEditToggle" style="display: flex;width: 100%;position: absolute;bottom: -31px;left: 0;">
                 <ul style="display: inline;z-index:81;margin-top: 10px;width: 100%;">
-                    <li @click="commentEditSend(message.id, message.message)" class="commentEditButton">{{$t('save')}}</li>
-                    <li @click="commentEditCancel(message.id, message.message)" class="commentEditButton">{{$t('cancelToChat')}}</li>
+                    <li @click="commentEditSend(message.id, message.message)" class="commentEditButton">保存</li>
+                    <li @click="commentEditCancel(message.id, message.message)" class="commentEditButton">キャンセル</li>
                 </ul>
             </div>
             </Transition>
@@ -204,7 +224,6 @@
 </template>
 
 <script>
-// import NotifyComponent from "../../NotifyComponent.vue";
 import MessageQuoteReply from "./MessageQuoteReply.vue";
 import MessageFiles from "./MessageFiles.vue";
 import moment from 'moment';
@@ -222,8 +241,8 @@ import { nextTick } from 'vue'
                 lastMenuPx: 0,
                 unreadTrigger: false,
                 reacting: false,
-                topOrBottom: 'top:21px',
-                right: 'right: 28px',
+                topOrBottom: 'top:18px',
+                right: 'right: 23px',
                 showDate: false
                 
             }
@@ -281,16 +300,26 @@ import { nextTick } from 'vue'
             //         }
             //     }
             // },
+            taskInfoMessage(){
+                if(this.message.task && this.message.task.title && this.message.task.title.length){
+                    return `<strong>新しいタスクが追加されました。</strong><br><p style=text-align:left>${this.message.task.title.slice(0, 100)}${this.message.task.title.length > 100 ? '...' : ''}</p>`
+                }
+            },
+            memoInfoMessage(){
+                if(this.message.memo && this.message.memo.content && this.message.memo.content.length){
+                    return `<strong>新しいノートが追加されました。</strong><br><p style=text-align:left>${this.message.memo.content.slice(0, 100)}${this.message.memo.content.length > 100 ? '...' : ''}</p>`
+                }
+            },
+            reminded(){
+                const list = this.message.message_remind_users
+                return list ? list.some(item => item.user_id === this.$store.state.user.id && item.reminded === 1) : false
+            },
             checkSendIconColor(){                
                 const check_list = this.message.reacted_users.filter(ob => ob.id == this.$store.state.user.id).length                
                 return (this.message.user_id == this.$store.state.user.id || check_list) ? true : false              
                 
             }, 
             infoMessage(){
-                
-                const message = this.message.message
-                if(message.info_flag == 0) return
-                
                 return this.message.message
             },
             messageUserName(){                
@@ -315,39 +344,32 @@ import { nextTick } from 'vue'
                 }
             },
             messageBody(){
-                if(!this.message.message) return this.message.message
-                if(this.message.id == this.searchTargetId && this.messageListType == 'search'){
-                    // const highlightRegex = new RegExp(`(?<!https?:\/\/\S*)\\b(${this.$store.state.keyword})\\b`, 'gi');
-                    // const highlightedText = this.message.message.replace(highlightRegex, (match) => {
-                    //     return `<span style="background-color: yellow;">${match}</span>`;
-                    // });
-                    
-                    const br_remove = this.message.message.replace(/&lt;br&gt;/g," ");
-                    let text = this.urlCheck(br_remove)
-                    const anchorTagRegex = /<a.*?href="(.*?)".*?>(.*?)<\/a>/gi;
-                    const placeholders = [];
-                    // Replace all anchor tags with a placeholder, to avoid matching text inside the href attribute
-                    const replaceAnchorTagsWithPlaceholders = (match, href, innerText) => {
-                        placeholders.push(match);
-                        return `{${placeholders.length - 1}}`;
-                    };
-                    const textWithoutAnchorTags = text.replace(anchorTagRegex, replaceAnchorTagsWithPlaceholders);
-                    // Create a regular expression to match the keyword in the text
-                    const keywordRegex = new RegExp(`(${this.$store.state.keyword})(?![^<]*>|[^<>]*<\/)`, 'gi');
-                    // Highlight the matched keyword in the text
-                    const highlightKeyword = (match) => `<span style="background-color: yellow;color:#000">${match}</span>`;
-                    const highlightedText = textWithoutAnchorTags.replace(keywordRegex, highlightKeyword);
-                    // Restore the original anchor tags
-                    const restoreAnchorTagsFromPlaceholders = (textWithPlaceholders, placeholder, index) =>
-                    textWithPlaceholders.replace(`{${index}}`, placeholder);
-                    const textWithHighlightedKeywords = placeholders.reduce(restoreAnchorTagsFromPlaceholders, highlightedText);
-                    return textWithHighlightedKeywords;
+                // if(this.message.id == this.searchTargetId && this.messageListType == 'search'){
+                //     const br_remove = this.message.message.replace(/&lt;br&gt;/g," ");
+                //     let text = this.urlCheck(br_remove)
+                //     const anchorTagRegex = /<a.*?href="(.*?)".*?>(.*?)<\/a>/gi;
+                //     const placeholders = [];
+                //     const replaceAnchorTagsWithPlaceholders = (match, href, innerText) => {
+                //         placeholders.push(match);
+                //         return `{${placeholders.length - 1}}`;
+                //     };
+                //     const textWithoutAnchorTags = text.replace(anchorTagRegex, replaceAnchorTagsWithPlaceholders);
+                //     const keywordRegex = new RegExp(`(${this.$store.state.keyword})(?![^<]*>|[^<>]*<\/)`, 'gi');
+                //     const highlightKeyword = (match) => `<span style="background-color: yellow;">${match}</span>`;
+                //     const highlightedText = textWithoutAnchorTags.replace(keywordRegex, highlightKeyword);
+                //     const restoreAnchorTagsFromPlaceholders = (textWithPlaceholders, placeholder, index) =>
+                //     textWithPlaceholders.replace(`{${index}}`, placeholder);
+                //     const textWithHighlightedKeywords = placeholders.reduce(restoreAnchorTagsFromPlaceholders, highlightedText);
+                //     return textWithHighlightedKeywords;
+                // }
+                if(this.message.info_flag == 0){
+                    const to_all = this.message.message.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
+                    const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
+                    const br_remove = converterd.replace(/&lt;br&gt;/g," ");
+                    return this.urlCheck(br_remove)
                 }
                 
-                const to_all = this.message.message.replace('<span class="toAll">@allMemberMention</span>', `<a class="toAll">@${this.$t('allMemberMention')}</a>`); 
-                const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
-                const br_remove = converterd.replace(/&lt;br&gt;/g," ");
-                return this.urlCheck(br_remove)
+                
             },
             lastMenu(){
                 // return this.mIndex == 0 && this.$store.state.menu.name == 'boardMessageMenu' && this.$store.state.menu.id == this.message.id ? this.lastMenuPx : '0'
@@ -457,6 +479,9 @@ import { nextTick } from 'vue'
             },
         },
         methods:{
+            remindRequestModal(item){
+                this.$parent.$emit('remindRequest', item)
+            },
             menuClick(){
                 if(this.$store.state.menu.name == 'boardMessageMenu' && this.$store.state.menu.id == this.message.id){
                     const cont = document.getElementById('boardMessageMenu');   
@@ -536,6 +561,46 @@ import { nextTick } from 'vue'
             checkRequestModal(item){            
                 const request = 'confirm'            
                 this.$parent.$emit('checkRequest', item, request)
+            },
+            sendMailConfirm(message, record_id, pattern, msg_id){      
+
+                const uniqueChannell = Math.random().toString(36).substring(5);
+                emitter.emit('setToast', {
+                    active: true,  
+                    type: 'info', 
+                    content: '未確認者へ確認依頼のメールを送りますか。' ,
+                    closeButton: false, 
+                    autoClose: false,
+                    answers: ['はい', 'いいえ'],
+                    channel: uniqueChannell
+                })            
+                emitter.on(uniqueChannell, (data) => { 
+                    if(data.answer == this.$t('confirmToAction')){
+                        this.sendMail(message, record_id, pattern, msg_id);
+                    }
+                })
+
+            },
+            sendMail(message, record_id, pattern, message_id){           
+                var send_users = message.unchecked_users.map(ob => ob.id)     
+                axios.post('/send_reconfirm_email',{send_list: send_users, board_id: record_id, send_condition: pattern, msg_id:message_id}).then(                
+                    response => {                  
+                        setTimeout(() => {
+                            const m = pattern == 1 ? "確認依頼がオンになりました。": pattern == 2 ? "再確認依頼のメールを送信しました。" : ''
+                            emitter.emit('setToast', {
+                                active: true,  
+                                type: 'info', 
+                                content: m,
+                                closeButton: true, 
+                                autoClose: true,
+                                answers: ['OK'],
+                            }) 
+                        }, 300);                      
+                    }).catch(function (error) {
+                        if (error.response) this.errorToast(this.$t(error.response.data.message))
+                        else if (error.request) this.errorToast(this.$t('commonError'))
+                        else this.errorToast(this.$t('commonError') + error.message)              
+                    }.bind(this));            
             },
             commentEdit(id) {
                 this.commentEditToggle = true
@@ -628,8 +693,8 @@ import { nextTick } from 'vue'
             }, 
             messageMenu(){
                 this.commentMenuLayer = 0
-                this.topOrBottom = 'top:28px'
-                this.right = 'right: 28px'
+                this.topOrBottom = 'top:18px'
+                this.right = 'right: 23px'
                 this.$store.commit('setMenu', {name: 'boardMessageMenu', id: this.message.id}) 
                 setTimeout(() =>{
                     const menu = document.getElementById('boardMessageMenu')
@@ -824,35 +889,89 @@ import { nextTick } from 'vue'
                 });
             },
             shareTo(to, flag, single_file){
-                if(to == 'board'){
-                    this.$store.commit('setForwarding', this.message)
-                    this.$store.commit('setMenu', {name: '', id: ''});
-                    if(this.$store.state.mobile){
-                        this.$router.push({name: 'board'})
+                let files = []
+                this.message.message_files.forEach(element => {
+                    const file = {
+                        path: `/shared_files/${this.message.record_id}/${element.id}_${element.user_id}_${element.message_id}.${element.extension}`,
+                        record: element
                     }
+                    files.push(file)
+                });
+                const shareData = {
+                    message: this.message,
+                    title: '',
+                    text: this.message.message_text,
+                    files: files,
+                    from: 'message',
+                    to: to,
+                    drag: false,
+                    instruction: to == 'board' ? '送る先のボードを選択してください' : ''
+                }
+                this.$store.commit('setSharingData', shareData)
+                if(to == 'memo' || to == 'task'){
+                    if(this.$store.state.mobile){
+                        this.$store.commit('setmTransition', 'smLeave')
+                        setTimeout(() =>{
+                            this.$router.push({name: to})
+                        },0) 
+                    }else{           
+                        const data = to == 'task' ? 1 : 2            
+                        emitter.emit('messageShareTo',data)                            
+                    }
+                }else if(to !== 'board'){
+                    this.$router.push({name: to})
+                }
+
+
+                // if(to == 'board'){
+                //     this.$store.commit('setForwarding', this.message)
+                //     this.$store.commit('setMenu', {name: '', id: ''});
+                //     if(this.$store.state.mobile){
+                //         this.$router.push({name: 'board'})
+                //     }
                     
-                }else if(to == 'memo'){
-                    this.$store.commit('setMessageShareToMemo', this.message)
-                    if(this.$store.state.mobile){
-                        this.$store.commit('setmTransition', 'smLeave')
-                        setTimeout(() =>{
-                            this.$router.push({name: 'memo'})
-                        },0) 
-                    }else{                        
-                        emitter.emit('messageShareToMemo',this.message)                            
-                    }
-                }
-                else if(to == 'task'){
-                    this.$store.commit('setMessageShareToTask', this.message)
-                    if(this.$store.state.mobile){
-                        this.$store.commit('setmTransition', 'smLeave')
-                        setTimeout(() =>{
-                            this.$router.push({name: 'task'})
-                        },0) 
-                    }else{                        
-                        emitter.emit('messageShareToTask',this.message)                            
-                    }
-                }
+                // }else if(to == 'memo'){
+                //     this.$store.commit('setMessageShareToMemo', this.message)
+                //     if(this.$store.state.mobile){
+                //         this.$store.commit('setmTransition', 'smLeave')
+                //         setTimeout(() =>{
+                //             this.$router.push({name: 'memo'})
+                //         },0) 
+                //     }else{                        
+                //         emitter.emit('messageShareToMemo',this.message)                            
+                //     }
+                // }
+                // else if(to == 'task'){
+                //     this.$store.commit('setMessageShareToTask', this.message)
+                //     if(this.$store.state.mobile){
+                //         this.$store.commit('setmTransition', 'smLeave')
+                //         setTimeout(() =>{
+                //             this.$router.push({name: 'task'})
+                //         },0) 
+                //     }else{                        
+                //         emitter.emit('messageShareToTask',this.message)                            
+                //     }
+                // }else{
+                //     let files = []
+                //     this.message.message_files.forEach(element => {
+                //         const file = {
+                //             path: `/shared_files/${this.message.record_id}/${element.id}_${element.user_id}_${element.message_id}.${element.extension}`,
+                //             record: element
+                //         }
+                //         files.push(file)
+                //     });
+                //     const shareData = {
+                //         title: '',
+                //         text: this.message.message_text,
+                //         files: files,
+                //         from: 'message',
+                //         to: to,
+                //         drag: false,
+                //     }
+                //     this.$store.commit('setSharingData', shareData)
+                //     this.$router.push({name: to})
+                    
+                // }
                 this.closeMenu()
             }
               

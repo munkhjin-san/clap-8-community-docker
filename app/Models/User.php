@@ -19,7 +19,10 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'email_or_phone', 'phone', 'password','icon_id', 'login', 'phone_isVerified', 'phone_prefix', 'q_token', 'is_public', 'color', 'language'
+        'name', 'email', 'email_or_phone', 
+        'phone', 'password','icon_id', 'login', 
+        'phone_isVerified', 'phone_prefix', 'q_token', 
+        'is_public', 'color', 'language', 'work_email', 'footer_view'
     ];
 
     /**
@@ -97,8 +100,6 @@ class User extends Authenticatable
                         'admin_flag',
                         'last_message',
                         'pin_flag',
-                        'ghost',
-                        'invited_by',
                     ]);
     }
     public function reactions()
@@ -134,6 +135,27 @@ class User extends Authenticatable
     }
     public function custom_field_data_records(){
         return $this->hasMany(customFieldDataRecord::class, 'user_id');
+    }
+    public function my_group(){
+        return $this->hasOne(MyGroup::class, 'id', 'user_id');
+    }
+    public function positions(){
+        return $this->hasOne(positionRecord::class, 'id', 'position_id');
+    }
+    public function offices(){
+        return $this->hasOne(officeRecord::class, 'id', 'office_id');
+    }
+    public function work_group_user(){
+        return $this->hasMany(workGroupUser::class, 'user_id', 'id')->with('work_group');
+    }
+    public function user_album(){
+        return $this->hasMany(UserAlbum::class, 'user_id');
+    }
+    public function weathers(){
+        return $this->hasOne(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int');
+    }
+    public function days_weathers(){
+        return $this->hasMany(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int', 'date');
     }
     // public function sendEmailVerificationNotification()
     // {

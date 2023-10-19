@@ -1,12 +1,72 @@
 .work-root{
     width: 100%;
-    overflow: hidden auto;
-    padding-bottom: 20px;
+    overflow: hidden;
+    height: 100%;
 }
-.workButton-wrapper{
+.workButtons-wrapper{
     display: flex;
-    gap: 6px;
+    gap: 10px;
+    height: 60px;
+    position: relative;
+    font-size: 13px;
 }
+.workMemberSelector{
+    position: absolute;
+    right: 0;
+    top: 50px;
+    z-index: 20;
+    background: var(--bg3);
+    box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
+}
+.work-check-mark{
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 15px;
+    width: 15px;
+    border: solid 1px var(--primary-color);
+    border-radius: 3px;
+}
+.work-member-check{
+    display: block;
+    position: relative;
+    padding-left: 35px;
+    margin-bottom: 0px;
+    cursor: pointer;
+    font-size: 22px;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+.work-check-mark:after {
+    content: "";
+    position: absolute;
+    display: none;
+  }
+  
+  /* Show the checkmark when checked */
+  .work-member-check input:checked ~ .work-check-mark:after {
+    display: block;
+  }
+  
+  /* Style the checkmark/indicator */
+  .work-member-check .work-check-mark:after {
+      left: 5px;
+      top: 2px;
+      width: 3px;
+      height: 7px;
+      border: solid var(--primary-color);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+  }
+.work-member-check input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+  }
 .work-left{
     display: flex;
 }
@@ -14,10 +74,12 @@
     display: flex;
     height: 60px;
     align-items: center;
+    flex-wrap: wrap;
+    padding: 0 20px;
+    width: -webkit-fill-available;
 }
 .work-monthpicker{
     flex: 1 1 0%;
-    margin-right: 20px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
@@ -28,6 +90,7 @@
     display: flex;
     align-items: center;
     cursor: pointer;
+    fill: var(--primary-color);
 }
 .work-nextmonth{
     width: 40px;
@@ -36,6 +99,10 @@
     align-items: center;
     justify-content: flex-end;
     cursor: pointer;
+    fill: var(--primary-color);
+}
+.border-none{
+    border-bottom: 1px solid var(--calendarBorder);
 }
 .work-button{
     background: var(--primary-button);
@@ -55,18 +122,18 @@
 }
 .records-table{
     display: table;
-    
-    margin: 0 20px;
+    color: var(--primary-color);
     width: -webkit-fill-available;
     width: -moz-available;
 }
 .records-header{
     display: table-header-group;
     background-color: rgb(96, 96, 96);
-    color:var(--background-color);
+    color:#fff;
     font-size: 12px;
     position: sticky;
     top: 0;
+    z-index: 1;
 }
 .header-row{
     display: table-row;
@@ -75,13 +142,13 @@
     display: table-cell;
     line-height: 3.5;
     text-align: center;
-    border: 1px solid var(--bg3);
+    border: 1px solid var(--calendarBorder);
     border-left: none;
     width: 100px;
 }
 
 .header-cell:first-child{
-    border: 1px solid var(--bg3);
+    border: 1px solid var(--calendarBorder);
 }
 .records-body{
     display: table-row-group;
@@ -90,17 +157,28 @@
 .body-row{
     display: table-row;
 }
+.body-row:hover{
+    background-color: var(--formBorder);
+}
+.allowance-gap{
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+}
 .body-cell{
     display: table-cell;
     font-size: 12px;
     line-height: 3.5;
-    border: 1px solid var(--bg3);
+    border-right: 1px solid var(--calendarBorder);
     text-align: center;
     border-left: none;
     white-space: nowrap;
+    border-top:none;
+    position: relative;
 }
 .body-cell:first-child{
-    border: 1px solid var(--bg3);
+    border-right: 1px solid var(--calendarBorder);
+    border-top: none;
 }
 .records-footer{
     display: table-footer-group;
@@ -110,16 +188,15 @@
 }
 .footer-row{
     display: table-row;
+    color: #fff;
 }
+
 .footer-cell{
     display: table-cell;
     line-height: 3.5;
     text-align: center;
-    border: 1px solid var(--bg3);
-    border-left: none;
-}
-.header-cell:first-child{
-    border: 1px solid var(--bg3);
+    border-right: 1px solid var(--calendarBorder);
+    border-bottom: 1px solid var(--calendarBorder);
 }
 .work-modal{
     position: fixed;
@@ -131,6 +208,7 @@
     align-items: center;
     justify-content: center;
     background-color: var(--overlay);
+    z-index: 99;
 }
 .work-modal-inner{
     width: 60%;
@@ -149,13 +227,13 @@
     font-size:12px;
 }
 .shift-saturday{
-    color: #0c68AB;
+    color: #39f;
 }
 .shift-sunday{
-    color: #d71718;
+    color: #ff0000;
 }
 .shift-everyholiday{
-    color: #d71718;
+    color: #ff0000;
 }
 .shift-weekdays{
     flex: 1;   
@@ -219,7 +297,7 @@
 }
 .shift-wrapper{
     padding: 10px;
-    background-color: #f2f2f2;
+    background-color: var(--bg3);
     margin-bottom: 20px;
 }
 .shift-type_name{
@@ -236,21 +314,21 @@
 
 .shift-type_name input[type="radio"] + label {
     padding: 5px;
-    background-color: white;
-    color: black;
+    background-color: var(--background-color);
+    color: var(--primary-color);
     cursor: pointer;
-    border: 1px solid var(--calendarBorder);
+    border: solid thin var(--calendarBorder);
 }
 
 .shift-type_name input[type="radio"]:checked + label {
-    background-color: black;
+    background-color: #000;
     color: white;
 }
 .shift-title{
     margin-bottom: 10px;
 }
 .shift-workTime{
-    background: #f2f2f2;
+    background: var(--bg3);
     display: flex;
     padding: 10px;
     gap: 10px;
@@ -265,6 +343,9 @@
 }
 .shift-workingTime input{
     padding: 10px;
+    color:var(--primary-color);
+    max-width: 120px;
+    width: fit-content;
 }
 .shift-workingTime span{
     position: absolute;
@@ -276,6 +357,37 @@
     border-top: 1px solid var(--calendarBorder);
     border-left: 1px solid var(--calendarBorder);
     width: -webkit-fill-available;
+    width: 100%;
+}
+.night-over-time{
+    margin-left: 10px;
+    position: relative;
+}
+.night-over-time input{
+    width: 160px;
+    height: 30px;
+    opacity: 0;
+    cursor: pointer;
+}
+.night-over-time label{
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: #7e7e7e;
+    width: 160px;
+    height: 30px;
+    background: var(--menu-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    border: solid thin var(--menu-bg);
+    font-size: 14px;
+}
+.night-over-time input:checked + label{
+    font-weight: 500;
+    color: var(--primary-color);
+    border: solid thin var(--primary-color);
 }
 .attendance-row{
     display: table-row;
@@ -285,7 +397,7 @@
     padding: 15px;
     border-bottom: 1px solid var(--calendarBorder);
     border-right: 1px solid var(--calendarBorder);
-    width: 220px;
+    width: 20%;
 }
 .attendance-value{
     display: table-cell;
@@ -294,13 +406,13 @@
     border-right: 1px solid var(--calendarBorder);
 }
 .today{
-    background-color: rgb(96, 96, 96);
+    background-color: rgb(96, 96, 96) !important;
     color: white;
+    scroll-margin: 44px;
 }
 .workRecords-button{
     color: #fff;
-    background-color: #000;
-    border: 1px solid #000;
+    background-color: var(--primary-button);
     padding: 5px 10px 5px 10px;
     font-size: 12px;
     line-height: 1.5;
@@ -316,7 +428,7 @@
     margin-left:10px;
 }
 .report-input{
-    background-color: #F2F2F2;
+    background-color: var(--bg3);
     padding: 15px;
     display: flex;
 }
@@ -340,19 +452,18 @@
     color: #7e7e7e;
     width: 160px;
     height: 30px;
-    background: #fff;
+    background: var(--menu-bg);
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    border: 1px solid #fff;
+    border: solid thin var(--menu-bg);
     font-size: 14px;
 }
 .report-input input:checked + label{
-    background: #fff;
     font-weight: 500;
-    color: #000;
-    border: 2px solid #000;
+    color: var(--primary-color);
+    border: solid thin var(--primary-color);
 }
 .report-input-wrapper{
     position: relative;
@@ -403,10 +514,11 @@
     padding: 0 15px;
   }
   .report-input-time{
-    background-color: #F2F2F2;
+    background-color: var(--bg3);
     padding: 15px;
     display: flex;
     align-items: center;
+    color: var(--primary-color);
   }
   .report-input-time .report-input-wrapper{
     background-color: var(--background-color);
@@ -424,6 +536,9 @@
     width: fit-content;
     font-size: 16px;
   }
+  .records-wrapper{
+    height: calc(100% - 60px);
+  }
   .work-members-modal{
     position: fixed;
     display: block;
@@ -436,17 +551,22 @@
     text-align: left;
     overflow-y: scroll;
     padding: 10px;
+    fill: #fff;
+  }
+  .work-members-modal svg{
+    position: fixed;
+    top: 20px; 
+    right: 40px;
   }
   div.group-title{
     padding: 11px 0 20px;
   }
   div.group-title span{
-    color: #333;
+    color: var(--primary-color);
     font-size: 14px;
-    border: 1px solid #fff;
     border-radius: 20px;
     padding: 5px 20px;
-    background: #fff;
+    background: var(--background-color);
     cursor: pointer;
   }
   li.group-select-li{
@@ -455,27 +575,24 @@
     white-space: nowrap;
   }
   li.group-select-li span{
-    color: #333;
+    color: var(--primary-color);
     font-size: 14px;
-    border: 1px solid #fff;
     border-radius: 20px;
     padding: 5px 20px;
-    background: #fff;
+    background: var(--background-color);
     margin-right: 10px;
     cursor: pointer;
   }
   li.group-select-li label input:checked + span {
-    color: #FFF;
-    background: #333;
-    border: 1px solid #333;
+    color: #fff;
+    background: #000;
   }
   div.group-title input, input.group-users-inp{
     display: none;
   }
   div.group-title input:checked + span{
-    color: #FFF;
-    background: #333;
-    border: 1px solid #333;
+    color: #fff;
+    background: #000;
   }
   .working{
     background-color: rgb(197, 175, 114);
@@ -484,7 +601,7 @@
     color: #d71718;
   }
   .over-class{
-    color: #0c68AB;
+    color: #39f;
   }
   .early-class{
     color: #d71718;
@@ -493,15 +610,194 @@
     width: auto; 
     height: 30px; 
     line-height: 30px; 
-    background: rgb(0, 0, 0); 
+    background: var(--primary-button); 
     color: rgb(255, 255, 255); 
     cursor: pointer; font-size: 12px; 
     padding: 0px 8px;
-    margin-right: 10px;
+    margin-right: 20px;
   }
   .work-modal-header{
     display: flex;
     justify-content: space-between;
     margin-bottom: 20px;
     align-items: center;
+    fill: var(--primary-color);
+  }
+  .clock-color{
+    color-scheme: dark;
+  }
+  .per-user{
+    position: relative;
+  }
+  .comment-box{
+    position: absolute;
+    white-space: pre-wrap;
+    line-height: 1.8;
+    top: 0px;
+    left: 0px;
+    width: 200px;
+    z-index: 12;
+    text-align: left;
+    display: block;
+    background: var(--bg3);
+    box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 2px 6px 2px;
+    padding: 20px 10px 25px;
+    max-height: 200px;
+    overflow-y: scroll;
+    fill: var(--primary-color)
+  }
+  .comment-box svg{
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  .alertTip{
+    position: relative;
+  }
+  
+  // #20210420_096 work追加
+  .alertTip::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-bottom: 10px solid red;
+    border-right: 10px solid transparent;
+    transform: rotate(180deg);
+  }
+  .timeEdit{
+    position: relative;
+  }
+  
+  // #20210420_096 work追加
+  .timeEdit::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-bottom: 10px solid var(--primary-color);
+    border-right: 10px solid transparent;
+    transform: rotate(180deg);
+  }
+  @media screen and (max-width: 959px) {
+    .attendance-title{
+        width: 50%;
+    }
+    .today{
+        scroll-margin: initial;
+    }
+    .timeEdit::after {
+        display: none;
+    }
+    .workButtons-wrapper{
+        margin-right: 10px;
+    }
+    .report-input{
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .report-input label{
+        width: 140px;
+    }
+    .report-input input{
+        width: 140px;
+    }
+    .body-row:hover{
+        background-color: inherit;
+    }
+    .records-table{
+        display: block;
+    }
+    .records-header{
+        display: none;
+    }
+    .work-header{
+        position: fixed;
+        background-color: var(--bg2);
+        height: auto;
+        z-index: 1;
+        padding: 0;
+    }
+    .work-button{
+        padding: 0 5px;
+    }
+    .work-monthpicker{
+        height: 40px;
+    }
+    .records-body{
+        display: block;
+    }
+    .body-row{
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 20px;
+    }
+    .body-cell{
+        border: none;
+        text-align: justify;
+        line-height: 2;
+        font-size: 14px;
+        padding: 0 20px;
+    }
+    .body-cell:first-child{
+        background-color: var(--bg2);
+        text-align: center;
+        line-height: 3;
+        font-size: 13px;
+        margin-bottom: 10px;
+        padding: 0;
+        border: none;
+    }
+    .body-cell:last-child{
+        text-align: center;
+        margin-top: 10px;
+    }
+    .per-user{
+        display: flex;
+    }
+    .footer-row{
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 10px;
+    }
+    .records-footer{
+        display: block;
+    }
+    .footer-cell{
+        border: none;
+        font-size: 14px;
+        text-align: justify;
+        padding: 0 20px;
+        line-height: 2;
+        display: flex;
+    }
+    .footer-cell:first-child{
+        border-bottom: 1px solid #fff;
+        font-size: 16px;
+        justify-content: center;
+        line-height: 3.5;
+        margin-bottom: 10px;
+    }
+    .records-wrapper{
+        margin-top: 60px;
+        width: 100%;
+    }
+    .work-modal-inner{
+        padding: 20px;
+        width: calc(100% - 40px);
+        height: calc(100% - 40px);
+    }
+  }
+  @media screen and (max-width: 424px) {
+    .records-wrapper{
+        margin-top: 100px;
+        height: calc(100% - 100px);
+    }
+    .work-monthpicker{
+        justify-content: center;
+    }
   }

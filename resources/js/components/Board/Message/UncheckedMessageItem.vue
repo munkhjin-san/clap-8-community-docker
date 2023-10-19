@@ -61,9 +61,15 @@
                         :message="message"
                         :reminder="reminder"
                     /> 
-                            
+                    <button v-if="message.message_remind_users" style="padding: 5px 10px 5px 10px;
+                        font-size: 12px;
+                        line-height: 1.5;
+                        border-radius: 0px;
+                        background: var(--primary-button);
+                        color: #fff;
+                        margin-top:10px;" @click="$emit('remindRequest', message)" >リマインドから外す</button>        
                
-                <div style="display: flex;width:100%;position:relative;" v-if="message.u_list">
+                <div style="display: flex;width:100%;position:relative;" v-if="userReacts">
                     <div style="display:flex;width: fit-content;">
                         
                         <div 
@@ -76,10 +82,10 @@
                             </svg>
                         </div>
                         <div @click.stop="viewReactedUsersList" v-if="message.reacted_users" style="display:flex;padding: 10px;margin: 5px 0 -15px -15px;height: 15px;">
-                            <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in reactedUsersList.slice(0,3)">  
+                            <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in message.reacted_users.slice(0,3)">  
                                 <UserIconPreLoad :title="user.name" size="30" :user="user" imgClass="userSmallIcon"/>                                         
                             </div>
-                            <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="reactedUsersList.length > 3">...({{reactedUsersList.length}})</span>
+                            <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="message.reacted_users.length > 3">...({{message.reacted_users.length}})</span>
                         </div>                                    
                     </div>
                     <div v-if="checkFunctionView" style="display: flex;font-size: 12px;margin-left:auto;height:30px">
@@ -129,6 +135,7 @@ import Autolinker from 'autolinker';
 import UserIconPreLoad from '../Mixed/UserIcon.vue'
     export default {
         props: ['message', 'openedBoard', 'reminder', 'boxClass'],
+        emits: ['reload'],
         data(){
             return{
                 
@@ -149,6 +156,9 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
             }); 
         },
         computed:{
+            userReacts(){
+                return this.message.unchecked_users.length || this.message.checked_users.length || this.message.reacted_users.length
+            },
             messageUserName(){                
                 return this.message.user && this.message.user.deleted_at == null
                 ? this.message.user.name
@@ -156,37 +166,27 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
             },
             reactedUsersList(){
                 
-                const ids = JSON.parse("[" + this.message.reacted_users + "]");
-                if(this.message.u_list){
-                    return this.message.u_list.filter((user) => ids.includes(user.id));
-                }
+                return this.message.reacted_users
             },
             messageBody(){
-                if(!this.message.message) return this.message.message
-                const to_all = this.message.message.replace('<span class="toAll">@allMemberMention</span>', `<a class="toAll">@${this.$t('allMemberMention')}</a>`)
+                const to_all = this.message.message.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
                 const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                 const br_remove = converterd.replace(/&lt;br&gt;/g," ");
                 return this.urlCheck(br_remove)
             },
             checkFunctionView(){
                 if(this.message.check_flag == 1){
-                    let checked = JSON.parse("[" + this.message.checked_users+ "]");
-                    let unchecked = JSON.parse("[" + this.message.unchecked_users + "]");
+                    let checked = this.message.checked_users.map(ob => ob.id)
+                    let unchecked = this.message.unchecked_users.map(ob => ob.id)
                     return checked.indexOf(this.$store.state.user.id) > -1 || unchecked.indexOf(this.$store.state.user.id) > -1 || this.message.user_id == this.$store.state.user.id
                 }
                 
             },
             uncheckedUsers () {          
-                const ids = JSON.parse("[" + this.message.unchecked_users + "]");
-                if(this.message.u_list){
-                    return this.message.u_list.filter((user) => ids.includes(user.id));
-                }
+                return this.message.unchecked_users
             },
             checkedUsers () {       
-                const ids = JSON.parse("[" + this.message.checked_users + "]");
-                if(this.message.u_list){
-                    return this.message.u_list.filter((user) => ids.includes(user.id));
-                }
+                return this.message.checked_users
             },
             messageInnerClass () {
                 const message = this.message
@@ -268,11 +268,11 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
             },
             checkSendIconColor(msg){
                 if(this.tempHideCheckButton == msg.id){
-                    return 'fill:#000;'
+                    return 'fill:var(--primary-color);'
                 }else{
-                    var check_list = JSON.parse("[" + msg.reacted_users + "]");
+                    var check_list = msg.reacted_users.map(ob => ob.id)
                     if(msg.user_id == this.$store.state.user.id || check_list.indexOf(this.$store.state.user.id) > -1){
-                        return 'fill:#000;'
+                        return 'fill:var(--primary-color);'
                     }else{
                         return 'fill:#c0c0c0;'
                     }
@@ -290,7 +290,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                 this.$store.commit('setMenu', {name: 'uncheckedUsersList', id: this.message.id})
             },
             checkSendAreaClick(event, msg){
-                var checked_user = JSON.parse("[" + msg.reacted_users + "]");   
+                var checked_user = msg.reacted_users
                 var elem = event.currentTarget.firstChild         
                 if(msg.user_id == this.$store.state.user.id){
                     return
@@ -303,10 +303,10 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                 }
                 
                 
-                axios.post('board/send_reaction_api', {id: msg.id}).then(response => {                
+                axios.post('/send_reaction_api', {id: msg.id}).then(response => {                
                         
                     // this.getCommentList(this.board_record.id); 
-                    this.$parent.$emit('reload')
+                    this.$emit('reload')
                     if(msg.check_flag == 1){
                             this.checkSendConfirm(response.data);
                             this.$emit('reload')
@@ -315,13 +315,13 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                 });  
             }, 
             checkSendConfirm(msg){
-                var checked = JSON.parse("[" + msg.checked_users + "]").indexOf(this.$store.state.user.id);
-                var unchecked = JSON.parse("[" + msg.unchecked_users + "]").indexOf(this.$store.state.user.id);
-                var reacted =   JSON.parse("[" + msg.reacted_users + "]").indexOf(this.$store.state.user.id);              
+                var checked = msg.checked_users.map(ob => ob.id).indexOf(this.$store.state.user.id);
+                var unchecked = msg.unchecked_users.map(ob => ob.id).indexOf(this.$store.state.user.id);
+                var reacted =   msg.reacted_users.map(ob => ob.id).indexOf(this.$store.state.user.id);              
                 if(unchecked > -1 && reacted > -1){     
                     
                     var uniqueChannell = Math.random().toString(36).substring(5);   
-                    EventBus.$emit('setToast', {
+                    emitter.emit('setToast', {
                         active: true,  
                         type: 'info', 
                         content: 'メッセージを確認済みにしますか' ,
@@ -331,12 +331,12 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                         channel: uniqueChannell
 
                     })            
-                    EventBus.$on(uniqueChannell, (data) => { data.answer === 'はい' ? this.checkSend(msg.id, 'check'): false});
+                    emitter.on(uniqueChannell, (data) => { data.answer === 'はい' ? this.checkSend(msg.id, 'check'): false});
                     
                 }
                 if(checked > -1 && reacted == -1){                   
                     
-                    EventBus.$emit('setToast', {
+                    emitter.emit('setToast', {
                         active: true,  
                         type: 'info', 
                         content: '既に確認しています。' ,
@@ -353,7 +353,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                     user_id: this.$store.state.user.id,
                     pattern: which
                 };
-                axios.post('board/check_send_api', params).then(response => 
+                axios.post('/check_send_api', params).then(response => 
                 {
                     this.$emit('reload')
                     this.tempHideCheckButton = null;
@@ -365,7 +365,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                 let new_pathname = segments.join('/');
                 console.log(new_pathname)
                 const link = document.createElement('a');
-                link.href = `${window.location.origin}/chat/${this.message.record_id}?m=${this.message.id}&jump_message=true`;                
+                link.href = `${window.location.origin}/board/${this.message.record_id}?m=${this.message.id}&jump_message=true`;                
                 document.body.appendChild(link);            
                 link.click();   
                 link.remove();

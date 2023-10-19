@@ -1,5 +1,5 @@
 <template>
-    <div >
+    <div style="display: flex;">
         <svg class="file-icon-01-mobile" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 151 179" :fill="iconColorFilterBorder">
             <polygon :fill="polygonFill" points="12.566,7.942 12.566,165.508 20.606,174.536 135.085,174.536 145.513,155.66 145.513,44.051 
                 109.887,7.942 "/>

@@ -1,5 +1,5 @@
 <template>
-    <div @mousedown="closeFeedBack" class="overlay" style="z-index: 24">
+    <div @mousedown="closeFeedBack" class="overlay">
         <div class="incompleteWindow" @mousedown.stop>
             <div style="display:flex">
                 <p style="font-weight:600;margin-right:20px;">{{ $t('whyTaskExpired') }}</p>

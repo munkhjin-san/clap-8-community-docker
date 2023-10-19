@@ -27,30 +27,44 @@
                 <span 
                     @dragleave="footerDropLeave" 
                     @mouseleave="footerDropLeaveFromFile" 
-                    @mouseup="footerDropEndFromFile" 
+                    @mouseup.stop="dropSharingItems" 
                     @dragover.prevent 
                     @drop.prevent="footerDropDropped"
-                    style="color:#fff;" 
+                    :style="{color: '#fff', height: dropActive ? '100%' : '0'}" 
                     id="footerDropArea" 
-                    class="download-area">{{$t('fileDrop')}}</span>
+                    class="download-area">{{$t('fileDrop')}}
+                </span>
 
                
-                <Transition name="modalFade">
-                <ul id="mentionedPc" v-if="mentionBoxToggle" class="mentionBox" :style="mentionBoxPosition()">  
-                    <li @keyup.enter="allMemberMentionMobile" @click="allMemberMentionMobile" v-if="openedBoard.private_flag == 0 && !keyCharacters" class="mentionBox-inner" :class="{mUsrSlctdPc: highlighted == -1}">                                    
-                        <div class="column-01">                                        
-                            <BoardIcon imgClass="userMidIcon" :item="openedBoard"/> 
-                        </div>                            
-                        <p class="cursor-pointer" style="padding:5px;">{{$t('allMemberMention')}}</p>                                   
-                    </li>                       
-                    <li :id="'mentionAble_' + index" :key="index" @keyup.enter="mentionUser(user, index)" @click="mentionUser(user, index)" v-for="(user, index) in mentionAbleList" class="mentionBox-inner" :class="{mUsrSlctdPc: highlighted == index}">                                    
+                <!-- <Transition name="modalFade">
+                <ul id="mentionedPc" ref="mentionBox" v-if="keyCharacters.length || mentionBoxToggle" class="mentionBox" :style="mentionBoxPosition()">
+                    <li :id="'mentionAble_' + index" :key="index" @keyup.enter="mentionUser(user, index)" @click.stop.prevent="mentionUser(user, index)" v-for="(user, index) in mentionAbleList" class="mentionBox-inner" :class="{mUsrSlctdPc: highlighted == index}">                                    
                         <div class="column-01">  
-                            <UserIcon size="30" :user="user" imgClass="userMidIcon"/>  
+                            <BoardIcon v-if="user.id == -1" imgClass="userMidIcon" :item="openedBoard"/> 
+                            <UserIcon v-else size="30" :user="user" imgClass="userMidIcon"/>  
                         </div>
                         <p  class="cursor-pointer" style="padding:5px;font-size:13px;">{{user.name}}</p>                                   
-                    </li>
-                    
+                    </li>                    
                 </ul>
+                </Transition> -->
+                <Transition name="modalFade">
+                    <MentionBox 
+                        v-if="keyCharacters.length || mentionBoxToggle" 
+                        :mentionAbleList="mentionAbleList"
+                        :openedBoard="openedBoard"
+                        @mentionUser="mentionUser"
+                        ref="mentionBox"
+                    />
+                </Transition>
+                <Transition name="downShiftPop">
+                    <div v-if="aiResponse" class="ai-prompt-root" style="color: var(--primary-color);" >
+                        <span class="form-plc smallPlc" style="font-weight: 600;top: -13px;">ChatGPT修正案</span> 
+                        <div v-html="aiResponse" ref="aiResponseText" class="typeBoxArea" style="width: calc(100% - 20px);outline: none;border: none;" :contenteditable="aiResponseCustomize"></div>
+                        <div style="width:100%;display: flex;align-items: end;">                            
+                            <div @click="replaceText" v-if="aiResponseCustomize" style="margin: 0 10px 10px auto;" class="commentEditButton">適用</div>
+                            <div @click="resetAi" v-if="aiResponseCustomize" style="margin: 0 10px 10px 0;" class="commentEditButton">閉じる</div>
+                        </div>                        
+                    </div>
                 </Transition>
                
                 <div style="display:inline-block;z-index:5;width:100%;box-sizing: border-box;padding: 10px;position:relative">
@@ -82,39 +96,21 @@
                         </div>
                     </div>
 
-
-                    <div v-show="importedFiles.length">
-                        <div class="preUploadImage">   
-                                
-                            <div :key="image.id" v-for="image in importedFiles" style="margin: auto 10px 10px 0;user-select:none">
-                                <img draggable="false" v-if="image.mime_type == 'image'" :src="$store.state.baseLocation + '/managed_files/' + image.source_board_id + '/thumb/' + image.path + '_thumb_50.' + image.extension" >
-                                <FileIcon v-if="image.mime_type !== 'image'" :ext="image.extension"/>
-                                <p class="shared-file-name">{{image.name}}</p>
-                                <button @click="removeImportFile($event,image)">
-                                    <svg @click="$event.preventDefault()" version="1.1" xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 32 32" fill="var(--primary-color)" style="pointer-events: none;">
+                    <div v-show="sharingFiles.length">
+                        <div class="preUploadImage">  
+                            <div :key="image.record.id" v-for="image in sharingFiles" style="margin: auto 10px 10px 0;user-select:none">
+                                <img draggable="false" v-if="image.record.mime_type == 'image'" :src="image.path" >
+                                <FileIcon v-if="image.record.mime_type !== 'image'" :ext="image.record.extension"/>
+                                <p class="shared-file-name">{{image.record.name}}</p>
+                                <button @click="removeSharingFile($event,image)">
+                                    <svg @click.prevent version="1.1" xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 32 32" fill="var(--primary-color)" style="pointer-events: none;">
                                         <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                                     </svg>  
                                 </button>                                                    
                             </div>                                           
                         </div>
-                    </div>  
-                    <div v-show="attachForwardFiles.length">
-                        <div class="preUploadImage">   
-                                
-                            <div :key="image.id" v-for="image in attachForwardFiles" style="margin: auto 10px 10px 0;user-select:none">
-                                <img draggable="false" v-if="image.mime_type == 'image'" :src="$store.state.baseLocation + '/shared_files/' + image.board_id + '/' + image.id + '_' + image.user_id + '_' + image.message_id + '.' + image.extension" >
-                                <FileIcon v-if="image.mime_type !== 'image'" :ext="image.extension"/>
-                                <p class="shared-file-name">{{image.name}}</p>
-                                <button @click="removeImportFile($event,image)">
-                                    <svg @click="$event.preventDefault()" version="1.1" xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 32 32" fill="var(--primary-color)" style="pointer-events: none;">
-                                        <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                                    </svg>  
-                                </button>                                                    
-                            </div>                                           
-                        </div>
-                    </div>
+                    </div> 
 
-                    
 
                     <div class="pBarC" v-show="progressPercentage">
                         <div :style="{width: progressPercentage + '%'}"></div>
@@ -129,10 +125,12 @@
                         @focus="focused"
                         @blur="blured"
                         @input="setInput"
+                        @compositionupdate="composeUpdate"
                         id="typeArea" 
                         contenteditable="true" 
                         :class="['typeBoxArea',  'boardTypeArea', {maxLengthAlert: charLength >= 5000}]">
                     </div>
+                    
                     <div class="pc" style="position:absolute;right: 60px;bottom: 18px;cursor: pointer;" @click.stop="$store.commit('setMenu', {name: 'EmojiPicker', id: 1002})">                                            
                        
                         <svg style="fill:#878787;" version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 30">
@@ -143,6 +141,12 @@
                         </svg>
 
                     </div>   
+                    <div @click="editWithAi" class="ai-loader-button">                                           
+                        <svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 30 30" width="23" height="23" fill="#878787" :class="[{'rotate-gtp' : editing}]">
+                            <path d="M 14.070312 2 C 11.330615 2 8.9844456 3.7162572 8.0390625 6.1269531 C 6.061324 6.3911222 4.2941948 7.5446684 3.2773438 9.3066406 C 1.9078196 11.678948 2.2198602 14.567816 3.8339844 16.591797 C 3.0745422 18.436097 3.1891418 20.543674 4.2050781 22.304688 C 5.5751778 24.677992 8.2359331 25.852135 10.796875 25.464844 C 12.014412 27.045167 13.895916 28 15.929688 28 C 18.669385 28 21.015554 26.283743 21.960938 23.873047 C 23.938676 23.608878 25.705805 22.455332 26.722656 20.693359 C 28.09218 18.321052 27.78014 15.432184 26.166016 13.408203 C 26.925458 11.563903 26.810858 9.4563257 25.794922 7.6953125 C 24.424822 5.3220082 21.764067 4.1478652 19.203125 4.5351562 C 17.985588 2.9548328 16.104084 2 14.070312 2 z M 14.070312 4 C 15.226446 4 16.310639 4.4546405 17.130859 5.2265625 C 17.068225 5.2600447 17.003357 5.2865019 16.941406 5.3222656 L 12.501953 7.8867188 C 12.039953 8.1527187 11.753953 8.6456875 11.751953 9.1796875 L 11.724609 15.146484 L 9.5898438 13.900391 L 9.5898438 8.4804688 C 9.5898438 6.0104687 11.600312 4 14.070312 4 z M 20.492188 6.4667969 C 21.927441 6.5689063 23.290625 7.3584375 24.0625 8.6953125 C 24.640485 9.696213 24.789458 10.862812 24.53125 11.958984 C 24.470201 11.920997 24.414287 11.878008 24.351562 11.841797 L 19.910156 9.2773438 C 19.448156 9.0113437 18.879016 9.0103906 18.416016 9.2753906 L 13.236328 12.236328 L 13.248047 9.765625 L 17.941406 7.0546875 C 18.743531 6.5915625 19.631035 6.4055313 20.492188 6.4667969 z M 7.5996094 8.2675781 C 7.5972783 8.3387539 7.5898438 8.4087418 7.5898438 8.4804688 L 7.5898438 13.607422 C 7.5898438 14.141422 7.8729844 14.635297 8.3339844 14.904297 L 13.488281 17.910156 L 11.34375 19.134766 L 6.6484375 16.425781 C 4.5094375 15.190781 3.7747656 12.443687 5.0097656 10.304688 C 5.5874162 9.3043657 6.522013 8.5923015 7.5996094 8.2675781 z M 18.65625 10.865234 L 23.351562 13.574219 C 25.490562 14.809219 26.225234 17.556313 24.990234 19.695312 C 24.412584 20.695634 23.477987 21.407698 22.400391 21.732422 C 22.402722 21.661246 22.410156 21.591258 22.410156 21.519531 L 22.410156 16.392578 C 22.410156 15.858578 22.127016 15.364703 21.666016 15.095703 L 16.511719 12.089844 L 18.65625 10.865234 z M 15.009766 12.947266 L 16.78125 13.980469 L 16.771484 16.035156 L 14.990234 17.052734 L 13.21875 16.017578 L 13.228516 13.964844 L 15.009766 12.947266 z M 18.275391 14.853516 L 20.410156 16.099609 L 20.410156 21.519531 C 20.410156 23.989531 18.399687 26 15.929688 26 C 14.773554 26 13.689361 25.54536 12.869141 24.773438 C 12.931775 24.739955 12.996643 24.713498 13.058594 24.677734 L 17.498047 22.113281 C 17.960047 21.847281 18.246047 21.354312 18.248047 20.820312 L 18.275391 14.853516 z M 16.763672 17.763672 L 16.751953 20.234375 L 12.058594 22.945312 C 9.9195938 24.180312 7.1725 23.443687 5.9375 21.304688 C 5.3595152 20.303787 5.2105423 19.137188 5.46875 18.041016 C 5.5297994 18.079003 5.5857129 18.121992 5.6484375 18.158203 L 10.089844 20.722656 C 10.551844 20.988656 11.120984 20.989609 11.583984 20.724609 L 16.763672 17.763672 z"/>
+                        </svg>
+                   </div>  
+
                         <Transition name="modalFade">
                             <div id="EmojiPicker" v-if="$store.state.menu.name == 'EmojiPicker' && $store.state.menu.id == 1002">
                                 <EmojiPicker                                     
@@ -159,33 +163,23 @@
                            
                         </Transition>
                     <div @mousedown.prevent.stop @click="commentSendConfirm(openedBoard.id)" id="sendArea" class="sendAreaBox" style="display:flex;bottom:6px;">                                    
-                        
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="33" viewBox="0 0 43 32" style="margin:auto;fill:#878787;">
                             <path d="M40.638 0.087c-1.842 0.361-6.097 1.292-9.435 2.047l-30.046 6.891c-0.419 0.096-0.793 0.374-1.003 0.793-0.364 0.728-0.058 1.585 0.663 2.007 2.578 1.521 10.077 5.56 10.077 5.56 0.287 0.157 0.487 0.439 0.542 0.762 0 0 0.711 4.473 0.921 5.891 0.21 1.417 0.714 4.465 1.184 6.482 0.168 0.726 0.631 1.335 1.215 1.512 0.495 0.152 1.030 0.037 1.43-0.285 1.394-1.128 5.787-5.445 7.388-7.272 0.133-0.152 0.355-0.19 0.531-0.085l6.184 3.646c0 0 0.439 0.294 0.919 0.519 1.283 0.601 2.479 0.625 3.062-0.829 0.325-0.813 4.316-12.627 4.316-12.627l4.466-13.209c0.053-0.152 0.082-0.321 0.082-0.492 0-0.844-0.654-1.675-2.496-1.312zM20.045 24.741c-0.475 0.477-1.473 1.473-2.284 2.197-0.155 0.137-0.385-0.002-0.313-0.195l1.796-4.842c0.051-0.157 0.236-0.226 0.378-0.142l1.796 1.054c0.157 0.091 0.161 0.294 0.041 0.432-0.401 0.458-0.975 1.058-1.413 1.495zM32.151 25.117c-0.106 0.325-0.482 0.47-0.777 0.301l-1.447-0.824-3.554-2.014-7.121-4.024c-0.067-0.037-0.138-0.068-0.214-0.094-0.677-0.232-1.411 0.13-1.64 0.808l-1.944 7.086c-0.053 0.166-0.229 0.143-0.251-0.046-0.13-1.23-0.328-3.178-0.467-4.759-0.13-1.459-0.366-3.357-0.494-4.434-0.111-0.931-0.427-1.423-1.131-1.837-0.704-0.415-6.489-3.354-7.668-4.049-0.241-0.142-0.166-0.415 0.065-0.463 0 0 13.334-2.689 16.022-3.304 2.689-0.617 10.513-2.447 10.513-2.447 0.103-0.025 0.152 0.118 0.056 0.161l-5.127 2.281-2.961 1.459c-0.987 0.487-7.32 3.516-9.259 4.562-0.477 0.258-0.665 0.871-0.373 1.36 0.255 0.429 0.808 0.574 1.265 0.374 2.004-0.882 16.208-7.766 17.651-8.441 0.345-0.162 0.376-0.012 0.287 0.049-0.89 0.615-9.43 6.896-10.25 7.528l-2.448 1.905c-0.432 0.342-0.519 0.976-0.173 1.42 0.335 0.432 0.965 0.497 1.413 0.183 0 0 3.766-2.665 4.603-3.274l5.008-3.66c0 0 5.775-4.365 6.187-4.682 0.166-0.128 0.397 0.033 0.331 0.234l-2.517 7.675-3.585 10.965z"></path>
-                        </svg>                                   
-                        <!--<div v-if="sendLoader" id="loaderMini" style="background:#fff">
-                            <div class="spinner-mini"></div>
-                        </div>-->                                       
+                        </svg>                                          
                     </div>                                     
                 </div>
-            
+                
     </div>  
 </template>
 
 <script>
-    // import {
-    //     disableBodyScroll,
-    //     enableBodyScroll,
-    //     clearAllBodyScrollLocks
-    // } from 'body-scroll-lock';
-// import { VEmojiPicker } from 'v-emoji-picker';
 import ReplyQuotWindow from './ReplyQuotWindow.vue'
 import ForwardWindowMessage from './ForwardWindowMessage.vue'
 import moment from 'moment'
 import EmojiPicker from 'vue3-emoji-picker'
 import FileIcon from '../Mixed/FileIcon.vue'
-
-// import css
+import OpenAI from "openai";
+import MentionBox from './MentionBox.vue'
 import 'vue3-emoji-picker/css'
     export default {
         props: ['openedBoard', 'replyKey', 'unread', 'messageListType'],
@@ -196,7 +190,7 @@ import 'vue3-emoji-picker/css'
                 mentionBoxToggle: false,
                 emojiBox: false,
                 sendLoader: false,
-                highlighted: -2,
+                highlighted: 0,
                 tempChar: '',
                 attachedFiles: [],
                 importedFiles: [],
@@ -213,7 +207,12 @@ import 'vue3-emoji-picker/css'
                 keyCharacters: '',
                 startPosition: 0,
                 forwardItem: null,
-                charLength: 0
+                charLength: 0,
+                editing: false,
+                aiResponse: '',
+                aiResponseCustomize: false,
+                dropActive: false,
+                sharingFiles: []
                 
                 
             }   
@@ -223,7 +222,8 @@ import 'vue3-emoji-picker/css'
             ReplyQuotWindow,
             ForwardWindowMessage,
             EmojiPicker,
-            FileIcon
+            FileIcon,
+            MentionBox
         },
         watch:{
             keyCharacters(after, before){
@@ -232,60 +232,31 @@ import 'vue3-emoji-picker/css'
                 }
             }
         },
-        beforeUnmount() {
-            this.$refs.messageInputArea.removeEventListener('keyup', this.inputKeyEventfirst);  
-            this.$refs.messageInputArea.removeEventListener('keyup',this.inputKeyEventSecond);
-            window.removeEventListener('keydown', this.mentionBoxNavigation);
+        unmounted() {
+            this.$refs.messageInputArea?.removeEventListener('keyup', this.inputKeyEventfirst);  
+            this.$refs.messageInputArea?.removeEventListener('keyup',this.inputKeyEventSecond);
         },
         mounted() {
-
+            emitter.on('aiEditFinish', (data) => {  
+                this.$refs.messageInputArea.textContent = data.text                           
+            })
             
-            emitter.on('dropSharingMemo', (memo) => this.dropMemo(memo));
-            if(this.$store.state.fromBoardToFiles.active && this.$store.state.fromBoardToFiles.drag == false){
-                    this.$store.state.fromBoardToFiles.list.forEach((file) => {
-                        if(!this.attachForwardFiles.includes(file)){
-                            this.attachForwardFiles.push(file)
+            if(this.$store.state.sharingData && this.$store.state.sharingData.drag == false){
+                if(this.$store.state.sharingData.message){
+                    this.forwardItem = this.$store.state.sharingData.message
+                }else{
+                    this.$store.state.sharingData.files.forEach((file) => {
+                        const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
+                        if(!isFolder && !this.sharingFiles.includes(item => item.path == file.path)){                            
+                            this.sharingFiles.push(file)
                         }
                     });
-                    const data =  {
-                        active: false,
-                        list: [],
-                        drag: false
-                    }
-                    this.$store.commit('setFromBoardToFiles', data)
-                    this.footerDropLeave();
                 }
-            if(this.$store.state.fromFilesToBoard.active && this.$store.state.fromFilesToBoard.drag == false){
-                let files = this.$store.state.fromFilesToBoard.list.filter( obj => obj.folder == 0);
-                files.forEach((file) => {
-                    if(!this.importedFiles.includes(file)){
-                        this.importedFiles.push(file)
-                    }
-                });
-                const data =  {
-                    active: false,
-                    list: [],
-                    source_board_id: null,
-                    drag:false
-                }
-                this.$store.commit('setFromFilesToBoard', data)
+                
+
+                this.$store.commit('setSharingData', null)
                 this.footerDropLeave();
                 
-            }
-            if(this.$store.state.fileShareTo.active){
-                let files = this.$store.state.fileShareTo.files.filter( obj => obj.folder == 0);
-                files.forEach((file) => {
-                    if(!this.importedFiles.includes(file)){
-                        this.importedFiles.push(file)
-                    }
-                });
-                const data = {
-                    active: false,
-                    target: null,
-                    message: null,
-                    files: []
-                }
-                this.$store.commit('setFileShareTo', data)
             }
             if(this.openedBoard){
                 const temp = localStorage.getItem('temp_message_' + this.openedBoard.id); 
@@ -294,28 +265,22 @@ import 'vue3-emoji-picker/css'
                     el.textContent = temp;
                 }
             }
-            if(this.$store.state.mobile && this.$store.state.sharingMemo.active && !this.$store.state.sharingMemo.drag){
-                this.dropMemo(this.$store.state.sharingMemo.memo.content)
-            }
-            if(!this.$store.state.mobile && this.$store.state.sharingMemo.active && !this.$store.state.sharingMemo.drag && this.$store.state.sharingMemo.window){
-                this.dropMemo(this.$store.state.sharingMemo.memo.content)
-            }
 
-            if(this.$store.state.forwarding){
-                this.forwardItem = this.$store.state.forwarding
-                this.$store.commit('setForwarding', null);     
-            }
             this.$refs.messageInputArea.addEventListener('keyup', this.inputKeyEventfirst);              
             this.$refs.messageInputArea.addEventListener('keyup',this.inputKeyEventSecond)
-            window.addEventListener('keydown', this.mentionBoxNavigation);
+            
         },
         computed:{
             filteredUsers(){
-                return this.$store.state.mentionAbleUsers.map(ob => ob.user)
+                const list = this.$store.state.mentionAbleUsers.map(ob => ob.user)
+                if(this.openedBoard.private_flag == 0){
+                    list.unshift({name: '全員', id: -1})
+                }
+                return list
             },  
             mentionAbleList(){
                     if (this.keyCharacters) {
-                    const keyCharactersLowerCase = this.keyCharacters.toLowerCase()
+                    const keyCharactersLowerCase = this.keyCharacters.replace(/[@＠]/g, '').toLowerCase()
                     return this.filteredUsers.filter(member => {
                         const memberNameLowerCase = member.name.toLowerCase()
                         return memberNameLowerCase.includes(keyCharactersLowerCase)
@@ -326,28 +291,80 @@ import 'vue3-emoji-picker/css'
             }          
         },
         methods:{
+            resetAi(){
+                this.aiResponse = ''
+                this.aiResponseCustomize = false
+            },
+            replaceText(){
+                try{
+                    this.$refs.messageInputArea.textContent = this.$refs.aiResponseText.textContent
+                    this.resetAi()
+                }
+                catch{
+                    this.$toast('適用するに失敗しました。',{
+                        toastClassName: "toastConfirm",
+                        timeout: 3000, 
+                        draggable: false,
+                        closeButton: false,
+                    });
+                }
+                
+            },
+            async editWithAi(){
+                const text = this.$refs.messageInputArea.textContent
+                if(text && text.length){
+                    this.aiResponseCustomize = false
+                    
+                    const full = '文章を修正してください。' + text
+                    const openai = new OpenAI({
+                        apiKey: process.env.MIX_OPENAI_API_KEY,
+                        dangerouslyAllowBrowser: true 
+                    });
+                    this.editing = true
+                    this.aiResponse = ''
+                    const stream = await openai.chat.completions.create({
+                        // model: 'gpt-4',
+                        model: 'gpt-3.5-turbo-16k',
+                        messages: [{ role: 'assistant', content: full }],
+                        stream: true,
+                        temperature: 0.8
+                    });
+                    for await (const part of stream) {
+                        const content = part.choices[0]?.delta?.content || ''
+                        this.aiResponse = this.aiResponse + content
+                    }
+                    this.editing = false
+                    this.aiResponseCustomize = true
+                }
+
+
+                // return
+                
+                // if(text && text.length){
+                //     this.editing = true
+                //     axios.post('/get_review_text', {text : text})
+                //     .then(response => {    
+                //         this.editing = false
+                //         const data = {
+                //             user_text: text,
+                //             edited_text: response.data,
+                //             view: true
+                //         }
+                //         this.$store.commit('setAiData', data)
+                //     }).catch((error) => {
+                //         this.$toast('Open AIレビューに失敗しました。',{
+                //             toastClassName: "toastConfirm",
+                //             timeout: 3000, 
+                //             draggable: false,
+                //             closeButton: false,
+                //         });
+                //         this.editing = false
+                //     })
+                // }
+            },
             setInput(){
                 this.charLength = event.target.innerText.length
-            },
-            mentionBoxNavigation(){
-                if(this.mentionBoxToggle){    
-                    document.querySelectorAll("li").forEach((el) => {el.setAttribute('tabindex', 0)});
-                    if(event.which === 38 || event.which === 40){
-                        event.preventDefault()
-                    }
-                    if(event.which === 38){
-                        this.highlighted = this.highlighted == -1 ? this.$store.state.mentionAbleUsers.length - 1 : this.highlighted - 1
-                        if(this.highlighted == -1 && this.keyCharacters.length){
-                            this.highlighted = this.$store.state.mentionAbleUsers.length - 1
-                        }
-                        setTimeout(() => { document.querySelector("li.mUsrSlctdPc").focus() },0)                         
-                    }
-                    if(event.which === 40){//dooshoo                        
-                        this.highlighted = this.highlighted == this.$store.state.mentionAbleUsers.length - 1 ? - 1 : this.highlighted + 1
-                        setTimeout(() => { document.querySelector("li.mUsrSlctdPc").focus() },0)                          
-                    } 
-                }
-            },
+            },            
             inputKeyEventSecond(){
                 if(this.openedBoard){
                     var editableEl = document.getElementById("typeArea");
@@ -388,7 +405,7 @@ import 'vue3-emoji-picker/css'
             },
             resetMention(){
                 this.mentionBoxToggle = false
-                this.highlighted = -2
+                this.highlighted = 0
             },
             selectEmoji(emoji) {     
                 var a = document.getElementById('typeArea').textContent;    
@@ -408,8 +425,8 @@ import 'vue3-emoji-picker/css'
                         this.messageReady.indexOf("]")
                     );  
 
-                    if(replace === this.$t('allMemberMention')){
-                        this.messageReady = this.messageReady.replace(`[To:${this.$t('allMemberMention')}]`, ' <span class="toAll">@allMemberMention</span>');
+                    if(replace === '全員'){
+                        this.messageReady = this.messageReady.replace('[To:全員]', ' <span class="toAll">@全員</span>');
                         var list = this.$store.state.mentionAbleUsers.map(obj => obj.user_id);
                         
                         this.mentionedUsers = list;
@@ -451,7 +468,7 @@ import 'vue3-emoji-picker/css'
                 var textCheck = document.getElementById('typeArea').textContent;     
                 var nospace = textCheck.replace(/\s/g, "")       
                 this.charLength = textCheck.length
-                if(!nospace && (!this.attachedFiles || !this.attachedFiles.length) && !this.importedFiles.length && !this.attachForwardFiles.length){            
+                if(!nospace && (!this.attachedFiles || !this.attachedFiles.length) && !this.sharingFiles.length){            
                     return;
                 }
                 if(this.charLength >= 5000){
@@ -511,8 +528,7 @@ import 'vue3-emoji-picker/css'
                         created_at: moment().format(),
                         error: false,
                         u_id: m_uid,
-                        imported_files: this.importedFiles,
-                        forwarded_files: this.attachForwardFiles  
+                        sharing_files: this.sharingFiles 
                     }
                     this.$refs.messageInputArea.textContent = ''
                     if(this.messageListType == 'search'){
@@ -528,95 +544,77 @@ import 'vue3-emoji-picker/css'
                     this.emojiFlag = 0;
                     this.msgSave();   
                     this.attachedFiles = []; 
-                      
-                    this.importedFiles = [];       
-                    this.attachForwardFiles = [];   
-                    this.$store.commit('setForwarding', null);
-                    this.forwardItem = null
-                    // this.$parent.$emit('sentMessage', queueMessage)
-                    // this.$parent.$emit('resetReplyQuot')                
-                   
-                        
-                    
+                              
+                    this.$store.commit('setSharingData', null);
+                    this.forwardItem = null;
+                    this.sharingFiles = []             
                 }
             },
-            mentionBoxPosition(){
-                let x = 0,
-                y = 0;
-                const isSupported = typeof window.getSelection !== "undefined";
-                if (isSupported) {
-                    const selection = window.getSelection();
-                    if (selection.rangeCount !== 0) {
-                        const range = selection.getRangeAt(0).cloneRange();
-                        range.collapse(true);
-                        const rect = range.getClientRects()[0];
-                        if (rect) {
-                            x = rect.left;
-                            y = rect.top;
-                        }
-                    }
-                }
-                var leftM = x - 80;      
-                leftM = leftM < 0 ? 10 : leftM      
-                var messagePanel = window.innerHeight;
-                var bottomM = messagePanel - y + 5;  
-                const window_width = window.innerWidth
-                const pc = window_width > 959
-                const substract_from_left = pc ?  Math.floor(window_width * 0.2) : 0
-                leftM = leftM - substract_from_left
-                var result = 'left:' + leftM + 'px;' + 'bottom:' + bottomM + 'px;border-radius: 5px'     
-                return result
-            }, 
+             
             allMemberMentionMobile(){
                 var all = {
-                    name: this.$t('allMemberMention')
+                    name: '全員'
                     
                 }
                     
                 this.mentionUser(all)
                 
             },
-            mentionUser(user, index){       
-                // document.getElementById('typeArea').contentEditable = true;         
+            mentionUser(user, index){             
                 if(user){
-                    // var txt = document.getElementById('typeArea').textContent;        
-                    // txt = txt.substr(0, this.caretPosition - 1) + txt.substr(this.caretPosition);                       
-                    // var position = this.caretPosition - 1;
-                    // var aElem = '[To:'+user.name+']'
-                    // var output = [txt.slice(0, position), aElem, txt.slice(position)].join('');
-                    // document.getElementById('typeArea').textContent = output;                  
-                                                
-                    // var position = this.caretPosition + aElem.length - 1          
-                    // var fireBack = document.getElementById('typeArea');  
-                    // this.setEndOfContenteditable(position);   
-                    // this.mentionBoxToggle = false;
-                    // this.msgSave()
                     const mentionSyntax = `[To:${user.name}]`
                     console.log(mentionSyntax)
-                    const inputEl = this.$refs.messageInputArea
-                    const textBeforeCursor = inputEl.textContent.slice(0, this.caretPosition)
-                    const match = textBeforeCursor.match(/@([^@^\s]*)$/)
-                    if (match) {
-                        const mentionTarget = match[1]
-                        const position = this.caretPosition - mentionTarget.length - 1
-                        const outputBeforeMention = inputEl.textContent.slice(0, position)
-                        const outputAfterMention = inputEl.textContent.slice(this.caretPosition)
-                        const output = outputBeforeMention + mentionSyntax + outputAfterMention
-                        inputEl.textContent = output
-                        const newPosition = position + mentionSyntax.length
-                        this.setEndOfContenteditable(newPosition)
+                    if(this.mentionBoxToggle){
+                    
+                        const inputEl = this.$refs.messageInputArea
+                        const textBeforeCursor = inputEl.textContent.slice(0, this.caretPosition)
+                        const match = textBeforeCursor.match(/[＠@]([^＠@^\s]*)$/);
+                        if (match) {
+                            const mentionTarget = match[1]
+                            const position = this.caretPosition - mentionTarget.length - 1
+                            const outputBeforeMention = inputEl.textContent.slice(0, position)
+                            const outputAfterMention = inputEl.textContent.slice(this.caretPosition)
+                            const output = outputBeforeMention + mentionSyntax + outputAfterMention
+                            inputEl.textContent = output
+                            const newPosition = position + mentionSyntax.length
+                            this.setEndOfContenteditable(newPosition)
+                        }
+                        this.mentionBoxToggle = false;
                     }
-                    this.mentionBoxToggle = false;
+                    else if(this.keyCharacters.length){                       
+                        let inputString = this.$refs.messageInputArea.textContent
+                        let searchText = this.keyCharacters
+                        let replacement = mentionSyntax
+                        const lastIndex = inputString.lastIndexOf(searchText);
+                        if (lastIndex === -1) {
+                            return inputString;
+                        }
+                        const beforeLastIndex = inputString.slice(0, lastIndex);
+                        const position = this.caretPosition
+                        const afterLastIndex = inputString.slice(lastIndex + searchText.length);
+                        const result = beforeLastIndex + replacement.replace(/[@＠]/g, '') + afterLastIndex;
+                        this.$refs.messageInputArea.textContent = result
+                        this.setEndOfContenteditable(beforeLastIndex.length + mentionSyntax.length)
+                        this.keyCharacters = '';
+
+                    }
                     this.msgSave()
                 }    
             }, 
+            composeUpdate(){
+                this.keyCharacters = event.data
+                if(!this.keyCharacters.length){
+                    this.resetMention()
+                }
+            },
             setEndOfContenteditable(pos){    
                 var node = document.querySelector("#typeArea");
                 node.focus();
                 var textNode = node.firstChild;
                 var range = document.createRange();
-                range.setStart(textNode, pos);
-                range.setEnd(textNode, pos);
+                const nPos = pos <= textNode.length ? pos : textNode.length
+                range.setStart(textNode, nPos);
+                range.setEnd(textNode, nPos);
                 var sel = window.getSelection();
                 sel.removeAllRanges();
                 sel.addRange(range);
@@ -639,11 +637,11 @@ import 'vue3-emoji-picker/css'
                     precedingChar = precedingRange.text.slice(-1);
                 }
                 if(!this.jpInput && (precedingChar === '＠' || precedingChar === '@')){
+                    this.keyCharacters = ''
+                    this.highlighted = 0
                     this.mentionBoxToggle = true;
-                    setTimeout(function() {
-                    }, 500);
                 }else{
-                    // this.mentionBoxToggle = false;                   
+                    this.mentionBoxToggle = false;                   
                     
                 }
                 if(pattern == 3){
@@ -709,13 +707,13 @@ import 'vue3-emoji-picker/css'
                 const textBeforeCursor = event.target.innerText.slice(0, cursorIndex)
                 const match = textBeforeCursor.match(/@(\p{L}+)$/u)
 
-                if (match) {
-                    // this.showMembers = true
-                    this.keyCharacters = match[1]
-                } else {
-                    // this.showMembers = false
-                    this.keyCharacters = ''
-                }
+                // if (match) {
+                //     // this.showMembers = true
+                //     this.keyCharacters = match[1]
+                // } else {
+                //     // this.showMembers = false
+                //     this.keyCharacters = ''
+                // }
                 // console.log(this.keyCharacters)
 
 
@@ -793,114 +791,73 @@ import 'vue3-emoji-picker/css'
                     }            
                     this.progressPercentage = 0
                 }).catch((error) => {
-                        this.$toast('ファイルアップロードに失敗しました。',{
-                                toastClassName: "toastConfirm",
-                                timeout: 3000, 
-                                draggable: false,
-                                closeButton: false,
-                            });
-                        this.progressPercentage = 0
-                    })
-                    .then(() => {});
-            },        
-            footerDropEnter(event){
-
-                if (event.dataTransfer.types) {
-                    for (var i = 0; i < event.dataTransfer.types.length; i++) {
-                        if (event.dataTransfer.types[i] == "Files") {
-                            document.getElementById('footerDropArea').style.height = '100%'
-                        }
-                    }
-                }
-                
-                return false;
-
-
-                // setTimeout(() => {
-                    
-                //         document.getElementById('footerDropArea').style.height = '100%'
-                    
-                    
-                // }, 0);            
-            },
-            footerDropLeave(){
-                setTimeout(() => {
-                    document.getElementById('footerDropArea').style.height = '0'
-                }, 0);            
-            }, 
-            footerDropEnterFromFile(){
-                if(this.$store.state.fromFilesToBoard.active || this.$store.state.fromBoardToFiles.active || (this.$store.state.sharingMemo.active && this.$store.state.sharingMemo.drag)){
-                    // this.footerDropEnter();
-                    document.getElementById('footerDropArea').style.height = '100%'
-                }
-                // if(this.draggingFiles.length || this.exportingFiles.length){
-                //     this.footerDropEnter();
-                // }
-            },
-            footerDropLeaveFromFile(){
-                // if(this.$store.state.fromFilesToBoard.active){
-                    this.footerDropLeave();
-                // }
-            },
-            footerDropEndFromFile(){
-                event.stopPropagation()
-                if(this.$store.state.fromFilesToBoard.active && this.$store.state.fromFilesToBoard.drag){
-                    let files = this.$store.state.fromFilesToBoard.list.filter( obj => obj.folder == 0);
-                    files.forEach((file) => {
-                        if(!this.importedFiles.includes(file)){
-                            this.importedFiles.push(file)
-                        }
-                    });
-                    let folders = this.draggingFiles.filter( obj => obj.folder == 1);
-                    if(folders.length){
-                        this.$toast.clear();
-                        this.$toast('フォルダを送ることができません。',{
+                    this.$toast('ファイルアップロードに失敗しました。',{
                             toastClassName: "toastConfirm",
                             timeout: 3000, 
                             draggable: false,
                             closeButton: false,
-                        });  
-                    }
-                    const data =  {
-                        active: false,
-                        list: [],
-                        source_board_id: null,
-                        drag:false
-                    }
-                    this.$store.commit('setFromFilesToBoard', data)
-                    this.footerDropLeave();
-                }
-                else if(this.$store.state.fromBoardToFiles.active && this.$store.state.fromBoardToFiles.drag){
-                    this.$store.state.fromBoardToFiles.list.forEach((file) => {
-                        if(!this.attachForwardFiles.includes(file)){
-                            this.attachForwardFiles.push(file)
+                        });
+                    this.progressPercentage = 0
+                })
+                .then(() => {});
+            },        
+            footerDropEnter(event){
+                if (event.dataTransfer.types) {
+                    for (var i = 0; i < event.dataTransfer.types.length; i++) {
+                        if (event.dataTransfer.types[i] == "Files") {
+                            this.dropActive = true
                         }
-                    });
-                    const data =  {
-                        active: false,
-                        list: [],
-                        drag: false
                     }
-                    this.$store.commit('setFromBoardToFiles', data)
-                    this.footerDropLeave();
-                }
-                else if(this.$store.state.sharingMemo.active && this.$store.state.sharingMemo.drag){
-                    this.dropMemo(this.$store.state.sharingMemo.memo.content)
-                    this.footerDropLeave();
+                }                
+                return false;          
+            },
+            footerDropLeave(){
+                setTimeout(() => {
+                    this.dropActive = false
+                }, 0);            
+            }, 
+            footerDropEnterFromFile(){
+                if(this.$store.state.sharingData && this.$store.state.sharingData){
+                    this.dropActive = true
                 }
             },
-            dropMemo(memo){
-                var el = document.getElementById("typeArea");
-                const nl = el.textContent && el.textContent.length ? '\n' : '';
-                el.textContent = el.textContent + nl + memo
-                const data =  {
-                    active: false,
-                    memo: null,
-                    drag: false,
-                    window: false
+            footerDropLeaveFromFile(){
+                    this.footerDropLeave();
+            },
+            errorToast(message){
+                emitter.emit('setToast', {
+                    active: true,  
+                    type: 'info', 
+                    content: message,
+                    closeButton: false, 
+                    autoClose: false,
+                    answers: ['OK']
+
+                })   
+            },
+            dropSharingItems(){
+                if(this.$store.state.sharingData && this.$store.state.sharingData.drag){
+                    
+                    this.$store.state.sharingData.files.forEach((file) => {
+                        const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
+                        if(!isFolder && !this.sharingFiles.includes(item => item.path == file.path)){                            
+                            this.sharingFiles.push(file)
+                        }
+                    });
+                    let folders = this.draggingFiles.filter( obj => obj.record.folder == 1);
+                    if(folders.length){
+                         
+                        this.errorToast('フォルダを送ることができません。')
+                    }
+                    if(this.$store.state.sharingData.text){
+                        var el = this.$refs.messageInputArea
+                        const nl = el.textContent && el.textContent.length ? '\n' : '';
+                        el.textContent = el.textContent + nl + this.$store.state.sharingData.text      
+                        this.msgSave()
+                    }
+                    this.$store.commit('setSharingData', null)
+                    this.footerDropLeave();
                 }
-                this.$store.commit('setSharingMemo', data)                
-                this.msgSave()
             },
             footerDropDropped(){  
                 this.footerDropLeave();
@@ -973,12 +930,17 @@ import 'vue3-emoji-picker/css'
 
                 this.msgSave();          
             },
-            removeImportFile(event, image){
-                this.importedFiles = this.importedFiles.filter( obj => obj !== image)
-                this.attachForwardFiles = this.attachForwardFiles.filter( obj => obj !== image )
+            removeSharingFile(event, image){
+                this.sharingFiles = this.sharingFiles.filter( obj => obj !== image)
                 this.msgSave();   
             },
             enterSend(){
+                if(this.$refs.mentionBox && this.$refs.mentionBox.highlighted > -1){
+                    console.log(this.$refs.mentionBox)
+                    const user = this.mentionAbleList[this.$refs.mentionBox.highlighted]
+                    this.$refs.mentionBox.mentionUser(user, this.$refs.mentionBox.highlighted)
+                    event.preventDefault()
+                }
                 if(event.altKey){
                     this.commentSendConfirm(this.openedBoard.id)
                 }

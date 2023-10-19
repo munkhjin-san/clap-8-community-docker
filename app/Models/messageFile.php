@@ -16,13 +16,13 @@ class messageFile extends Model
     }
     public function signUsers()
     {
-        return $this->belongsToMany(User::class, 'message_sign_users')->withPivot(['signed'])->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
+        return $this->belongsToMany(User::class, 'message_sign_users')->withPivot(['signed', 'cancel_flag'])->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
     }
     public function signedUsers()
     {
         return $this->belongsToMany(User::class, 'message_sign_users')
                     ->using(messageSignUser::class)
-                    ->withPivot(['signed'])
+                    ->withPivot(['signed', 'cancel_flag'])
                     ->wherePivot('signed', true)
                     ->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
     }
@@ -31,7 +31,7 @@ class messageFile extends Model
     {
         return $this->belongsToMany(User::class, 'message_sign_users')
                     ->using(messageSignUser::class)
-                    ->withPivot(['signed'])
+                    ->withPivot(['signed', 'cancel_flag'])
                     ->wherePivot('signed', false)
                     ->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
     }

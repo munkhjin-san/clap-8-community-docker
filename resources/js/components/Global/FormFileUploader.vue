@@ -9,7 +9,7 @@
         style="position: relative;">   
 
         <div class="uploadMask" v-if="uploadingProgress"><div>アップロード中</div><div> {{uploadingProgress }}%</div></div>
-        <div :class="['form-plc', {smallPlc : uploadFiles.length}]" style="z-index: 6;">
+        <div class="form-plc smallPlc" style="z-index: 6;">
             <label for="file" class="file-label">
                 <span style="font-size: 14px;">ファイルアップロード</span>
             </label>
@@ -40,7 +40,7 @@
                                 style="max-width:100%;margin:auto;max-height:100%;" 
                                 
                                 class="list-image-mobile" 
-                                :src="`${$store.state.baseLocation}/post_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`" 
+                                :src="`${$store.state.baseLocation}${this.path}/${file.id}_${file.user_id}_${file.path}.${file.extension}`" 
                             />
                         </div>
                         <div v-if="file.mime_type !== 'image'" style="position:relative;">
@@ -113,7 +113,7 @@
 <script>
 import FileIcon from '../Board/Mixed/FileIcon.vue'
 export default{
-    props: ['initialValue'],
+    props: ['initialValue', 'path'],
     emits: ['updated'],
     data(){
         return{
@@ -123,14 +123,29 @@ export default{
         }
     },
     components:{FileIcon},
+    mounted(){
+        if(this.$store.state.sharingData && this.$store.state.sharingData !== null && this.$store.state.sharingData.files && this.$store.state.sharingData.files.length){
+            this.prepareSharedFiles(this.$store.state.sharingData.files)
+        }  
+    },
     watch:{
         uploadFiles(after){
             this.$emit('updated', after)
         }
     },
     methods:{
+        prepareSharedFiles(files){
+            axios.post('/prepare_sharing_files', {list: files, path: this.path})
+            .then(response =>{                                       
+                const files = response.data
+                for(let file of files){
+                    this.uploadFiles.push(file)
+                }
+                this.$emit('updated', this.uploadFiles)
+            })
+        },
         removeAttachment(file){
-            axios.post('post_delete_file', {list: [file.id]})
+            axios.post('/post_delete_file', {list: [file.id], path: this.path})
             .then(response =>{                                       
                 const index = this.uploadFiles.findIndex(item => item.id === file.id);
                 if (index !== -1) {
@@ -171,9 +186,10 @@ export default{
                         formData.append(i, files[i])
                     }               
                 } 
+                formData.append('path', this.path)
                 this.uploadStart(formData)
             
-                axios.post('post_file_upload', formData , { onUploadProgress: (e) => this.uploadingProgress = Math.floor((e.loaded * 100) / e.total) } )
+                axios.post('/post_file_upload', formData , { onUploadProgress: (e) => this.uploadingProgress = Math.floor((e.loaded * 100) / e.total) } )
                 .then(response =>{                                       
                     const files = response.data
                     for(let file of files){
@@ -215,7 +231,7 @@ export default{
 }
 .formFileUploadArea {
     width: 100%;
-    border: 1px solid var(--formBorder);  
+    border: 1px solid var(--primary-color);  
     transition: border 0.3s ease;
     position: relative;
     background: inherit;

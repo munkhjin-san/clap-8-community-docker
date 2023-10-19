@@ -1,21 +1,8 @@
 
 <template>
     <div @mousedown="closeModal" class="overlay" style="z-index: 31;font-size:14px">
-        <Transition name="slidePop">
-            <div v-if="copied" class="copySuccess" style="position: fixed;">    
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="13" viewBox="0 0 38 32" fill="#fff">
-                    <path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
-                </svg>
-                <span>{{ $t('copied') }}</span>
-            </div>
-        </Transition>
+        
         <div id="inviteModal" class="chatCreate" ref="inviteModal" @mousedown.stop>   
-            <Transition name="modalFade">
-                <div v-if="enlarge" class="largeQr">
-                    <img :src="`${$store.state.baseLocation}/chat_qr/${item.q_token}_${item.id}.png`"/>
-                    <button @click="enlarge = false" class="commentEditButton" style="height:32px;margin-top: 15px">{{$t('back')}}</button>
-                </div>        
-            </Transition>
             <div>
                 <div style="display:flex;align-items: center;">
                     <div style="font-size: 14px;margin-right: 40px;line-height: 1.5;margin-bottom: 20px;" v-html="headTitle"></div>
@@ -26,53 +13,16 @@
                     </div>
                 </div>                
             </div>
-            <div v-if="item.able_join == 2" class="warn-window" v-html="$t('unableToinviteMembersByQr')"></div>
-            <div v-else class="invite-by-public-method">
-                <div v-if="item.q_token" style="display: flex;gap:10px;width: fit-content;">
-                    
-                    <img @click="enlarge = true" style="width:80px;height:80px;margin:auto" :src="`${$store.state.baseLocation}/chat_qr/${item.q_token}_${item.id}.png`"/>
-                    <div style="margin-left: 10px;">
-                        <p class="exp-text">{{$t('QrInviteExplaination')}}</p>
-                        <button @click="enlarge = true" class="commentEditButton" style="height:32px;margin-top: 15px">{{$t('enlarge')}}</button>
-                    </div>
-                    
-                    
-                </div>
-                <div style="width:1px;height:60%;margin:auto 20px;border-right:solid thin var(--formBorder)"></div>
-                <div style="position:relative">
-                    <p class="exp-text" style="margin-bottom: 15px;">{{$t('urlInviteExplaination')}}</p>
-                    <div style="display:flex">
-                        
-                        <input style="height: 30px;padding: 0 10px;color:inherit" disabled class="recordText" type="text" :value="`${$store.state.baseLocation}/join?token=${item.q_token}&id=${item.id}`"/>
-                        <button @click="copyUrl" class="commentEditButton" style="height:32px;">{{$t('copy')}}</button>
-                    </div>
-                </div>
-                
-            </div>
-            <!-- <p v-if="item.able_join !== 2" style="line-height: 1.5;width: 80%;" class="exp-text">{{ $t('inviteDetailedExplaination') }}</p> -->
-            <span v-if="item.able_join !== 2" style="margin-top: 15px ;">{{$t('or')}}</span>
             <div style="margin: 15px 0">
-                <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="$t('searchAcrossMyNembersAndPublicUsers')" :searching="searching" @searchStart="searchStart"/>
+                <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="$t('searchAcrossMyNembersAndPublicUsers')" :searching="false" @searchStart="searchStart"/>
             </div>            
             <div style="height: -webkit-fill-available;user-select: none;overflow: hidden auto;">
-                    <div v-if="friendList.length">
-                        <div style="font-weight: 600;margin-bottom: 15px;">{{ $t('myMembers') }}</div>
+                    <div v-if="filteredMembers.length">
                         <div class="suggested-list">
-                            <div :key="friend.id" v-for="friend in friendList">
-                                <div @click="selectToUser(friend)" class="suggested-wrap">
-                                    <UserIcon :user="friend" imgClass="userNormalIcon" size="30"/>
-                                    <div class="suggested-user-name">{{ friend.name }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div v-if="suggestedList.length">
-                        <div style="font-weight: 600;margin: 15px 0;">{{ $t('publicUsers') }}</div>
-                        <div class="suggested-list">
-                            <div :key="friend.id" v-for="friend in suggestedList">
-                                <div @click="selectToUser(friend)" class="suggested-wrap">
-                                    <UserIcon :user="friend" imgClass="userNormalIcon" size="30"/>
-                                    <div class="suggested-user-name">{{ friend.name }}</div>
+                            <div :key="user.id" v-for="user in filteredMembers">
+                                <div @click="selectToUser(user)" class="suggested-wrap">
+                                    <UserIcon :user="user" imgClass="userNormalIcon" size="30"/>
+                                    <div class="suggested-user-name">{{ user.name }}</div>
                                 </div>
                             </div>
                         </div>
@@ -87,7 +37,7 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
 import { nextTick } from 'vue'
     export default {
         props: ['item'],
-        emits: ['close'],
+        emits: ['close', 'reload'],
         data(){
             return{
                 possibleMemberList: [],
@@ -105,21 +55,23 @@ import { nextTick } from 'vue'
             this.getMembers();
         },
         computed:{
+            filteredMembers(){
+                const searchText = this.keyword.toLowerCase();
+                return this.addAbleMembers.filter(user => user.name.toLowerCase().includes(searchText));
+            },
+            addAbleMembers(){
+                return this.possibleMemberList
+            },
             headTitle(){
-                return `<strong>"${this.item.title}"</strong> ${this.$t('addMembersTitle')}`
+                return `<strong>"${this.item.title}"</strong>ボードにメンバーを追加する`
             },
             excludeList(){
                 return this.item.board_to_users ? this.item.board_to_users.map( ob => ob.user_id) : []
             },
-            friendList(){
-                return this.possibleMemberList && this.possibleMemberList.friends && this.possibleMemberList.friends.length ? this.possibleMemberList.friends : []
-            },
-            suggestedList(){
-                return this.possibleMemberList && this.possibleMemberList.suggested && this.possibleMemberList.suggested.length ? this.possibleMemberList.suggested : []
-            },
         },
         methods:{
             selectToUser(user){
+                
                 const name = user.name
                 const uniqueChannell = Math.random().toString(36).substring(5);
                 const question = 'addMemberConfirm'
@@ -144,7 +96,14 @@ import { nextTick } from 'vue'
                 axios.post('/group_add_member', formData)
                 .then(response => {
                     if(response.status == 200){
-                        this.$emit('reload');
+                        const data = {
+                            text: 'メンバー追加しました。',
+                            channel: Math.random().toString(36).substring(5),
+                            icon: 0,
+                            view: true
+                        }
+                        emitter.emit('setInfo', data)
+                        this.$emit('reload', this.item.id);
                     }else{
                         this.errorToast(this.$t('commonError'))
                     }
@@ -170,7 +129,6 @@ import { nextTick } from 'vue'
             },
             searchStart(key){
                 this.keyword = key
-                this.getMembers()
                 this.searching = 2
             },
             getMembers(){
@@ -192,25 +150,7 @@ import { nextTick } from 'vue'
                 if (!this.$refs.inviteModal.contains(event.target)) {
                     this.$emit('close')
                 }
-            },
-            copyUrl(){
-                const url = `${this.$store.state.baseLocation}/join?token=${this.item.q_token}&id=${this.item.id}`
-                console.log(url)
-                navigator.clipboard.writeText(url)
-                .then(() => {
-                    this.copied = true
-                    setTimeout(() => {
-                        this.copied = false
-                    }, 1500);
-                })
-                
-                .catch((error) => {
-                    console.error('Unable to copy text to clipboard:', error);
-                    
-                });
-
-
-            }       
+            },      
             
         }
     }

@@ -24,7 +24,7 @@
                         <p :id="'messageSender_' + message.id" class="userName" @dragstart.prevent style="margin-left:10px;margin-right:40px;">{{ messageUserName }}</p>   
                     </div> 
                     
-                    <div class="column-03" style="position: absolute;top: -53px;right: -17px;display: flex;"> 
+                    <div class="column-03" style="position: absolute;top: -40px;right: -17px;display: flex;"> 
                         <div v-if="message.error && !resending" style="font-size: 11px;color: tomato;bottom: -20px;white-space: nowrap;right:0;display:flex;align-items:center">
                             <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
                                 <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
@@ -86,38 +86,24 @@
                                     </div>
                                     
                                     <FileIcon v-if="file.mime_type !== 'image'" :ext="file.extension"/>
-                                    <p class="shared-file-name">{{fileNameFilter(file)}}</p>
+                                    <p class="shared-file-name">{{file.name}}</p>
                                 </div>     
                             </div>                                         
                         </div>
                     </div> 
-                    <div v-if="message.imported_files.length" class="file-area-content" :class="{ hasMessage: (message.message && message.message.length)}">
-                        <div :key="file.id" class="file-wrap" v-for="file in message.imported_files">   
+                    <div v-if="message.sharing_files.length" class="file-area-content" :class="{ hasMessage: (message.message && message.message.length)}">
+                        <div :key="file.record.id" class="file-wrap" v-for="file in message.sharing_files">   
                             <div class="file-area-container" >
                                 <div class="flex-centered">  
-                                    <div v-if="file.mime_type == 'image'" style="max-width:65px;height:40px;display: flex;">
-                                        <img style="max-width:100%;margin:auto;max-height:100%;" :src="$store.state.baseLocation +  '/managed_files/' + file.source_board_id + '/thumb/' + file.path + '_thumb_50.' + file.extension">
+                                    <div v-if="file.record.mime_type == 'image'" style="max-width:65px;height:40px;display: flex;">
+                                        <img style="max-width:100%;margin:auto;max-height:100%;" :src="file.path">
                                     </div>
-                                    <FileIcon v-if="file.mime_type !== 'image'" :ext="file.extension"/>
-                                    <p class="shared-file-name">{{fileNameFilterImport(file)}}</p>
+                                    <FileIcon v-if="file.record.mime_type !== 'image'" :ext="file.record.extension"/>
+                                    <p class="shared-file-name">{{file.record.name}}</p>
                                 </div>
                             </div>                                              
                         </div>
-                    </div> 
-                    
-                    <div v-if="message.forwarded_files.length" class="file-area-content" :class="{ hasMessage: (message.message && message.message.length)}">
-                        <div :key="file.id" class="file-wrap" v-for="file in message.forwarded_files">   
-                            <div class="file-area-container" >
-                                <div class="flex-centered">  
-                                    <div v-if="file.mime_type == 'image'" style="max-width:65px;height:40px;display: flex;">
-                                        <img style="max-width:100%;margin:auto;max-height:100%;" :src="$store.state.baseLocation +   '/shared_files/' + file.source_board_id + '/' + file.id + '_' + file.user_id + '_' + file.message_id + '.' + file.extension">
-                                    </div>
-                                    <FileIcon v-if="file.mime_type !== 'image'" :ext="file.extension"/>
-                                    <p class="shared-file-name">{{fileNameFilterImport(file)}}</p>
-                                </div>
-                            </div>                                              
-                        </div>
-                    </div>         
+                    </div>          
                     
                 </div>              
             </div>
@@ -179,11 +165,11 @@ import FileIcon from '../Mixed/FileIcon.vue';
         },
         computed:{
             messageBody(){
-                const to_all = this.message.message.replace('<span class="toAll">@allMemberMention</span>', `<a class="toAll">@${this.$t('allMemberMention')}</a>`); 
+                const to_all = this.message.message.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
                 const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                 const br_remove = converterd.replace(/&lt;br&gt;/g," ");
                 return this.urlCheck(br_remove)
-            },      
+            },     
             messageBodyStyle() {
                 const comment = this.message
                 const selfid = this.$store.state.user.id
@@ -239,27 +225,6 @@ import FileIcon from '../Mixed/FileIcon.vue';
             },
         },
         methods:{
-            fileNameFilter(file){
-                // const lastDot = file.name.lastIndexOf('.');
-                // const fileName = file.name.substring(0, lastDot);
-                // var str_lenght = fileName.length;
-                // if (str_lenght > 20) {
-                //     var sliced = file.name.slice(0, 20) + " ..." + file.extension;
-                //     return sliced;
-                // }
-                return file.name;
-            }, 
-            fileNameFilterImport(file){
-                const name = file.name + '.' + file.extension
-                const lastDot = name.lastIndexOf('.');
-                const fileName = name.substring(0, lastDot);
-                // var str_lenght = fileName.length;
-                // if (str_lenght > 20) {
-                //     var sliced = file.name.slice(0, 20) + " ..." + file.extension;
-                //     return sliced;
-                // }
-                return name;
-            },
             sendMessage(flag){
                 let pre_list = this.$store.state.tempUniqueId
                 const pre_check = pre_list.filter( ob => ob == this.message.u_id) 
@@ -299,9 +264,8 @@ import FileIcon from '../Mixed/FileIcon.vue';
                     attached_temp_files: this.message.attached_temp_files,
                     imported_files: [],
                     forwarded_files: [],
-                    u_id: this.message.u_id         ,
-                    imported_files: this.message.imported_files,
-                    forwarded_files: this.message.forwarded_files  
+                    u_id: this.message.u_id,
+                    sharing_files: this.message.sharing_files
                 };       
                 let u_list = []
                 u_list.push(this.message.u_id);

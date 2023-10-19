@@ -1,9 +1,9 @@
 <template>
-    <div class="overlay" @mousedown="closeModal(false)">                         
+    <div class="overlay" @mousedown="closeModal(false, null)">                         
         <div class="chatCreate scrollable" @mousedown.stop>     
             <div class="recordFormTitle" style="display:flex">
                 <p>{{ editTarget ? `${appNameJp}を編集する` : `新しい${appNameJp}を作成する`}}</p>
-                <div class="cursor-pointer" @click="closeModal(false)" style="position:unset; margin:auto 0 auto auto">
+                <div class="cursor-pointer" @click="closeModal(false, null)" style="position:unset; margin:auto 0 auto auto">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
                         <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                     </svg>                        
@@ -49,6 +49,7 @@
                     uId="recordUsers"
                     name="recordUsers"
                     ref="recordUsers"
+                    :path="`post_get_${appName}_users`"
                 />
             </div>
 
@@ -100,6 +101,7 @@
                         ref="recordDateStart"
                         uId="recordDateStart"
                         name="recordDateStart"
+                        rules="required"
                         @setValue="val => date_start = val"
                     />
                     <div style="align-self: center;margin: 0 20px;font-size: 14px;color: gray;">ー</div>
@@ -108,6 +110,7 @@
                         ref="recordDateEnd"
                         uId="recordDateEnd"
                         name="recordDateEnd"
+                        rules="required"
                         @setValue="val => date_end = val"
                     />                       
                 </div>
@@ -126,6 +129,7 @@
                 <FormFileUploader
                     :initialValue="uploadedFiles"
                     @updated="val => uploadedFiles = val"
+                    path="/post_files"
                 />
             </div>
         
@@ -143,7 +147,7 @@
                     
                     
             <div class="si-box">
-                <LoaderButton @click="createSend" :loading="processing" content="投稿する"/>
+                <LoaderButton @triggered="createSend" :loading="processing" :content="editTarget ? '保存する' : '投稿する'"/>
             </div>               
         
         </div>
@@ -177,6 +181,7 @@ import moment from 'moment'
                 processing: false,
                 switchEntrySelectModel: false,
                 uploadedFiles: this.editTarget && this.editTarget.files ? this.editTarget.files : [],
+                sharingFiles: []
             }
         },
         components:{
@@ -189,8 +194,7 @@ import moment from 'moment'
             DatePicker, 
             FormFileUploader
         },
-        computed: {           
-            
+        computed: {  
             selfInclude(){
                 return this.appName == 'challenge' ? true : false
             },
@@ -219,7 +223,10 @@ import moment from 'moment'
                     
                     let checkRef = ['recordTitle', 'recordBody'];
                     if(this.appName == 'challenge'){
-                        checkRef.push('recordRule', 'recordDateStart', 'recordDateEnd', 'recordUsers')
+                        checkRef.push('recordRule', 'recordDateStart', 'recordDateEnd')
+                    }
+                    if(this.appName == 'challenge' || this.appName == 'nice'){
+                        checkRef.push('recordUsers')
                     }
                     let result = true
                     for(const check of checkRef){
@@ -261,7 +268,16 @@ import moment from 'moment'
                     }
             
                     axios.post('post_add_record',params)
-                    .then(response => setTimeout(() => {this.closeModal(true)},0))
+                    .then(response => setTimeout(() => {
+                        this.closeModal(true, response.data.id)
+                        const data = {
+                            text: this.editTarget ? '編集しました。' :'投稿しました。',
+                            channel: Math.random().toString(36).substring(5),
+                            icon: 0,
+                            view: true
+                        }
+                        emitter.emit('setInfo', data)
+                    },0))
                     .catch(function (error) {
                         if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                         else if (error.request) this.errorToast('エラーが発生しました。')
@@ -274,9 +290,10 @@ import moment from 'moment'
                     this.processing = false
                 }
             },
-            closeModal(flag){
+            closeModal(flag, id){
                 this.processing = false
-                this.$emit('postFinish',flag);              
+                this.$store.commit('setSharingData', null)
+                this.$emit('postFinish',flag, id);              
             },
             errorToast(message){
                 emitter.emit('setToast', {

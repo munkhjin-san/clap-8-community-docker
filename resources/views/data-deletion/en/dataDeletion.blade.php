@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'GLOWD - About account deletion')
+@section('title', 'CLAP - About account deletion')
 @section('content')
 <div style="color:var(--primary-color);background-color:var(--background-color);padding: 3em;">
     <h1 style="font-size: 24px;">About account deletion</h1>

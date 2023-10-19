@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'GLOWD - Privacy Policy')
+@section('title', 'CLAP - Privacy Policy')
 @section('content')
 
 <div style="color:var(--primary-color);background-color:var(--background-color);padding: 3em;">

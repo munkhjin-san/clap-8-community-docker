@@ -61,7 +61,15 @@ class messageRecord extends Model
     public function board_users(){
         return $this->hasMany(boardToUser::class, 'record_id', 'record_id');
     }
-
+    public function messageRemindUsers(){
+        return $this->hasMany(messageRemindUser::class, 'message_id');
+    }
+    public function memo(){
+        return $this->hasOne(memoRecord::class, 'message_id', 'id');
+    }
+    public function task(){
+        return $this->hasOne(taskRecord::class, 'message_id', 'id');
+    }
     protected $fillable = [
         'message'
     ];

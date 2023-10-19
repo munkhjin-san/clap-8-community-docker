@@ -4,7 +4,7 @@
             <div class="file-header-section" ref="memberHeader" :class="{ 'hiddenSearch': headerHidden }" >                
                 <div class="file-header__inner">
                     <div class="mem-search-area" style="width:100%;">
-                        <div class="searchBarInner memberSearchBar" style="width: 100%;">   
+                        <div class="searchBarInner memberSearchBar" style="width: 100%;margin-left: 0;">   
                             <input @input="setKeyWord" v-model="keyword" class="searchBarArea searchInputArea memberSearch" :placeholder="$t('searchFiles')" type="text" style="margin: 0;width:100%;"/>
                             <div style="position: absolute;left: 10px;display: flex;height: 30px;">
                                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="margin: 7px auto auto auto;fill:#767676">
@@ -19,20 +19,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- <div @click.stop="$store.commit('setMenu', {name: 'fileSortMenu', id: 96})" style="align-self: center; height: 30px;width: 30px; padding-right: 10px;display: flex; align-items: center; justify-content: center; position: relative; margin: auto; fill: var(--primary-color);">
-                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="12" viewBox="0 0 47 32" style="transform: rotate(90deg); margin-right: -5px;">
-                        <path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path></svg><svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="12" viewBox="0 0 47 32" style="transform: rotate(270deg);"><path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path>
-                    </svg>
-                </div>
-                <Transition name="modalFade">                    
-                <div v-if="$store.state.menu.name == 'fileSortMenu' && $store.state.menu.id == 96" id="fileSortMenu" class="boxMenuComment cursor-pointer" style="z-index:2;top:30px;right:30px;position:absolute;background-color: unset;user-select:none;">
-                    
-                    <ul style="width:100px"> 
-                        <li class="boxMenuItems cursor-pointer">{{$t('byDate')}}</li>  
-                        <li class="boxMenuItems cursor-pointer">{{$t('byName')}}</li>                                                                                                                            
-                    </ul>
-                </div>       
-                </Transition> -->
                 
             </div>
             <div class="file-main-section">
@@ -46,11 +32,7 @@
                             <div style="display:flex;align-items: center;cursor:pointer;max-width:100%;overflow:hidden"> 
                                 
                                 <div v-if="file.mime_type == 'image'" class="">                                        
-                                    <img
-                                        class="list-image-mobile" 
-                                        :src="`${$store.state.baseLocation}/shared_files/${board.id}/thumbs/${file.id}_${file.user_id}_${file.message_id}_50.${file.extension}`" 
-                                        :srcset="`${$store.state.baseLocation}/shared_files/${board.id}/thumbs/${file.id}_${file.user_id}_${file.message_id}_100.${file.extension} 2x`" 
-                                    />
+                                    <img class="list-image-mobile" loading="lazy" :src="`${$store.state.baseLocation}/shared_files/${board.id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`"/>
                                 </div>
                                 <div v-else>
                                     <FileIcon :ext="file.extension"/>
@@ -61,12 +43,11 @@
                                     <div style="display:flex;margin:5px 0 0 5px">
                                         <p style="color:gray;font-size:10px;">{{ file.user ? file.user.name : $t('unAvailableUserName')}}</p>
                                         <p style="color:gray;font-size:10px;margin-left:5px;">  |  {{fileSizeView(file.size)}}</p>
-                                        <p style="color:gray;font-size:10px;margin-left:5px;">  | {{untilDay(file)}}</p>
                                     </div>
                                 </div>
                             </div>
                         </div>                    
-                        <div @click.stop="$store.commit('setMenu', {name: 'fileContextMenu', id: file.id})" :class="{kebabActive : $store.state.menu.name == 'fileContextMenu' && $store.state.menu.id == file.id}" class="mobileMenuContainer kebab" style="margin-right: 5px;">                                    
+                        <div @click.stop="$store.commit('setMenu', {name: 'fileContextMenu', id: file.id})" :class="{kebabActive : $store.state.menu.name == 'fileContextMenu' && $store.state.menu.id == file.id}" class="boardMenuContainer" style="margin-right: 5px;">                                    
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="dot-menu" height="13" viewBox="0 0 7 32" style="width: -webkit-fill-available;">
                                 <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path>
                                 <path d="M3.405 12.33c-0.447 0.013-0.881 0.115-1.272 0.278-0.1 0.038-0.195 0.085-0.287 0.135-0.093 0.047-0.185 0.097-0.27 0.154l-0.129 0.083-0.064 0.042-0.124 0.088c-0.050 0.039-0.132 0.104-0.181 0.145l-0.040 0.035c-0.111 0.096-0.214 0.202-0.302 0.319-0.001 0-0.001 0.001-0.001 0.001l-0.058 0.081-0.040 0.064-0.082 0.134c-0.056 0.086-0.104 0.179-0.15 0.271-0.049 0.095-0.095 0.189-0.132 0.289-0.164 0.394-0.262 0.832-0.27 1.277-0.025 0.899 0.324 1.82 0.967 2.467 0.636 0.651 1.549 1.038 2.465 1.037 0.456 0.003 0.906-0.086 1.315-0.239 0.41-0.156 0.781-0.374 1.112-0.619l0.188-0.188c0.246-0.331 0.463-0.701 0.619-1.112 0.157-0.408 0.245-0.858 0.245-1.315 0.003-0.918-0.392-1.832-1.043-2.465-0.648-0.639-1.567-0.991-2.464-0.961z"></path>
@@ -155,19 +136,6 @@ import moment from 'moment';
             }
         },
         methods:{
-            untilDay(file){
-                moment.locale(this.$store.state.local);
-                const date = file.created_at
-                const act = moment(date).format('YYYY / M / D (dddd) HH:mm')   
-                const deletionDate = moment(date).add(90, 'days');
-                const currentDate = moment();
-                const duration = moment.duration(deletionDate.diff(currentDate));
-                const days = Math.round(duration.asDays());
-                if(days >= 0){
-                    return this.$tc('fileExpireDate', days, {days: days})
-                }
-                return this.$t('deleted')
-            },
             yearMonthDetail(value){
                 moment.locale(this.$store.state.local);           
                 return moment(value).format('YYYY-MM-DD')             
@@ -361,11 +329,7 @@ import moment from 'moment';
     }
 </script>
 <style lang="scss">
-    .file-icon-01-mobile{
-        width: 35px;
-        min-width: 35px;
-        height: 35px;
-    }
+    
     .file-header-section{
         position: absolute;
         width: 100%;
