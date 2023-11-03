@@ -210,7 +210,7 @@ class UserController extends Controller{
     }
     public function get_albums(Request $request) {
         $tag_id = $request->tag_id;
-
+        $increment = TagRecord::where('id', $request->tag_id)->increment('hits');
         $usersWithAlbums = User::whereHas('user_album.tags', function ($query) use ($tag_id) {
             $query->where('tag_id', $tag_id);
         })->with(['user_album' => function ($query) use ($tag_id) {
@@ -464,7 +464,7 @@ class UserController extends Controller{
         if(!empty($request)){
             $user_id_int = $request->delete_id;
             $intro_record = userAlbum::findOrFail($request->mov_id);  
-            $path = '/user_files' . '/' . $user_id_int . '/' . $intro_record->id . '_' . $user_id_int;
+            $path = '/user_album' . '/' . $user_id_int . '/' . $intro_record->id . '_' . $user_id_int;
             if(!empty($intro_record)){
                 $intro_record->tags()->detach();
                 $intro_record->delete();
@@ -488,7 +488,7 @@ class UserController extends Controller{
        
 
         
-        $path = '/user_files' . '/' . $user_id_int;
+        $path = '/user_album' . '/' . $user_id_int;
         $file_path = 'intro_' . $user_id_int;        
         $file_extension = $request->file('file')->getClientOriginalExtension();        
         $mime_type = $request->file('file')->getMimeType();      

@@ -194,10 +194,9 @@ export default {
             });
         },
         scrollToTime(val){
-            const el = this.$refs[`hour_${val}`]
-            if(el && el.length){
-                console.log('******')
-                el[0].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
+            const el = this.$refs[`hour_${val}`][0].$refs[`hour_item_${val}`]
+            if(el){               
+                el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' })
             }
         },
         dayRecords(day){

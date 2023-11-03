@@ -46,7 +46,7 @@
                 return type.includes('video') 
             },
             movSrc(mov){
-                return mov.path.includes('intro') ? this.$store.state.baseLocation + '/user_files/' + mov.user_id + '/' + mov.path : this.$store.state.baseLocation + '/user_files/' + mov.user_id + '/' + mov.id + '_' + mov.user_id + '_' + mov.path + '.' + mov.extension
+                return mov.path.includes('intro') ? this.$store.state.baseLocation + '/user_album/' + mov.user_id + '/' + mov.path : this.$store.state.baseLocation + '/user_album/' + mov.user_id + '/' + mov.id + '_' + mov.user_id + '_' + mov.path + '.' + mov.extension
             },
             previewImage(file, index){
                 let target_data = file

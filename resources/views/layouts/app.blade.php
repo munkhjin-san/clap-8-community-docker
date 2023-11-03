@@ -24,7 +24,7 @@
     <link rel="icon" type="image/png" sizes="36x36" href="/favicon.png"> -->
     <link rel="apple-touch-icon" size="152x152" href="/app/public/icon-152x152.png">
     <link rel="icon" type="image/png" size="152x152" href="/app/public/icon-152x152.png">
-    <!-- <link rel="manifest" href="/site.webmanifest"> -->
+    <link rel="manifest" href="/site.webmanifest">
     <!-- <link rel="canonical" href="https://glowd.app/auth"> -->
     <title>CLAP</title>
     <!-- Fonts -->

@@ -38,7 +38,7 @@
                 }
             },
             clapped(){
-                const clapped = this.item.claps.filter(ob => ob.from_user)
+                const clapped = this.item.claps.filter(ob => ob.from_user == this.$store.state.user.id)
                 return clapped.length ? true : false
             },
         },
@@ -48,12 +48,23 @@
                     return
                 }
                 this.loading = true
+                const action = this.clapped ? 1 : 0
                 axios.post('post_add_clap',{ 
                     record_id: this.item.id, 
                     app_name: this.appName,
-                    action: this.clapped ? 1 : 0
+                    action: action
                 }).then(response => {   
-                    this.loading = false              
+                    this.loading = false   
+                    if(action == 0){
+                        const data = {
+                            text: 'CLAPしました。',
+                            channel: Math.random().toString(36).substring(5),
+                            icon: 0,
+                            view: true
+                        }
+                        emitter.emit('setInfo', data)
+                    }
+                    
                     this.$emit('updateClap', response.data)
                 }).catch(function (error) {
                     if (error.response) this.errorToast(this.$t(error.response.data.message))

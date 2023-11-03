@@ -47,9 +47,10 @@
                     </div> 
                 </div>
             </div>
-            
-            <PostDate :record="record" dateClass="dateText"/> 
-            <div @click="updateStatus" v-if="appName == 'challenge'" style="font-size: 14px;margin-left: 10px;cursor:pointer">{{ status }}</div>
+            <div style="display: flex;align-items: center;gap: 15px;flex: 1;flex-wrap: wrap;justify-content: flex-end;">            
+                <PostDate :record="record" dateClass="dateText"/> 
+                <div @click="updateStatus" v-if="appName == 'challenge'" style="font-size: 14px;white-space:nowrap;cursor:pointer">{{ status }}</div>
+            </div>
         </div>
         <div>
             <div>

@@ -98,7 +98,7 @@
                                 <div class="swiper-slide" style="background: none;flex-direction: column;margin-bottom: 30px;" v-for="(mov, index) in movExist" :key="index">
                                     <div style="width: 100%;">
                                         <div class="gn-img-container cursor-pointer" style="background-color: var(--bg3); max-height: 160px;" @click="previewImage(mov, index)">
-                                            <img class="gn-image" v-if="mov.mime_type == 'image'" :src="$store.state.baseLocation + '/user_files/' + targetId + '/' + mov.id + '_' + targetId + '_' + mov.path + '.' + mov.extension"/>
+                                            <img class="gn-image" v-if="mov.mime_type == 'image'" :src="$store.state.baseLocation + '/user_album/' + targetId + '/' + mov.id + '_' + targetId + '_' + mov.path + '.' + mov.extension"/>
                                             <video class="gn-image" v-else-if="isMov(mov.mime_type)" controls="controls" style="pointer-events: none;max-height: 290px;">
                                                 <source v-bind:src="movSrc(mov)">
                                             </video>
@@ -115,11 +115,12 @@
                                             <path d="M6.162 5.606c0.282-0.359 0.493-0.767 0.622-1.187 0.129-0.417 0.186-0.842 0.196-1.255l-0.035-0.263c-0.107-0.399-0.264-0.799-0.493-1.174-0.224-0.376-0.526-0.721-0.888-1-0.721-0.569-1.682-0.821-2.582-0.694-0.903 0.117-1.746 0.622-2.276 1.347-0.267 0.36-0.451 0.767-0.563 1.174-0.033 0.103-0.054 0.206-0.071 0.307-0.021 0.103-0.038 0.207-0.043 0.309l-0.015 0.152-0.007 0.078-0.003 0.096c-0.003 0.132-0.001 0.262 0.004 0.39l0.008 0.16c0.018 0.077 0.033 0.152 0.056 0.227l0.028 0.092 0.028 0.075 0.053 0.145c0.032 0.096 0.077 0.191 0.122 0.287 0.043 0.096 0.089 0.189 0.145 0.282 0.21 0.371 0.494 0.717 0.84 1.002 0.691 0.57 1.633 0.863 2.538 0.754 0.904-0.099 1.771-0.58 2.336-1.302z"></path>
                                         </svg>
                                     </div>
-                                    <div @click.stop id="userAlbumMenu" class="boxMenuComment cursor-pointer" v-if="$store.state.menu.name == 'userAlbumMenu' && $store.state.menu.id == mov.id" :style="{lineHeight:'normal',top: mIndex == 0 ? 'auto' : '20px',bottom: mIndex == 0 ? '40px' : 'auto', right: '25px', zIndex: 4}">
+                                    <div @click.stop id="userAlbumMenu" class="boxMenuComment cursor-pointer" v-if="$store.state.menu.name == 'userAlbumMenu' && $store.state.menu.id == mov.id" :style="{lineHeight:'normal',top:'20px',bottom:'auto', right: '25px', zIndex: 4}">
                                         <div style="position: relative;">
                                             <div style="right:0;overflow:hidden;box-shadow: rgb(60 64 67 / 30%) 0px 1px 2px 0px, rgb(60 64 67 / 15%) 0px 2px">
                                                 <ul> 
                                                     <li @click="introMovDeleteConfirm(mov.id)" class="boxMenuItems cursor-pointer">削除する</li> 
+                                                    <li @click="editAlbum(mov)" class="boxMenuItems cursor-pointer">編集する</li>
                                                 </ul>
                                             </div>
                                         </div>                                                    
@@ -154,6 +155,7 @@
                 <UserIntroFile 
                     v-if="introUpload"
                     :UserAllData="UserAllData"
+                    :editData="editData"
                     @closeModal="$emit('closeModal')"
                     @updateUser="$emit('updateUser')"
                 />
@@ -164,7 +166,7 @@
                     :tagText="tagText"
                     :tagAlbums="tagAlbums"
                     :targetId=targetId
-                    @closeModal="viewAlbum = false"
+                    @closeModal="closeModal()"
                 />
             </Transition>   
         </div>
@@ -184,7 +186,7 @@
     import UserAlbumByTags from '../UserAlbumByTags.vue';
     export default{
         props: ['UserAllData', 'deviceWidth', 'isAccessible', 'clapData', 'movExist', 'introUpload'],
-        emits: ['updateUser', 'closeModal', 'addIntroFile'],
+        emits: ['updateUser', 'closeModal', 'addIntroFile', 'editIntro'],
         data(){
             return {
                 iconViewModal: false,
@@ -207,6 +209,7 @@
                 viewAlbum: false,
                 tagText: '',
                 tagAlbums: '',
+                editData: null
             }
         },
         components: {
@@ -223,6 +226,10 @@
             
         },  
         methods: {
+            closeModal(){
+                this.viewAlbum = false
+                this.editData = null
+            },
             viewalbumByTag(tag){
                 this.tagText = tag.text
                 axios.post('/get_albums', { tag_id: tag.id }).then(response => {
@@ -235,12 +242,12 @@
                 return sanitizedString;
             },
             movSrc(mov){
-                return mov.path.includes('intro') ? this.$store.state.baseLocation + '/user_files/' + this.targetId + '/' + mov.path : this.$store.state.baseLocation + '/user_files/' + this.targetId + '/' + mov.id + '_' + this.targetId + '_' + mov.path + '.' + mov.extension
+                return mov.path.includes('intro') ? this.$store.state.baseLocation + '/user_album/' + this.targetId + '/' + mov.path : this.$store.state.baseLocation + '/user_album/' + this.targetId + '/' + mov.id + '_' + this.targetId + '_' + mov.path + '.' + mov.extension
             },
             previewImage(file, index){
                 const files = this.movExist.map(fileData => ({
                     ...fileData,
-                    file_path: `${this.$store.state.baseLocation}/user_files/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                    file_path: fileData.path.includes('intro') ? `${this.$store.state.baseLocation}/user_album/${this.targetId}/${fileData.path}` : `${this.$store.state.baseLocation}/user_album/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
                 }));   
                 const data = {
                     active: true,
@@ -252,6 +259,10 @@
                     message: null,
                 }
                 this.$store.commit('setFilePreview', data)
+            },
+            editAlbum(data){
+                this.editData = data
+                this.$emit('editIntro')
             },
             // swiperCreate(){
             //     new Swiper('.swiper-icon', {

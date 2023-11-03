@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\CalendarRecord;
+use App\Models\CalendarGroup;
 use App\Models\User;
 use App\Models\MyGroup;
 use Illuminate\Http\Response;
@@ -182,6 +183,40 @@ class CalendarController extends Controller
             throw ValidationException::withMessages(['message' => 'Zoom予約に失敗しました。']);
         }
         
+    }
+    public function genertate_my_groups(){
+        $groups = CalendarGroup::where('deleted_flag', 0)->whereNotNull('member_list')->get();
+        foreach($groups as $group){
+            echo($group->member_list);
+            $list = explode(',', $group->member_list);
+            $myGroupCheck = MyGroup::where('user_id', $group->user_id)->exists();
+            if(!empty($list) && $myGroupCheck){
+
+                $userExist = User::pluck('id')->toArray();
+                $modelCollection = collect($userExist);
+                    $gr = MyGroup::where('user_id', $group->user_id)->latest()->first();
+                    
+                    $filteredSecondArray = collect($list)->filter(function ($item) use ($modelCollection) {
+                        return $modelCollection->contains($item);
+                    })->toArray();
+                    // $message->uncheckedUsers()->sync($filteredSecondArray);                
+                              
+                    $gr->users()->syncWithPivotValues($filteredSecondArray, ['selected_as_calendar_member' => 1, "created_at" => now()]); 
+                // foreach($list as $selected_user_id){
+                //     $exists = User::where('id', $selected_user_id)->exists();
+                //     if($exists){
+                //         $myGroupCheck = MyGroup::where('user_id', $group->user_id)->exists();
+                //         if($myGroupCheck){
+                //             $gr = MyGroup::where('user_id', $group->user_id)->latest()->first();
+                //             $my_group_user
+
+                //         }
+
+                //     }
+                // }
+            }
+            // echo('<br>');
+        }
     }
     public function get_calendar_data(Request $request){    
         

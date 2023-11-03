@@ -242,6 +242,7 @@
     --link-color: #1a73e8;
     --task-background: #dddddd;
     --past-calendar: #cccccc;
+    --third-color: #878787;
 }
 
 // If the app is in dark mode, update the variables
@@ -262,7 +263,7 @@
     --scroll-bar: #5e5e5e;
     --secondary-background: #5e5e5e;
     --selected-background: #3d3d3d;
-    --check-inactive: #5c5c5c;
+    --check-inactive: #898989;
     --calendarBorder: #404040;
     --kebab-bg1: #4a4a4a;
     --kebab-icon: #949494;
@@ -273,6 +274,7 @@
     --link-color: #81b8fd;
     --task-background: #3d3d3d;
     --past-calendar: #494949;
+    --third-color: #e4e6eb;
 }
 .header {
     background-color: var(--background-color);

@@ -2,11 +2,11 @@
     <div :class="['side-menu-root', {sideMenuView : $store.state.sideMenuView}]" @mouseenter="setView(true)" @mouseleave="setView(false)">
         <!-- <div :class="['side-menu-root', {sideMenuView : $store.state.sideMenuView}]" @mouseenter="setView(true)"> -->
         <div class="side-menu-inner" v-if="$store.state.user">           
-            <router-link :to="`/user/${$store.state.user.id}`" :class="['side-menu-route', { selectedRoute: selectedRoute == `user` && this.$route.params && this.$route.params.userId == $store.state.user.id}]" style="margin:0;gap:10px;padding-left: 15px;padding-top:5px">
+            <router-link :to="`/user/${$store.state.user.id}`" :class="['side-menu-route', { selectedRoute: selectedRoute == `user` && this.$route.params && this.$route.params.userId == $store.state.user.id}]" style="margin:0;gap:10px;padding-left: 17px">
                 <div class="side-menu-route-inner">   
                     <UserIcon :user="$store.state.user" imgClass="userMidIcon" size="25"/>
-                    <div class="sideMenuUserName" style="white-space: break-spaces;display: flex;" v-if="$store.state.sideMenuView">{{ $store.state.user.name }}
-                        <img v-if="mood_val" :src="'/images/icon_' + mood_val.value_int + '.svg'" alt="Weather Icon" width="16" height="16" />
+                    <div class="sideMenuUserName" style="white-space: break-spaces;display: flex;align-items: center;gap:5px;" v-if="$store.state.sideMenuView">{{ $store.state.user.name }}
+                        <img v-if="mood_val" :src="'/images/icon_' + mood_val.value_int + '.svg'" alt="Weather Icon" width="20" height="20" />
                     </div>
                 </div>
             </router-link>
@@ -79,7 +79,7 @@
                 </div>
                
             </router-link>
-            <router-link :to="{name: 'admin_control'}" v-if="$store.state.user.id === 765" :class="['side-menu-route', { selectedRoute: selectedRoute == 'admin_control'}]">
+            <router-link :to="{name: 'admin_control'}" v-if="[608, 610].includes($store.state.user.id)" :class="['side-menu-route', { selectedRoute: selectedRoute == 'admin_control'}]">
                 <div class="side-menu-route-inner">   
                     <svg class="side-app-icon" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 184 184" style="width:auto; height: 20px;min-width:17px;stroke:var(--kebab-icon);">
                         <path stroke-width="5" stroke-miterlimit="10" d="M27.9,110.4c1.2,0.3,2.9,1.8,3.3,3.1l2.4,5.8  c0.5,1.1,0.4,3.3-0.2,4.4l-9.6,15.7c-2.1,3.4-1.6,8.1,1.1,11.2l8.1,8.1c2.8,2.5,7.8,3,11.1,1l15.7-9.6c1-0.6,3.1-0.8,4.6-0.1  l5.8,2.4c1.2,0.4,2.7,2,2.9,3.2l4.3,17.9c0.9,3.8,4.5,6.9,8.4,7.3c0,0,2.4,0.2,6,0.2c3.6,0,6-0.2,6-0.2c3.9-0.3,7.5-3.5,8.4-7.3  l4.3-17.9c0.3-1.2,1.8-2.8,3.1-3.3l5.8-2.4c1-0.5,3.4-0.4,4.4,0.2l15.7,9.6c1.4,0.8,3,1.3,4.8,1.3c2.4,0,4.7-0.8,6.4-2.4l8.1-8.1  c2.6-3,3.1-7.7,1-11.1l-9.6-15.7c-0.6-1.1-0.7-3.3-0.1-4.6l2.4-5.8c0.4-1.2,2-2.7,3.3-2.9l17.9-4.3c3.8-0.9,6.9-4.5,7.3-8.4  c0,0,0.2-2.4,0.2-6c0-3.6-0.2-6-0.2-6c-0.4-3.9-3.5-7.5-7.3-8.4l-17.9-4.3c-1.2-0.3-2.8-1.8-3.3-3.1l-2.4-5.8  c-0.5-1.1-0.4-3.3,0.2-4.4l9.6-15.7c2.1-3.4,1.6-8.1-1.1-11.2l-8.1-8.1c-2.8-2.5-7.8-3-11.1-1l-15.7,9.6c-1,0.6-3.1,0.8-4.6,0.1  l-5.8-2.4c-1.2-0.4-2.6-2-2.9-3.2L106.2,10c-0.9-3.8-4.5-6.9-8.4-7.3c0,0-2.4-0.2-6-0.2c-3.6,0-6,0.2-6,0.2C82,3.1,78.4,6.2,77.4,10  l-4.3,17.9c-0.3,1.2-1.8,2.9-3.1,3.3l-5.8,2.4c-1,0.5-3.4,0.4-4.4-0.2l-15.7-9.6c-3.2-2-8.1-1.6-11.2,1.1L24.8,33  c-2.6,2.9-3.1,7.7-1,11.1l9.6,15.7c0.6,1.1,0.7,3.3,0.1,4.6l-2.4,5.8c-0.4,1.2-2,2.7-3.2,2.9L10,77.4c-3.8,0.9-6.9,4.5-7.3,8.4  c0,0-0.2,2.4-0.2,6c0,3.6,0.2,6,0.2,6c0.3,3.9,3.5,7.5,7.3,8.4L27.9,110.4z M9.4,91.8c0-3.1,0.2-5.3,0.2-5.3c0.1-0.9,1.1-2.1,2-2.4  l17.9-4.3c3.5-0.8,7-4,8-7.2l2.2-5.4c1.6-3.2,1.3-7.9-0.5-11l-9.6-15.7c-0.5-0.8-0.3-2.3,0.1-2.8l7.8-7.8c0.6-0.6,2.2-0.7,2.9-0.3  l15.7,9.6c3,1.8,8.1,1.9,10.8,0.6l5.4-2.2c3.4-1.2,6.5-4.7,7.4-8.1l4.3-17.9c0.2-0.9,1.4-2,2.4-2c0.1,0,2.2-0.2,5.3-0.2  c3.1,0,5.3,0.2,5.3,0.2c0.9,0.1,2.1,1.1,2.4,2l4.3,17.9c0.8,3.5,4,7,7.2,8.1l5.4,2.2c3.1,1.5,8,1.3,11-0.5l15.7-9.6  c0.7-0.4,2.4-0.2,2.8,0.1l7.8,7.8c0.6,0.7,0.7,2.2,0.3,2.9l-9.6,15.7c-1.9,3-2.1,7.8-0.6,10.8l2.2,5.4c1.2,3.4,4.7,6.5,8.1,7.4  l17.9,4.3c0.9,0.2,2,1.4,2,2.4c0,0.1,0.2,2.2,0.2,5.3c0,3.1-0.2,5.3-0.2,5.3c-0.1,0.9-1.1,2.1-2,2.4l-17.9,4.3c-3.5,0.8-7,4-8,7.2  l-2.2,5.4c-1.6,3.2-1.3,7.9,0.5,11l9.6,15.7c0.5,0.8,0.3,2.3-0.1,2.8l-7.8,7.8c-0.4,0.3-1,0.5-1.7,0.5c-0.5,0-0.9-0.1-1.2-0.3  l-15.7-9.6c-3-1.8-8.1-1.9-10.8-0.6l-5.4,2.2c-3.4,1.2-6.5,4.7-7.4,8.1L99.5,172c-0.2,0.9-1.4,2-2.4,2c-0.1,0-2.2,0.2-5.3,0.2  c-3.1,0-5.3-0.2-5.3-0.2c-0.9-0.1-2.1-1.1-2.4-2l-4.3-17.9c-0.8-3.5-4-7-7.2-8l-5.4-2.2c-1.4-0.7-3.1-1-4.9-1  c-2.3,0-4.4,0.6-6.1,1.6l-15.7,9.6c-0.7,0.4-2.4,0.2-2.8-0.1l-7.8-7.8c-0.6-0.7-0.7-2.2-0.3-2.9l9.6-15.7c1.9-3,2.1-7.8,0.6-10.8  l-2.2-5.4c-1.2-3.4-4.7-6.5-8.1-7.4l-17.9-4.3c-0.9-0.2-2-1.4-2-2.4C9.6,97,9.4,94.9,9.4,91.8z"></path> <path stroke-width="5" stroke-miterlimit="10" d="M91.8,129.5c20.8,0,37.8-16.9,37.8-37.8S112.6,54,91.8,54  C71,54,54,70.9,54,91.8S71,129.5,91.8,129.5z M91.8,60.9c17,0,30.9,13.9,30.9,30.9s-13.9,30.9-30.9,30.9c-17,0-30.9-13.9-30.9-30.9  S74.8,60.9,91.8,60.9z"></path>
@@ -90,7 +90,7 @@
             <div v-show="$store.state.sideMenuView" class="account-settings-wrap bottomItems">                
                 <GlowdNews :newsItems="newsItems"/>
                      
-                <div style="margin-top:auto;width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 15px;">   
+                <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 20px;">   
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;display: flex;align-items: center;" to="/notice">お知らせ<span v-if="$store.state.noticeBadge" style="position: unset;width: fit-content;margin-left: 5px;" class="side-notification">{{ badgeFilter($store.state.noticeBadge)}}</span> </router-link>             
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" to="/support/faq">サポートデスク</router-link>
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'settings'}">設定</router-link>
@@ -196,7 +196,7 @@ import GlowdNews from './GlowdNews.vue'
     text-decoration: none;
 }
 .g-news-wrap{
-    padding: 10px;
+    padding: 10px 20px;
     position: relative;
 }
 .gn-img-container{
@@ -208,7 +208,7 @@ import GlowdNews from './GlowdNews.vue'
 }
 .gn-banner{
     position: absolute;
-    left: 10px;
+    left: 20px;
     top: 10px;
     display: flex;
     align-items: center;
@@ -320,7 +320,7 @@ import GlowdNews from './GlowdNews.vue'
 }
 
 .selectedRoute{
-    background: var(--bg2);
+    background: var(--calendarBorder);
 }
 .news-slider{
     background-color: transparent !important;
@@ -343,7 +343,7 @@ import GlowdNews from './GlowdNews.vue'
         font-size: 13px;
     }
     .g-news-wrap{
-        padding: 10px;
+        padding: 10px 20px;
     }
     // .side-menu-route{    
     //     height: 7vh;

@@ -1,7 +1,7 @@
 <template>
     <div class="signature-wrapper" style="align-items: center;">
-        <div style="display:flex; justify-content:center;" v-if="imgData">
-            <img :src="imgData" :class="{'darkIcon' : $store.state.dark}" style="border: 1px solid var(--formBorder);box-sizing: border-box;">
+        <div style="display:flex; justify-content:center;background: #efefef;" v-if="imgData">
+            <img :src="imgData" style="border: 1px solid var(--formBorder);box-sizing: border-box;">
         </div>
         <div v-else id="canvasWrapper">
             <div style="position: relative;">

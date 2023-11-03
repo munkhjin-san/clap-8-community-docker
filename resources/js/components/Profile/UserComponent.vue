@@ -36,7 +36,7 @@
 
                         <router-link class=" boxMenuItems menuLink" :to="{name: 'personal-info-settings'}">プロフィール編集</router-link>
                         <!-- <router-link class=" boxMenuItems menuLink" :to="{name: 'account-settings'}">個人設定</router-link> -->
-                        <router-link class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link>
+                        <!-- <router-link class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link> -->
                         <!-- <router-link class=" boxMenuItems menuLink" to="/support">サポートデスク</router-link> -->
                         
                     </div>
@@ -53,6 +53,7 @@
                         @updateUser="updateUser"
                         @getUserInfo="getUserInfo"
                         @addIntroFile="addIntroFile"
+                        @editIntro="editIntro"
                     />
                     
                     <div v-if="UserAllData" class="second-bar">
@@ -108,7 +109,7 @@
                                         <div class="swiper-user" style="border:none;" >
                                             <div class="swiper-wrapper">
                                                 <div class="swiper-slide" v-for="(image, index) in images" :key="index">
-                                                    <img @click="previewImage(image, index)" class="cursor-pointer" :src="`${$store.state.baseLocation}/user_files/${UserAllData.id}/${image.id}_${image.user_id}_${image.path}.${image.extension}`" style="width: auto;max-width: 100%;max-height: 130px;padding:10px;">
+                                                    <img @click="previewImage(image, index)" class="cursor-pointer" :src="`${$store.state.baseLocation}/user_album/${UserAllData.id}/${image.id}_${image.user_id}_${image.path}.${image.extension}`" style="width: auto;max-width: 100%;max-height: 130px;padding:10px;">
                                                 </div>  
                                             </div>                                                     
                                         </div>        
@@ -264,6 +265,9 @@ export default {
         }
     },
     methods: { 
+        editIntro(){
+            this.introUpload = true
+        },
         addIntroFile(){
             console.log('aaa')
             this.introUpload = true
@@ -333,7 +337,7 @@ export default {
         previewFile(file, index){
             const files = this.files.map(fileData => ({
                 ...fileData,
-                file_path: `${this.$store.state.baseLocation}/user_files/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                file_path: `${this.$store.state.baseLocation}/user_album/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
             }));     
             const data = {
                 active: true,
@@ -349,7 +353,7 @@ export default {
         previewImage(file, index){
             const files = this.images.map(fileData => ({
                 ...fileData,
-                file_path: `${this.$store.state.baseLocation}/user_files/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                file_path: `${this.$store.state.baseLocation}/user_album/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
             }));   
             const data = {
                 active: true,

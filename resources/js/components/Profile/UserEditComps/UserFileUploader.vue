@@ -97,7 +97,7 @@ export default{
             }
         },
         fileSrc(file){
-            return file.path ? `${this.$store.state.baseLocation}/user_files/${file.user_id}/${file.id}_${file.user_id}_${file.path}.${file.extension}` : `${this.$store.state.baseLocation}/${file}`
+            return file.path ? `${this.$store.state.baseLocation}/user_album/${file.user_id}/${file.id}_${file.user_id}_${file.path}.${file.extension}` : `${this.$store.state.baseLocation}/${file}`
         },
         
         dropFile(){

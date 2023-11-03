@@ -43,6 +43,16 @@ class AutoJobController extends Controller
         $this->sharedService = $sharedService;
         // $this->middleware('throttle:3,1');
     }
+    public function update_last_act(){
+        // $users = boardToUser::whereNotNull('user_id')->get();
+        // foreach($users as $user){
+        //     $user->timestamps = false; // Disable timestamp updates
+        //     $user->update(['last_act' => $user->updated_at]);
+        //     $user->timestamps = true; // Re-enable timestamp updates
+        // }
+        // echo('ss');
+        // return;
+    }
     public function move_note_to_task(){
         $all_memos = memoRecord::where('deleted_flag', 0)->get();
         foreach($all_memos as $memo){

@@ -128,6 +128,7 @@ class PostController extends Controller
     public function post_get_tags(Request $request){
         $super = $request->super;
         $key = $request->key;
+        $special = $request->special ? $request->special : [];
         $tag_text = TagRecord::where('deleted_flag','=', 0)
         ->when(!$super, function ($query) use ($key) {
             $query->where('text', 'LIKE', '%' . $key . '%');
@@ -140,7 +141,17 @@ class PostController extends Controller
             'id',
             'text'
         ]);
-        return response()->json($tag_text);
+        if(count($special)){
+            $special_tags = TagRecord::whereIn('text', $special)->get();
+            foreach($special_tags as $s_tag){
+                $tag_text->prepend($s_tag);
+            }
+            return response()->json($tag_text);
+        }else{
+            return response()->json($tag_text);
+        }
+    
+       
     }
     public function post_get_users(Request $request){
         
@@ -259,7 +270,9 @@ class PostController extends Controller
             $tagIds = [];
             foreach ($request->tags as $text) {
                 $tag = TagRecord::firstOrCreate(['text' => $text]);
+
                 $tagIds[] = $tag->id;
+                $increment = $tag->increment('hits');
             }
             $record->tags()->sync($tagIds);
 

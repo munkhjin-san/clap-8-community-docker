@@ -101,7 +101,7 @@
                         :initialValue="userImages"
                         @updated="val => userImages = val"
                         @cancel="val => cancelImages = val"
-                        :path="'/user_files/' + UserAllData.id"
+                        :path="'/user_album/' + UserAllData.id"
                         :intro_flag="2"
                         placeholder="推しの写真アップロード"
                     />
@@ -184,7 +184,7 @@ import FormLongText from '../../Global/FormLongText.vue';
                     enjoy: this.userEnjoy,
                     recommend: this.userRecommend,
                     uploadedImages : this.userImages.length ? this.userImages : [], 
-                    path: '/user_files/' + this.UserAllData.id,
+                    path: '/user_album/' + this.UserAllData.id,
                     intro_flag: 2,
                     canceledImageIds: this.cancelImages.length ? this.cancelImages : [],
                 }               

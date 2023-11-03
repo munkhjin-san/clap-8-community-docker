@@ -575,27 +575,25 @@ class BoardController extends Controller
     public function getUnsignedUsers(Request $request){
         $auth_id = Auth::id();   
         $list = boardRecord::whereHas('board_to_users', function($q){
-            $q->where('user_id', Auth::id());
-        })->get();          
-        $result = new \Illuminate\Database\Eloquent\Collection;
-        foreach($list as $board){
-                $selfcheck = boardToUser::where('record_id', '=', $board->id)->where('user_id', '=', Auth::id())->first();
-                $comment_list_pre = messageRecord::whereHas('message_files', function ($query) use ($auth_id) {
-                    $query->where('sign_flag', 1)->whereHas('unsignedUsers', function ($q) use ($auth_id) {
-                        $q->where('user_id', $auth_id);
-                    });
-                })
-                ->with('user')
-                ->with(['message_files', 'message_files.unsignedUsers', 'message_files.signedUsers'])
-                ->with('reactedUsers')
-                ->with('checkedUsers')
-                ->with('uncheckedUsers')
-                ->get();
-                $result = $result->merge($comment_list_pre);
+            $q->where('user_id', Auth::id())->where('deleted_status', 0);
+        })->pluck('id')->toArray();
+                 
+        $comment_list_pre = messageRecord::whereIn('record_id', $list)
+        ->whereHas('message_files', function ($query) use ($auth_id) {
+            $query->where('sign_flag', 1)->whereHas('unsignedUsers', function ($q) use ($auth_id) {
+                $q->where('user_id', $auth_id)->where('cancel_flag', 0);
+            });
+        })
+        ->with('user')
+        ->with(['message_files', 'message_files.unsignedUsers', 'message_files.signedUsers'])
+        ->with('reactedUsers')
+        ->with('checkedUsers')
+        ->with('uncheckedUsers')
+        ->get();
            
-        }
+        
         $data = [
-            "message_list" => $result
+            "message_list" => $comment_list_pre
         ];
         return response()->json($data);
     }
@@ -1443,11 +1441,16 @@ class BoardController extends Controller
         return $mail;
     }
     public function getRemindMessage(){
+        $list = boardRecord::whereHas('board_to_users', function($q){
+            $q->where('user_id', Auth::id())->where('deleted_status', 0);
+        })->pluck('id')->toArray();
         $user = Auth::user();
-        $remindedMessages = messageRecord::whereHas('messageRemindUsers', function ($query) use ($user) {
+        $remindedMessages = messageRecord::whereIn('record_id', $list)
+            ->whereHas('messageRemindUsers', function ($query) use ($user) {
                 $query->where('user_id', $user->id)
                       ->where('reminded', 1);
             })
+            ->where('deleted_flag', 0)
             ->with('messageRemindUsers')
             ->with('user')
             ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
@@ -1479,11 +1482,41 @@ class BoardController extends Controller
         
     }
     public function getUncheckedMessage(Request $request){
+        // $user = Auth::user();
+        // $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
+        // $checkMessages = messageRecord::whereHas('checkUsers', function ($query) use ($user) {
+        //         $query->where('user_id', $user->id)
+        //               ->where('checked', 0);
+        //     })->whereHas('board_record', function($q){
+        //         $q->whereHas('board_to_users', function($q){
+        //             $q->where('user_id', Auth::id())->where('deleted_flag', '=', '0')->where('deleted_status', '=', 0);
+        //         });
+        //     })
+        //     ->whereDate('check_request_at', '>', $start_point)
+        //     ->where('deleted_flag', '0')
+        //     ->with('messageRemindUsers')
+        //     ->with('user')
+        //     ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
+        //     ->with('reactedUsers')
+        //     ->with('checkedUsers')
+        //     ->with('uncheckedUsers')
+        //     ->get();
+            
+        // return response()->json($checkMessages);
+
         $user = Auth::user();
-        $checkMessages = messageRecord::whereHas('checkUsers', function ($query) use ($user) {
+        $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
+        $list = boardRecord::whereHas('board_to_users', function($q){
+            $q->where('user_id', Auth::id())->where('deleted_status', 0);
+        })->pluck('id')->toArray();
+        $checkMessages = messageRecord::
+            whereIn('record_id', $list)
+            ->whereHas('checkUsers', function ($query) use ($user) {
                 $query->where('user_id', $user->id)
                       ->where('checked', 0);
             })
+            ->whereDate('check_request_at', '>', $start_point)
+            ->where('deleted_flag', '0')
             ->with('messageRemindUsers')
             ->with('user')
             ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
@@ -1491,8 +1524,9 @@ class BoardController extends Controller
             ->with('checkedUsers')
             ->with('uncheckedUsers')
             ->get();
-            
-        return response()->json($checkMessages);
+
+        // return response()->json($list);
+        return [];
     }
     public function checkRequest(Request $request){
 

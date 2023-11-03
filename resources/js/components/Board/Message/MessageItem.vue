@@ -264,8 +264,11 @@ import { nextTick } from 'vue'
         },
         mounted() {
             if((this.message.id == this.searchTargetId && this.messageListType == 'search') || this.$store.state.urlMessageId == this.message.id){
-                var elem = document.getElementById('messageRoot_' + this.message.id);    
-                elem.scrollIntoView({block: 'center' });    
+                var elem = document.getElementById('messageRoot_' + this.message.id);   
+                if(elem){
+                    elem.scrollIntoView({block: 'center' }); 
+                } 
+                   
                 this.$store.commit('setUrlMessageId', this.message.id)
                 setTimeout(() => { this.$store.commit('setUrlMessageId', null)}, 5000);  
             }
@@ -291,12 +294,12 @@ import { nextTick } from 'vue'
                     const title = this.message.task.title ? this.message.task.title : ''
                     const body = this.message.task.remarks ? this.message.task.remarks : ''
                     const merge = title + body
-                    return `<strong>新しいタスクが追加されました。</strong><br><p style=text-align:left>${merge.slice(0, 100)}${merge.length > 100 ? '...' : ''}</p>`
+                    return `<strong>新しいタスクが追加されました。</strong><br><p style=text-align:left;margin-top:10px>${merge.slice(0, 100)}${merge.length > 100 ? '...' : ''}</p>`
                 }
             },
             memoInfoMessage(){
                 if(this.message.memo && this.message.memo.content && this.message.memo.content.length){
-                    return `<strong>新しいノートが追加されました。</strong><br><p style=text-align:left>${this.message.memo.content.slice(0, 100)}${this.message.memo.content.length > 100 ? '...' : ''}</p>`
+                    return `<strong>新しいノートが追加されました。</strong><br><p style=text-align:left;margin-top:10px>${this.message.memo.content.slice(0, 100)}${this.message.memo.content.length > 100 ? '...' : ''}</p>`
                 }
             },
             reminded(){
@@ -352,7 +355,8 @@ import { nextTick } from 'vue'
                 //     return textWithHighlightedKeywords;
                 // }
                 if(this.message.info_flag == 0){
-                    const to_all = this.message.message.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
+                    const text = this.message.message ? this.message.message : ''
+                    const to_all = text.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>');
                     const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                     const br_remove = converterd.replace(/&lt;br&gt;/g," ");
                     return this.urlCheck(br_remove)

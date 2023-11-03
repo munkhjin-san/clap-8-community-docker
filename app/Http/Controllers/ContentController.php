@@ -292,9 +292,9 @@ class ContentController extends Controller
         try {     
             $root_path = storage_path('app');
             $filePath = $request->user_id . '/' . $request->path;
-            $p1 = $root_path . '/user_files/' . $filePath;
+            $p1 = $root_path . '/user_album/' . $filePath;
             return response()->file($p1);
-            $fileContents = Storage::disk('local')->get('user_files/' . $filePath);
+            $fileContents = Storage::disk('local')->get('user_album/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
             finfo_close($finfo);

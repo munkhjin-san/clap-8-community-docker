@@ -15,7 +15,7 @@
 {"className": "--scroll-bar", "dark" : "#5e5e5e", "light" : "#000000"},
 {"className": "--secondary-background", "dark" : "#3d3d3d", "light" : "#e6e6e6"},
 {"className": "--selected-background", "dark" : "#3d3d3d", "light" : "rgba(204, 223, 245, 0.5)"},
-{"className": "--check-inactive", "dark" : "#5c5c5c", "light" : "#c0c0c0"},
+{"className": "--check-inactive", "dark" : "#898989", "light" : "#c0c0c0"},
 {"className": "--calendarBorder", "dark" : "#404040", "light" : "#dddddd"},
 {"className": "--kebab-bg1", "dark" : "#4a4a4a", "light" : "#ebebeb"},
 {"className": "--kebab-icon", "dark" : "#949494", "light" : "#00000"},
@@ -25,5 +25,6 @@
 {"className": "--side-menu-border", "dark" : "#404040", "light" : "#cdcdcd"},
 {"className": "--link-color", "dark" : "#81b8fd", "light" : "#1a73e8"},
 {"className": "--task-background", "dark" : "#3d3d3d", "light" : "#dddddd"},
-{"className": "--past-calendar", "dark" : "#494949", "light" : "#cccccc"}
+{"className": "--past-calendar", "dark" : "#494949", "light" : "#cccccc"},
+{"className": "--third-color", "dark" : "#e4e6eb", "light" : "#878787"}
 ]

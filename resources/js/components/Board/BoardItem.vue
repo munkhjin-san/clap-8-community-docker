@@ -100,7 +100,8 @@ import moment from 'moment'
             lastMessage(){
                 if(this.item.last_message){
                     if(this.item.last_message.message){
-                        const to_all = this.item.last_message.message.replaceAll('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>').replaceAll('<span class="addedMembers">', '<a class="addedMembers">').replaceAll('</span>', '</a>'); ; 
+                        const text = this.item.last_message && this.item.last_message.message ? this.item.last_message.message : ''
+                        const to_all = text.replaceAll('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>').replaceAll('<span class="addedMembers">', '<a class="addedMembers">').replaceAll('</span>', '</a>'); ; 
                         const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                         const br_remove = converterd.replace(/&lt;br&gt;/g," ");
                         return br_remove
@@ -137,6 +138,8 @@ import moment from 'moment'
                 this.$store.commit('setMenu', menu)
             },
             openMe(item){
+
+                this.$store.commit('setUrlMessageId', null)
                 this.$emit('openBoard', item, 'fromList')
             },           
             checkAdminAccess: function (item) {

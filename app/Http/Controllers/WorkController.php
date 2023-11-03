@@ -244,12 +244,14 @@ class WorkController extends Controller
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
         $planned_date = Carbon::now()->format('Y-m-d');
-        foreach ($responseData['records'] as $data){
-            if($data['社員ｺｰﾄﾞ']['value'] == $user->user_code){
-                $recieve = ['date'=>$data['当年度有休付与日']['value'], 'user_code'=>$data['社員ｺｰﾄﾞ']['value'], 'all_days'=>$data['付与日数']['value'], 'planned_days'=>$data['計画消化日数']['value'], 'consumed_days'=>$data['消化日数合計']['value'], 'remaining_days'=>$data['残日数1']['value']];
-                $planned_date = $data['付与年度']['value'];
-            }
-        }
+        // if($responseData){
+        //     foreach ($responseData['records'] as $data){
+        //         if($data['社員ｺｰﾄﾞ']['value'] == $user->user_code){
+        //             $recieve = ['date'=>$data['当年度有休付与日']['value'], 'user_code'=>$data['社員ｺｰﾄﾞ']['value'], 'all_days'=>$data['付与日数']['value'], 'planned_days'=>$data['計画消化日数']['value'], 'consumed_days'=>$data['消化日数合計']['value'], 'remaining_days'=>$data['残日数1']['value']];
+        //             $planned_date = $data['付与年度']['value'];
+        //         }
+        // }
+        
         $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
@@ -257,7 +259,8 @@ class WorkController extends Controller
                         ->with(['shiftType'])
                         ->orderBy('created_at', 'desc')
                         ->get();
-        $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();
+        // $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();   }
+
         if($auth_user->position_id <= 11){
             $shift_type = shiftType::where('deleted_flag', 0)->get();
         }else{
@@ -268,7 +271,7 @@ class WorkController extends Controller
             "shift_type" => $shift_type,
             "kintone_data" => $recieve,
             "test" => $responseData,
-            'planned_days' => $between_records
+            // 'planned_days' => $between_records
         ];
 
         return response()->json(
@@ -359,6 +362,97 @@ class WorkController extends Controller
             $timecard->save();
             return response()->json($timecard);
         }
+    }
+    private function roundToNearest15Minutes($time, $ceil = true) {
+        $roundedTime = Carbon::parse($time);
+        
+        if ($ceil) {
+            $roundedMinutes = (int)ceil($roundedTime->minute / 15) * 15;
+        } else {
+            $roundedMinutes = (int)floor($roundedTime->minute / 15) * 15;
+        }
+        $roundedTime->setSeconds(0);
+
+        return $roundedTime->setMinute($roundedMinutes)->format('H:i:s');
+    }
+    public function addData(Request $request){
+        $time_card = timecardRecord::where('month', '2023-10')->where('deleted_flag', 0)->get();
+        foreach($time_card as $card){
+            $user = User::select('work_time_day', 'work_type', 'id', 'name')->findOrFail($card->user_id);
+            
+            // $nightOvertimeStart = Carbon::createFromFormat('H:i:s', '22:00:00')->subDay();
+            // $nightOvertimeEnd = Carbon::createFromFormat('H:i:s', '05:00:00');
+            // $todayNightOverTime = Carbon::createFromFormat('H:i:s', '22:00:00');
+            // if($end->lt($start)){
+            //     $start->subDay();
+            // }
+            if($card->edit_start_time && $card->edit_end_time){
+                $start = Carbon::parse($card->day . ' ' . $card->edit_start_time);
+                $end = Carbon::parse($card->day . ' ' . $card->edit_end_time);
+            }else if($card->start_time && $card->end_time){
+                $start = Carbon::parse($card->day . ' ' . $card->start_time);
+                $end = Carbon::parse($card->day . ' ' . $card->end_time);
+            }
+            
+            if($start && $end){
+                // Round the start and end times accordingly
+                // $roundedStartTime = $this->roundToNearest15Minutes($start->format('H:i:s'), true);
+                // $roundedEndTime = $this->roundToNearest15Minutes($end->format('H:i:s'), false);
+                // $card->start_time = $roundedStartTime;
+                // $card->end_time = $roundedEndTime;
+                $shift_time_difference_seconds = ($user->work_time_day * 60) + 3600;
+                $shift_time_difference_seconds -= $card->break_time * 60;
+                $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
+                
+                $time_difference_seconds = $card->work_time * 60;
+                // $time_difference_seconds -= $card->break_time * 60;
+                $time_difference_seconds = max(0, $time_difference_seconds);
+                
+            
+                
+                // $night_difference_seconds = 0;
+                // if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
+                //     if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
+                //         $night_difference_seconds = $end->diffInSeconds($start);
+                //     } else {
+                //         $night_difference_seconds = $nightOvertimeEnd->diffInSeconds($start);
+                //     }
+                // } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
+                //     $night_difference_seconds = $end->diffInSeconds($nightOvertimeStart);
+                // } else if ($end->greaterThan($todayNightOverTime)){
+                //     $night_difference_seconds = $end->diffInSeconds($todayNightOverTime);
+                // } else {
+                //     $night_difference_seconds = 0;
+                // }
+                // if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
+                //     $night_difference_seconds -= $request->breakTime * 60;
+                // }
+                $card->over_time = null;
+                if ($time_difference_seconds >= $shift_time_difference_seconds) {                
+                    $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
+                    $overtimeMinutes = floor($overtimeSeconds / 60);
+                    $card->over_time = $overtimeMinutes;
+                    
+                } else {
+                    $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
+                    $latetimeMinutes = floor($latetimeSeconds / 60);
+                    $card->late_time = $latetimeMinutes;
+                }
+                
+                // if (isset($night_difference_seconds) && $night_difference_seconds > 0) {
+                //     $nighttimeMinutes = floor($night_difference_seconds / 60);
+                //     $card->night_over_time = $nighttimeMinutes;
+                // }else{
+                //     $card->night_over_time = 0;
+                // }
+                $minutes = floor($time_difference_seconds / 60);
+                // $card->work_time = $minutes;
+                $card->save();
+            }
+            
+            
+        }
+        return 'saved';
     }
     public function saveTimeCard(Request $request){
         $today = Carbon::now()->isoFormat('YYYY-MM-DD');
@@ -627,7 +721,7 @@ class WorkController extends Controller
         }
         $month_over_time = 0;
         if($user->work_type == 0){
-            $all_worked_time = $worked_time + $annual_leave + $over_time;
+            $all_worked_time = $worked_time + $annual_leave;
             $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
         }
         
@@ -659,7 +753,7 @@ class WorkController extends Controller
             'month_move_allowance_count' => $month_move_allowance_count,
             'worked_time' => $worked_time,
             'holiday_worked_time' => $holiday_worked_time,
-            'night_over_time' => $night_over_time
+            'night_over_time' => $night_over_time,
         );
 
         return response()->json($responseArray);

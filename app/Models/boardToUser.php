@@ -29,5 +29,5 @@ class boardToUser extends Model
         'last_task' => 'int',       
         'pin_flag' => 'int',
     ];
-    protected $fillable = ['user_id', 'admin_flag', 'last_message'];
+    protected $fillable = ['user_id', 'admin_flag', 'last_message', 'last_act'];
 }

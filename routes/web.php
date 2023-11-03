@@ -51,13 +51,15 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 });
 
 // temp_routes
-Route::get('/reacted_users_make', [AutoJobController::class, 'reactedUsersMake']);
-Route::get('/change_to_dummy', [AutoJobController::class, 'change_to_dummy']);
-Route::get('/create_notice_board', [AutoJobController::class, 'create_notice_board']);
-Route::get('/migrate_app_files_to_message_files', [AutoJobController::class, 'migrate_app_files_to_message_files']);
-Route::get('/remove_temp_files_cron', [AutoJobController::class, 'removeTemprorayFiles']);
-Route::get('/generate_readers', [NoticeController::class, 'generate_readers']);
-Route::get('/move_note_to_task', [AutoJobController::class, 'move_note_to_task']);
+// Route::get('/reacted_users_make', [AutoJobController::class, 'reactedUsersMake']);
+// Route::get('/change_to_dummy', [AutoJobController::class, 'change_to_dummy']);
+// Route::get('/create_notice_board', [AutoJobController::class, 'create_notice_board']);
+// Route::get('/migrate_app_files_to_message_files', [AutoJobController::class, 'migrate_app_files_to_message_files']);
+// Route::get('/remove_temp_files_cron', [AutoJobController::class, 'removeTemprorayFiles']);
+// Route::get('/generate_readers', [NoticeController::class, 'generate_readers']);
+// Route::get('/move_note_to_task', [AutoJobController::class, 'move_note_to_task']);
+// Route::get('/genertate_my_groups', [CalendarController::class, 'genertate_my_groups']);
+// Route::get('/update_last_act', [AutoJobController::class, 'update_last_act']);
 // temp_routes
 
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
@@ -155,7 +157,7 @@ Route::group(["middleware"=>"auth"],function(){
 
         Route::get('/post_files/{path}', [ContentController::class, 'postFileTransfer']);
         Route::get('/calendar_files/{path}', [ContentController::class, 'calendarFileTransfer']);
-        Route::get('/user_files/{user_id}/{path}', [ContentController::class, 'userFileTransfer']);
+        Route::get('/user_album/{user_id}/{path}', [ContentController::class, 'userFileTransfer']);
         Route::get('/notice_files/{path}', [ContentController::class, 'noticeFileTransfer']);
         Route::get('/notice_temp/{path}', [ContentController::class, 'noticeTempFileTransfer']);
         // Board
@@ -363,7 +365,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/attendance_delete', [WorkController::class, 'attendanceDelete']);
         Route::post('/not_submitted', [WorkController::class, 'notSubmitted']);
         Route::post('/attendance_closed', [WorkController::class, 'attendanceClose']);
-
+        Route::get('/add_data', [WorkController::class, 'addData']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
         Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);

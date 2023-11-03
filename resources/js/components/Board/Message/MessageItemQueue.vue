@@ -175,7 +175,8 @@ import FileIcon from '../Mixed/FileIcon.vue';
         },
         computed:{
             messageBody(){
-                const to_all = this.message.message.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
+                const text = this.message.message ? this.message.message : ''
+                const to_all = text.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
                 const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                 const br_remove = converterd.replace(/&lt;br&gt;/g," ");
                 return this.urlCheck(br_remove)
