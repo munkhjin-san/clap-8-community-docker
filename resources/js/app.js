@@ -29,7 +29,6 @@ app.use(store)
 app.use(router)
 
 
-
 import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 // Pusher.logToConsole = true;
@@ -95,7 +94,6 @@ app
 .component('UserComponent', defineAsyncComponent(() => import('./components/Profile/UserComponent.vue')))
 .component('LoginComponent', defineAsyncComponent(() => import('./components/Auth/LoginComponent.vue')))
 .component('InstantProfile', defineAsyncComponent(() => import('./components/Board/InstantProfile.vue')))
-.component('FilePreview', defineAsyncComponent(() => import('./components/Board/Tray/File/FilePreview.vue')))
 // Board //
 
 .component('Help', defineAsyncComponent(() => import('./components/Help/Help.vue')))

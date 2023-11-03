@@ -16,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use App\Mail\Calendar;
+use Illuminate\Support\Facades\Storage;
 use Auth;
 use DB;
 class CalendarController extends Controller
@@ -610,7 +611,7 @@ class CalendarController extends Controller
         foreach($c_records as $rec){            
             $d = [
                 "id" => $rec['id'],
-                "start_at" => Carbon::parse($rec['date_start'])->format('Y/m/d H:m'),
+                "start_at" => Carbon::parse($rec['date_start'])->format('Y/m/d H:i'),
                 "recursion" => $recursion_types[$rec['repetition_type']],
                 "content" => $rec['remarks']
             ];
@@ -960,6 +961,91 @@ class CalendarController extends Controller
         ->with('created_by')
         ->first();
         return response()->json($res); 
+    }
+    public function export_ical(Request $request){
+
+        $id = $request->id;
+        $token = $request->token;
+        $user = User::where('id', $request->id)->where('ical_key', $token)->first();
+        if(!$user){
+            abort(404);
+        }
+
+        $content = <<<EOD
+        BEGIN:VCALENDAR
+        PRODID:-//" . $user->email . "//CLAP 1.0//EN
+        VERSION:2.0
+        CALSCALE:GREGORIAN
+        METHOD:PUBLISH
+        X-WR-CALNAME:CLAP:カレンダー
+        X-WR-TIMEZONE:Asia/Tokyo
+        BEGIN:VTIMEZONE
+        TZID:Asia/Tokyo
+        X-LIC-LOCATION:Asia/Tokyo
+        BEGIN:STANDARD
+        TZOFFSETFROM:+0900
+        TZOFFSETTO:+0900
+        TZNAME:JST
+        DTSTART:19700101T000000
+        END:STANDARD
+        END:VTIMEZONE
+        EOD;
+        $events = CalendarRecord::whereHas('calendar_users', function ($query) use($user){
+            $query->where('users.id', $user->id);
+        })
+        ->orderBy('date_start', 'asc')->get();
+        $now = Carbon::now();
+        foreach($events as $event){
+            $start = Carbon::parse($event->date_start)->format('Ymd\THis');
+            $end = Carbon::parse($event->date_end)->format('Ymd\THis');
+            $now = Carbon::now()->format('Ymd\THis');
+            $uid = $event->id . "/" . $user->email;
+            $array = array( ' ', '　', "\r\n", "\r", "\n", "\t" );
+            $desc = str_replace($array, '', $event->remarks . $event->referrer);
+            $content = <<<EOD
+            $content
+            BEGIN:VEVENT
+            DTSTART:$start
+            DTEND:$end
+            DTSTAMP:$now
+            UID:$uid
+            CREATED:$now
+            DESCRIPTION:$desc
+            URL:$event->referrer
+            LAST-MODIFIED:$now
+            SEQUENCE:0
+            STATUS:CONFIRMED
+            SUMMARY:$event->title
+            TRANSP:OPAQUE
+            END:VEVENT
+            EOD;
+        }
+        $content = <<<EOD
+        $content
+        END:VCALENDAR
+        EOD;
+        $headers = [
+            'Content-type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'inline; filename='.$user->id.'.ics',
+        ];
+        return response($content, 200, $headers);
+        // Storage::disk('local')->put('ical/test.ics',  $content);
+        // echo($content);
+    }
+    public function ical_url_generate(){ 
+        $key = $u_id = uniqid();
+        $update = Auth::user()->update([
+            "ical_key" => $key
+        ]);
+        $res = [
+            "success" => $update,
+            "key" => $key,
+            "url" => url('/export_ical?id='.Auth::id().'&token='.$key)
+        ];
+
+        return response()->json($res); 
+
+        
     }
 
     

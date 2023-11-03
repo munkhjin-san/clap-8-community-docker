@@ -1,8 +1,8 @@
 <template>                    
     <div class="chatCreate scrollable">
-        <div id="postCreateWindow">
-            <Form v-slot="{ errors }" ref="form">           
-                <div class="userFormTitle" style="display:flex;">
+        <div id="postCreateWindow" style="background:inherit">
+            <Form v-slot="{ errors }" ref="form" style="background:inherit">           
+                <div class="recordFormTitle" style="display:flex;">
                 <p v-if="editFlag == false">新しいユーザーを作成する</p>
                 <p v-if="editFlag == true">ユーザーを編集する</p>
                 <div class="cursor-pointer" @click="closeModal(false)" style="position:unset; margin:auto 0 auto auto">
@@ -11,8 +11,8 @@
                         </svg>                        
                     </div> 
                 </div>
-                <div class="input-wrapper">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">ログインID</span> 
+                <div class="input-wrapper mt-20">
+                    <span  class="form-plc smallPlc">ログインID</span> 
                     <div class="w-100">
                         <div class="input-inner-wrapper">
                             <Field @keydown.space.prevent class="recordText-user" v-model="user_login" type="text" rules="required|max:48" name="login" />
@@ -21,7 +21,7 @@
                     </div>
                 </div>
                 <div class="input-wrapper mt-20">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">苗字</span> 
+                    <span  class="form-plc smallPlc">苗字</span> 
                     <div class="lastname_wrapper">
                         <div class="input-inner-wrapper">
                             <Field class="recordText-user" v-model="user_lastname" type="text" name="lastname" rules="required" />
@@ -29,14 +29,14 @@
                         </div>                    
                     </div>
                     <div class="firstname_wrapper">
-                        <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">名前</span> 
+                        <span  class="form-plc smallPlc">名前</span> 
                         <div class="input-inner-wrapper">
                             <Field class="recordText-user" v-model="user_firstname" type="text" name="firstname" />
                         </div>                    
                     </div>
                 </div>
                 <div class="input-wrapper mt-20">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">苗字かな</span> 
+                    <span  class="form-plc smallPlc">苗字かな</span> 
                     <div class="lastname_wrapper">
                         <div class="input-inner-wrapper">
                             <Field class="recordText-user" v-model="user_kanalast" type="text" name="name_kanalast" rules="required" />
@@ -44,14 +44,14 @@
                         </div>                    
                     </div>
                     <div class="firstname_wrapper">
-                        <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">名前かな</span> 
+                        <span  class="form-plc smallPlc">名前かな</span> 
                         <div class="input-inner-wrapper">
                             <Field class="recordText-user" v-model="user_kanafirst" type="text" name="name_kanafirst" />
                         </div>                    
                     </div>
                 </div>
                 <div class="input-wrapper mt-20">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">メール</span> 
+                    <span  class="form-plc smallPlc">メール</span> 
                     <div class="w-100">
                         <div class="input-inner-wrapper">
                             <Field class="recordText-user" v-model="user_email" type="email" name="email" rules="required"/>
@@ -63,8 +63,8 @@
                         <div v-if="editForm == true" class="input-inner-wrapper">
                             <button @click="passwordChange()" class="btn btn-primary password-btn">パスワードの変更</button>
                         </div>
-                    <div class="w-100" v-if="editForm == false">
-                        <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">パスワード</span> 
+                    <div class="w-100" style="background:inherit;" v-if="editForm == false">
+                        <span  class="form-plc smallPlc">パスワード</span> 
                         <div class="input-inner-wrapper">
                             <div style="position:relative">
                                 <Field class="recordText-user" v-model="user_password" :type="showPassword ? 'text' : 'password'" name="user_password" rules="required" />
@@ -76,7 +76,7 @@
                     </div>
                 </div>
                 <div class="input-wrapper mt-20">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">役職</span> 
+                    <span  class="form-plc smallPlc">役職</span> 
                     <div class="w-100">
                         <div class="input-inner-wrapper">
                             <select class="recordText-user dropdown" @change="awardSelect" v-model="positions" name="positions">
@@ -86,7 +86,7 @@
                     </div>
                 </div>
                 <div class="input-wrapper mt-20" v-if="partnerForm == false">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">営業所</span> 
+                    <span  class="form-plc smallPlc">営業所</span> 
                     <div class="w-100">
                         <div class="input-inner-wrapper">
                             <select class="recordText-user dropdown" v-model="offices" name="offices">
@@ -96,7 +96,7 @@
                     </div>
                 </div>
                 <div class="input-wrapper mt-20">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">電話番号</span> 
+                    <span  class="form-plc smallPlc">電話番号</span> 
                     <div class="w-100">
                         <div class="input-inner-wrapper">
                             <input class="recordText-user" v-model="user_phone" type="text" name="phone_number">
@@ -104,7 +104,7 @@
                     </div>
                 </div>
                 <div class="input-wrapper-memo mt-20">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">メモ</span> 
+                    <span  class="form-plc smallPlc">メモ</span> 
                     <div class="input-inner-wrapper">
                         <textarea class="recordTextArea-user" v-model="user_memo" name="user_memo" ></textarea> 
                     </div>
@@ -123,7 +123,7 @@
                 <p v-if="partnerForm == false" class="user-header">ワーク設定</p>
                                                 
                 <div class="input-wrapper mt-20" v-if="partnerForm == false">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">社員コード</span> 
+                    <span  class="form-plc smallPlc">社員コード</span> 
                     <div class="w-100">
                         <div class="input-inner-wrapper">
                             <Field class="recordText-user" v-model="user_code" type="number" name="user_code" rules="required"/>
@@ -139,7 +139,7 @@
                     </div>
                 </div>
                 <div class="input-wrapper mt-20" v-if="partnerForm == false">
-                    <span style="z-index: 1;background-color:var(--background-color);" class="form-plc smallPlc">1日の稼働時間(単位：分)</span> 
+                    <span  class="form-plc smallPlc">1日の稼働時間(単位：分)</span> 
                     <div class="w-100">
                         <div class="input-inner-wrapper">
                             <Field class="recordText-user" v-model="work_time_day" type="number" name="work_time_day" rules="required" />
@@ -560,11 +560,13 @@
             display: flex;
             flex-direction: row;
             position: relative;
+            background: inherit;
           }
           .input-wrapper-memo{
             display: flex;
             flex-direction: row;
             position: relative;
+            background: inherit;
           }
           .input-inner-wrapper{
             position: relative;
@@ -595,6 +597,7 @@
           }
           .lastname_wrapper{
             width: 50%;
+            background: inherit;
         }
         .firstname_wrapper{
             width: 50%;
@@ -602,6 +605,7 @@
             align-items: center;
             margin-left: 20px;
             position: relative;
+            background: inherit;
         }
         @media screen and (max-width: 959px){
             .input-wrapper{

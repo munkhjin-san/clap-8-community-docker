@@ -1,13 +1,15 @@
 <template>
     <div class="recordFile">                                                
         <div class="recordFile-inner">                                        
-            <swiper class="swiper" :slides-per-view="5" :space-between="20" style="border:none;">
-                <swiper-slide v-for="(image, index) in images" :key="index">
-                    <img @click="previewImage(image, index)" class="cursor-pointer" :src="$store.state.baseLocation + '/post_files/' + image.id + '_' + image.user_id + '_' + image.path + '.' + image.extension" style="width: auto;max-width: 100%;max-height: 130px;">
-                </swiper-slide>                                                           
-            </swiper>        
-            <div class="file-area-content hasMessage" style="gap: 10px;">
-                <div @click="previewFile(file, index)" class="file-wrap-rec" v-for="(file, index) in files">   
+            <div class="swiper" style="border:none;">
+                <div class="swiper-wrapper">
+                    <div class="swiper-slide" v-for="(image, index) in images" :key="index">
+                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="$store.state.baseLocation + '/post_files/' + image.id + '_' + image.user_id + '_' + image.path + '.' + image.extension" style="width: auto;max-width: 100%;max-height: 130px;">
+                    </div>  
+                </div>                                                          
+            </div>        
+            <div class="file-area-content" style="gap: 10px;margin: 15px 0 0 0">
+                <div @click="previewFile(file, index)" class="file-wrap-rec" v-for="(file, index) in files" style="padding: 0;">   
                     <div class="file-area-container" style="flex-direction: row;">                    
                         <div v-if="file.mime_type !== 'image'" style="position:relative;">
                             <FileIcon :ext="file.extension"/>                                                  
@@ -26,33 +28,20 @@
     <script>
     import FileIcon from '../Board/Mixed/FileIcon.vue';
     import {filesize} from 'filesize';
-    import { Swiper, SwiperSlide } from 'swiper/vue';
+    import  Swiper  from 'swiper';
     import 'swiper/css'
-    import { Navigation, Thumbs } from 'swiper';
-    import 'swiper/css/navigation'
-    import 'swiper/css/thumbs'
+    
         export default {
             props: ['items'],
-            data(){
-                return{
-                    swiperOption01: {
-                        slidesPerView: 5,
-                        spaceBetween: 20,
-                        freeMode: true,
-                        pagination: {
-                            el: '.swiper-pagination',
-                            clickable: true
-                        }
-                    },
-                }
-            },
+            
             components:{
-                Swiper,
-                SwiperSlide,
                 FileIcon
             },
             mounted() {
-                
+                new Swiper('.swiper', {
+                    slidesPerView: 5,
+                    spaceBetween: 20
+                })
             },
             computed:{
                 images(){
@@ -65,28 +54,37 @@
             },
             methods:{
                 previewFile(file, index){
-                    
+                    const files = this.files.map(fileData => ({
+                        ...fileData,
+                        file_path: `${this.$store.state.baseLocation}/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                        doc_path: `${this.$store.state.baseLocation}/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                    }));
                     const data = {
                         active: true,
-                        files: this.files,
+                        files,
                         target: file,
                         source: 'post',
                         source_board_id: null,
                         index: index,
-                        message: null
+                        message: null,
+                        doc_path: `${this.$store.state.baseLocation}/post_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`,
+                        file_path: `${this.$store.state.baseLocation}/post_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`,
                     }
                     this.$store.commit('setFilePreview', data)
                 },
                 previewImage(file, index){
-                    
+                    const files = this.images.map(fileData => ({
+                        ...fileData,
+                        file_path: `${this.$store.state.baseLocation}/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                    }));
                     const data = {
                         active: true,
-                        files: this.images,
+                        files,
                         target: file,
                         source: 'post',
                         source_board_id: null,
                         index: index,
-                        message: null
+                        message: null,
                     }
                     this.$store.commit('setFilePreview', data)
                 },

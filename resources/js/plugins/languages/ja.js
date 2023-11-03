@@ -452,7 +452,7 @@ const ja =  {
         otpCheckAction: '間違ったコードを何度も入力しました。しばらくしてからもう一度お試しください',
         mailOrPhoneRegisterCheck: 'この処理を連続して実行することはできません。しばらくしてからもう一度お試しください',
     },
-    reacted: 'リアクションしたメンバー',
+    reacted: 'チェックしたメンバー',
     loginEmailorPhone: 'メールアドレスまたは電話番号',
     lastActivity: '最終更新日',
     untilDeletion: '{count}日後にこのボードは削除されます',

@@ -15,6 +15,10 @@ use App\Models\Tag;
 use App\Events\Message;
 use App\Models\tempUser;
 use App\Models\PasswordReset;
+use App\Models\NoticeFiles;
+use App\Models\NoticeRecords;
+use App\Models\AppFileRecord;
+use App\Models\taskUser;
 use App\Mail\Warning;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -37,7 +41,35 @@ class AutoJobController extends Controller
     public function __construct(SharedService $sharedService)
     {
         $this->sharedService = $sharedService;
-        $this->middleware('throttle:3,1');
+        // $this->middleware('throttle:3,1');
+    }
+    public function move_note_to_task(){
+        $all_memos = memoRecord::where('deleted_flag', 0)->get();
+        foreach($all_memos as $memo){
+            $board = boardRecord::where('id', $memo->board_id)->where('deleted_flag', 0)->first();
+            if($board){
+                $users = $board->board_to_users()->pluck('user_id')->toArray();
+                $newTask = taskRecord::create([
+                    'user_id' => $memo->id,
+                    'board_id' => $memo->board_id,
+                    'remarks' => $memo->content,
+                    'created_at' => $memo->created_at,
+                    'updated_at' => $memo->updated_at
+                ]);
+                foreach($users as $user){
+                    $newTaskUser = taskUser::create([
+                        'record_id' => $newTask->id,
+                        'user_id' => $user,
+                    ]);
+                }
+                
+                echo(count($users));
+                echo('<br>');
+            }
+            
+            
+        }
+
     }
     public function removeOldBoards(){
         $time_limit = Carbon::today()->subDays(180);
@@ -132,23 +164,46 @@ class AutoJobController extends Controller
         $messages = MessageRecord::whereNotNull('reacted_users')->skip(280000)->take(20000)->get();
         $userExist = User::pluck('id')->toArray();
         $modelCollection = collect($userExist);
-        // echo(count($userExist));
-        // exit;
         foreach($messages as $message){
             $list = explode(',', $message->reacted_users);
             if(!empty($list)){
-
-                // Convert $modelArray to a collection
-                
-
-                // Use the filter method to remove elements not in $modelCollection
                 $filteredSecondArray = collect($list)->filter(function ($item) use ($modelCollection) {
                     return $modelCollection->contains($item);
                 })->toArray();
-                $message->reactedUsers()->sync($filteredSecondArray);
-                
-            }
-            
+                $message->reactedUsers()->sync($filteredSecondArray);                
+            }            
+        }
+        echo('success280000');
+        return ;
+    }
+    public function checkedUsersMake(){
+        $messages = MessageRecord::whereNotNull('checked_users')->skip(280000)->take(20000)->get();
+        $userExist = User::pluck('id')->toArray();
+        $modelCollection = collect($userExist);
+        foreach($messages as $message){
+            $list = explode(',', $message->checked_users);
+            if(!empty($list)){
+                $filteredSecondArray = collect($list)->filter(function ($item) use ($modelCollection) {
+                    return $modelCollection->contains($item);
+                })->toArray();
+                $message->checkedUsers()->sync($filteredSecondArray);                
+            }            
+        }
+        echo('success280000');
+        return ;
+    }
+    public function uncheckedUsersMake(){
+        $messages = MessageRecord::whereNotNull('unchecked_users')->skip(280000)->take(20000)->get();
+        $userExist = User::pluck('id')->toArray();
+        $modelCollection = collect($userExist);
+        foreach($messages as $message){
+            $list = explode(',', $message->unchecked_users);
+            if(!empty($list)){
+                $filteredSecondArray = collect($list)->filter(function ($item) use ($modelCollection) {
+                    return $modelCollection->contains($item);
+                })->toArray();
+                $message->uncheckedUsers()->sync($filteredSecondArray);                
+            }            
         }
         echo('success280000');
         return ;
@@ -167,5 +222,84 @@ class AutoJobController extends Controller
      
 
 
+    }
+    public function create_notice_board(){
+
+        // $board = new BoardRecord;
+        // $board->user_id = 610;
+        // $board->title = 'お知らせ';
+        // $board->private_flag = 0;
+        // $board->save();
+        $block = [450];
+
+        $users = User::where('deleted_flag', 0)->whereNotIn('id', $block)->whereNot('position_id', 13)->where('retire', 0)->where('hide_flag', 0)->where('partner_flag', 0)->where('id', '>', 105)->pluck('id')->toArray();
+        // print_r(count($users));
+
+        
+
+        $oshirase_current_members = boardToUser::where('record_id', 1056)->where('deleted_flag', 0)->pluck('user_id')->toArray();
+
+        $uniqueInArray1 = collect($users)->diff($oshirase_current_members)->toArray();
+        foreach($uniqueInArray1 as $id){
+            echo($id);
+            echo('<br>');
+        }
+        // print_r($uniqueInArray1);
+        // echo($oshirase_current_members);
+
+
+
+        // $notices = NoticeRecords::where('deleted_flag', 0)->get();
+        // echo($notices);
+        return;
+    }
+    public function migrate_app_files_to_message_files(){
+        $files = AppFileRecord::where('recycle_flag', 0)->get();
+
+        foreach($files as $file){
+            $filePath = $file->record_id . '/' . $file->path . '.' . $file->extension;
+            if (Storage::disk('local')->exists('managed_files/' . $filePath)) {
+                $rec = messageFile::create([
+                    'board_id' => $file['record_id'], 
+                    'user_id' => $file['user_id'], 
+                    'name' => $file['name'], 
+                    'mime_type' => $file['mime_type'], 
+                    'extension' => $file['extension'], 
+                    'size' => $file['size'], 
+                    'message_id' => 0
+                ]);
+                $copy = Storage::disk('local')->copy('managed_files/' . $filePath,'shared_files/' . $file->record_id . '/'. $rec->id . '_' . $file['user_id'] . '_0.' . $file['extension']);
+                echo($copy);
+            }
+        }
+        
+        return;
+    }
+    public function removeTemprorayFiles(){ //Cron Job
+        // $directory = 'temp_upload';
+
+        // $maxAgeInDays = 7;
+
+        // $thresholdTimestamp = now()->subDays($maxAgeInDays);
+
+        // $files = Storage::disk('local')->files($directory);
+
+        // foreach ($files as $file) {
+        //     $fileTimestamp = Storage::disk('local')->lastModified($file);
+
+        //     if ($fileTimestamp <= $thresholdTimestamp->timestamp) {
+        //         Storage::disk('local')->delete($file);
+        //         $this->info("Deleted: $file");
+        //     }
+        // }
+        $line = Carbon::now()->subDays(7)->format('Y:m:d H:i:s');
+        $unused_files = messageFile::where('message_id', null)
+            ->where('created_at', '<', $line)   
+            ->get();
+        foreach($unused_files as $file){           
+            $del = Storage::disk('local')->delete('temp_upload/' . $file->id . '.' . $file->extension);        
+            $file->delete();            
+        }
+        return;
     }
 }

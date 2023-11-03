@@ -42,6 +42,28 @@ class PostController extends Controller
         }
         return $files;
     }
+    public function delete_post(Request $request){
+        $nameSpace = '\\App\\Models\\'; 
+
+        $model = $nameSpace . ucfirst($request->path) . 'Record'; 
+        $record = $model::findOrFail($request->id);
+        // if($record->app_type == 3 || $record->app_type == 4){
+        //     $record->to_users()->detach();
+        // }
+        $files = $record->files()->get();
+        $ids = [];
+        foreach($files as $file){
+            $ids[] = $file->id;
+        }
+        if(count($ids)){
+            $result = $this->delete_file_execute($ids, '/post_files');
+        }    
+
+        
+        $record->tags()->detach();
+        $record->delete();
+        return response()->json($record->id);
+    }
     public function get_posts(Request $request){    
         
         $nameSpace = '\\App\\Models\\'; 
@@ -278,9 +300,12 @@ class PostController extends Controller
 
                 // return response()->json($request->file_ids);
                 $record->files()->sync($request->file_ids);
-                $list = UserLastRecord::where('user_id', '=', Auth::id())->where('deleted_flag', '=', 0)->update([
-                    'last_' . $request->path => $record->id
-                ]);
+                if(!$request->edit_id){
+                    $list = UserLastRecord::where('user_id', '=', Auth::id())->where('deleted_flag', '=', 0)->update([
+                        'last_' . $request->path => $record->id
+                    ]);
+                }
+                
                 
             $rebound = array(
                 "new_post_from" => Auth::id(),

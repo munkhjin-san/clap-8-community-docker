@@ -4,12 +4,14 @@
         class="calendar-card" 
         :class="[{'pop-cal-card' : expanded}]"
         :style="{
-            width: recordWidth, 
+            minWidth: recordWidth, 
             marginTop: `${(record.order * 60) + (record.order + 1) * 10}px`,
             left: recordLeft,
             maxHeight: maxHeight,
             opacity: opacity,
-            transform: expanded ? `translate(${shiftRight}px, ${shiftBottom}px)` : `translate(0, 0)`
+            transform: expanded ? `translate(${shiftRight}px, ${shiftBottom}px)` : `translate(0, 0)`,
+            maxWidth: expanded ? '400%' : recordWidth, 
+            width: 'max-content'
         }"
         :id="`dayRecord_${this.record.id}`"
         @dragover.prevent 
@@ -90,9 +92,9 @@ export default{
                 return '200%'
             }else{
                 const minutesDifference = Math.abs(moment(this.record.date_start).diff(moment(this.record.date_end), 'minutes'))
-                const steps = Math.floor(minutesDifference / 15)
+                const steps = Math.ceil(minutesDifference / 15)
                 const until_start = Math.abs(moment(this.record.date_start).startOf('day').diff(moment(this.record.date_start), 'minutes'))                
-                const before_limiter = Math.floor(until_start / 15) 
+                const before_limiter = Math.ceil(until_start / 15) 
                 const max_block = 96 - before_limiter
                 const computed_width = steps > max_block ? max_block : steps
                 const unit = this.$store.state.mobile ? '500vw' : '120vw'
@@ -113,8 +115,7 @@ export default{
             const el = document.getElementById('cal_day_view')
             const left = el ? el.scrollLeft : 0
             this.beforeLeft = left
-            this.beforeState = event.x            
-            console.log(this.beforeState)
+            this.beforeState = event.x     
         },
         deleteRecord(record){
             this.$emit('delete', record)
@@ -130,6 +131,7 @@ export default{
                 record['width'] = width
                 record['x'] = event.x
                 record['y'] = event.y
+                record['from'] = 'month'
                 this.$store.commit('setDraggingCalendar', record)
                 this.$store.commit('setMenu', {id: null, name: ''})
                 this.$emit('setParentDroppable')
@@ -165,12 +167,11 @@ export default{
                         }
                     }
                     const bottom_check = rect.y + rect.height
-                    if(bottom_check > window.innerHeight){
-                        this.shiftBottom = window.innerHeight - bottom_check - 10
+                    const value = this.$store.state.mobile && this.$store.state.user.footer_view ? 45 : 0
+                    if(bottom_check > window.innerHeight - value){
+                        this.shiftBottom = window.innerHeight - value - bottom_check - 10
                     }
                 }
-                
-                console.log()
             })
 
         }

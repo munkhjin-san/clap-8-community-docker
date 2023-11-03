@@ -154,11 +154,12 @@ class ContentController extends Controller
             if($request->keyword == $user->file_key){
                 try {
                     $filePath = $request->board_id .'/' . $request->path;
-                    $fileContents = Storage::disk('local')->get('message_files/' . $filePath);
-                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
-                    $contentType = finfo_buffer($finfo, $fileContents);
-                    finfo_close($finfo);
-                    return response($fileContents)->header('Content-Type', $contentType);
+                    // $fileContents = Storage::disk('local')->get('shared_files/' . $filePath);
+                    // $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    // $contentType = finfo_buffer($finfo, $fileContents);
+                    // finfo_close($finfo);
+                    // return response($fileContents)->header('Content-Type', $contentType);
+                    return response()->file(storage_path('app/shared_files/' . $filePath ));
                 } catch (FileNotFoundException $exception) {
                     abort(404);
                 }
@@ -170,6 +171,21 @@ class ContentController extends Controller
         
 
     }   
+    public function cdnExtractDocsPost(Request $request){
+        if($request->user_id){
+            $user = User::findOrFail($request->user_id);
+            if($request->keyword == $user->file_key){
+                try {
+                    $filePath = $request->sub_folder . '/' . $request->path;
+                    return response()->file(storage_path('app/' . $filePath ));
+                } catch (FileNotFoundException $exception) {
+                    abort(404);
+                }
+            }else{
+                abort(404);
+            }
+        }
+    }
     public function getSignature(Request $request){   
         try {       
             $fileContents = Storage::disk('local')->get('user_signature/' . $request->path);
@@ -273,10 +289,11 @@ class ContentController extends Controller
     public function userFileTransfer(Request $request){     
         
 
-        try {           
-            
-
+        try {     
+            $root_path = storage_path('app');
             $filePath = $request->user_id . '/' . $request->path;
+            $p1 = $root_path . '/user_files/' . $filePath;
+            return response()->file($p1);
             $fileContents = Storage::disk('local')->get('user_files/' . $filePath);
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $contentType = finfo_buffer($finfo, $fileContents);
@@ -288,5 +305,37 @@ class ContentController extends Controller
         
 
     }   
+    public function noticeTempFileTransfer(Request $request){     
+        
+
+        try {
+            $filePath = $request->path;
+            $fileContents = Storage::disk('local')->get('notice_temp/' . $filePath);
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $contentType = finfo_buffer($finfo, $fileContents);
+            finfo_close($finfo);
+            return response($fileContents)->header('Content-Type', $contentType);
+        } catch (FileNotFoundException $exception) {
+            abort(404);
+        }
+        
+
+    }
+    public function noticeFileTransfer(Request $request){     
+        
+
+        try {
+            $filePath = $request->path;
+            $fileContents = Storage::disk('local')->get('notice_files/' . $filePath);
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $contentType = finfo_buffer($finfo, $fileContents);
+            finfo_close($finfo);
+            return response($fileContents)->header('Content-Type', $contentType);
+        } catch (FileNotFoundException $exception) {
+            abort(404);
+        }
+        
+
+    }
 
 }

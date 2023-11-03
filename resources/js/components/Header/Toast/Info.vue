@@ -15,7 +15,7 @@ export default{
 <style>
 .mini-info {
     position: fixed;
-    right: 10px;
+    right: 0;
     top: 10px;
     background-color: green;
     display: flex;
@@ -29,5 +29,6 @@ export default{
     width: -moz-fit-content;
     width: fit-content;
     margin: 0 auto;
+    white-space: nowrap;
 }
 </style>

@@ -1,6 +1,16 @@
 <template>
     <div ref="commentScrollEnd" :id="'queueMessage_' + message.u_id" class="messageBoxRoot" :class="{ selfMessage: message.user_id == $store.state.user.id}">
-        <div ref="scrollBottom" :style="messageBodyStyle" class="mobileMessageBody" :class="{ emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot}">
+        <div 
+            ref="scrollBottom" 
+            :style="{
+                float: $store.state.user.id == message.user.id ? 'right' : 'left',
+                margin: '0 15px',
+                maxWidth: message.message == null || !message.message || !message.message.length ? '50%' : '80%',
+                width: 'fit-content'
+            }" 
+            class="mobileMessageBody"
+            :class="{ emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot}"
+            >
             <div class="queueBox" :class="{queueBoxError : message.error}" style="z-index:4">
                 <div id="loaderMini" v-if="!message.error || resending">
                     <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
@@ -21,7 +31,7 @@
                         </svg>                     
                     </div>                    
                     <div class="column-02 cursor-pointer" style="margin-top: 7px;line-height: unset;">                        
-                        <p :id="'messageSender_' + message.id" class="userName" @dragstart.prevent style="margin-left:10px;margin-right:40px;">{{ messageUserName }}</p>   
+                        <p :id="'messageSender_' + message.id" class="userName" @dragstart.prevent style="margin-left:10px;margin-right:35px;">{{ messageUserName }}</p>   
                     </div> 
                     
                     <div class="column-03" style="position: absolute;top: -40px;right: -17px;display: flex;"> 
@@ -169,55 +179,7 @@ import FileIcon from '../Mixed/FileIcon.vue';
                 const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                 const br_remove = converterd.replace(/&lt;br&gt;/g," ");
                 return this.urlCheck(br_remove)
-            },     
-            messageBodyStyle() {
-                const comment = this.message
-                const selfid = this.$store.state.user.id
-                var width = '';
-                var max_w = '';
-                var min_w = '';
-                var float = '';
-                var margin = '';          
-                if(comment.user_id == selfid){
-                    float = "float:right;";
-                    margin = "margin-right:15px;";
-                }else{
-                    float = "float:left;";
-                    margin = "margin-left:15px;";
-                }
-                if(comment.deleted_at){
-                    width = "max-width:18%;";
-                }else{
-                    width = "width:fit-content;";
-                }
-                if(comment.message !== null){
-                    min_w = "min-width:30%;";
-                    max_w = "max-width:85%;";
-                }else if(comment.message == null){
-                    width = "width:fit-content;";
-                    max_w = "max-width:50%;";
-                }           
-                if(comment.message_quot !==null && comment.message_quot.message == null){
-                    min_w = "";
-                    width = "width:fit-content;";
-                    max_w = "max-width:35%;";
-                }else if(comment.message_reply !==null && comment.message_reply.message == null){
-                    min_w = "";
-                    width = "width:fit-content;";
-                    max_w = "max-width:35%;";
-                }else if(comment.message_quot !==null && comment.message_quot.message !== null){
-                    min_w = "min-width:30%;";
-                    max_w = "max-width:85%;";
-                }else if(comment.message_reply !==null && comment.message_reply.message !== null){
-                    min_w = "min-width:30%;";
-                    max_w = "max-width:85%;";
-                }    
-                if(comment.message_files && comment.message_files.length){
-                    min_w = "min-width:0 !important;";
-                }  
-                return float + margin + width + min_w + max_w;     
-                var result;       
-            },
+            }, 
             messageUserName(){                
                 return this.message.user && this.message.user.deleted_at == null
                 ? this.message.user.name
@@ -226,27 +188,10 @@ import FileIcon from '../Mixed/FileIcon.vue';
         },
         methods:{
             sendMessage(flag){
-                let pre_list = this.$store.state.tempUniqueId
-                const pre_check = pre_list.filter( ob => ob == this.message.u_id) 
-                console.log('this.resending', this.resending)
-                console.log('this.message.error', this.message.error)
-                console.log('pre_check.length', pre_check.length)
                 if(!this.resending && this.message.error) {
-                    console.log('ddreturn')
                     return
-                }
-                
-
-                
-                this.$parent.$parent.$emit('resetPageIndex')             
-
-                
-                // const menUsers = this.mentionedUsers;
-                                          
-                // var all_users = this.openedBoard.board_to_users.map(obj => obj.user).map(obj => obj.id);
-                // var new_user = all_users.filter(value => value != this.$store.state.user.id);
-            
-                const importedFiles = this.importedFiles
+                }              
+                this.$parent.$parent.$emit('resetPageIndex')    
                 const params = {
                     message: this.message.message,
                     app_name: 'board',
@@ -270,7 +215,6 @@ import FileIcon from '../Mixed/FileIcon.vue';
                 let u_list = []
                 u_list.push(this.message.u_id);
                 this.$store.commit('setTempUniqueId', u_list);
-                // return 
                 axios.post('/chat_add_api', params)
                 .catch((error) => {
                     if(error){
@@ -308,8 +252,7 @@ import FileIcon from '../Mixed/FileIcon.vue';
             },
             resendMessage(){
                 this.resending = true
-                this.sendMessage('resend')
-                
+                this.sendMessage('resend')                
 
             },
             urlCheck: function (text) {
@@ -317,32 +260,6 @@ import FileIcon from '../Mixed/FileIcon.vue';
                     var linkedText = Autolinker.link(text, {stripPrefix: false});              
                     return linkedText;                
                 }            
-            },
-            iconColorFilter: function (ext) {
-                var extensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
-                    "doc", "docm", "docx", "dot", "dotx",
-                    "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx",
-                    "pdf",
-                ]
-                var format = extensions.indexOf(ext);
-                var result;
-                switch (true) {
-                    case (format >= 0 && format <= 9):
-                        result = "fill: #1D6F42";
-                        break;
-                    case (format >= 10 && format <= 14):
-                        result = "fill: #0078d7";
-                        break;
-                    case (format >= 15 && format <= 23):
-                        result = "fill: #d04423";
-                        break;
-                    case (format == 24):
-                        result = "fill: #ff0000";
-                        break;
-                    default:
-                        result = null;
-                }
-                return result;
             },
               
         }

@@ -3,7 +3,7 @@
         <div 
             v-if="!mobile"
             ref="draggingCalendar" 
-            class="calendar-card" 
+            class="calendar-card dragging-calendar" 
             :style="{
                 width: `${record['width']}px`, 
                 maxHeight: '60px',

@@ -9,7 +9,11 @@
         </Transition>
         <div style="touch-action: manipulation;height: 100%;">           
             <div id="calendarsTable" style=" display:block !important; font-weight: 400; text-align: inherit;height: 100%;">
-                <div ref="monthScrollContainer" style="height:100%;overflow: auto;" id="cal_month_view">
+                <div 
+                    ref="monthScrollContainer" 
+                    style="height:100%;overflow:hidden auto;" 
+                    id="cal_month_view"
+                >
                     <div id="weekdayhead" class="weekday-header" style="position: sticky;top: 0;">
                         <div class="weekday-header-item" v-for="num in 7">{{ weekDay(num) }}</div>
                     </div>
@@ -53,11 +57,17 @@ export default {
             swipeMonth : this.selectedMonth,
             slide: '',
             swiper: null,
-            taskCount: null
+            taskCount: null,
+            isDragging: false,
+            cursorPos: [0, 0],
         }
+    },
+    unmounted(){
+        window.removeEventListener("mouseup", this.onMouseUp);
     },
     mounted(){
         localStorage.setItem('viewType', 1)
+        window.addEventListener("mouseup", this.onMouseUp);
         // const wrapper = document.getElementById('calendarWrapper')
         // const wrapperRect = wrapper.getBoundingClientRect()
         // const daysWrapperheight = wrapperRect.height - 40 - 40

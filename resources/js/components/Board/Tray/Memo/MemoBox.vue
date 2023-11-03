@@ -4,20 +4,21 @@
             @dragover.prevent 
             draggable="true" 
             @dragstart.prevent.stop="memoDrag"
-            @click="editStart" 
+            @click.stop="editStart" 
                 :style="{
                     border: error ? 'solid 1px red' : editAble == item.id ? 'solid 1px var(--hoverBorder)' : memoBorder,
                     position: 'relative',
                 }" 
                 class="memoBox"
         >
-
+            <div style="font-size: 12px;background: var(--bg3);padding: 5px;" v-if="item.editing && item.editing !== $store.state.user.name" v-html="`<strong>${item.editing}</strong>さんが編集中...`"></div>
         
             
             <div 
                 @paste="pasteListener($event)"                 
                 @keyup="stateChange"
                 @blur="focusOut"
+                @focus="setEdit(true)"
                 @keyup.enter="editShort"
                 :id="'editableMemo_' + item.id"
                 :contentEditable="editAble == item.id" 
@@ -26,7 +27,7 @@
                 v-html="urlCheck"></div>
             <Transition name="slidePop">
             <div class="memoCommandBar" v-if="editAble == item.id">
-                <div @click="editSend" class="commentEditButton" style="margin:0">{{$t('save')}}</div>
+                <div @click.stop class="commentEditButton" style="margin:0">{{$t('save')}}</div>
                 <div @click.stop="deleteSend()" class="commentEditButton" style="margin:0">{{ $t('delete') }}</div>
                 <div @click.stop="copyText()" class="commentEditButton" style="margin:0">{{ $t('copy') }}</div>
             </div>
@@ -42,7 +43,7 @@
     import Autolinker from 'autolinker';
     export default {
         props: ['item', 'editAble', 'myColor'],
-        emits: ['copyText', 'setEditAble', 'editSend'],
+        emits: ['copyText', 'setEditAble', 'editSend', 'setEditing'],
         data(){
             return{
                 content: '',
@@ -93,37 +94,30 @@
             },
             editStart(index){
                 if(event.target.nodeName === 'A') return
-                axios.post('/set_memo_edit_user', { memo_id: this.item.id, user_id: this.$store.state.user.id }).then(
-                    response =>{    
-                        if(response.data.edit_user == this.$store.state.user.id){
-                            this.$emit('setEditAble', this.item.id)
-                            const el = document.getElementById('editableMemo_' + this.item.id)    
-                            this.tempData = el.innerHTML            
-                            setTimeout(() =>{
-                                el.tabIndex = 1
-                                el.focus();
-                                if(index == -1){ 
-                                    document.execCommand('selectAll', false, null);
-                                    document.getSelection().collapseToEnd();
-                                }
-
-                            },0)
-                        }else{
-                            emitter.emit('setToast', {
-                                active: true,  
-                                type: 'info', 
-                                content: '他のユーザーが編集中です',
-                                closeButton: true, 
-                                autoClose: true,
-                            })
-                        }
+                if(this.item.editing && this.item.editing !== this.$store.state.user.name) return
+                
+                this.$emit('setEditAble', this.item.id)
+                const el = document.getElementById('editableMemo_' + this.item.id)    
+                this.tempData = el.innerHTML            
+                setTimeout(() =>{
+                    el.tabIndex = 1
+                    el.focus();
+                    if(index == -1){ 
+                        document.execCommand('selectAll', false, null);
+                        document.getSelection().collapseToEnd();
                     }
-                )
+                },0)
+                
+                       
             },
             focusOut(){
                 if(this.editAble == this.item.id){
                     this.editSend();
                 }
+                
+            },
+            setEdit(val){
+                this.$emit('setEditing', this.item.id, val)
             },
             editCancel(){
                 this.$emit('setEditAble', null); 

@@ -1,6 +1,7 @@
 <template>
 <div :id="`day_val_${day.full}`" class="day-tc" :style="{ minHeight: `${layer * 70 + 10}px` }">
-    <div :ref="`cal_${day.full}`" :class="['day-label', {isToday : isToday}]" v-html="computedDay(day)"></div>
+    <!-- <div :ref="`cal_${day.full}`" :class="['day-label', {isToday : isToday}]" v-html="computedDay(day)"></div> -->
+    <div :ref="`cal_${day.full}`" :class="['day-label', {isPastDay : isPastDay}, {isToday : isToday}]" v-html="computedDay(day)"></div>
     <HourRow
         v-for="(hour, hourIndex) in hoursOfDay" 
         :hour="hour"
@@ -31,7 +32,7 @@ import moment from 'moment';
 import HourRow from './HourRow.vue';
 import SeparateLine from './SeparateLine.vue';
 export default{
-    props: ['day', 'hoursOfDay', 'dayRecords', 'facilitiesList'],
+    props: ['day', 'hoursOfDay', 'records', 'facilitiesList', 'orderCreator'],
     emits: ['releaseScroll', 'load', 'scrollToTime', 'edit', 'dropFinish', 'delete', 'create'],
     components: {HourRow, SeparateLine},
     computed:{
@@ -41,12 +42,28 @@ export default{
             return max
            
         },
+        isPastDay(){
+            return moment(this.day.full).isBefore(moment(), 'day')
+        },
         isToday(){
             return moment(this.day.full).isSame(moment(), 'day')
         },
         fistDayOfMonth(){
             return this.day.day == 1
         },
+        dayRecords(){
+            if(this.records && this.records.length){               
+                const list = this.records.filter(ob => moment(ob.date_start).isSame(moment(this.day.full), 'day'))
+                const sortedList = list.slice().sort((a, b) => {
+                    return new Date(a.date_start) - new Date(b.date_start);
+                });               
+
+                const ordered = this.orderCreator(0, sortedList, this.day.full)           
+                console.log('check', ordered.length == sortedList.length)
+                return ordered
+            }
+            return []
+        }
     },
     mounted(){
         

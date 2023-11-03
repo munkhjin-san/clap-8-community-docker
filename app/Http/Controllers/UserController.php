@@ -19,6 +19,8 @@ use App\Models\NiceRecord;
 use App\Models\ClapRecord;
 use App\Models\ChallengeRecord;
 use App\Models\UserAlbum;
+use App\Models\TagRecord;
+use App\Models\userUseTags;
 use Carbon\Carbon;
 
 use App\Events\Message;
@@ -206,67 +208,122 @@ class UserController extends Controller{
             return response()->json($userName);
         
     }
+    public function get_albums(Request $request) {
+        $tag_id = $request->tag_id;
+
+        $usersWithAlbums = User::whereHas('user_album.tags', function ($query) use ($tag_id) {
+            $query->where('tag_id', $tag_id);
+        })->with(['user_album' => function ($query) use ($tag_id) {
+            $query->select('id', 'path', 'name', 'mime_type', 'user_id', 'extension', 'title')
+                  ->whereHas('tags', function ($subQuery) use ($tag_id) {
+                      $subQuery->where('tag_id', $tag_id);
+                  });
+        }])->select('id', 'name', 'icon_id')->get();
+
+        return response()->json($usersWithAlbums);
+    }
     public function profileEdit(Request $request) { 
 
              
             $user = Auth::user();
-            $user->awareness = $request->inputs['userAwareness'];         
-            $user->phone_number = $request->inputs['userPhone'];
-            $user->work_email = $request->inputs['userMail'];
+            $user->awareness = $request->awareness;         
+            $user->phone_number = $request->phone_number;
+            $user->work_email = $request->work_email;
            
-            $user->motto = $request->inputs['userMotto'];
-            $user->enjoy = $request->inputs['userEnjoy'];
-            $user->recommend = $request->inputs['userRecommend'];
-            $user->intro = $request->inputs['userIntro'];
-                
+            $user->motto = $request->motto;
+            $user->enjoy = $request->enjoy;
+            $user->recommend = $request->recommend;
+            $user->intro = $request->intro;
+            if($request->uploadedImages){
+                $this->tempToServer($request);
+            }
+            if($request->canceledImageIds){
+                $this->cancelFile($request);
+            }
+            
             $user->save();
-        
             return response()->json("saved");
         
     }
-    public function loginEdit(Request $request){
-        $user = Auth::user();
+    private function tempToServer($request){
+        $path = $request->path;
+        foreach($request->uploadedImages as $filetemp){
+            if (is_string($filetemp) && Storage::disk('local')->exists($filetemp)) {
+                $fileContent = Storage::disk('local')->get($filetemp);
+                $file_path = date("YmdHis") . md5(uniqid());   
+                $fileInfo = pathinfo($filetemp);
+                $file_extension = $fileInfo['extension'];
+                $file_real_name = $fileInfo['basename'];            
+                $mime_type = mime_content_type(storage_path('app/' . $filetemp));;
+                $mime_type_array = explode('/',$mime_type);
+                $file_type = $mime_type_array[0];
+                
+                $album = new UserAlbum;
+                $album->user_id = Auth::id();
+                $album->path = $file_path;
+                $album->name = $file_real_name;
+                $album->created_by = Auth::id();
+                $album->mime_type = $file_type;
+                $album->extension = $file_extension;
+                $album->intro_flag = $request['intro_flag'];
+                $album->save();
+                $set_path = "{$album->id}_{$album->user_id}_{$file_path}.{$album->extension}";
+                if($file_type == 'image' && $file_extension !== 'svg'){
 
-        
-        if($request->phone_login){
-            $tempuser = User::where('phone', $request->phone_login)->first();
-            
-            if($tempuser){
-            return response()->json(['message' => 'phoneExist'], 422);
+                    $img = Image::make($fileContent)->orientate();
+                    File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
+                    $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
+                    
+                }else{
+                    $result = file_put_contents(storage_path('app/' . $path . '/' . $set_path), $fileContent);
+                } 
+                Storage::disk('local')->delete($filetemp);
+
+                return response()->json($album);
             }
-            
-            $codeSent = $this->verifyEdit($request, $request->phone_login);
-            if($codeSent == true){
-            $data = [
-                "phoneOrMail" => $request->phone_login,
-                "login" => $user->login,
-                'prefix' => $request->country_code
-            ];
-            
-            $user->save();
-            return response()->json($data);
-            } 
-        } 
-        if($request->email_login){
-            $tempuser = User::where('email', $request->email_login)->where(function ($query) {
-                $query->whereNull('social_login');
-            })->first();
-
-            if($tempuser){
-                return response()->json(['message' => 'emailExist'], 422);
-            }
-
-            $codeSent = $this->verifyEdit($user, $request->email_login, $request->lang);
-            if($codeSent == true){
-                $data = [
-                    "phoneOrMail" => $request->email_login,
-                    "login" => $user->login,
-                    'prefix' => $request->country_code
-                ];
-                $user->save();
-                return response()->json($data);
-            } 
         }
+    }
+    public function userFileUpload(Request $request){
+        $path = $request->path;
+        $originalFileName = $request->file('file')->getClientOriginalName();
+        $originalMimeType = $request->file('file')->getMimeType();
+        $mime_type_array = explode('/',$originalMimeType);
+        $file_type = $mime_type_array[0];
+        if($file_type == 'video' || $file_type == 'image'){
+            $tempFileName = $request->file('file')->storeAs('temp_upload', $originalFileName, 'local');
+            return response()->json($tempFileName);
+        }else{
+            return 'notimage';
+        }   
+        
+    }
+    public function save_intro(Request $request){
+        if($request->uploadedImages){
+            $user_album = $this->tempToServer($request);
+            foreach ($request->tags as $text) {
+                $tag = TagRecord::firstOrCreate(['text' => $text]);
+                $tagIds[] = $tag->id;
+            }
+            $user_album->original->tags()->sync($tagIds);
+            $user_album->original->title = $request->title;
+            $user_album->original->save();
+        }
+        if($request->canceledImageIds){
+            $this->cancelFile($request);
+        }
+    }
+    private function cancelFile($request){
+        $canceledImageIds = $request->canceledImageIds ?? [];
+        if (count($canceledImageIds) > 0) {
+            $existingAlbums = UserAlbum::whereIn('id', $canceledImageIds)->get();
+
+            foreach ($existingAlbums as $album) {
+                $set_path = $album->id . '_' . $album->user_id . '_' . $album->path . '.' . $album->extension;
+                Storage::disk('local')->delete($request->path . '/' . $set_path);
+                $album->delete();
+            }
+        } 
+        return 'saved';
     }
     public function deleteEdit(Request $request){
         
@@ -286,31 +343,7 @@ class UserController extends Controller{
     
         return response()->json("saved");
     }
-    public function verifyEdit($request, $login, $lang){
-        if(preg_match("/^[\d]{8,14}$/", $login)){
-            $phone = $request->country_code . $login;
-            $token = config('app.twilio_auth_token');
-            $twilio_sid = config('app.twilio_sid');
-            $twilio_verify_sid = config('app.twilio_verify_sid');
-            $twilio = new Client($twilio_sid, $token);
-            $twilio->verify->v2->services($twilio_verify_sid)
-                ->verifications
-                ->create($phone, "sms");
-            
-            return true;
-        }else if(filter_var($login, FILTER_VALIDATE_EMAIL)){
-            $min = 100000; 
-            $max = 999999; 
-            $otp = rand($min, $max);
-            $request->otp = $otp;
-            $request->save();
-            $temp = new stdClass();
-            $temp->email = $login;
-            Mail::to($login)->send(new VerifyEmail($temp, $otp, $lang));
-            
-            return true;
-        }
-    }
+    
     public function groupList(Request $request) {
 
         //ログインユーザー関連
@@ -426,14 +459,16 @@ class UserController extends Controller{
         abort(404);
         
     }
+    
     public function deleteMov(Request $request){
         if(!empty($request)){
             $user_id_int = $request->delete_id;
-            $path = '/user_files' . '/' . $user_id_int;
-            $intro_record = userAlbum::where('deleted_flag', '=', 0)->where('user_id', $user_id_int)->where('intro_flag', '=', 1)->first();  
+            $intro_record = userAlbum::findOrFail($request->mov_id);  
+            $path = '/user_files' . '/' . $user_id_int . '/' . $intro_record->id . '_' . $user_id_int;
             if(!empty($intro_record)){
+                $intro_record->tags()->detach();
                 $intro_record->delete();
-                Storage::disk('local')->delete($path . '/' . $intro_record->path);
+                Storage::disk('local')->delete($path . '_' . $intro_record->path . '.' . $intro_record->extension);
                 return response()->json('saved');  
             }
         }
@@ -482,47 +517,7 @@ class UserController extends Controller{
        
         return response()->json($set_path);
     }
-    public function userFileUpload(Request $request){
-        $ids = [];
-        $path = $request['path'] . '/' . $request['user_id'];
-        // return response()->json($path);
-        foreach($request->file() as $file ){
-            $file_path = date("YmdHis") . md5(uniqid());           
-            $file_extension = $file->getClientOriginalExtension();
-            $file_real_name = $file->getClientOriginalName();            
-            $mime_type = $file->getMimeType();
-            $mime_type_array = explode('/',$mime_type);
-            $file_type = $mime_type_array[0];            
-            $file_size = $file->getSize();  
-            if($file_type == 'video' || $file_type == 'image'){
-                $album = new UserAlbum;
-                $album->path =  $file_path;
-                $album->name = $file_real_name;
-                $album->mime_type = $file_type;
-                $album->extension = $file_extension;
-                $album->intro_flag = 2;
-                $album->created_by = Auth::id();
-                $album->user_id = Auth::id();
-                $album->save();
-                $set_path = "{$album->id}_{$album->user_id}_{$file_path}.{$album->extension}";
-
-                
-                if($file_type == 'image' && $file_extension !== 'svg'){
-                    $img = Image::make($file)->orientate();
-                        
-                    File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
-                    $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
-                    
-                }else{
-                    Storage::disk('local')->putFileAs(
-                        $path, $file, $set_path
-                    );
-                } 
-                $ids[] = $album;   
-            }                    
-        }
-        return response()->json($ids); 
-    }
+    
     private function delete_file_execute($list, $path){
         $files = UserAlbum::whereIn('id', $list)->get();
         foreach($files as $file){
@@ -547,7 +542,7 @@ class UserController extends Controller{
 
         $list = User::where('id', '=', $request->id)
         ->where('deleted_flag','=', 0)->with('positions')->with('offices')->with('icons')->with(['user_album' => function($q){
-            $q->where('deleted_flag','=', 0);
+            $q->where('deleted_flag','=', 0)->with('tags');
         }])
         ->with(['weathers' => function($q) use($today){
             $q->where('type_id', 43)->where('date', $today);
@@ -557,25 +552,25 @@ class UserController extends Controller{
             ->orderBy('date', 'desc')
             ->limit(5);
         }])
-        ->select(
-            'id',
-            'name',
-            'name_kana',
-            'icon_id',
-            'phone_number',
-            'work_email',
-            'motto',
-            'intro',
-            'recommend',
-            'office_id',
-            'position_id',
-            'user_code',
-            'enjoy',
-            'awareness',
-            'recommend',
-            'color',
-            'sign_path'
-        )
+        // ->select(
+        //     'id',
+        //     'name',
+        //     'name_kana',
+        //     'icon_id',
+        //     'phone_number',
+        //     'work_email',
+        //     'motto',
+        //     'intro',
+        //     'recommend',
+        //     'office_id',
+        //     'position_id',
+        //     'user_code',
+        //     'enjoy',
+        //     'awareness',
+        //     'recommend',
+        //     'color',
+        //     'sign_path'
+        // )
         ->first();         
 
         return response()->json($list);
@@ -697,4 +692,5 @@ class UserController extends Controller{
             return response()->json($claps);
         }
     }
+    
 }

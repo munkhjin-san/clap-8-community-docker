@@ -41,6 +41,6 @@ class messageFile extends Model
         
     ];
     protected $fillable = [
-        'removed_at'
+        'removed_at', 'board_id', 'user_id', 'name', 'mime_type', 'extension', 'size', 'message_id'
     ];
 }

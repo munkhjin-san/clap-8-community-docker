@@ -164,10 +164,8 @@ import LoaderButton from '../../Global/LoaderButton.vue';
             LoaderButton
         },
         computed: {       
-            searchTitle(){
-       
-                return this.$store.state.activeBoard ? this.$t('searchInOneChat', {title: this.boardTitle}) : this.$t('searchInAllChat')
-                
+            searchTitle(){       
+                return this.$store.state.activeBoard ? `<strong>${this.boardTitle}</strong>ボード内で検索`: 'すべてのボードで検索'                
             },  
             boardTitle(){       
                 if(!this.$store.state.activeBoard) return ''     

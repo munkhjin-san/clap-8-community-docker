@@ -7,7 +7,7 @@
                         <div class="searchBarInner memberSearchBar" style="width: 100%;margin-left: 0;">   
                             <input @input="setKeyWord" v-model="keyword" class="searchBarArea searchInputArea memberSearch" :placeholder="$t('searchFiles')" type="text" style="margin: 0;width:100%;"/>
                             <div style="position: absolute;left: 10px;display: flex;height: 30px;">
-                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="margin: 7px auto auto auto;fill:#767676">
+                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="margin:auto;fill:#767676">
                                     <path d="M31.875 28.185c-0.034-0.444-0.159-0.888-0.376-1.275-0.102-0.194-0.239-0.387-0.387-0.547-0.171-0.194-0.239-0.251-0.342-0.353-0.752-0.752-1.526-1.492-2.278-2.232-0.387-0.376-0.763-0.74-1.15-1.116l-0.865-0.831-0.091-0.091c-0.034-0.034-0.080-0.068-0.125-0.102-0.080-0.068-0.171-0.137-0.262-0.194-0.729-0.49-1.651-0.626-2.471-0.376-0.148 0.046-0.285 0.091-0.421 0.159-0.068 0.034-0.148 0.023-0.205-0.034-0.251-0.262-0.854-0.9-1.139-1.207-0.057-0.068-0.068-0.159-0.011-0.228 0.717-0.911 1.275-1.902 1.697-2.938 0.592-1.469 0.888-3.029 0.888-4.589s-0.296-3.12-0.888-4.601c-0.592-1.469-1.492-2.847-2.676-4.043-1.173-1.196-2.54-2.095-4.009-2.688-1.469-0.604-3.029-0.9-4.589-0.9-1.549 0-3.109 0.296-4.578 0.9-1.469 0.592-2.847 1.492-4.031 2.688-1.184 1.184-2.084 2.562-2.676 4.031s-0.888 3.041-0.888 4.601 0.296 3.12 0.888 4.589c0.592 1.469 1.492 2.847 2.676 4.043s2.562 2.084 4.031 2.688c1.469 0.604 3.029 0.9 4.589 0.9s3.12-0.296 4.578-0.9c1.036-0.421 2.038-1.002 2.949-1.72 0.046-0.034 0.114-0.034 0.159 0.011 0.273 0.273 1.002 0.957 1.253 1.196 0.034 0.034 0.046 0.091 0.023 0.137-0.205 0.444-0.307 0.945-0.285 1.446 0.023 0.421 0.137 0.854 0.342 1.23 0.102 0.194 0.228 0.376 0.364 0.535 0.171 0.194 0.228 0.251 0.33 0.353 0.74 0.774 1.469 1.549 2.209 2.3l1.116 1.15 0.558 0.569 0.376 0.376c0.034 0.034 0.080 0.080 0.125 0.114 0.080 0.068 0.171 0.137 0.262 0.205 0.74 0.512 1.708 0.683 2.574 0.444 0.433-0.114 0.843-0.319 1.196-0.615 0.046-0.034 0.091-0.068 0.125-0.114l0.114-0.102 0.421-0.421c0.319-0.319 0.558-0.706 0.717-1.127s0.216-0.877 0.182-1.321zM15.795 21.159c-1.15 0.467-2.391 0.706-3.621 0.706s-2.46-0.239-3.621-0.706c-1.15-0.467-2.243-1.173-3.177-2.118-0.945-0.945-1.64-2.027-2.118-3.189-0.467-1.162-0.706-2.403-0.706-3.633 0-1.241 0.239-2.471 0.706-3.633s1.173-2.243 2.118-3.189c0.945-0.957 2.027-1.651 3.189-2.13 1.15-0.467 2.38-0.706 3.621-0.706 1.23 0 2.46 0.239 3.621 0.706 1.15 0.467 2.232 1.173 3.177 2.118v0c0.945 0.945 1.64 2.027 2.118 3.189 0.467 1.162 0.706 2.403 0.706 3.633 0 1.241-0.239 2.471-0.706 3.633s-1.173 2.243-2.118 3.189c-0.957 0.957-2.038 1.663-3.189 2.13zM29.153 28.823l-0.478 0.478c-0.057 0.057-0.137 0.091-0.216 0.114-0.159 0.046-0.342 0.011-0.478-0.080-0.011-0.011-0.034-0.023-0.046-0.034l-0.068-0.068-0.285-0.273-1.708-1.674c-0.763-0.752-1.526-1.48-2.3-2.221-0.239-0.239-0.251-0.239-0.319-0.342-0.057-0.080-0.091-0.182-0.102-0.285-0.034-0.205 0.046-0.433 0.182-0.592 0.125-0.159 0.364-0.399 0.558-0.535 0.273-0.194 0.604-0.125 0.797 0.068s1.697 1.754 2.061 2.141c0.74 0.763 1.48 1.537 2.232 2.289 0.239 0.239 0.239 0.239 0.285 0.33 0.034 0.068 0.057 0.159 0.068 0.239 0.011 0.159-0.057 0.319-0.182 0.444z"></path>
                                 </svg>
                             </div>
@@ -62,13 +62,13 @@
                                     <div v-if="fileMenuLayer == 0" style="position:absolute;top:-5px;right:5px;overflow:hidden;box-shadow: rgb(60 64 67 / 30%) 0px 1px 2px 0px, rgb(60 64 67 / 15%) 0px 2px">
                                         <ul style="min-width:110px"> 
                                             <li @click="downloadFile(file)" class="boxMenuItems cursor-pointer">{{$t('download')}}</li> 
-                                            <li @click="jumpToMessage(file)" class="boxMenuItems cursor-pointer">{{$t('jumpToMessage')}}</li> 
-                                            <li @click="fileMenuLayer = 1" class="boxMenuItems cursor-pointer" style="display: flex;">
+                                            <li v-if="file.message_id && file.message_id > 0" @click="jumpToMessage(file)" class="boxMenuItems cursor-pointer">{{$t('jumpToMessage')}}</li> 
+                                            <!-- <li @click="fileMenuLayer = 1" class="boxMenuItems cursor-pointer" style="display: flex;">
                                                 <span style="margin-right: 10px;">{{$t('share')}}</span>
                                                 <svg style="transform:rotate(180deg);margin: auto 0 auto auto;min-width: 10px;" version="1.1" width="10" height="10" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
                                                     <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
                                                 </svg> 
-                                            </li>                                                                                                 
+                                            </li>                                                                                                  -->
                                         </ul>
                                     </div>
                                     </Transition>
@@ -97,8 +97,6 @@
 <script>
 import {filesize} from 'filesize';
 import FileIcon from '../../Mixed/FileIcon.vue';
-import '../../../Mobile/mobileStyle.scss'
-import './FileStyle.scss'
 import moment from 'moment';
     export default {
         props: ['board'],
@@ -166,6 +164,8 @@ import moment from 'moment';
                 let target_data = file
                 if(!target_data.removed_at){
                     target_data['source_board_id'] = file.board_id
+                    target_data['doc_path'] = `${this.$store.state.baseLocation}/shared_docs/${file.board_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`
+                    target_data['file_path'] = `${this.$store.state.baseLocation}/shared_files/${file.board_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`
                     const data = {
                         active: true,
                         files: [target_data],
@@ -173,7 +173,7 @@ import moment from 'moment';
                         source: 'message',
                         index: index,
                         message: {record_id: file.board_id},
-                        reminder: 'board'
+                        reminder: 'board',
                     }
                     this.$store.commit('setFilePreview', data)
                     console.log(data)
@@ -221,8 +221,7 @@ import moment from 'moment';
                 }).catch(function (error) {
                     if (error.response) this.errorToast(this.$t(error.response.data.message))
                     else if (error.request) this.errorToast(this.$t('commonError'))
-                    else this.errorToast(this.$t('commonError'))       
-                    this.$store.commit('setUrlMessageId', null)                           
+                    else this.errorToast(this.$t('commonError'))                            
                 }.bind(this));
             },
             errorToast(message){

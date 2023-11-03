@@ -5,7 +5,7 @@
 }
 .workButtons-wrapper{
     display: flex;
-    gap: 10px;
+    gap: 15px;
     height: 60px;
     position: relative;
     font-size: 13px;
@@ -14,7 +14,7 @@
     position: absolute;
     right: 0;
     top: 50px;
-    z-index: 20;
+    z-index: 25;
     background: var(--bg3);
     box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 }
@@ -140,7 +140,8 @@
 }
 .header-cell{
     display: table-cell;
-    line-height: 3.5;
+    line-height: 2;
+    padding: 10px 0;
     text-align: center;
     border: 1px solid var(--calendarBorder);
     border-left: none;
@@ -175,6 +176,7 @@
     white-space: nowrap;
     border-top:none;
     position: relative;
+    vertical-align: middle;
 }
 .body-cell:first-child{
     border-right: 1px solid var(--calendarBorder);
@@ -197,6 +199,7 @@
     text-align: center;
     border-right: 1px solid var(--calendarBorder);
     border-bottom: 1px solid var(--calendarBorder);
+    vertical-align: middle;
 }
 .work-modal{
     position: fixed;
@@ -210,6 +213,9 @@
     background-color: var(--overlay);
     z-index: 99;
 }
+.condition-img{
+    margin: auto;
+}
 .work-modal-inner{
     width: 60%;
     height: 70%;
@@ -218,6 +224,7 @@
     padding: 30px;
     position: relative;
     overflow: hidden auto;
+    padding-top: 0;
 }
 .shift-header{
     display: flex;
@@ -294,6 +301,9 @@
     margin:10px 0 20px 0;
     font-size:14px;
     text-align: end;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 .shift-wrapper{
     padding: 10px;
@@ -326,6 +336,8 @@
 }
 .shift-title{
     margin-bottom: 10px;
+    display: flex;
+    align-items: center;
 }
 .shift-workTime{
     background: var(--bg3);
@@ -339,6 +351,7 @@
     background-color: var(--background-color);
     height: 40px;
     position: relative;
+    min-width: 80px;
     
 }
 .shift-workingTime input{
@@ -423,7 +436,7 @@
     gap: 5px;
 }
 .report-header{
-    color: #7e7e7e;
+    color: var(--primary-color);
     margin-bottom: 10px;
     margin-left:10px;
 }
@@ -431,6 +444,7 @@
     background-color: var(--bg3);
     padding: 15px;
     display: flex;
+    gap: 15px;
 }
 .report-time{
     display: flex;
@@ -439,18 +453,19 @@
     margin-bottom: 20px;
 }
 .report-input input{
-    width: 160px;
+    // width: 160px;
     height: 30px;
     opacity: 0;
     cursor: pointer;
-    margin-right: 10px;
+    width: 100%;
+    // margin-right: 10px;
 }
 .report-input label{
     position: absolute;
     top: 0;
     left: 0;
-    color: #7e7e7e;
-    width: 160px;
+    color: var(--primary-color);
+    width: 100%;
     height: 30px;
     background: var(--menu-bg);
     display: flex;
@@ -459,6 +474,7 @@
     pointer-events: none;
     border: solid thin var(--menu-bg);
     font-size: 14px;
+    box-sizing: border-box;
 }
 .report-input input:checked + label{
     font-weight: 500;
@@ -467,6 +483,8 @@
 }
 .report-input-wrapper{
     position: relative;
+    width: 25%;
+    // overflow: hidden;
 }
 .customfieldTextAreaLayer-01 {
     position: relative;
@@ -525,10 +543,7 @@
     height: 40px;
     display: flex;
   }
-  .report-input-time input{
-    padding: 10px;
-    font-size: 16px;
-  }
+ 
   .between-line{
     margin: 0 10px;
   }
@@ -538,6 +553,8 @@
   }
   .records-wrapper{
     height: calc(100% - 60px);
+    position: relative;
+    z-index: 24;
   }
   .work-members-modal{
     position: fixed;
@@ -684,6 +701,9 @@
     transform: rotate(180deg);
   }
   @media screen and (max-width: 959px) {
+    .condition-img{
+        margin: 0;
+    }
     .attendance-title{
         width: 50%;
     }
@@ -697,15 +717,15 @@
         margin-right: 10px;
     }
     .report-input{
-        flex-wrap: wrap;
-        gap: 10px;
+        // flex-wrap: wrap;
+        gap: 15px;
     }
-    .report-input label{
-        width: 140px;
-    }
-    .report-input input{
-        width: 140px;
-    }
+    // .report-input label{
+    //     width: 120px;
+    // }
+    // .report-input input{
+    //     width: 120px;
+    // }
     .body-row:hover{
         background-color: inherit;
     }
@@ -716,17 +736,17 @@
         display: none;
     }
     .work-header{
-        position: fixed;
         background-color: var(--bg2);
         height: auto;
         z-index: 1;
         padding: 0;
     }
     .work-button{
-        padding: 0 5px;
+        padding: 0 10px;
     }
     .work-monthpicker{
-        height: 40px;
+        height: 30px;
+        margin-right:15px;
     }
     .records-body{
         display: block;
@@ -774,6 +794,7 @@
         padding: 0 20px;
         line-height: 2;
         display: flex;
+        align-items: center;
     }
     .footer-cell:first-child{
         border-bottom: 1px solid #fff;
@@ -783,21 +804,22 @@
         margin-bottom: 10px;
     }
     .records-wrapper{
-        margin-top: 60px;
         width: 100%;
     }
     .work-modal-inner{
         padding: 20px;
         width: calc(100% - 40px);
-        height: calc(100% - 40px);
+        height: calc(100% - 20px);
+        padding-top: 0px;
     }
   }
-  @media screen and (max-width: 424px) {
+  @media screen and (max-width: 440px) {
     .records-wrapper{
-        margin-top: 100px;
         height: calc(100% - 100px);
     }
     .work-monthpicker{
         justify-content: center;
+        margin-right: 0;
+        margin-bottom: 10px;
     }
   }

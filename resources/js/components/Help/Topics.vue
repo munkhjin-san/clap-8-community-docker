@@ -92,7 +92,7 @@ import HamBurger from '../Global/HamBurger.vue'
             //         this.$i18n.locale = 'en'
             //     }
             // }
-            window.document.title = `サポート - ${this.$t('help.titleHelp')}`; 
+            
         },
         
         computed:{

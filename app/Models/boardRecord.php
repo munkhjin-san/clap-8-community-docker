@@ -23,7 +23,10 @@ class boardRecord extends Model
         return $this->belongsTo(messageRecord::class, 'id');
     }
     public function last_message(){
-        return $this->hasOne(messageRecord::class, 'record_id')->latest('created_at')->select('id', 'message', 'message_text', 'record_id');
+        return $this->hasOne(messageRecord::class, 'record_id')
+        ->latest('created_at')
+        ->select('id', 'message', 'message_text', 'record_id')
+        ->withExists('message_files');
     }
     public function icons(){
         return $this->hasOne(Icons::class, 'id', 'icon_id');

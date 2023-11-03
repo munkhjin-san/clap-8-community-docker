@@ -11,8 +11,8 @@
     <meta name="twitter:card" content="summary"/>
     <meta name="google" content="notranslate">
     <meta charset="utf-8">
-    <meta name="robots" content="index, follow">
-    <meta name="googlebot" content="index, follow">
+    <meta name="robots" content="noindex">
+    <!-- <meta name="googlebot" content="index, follow"> -->
     <meta name="csrf-token" content="{{ csrf_token() }}">    
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
     <!-- <link rel="apple-touch-icon" size="152x152" href="/glowd_icon_192.png">
@@ -34,12 +34,12 @@
     <!-- Styles -->
     <link href="{{ mix('css/app.css') }}" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans" rel="stylesheet">
+    <!-- <link href="https://fonts.googleapis.com/css2?family=Noto+Sans" rel="stylesheet"> -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
     <script>
         /* ピッチインピッチアウトによる拡大縮小を禁止 */
         document.documentElement.addEventListener('touchstart', function (e) {
-            if (e.touches.length >= 2) {e.preventDefault();}
+            if (e.touches && e.touches.length >= 2) {e.preventDefault();}
         }, {passive: false});
         /* ダブルタップによる拡大を禁止 */
         var t = 0;

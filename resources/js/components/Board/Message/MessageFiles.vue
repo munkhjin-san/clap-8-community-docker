@@ -153,27 +153,6 @@
                 
             },
             shareTo(to, file){
-                // if(to == 'board'){
-                //     let fileList = []
-                //     fileList.push(file)
-                //     let data = {
-                //         active: true,
-                //         list: fileList,
-                //         drag: false
-                //     }
-                //     this.$store.commit('setFromBoardToFiles', data)
-                //     const data1 = {
-                //         active: true,
-                //         target: to,
-                //         message: 'シェア先のボードを開いてください。',
-                //         files: []
-                //     }
-                //     this.$store.commit('setFileShareTo', data1)
-                //     if(this.$store.state.mobile){
-                //         this.$router.push({name : 'board'})
-                //     }
-                // }
-                // else{
                     const shareData = {
                         title: '',
                         text: '',
@@ -181,27 +160,14 @@
                         from: 'message',
                         to: to,
                         drag: false,
-                        instruction: '送る先のボードを選択してください' 
+                        instruction: to == 'board' ? '送る先のボードを選択してください' : null
                     }
                     this.$store.commit('setSharingData', shareData)
+                    this.$store.commit('setMenu', {id : null, name: ''})
                     if(to !== 'board'){
                         this.$router.push({name: to})
                     }
-                    
-                // }
                 
-            },
-            untilDay(file){
-                moment.locale(this.$store.state.local);
-                const date = file.created_at   
-                const deletionDate = moment(date).add(90, 'days');
-                const currentDate = moment();
-                const duration = moment.duration(deletionDate.diff(currentDate));
-                const days = Math.round(duration.asDays());
-                if(days >= 0){
-                    return this.$tc('fileExpireDate', days, {days: days})
-                }
-                return this.$t('deleted')
             },
             canSign(file){
                 
@@ -233,25 +199,6 @@
                     drag: true 
                 }
                 this.$store.commit('setSharingData', shareData)
-                // let cancelCopy = {
-                //     active: null,
-                //     objects: [],
-                //     source_record_id: null,
-                //     target_record_id: null,
-                //     target_parent_id: null,
-                //     type: ''
-                // }
-                // this.$store.commit('setCopyMoveFiles', cancelCopy)
-                // let fileList = []
-                // let object = file
-                // object['source_board_id'] = this.message.record_id
-                // fileList.push(object)
-                // let data = {
-                //     active: true,
-                //     list: fileList,
-                //     drag: true
-                // }
-                // this.$store.commit('setFromBoardToFiles', data)
             },
             multipleFile(file, index){
                 let select = []
@@ -295,15 +242,19 @@
                 if(this.$store.state.shareData) return
                 let selectedItem = this.multipleFile(file, index)
                 let file_list = selectedItem
-                for(let file_data of file_list){
-                    file_data['source_board_id'] = this.message.record_id
-                }
+                const files = file_list.map(fileData => ({
+                    ...fileData,
+                    source_board_id: this.message.record_id,
+                    file_path: `${this.$store.state.baseLocation}/shared_files/${this.message.record_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`,
+                    doc_path: `${this.$store.state.baseLocation}/shared_docs/${this.message.record_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`
+                }));
+                
                 let target_data = selectedItem
                 let reminder = this.reminder ? this.reminder : 'board'
                 target_data['source_board_id'] = this.message.record_id
                 const data = {
                     active: true,
-                    files: file_list,
+                    files,
                     target: target_data,
                     source: 'message',
                     index: this.file_index,

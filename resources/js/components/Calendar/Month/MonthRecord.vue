@@ -1,4 +1,6 @@
 <template>
+<div style="position: relative;"> 
+    <div v-if="expanded" style="height: 59px;"></div>
     <OnLongPress 
         as="div" 
         :ref="`m_rec_${record.id}`"
@@ -7,7 +9,10 @@
         :style="{
             maxHeight: maxHeight,
             opacity: opacity,
-            transform: expanded ? `translate(${shiftRight}px, ${shiftBottom}px)` : `translate(0, 0)`
+            transform: expanded ? `translate(${shiftRight}px, ${shiftBottom}px)` : `translate(0, 0)`,
+            position: expanded ? 'absolute' : 'relative',
+            
+            top: '0'
         }"
         :id="`m_rec_${record.id}`"
         @dragover.prevent 
@@ -30,6 +35,7 @@
         />
 
     </OnLongPress>
+</div>
 </template>
 <script>
 import moment from 'moment';
@@ -65,7 +71,7 @@ export default{
             })           
         }
     },
-    computed: {
+    computed: {        
         viewable(){
             return this.record.release_flag == 0 || this.editable
         },
@@ -77,7 +83,7 @@ export default{
             return me.length || this.record.edit_all
         },
         maxHeight(){
-            return this.expanded ? '100vh' : '60px'
+            return this.expanded ? 'unset' : '60px'
         },
         otherExpanded(){
             return this.$store.state.menu.id !== this.record.id && this.$store.state.menu && (this.$store.state.menu.name?.includes('cal_') || this.$store.state.menu.name?.includes(`calendarRecordMenu`))
@@ -111,10 +117,8 @@ export default{
         setBeforeState(event){
             
             const el = document.getElementById('cal_month_view')
-            console.log(el.scrollTop)
             const left = el ? el.scrollTop : 0
-            this.beforeLeft = left           
-            console.log(this.beforeLeft)
+            this.beforeLeft = left          
         },
         deleteRecord(record){
             this.$emit('delete', record)
@@ -132,22 +136,26 @@ export default{
                 record['width'] = width
                 record['x'] = event.x
                 record['y'] = event.y
+                record['from'] = 'day'
                 this.$store.commit('setDraggingCalendar', record)
                 this.$store.commit('setMenu', {id: null, name: ''})
                 this.$emit('setParentDroppable')
             }            
         },
         selectRecord(record){
-            // if(!this.viewable) return
             this.$store.commit('setMenu', {id: this.record.id, name: `cal_${this.record.id}`})
             nextTick(() => {
-                // const el = this.$refs[`m_rec_${this.record.id}`]
                 const el = document.getElementById(`m_rec_${this.record.id}`)
                 if(el){
                     const rect = el.getBoundingClientRect();                    
                     const right_check = rect.x + rect.width
                     if(right_check > window.innerWidth){
                         this.shiftRight = window.innerWidth - right_check - 5
+                    }
+                    const bottom_check = rect.y + rect.height
+                    const value = this.$store.state.mobile && this.$store.state.user.footer_view ? 45 : 0
+                    if(bottom_check > window.innerHeight - value){
+                        this.shiftBottom = window.innerHeight - value - bottom_check - 10
                     }
                 }
                 

@@ -42,7 +42,7 @@
         line-height: 1.5;
         border-radius: 0px;
         background: var(--primary-button);
-        color: #fff;
+        color: #e4e6eb;
     }
 </style>
 

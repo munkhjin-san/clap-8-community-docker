@@ -9,7 +9,6 @@
 </template>
 
 <script>
-import UserComponent from '../../Profile/UserComponent.vue';
 import UserIcon from './UserIcon.vue';
     export default {
         props: ['item', 'imgClass', 'imgStyle'],

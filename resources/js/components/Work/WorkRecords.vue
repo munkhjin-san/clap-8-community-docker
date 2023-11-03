@@ -27,7 +27,8 @@
                                     'shift-sunday' : (day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 0 
                                     || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 5 
                                     || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 14 
-                                    || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 15) }">
+                                    || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 15
+                                    || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 16) }">
                                     {{ day.shift_records?.[day.day_full]?.[user.id]?.abbreviation ?? '--'}}
                                 </p>
                                 <p v-else-if="day.shift_records == 0 && day.time_card_records[day.day_full]" class="alertTip" title="勤怠予定を作成してください">
@@ -177,7 +178,7 @@
                         <div class="body-cell" :class="{'border-none' : index === (day.users.length - 1)}">
                             <div class="per-user" style="align-items:center;">
                                 <p v-if="$store.state.mobile && weathers?.[user.id]?.[day.day_full]">コンディション：</p>
-                                <object v-if="weathers?.[user.id]?.[day.day_full]" style="vertical-align:middle" :data="'images/icon_' +weathers[user.id][day.day_full].value_int + '.svg'" width="17" height="17"> </object>
+                                <img class="condition-img" v-if="weathers?.[user.id]?.[day.day_full]" :src="'images/icon_' +weathers[user.id][day.day_full].value_int + '.svg'" width="17" height="17" /> 
                                 <p v-else>{{$store.state.mobile ? ' ' : '--'}}</p>
                             </div>
                         </div>
@@ -202,9 +203,9 @@
                                 <div style="display:inline-block" v-if="isTodayOrFuture(day.day_full) && user.id == auth_user.id">
                                     <div class="workButton-wrapper">
                                         <button v-if="today(day.day_full) && day.time_card_records?.[day.day_full]?.[user.id]?.stamp_flag == 0" @click="timeStampEnd()" class="workRecords-button">終業</button>
-                                        <button v-else-if="today(day.day_full) && day.time_card_records?.[day.day_full]?.[user.id]?.stamp_flag == null" @click="timeStampStart()" class="workRecords-button">始業</button>
+                                        <button v-else-if="today(day.day_full) && day.time_card_records?.[day.day_full]?.[user.id]?.stamp_flag == null" @click="timeStampStart(day.shift_records?.[day.day_full]?.[user.id])" class="workRecords-button">始業</button>
                                         
-                                        <button v-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="timeStampEdit(day.shift_records?.[day.day_full]?.[user.id], true, user.id, day.day_full)">作成</button>
+                                        <button v-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="timeStampEdit(day.shift_records?.[day.day_full]?.[user.id], true, user.id)">作成</button>
                                         <p v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 1">申請中</p>
                                         <p v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 2">承認済み</p>
                                         <button v-else class="workRecords-button" @click="timeStampEdit(day.time_card_records?.[day.day_full]?.[user.id], false, user.id)">編集</button>
@@ -217,7 +218,7 @@
                                         <button v-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 2" @click="dailyCancel(user.id,day.day_full)" class="workRecords-button">承認取消</button>
                                         <p style="line-height: 2.5" v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 0">作成中</p>
                                         <p style="line-height: 2.5" v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 10">差戻中</p>
-                                        <button v-if="auth_user.id == 608 && day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="timeStampEdit(day.shift_records?.[day.day_full]?.[user.id], true, user.id, day.day_full)">作成</button>
+                                        <button v-if="auth_user.id == 608 && day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="timeStampEdit(day.shift_records?.[day.day_full]?.[user.id], true, user.id)">作成</button>
                                         <button v-else-if="auth_user.id == 608" class="workRecords-button" @click="timeStampEdit(day.time_card_records?.[day.day_full]?.[user.id], false, user.id)">編集</button>
                                         <p v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null">--</p>
                                     </div>
@@ -269,9 +270,7 @@
                     </div>
                     <div class="footer-cell">
                         <p v-if="$store.state.mobile">コンディション平均：</p>
-                        <div v-if="monthAverage?.[user.id]?.month_weather_average">
-                            <object style="vertical-align:middle" :data="'/images/icon_' + monthAverage[user.id].month_weather_average + '.svg'" width="17" height="17"/>
-                        </div>
+                        <img class="condition-img" v-if="monthAverage?.[user.id]?.month_weather_average" :src="'/images/icon_' + monthAverage[user.id].month_weather_average + '.svg'" width="17" height="17"/>
                     </div>
                     <div class="footer-cell">
                         <p v-if="!$store.state.mobile">--</p>
@@ -282,7 +281,7 @@
                 </div>
             </div>
         </div>
-            <div v-if="reportModal">
+            <div style="position: relative;" v-if="reportModal">
                 <WorkReport
                     @reload="reload"
                     @closeModal="closeModal"
@@ -313,7 +312,8 @@
             'shiftStartTime',
             'shiftEndTime',
             'attendanceFlag',
-            'weathers'
+            'weathers',
+            'selectedMonth'
         ],
         data(){
             return{
@@ -360,6 +360,13 @@
             closeModal(){
                 this.reportModal = false
                 this.customFieldData = []
+                if(navigator.userAgent.match(/iPhone/)){
+                    const recordWrapper = document.querySelector('.records-wrapper')
+                    const style = recordWrapper.style;
+                    style.height = 'calc(100% - 90px)'
+                    this.$emit('todayScroll')
+                }
+               
             },
             overTimeFormat(minutes){
                 if (minutes === 0) {
@@ -391,16 +398,16 @@
             },
             countdown(time) {
                 const dateTime = this.currentDay + ' ' + time
-                const now = new Date().getTime();
-                const startTime = new Date(dateTime).getTime();
-                let timeDifference = now - startTime;
+                const now = moment();
+                const startTime = moment(dateTime);
+                let timeDifference = now.diff(startTime);
                 
                 if (timeDifference <= 0) {
                     return '0時間0分';
                 }
-
-                const hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+                const duration = moment.duration(timeDifference);
+                const hours = Math.floor(duration.asHours());
+                const minutes = Math.floor(duration.asMinutes() % 60);
 
                 return `${hours}時間${minutes}分`;
             },
@@ -422,35 +429,47 @@
             isTodayOrFuture(date) {
                 return this.currentDay >= date;
             },
-            timeStampStart(){
-                var date = new Date(); // get current date
-                var minutes = date.getMinutes();
-                var quarterHours = Math.ceil(minutes / 15);
-                date.setMinutes(quarterHours * 15);
-                date.setSeconds(0);
-                var hours = date.getHours();
-                var minutes = date.getMinutes();
+            timeStampStart(data){
+                const month = this.selectedMonth + 1
+                if(data){
+                    var date = new Date(); // get current date
+                    var minutes = date.getMinutes();
+                    var quarterHours = Math.ceil(minutes / 15);
+                    date.setMinutes(quarterHours * 15);
+                    date.setSeconds(0);
+                    var hours = date.getHours();
+                    var minutes = date.getMinutes();
 
-                // pad with zero if needed
-                hours = hours < 10 ? '0' + hours : hours;
-                minutes = minutes < 10 ? '0' + minutes : minutes;
-                let time = hours + ':' + minutes + ':00'
-                this.todayStartTime = time
-                this.stampEnd = true
-                this.stampStart = false
-                const params = {
-                    start_time : time,
-                    day : this.currentDay
-                }
-                axios.post('/daily_report_add', params).then(
-                    response => {
-                        this.$emit('reload')
+                    // pad with zero if needed
+                    hours = hours < 10 ? '0' + hours : hours;
+                    minutes = minutes < 10 ? '0' + minutes : minutes;
+                    let time = hours + ':' + minutes + ':00'
+                    this.todayStartTime = time
+                    this.stampEnd = true
+                    this.stampStart = false
+                    const params = {
+                        start_time : time,
+                        day : this.currentDay
                     }
-                ).catch(function (error) {
-                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) this.errorToast('エラーが発生しました。')
-                    else this.errorToast('エラーが発生しました。 ' + error.message)     
-                }.bind(this))
+                    axios.post('/daily_report_add', params).then(
+                        response => {
+                            this.$emit('reload')
+                        }
+                    ).catch(function (error) {
+                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                        else if (error.request) this.errorToast('エラーが発生しました。')
+                        else this.errorToast('エラーが発生しました。 ' + error.message)     
+                    }.bind(this))
+                }else{
+                    emitter.emit('setToast', {
+                        active: true,  
+                        type: 'info', 
+                        content: month + '月の勤怠予定を入力してください。',
+                        closeButton: false, 
+                        autoClose: false,
+                        answers: ['OK'],
+                    }) 
+                }
             },
             errorToast(message){
                 emitter.emit('setToast', {
@@ -532,6 +551,7 @@
                 this.closeModal()
             },
             timeStampEdit(data, val, userId, date){
+                const month = this.selectedMonth + 1
                 if(data){
                     this.todayStartTime = data.start_time ? data.start_time : (data.shift_start_time ? data.shift_start_time : '09:00:00')
                     this.todayEndTime = data.end_time ? data.end_time : (data.shift_end_time ? data.shift_end_time : '18:00:00')
@@ -545,16 +565,27 @@
                             this.customFieldData = []
                         }
                     });
+                    if(navigator.userAgent.match(/iPhone/)){
+                        const recordWrapper = document.querySelector('.records-wrapper')
+                        const style = recordWrapper.style;
+                        style.height = 'auto'
+                    }
+                    
+                
+                    this.chosenUserId = userId
+                    this.reportModal = true
+                    this.createReport = val
                 }else{
-                    this.todayStartTime = '09:00:00' 
-                    this.todayEndTime = '18:00:00'
-                    this.chosenDate = date
-                    this.customFieldData = []
+                    emitter.emit('setToast', {
+                        active: true,  
+                        type: 'info', 
+                        content: month + '月の勤怠予定を入力してください。',
+                        closeButton: false, 
+                        autoClose: false,
+                        answers: ['OK'],
+                    }) 
                 }
                 
-                this.chosenUserId = userId
-                this.reportModal = true
-                this.createReport = val
             },
             formatTime(time){
                 if(!time) return '--'

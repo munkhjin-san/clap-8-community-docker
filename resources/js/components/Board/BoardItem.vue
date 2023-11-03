@@ -104,7 +104,7 @@ import moment from 'moment'
                         const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
                         const br_remove = converterd.replace(/&lt;br&gt;/g," ");
                         return br_remove
-                    }else if(this.item.last_message.message_files && this.item.last_message.message_files.length){
+                    }else if(this.item.last_message.message_files_exists){
                         return 'ファイルメッセージ'
                     }else{
                         return '現在メッセージはありません'

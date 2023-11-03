@@ -88,7 +88,6 @@ class AdminAccountController extends Controller
             $user->work_time_day = $request->user_work_time_day;
             $user->award_charge = $request->user_award_charge;
             $user->hide_flag = $request->user_member_show;
-            $user->general_position = $request->user_general_position;
             if($request->user_positions == 6){
                 $user->work_authority = 1;
             }else{
@@ -175,7 +174,6 @@ class AdminAccountController extends Controller
         $user->work_type = $request->user_work_type;
         $user->work_time_day = $request->user_work_time_day;
         $user->hide_flag = $request->user_member_show;
-        $user->general_position = $request->user_general_position;
         if($request->user_positions == 6){
             $user->work_authority = 1;
         }else{

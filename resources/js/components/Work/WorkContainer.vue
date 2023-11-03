@@ -22,11 +22,11 @@
                     </svg>
                 </div> -->
                 <MonthPicker
+                    v-if="!shiftModal"
                     :selectedMonth="selectedMonth"
                     :selectedYear="selectedYear"
                     :right="windowWidth < 425 ? 'auto' : '0'" 
                     @setDate="setDate"
-                    ref="monthpicker"
                 />
                 <!-- <div @click="nextMonth" class="work-nextmonth">
                     <svg version="1.1" width="13" height="13" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(180deg);">
@@ -45,7 +45,9 @@
                 :shiftEndTime="shiftEndTime"
                 :attendanceFlag="attendanceFlag"
                 :weathers="weathers"
+                :selectedMonth="selectedMonth"
                 ref="workrecords"
+                @todayScroll="todayScroll"
                 @reload="reload"
             />
         
@@ -59,6 +61,11 @@
                     :calendarData="calendarData"
                     :currentDay="currentDay"
                     :attendanceFlag="attendanceFlag"
+                    :usersData="usersData"
+                    :kintone_data="kintone_data"
+                    :shiftModal="shiftModal"
+                    :planned_days="planned_days"
+                    @changeDate="changeDate"
                     @closeModal="shiftModal = false"
                     @reload="reload"
                 />
@@ -124,6 +131,8 @@
                 attendanceFlag: false,
                 weathers: [],
                 windowWidth: window.innerWidth,
+                kintone_data: [],
+                planned_days: 0
             }
         },
         created(){
@@ -221,6 +230,11 @@
             }
         },
         methods: {
+            changeDate(month, year){
+                this.selectedYear = year
+                this.selectedMonth = month
+                this.reload()
+            },
             closeMembers(users){
                 if(users.length > 0){
                     this.showMembers = false
@@ -269,7 +283,7 @@
                 )
             },
             getWorkData(){
-                let yearMonth = this.selectedYear + '-' + (this.selectedMonth + 1)
+                let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
                 const params = {
                     current_date : yearMonth,
                     work_group : this.usersCheckArray
@@ -290,7 +304,7 @@
                 }.bind(this))
             },
             getShiftData(){
-                let yearMonth = this.selectedYear + '-' + (this.selectedMonth + 1)
+                let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
                 const params = {
                     current_date : yearMonth,
                     work_group : this.usersCheckArray
@@ -299,8 +313,11 @@
                     response => {
                         this.shiftTypes = response.data.shift_type
                         this.shiftRecords = response.data.shift_record
+                        this.kintone_data = response.data.kintone_data
+                        this.planned_days = response.data.planned_days
                         this.shiftStartTime = this.shiftRecords[0] ? this.shiftRecords[0].start_time : ''
                         this.shiftEndTime = this.shiftRecords[0] ? this.shiftRecords[0].end_time : ''
+                        
                     }
                 ).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
@@ -312,7 +329,7 @@
                 this.showMembers = true
             },
             getAttendanceData(){
-                let yearMonth = this.selectedYear + '-' + (this.selectedMonth + 1)
+                let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
                 const params = {
                     current_date : yearMonth,
                     work_group : this.usersCheckArray
@@ -339,7 +356,6 @@
                     }) 
                 }else if(this.usersCheckArray[0] == this.auth_user.id || this.auth_user.id == 608){
                     this.shiftModal = true
-                    this.getShiftData()
                 }
             },
             confirmAttendance(){
@@ -353,7 +369,6 @@
                     }) 
                 }else if(this.usersCheckArray[0] == this.auth_user.id || this.auth_user.id == 608){
                     this.shiftAttendance = true
-                    this.getAttendanceData()
                 }
             },
             prevMonth(){
@@ -374,15 +389,9 @@
             },
             todayScroll(){
 
-                let stickyDiv = document.getElementById('recordsTop');
+                
                 let scrollPosition = document.getElementsByClassName('today')[0];
-                console.log(stickyDiv, scrollPosition)
                 if (scrollPosition) {
-                    let offset = 0; // Initialize the offset
-
-                    if (stickyDiv) {
-                        offset = stickyDiv.offsetHeight; // Get the height of the sticky div
-                    }
 
                     scrollPosition.scrollIntoView({ behavior: 'instant', block: 'start' });
                 }   

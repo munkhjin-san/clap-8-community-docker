@@ -31,6 +31,7 @@
                         <!-- <td>職階</td>                         -->
                         <td>連続</td>
                         <td>勤怠予定入力</td>
+                        <td>計画有給</td>
                         <td>1日年休</td>
                         <td>半日年休</td>
                         <td>1時間年休</td>
@@ -92,7 +93,14 @@
                                     --
                                 </p>
                         </td>
-                        
+                        <td v-if="item.shift_records.length != 0" style="border:1px solid #666;">
+                            <div v-for="(paid_holiday_item, index) in paid_holiday_record[item.id]" :key="index">
+                                <p v-if="paid_holiday_item.type == 3">{{ dayFormat(paid_holiday_item.day) }}</p>
+                            </div>
+                        </td>
+                        <td v-else style="border:1px solid #666;">
+                            <p>--</p>
+                        </td>
                         <td v-if="item.shift_records.length != 0" style="border:1px solid #666;">
                             <div v-for="(paid_holiday_item, index) in paid_holiday_record[item.id]" :key="index">
                                 <p v-if="paid_holiday_item.type == 5">{{ dayFormat(paid_holiday_item.day) }}</p>

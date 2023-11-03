@@ -12,13 +12,13 @@ class taskRecord extends Model
     use HasFactory;
 
     protected $fillable = [
-        'end_at', 'updated_user'
+        'end_at', 'updated_user', 'user_id', 'board_id', 'remarks', 'created_at', 'updated_at'
     ];
 
     public function task_users(){
         return $this->hasMany(taskUser::class, 'record_id', 'id')->with('user');
     }
     public function to_users(){
-        return $this->belongsToMany(User::class, 'task_users', 'record_id', 'user_id')->withPivot('id', 'comp_flag')->select(['users.id as id', 'users.name','users.icon_id']);
+        return $this->belongsToMany(User::class, 'task_users', 'record_id', 'user_id')->withPivot('id', 'comp_flag', 'late_answer', 'late_answer_custom')->select(['users.id as id', 'users.name','users.icon_id']);
     }
 }

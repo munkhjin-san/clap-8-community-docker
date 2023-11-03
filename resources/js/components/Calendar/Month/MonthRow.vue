@@ -1,7 +1,7 @@
 <template>
     <div class="month-drop-area cal-m-row" :class="{activeMonth: thisMonth}" @mouseenter="enter" @mouseleave="leave">
         <Transition name="modalFade">
-            <div v-if="dragActive && $store.state.draggingCalendar" @mouseup.prevent.stop="gotMove(val)" class="month-drop-popup"></div>
+            <div v-if="dragActive && $store.state.draggingCalendar" @mouseup="gotMove(val)" class="month-drop-popup"></div>
         </Transition>
         <div @click="$emit('jumpToDate', day.day_full)" :class="{'cal-todayTitle' : thisDay}" :id="'day_val_m_' + day.day_full" class="cal-m-day-head-section">
             <div :title="day.day_full" :class="['cal-m-day-title', {'special-day': specialDay, 'isSaturday' : isSaturday}]">
@@ -16,7 +16,7 @@
                 </svg>
             </div>
         </div>   
-        <transition-group name="modalFade" tag="div">
+        <transition-group name="modalFade" tag="div" style="display: flex;flex-direction: column;gap: 10px;padding: 0 0 10px 0;">
             <MonthRecord
                 v-for="record in records"
                 :record="record"
@@ -38,7 +38,7 @@ import MonthRecord from './MonthRecord.vue'
 import moment from 'moment';
     export default {
         props:['day', 'records', 'selectedYear', 'selectedMonth', 'colors', 'taskCount', 'facilitiesList'],
-        emits: ['fromMonth', 'addRecord', 'dropFinish', 'jumpToDate', 'edit', 'delete'],
+        emits: ['fromMonth', 'addRecord', 'dropFinish', 'jumpToDate', 'edit', 'delete', 'setParentDroppable'],
         data() {
             return{
                 dragActive: false

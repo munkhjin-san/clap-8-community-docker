@@ -3,8 +3,8 @@
         <div class="overlay" v-show="iconEditModal" style="z-index:99;">   
             <div class="chatCreate">
                 <div class="recordFormTitle" style="display:flex">
-                    <h1 style="font-size: 17px;margin: -10px 0 15px;">{{$t('IconChangeTitle')}}</h1>
-                    <div @click="closeIconEditModal" class="m-close-button">
+                    <p>{{$t('IconChangeTitle')}}</p>
+                    <div @click="closeIconEditModal" class="cursor-pointer" style="position:unset; margin-left:auto;">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
                             <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                         </svg>
@@ -34,7 +34,7 @@
             </div>
         </div>
         <div class="overlay" v-if="iconViewModal">            
-            <div class="chatCreate" style="justify-content:center;align-items:center;">                    
+            <div class="chatCreate" style="justify-content:center;align-items:center;padding-top: 30px;">                    
                 <img style="width:fit-content;height:-webkit-fill-available" v-if="UserAllData.icons.use_of == 'profile'" :src="$store.state.baseLocation + '/content/profile_icon/' + UserAllData.icon_id + '_' + UserAllData.icons.profile_id +  '_x.' + UserAllData.icons.extension">
                 <img style="width:fit-content;" v-else :src="$store.state.baseLocation + '/content/profile_icon/' + UserAllData.icon_id + '_' + UserAllData.icons.profile_id +  '_200.' + UserAllData.icons.extension">
                 <div @click="iconViewModal = false" class="m-close-button">
@@ -45,8 +45,7 @@
             </div>
             
         </div>
-        <div>
-            <!-- 20201207 -->
+        <div style="overflow: hidden;">
             <div class="profile-icon-content">
                 <div id="imageWrap" style="position: relative;width: fit-content;margin: auto;min-height: 120px;">
                     <div @click.stop="iconClickMenu" class="cursor-pointer">
@@ -61,7 +60,6 @@
                 </div>
             </div>
 
-            <!-- 20201207 -->
             <div class="bar01">
                 <div style="font-size: 20px;margin-bottom: 20px;display:flex;justify-content:center;gap:5px;" v-if="UserAllData.name !== null">
                     <p><span>{{UserAllData.name}}</span></p>
@@ -92,33 +90,83 @@
                     <p style="margin-left: 3px;">{{clapData.sum}}</p>                        
                 </div>
             </div>
-            <div class="albumBody" style="display: flex; padding: 15px 50px 0 50px; justify-content: center;">
-                <div v-if="movExist">
-                    <video controls="controls" style="width: 100%;max-height: 290px;background: #000;">
-                        <source v-bind:src="$store.state.baseLocation + '/user_files/' + targetId + '/' + movExist.path">
-                    </video>                                      
-                    <div class="mov-del-button" @click="introMovDeleteConfirm" v-if="movExist && (auth_id == 1  || auth_id == 610 || auth_id == 604 || auth_id == 765)">
-                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="17" viewBox="0 0 27 32" fill="var(--primary-color)">
-                        <path d="M18.68 10.952c-0.427-0.035-0.797 0.289-0.832 0.716-0.104 1.271-0.173 2.542-0.243 3.812l-0.104 1.906-0.081 1.906-0.069 1.906c-0.023 0.635-0.035 1.271-0.046 1.906-0.023 1.271-0.046 2.553-0.023 3.824 0.012 0.37 0.289 0.693 0.682 0.728 0.416 0.035 0.774-0.266 0.809-0.67 0.116-1.271 0.196-2.542 0.266-3.812 0.035-0.635 0.081-1.271 0.104-1.906l0.081-1.906 0.069-1.906 0.046-1.906c0.023-1.271 0.058-2.553 0.058-3.824-0.012-0.393-0.312-0.739-0.716-0.774zM9.473 21.21l-0.069-1.918-0.081-1.906c-0.023-0.635-0.069-1.271-0.104-1.906-0.069-1.271-0.15-2.542-0.266-3.812-0.035-0.37-0.347-0.67-0.728-0.67-0.416-0.012-0.751 0.323-0.751 0.739-0.023 1.271 0 2.553 0.023 3.824 0.012 0.635 0.023 1.271 0.046 1.906l0.069 1.906 0.081 1.906 0.104 1.906c0.069 1.271 0.15 2.542 0.243 3.812 0.035 0.393 0.37 0.716 0.774 0.716 0.427 0 0.774-0.347 0.774-0.774 0-1.271-0.023-2.553-0.058-3.824l-0.058-1.906zM14.279 15.515c-0.023-1.271-0.046-2.542-0.092-3.824-0.023-0.404-0.335-0.728-0.739-0.739-0.427-0.012-0.786 0.312-0.809 0.739-0.046 1.271-0.069 2.542-0.092 3.824l-0.023 1.906-0.012 1.906 0.012 1.906c0 0.635 0.023 1.271 0.023 1.906 0.023 1.271 0.058 2.542 0.116 3.824 0.023 0.37 0.323 0.682 0.705 0.705 0.416 0.023 0.762-0.289 0.786-0.705 0.069-1.271 0.104-2.542 0.116-3.824 0.012-0.635 0.023-1.271 0.023-1.906l0.012-1.906-0.023-3.812z"></path>
-                        <path d="M26.64 7.601v-0.012c0-0.531-0.439-0.97-0.982-0.959-0.127 0-0.3 0.012-0.451 0.023-0.231 0.012-0.451-0.046-0.647-0.162-0.312-0.196-0.682-0.404-0.855-0.485l-0.693-0.323c-0.231-0.104-0.474-0.196-0.705-0.289-0.947-0.37-1.918-0.682-2.9-0.924-0.416-0.104-0.947-0.208-1.282-0.277-0.116-0.023-0.196-0.139-0.196-0.254 0.035-0.451 0.081-1.178 0.092-1.536 0.023-0.439 0.023-0.866 0.046-1.305 0.012-0.554-0.416-1.017-0.97-1.028h-0.058l-1.814-0.046c-0.601-0.023-1.213-0.023-1.814-0.023l-1.814 0.012c-0.601 0.012-1.213 0.023-1.814 0.046h-0.081c-0.543 0.023-0.97 0.485-0.947 1.028l0.023 0.647c0.012 0.22 0.012 0.439 0.023 0.647 0.023 0.358 0.058 1.028 0.081 1.479 0 0.139-0.092 0.254-0.231 0.277-0.335 0.058-0.832 0.162-1.259 0.266-0.994 0.231-1.964 0.531-2.911 0.901-0.751 0.289-1.49 0.612-2.207 1.005-0.196 0.116-0.416 0.162-0.635 0.162h-0.485c-0.624 0-1.132 0.497-1.132 1.121v0.012l-0.023 3.5c0 0.635 0.508 1.155 1.144 1.155h0.751l1.074 18.622v0.023c0.046 0.635 0.578 1.144 1.225 1.132l18.449-0.116c0.578 0 1.063-0.462 1.097-1.051l1.040-18.784h0.901c0.543 0 0.994-0.439 0.982-0.994l-0.023-3.489zM10.755 2.38c0-0.081 0.012-0.162 0.012-0.254 0.277 0.012 0.555 0.012 0.832 0.023l1.814 0.012c0.601 0 1.213 0 1.814-0.012l0.82-0.023c0 0.081 0 0.162 0.012 0.254 0.012 0.393 0.035 0.994 0.035 1.352 0 0.058-0.046 0.104-0.104 0.104-0.543-0.046-1.721-0.116-2.576-0.116-0.832 0-2.091 0.081-2.53 0.116-0.069 0.012-0.116-0.046-0.127-0.104-0.012-0.335-0.023-0.97 0-1.352zM22.816 11.033v0.012l-1.201 18.126c-0.023 0.3-0.266 0.52-0.555 0.52l-15.203 0.023c-0.266 0-0.474-0.208-0.497-0.462l-1.19-18.218v-0.012c-0.035-0.612-0.543-1.086-1.167-1.086h-0.866c-0.116 0-0.208-0.092-0.208-0.208v-0.797c0-0.116 0.081-0.208 0.196-0.208 0.254-0.023 0.612-0.069 0.751-0.15h0.012c0.751-0.474 1.571-0.89 2.414-1.248s1.721-0.647 2.622-0.878c1.791-0.474 3.651-0.705 5.51-0.716 1.86 0 3.72 0.22 5.522 0.67 0.901 0.231 1.791 0.508 2.634 0.855 0.22 0.081 0.427 0.173 0.635 0.266l0.312 0.139 0.312 0.15c0.208 0.092 0.404 0.208 0.601 0.312 0 0 0.254 0.15 0.393 0.22 0.104 0.046 0.22 0.116 0.312 0.162 0.058 0.035 0.127 0.046 0.196 0.046h0.312c0.104 0 0.173 0.081 0.173 0.185l-0.012 1.19c0 0.104-0.081 0.185-0.185 0.185h-0.797c-0.543-0.012-0.982 0.393-1.028 0.924z"></path>
-                    </svg>
-                    <p style="margin: auto 0 auto 3px;">削除</p>
+            <div class="albumBody">
+                <div v-if="movExist && movExist.length">
+                    <div class="swiper-icon" style="display:flex;align-items:center;justify-content:center;border:none;overflow: hidden;flex-direction: column;">
+                        <div style="max-width: 280px;overflow: hidden auto; padding: 0 10px;">
+                            <div class="swiper-wrapper vertical-wrapper">
+                                <div class="swiper-slide" style="background: none;flex-direction: column;margin-bottom: 30px;" v-for="(mov, index) in movExist" :key="index">
+                                    <div style="width: 100%;">
+                                        <div class="gn-img-container cursor-pointer" style="background-color: var(--bg3); max-height: 160px;" @click="previewImage(mov, index)">
+                                            <img class="gn-image" v-if="mov.mime_type == 'image'" :src="$store.state.baseLocation + '/user_files/' + targetId + '/' + mov.id + '_' + targetId + '_' + mov.path + '.' + mov.extension"/>
+                                            <video class="gn-image" v-else-if="isMov(mov.mime_type)" controls="controls" style="pointer-events: none;max-height: 290px;">
+                                                <source v-bind:src="movSrc(mov)">
+                                            </video>
+                                        </div>
+                                        <p class="gn-title">{{ mov.title }}</p>
+                                        <div v-if="mov.tags.length" style="display: flex;gap: 5px 10px;flex-wrap: wrap;margin-top:10px;">
+                                            <p @click="viewalbumByTag(tag)" class="jump-link" v-for="tag in mov.tags" :tag="tag" style="font-size: 14px;" :key="tag.id">#{{ sanitized(tag) }}</p>
+                                        </div>
+                                    </div>
+                                    <div v-if="targetId == auth_id" @click.stop="$store.commit('setMenu', { id: mov.id, name: 'userAlbumMenu'}), this.fileMenuLayer = 0" id="userMenuButton" style="position: absolute;right: 2px;top: 6px;background-color: var(--bg3);" class="boardMenuContainer cursor-pointer">                
+                                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="13" class="dot-menu" viewBox="0 0 7 32" style="margin:auto;min-width: 3px;">
+                                            <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path>
+                                            <path d="M3.405 12.33c-0.447 0.013-0.881 0.115-1.272 0.278-0.1 0.038-0.195 0.085-0.287 0.135-0.093 0.047-0.185 0.097-0.27 0.154l-0.129 0.083-0.064 0.042-0.124 0.088c-0.050 0.039-0.132 0.104-0.181 0.145l-0.040 0.035c-0.111 0.096-0.214 0.202-0.302 0.319-0.001 0-0.001 0.001-0.001 0.001l-0.058 0.081-0.040 0.064-0.082 0.134c-0.056 0.086-0.104 0.179-0.15 0.271-0.049 0.095-0.095 0.189-0.132 0.289-0.164 0.394-0.262 0.832-0.27 1.277-0.025 0.899 0.324 1.82 0.967 2.467 0.636 0.651 1.549 1.038 2.465 1.037 0.456 0.003 0.906-0.086 1.315-0.239 0.41-0.156 0.781-0.374 1.112-0.619l0.188-0.188c0.246-0.331 0.463-0.701 0.619-1.112 0.157-0.408 0.245-0.858 0.245-1.315 0.003-0.918-0.392-1.832-1.043-2.465-0.648-0.639-1.567-0.991-2.464-0.961z"></path>
+                                            <path d="M6.162 5.606c0.282-0.359 0.493-0.767 0.622-1.187 0.129-0.417 0.186-0.842 0.196-1.255l-0.035-0.263c-0.107-0.399-0.264-0.799-0.493-1.174-0.224-0.376-0.526-0.721-0.888-1-0.721-0.569-1.682-0.821-2.582-0.694-0.903 0.117-1.746 0.622-2.276 1.347-0.267 0.36-0.451 0.767-0.563 1.174-0.033 0.103-0.054 0.206-0.071 0.307-0.021 0.103-0.038 0.207-0.043 0.309l-0.015 0.152-0.007 0.078-0.003 0.096c-0.003 0.132-0.001 0.262 0.004 0.39l0.008 0.16c0.018 0.077 0.033 0.152 0.056 0.227l0.028 0.092 0.028 0.075 0.053 0.145c0.032 0.096 0.077 0.191 0.122 0.287 0.043 0.096 0.089 0.189 0.145 0.282 0.21 0.371 0.494 0.717 0.84 1.002 0.691 0.57 1.633 0.863 2.538 0.754 0.904-0.099 1.771-0.58 2.336-1.302z"></path>
+                                        </svg>
+                                    </div>
+                                    <div @click.stop id="userAlbumMenu" class="boxMenuComment cursor-pointer" v-if="$store.state.menu.name == 'userAlbumMenu' && $store.state.menu.id == mov.id" :style="{lineHeight:'normal',top: mIndex == 0 ? 'auto' : '20px',bottom: mIndex == 0 ? '40px' : 'auto', right: '25px', zIndex: 4}">
+                                        <div style="position: relative;">
+                                            <div style="right:0;overflow:hidden;box-shadow: rgb(60 64 67 / 30%) 0px 1px 2px 0px, rgb(60 64 67 / 15%) 0px 2px">
+                                                <ul> 
+                                                    <li @click="introMovDeleteConfirm(mov.id)" class="boxMenuItems cursor-pointer">削除する</li> 
+                                                </ul>
+                                            </div>
+                                        </div>                                                    
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                        <div style="max-width: 280px;width: 100%;">
+                            <div v-if="targetId == auth_id" title="作成" class="mov-del-button" style="margin-left: auto;margin-top:10px" @click="$emit('addIntroFile')">
+                                <!-- <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="17" viewBox="0 0 32 32" style="fill:var(--primary-color);margin:auto;">
+                                    <path d="M30.044 14.14c-2.402-0.231-4.804-0.341-7.206-0.422-1.535-0.058-3.071-0.079-4.606-0.090-0.326-0.002-0.587-0.265-0.588-0.591-0.004-1.537-0.018-3.074-0.078-4.613-0.092-2.4-0.218-4.802-0.542-7.205-0.084-0.612-0.565-1.119-1.205-1.206-0.769-0.103-1.477 0.437-1.582 1.206-0.324 2.401-0.449 4.804-0.542 7.205-0.059 1.536-0.074 3.071-0.078 4.606-0.001 0.325-0.263 0.59-0.59 0.59-1.534 0.005-3.068 0.020-4.602 0.078-2.404 0.094-4.805 0.219-7.207 0.543-0.612 0.081-1.119 0.564-1.205 1.205-0.103 0.769 0.436 1.477 1.205 1.58 2.402 0.324 4.804 0.449 7.207 0.543 1.536 0.059 3.074 0.073 4.612 0.078 0.325 0.001 0.587 0.262 0.59 0.587 0.011 1.536 0.033 3.070 0.090 4.606 0.080 2.402 0.192 4.805 0.423 7.207 0.066 0.699 0.622 1.278 1.349 1.348 0.823 0.079 1.556-0.524 1.633-1.348 0.231-2.402 0.342-4.805 0.423-7.207 0.057-1.538 0.079-3.077 0.090-4.615 0.002-0.324 0.263-0.583 0.587-0.586 1.538-0.011 3.077-0.034 4.615-0.090 2.402-0.080 4.804-0.193 7.206-0.423 0.7-0.066 1.279-0.622 1.349-1.349 0.076-0.823-0.528-1.557-1.351-1.634z"></path>
+                                </svg> -->
+                                追加
+                            </div>
+                        </div>
+                        
+                        
                     </div>
                 </div>
-                <div style="width:100%; height:100%; background: var(--kebab-bg1);color: grey;text-align:center;display:flex;height:inherit;position:relative;" v-else>
-                    <div class="uploadMask" v-if="uploadingProgress"><div>アップロード中</div><div> {{uploadingProgress }}%</div></div>                   
-                    <div style="margin:auto;" v-if="(auth_id == 1  || auth_id == 610 || auth_id == 604 || auth_id == 765)">
-                        <label for="file" class="file-label" style="cursor:pointer">
-                            自己紹介Movアップロード
-                        </label>
-                        <input type="file" name="file" id="file" v-on:change="introMovUpload" style="display: none;">
+                
+                <div style="width:100%; height:100%; background: var(--bg3);color: grey;text-align:center;display:flex;height:inherit;position:relative;min-height: 220px;max-width: 350px;margin:auto" v-else-if="targetId == auth_id">
+                    <div @click="$emit('addIntroFile')" style="margin:auto;">
+                        <p class="file-label" style="cursor:pointer">
+                            自己紹介ファイルアップロード
+                        </p>
                     </div>                         
-                    <div v-else style="margin:auto;">現在準備中</div>
-                    
                 </div>
                 
             </div>
-            
+            <Transition name="modalFade">
+                <UserIntroFile 
+                    v-if="introUpload"
+                    :UserAllData="UserAllData"
+                    @closeModal="$emit('closeModal')"
+                    @updateUser="$emit('updateUser')"
+                />
+            </Transition>
+            <Transition name="modalFade">
+                <UserAlbumByTags 
+                    v-if="viewAlbum"
+                    :tagText="tagText"
+                    :tagAlbums="tagAlbums"
+                    :targetId=targetId
+                    @closeModal="viewAlbum = false"
+                />
+            </Transition>   
         </div>
     </div>
 </template>
@@ -127,9 +175,16 @@
     import UserIconPreLoad from '../../Board/Mixed/UserIcon.vue'
     import 'cropperjs/dist/cropper.css';
     import moment from 'moment';
-
+    import UserIntroFile from './UserIntroFile.vue';
+    import Swiper from 'swiper'
+    import PostTag from '../../Post/PostTag.vue';
+    import 'swiper/css'
+    import { Navigation } from 'swiper';
+    import 'swiper/css/navigation'
+    import UserAlbumByTags from '../UserAlbumByTags.vue';
     export default{
-        props: ['UserAllData', 'deviceWidth', 'isAccessible', 'clapData'],
+        props: ['UserAllData', 'deviceWidth', 'isAccessible', 'clapData', 'movExist', 'introUpload'],
+        emits: ['updateUser', 'closeModal', 'addIntroFile'],
         data(){
             return {
                 iconViewModal: false,
@@ -147,39 +202,72 @@
                 targetId: this.UserAllData.id,
                 uploadingProgress: 0,
                 orgImage: null,
-                weathers: this.UserAllData.weathers
+                weathers: this.UserAllData.weathers,
+                iconSwiper: null,
+                viewAlbum: false,
+                tagText: '',
+                tagAlbums: '',
             }
         },
         components: {
             UserIconPreLoad,
+            UserIntroFile,
+            PostTag,
+            UserAlbumByTags
         },
         computed: {
-            // deviceWidthStyle(){
-            //     if(this.deviceWidth < 500){
-            //         return { width: '50%'}
-            //     }
-            //     return null
-            // },
             userDaysWeather(){
                 const weathers = this.UserAllData.days_weathers
                 return weathers.sort((a, b) => new Date(a.date) - new Date(b.date));
             },
-            movExist(){
-                if(this.UserAllData && this.UserAllData.user_album && this.UserAllData.user_album.length){
-                    for(let mov of this.UserAllData.user_album){
-                        if(mov.intro_flag == 1){
-                            return mov
-                        }
-                    }
-                }
-            }
+            
         },  
         methods: {
+            viewalbumByTag(tag){
+                this.tagText = tag.text
+                axios.post('/get_albums', { tag_id: tag.id }).then(response => {
+                    this.tagAlbums = response.data
+                    this.viewAlbum = true
+                })
+            },  
+            sanitized(tag){
+                const sanitizedString = tag.text ? tag.text.replace(/#|♯|＃/g, '') : '';
+                return sanitizedString;
+            },
+            movSrc(mov){
+                return mov.path.includes('intro') ? this.$store.state.baseLocation + '/user_files/' + this.targetId + '/' + mov.path : this.$store.state.baseLocation + '/user_files/' + this.targetId + '/' + mov.id + '_' + this.targetId + '_' + mov.path + '.' + mov.extension
+            },
+            previewImage(file, index){
+                const files = this.movExist.map(fileData => ({
+                    ...fileData,
+                    file_path: `${this.$store.state.baseLocation}/user_files/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                }));   
+                const data = {
+                    active: true,
+                    files,
+                    target: file,
+                    source: 'user',
+                    source_board_id: null,
+                    index: index,
+                    message: null,
+                }
+                this.$store.commit('setFilePreview', data)
+            },
+            // swiperCreate(){
+            //     new Swiper('.swiper-icon', {
+            //         direction: 'vertical',
+            //         slidesPerView: 3,
+            //     })
+            // },
+            isMov(type){
+                return type.includes('video') 
+            },
+            
             dateFormat(day){
                 const date = moment(day)
                 return date.locale('ja').format('D ddd')
             },
-            introMovDeleteConfirm(){
+            introMovDeleteConfirm(id){
                 var uniqueChannell = Math.random().toString(36).substring(5);  
                 emitter.emit('setToast', {
                     active: true,  
@@ -193,14 +281,14 @@
                 })            
                 emitter.on(uniqueChannell, (data) => { 
                     if(data.answer === 'はい'){
-                        this.introMovDelete()
+                        this.introMovDelete(id)
                     }
                 });
             },
-            introMovDelete(){
-                axios.post('/mov_delete', {delete_id: this.targetId}).then(response => {
+            introMovDelete(id){
+                axios.post('/mov_delete', {delete_id: this.targetId, mov_id: id}).then(response => {
                         if(response.data == 'saved'){
-                            this.$emit('getUserInfo');
+                            this.$emit('updateUser');
                         }               
 
                     })
@@ -231,7 +319,7 @@
                             answers: ['OK'],
                         }) 
                     }else{
-                        this.$emit('getUserInfo');
+                        this.$emit('updateUser');
                     }
                 }).catch(function (error) {
                     if (error.response) this.errorToast(this.$t('commonError') + error.response.data.message)
@@ -261,7 +349,6 @@
                     axios.post('/user_icon_cropped_up_api',formData)
                         .then(response => {
                             
-                            this.$emit('getUserInfo');
                             this.iconEditModal = false;
                             this.cropCancel();
                             this.sendLoader = false;
@@ -441,7 +528,7 @@
         },
         
         mounted(){
-            
+            // this.swiperCreate()
         }
     }
 </script>

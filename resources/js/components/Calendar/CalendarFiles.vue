@@ -75,67 +75,26 @@
                 this.$store.commit('setMessageUsers', data)
                 
             },
-            fileExportStart(file, record_id){
-                let cancelCopy = {
-                    active: null,
-                    objects: [],
-                    source_record_id: null,
-                    target_record_id: null,
-                    target_parent_id: null,
-                    type: ''
-                }
-                this.$store.commit('setCopyMoveFiles', cancelCopy)
-                let fileList = []
-                let object = file
-                object['source_board_id'] = this.message.record_id
-                fileList.push(object)
-                let data = {
-                    active: true,
-                    list: fileList,
-                    drag: true
-                }
-                this.$store.commit('setFromBoardToFiles', data)
-                // this.draggingFiles = [];
-                // event.preventDefault();
-                // this.exportingFiles = [];
-                // this.exportingFiles.push(file);
-                // this.importedFiles = []
-                // this.sourceBoardId = record_id;
-                // this.bounceId = null  
-                // this.cancelCopy(); 
-            },
             previewFile(file, index){
                 if(this.$store.state.sharingData) return
                 let file_list = this.list
-                for(let file_data of file_list){
-                    file_data['source_board_id'] = this.message.record_id
-                }
+                const files = file_list.map(fileData => ({
+                    ...fileData,
+                    file_path: `${this.$store.state.baseLocation}/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                    doc_path: `${this.$store.state.baseLocation}/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`
+                }));
                 let target_data = file
                 
-                if(!target_data[0].removed_at){
-                    let reminder = this.reminder ? this.reminder : 'board'
-                    target_data['source_board_id'] = this.message.record_id
+                
                     const data = {
                         active: true,
-                        files: file_list,
+                        files,
                         target: target_data,
-                        source: 'message',
+                        source: 'calendar',
                         index: index,
-                        message: this.message,
-                        reminder: reminder
+                        message: null,
                     }
                     this.$store.commit('setFilePreview', data)
-                    console.log(data)
-                }else{
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: this.$t('fileExpired'),
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK']
-                    })  
-                }
                 
             },
             fileNameFilter(file){
