@@ -20,6 +20,7 @@ use App\Models\workGroupUser;
 
 use App\Models\attendanceRecord;
 use App\Events\Message;
+use Illuminate\Support\Facades\Http;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -142,7 +143,7 @@ class WorkController extends Controller
                 'work_time_edit_flag' => $reserved_date['work_time_edit_flag']
             );
         }
-        $user_record = User::whereIn('id', $users_list)->select('name', 'id', 'work_type', 'work_time_day', 'work_authority', 'icon_id')->get();
+        $user_record = User::whereIn('id', $users_list)->select('name', 'id', 'work_type', 'work_time_day', 'work_authority', 'icon_id', 'position_id')->get();
 
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $users_list)->whereYear('date', $currentYear)->whereMonth('date', $currentMonth)->where('type_id', 43)->get()->groupBy('user_id')->map(function ($userRecords) {
             return $userRecords->keyBy('date'); // Key the records by date within each user group
@@ -218,23 +219,56 @@ class WorkController extends Controller
         return response()->json($responseArray);
     }
     public function getShiftData(Request $request){
+        [$currentYear, $currentMonth] = explode('-', $request->current_date);
+        $user = User::select('user_code')->findOrFail($request->work_group[0]);
+        $user_code = $user->user_code;
+        $queryParams = [
+            'app' => '605',
+            "query" => '年 = '. $currentYear . ' and 社員ｺｰﾄﾞ = ' . $user_code,
+            // "query" => "レコード番号 =" . $request->id,
+            // 'fields' => ["レコード番号", "社員コード", "ステータス", "氏名", "管理番号", "日時"]
+        ];
+        
+        $queryString = http_build_query($queryParams);
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+
+        $headers = [
+            'Authorization' => 'Basic',
+            'X-Cybozu-API-Token' => 'Nxwn6FfbuQ7fcBX9Hi3rjyoEpdlLNUHyWYrEBWKZ'
+        ];
+        $recieve = [];
+        $response = Http::withHeaders($headers)->get($url);
+        $responseContent = $response->body();
+        $responseData = $response->json();
+        
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
-        [$currentYear, $currentMonth] = explode('-', $request->current_date);
+        $planned_date = Carbon::now()->format('Y-m-d');
+        foreach ($responseData['records'] as $data){
+            if($data['社員ｺｰﾄﾞ']['value'] == $user->user_code){
+                $recieve = ['date'=>$data['当年度有休付与日']['value'], 'user_code'=>$data['社員ｺｰﾄﾞ']['value'], 'all_days'=>$data['付与日数']['value'], 'planned_days'=>$data['計画消化日数']['value'], 'consumed_days'=>$data['消化日数合計']['value'], 'remaining_days'=>$data['残日数1']['value']];
+                $planned_date = $data['付与年度']['value'];
+            }
+        }
+        $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->whereIn('user_id', $request->work_group)
                         ->with(['shiftType'])
                         ->orderBy('created_at', 'desc')
                         ->get();
+        $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();
         if($auth_user->position_id <= 11){
-            $shift_type = shiftType::get();
+            $shift_type = shiftType::where('deleted_flag', 0)->get();
         }else{
             $shift_type = shiftType::where('id','!=', 14)->where('id','!=', 15)->get();
         }
         $data = [
             "shift_record" => $shift_record,
-            "shift_type" => $shift_type
+            "shift_type" => $shift_type,
+            "kintone_data" => $recieve,
+            "test" => $responseData,
+            'planned_days' => $between_records
         ];
 
         return response()->json(
@@ -243,7 +277,6 @@ class WorkController extends Controller
     }
     public function shiftAdd(Request $request)
     {
-        // ログインユーザー情報取得
         $auth_user_id = Auth::id();
         $user_id = $request->userId;
         if (!empty($request->shift_array)) {
@@ -255,18 +288,18 @@ class WorkController extends Controller
             $shift_record_check = shiftRecord::where('user_id', $auth_user_id)
                 ->whereIn('shift_day', $shift_days)
                 ->get()
-                ->keyBy('shift_day'); // Key the collection by shift_day for easy comparison
+                ->keyBy('shift_day');
             foreach ($shift_array as $shift) {
-                // Check if there's a shift record for the current date
+                if($shift['type'] == 3 || $shift['type'] == 5){
+
+                }
                 if ($shift_record_check->has($shift['date'])) {
                     $shift_record = $shift_record_check[$shift['date']];
                     if ($shift_record->shift_type !== $shift['type']) {
-                        // Update shift type if it's different
                         $shift_record->shift_type = $shift['type'];
                         $shift_record->update();
                     }
                 } else {
-                    // Create a new shift record
                     shiftRecord::create([
                         'user_id' => $auth_user_id,
                         'shift_day' => $shift['date'],
@@ -558,7 +591,7 @@ class WorkController extends Controller
         $workdayNum = $lastDay - $holidayNum;
         $userData = $user->makeHidden('attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records');
         $attendance = $user->attendance_records->first();
-        $shift_count = $user->shift_records->where('shift_type', '!=', 0)->pluck('shift_day');
+        $shift_count = $user->shift_records->where('shift_type', '!=', 0)->count();
         $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
         $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->count();
         $workedday_count = $user->time_card_records->count();
@@ -592,7 +625,7 @@ class WorkController extends Controller
             }
             
         }
-        
+        $month_over_time = 0;
         if($user->work_type == 0){
             $all_worked_time = $worked_time + $annual_leave + $over_time;
             $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
@@ -609,7 +642,7 @@ class WorkController extends Controller
         $responseArray = array(
             'user' => $userData,
             'attendance_flag' => $attendance_flag,
-            'shift_count' => $shift_count->count(),
+            'shift_count' => $shift_count,
             'should_work' => $shift_work_hours,
             'should_work_days' => $workdayNum,
             'shift_holidays' => $shift_holidays->count(),
@@ -813,8 +846,8 @@ class WorkController extends Controller
                                     'value' => $key2,
                                     'shiftType' => $auth_user->work_type,
                                     'notification_user' => $notificationUser,
-                                    'shiftEndTime' => $shift_record[0]->end_time,
-                                    'shiftStartTime' => $shift_record[0]->start_time
+                                    'shiftEndTime' => $shift_record && count($shift_record) > 0 ? $shift_record[0]->end_time : '18:00:00',
+                                    'shiftStartTime' => $shift_record && count($shift_record) > 0 ? $shift_record[0]->start_time : '09:00:00'
                                 );
 
                             }
@@ -842,6 +875,64 @@ class WorkController extends Controller
         );
         return response()->json($resposnsArray);
     }
+    public function attendanceClose(Request $request){
+        $user_id = $request->user['id'];
 
+        $attendance_record = attendanceRecord::where('user_id', '=' , $user_id )->where('date_year_month', '=' , $request->date_year_month )->first();
+
+        $work_type_flag = $request->user['work_type'];
+
+        if($work_type_flag == 0){
+            $work_type = 'フレックス';
+        }else{
+            $work_type = '通常';
+        }
+        $month_petition = '済';
+        if($request->user['user_code'] != null){
+            $user_code = $request->user['user_code'];
+        }else{
+            $user_code = 99999999;
+        }
+        if(empty($attendance_record)){
+            $attendance_record = new attendanceRecord;
+            $attendance_record->user_id = $user_id;
+            $attendance_record->name = $request->user['name'];
+            $attendance_record->user_code = $user_code;
+            $attendance_record->date_year_month = $request->date;
+            $attendance_record->prescribed_working_hours = 0;
+            $attendance_record->work_type = $work_type;
+            $attendance_record->month_petition = $month_petition;
+            $attendance_record->working_days_shift = 0;
+            $attendance_record->normal_working_days = 0;
+            $attendance_record->holiday_working_days = 0;
+            $attendance_record->paid_holiday_hours = 0;
+            $attendance_record->petitionType8_count = 0;
+            $attendance_record->petitionType7_count = 0;
+            $attendance_record->petitionType6_count = 0;
+            $attendance_record->petitionType5_count = 0;
+            $attendance_record->petitionType4_count = 0;
+            $attendance_record->petitionType3_count = 0;
+            $attendance_record->petitionType2_count = 0;
+            $attendance_record->petitionType1_count = 0;
+            $attendance_record->working_hours = 0;
+            $attendance_record->over_time = 0;
+            $attendance_record->status_flag = 1;
+            $attendance_record->night_work_time = 0;
+            $attendance_record->working_hours_no_over = 0;
+            $attendance_record->stay_pay = 0;
+            $attendance_record->move_pay = 0;
+            $attendance_record->closed_day = 0;
+            $attendance_record->half_day_holiday = 0;
+            $attendance_record->condolence_holiday = 0;
+            $attendance_record->special_holiday = 0;
+            $attendance_record->working_days_shift = 0;
+            $attendance_record->pay_day = 20;
+            $attendance_record->absence_days = 0;
+            $attendance_record->absence_hour = 0;
+            $attendance_record->save();
+
+        }
+        return response()->json($request);
+    }
 }
 

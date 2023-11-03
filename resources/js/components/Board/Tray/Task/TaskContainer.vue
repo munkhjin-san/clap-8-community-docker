@@ -1,6 +1,17 @@
 <template>
 <div class="taskOuterContainerBg" style="position: relative;" >
     <div
+        id="recycleTaskButton" 
+        title="完了した・削除したタスク" 
+        :style="{bottom: '55px' ,right:'15px', background: which == 0 ? '#efefef' : '#000'}" 
+        :class="{hiddenButton : createHidden}" 
+        class="createBoardButton fileNewButton" 
+        @click="switchView">
+        <svg :style="{margin: 'auto', fill: which == 0 ? '#000' : '#fff'}" version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 27 32">
+            <path d="M18.68 10.952c-0.427-0.035-0.797 0.289-0.832 0.716-0.104 1.271-0.173 2.542-0.243 3.812l-0.104 1.906-0.081 1.906-0.069 1.906c-0.023 0.635-0.035 1.271-0.046 1.906-0.023 1.271-0.046 2.553-0.023 3.824 0.012 0.37 0.289 0.693 0.682 0.728 0.416 0.035 0.774-0.266 0.809-0.67 0.116-1.271 0.196-2.542 0.266-3.812 0.035-0.635 0.081-1.271 0.104-1.906l0.081-1.906 0.069-1.906 0.046-1.906c0.023-1.271 0.058-2.553 0.058-3.824-0.012-0.393-0.312-0.739-0.716-0.774zM9.473 21.21l-0.069-1.918-0.081-1.906c-0.023-0.635-0.069-1.271-0.104-1.906-0.069-1.271-0.15-2.542-0.266-3.812-0.035-0.37-0.347-0.67-0.728-0.67-0.416-0.012-0.751 0.323-0.751 0.739-0.023 1.271 0 2.553 0.023 3.824 0.012 0.635 0.023 1.271 0.046 1.906l0.069 1.906 0.081 1.906 0.104 1.906c0.069 1.271 0.15 2.542 0.243 3.812 0.035 0.393 0.37 0.716 0.774 0.716 0.427 0 0.774-0.347 0.774-0.774 0-1.271-0.023-2.553-0.058-3.824l-0.058-1.906zM14.279 15.515c-0.023-1.271-0.046-2.542-0.092-3.824-0.023-0.404-0.335-0.728-0.739-0.739-0.427-0.012-0.786 0.312-0.809 0.739-0.046 1.271-0.069 2.542-0.092 3.824l-0.023 1.906-0.012 1.906 0.012 1.906c0 0.635 0.023 1.271 0.023 1.906 0.023 1.271 0.058 2.542 0.116 3.824 0.023 0.37 0.323 0.682 0.705 0.705 0.416 0.023 0.762-0.289 0.786-0.705 0.069-1.271 0.104-2.542 0.116-3.824 0.012-0.635 0.023-1.271 0.023-1.906l0.012-1.906-0.023-3.812z"></path> <path data-v-96232590="" d="M26.64 7.601v-0.012c0-0.531-0.439-0.97-0.982-0.959-0.127 0-0.3 0.012-0.451 0.023-0.231 0.012-0.451-0.046-0.647-0.162-0.312-0.196-0.682-0.404-0.855-0.485l-0.693-0.323c-0.231-0.104-0.474-0.196-0.705-0.289-0.947-0.37-1.918-0.682-2.9-0.924-0.416-0.104-0.947-0.208-1.282-0.277-0.116-0.023-0.196-0.139-0.196-0.254 0.035-0.451 0.081-1.178 0.092-1.536 0.023-0.439 0.023-0.866 0.046-1.305 0.012-0.554-0.416-1.017-0.97-1.028h-0.058l-1.814-0.046c-0.601-0.023-1.213-0.023-1.814-0.023l-1.814 0.012c-0.601 0.012-1.213 0.023-1.814 0.046h-0.081c-0.543 0.023-0.97 0.485-0.947 1.028l0.023 0.647c0.012 0.22 0.012 0.439 0.023 0.647 0.023 0.358 0.058 1.028 0.081 1.479 0 0.139-0.092 0.254-0.231 0.277-0.335 0.058-0.832 0.162-1.259 0.266-0.994 0.231-1.964 0.531-2.911 0.901-0.751 0.289-1.49 0.612-2.207 1.005-0.196 0.116-0.416 0.162-0.635 0.162h-0.485c-0.624 0-1.132 0.497-1.132 1.121v0.012l-0.023 3.5c0 0.635 0.508 1.155 1.144 1.155h0.751l1.074 18.622v0.023c0.046 0.635 0.578 1.144 1.225 1.132l18.449-0.116c0.578 0 1.063-0.462 1.097-1.051l1.040-18.784h0.901c0.543 0 0.994-0.439 0.982-0.994l-0.023-3.489zM10.755 2.38c0-0.081 0.012-0.162 0.012-0.254 0.277 0.012 0.555 0.012 0.832 0.023l1.814 0.012c0.601 0 1.213 0 1.814-0.012l0.82-0.023c0 0.081 0 0.162 0.012 0.254 0.012 0.393 0.035 0.994 0.035 1.352 0 0.058-0.046 0.104-0.104 0.104-0.543-0.046-1.721-0.116-2.576-0.116-0.832 0-2.091 0.081-2.53 0.116-0.069 0.012-0.116-0.046-0.127-0.104-0.012-0.335-0.023-0.97 0-1.352zM22.816 11.033v0.012l-1.201 18.126c-0.023 0.3-0.266 0.52-0.555 0.52l-15.203 0.023c-0.266 0-0.474-0.208-0.497-0.462l-1.19-18.218v-0.012c-0.035-0.612-0.543-1.086-1.167-1.086h-0.866c-0.116 0-0.208-0.092-0.208-0.208v-0.797c0-0.116 0.081-0.208 0.196-0.208 0.254-0.023 0.612-0.069 0.751-0.15h0.012c0.751-0.474 1.571-0.89 2.414-1.248s1.721-0.647 2.622-0.878c1.791-0.474 3.651-0.705 5.51-0.716 1.86 0 3.72 0.22 5.522 0.67 0.901 0.231 1.791 0.508 2.634 0.855 0.22 0.081 0.427 0.173 0.635 0.266l0.312 0.139 0.312 0.15c0.208 0.092 0.404 0.208 0.601 0.312 0 0 0.254 0.15 0.393 0.22 0.104 0.046 0.22 0.116 0.312 0.162 0.058 0.035 0.127 0.046 0.196 0.046h0.312c0.104 0 0.173 0.081 0.173 0.185l-0.012 1.19c0 0.104-0.081 0.185-0.185 0.185h-0.797c-0.543-0.012-0.982 0.393-1.028 0.924z"></path>
+        </svg>   
+    </div>
+    <div
         id="taskAddButton" 
         :title="$t('createNew')" 
         :style="{bottom: '15px' ,right:'15px'}" 
@@ -36,12 +47,12 @@
         @taskDeleted="taskDeleted"
         :editTaskData="editTaskData"/>
     </Transition>
-    <div v-if="$store.state.listView" style="height:100%;overflow: hidden scroll;position: relative;background:inherit" @scroll="scrollEvent">
+    <div style="height:100%;overflow: hidden scroll;position: relative;background:inherit" @scroll="scrollEvent">
             <div class="no-comment-text" v-if="!incompletedTasks.length && !completedTasks.length" style="font-size:14px;">
                 <p>{{$t('noItemsCurrentlyAvailable')}}</p>
             </div>
                
-            <div v-if="incompletedTasks.length" style="display:flex;position: sticky;top: 0;z-index: 2;background: inherit;height:40px;">                
+            <!-- <div v-if="incompletedTasks.length" style="display:flex;position: sticky;top: 0;z-index: 2;background: inherit;height:40px;">                
                 <div  @click="viewActiveTask = !viewActiveTask" class="taskSelectTab">
                     <svg :class="{ arrowUp : viewActiveTask}" class="categoryArrow" style="width:6px;fill:#888 !important;margin-right:5px;" version="1.1"  width="5" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg" fill="#888">
                         <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
@@ -49,27 +60,27 @@
                     <span>{{$t('inCompleteTask')}}({{incompletedTasks.length}})</span>                    
                 </div>               
                 
-            </div>  
-            <div :class="{collapseTasks : !viewActiveTask}" class="task-list-wrap">
+            </div>   -->
+            <div :class="{collapseTasks : !viewActiveTask}" class="task-list-wrap" style="margin-top: 40px;">
                  
                 
                 <TaskBox 
                     boxClass="task-box-container"
-                    v-for="item in incompletedTasks"
+                    v-for="item in computedTasks"
                     :key="item.id" 
                     :item="item"
-                    :completeFlag="false" 
                     :taskUserViewId="taskUserViewId" 
                     :taskUserViewFlag="taskUserViewFlag"
                     :tooManyTask="tooManyTask"
                     :myColor="myColor"
+                    :inTrash="which"
                     @editTask="editTask" 
                     @taskUserViewToggle="taskUserViewToggle"
                     @completeTaskBefore="completeTaskBefore"
                     @taskDeleted="taskDeleted"
                 /> 
             </div>    
-            <div v-if="completedTasks.length" style="display:flex;position: sticky;top: 0px;z-index: 2; background: inherit; height:40px;">                
+            <!-- <div v-if="completedTasks.length" style="display:flex;position: sticky;top: 0px;z-index: 2; background: inherit; height:40px;">                
                 <div @click="viewCompletedTasks = !viewCompletedTasks" class="taskSelectTab">
                     <svg :class="{ arrowUp : viewCompletedTasks}" class="categoryArrow" style="width:6px;fill:#888 !important;margin-right:5px;" version="1.1"  width="5" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg" fill="#888">
                         <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
@@ -93,7 +104,7 @@
                         @taskUserViewToggle="taskUserViewToggle"
                         @completeTaskBefore="completeTaskBefore"/>
                            
-            </div>
+            </div> -->
 
              
     </div>
@@ -143,7 +154,8 @@ export default {
             taskMemberOpen: false,
             taskSelectedMembers: [],
             checkedMemberIds: null,
-            avialableColors: colors
+            avialableColors: colors,
+            which: 0
         };
     },
     mounted() {
@@ -172,7 +184,6 @@ export default {
         
     },
     created() {
-        this.$store.commit("setFileInstance", null);
         const myTaskPriority = localStorage.getItem('my_task_priority')
         if(myTaskPriority){
             this.sortIs.myRecord = JSON.parse(myTaskPriority)
@@ -225,24 +236,30 @@ export default {
             return list;
         },
         completedTasks() {
-            let sortAbleTasks = this.$store.state.remember.my_task_priority ? this.myTasks : this.allTasks
+            let sortAbleTasks = this.sortIs.myRecord ? this.myTasks : this.allTasks
             let list = [];
 
             if (this.ftSelector == 0) {
                 sortAbleTasks.map(ob => {
-                    const me = ob.to_users.filter(user => user.user_id == this.$store.state.user.id);
-                    if (me.length && me[0].comp_flag === 1) {
+                    if(ob.end_at == null){
                         list.push(ob);
-                    }
-                    else if (ob.comp_flag == 1) {
-                        list.push(ob);
-                    }else {
-                        const all_members = ob.to_users
-                        const has_all_completed = all_members.filter(ob => ob.comp_flag == 1)
-                        if(all_members.length == has_all_completed.length){
+                    }else{
+                        const me = ob.to_users.filter(user => user.id == this.$store.state.user.id);
+                        if (me.length && me[0].pivot.comp_flag === 1) {
                             list.push(ob);
                         }
+                        else if (ob.comp_flag === 1) {
+                            
+                            list.push(ob);
+                        }else {
+                            const all_members = ob.to_users
+                            const has_all_completed = all_members.filter(ob => ob.pivot.comp_flag == 1)
+                            if(all_members.length == has_all_completed.length){
+                                list.push(ob);
+                            }
+                        }
                     }
+                    
                 });
                 return list;
             }
@@ -255,25 +272,42 @@ export default {
             }
             return [];
         },
+        computedTasks(){
+            // let list = this.sortIs.myRecord ? this.myTasks : this.allTasks
+            // if(this.sortIs.by == 'deadline'){
+            //     if(this.sortIs.order === 'desc'){
+            //         list.sort((a,b) => (a.end_at > b.end_at) ? 1 : ((b.end_at > a.end_at) ? -1 : 0))
+            //     }else if(this.sortIs.order === 'asc'){
+            //         list.sort((a,b) => (a.end_at < b.end_at) ? 1 : ((b.end_at < a.end_at) ? -1 : 0))
+            //     }
+            // }
+            // return list
+            return this.which == 0 ? this.incompletedTasks : this.completedTasks
+        },
         incompletedTasks() {
             let list = [];
             let sortAbleTasks = this.sortIs.myRecord ? this.myTasks : this.allTasks
             if (this.ftSelector == 0) {
                 const completed = this.completedTasks.map( ob => ob.id)
                 sortAbleTasks.map(ob => {
-                    const has_completed = completed.indexOf(ob.id)
-                    if(has_completed == -1){
-                        list.push(ob)
+                    if(ob.end_at == null){
+                        list.push(ob);
+                    }else{
+                        const has_completed = completed.indexOf(ob.id)
+                        if(has_completed == -1){
+                            list.push(ob)
+                        }
                     }
                     
+                    
                 });
-                if(this.sortIs.by == 'deadline'){
-                    if(this.sortIs.order === 'desc'){
-                        list.sort((a,b) => (a.end_at > b.end_at) ? 1 : ((b.end_at > a.end_at) ? -1 : 0))
-                    }else if(this.sortIs.order === 'asc'){
-                        list.sort((a,b) => (a.end_at < b.end_at) ? 1 : ((b.end_at < a.end_at) ? -1 : 0))
-                    }
-                }
+                // if(this.sortIs.by == 'deadline'){
+                //     if(this.sortIs.order === 'desc'){
+                //         list.sort((a,b) => (a.end_at > b.end_at) ? 1 : ((b.end_at > a.end_at) ? -1 : 0))
+                //     }else if(this.sortIs.order === 'asc'){
+                //         list.sort((a,b) => (a.end_at < b.end_at) ? 1 : ((b.end_at < a.end_at) ? -1 : 0))
+                //     }
+                // }
                 return list
 
             }
@@ -289,7 +323,10 @@ export default {
         
     },
     methods: {
-       
+        switchView(){
+            this.which = this.which == 1 ? 0 : 1
+            this.getTask(0)
+        },
         newTask(day) {
             this.editTaskData = null;
             this.taskModalView = true;
@@ -373,7 +410,7 @@ export default {
             this.getTask(flag);
         },
         getTask(flag) {
-            axios.post("/get_task_api", { record_id: this.openedBoard.id, flag: flag }).then(response => {
+            axios.post("/get_task_api", { record_id: this.openedBoard.id, which: this.which }).then(response => {
                 this.taskList = response.data;
                 this.taskKey++;
             });

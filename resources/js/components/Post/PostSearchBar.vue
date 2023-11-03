@@ -22,11 +22,16 @@
 </template>
 <script>
     export default {
-        props: ['searching', 'className', 'customPlaceHolder'],
+        props: ['searching', 'className', 'customPlaceHolder', 'initialValue'],
         data(){
             return{
                 keyword: '',
                 timeout: 0
+            }
+        },
+        mounted(){
+            if(this.initialValue){
+                this.keyword = this.initialValue
             }
         },
         methods: {

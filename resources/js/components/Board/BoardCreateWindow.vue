@@ -1,7 +1,7 @@
 <template>
-    <div @click="closeModal" class="overlay" style="z-index: 24;font-size:14px">
+    <div @click="closeModal" class="overlay" style="z-index: 24;">
         <div id="createModal" class="chatCreate scrollable" ref="createModal" @click.stop>
-            <div class="chatCreateHeader">
+            <div class="recordFormTitle">
                 <h1>新しいボードを作成する</h1>
                 <div @click="$emit('close')" class="m-close-button" style="position: unset;margin-left: auto;">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
@@ -9,8 +9,8 @@
                     </svg>
                 </div>                
             </div>
-            <div class="si-box">
-                <div style="display:flex;gap:15px">
+            <div class="si-box" style="margin:0">
+                <div style="display:flex;gap:15px;font-size: 14px;">
                     <div :class="['ch-selector', {chSelected : chatType == 0}]" @click="chatType = 0">{{ $t('groupChat') }}</div>
                     <div :class="['ch-selector', {chSelected : chatType == 1}]" @click="chatType = 1, board_users = []">{{ $t('privateChat') }}</div>                
                 </div>               
@@ -46,8 +46,8 @@
                     />
                 </div>               
 
-                <div v-if="chatType == 0" class="form-border si-box" style="padding: 10px;position:relative">   
-                    <p style="font-size: 14px;color: gray;">{{ $t('Icon') }}</p>                     
+                <div v-if="chatType == 0" class="si-box" style="padding: 10px;position:relative;border: solid thin var(--primary-color);">   
+                    <span class="form-plc smallPlc">ボードアイコン</span>                  
                     <div v-if="tempImage" style="height: auto;max-height:calc(80vh / 2);background:#efefef;width: 100%;margin: auto;position:relative">
                         <div @click="cancelCrop" style="position:absolute;right:10px;top:10px;background:#fff;border-radius:50px;min-width:30px;width:30px;height:30px;cursor:pointer;z-index: 5;display: flex;box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;"> 
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width:10px;height:10px;margin:auto;" fill="#000" viewBox="0 0 32 32">

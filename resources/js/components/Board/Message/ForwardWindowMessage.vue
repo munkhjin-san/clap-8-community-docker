@@ -31,10 +31,5 @@
                 return `“${userName} : ${text}”`
             }
         },
-        methods: {
-            clearForward(){
-                this.$store.commit('setForwarding', null);                
-            },
-        }
     }
 </script>

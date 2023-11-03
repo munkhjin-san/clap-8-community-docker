@@ -17,11 +17,11 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule)
     {
         // $schedule->command('inspire')->hourly();
-        // $schedule->call([AutoJobController::class, 'removeOldBoards'])->cron('* * * * *');
-        $schedule->call('\App\Http\Controllers\AutoJobController@removeOldBoards');
-        $schedule->call('\App\Http\Controllers\AutoJobController@removeOldFiles');
-        $schedule->call('\App\Http\Controllers\AutoJobController@removeTempUsers');
-        $schedule->call('\App\Http\Controllers\AutoJobController@removePasswordResets');
+        // $schedule->call('\App\Http\Controllers\AutoJobController@removeOldBoards');
+        // $schedule->call('\App\Http\Controllers\AutoJobController@removeOldFiles');
+        // $schedule->call('\App\Http\Controllers\AutoJobController@removeTempUsers');
+        // $schedule->call('\App\Http\Controllers\AutoJobController@removePasswordResets');
+        $schedule->call('\App\Http\Controllers\AutoJobController@removeTemprorayFiles');
     }
 
     /**

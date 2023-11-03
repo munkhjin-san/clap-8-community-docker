@@ -7,29 +7,25 @@
         </div>
         <div class="chatCreate kadaiCreate scrollable">
             
-            <div class="recordFormTitle" style="display:flex;margin-bottom: 30px;">
+            <div class="recordFormTitle" style="display:flex;margin-bottom: 10px;">
+                <div @click="$router.go(-1)" style="margin: 2px 10px 0 0;" v-if="$store.state.mobile">
+                    <svg class="dot-menu" version="1.1" width="15" height="15" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
+                    </svg>                    
+                </div>  
                 <p>昇給課題</p>
-                <div class="cursor-pointer" @click="$router.go(-1)" style="position:unset; margin:auto 0 auto auto">
+                <div v-if="!$store.state.mobile" class="cursor-pointer" @click="$router.go(-1)" style="position:unset; margin:auto 0 auto auto">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
                         <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                     </svg>                        
                 </div> 
             </div>
-            <div class="kadai-root">                
-                <!-- <div>
-                    <div class="locale-selector" style="width: 100%;">
-                        <select @change="getData" name="locales" v-model="activeDate" class="dropDownSelector cursor-pointer" style="width: fit-content;">
-                            <option :value="date" v-for="date in possibleIssues">{{ date }}</option>
-                        </select>
-                        <div class="commentEditButton" @click="newIssue = true" style="margin-left: auto;">新規作成</div>
-                    </div>
-                </div> -->
+            <div class="kadai-root">   
                 <div>
                     <div class="locale-selector" style="width: 100%;">
-                        <select name="locales" v-model="selectedDate" class="dropDownSelector cursor-pointer" style="width: fit-content;">
+                        <select @change="dateChange" name="locales" v-model="selectedDate" class="dropDownSelector cursor-pointer" style="width: fit-content;">
                             <option :value="date" v-for="date in selectAbleDates">{{ parseDate(date) }}</option>
                         </select>
-                        <!-- <div v-if="!newIssue" class="commentEditButton" @click="addNewKadai" style="margin-left: auto;">新規作成</div> -->
                     </div>
                 </div>
                 <div v-if="newIssue" style="margin-top: 30px;">
@@ -172,7 +168,7 @@
                                 
                             </div>
                             <div class="si-box" style="margin-bottom:20px">
-                                <LoaderButton :loading="attaching" @triggered="saveKintone" content="申請"/>
+                                <LoaderButton :loading="attaching" @triggered="applyToManagementConfirm" content="申請"/>
                             </div>
                         </div>
                         
@@ -188,7 +184,7 @@
                                 <div><strong>{{ appliedIssues['ステータス']['value'] }}</strong></div>
                             </div>
                             <div class="templateBox" v-for="template in appliedIssues['昇給課題']['value']">
-                                <div v-if="appliedIssues['ステータス']['value'] !== '完了'" @click.stop="$store.commit('setMenu', {id: template.id, name: 'aplliedKadaiBoxMenu'})" class="boardMenuContainer cursor-pointer" style="align-self: normal; position: absolute; right: 10px; top: 10px;">
+                                <div v-if="appliedIssues['ステータス']['value'] == '未処理'" @click.stop="$store.commit('setMenu', {id: template.id, name: 'aplliedKadaiBoxMenu'})" class="boardMenuContainer cursor-pointer" style="align-self: normal; position: absolute; right: 10px; top: 10px;">
                                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="dot-menu" height="13" viewBox="0 0 7 32" style="margin: auto;">
                                         <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path><path d="M3.405 12.33c-0.447 0.013-0.881 0.115-1.272 0.278-0.1 0.038-0.195 0.085-0.287 0.135-0.093 0.047-0.185 0.097-0.27 0.154l-0.129 0.083-0.064 0.042-0.124 0.088c-0.050 0.039-0.132 0.104-0.181 0.145l-0.040 0.035c-0.111 0.096-0.214 0.202-0.302 0.319-0.001 0-0.001 0.001-0.001 0.001l-0.058 0.081-0.040 0.064-0.082 0.134c-0.056 0.086-0.104 0.179-0.15 0.271-0.049 0.095-0.095 0.189-0.132 0.289-0.164 0.394-0.262 0.832-0.27 1.277-0.025 0.899 0.324 1.82 0.967 2.467 0.636 0.651 1.549 1.038 2.465 1.037 0.456 0.003 0.906-0.086 1.315-0.239 0.41-0.156 0.781-0.374 1.112-0.619l0.188-0.188c0.246-0.331 0.463-0.701 0.619-1.112 0.157-0.408 0.245-0.858 0.245-1.315 0.003-0.918-0.392-1.832-1.043-2.465-0.648-0.639-1.567-0.991-2.464-0.961z"></path><path d="M6.162 5.606c0.282-0.359 0.493-0.767 0.622-1.187 0.129-0.417 0.186-0.842 0.196-1.255l-0.035-0.263c-0.107-0.399-0.264-0.799-0.493-1.174-0.224-0.376-0.526-0.721-0.888-1-0.721-0.569-1.682-0.821-2.582-0.694-0.903 0.117-1.746 0.622-2.276 1.347-0.267 0.36-0.451 0.767-0.563 1.174-0.033 0.103-0.054 0.206-0.071 0.307-0.021 0.103-0.038 0.207-0.043 0.309l-0.015 0.152-0.007 0.078-0.003 0.096c-0.003 0.132-0.001 0.262 0.004 0.39l0.008 0.16c0.018 0.077 0.033 0.152 0.056 0.227l0.028 0.092 0.028 0.075 0.053 0.145c0.032 0.096 0.077 0.191 0.122 0.287 0.043 0.096 0.089 0.189 0.145 0.282 0.21 0.371 0.494 0.717 0.84 1.002 0.691 0.57 1.633 0.863 2.538 0.754 0.904-0.099 1.771-0.58 2.336-1.302z"></path>
                                     </svg>
@@ -222,9 +218,6 @@
                                     <div>ChatGPT添削結果</div>
                                     <div class="kadai-content">{{ parseValue(template['value'], 'ChatGPT添削結果') }}</div>
                                 </div>
-                                <!--<div class="si-box" style="margin-bottom:20px" v-if="template.status !== 2">
-                                    <LoaderButton :loading="attaching" @triggered="saveKintone(template)" content="申請"/>
-                                </div> -->
                             </div>
                         </div>
                     </div>
@@ -374,7 +367,10 @@ export default{
         }
     },
     methods:{
-        
+        dateChange(){
+            this.getActiveIssues()
+            this.getTemplates()
+        },
         getActiveIssues(){
             const date = moment(this.selectedDate).format('YYYY年M月実施分')
             axios.post('/get_applied_issues', {date: date}).then(res => {
@@ -487,14 +483,28 @@ ${this.content}`
                 messages: [{ role: 'assistant', content: full }],
                 stream: true,
                 temperature: 0.8
-            });
+            }).catch((err) => {
+                if (err instanceof OpenAI.APIError) {
+                    console.log(err.status); 
+                    console.log(err); 
+                    if(err.status == 500){
+                        this.errorToast('ChatGPT修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                    }else{
+                        this.errorToast('ChatGPT修正に失敗しました。<br>' + err.message)
+                    }
+                    
+                } else {
+                    this.errorToast('ChatGPT修正に失敗しました。<br>' + err)
+                }
+                this.reviewLoading = false
+            });;
             for await (const part of stream) {
                 try {
                     const content = part.choices[0]?.delta?.content || ''
                     let before = this.content_review ? this.content_review : ''
                     this.content_review = before + content
                 } catch (error) {
-                    this.errorToast('ChatGPT添削にエラーが発生しました。もう一度やり直しください。')
+                    // this.errorToast('ChatGPT添削にエラーが発生しました。もう一度やり直しください。')
                     this.reviewLoading = false
                 }
                 
@@ -536,7 +546,6 @@ ${this.content}`
         editIssue(issue){
             this.editTemplateId = null
             let theme = null;
-            console.log(issue['value'])
             for (const item of this.evalutionsValues) {
                 const t = item.issues.find((ob) => ob.title_full === this.parseValue(issue['value'], '評価課題'));
                 if (t) {
@@ -663,11 +672,10 @@ ${this.content}`
                 const issues = this.appliedIssues['昇給課題']['value']
                 const issue = issues.find(ob => ob.id == this.editIssueId)
                 if(issue){
-                    console.log(issue)
-                    return
-                    if(issue['昇給課題内容・詳細']['value'] !== this.content && issue['ChatGPT添削結果']['value'] !== this.content_review){
-                        this.errorToast('再度ChatGPT添削を行ってください。')
-                        return
+                    if(issue['value']['昇給課題内容・詳細']['value'] !== this.content && issue['value']['ChatGPT添削結果']['value'] == this.content_review){
+                        this.errorToast('再度ChatGPT添削を行ってください。')                        
+                    }else{
+                        this.saveIssue(this.editIssueId)
                     }
                 }
                 
@@ -676,6 +684,39 @@ ${this.content}`
                 this.saveTemplate()
                 
             }
+        },
+        saveIssue(issue_id){
+            this.saving = true
+            const data = {
+                record_id: this.appliedIssues['$id']['value'],
+                kadai_id: issue_id,
+                title: this.title,
+                content: this.content,
+                review: this.content_review,
+                ability: this.content_goal,
+                theme: this.selectedTheme.title_full
+            }
+            axios.post('/update_issue', data).then(res => {
+
+                const data = {
+                    text: '保存しました。',
+                    channel: Math.random().toString(36).substring(5),
+                    icon: 0,
+                    view: true
+                }
+                emitter.emit('setInfo', data)
+                this.saving = false
+                this.newIssue = false
+                this.selectedTheme = null
+                this.editId = this.title = this.content = this.review = this.content_goal = ''
+                this.getActiveIssues()
+            }).catch(function (error) {
+                if (error.response) this.errorToast(error.response.data.message)
+                else if (error.request) this.errorToast('エラーが発生しました。')
+                else this.errorToast('エラーが発生しました。 ' + error.message)    
+                this.saving = false
+                                  
+            }.bind(this));
         },
         saveTemplate(action){
             this.saving = true
@@ -710,7 +751,7 @@ ${this.content}`
                                   
             }.bind(this));
         },
-        saveKintone(){
+        applyToManagementConfirm(){
             const records = this.templateList
             for(const template of this.templateList){
                 if(!template.review){
@@ -718,9 +759,21 @@ ${this.content}`
                     return
                 }
             }
-            
+            const uniqueChannell = Math.random().toString(36).substring(5);
+            emitter.emit('setToast', {
+                active: true,  
+                type: 'info', 
+                content: '申請後には編集ができなくなります。よろしいでしょうか？' ,
+                closeButton: false, 
+                autoClose: false,
+                answers: ['はい', 'いいえ'],
+                channel: uniqueChannell
 
-            
+            })            
+            emitter.on(uniqueChannell, (data) => { data.answer === 'はい' ? this.applyToManagement() : false});
+
+        },
+        applyToManagement(){           
             this.attaching = true
             const date = moment(this.selectedDate).format('YYYY年M月実施分')
             axios.post('/check_kadai_record', {date: date, record_ids: this.templateList.map(ob => ob.id)}).then(res => {
@@ -856,7 +909,7 @@ ${this.content}`
 @media screen and (max-width: 959px) {
     .kadaiCreate{
         width: 100% !important;
-        height: calc(100% - 40px) !important;
+        height: calc(100% - 20px) !important;
     }
     .kadaiCreateButton{
         bottom: 30px;

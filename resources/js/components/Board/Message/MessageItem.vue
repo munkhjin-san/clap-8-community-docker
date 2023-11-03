@@ -9,9 +9,18 @@
         </div>
         <div class="infoMessageInner" v-if="message.info_flag == 2">   
             <p v-if="showDate">{{momentMessage}}</p>       
-            <p style="cursor:pointer" @click="showDate = !showDate" v-html="memoInfoMessage ? memoInfoMessage : (taskInfoMessage ? taskInfoMessage : '')"></p>        
+            <p style="cursor:pointer" @click="showDate = !showDate" v-html="taskInfoMessage"></p>        
         </div>
-        <div v-else-if="message.info_flag == 0" :style="messageBodyStyle" class="mobileMessageBody" :class="{ emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:commentEditToggle}">
+        <div 
+            v-else-if="message.info_flag == 0" 
+            :style="{
+                float: $store.state.user && $store.state.user.id == message.user.id ? 'right' : 'left',
+                margin: '0 15px',
+                maxWidth: message.message == null || !message.message || !message.message.length ? '50%' : '80%',
+                width: 'fit-content'
+            }" 
+            :class="['mobileMessageBody', { 'reached' : $store.state.urlMessageId == message.id}, { emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:commentEditToggle}]"
+        >
             <div id="commentBody">
                 <div :id="'reply_' + message.id" class="commentHeder" style="position:relative;">
                     <div v-if="message.user && message.user.deleted_at == null" @click.stop="pushInstantUser($event, message.user_id)" class="column-01 cursor-pointer">                        
@@ -87,7 +96,7 @@
                             <li @click="shareTo('challenge')" class="boxMenuItems cursor-pointer">チャレンジ</li> 
                             <li @click="shareTo('calendar')" class="boxMenuItems cursor-pointer">カレンダー</li> 
                             <li @click="shareTo('task')" class="boxMenuItems cursor-pointer">タスク</li>
-                            <li @click="shareTo('memo')" class="boxMenuItems cursor-pointer">ノート</li>
+                            <!-- <li @click="shareTo('memo')" class="boxMenuItems cursor-pointer">ノート</li> -->
                             
                         </ul>                                                    
                     </div>
@@ -207,7 +216,7 @@
                 </div>
             </div>            
             <Transition name="slidePop">                 
-            <div v-if="commentEditToggle" style="display: flex;width: 100%;position: absolute;bottom: -31px;left: 0;">
+            <div v-if="commentEditToggle" style="display: flex;width: 100%;position: absolute;bottom: -40px;left: 0;">
                 <ul style="display: inline;z-index:81;margin-top: 10px;width: 100%;">
                     <li @click="commentEditSend(message.id, message.message)" class="commentEditButton">保存</li>
                     <li @click="commentEditCancel(message.id, message.message)" class="commentEditButton">キャンセル</li>
@@ -254,40 +263,17 @@ import { nextTick } from 'vue'
             
         },
         mounted() {
-            if(this.message.id == this.searchTargetId && this.messageListType == 'search'){
-                // nextTick(() => {
-                    var elem = document.getElementById('messageRoot_' + this.message.id);  
-                    console.log('elem', elem)      
-                    elem.scrollIntoView({block: 'center' });    
-                // });
-                setTimeout(() => {
-                    var elem = document.getElementById('messageRoot_' + this.message.id);        
-                    elem.scrollIntoView({block: 'center' });    
-                }, 100);
+            if((this.message.id == this.searchTargetId && this.messageListType == 'search') || this.$store.state.urlMessageId == this.message.id){
+                var elem = document.getElementById('messageRoot_' + this.message.id);    
+                elem.scrollIntoView({block: 'center' });    
+                this.$store.commit('setUrlMessageId', this.message.id)
+                setTimeout(() => { this.$store.commit('setUrlMessageId', null)}, 5000);  
             }
-            if(this.$store.state.urlMessageId == this.message.id){
-                // nextTick(() => {
-                setTimeout(() => {                       
-                    
-                    var elem = document.getElementById('messageRoot_' + this.message.id);                     
-                    
-                    elem.scrollIntoView({block: 'center' });   
-                    setTimeout(() => {
-                        elem.firstChild.classList.add("reached");
-                        setTimeout(() => {
-                            elem.firstChild.classList.remove("reached");                    
-                        }, 5000);  
-                        this.$store.commit('setUrlMessageId', null)              
-                    }, 150);                   
-                }, 100);
-
-                // });
-            } 
             emitter.on('messagePreviewToShare',(to, message, flag, file) => {                                              
-                    if(message && message.id == this.message.id){
-                        this.shareTo(to, flag, file)
-                    }                 
-                });         
+                if(message && message.id == this.message.id){
+                    this.shareTo(to, flag, file)
+                }                 
+            });         
         },
         computed:{
             // unreadLineTrigger(){
@@ -301,8 +287,11 @@ import { nextTick } from 'vue'
             //     }
             // },
             taskInfoMessage(){
-                if(this.message.task && this.message.task.title && this.message.task.title.length){
-                    return `<strong>新しいタスクが追加されました。</strong><br><p style=text-align:left>${this.message.task.title.slice(0, 100)}${this.message.task.title.length > 100 ? '...' : ''}</p>`
+                if(this.message.task){
+                    const title = this.message.task.title ? this.message.task.title : ''
+                    const body = this.message.task.remarks ? this.message.task.remarks : ''
+                    const merge = title + body
+                    return `<strong>新しいタスクが追加されました。</strong><br><p style=text-align:left>${merge.slice(0, 100)}${merge.length > 100 ? '...' : ''}</p>`
                 }
             },
             memoInfoMessage(){
@@ -397,86 +386,14 @@ import { nextTick } from 'vue'
                 
             },
             momentMessage () {
-                moment.updateLocale('en', {
-                    parentLocale: 'en', 
-                    longDateFormat: {
-                        LT: 'HH:mm', 
-                        LLLL: 'MMM D', 
-                        llll: 'MMM D, YYYY HH:mm'
-                    },
-                });
-                moment.updateLocale('ja', {
-                    parentLocale: 'ja', 
-                    longDateFormat: {
-                        LT: 'HH:mm', 
-                        LLLL: 'MMMDo', 
-                        llll: 'YYYY年M月D日 HH:mm'
-                    },
-                });
-                moment.updateLocale('mn', {
-                    parentLocale: 'mn', 
-                    longDateFormat: {
-                        LT: 'HH:mm', 
-                        LLLL: 'M сарын D', 
-                        llll: 'YYYY оны M сарын D HH:mm'
-                    },
-                });
-                moment.locale(this.$store.state.local);  
+                moment.locale('ja')
                 const date = this.message.created_at
                 return moment(this.message.created_at).isSame(moment(), 'day') ? 
                 moment(date).format('HH:mm') : 
                 moment(date).isSame(moment(), 'year') ? 
-                moment(date).format('LLLL LT') : 
-                moment(date).format('llll')                       
+                moment(date).format('M / D (ddd) HH:mm') : 
+                moment(date).format('YYYY / M / D (ddd) HH:mm')                       
             }, 
-            messageBodyStyle() {
-                const comment = this.message
-                const selfid = this.$store.state.user.id
-                var width = '';
-                var max_w = '';
-                var min_w = '';
-                var float = '';
-                var margin = '';          
-                if(comment.user_id == selfid){
-                    float = "float:right;";
-                    margin = "margin-right:15px;";
-                }else{
-                    float = "float:left;";
-                    margin = "margin-left:15px;";
-                }
-                if(comment.deleted_at){
-                    width = "max-width:18%;";
-                }else{
-                    width = "width:fit-content;";
-                }
-                if(comment.message !== null){
-                    min_w = "min-width:30%;";
-                    max_w = "max-width:85%;";
-                }else if(comment.message == null){
-                    width = "width:fit-content;";
-                    max_w = "max-width:50%;";
-                }           
-                if(comment.message_quot !==null && comment.message_quot.message == null){
-                    min_w = "";
-                    width = "width:fit-content;";
-                    max_w = "max-width:35%;";
-                }else if(comment.message_reply !==null && comment.message_reply.message == null){
-                    min_w = "";
-                    width = "width:fit-content;";
-                    max_w = "max-width:35%;";
-                }else if(comment.message_quot !==null && comment.message_quot.message !== null){
-                    min_w = "min-width:30%;";
-                    max_w = "max-width:85%;";
-                }else if(comment.message_reply !==null && comment.message_reply.message !== null){
-                    min_w = "min-width:30%;";
-                    max_w = "max-width:85%;";
-                }    
-                if(comment.message_files && comment.message_files.length){
-                    min_w = "min-width:0 !important;";
-                }  
-                return float + margin + width + min_w + max_w;     
-                var result;       
-            },
         },
         methods:{
             remindRequestModal(item){
@@ -746,8 +663,7 @@ import { nextTick } from 'vue'
                     }                                   
                 },0)
             },
-            commentDeleteConfirm: function(id){       
-               
+            commentDeleteConfirm: function(id){                     
                    
                 const uniqueChannell = Math.random().toString(36).substring(5);
                 const toastData = {                    
@@ -785,7 +701,6 @@ import { nextTick } from 'vue'
                     closeButton: false, 
                     autoClose: false,
                     answers: ['OK']
-
                 })   
             },
             pushInstantUser(event, id){
@@ -805,19 +720,13 @@ import { nextTick } from 'vue'
                 var elem = event.currentTarget.firstChild         
                 if(msg.user_id == this.$store.state.user.id){
                     return
-                }
-                
-                this.reacting = !checked_user              
-                
-                
-                axios.post('/send_reaction_api', {id: msg.id}).then(response => {                
-                        
-                    // this.getCommentList(this.board_record.id); 
+                }                
+                this.reacting = !checked_user             
+                axios.post('/send_reaction_api', {id: msg.id}).then(response => {     
                     this.$parent.$emit('reload')
                     if(msg.check_flag == 1){
-                            this.checkSendConfirm(response.data);
-                        }               
-                            
+                        this.checkSendConfirm(response.data);
+                    }               
                 });  
             }, 
             checkSendConfirm(msg){
@@ -839,26 +748,9 @@ import { nextTick } from 'vue'
                         if(data.answer == this.$t('confirmToAction')){
                             this.checkSend(msg.id, 'check')
                         }
-                    });  
-                    // var uniqueChannell = Math.random().toString(36).substring(5);
-                    // var testdata = {question: "メッセージを確認済みにしますか", answer1: "はい", answer2: "いいえ", channel: uniqueChannell};                
-                             
-                    // this.$toast.clear();     
-                    // this.$toast(NotifyComponent,{
-                    //     toastClassName: "toastConfirm",
-                    //     timeout: false, 
-                    //     draggable: false,
-                    //     closeButton: false,
-                    //     closeOnClick: false,
-                    // });
-                    // emitter.emit('confirmQuestion',testdata)               
-                    // emitter.on(uniqueChannell, (data) => { data == 1? this.checkSend(msg.id, 'check') : false });
-
-                    
-                    
+                    });                     
                 }
-                if(checked && reacted){                   
-                    
+                if(checked && reacted){                  
                     emitter.emit('setToast', {
                         active: true,  
                         type: 'info', 
@@ -866,15 +758,7 @@ import { nextTick } from 'vue'
                         closeButton: false, 
                         autoClose: false,
                         answers: [this.$t('OK')],
-                    })    
-                    // this.$toast.clear();
-                    // this.$toast("既に確認しています",
-                    // {
-                    //     toastClassName: "toastConfirm",
-                    //     timeout: 3000,
-                    //     draggable: false,
-                    // });
-                    
+                    })   
                 }
             },
             checkSend (id, which) {            
@@ -910,7 +794,6 @@ import { nextTick } from 'vue'
                 this.$store.commit('setSharingData', shareData)
                 if(to == 'memo' || to == 'task'){
                     if(this.$store.state.mobile){
-                        this.$store.commit('setmTransition', 'smLeave')
                         setTimeout(() =>{
                             this.$router.push({name: to})
                         },0) 
@@ -921,57 +804,6 @@ import { nextTick } from 'vue'
                 }else if(to !== 'board'){
                     this.$router.push({name: to})
                 }
-
-
-                // if(to == 'board'){
-                //     this.$store.commit('setForwarding', this.message)
-                //     this.$store.commit('setMenu', {name: '', id: ''});
-                //     if(this.$store.state.mobile){
-                //         this.$router.push({name: 'board'})
-                //     }
-                    
-                // }else if(to == 'memo'){
-                //     this.$store.commit('setMessageShareToMemo', this.message)
-                //     if(this.$store.state.mobile){
-                //         this.$store.commit('setmTransition', 'smLeave')
-                //         setTimeout(() =>{
-                //             this.$router.push({name: 'memo'})
-                //         },0) 
-                //     }else{                        
-                //         emitter.emit('messageShareToMemo',this.message)                            
-                //     }
-                // }
-                // else if(to == 'task'){
-                //     this.$store.commit('setMessageShareToTask', this.message)
-                //     if(this.$store.state.mobile){
-                //         this.$store.commit('setmTransition', 'smLeave')
-                //         setTimeout(() =>{
-                //             this.$router.push({name: 'task'})
-                //         },0) 
-                //     }else{                        
-                //         emitter.emit('messageShareToTask',this.message)                            
-                //     }
-                // }else{
-                //     let files = []
-                //     this.message.message_files.forEach(element => {
-                //         const file = {
-                //             path: `/shared_files/${this.message.record_id}/${element.id}_${element.user_id}_${element.message_id}.${element.extension}`,
-                //             record: element
-                //         }
-                //         files.push(file)
-                //     });
-                //     const shareData = {
-                //         title: '',
-                //         text: this.message.message_text,
-                //         files: files,
-                //         from: 'message',
-                //         to: to,
-                //         drag: false,
-                //     }
-                //     this.$store.commit('setSharingData', shareData)
-                //     this.$router.push({name: to})
-                    
-                // }
                 this.closeMenu()
             }
               

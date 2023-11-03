@@ -30,10 +30,7 @@ class MemberController extends Controller
                         //     $q->where('deleted_flag', 0)
                         //         ->select('id', 'profile_id', 'path', 'extension', 'mime_type', 'use_of');
                         // },
-                        'weathers' => function ($q) use ($today) {
-                            $q->where('type_id', 43)
-                                ->where('date', $today);
-                        }
+                        'today_weather'
                     ])
                     ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email');
             }
@@ -366,23 +363,16 @@ $theme_details = [
         $response = Http::withHeaders($headers)->get($multi_url);
         $responseContent = $response->body();
         $responseData = $response->json();
-
+        
         if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])){
+            if($responseData['records'][0]['ステータス']['value'] !== '未処理'){
+                throw ValidationException::withMessages(['message' => 'ステータスが<strong>'.$responseData['records'][0]['ステータス']['value'] . '</strong>のため申請ができません。']);
+            }
 
             $kadais = $responseData['records'][0]['昇給課題']['value'];
             $record_id = $responseData['records'][0]['$id']['value']; 
             
-            // status_updade
-            // $status_url = 'https://glowd-hldgs.cybozu.com/k/v1/record/status.json';
-            // $status_data = [
-            //     'app' => '928',
-            //     "id"=> $record_id,
-            //     "action" => "未処理",
-            // ];    
-            // $status_update = Http::withHeaders($headers)->put($status_url, $status_data);
-            // $status_response = $status_update->json();
-            // return response()->json($status_response);
-            // status_update
+
 
 
             $templates = SalaryIssue::whereIn('id', $request->record_ids)->get();
@@ -438,24 +428,50 @@ $theme_details = [
             $responseData = $response->json();
 
             if (array_key_exists('revision', $responseData)) {
-                $comment_url = 'https://glowd-hldgs.cybozu.com/k/v1/record/comment.json';
-                $comment_data = [
-                    "app" => '928',
-                    "record" => $record_id,
-                    "comment" => [
-                        "text" => Auth::user()->name . ': 昇給課題追加しました。' . Carbon::now()->format('Y-m-s H:i:s')
-                    ]
-                ];
-                $add_comment = Http::withHeaders($headers)->post($comment_url,$comment_data);
+
+                $add_comment = $this->add_issue_comment($record_id, ': 昇給課題追加しました。');                
                 foreach($templates as $template){
                     $template->delete();
                 }
-                return response()->json($add_comment->json());
+                // status_updade
+                $status_url = 'https://glowd-hldgs.cybozu.com/k/v1/record/status.json';
+                $status_data = [
+                    'app' => '928',
+                    "id"=> $record_id,
+                    "action" => "管理部提出",
+                ];    
+                $status_update = Http::withHeaders($headers)->put($status_url, $status_data);
+                $status_response = $status_update->json();
+                // return response()->json($status_response);
+                // status_update
+                return response()->json('success');
             } else {
                 throw ValidationException::withMessages(['message' => '昇給課題申請に失敗しました。']);
             }          
+        }else if($responseData['message']){
+            throw ValidationException::withMessages(['message' => $responseData['message']]);
         }
         throw ValidationException::withMessages(['message' => '人事考課レコードは作成されていません。']);
+    }
+    private function add_issue_comment($record_id, $message){
+        $comment_url = 'https://glowd-hldgs.cybozu.com/k/v1/record/comment.json';
+        $comment_data = [
+            "app" => '928',
+            "record" => $record_id,
+            "comment" => [
+                "text" => Auth::user()->name . $message . Carbon::now()->format('Y-m-d H:i:s')
+            ]
+        ];
+        $user_name = env('KINTONE_USER_NAME');
+        $password = env('KINTONE_PASSWORD');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        $headers = [
+            'Authorization' => 'Basic', 
+            'X-Cybozu-Authorization' => $x_token
+        ];
+        $add_comment = Http::withHeaders($headers)->post($comment_url,$comment_data);
+        return;        
     }
     public function get_applied_issues(Request $request){
         $queryParams = [
@@ -503,13 +519,82 @@ $theme_details = [
         
         
     }
+    public function update_issue(Request $request){
+        $validatedData = $request->validate([
+            'record_id' => 'required',
+            'kadai_id' => 'required'
+        ]);
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/record.json?app=928&id=' . $request->record_id;
+        $record_id = $request->record_id;
+        $user_name = env('KINTONE_USER_NAME');
+        $password = env('KINTONE_PASSWORD');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        $headers = [
+            'Authorization' => 'Basic', 
+            'X-Cybozu-Authorization' => $x_token
+        ];
+        $response = Http::withHeaders($headers)->get($url);
+        $responseData = $response->json();
+        
+        if(array_key_exists('record', $responseData)){
+            
+            $kadais = $responseData['record']['昇給課題']['value'];
+            $exists = [];
+        
+            foreach($kadais as $kadai){   
+                
+                if($kadai['id'] == $request->kadai_id){
+                    $update = [
+                        "id" => $kadai['id'],
+                        'value' => [
+                            'ChatGPT添削結果' => [ 'value' => $request['review'] ],
+                            '昇給課題タイトル' => [ 'value' => $request['title'] ],
+                            '昇給課題内容・詳細' => [ 'value' => $request['content'] ],
+                            '課題達成による取得能力' => [ 'value' => $request['ability'] ],
+                            '評価課題' => [ 'value' => $request['theme'] ],
+                        ]
+                    ];
+                    array_push($exists, $update);
+                }else{
+                    $prep = [ "id" => $kadai['id']];
+                    array_push($exists, $prep);
+                }
+                
+
+            }  
+            // return response()->json($exists);
+            $data = [
+                "app" => 928,
+                "id" => $request->record_id,
+                "record" => [
+                    "昇給課題" => [
+                        "value" => $exists
+                        
+                    ]
+                ]
+            ];
+            $update_url = 'https://glowd-hldgs.cybozu.com/k/v1/record.json';
+            $response = Http::withHeaders($headers)->put($url,$data);
+            $responseData = $response->json();
+            if (array_key_exists('revision', $responseData)) {
+                $add_comment = $this->add_issue_comment($record_id, ': 昇給課題更新しました。');  
+                return response()->json($add_comment);
+            } else {
+                throw ValidationException::withMessages(['message' => '昇給課題削除に失敗しました。']);
+            }   
+            return response()->json($responseData );
+        }
+        throw ValidationException::withMessages(['message' => '人事考課レコードが見つかりませんでした。']);
+
+    }
     public function delete_applied_issue(Request $request){
         $validatedData = $request->validate([
             'record_id' => 'required',
             'kadai_id' => 'required'
         ]);
         $url = 'https://glowd-hldgs.cybozu.com/k/v1/record.json?app=928&id=' . $request->record_id;
-
+        $record_id = $request->record_id;
         $headers = [
             'Authorization' => 'Basic', 
             'X-Cybozu-API-Token' => 'CZu7ui76ORFwrIwcjomN7yTwx7Y3mzusxG7lyroS'
@@ -543,16 +628,10 @@ $theme_details = [
             $response = Http::withHeaders($headers)->put($url,$data);
             $responseData = $response->json();
 
+
+
             if (array_key_exists('revision', $responseData)) {
-                $comment_url = 'https://glowd-hldgs.cybozu.com/k/v1/record/comment.json';
-                $comment_data = [
-                    "app" => '928',
-                    "record" => $request->record_id,
-                    "comment" => [
-                        "text" => Auth::user()->name . ': 昇給課題削除しました。' . Carbon::now()->format('Y-m-s H:i:s')
-                    ]
-                ];
-                $add_comment = Http::withHeaders($headers)->post($comment_url,$comment_data);
+                $add_comment = $this->add_issue_comment($record_id, ': 昇給課題削除しました。');  
                 return response()->json('success');
             } else {
                 throw ValidationException::withMessages(['message' => '昇給課題削除に失敗しました。']);

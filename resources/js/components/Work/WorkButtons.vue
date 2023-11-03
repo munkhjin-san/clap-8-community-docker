@@ -51,7 +51,7 @@
         <button class="work-button" @click="clickButton('jumpToToday')">
             今日
         </button>
-        <button class="work-button" @click="clickButton('jumpToTotal')">
+        <button class="work-button pc" @click="clickButton('jumpToTotal')">
             集計
         </button>
         

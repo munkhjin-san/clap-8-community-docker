@@ -1,7 +1,9 @@
 <template>
     <div style="position:fixed;left:0;top:0;width:0px;height:0px;background:red;z-index:1999">
             
-        <IncompleteWindow v-if="$store.state.user && viewIncompleteWindow" @closePopup="closePopup"/> 
+        <IncompleteWindow :key="$route.fullPath" v-if="$store.state.user && viewIncompleteWindow" 
+        :viewIncompleteWindow="viewIncompleteWindow"
+        @closePopup="closePopup"/> 
         <Transition name="modalFade">
             <IncompleteFeedBack v-if="$store.state.taskFeedBack.active"/>
         </Transition>
@@ -38,6 +40,7 @@
     import Info from './Toast/Info.vue'
     import WeatherComponent from '../Global/WeatherComponent.vue'
     import SharingData from '../Global/SharingData.vue'
+    import FilePreview from '../Board/Tray/File/FilePreview.vue'
     export default {
         props: ['auth_user'],
         data() {
@@ -82,21 +85,18 @@
                     });
                 }                
             },
+            '$route.fullPath' (newVal, oldVal){
+                if(!newVal.includes(oldVal) && !oldVal.includes(newVal)){
+                    this.incompleteCall()
+                }
+            }
         },
         unmounted(){
             window.removeEventListener('click', this.onClick);
             window.removeEventListener('touchstart', this.onClick);
         },
         mounted() {
-           
-            const string = '/user/' + this.auth_user.id
-            const currentUrl = window.location.href;
-            if(currentUrl.includes(string)){
-                this.viewIncompleteWindow = true
-            }
-            if (this.hasOneHourPassed(this.auth_user.id)) {
-                this.viewIncompleteWindow = true
-            }
+            this.incompleteCall()
             window.addEventListener('click', this.onClick);
             window.addEventListener('touchstart', this.onClick);
             emitter.on('setToast', e => {
@@ -123,9 +123,19 @@
             
         },
         methods:{
+            incompleteCall(){
+                const string = '/user/' + this.auth_user.id
+                // const currentUrl = window.location.href;
+                // console.log(window.location)
+                if(window.location.pathname == string){
+                    this.viewIncompleteWindow = true
+                }
+                if (this.hasOneHourPassed(this.auth_user.id)) {
+                    this.viewIncompleteWindow = true
+                }
+            },
             hasOneHourPassed(user_id) {
                 const lastCloseTime = localStorage.getItem('popupCloseTime_' + user_id);
-                console.log(lastCloseTime)
                 if (!lastCloseTime) {
                     return true; // If no timestamp found, treat it as an hour has passed
                 }
@@ -191,7 +201,8 @@
             Toast,
             Info,
             WeatherComponent,
-            SharingData
+            SharingData,
+            FilePreview
         },
         computed:{
             
@@ -229,7 +240,8 @@
     --side-menu-bg: #f5f5f5;
     --side-menu-border: #cdcdcd;
     --link-color: #1a73e8;
-    --task-background: #dddddd
+    --task-background: #dddddd;
+    --past-calendar: #cccccc;
 }
 
 // If the app is in dark mode, update the variables
@@ -260,6 +272,7 @@
     --side-menu-border: #404040;
     --link-color: #81b8fd;
     --task-background: #3d3d3d;
+    --past-calendar: #494949;
 }
 .header {
     background-color: var(--background-color);

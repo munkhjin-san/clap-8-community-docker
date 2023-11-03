@@ -2,29 +2,25 @@
     <div style="width: 100%;height: 100%;display: flex;flex-direction: column;">
         <div style="width: 100%;height:calc(100% - 45px);display: flex; flex:1">
             <Transition name="modalFade">
-                <div @click="$store.commit('setSideMenuView', false)" v-if="$store.state.sideMenuView" class="overlay mobile" style="z-index: 16;"></div>
+                <div @click="$store.commit('setSideMenuView', false)" v-if="$store.state.sideMenuView" class="overlay mobile" style="z-index: 26;"></div>
             </Transition>
 
-            <SideMenu :board-badge="boardBadge" :total-badge="totalBadge" :auth_user="auth_user" :session="session" :remember="remember"/>
+            <SideMenu :mood_val="mood_val" :board-badge="boardBadge" :total-badge="totalBadge" :auth_user="auth_user" :session="session" :remember="remember"/>
 
             <!-- <router-view :key="$route.name" /> -->
             <router-view :key="keyGen" :initial_date="initial_date"/>
-            <Transition name="modalFade">
-                <AiPrompt v-if="$store.state.aiData.view"/>
-            </Transition>
         </div>
         <Transition name="footerPop">
-            <Footer v-if="$store.state.mobile && $store.state.user.footer_view" :boardBadge="boardBadge" :totalBadge="totalBadge"></Footer>
+            <Footer v-if="footerView" :boardBadge="boardBadge" :totalBadge="totalBadge"></Footer>
         </Transition>
     </div>
 
 </template>
 <script>
 import SideMenu from './Global/SideMenu.vue';
-import AiPrompt from './Global/AiPrompt.vue';
 import Footer from './Header/Footer.vue';
 export default{
-    props: ['session', 'auth_user', 'remember', 'initial_date'], 
+    props: ['session', 'auth_user', 'remember', 'initial_date', 'mood_val'], 
     data(){
         return{
             differenceList: [],
@@ -34,13 +30,15 @@ export default{
     },
     components: {
         SideMenu,
-        AiPrompt,
         Footer
     },
     created(){
         if(this.auth_user){
             this.$store.commit('setUser', this.auth_user);
         }
+    },
+    unmounted() {
+        window.removeEventListener('resize', this.handleResize);
     },
     mounted(){
         window.addEventListener('resize', this.handleResize);
@@ -53,12 +51,13 @@ export default{
         }, false);
         this.notifyGet('mounted');
         this.getPostBadge('mounted');
+        this.getNoticeBadge()
         if(this.remember){
             this.$store.commit('setRemember',this.remember)
         }
         emitter.on('notifyUpdate', (data) => this.notifyUpdate(data));
         emitter.on('notifyGet', (data) => this.notifyGet(data));
-        
+        emitter.on('getNoticeBadge', (data) => this.getNoticeBadge());
         
         emitter.on('pusher-event', (e) => {
             if(this.$store.state.user && !this.$route.path.includes('chat') && e.message.board_id && e.message.sender !== this.$store.state.user.id){                
@@ -70,6 +69,14 @@ export default{
         });
     },
     computed:{
+        footerView(){
+            const block_list = ['account-settings', 'personal-info-settings', 'salary-issue']
+            const find = block_list.filter(ob => ob === this.$route.name)
+            if(find && find.length) {
+                return false
+            }
+            return this.$store.state.mobile && this.$store.state.user.footer_view
+        },
         keyGen(){
             const parts = this.$route.fullPath.split('/');
             if (parts.length > 1) {
@@ -83,10 +90,22 @@ export default{
 
         totalBadge(after, before){
             this.titleUpdate();
-            this.$store.commit('setBadge', after)
+            this.setTotalBadge()
         },
+        '$store.state.postBadge' (after){
+            this.titleUpdate();
+            this.setTotalBadge()
+        },
+        '$route.fullPath' (after){
+            this.titleUpdate();
+        }
     },
     methods: {
+        setTotalBadge(){
+            const sum = this.$store.state.postBadge.reduce((accumulator, currentValue) => accumulator + currentValue, 0);        
+            const total = sum + this.boardBadge
+            this.$store.commit('setBadge', total)
+        },
         handleResize(){
             const w = window.innerWidth;
             if(w > 959){
@@ -98,6 +117,9 @@ export default{
                     this.$store.commit('setMobile', true)
                 }
             }
+        },
+        getNoticeBadge(){
+            axios.get('/get_notice_badge').then( response => { this.$store.commit('setNoticeBadge', response.data) });
         },
         authCheck(){
             axios.post('/auth_check', {id: this.$store.state.user.id}).catch(function (error) {
@@ -134,8 +156,33 @@ export default{
             axios.get('/get_post_badge').then( response => { this.$store.commit('setPostBadge', response.data) });
         },
         titleUpdate(){   
-            console.log('title', window.document.title )        
-            window.document.title = this.boardBadge && !window.document.title.includes('(') ? `(${this.boardBadge}) ${window.document.title}` : window.document.title;             
+            const appNames = [
+                { jp: 'CLAP - ボード', title: 'board room'},
+                { jp: 'CLAP - ナレッジ', title: 'knowledge'},
+                { jp: 'CLAP - ナイス', title: 'nice'},
+                { jp: 'CLAP - チャレンジ', title: 'challenge'},
+                { jp: 'CLAP - カレンダー', title: 'calendar'},
+                { jp: 'CLAP - ワーク', title: 'work'},
+                { jp: 'CLAP - プロフィール', title: 'user'},
+                { jp: 'CLAP - メンバー', title: 'members'},
+                { jp: 'CLAP - サポート', title: 'support'},
+                { jp: 'CLAP - プロフィール編集', title: 'personal-info-settings'},
+                { jp: 'CLAP - アカウント設定', title: 'account-settings'},
+                { jp: 'CLAP - 昇給課題', title: 'salary-issue'},
+                { jp: 'CLAP - 管理者', title: 'admin_control'},
+                { jp: 'CLAP - ノート', title: 'memo'},
+                { jp: 'CLAP - タスク', title: 'task'},
+                { jp: 'CLAP - ファイル', title: 'file'},
+            ]
+
+            const name = appNames.find(ob => ob.title.includes(this.$route.name))
+            const p = name && name.jp ? name.jp : 'CLAP'
+            window.document.title = p
+            const sum = this.$store.state.user.partner_flag == 1 ? 0 : this.$store.state.postBadge.reduce((accumulator, currentValue) => accumulator + currentValue, 0);        
+            const total = sum + this.boardBadge
+            const badge = total && total > 0 ?  `【${total}】` : ''
+            const space = badge ? ' ' : ''
+            window.document.title = badge + space + p           
         },
         notifyUpdate(pattern){
             console.log(pattern)

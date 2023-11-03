@@ -14,6 +14,9 @@ class boardToUser extends Model
     public function board_records(){
         return $this->belongsTo(boardRecord::class, 'id');
     }
+    public function board(){
+        return $this->belongsTo(boardRecord::class, 'record_id', 'id');
+    }
     public function messageRecords(){
         return $this->hasMany(messageRecord::class, 'record_id', 'record_id')->withTrashed();
     }

@@ -88,8 +88,7 @@ import moment from 'moment';
                 .catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
-                    else this.errorToast('エラーが発生しました。 ' + error.message)   
-                    this.$store.commit('setUrlMessageId', null)      
+                    else this.errorToast('エラーが発生しました。 ' + error.message)        
                     this.processing = false                    
                 }.bind(this));
             },

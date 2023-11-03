@@ -54,18 +54,14 @@
             
         </div>
 
-        <div style="width:100%;height:1px;background:gray;margin: 10px 0 5px 0;"></div>
+        <div style="width:100%;height:0.5px;background:gray;margin: 10px 0 5px 0;"></div>
 
     </div>
 </div>
 </template>
 <script>
-import moment from 'moment';
-import { filesize } from 'filesize';
-import Autolinker from 'autolinker';
 import MessageFiles from "./MessageFiles.vue";
     export default {
-        name: 'unique-name-of-my-component',
         props: ['which', 
             'message', 
             'openedBoard', 

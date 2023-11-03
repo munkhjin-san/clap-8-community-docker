@@ -4,7 +4,7 @@
             <div v-for="(custom_field_type_records_item , index) in custom_field_record_item.custom_field_type_records">
                 <div class="customfieldTextAreaLayer-01" v-if="custom_field_type_records_item.form_type == 'textarea'">
                     <div class="customfieldTextAreaLayer-02">
-                        <textarea class="recordTextArea" style="border:1px solid var(--formBorder);" v-on:change="customFieldChoose(comment, custom_field_type_records_item.id)" v-model="comment" name="comment" :placeholder="custom_field_type_records_item.title + 'を入力'"></textarea>
+                        <textarea class="recordTextArea" v-on:change="customFieldChoose(comment, custom_field_type_records_item.id)" v-model="comment" name="comment" :placeholder="custom_field_type_records_item.title + 'を入力'"></textarea>
                     </div>
                 </div>
                 <div v-if="custom_field_type_records_item.form_type == 'radio'">
@@ -13,13 +13,13 @@
                         <div class="report-input">
                                 <template v-if="custom_field_type_records_item.id == 40">
                                     <div class="report-input-wrapper" v-for="(custom_field_parts_records_item , index) in custom_field_type_records_item.custom_field_parts_records">
-                                        <input :id="'workIncident' + index" style="margin-right: 10px !important;" type="radio" name="incident" v-on:change="customFieldChoose(incident, custom_field_type_records_item.id)" v-model="incident" :value="custom_field_parts_records_item.parts_value">
+                                        <input :id="'workIncident' + index" type="radio" name="incident" v-on:change="customFieldChoose(incident, custom_field_type_records_item.id)" v-model="incident" :value="custom_field_parts_records_item.parts_value">
                                         <label :for="'workIncident' + index">{{ custom_field_parts_records_item.parts_lavel }}</label>
                                     </div>
                                 </template>
                                 <template v-if="custom_field_type_records_item.id == 41">
                                     <div class="report-input-wrapper" v-for="(custom_field_parts_records_item , index) in custom_field_type_records_item.custom_field_parts_records">
-                                        <input :id="'workAchievement' + index" style="margin-right: 10px !important;" type="radio" name="achievement" v-on:change="customFieldChoose(achievement, custom_field_type_records_item.id)" v-model="achievement" :value="custom_field_parts_records_item.parts_value">
+                                        <input :id="'workAchievement' + index" type="radio" name="achievement" v-on:change="customFieldChoose(achievement, custom_field_type_records_item.id)" v-model="achievement" :value="custom_field_parts_records_item.parts_value">
                                         <label :for="'workAchievement' + index">{{ custom_field_parts_records_item.parts_lavel }}</label>
                                     </div>
                                 </template>
@@ -32,7 +32,7 @@
                         <p class="report-header">{{ custom_field_type_records_item.title }}を選択</p>
                         <div class="report-input">
                             <div class="report-input-wrapper" v-for="(custom_field_parts_records_item , index) in custom_field_type_records_item.custom_field_parts_records">
-                                <input :id="'workAllowance' + index" style="margin-right: 10px !important;" type="checkbox" name="allowance" v-on:change="customFieldChoose(allowance, custom_field_type_records_item.id)" v-model="allowance" :value="custom_field_parts_records_item.parts_value">
+                                <input :id="'workAllowance' + index" type="checkbox" name="allowance" v-on:change="customFieldChoose(allowance, custom_field_type_records_item.id)" v-model="allowance" :value="custom_field_parts_records_item.parts_value">
                                 <label :for="'workAllowance' + index">{{ custom_field_parts_records_item.parts_lavel }}</label>
                             </div>
                         </div>

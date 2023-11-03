@@ -1,5 +1,5 @@
 <template>
-    <div v-if="viewWeatherComponent && $store.state.user.id == 765" id="weatherID" class="weather-wrapper">
+    <div v-if="viewWeatherComponent" id="weatherID" class="weather-wrapper">
         <div class="list-wrapper">
             <p>おはようございます。今日のコンディションを選択してください。</p>
             <ul>
@@ -94,39 +94,38 @@
         methods: {
           getTodayWeather(){
               let today = moment().local().format('YYYY-MM-DD')
-              axios.post('/today_weather', {today} ).then(
-                response => {
-                    if(_.isEmpty(response.data)){
-                        this.viewWeatherComponent = true
-                    }else if(response.data == 'weekend'){
-                        this.viewWeatherComponent = false
-                    }else{
-                        this.viewWeatherComponent = false
+              const user_id = this.$store.state.user.id
+              const yesterday = localStorage.getItem('weather_' + user_id)
+              if(today != yesterday){
+                axios.post('/today_weather', {today} ).then(
+                  response => {
+                      if(_.isEmpty(response.data)){
+                          this.viewWeatherComponent = true
+                      }else if(response.data == 'weekend'){
+                          this.viewWeatherComponent = false
+                      }else{
+                          this.viewWeatherComponent = false
+                      }
                     }
-                  }
-                );
+                  );
+              }
+              
             },
-            saveWeather(){
-              let today = moment().local().format('YYYY-MM-DD') 
-                axios.post('/save_weather', {today, value: this.weatherSelect} ).then(
-                response => {
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: '今日のコンディションをワークに保存しました。',
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK']
-                    })
-                    this.getTodayWeather()
-                  }
-                ).catch(function (error) {
-                  if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                  else if (error.request) this.errorToast('エラーが発生しました。')
-                  else this.errorToast('エラーが発生しました。 ' + error.message)     
-                }.bind(this));
-                
-            },
+          saveWeather(){
+            let today = moment().local().format('YYYY-MM-DD') 
+              axios.post('/save_weather', {today, value: this.weatherSelect} ).then(
+              response => {
+                  this.getTodayWeather()
+                  const user_id = this.$store.state.user.id
+                  localStorage.setItem('weather_' + user_id, today)
+                }
+              ).catch(function (error) {
+                if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                else if (error.request) this.errorToast('エラーが発生しました。')
+                else this.errorToast('エラーが発生しました。 ' + error.message)     
+              }.bind(this));
+              
+          },
             errorToast(message){
               emitter.emit('setToast', {
                   active: true,  
@@ -150,6 +149,7 @@
         justify-content: center;
         align-items: center;
         background: rgba(0, 0, 0, 0.6);
+        z-index: 44;
     }
     .list-wrapper button{
         margin-top: 20px;

@@ -1,54 +1,93 @@
 <template>
-    <div style="position:relative;background:inherit;">
-        <Form :ref="uId" v-slot="{ errors }" style=";background:inherit">
-        <span style="z-index:5" class="form-plc smallPlc">{{ placeHolder }}</span> 
-        <v-select 
-            label="name"
-            :class="['taskUserSelecArea', 'independSelector', 'selectorFocus']"            
-            v-model="qualified_users" 
-            name="qualified_users" 
-            :options="options"
-            multiple
-            :noDrop="noDrop"
-            @search:focus="$store.commit('setActiveInput', 'taskUserSelector')"
-            @search:blur="$store.commit('setActiveInput', '')"
-            @input="value = $event.target.value"
-            :inputId="'taskUserSelector'"
-            :components="{Deselect}"
-        >
-            <template #selected-option="option">
-                <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;margin-right: 5px;">
-                    <UserIcon :user="option" imgClass="userMidIcon"/>
-                    <p>{{ option.name }}</p>
-                </div>
-            </template>
-            <template #no-options="{ search, searching, loading }">
-                <template v-if="searching">
-                    <div style="font-size: 14px;opacity: 0.8;padding:10px 0;">{{ $t('noMembersFound') }}</div>                    
+    <div style="background:inherit;">
+        <div style="margin-bottom: 30px;background:inherit;" v-if="hasBoardSelect" >
+            <div style="position:relative;background:inherit;">
+                <span style="z-index:5" class="form-plc smallPlc">ボード選択</span> 
+                <v-select 
+                    label="title"
+                    :class="['taskUserSelecArea', 'independSelector', 'selectorFocus']"     
+                    :options="boardOptions"
+                    :components="{Deselect}"
+                    v-model="selectedBoard"
+                    @option:selected="boardSelected"
+                    @option:deselected="resetSelected"
+                    multiple
+                    :noDrop="selectedBoard.length ? true : false"
+                >
+                    <template #selected-option="option">
+                        <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;margin-right: 5px;">
+                            <BoardIcon :item="option" imgClass="userMidIcon"/>
+                            <p>{{ option.title }}</p>
+                        </div>
+                    </template>
+                    <template #no-options="{ search, searching, loading }">
+                        <template v-if="searching">
+                            <div style="font-size: 14px;opacity: 0.8;padding:10px 0;">ボードが見つかりませんでした。</div>                    
+                        </template>
+                        <div v-else style="font-size: 14px;opacity: 0.8;padding:10px 0;">ボードタイトルを入力してください。</div>
+                    </template>
+                    <template slot="option" slot-scope="option" v-slot:option="option" >
+                        <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;">
+                            <BoardIcon :item="option" imgClass="userMidIcon"/>
+                            <p>{{ option.title }}</p>
+                        </div>            
+                    </template>            
+                </v-select>
+            </div>
+        </div>
+        <div style="position:relative;background:inherit;">
+            <Form :ref="uId" v-slot="{ errors }" style="position: relative;background:inherit">
+            <span style="z-index:5" class="form-plc smallPlc">{{ placeHolder }}</span> 
+            <v-select 
+                label="name"
+                :class="['taskUserSelecArea', 'independSelector', 'selectorFocus']"            
+                v-model="qualified_users" 
+                name="qualified_users" 
+                :options="options"
+                multiple
+                :noDrop="noDrop"
+                @search:focus="$store.commit('setActiveInput', 'taskUserSelector')"
+                @search:blur="$store.commit('setActiveInput', '')"
+                @input="value = $event.target.value"
+                @option:selected="selectedBoard = []"
+                @option:deselected="selectedBoard = []"
+                :inputId="'taskUserSelector'"
+                :components="{Deselect}"
+            >
+                <template #selected-option="option">
+                    <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;margin-right: 5px;">
+                        <UserIcon :user="option" imgClass="userMidIcon"/>
+                        <p>{{ option.name }}</p>
+                    </div>
                 </template>
-                <div v-else style="font-size: 14px;opacity: 0.8;padding:10px 0;">お名前を入力してください。</div>
-            </template>
-            <template slot="option" slot-scope="option" v-slot:option="option" >
-                <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;">
-                    <UserIcon :user="option" imgClass="userMidIcon"/>
-                    <p>{{ option.name }}</p>
-                </div>
-            
-            </template>
-            
-        </v-select>
-        <Field 
-            autocomplete="off" 
-            :id="uId" 
-            :class="['recordText']" 
-            type="text" 
-            :name="name" 
-            :rules="rules" 
-            v-model="fakeValue"
-            style="display:none"
-        />
-        <span class="form-error" style="font-size: 11px;color:tomato">{{ errors[uId] }}</span>
-        </Form>
+                <template #no-options="{ search, searching, loading }">
+                    <template v-if="searching">
+                        <div style="font-size: 14px;opacity: 0.8;padding:10px 0;">{{ $t('noMembersFound') }}</div>                    
+                    </template>
+                    <div v-else style="font-size: 14px;opacity: 0.8;padding:10px 0;">お名前を入力してください。</div>
+                </template>
+                <template slot="option" slot-scope="option" v-slot:option="option" >
+                    <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;">
+                        <UserIcon :user="option" imgClass="userMidIcon"/>
+                        <p>{{ option.name }}</p>
+                    </div>
+                
+                </template>
+                
+            </v-select>
+            <Field 
+                autocomplete="off" 
+                :id="uId" 
+                :class="['recordText']" 
+                type="text" 
+                :name="name" 
+                :rules="rules" 
+                v-model="fakeValue"
+                style="display:none"
+            />
+            <span class="form-error" style="font-size: 11px;color:tomato">{{ errors[uId] }}</span>
+            </Form>
+        </div>
         <!-- <span style="position:unset;" v-if="qualified_users.length == 0" class="valid-error">{{$t('required')}}</span> -->
     </div>
 </template>
@@ -57,10 +96,12 @@ import UserIcon from '../Board/Mixed/UserIcon.vue';
 import { markRaw, onDeactivated } from 'vue';
 import { Field, Form } from 'vee-validate'
 export default{
-    props: ['uId', 'selfInclude', 'initialSelected', 'placeHolder', 'name', 'rules', 'board', 'selectAll', 'path', 'limit'],
+    props: ['uId', 'selfInclude', 'initialSelected', 'placeHolder', 'name', 'rules', 'board', 'selectAll', 'path', 'limit', 'hasBoardSelect'],
     emit: ['setUser'],
     data(){
         return{
+            selectedBoard: [],
+            boardOptions: [],
             qualified_users: this.initialSelected,
             options: [],
             possibleWords: [],
@@ -76,6 +117,9 @@ export default{
         }
         if(this.board){
             this.options = this.board.board_to_users.map(ob => ob.user)
+        }
+        if(this.hasBoardSelect){
+            this.getBoardList()
         }
         this.getPossibleMembers()
     },
@@ -93,6 +137,13 @@ export default{
         
     },
     methods:{   
+        boardSelected(option){
+            const selectedUsers = option[0].board_to_users.map(ob => ob.user)
+            this.qualified_users = selectedUsers
+        },
+        resetSelected(){
+            this.qualified_users = []
+        },
         getPossibleMembers(){
             if(this.path){
                 axios.post(`/${this.path}`)
@@ -101,7 +152,14 @@ export default{
                 })
             }
         },
-       
+        getBoardList(){
+            
+            axios.post(`/get_possible_board_list`)
+            .then(response => {
+                this.boardOptions = response.data
+            })
+          
+        },
     },
     computed:{
         noDrop(){

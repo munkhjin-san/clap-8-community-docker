@@ -13,7 +13,7 @@
             </div>
             <div style="margin-top:20px;position:relative">
                 <div v-for="answer in answers" style="padding: 10px 0px;display: flex;">
-                    <input @change="selectedAnswer = answer.value" type="radio" :id="answer.id" name="answer" :value="answer.value">
+                    <input class="fish-eye" @change="selectedAnswer = answer.value" type="radio" :id="answer.id" name="answer" :value="answer.value">
                     <label style="margin-left:10px;cursor:pointer" :for="answer.id">{{answer.label}}</label>  
                 </div> 
                 <span v-if="this.validationFailed && !isValid.status" class="valid-error post-error" style="bottom:auto">{{$t('required')}}</span>
@@ -131,35 +131,6 @@
     .feedbackArea::placeholder {
         font-size: 14px !important;
     }
-    input[type="radio"] {
-        -webkit-appearance: none;
-        appearance: none;
-        background-color: #f1f1f1;
-        border: 1px solid rgb(0, 0, 0);
-        border-radius: 50%;
-        min-height: 20px;
-        min-width: 20px;
-        width: 20px;
-        height: 20px;
-        outline: none;
-        transition: all 0.3s;
-        position: relative;
-        cursor:pointer;
-     }
-     
-     input[type="radio"]:checked::before {
-        content: "";
-        background-color: black;
-        border-radius: 50%;
-        height: 10px;
-        position: absolute;
-        width: 10px;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        margin: auto;
-     }
      .incompleteWindow{
         box-shadow: rgb(0 0 0 / 35%) 0px 5px 15px;
         padding: 20px;
@@ -171,10 +142,5 @@
         line-height: 1.5;
         max-height: 90%;
         overflow: hidden auto;
-     }
-     @media screen and (max-width: 959px){
-        input[type="radio"]:checked::before{
-            bottom: 0;
-        }
      }
 </style>

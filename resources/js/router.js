@@ -1,6 +1,6 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
-
+import store from './store' 
 // import Board from './components/Board/Board.vue'
 
 import Task from './components/Mobile/Task.vue'
@@ -32,9 +32,9 @@ const routes = [
             document.body.style.height = '100%';
             document.body.style.position = 'fixed';
             document.body.style.overflow = 'hidden';
-            if(window.innerWidth < 959){
-                document.body.style.background = 'var(--background-color)'
-            }
+            // if(window.innerWidth < 959){
+            //     document.body.style.background = 'var(--background-color)'
+            // }
             next();
         },
     },
@@ -49,7 +49,6 @@ const routes = [
             if(window.innerWidth < 959){
                 document.body.style.background = 'var(--background-color)'
             }
-            window.document.title = 'メンバー'; 
             next();
         }, 
     },
@@ -59,28 +58,7 @@ const routes = [
         component: () => import('./components/Profile/UserComponent.vue'),
         props: true,
         children: [
-            {
-                path: 'account-settings',
-                component: () => import('./components/Profile/UserEditComps/UserSettingEdit.vue'),
-                name: 'account-settings',
-                props: true,
-                beforeEnter: (to, from, next) => {
-                    const rootElement = document.getElementById('app');
-                    const userId = rootElement.getAttribute('data-user-id');
-
-                    if (to.params.userId !== userId) {
-                        const currentUserIdRoute = `/user/${userId}/account-settings`;
-                        
-                        if (to.path !== currentUserIdRoute) {
-                            next(currentUserIdRoute);
-                        } else {
-                            next();
-                        }
-                    } else {
-                        next();
-                    }
-                },
-            },
+            
             {
                 path: 'personal-info-settings',
                 component: () => import('./components/Profile/UserEditComps/UserInfoEdit.vue'),
@@ -176,7 +154,6 @@ const routes = [
             document.body.style.height = '100%';
             document.body.style.position = 'fixed';
             document.body.style.overflow = 'hidden';
-            window.document.title = 'カレンダー'; 
             next();
         }, 
         
@@ -190,7 +167,6 @@ const routes = [
             document.body.style.height = '100%';
             document.body.style.position = 'fixed';
             document.body.style.overflow = 'hidden';
-            window.document.title = 'ワーク';
         }
         
     },
@@ -202,9 +178,79 @@ const routes = [
             document.body.style.height = '100%';
             document.body.style.position = 'fixed';
             document.body.style.overflow = 'hidden';
-            window.document.title = '管理者'
             next();
         }, 
+    },
+    {
+        path: '/support',
+        name: 'support',
+        component: () => import('./components/Support/Support.vue'),
+        children: [
+            { path: 'faq',props: true, name: 'faq', component: () => import('./components/Support/Faq.vue') },
+            { path: 'email_consult',props: true, name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
+            { path: 'phone_consult',props: true, name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
+            { path: 'email_inbox',props: true, name: 'email_inbox', component: () => import('./components/Support/Inbox.vue'), 
+                beforeEnter: (to, from, next) => {
+                    const rootElement = document.getElementById('app');
+                    const userId = parseInt(rootElement.getAttribute('data-user-id'));
+                    const viewTrayUsers = [610, 516, 517, 519, 518, 526, 494, 604]
+                    if(!viewTrayUsers.includes(userId)){
+                        next({name:'email_consult'});
+                    }else{
+                        next();
+                    }
+                    
+                }, 
+            }
+        ],
+        beforeEnter: (to, from, next) => {
+            document.body.style.height = '100%';
+            document.body.style.position = 'fixed';
+            document.body.style.overflow = 'hidden';
+            next();
+        }, 
+    },
+    {
+        path: '/notice',
+        name: 'notice',
+        component: () => import('./components/Notice/Notice.vue'),
+        children: [
+            { 
+                path: ':noticeId',
+                name: 'notice_detail',
+                component: () => import('./components/Notice/NoticeDetail.vue'),
+                beforeEnter: (to, from, next) => {
+                    axios.get(`/get_notice?id=${to.params.noticeId}`).then(
+                    response => {
+                        to.meta.data = response.data
+                        next();
+                    })
+                    // document.body.style.height = '100%';
+                    // document.body.style.position = 'fixed';
+                    // document.body.style.overflow = 'hidden';
+                    
+                }, 
+            }
+        ],
+        beforeEnter: (to, from, next) => {
+            document.body.style.height = '100%';
+            document.body.style.position = 'fixed';
+            document.body.style.overflow = 'hidden';
+            next();
+        }, 
+    },
+    {
+        path: '/settings',
+        component: () => import('./components/Settings/Settings.vue'),
+        name: 'settings',
+        props: true,
+        beforeEnter: (to, from, next) => {
+            document.body.style.height = '100%';
+            document.body.style.position = 'fixed';
+            document.body.style.overflow = 'hidden';
+            next();
+        },
+        
     },
     
 
@@ -217,8 +263,6 @@ function resolveBeforeEnter(to, next, from) {
     axios.post('/profile_get_update_user', {id: to.params.userId})
     .then(response => {
         to.meta.data = response.data;
-        
-        window.document.title = `プロフィール - ${response.data.name}`; 
         next();
     })
     .catch(error => {
@@ -246,8 +290,6 @@ function fetchPosts(to, next, from, path) {
     })
     .then(response => {
         to.meta.data = response.data;
-        const title = path == 'knowledge' ? 'ナレッジ' : path == 'nice' ? 'ナイス' : path =='challenge' ? 'チャレンジ' : 'CLAP'
-        window.document.title = title; 
         next();
     })
     .catch(error => {
@@ -282,5 +324,12 @@ const router = createRouter({
     history: createWebHistory(),
     routes
 })
-
+router.beforeEach((to, from, next) => {
+    // Commit to the store globally before each route
+    if(store.state.mobile){
+        store.commit('setSideMenuView', false);
+    }
+    
+    next();
+  });
 export default router

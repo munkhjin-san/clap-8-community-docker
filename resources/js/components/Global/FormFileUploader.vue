@@ -187,7 +187,7 @@ export default{
                     }               
                 } 
                 formData.append('path', this.path)
-                this.uploadStart(formData)
+                // this.uploadStart(formData)
             
                 axios.post('/post_file_upload', formData , { onUploadProgress: (e) => this.uploadingProgress = Math.floor((e.loaded * 100) / e.total) } )
                 .then(response =>{                                       

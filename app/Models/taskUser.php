@@ -10,7 +10,9 @@ class taskUser extends Model
 {   
     use SoftDeletes;
     use HasFactory;
-
+    protected $fillable = [
+        'user_id', 'record_id'
+    ];
     public function user(){
         return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_id');
     }

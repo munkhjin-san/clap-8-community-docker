@@ -328,13 +328,36 @@ import 'vue3-emoji-picker/css'
                         messages: [{ role: 'assistant', content: full }],
                         stream: true,
                         temperature: 0.8
+                    })
+                    .catch((err) => {
+                        if (err instanceof OpenAI.APIError) {
+                            console.log(err.status); 
+                            console.log(err); 
+                            if(err.status == 500){
+                                this.errorToast('ChatGPT修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                            }else{
+                                this.errorToast('ChatGPT修正に失敗しました。<br>' + err.message)
+                            }
+                            
+                        } else {
+                            this.errorToast('ChatGPT修正に失敗しました。<br>' + err)
+                        }
+                        this.editing = false
+                        this.aiResponseCustomize = true
                     });
-                    for await (const part of stream) {
-                        const content = part.choices[0]?.delta?.content || ''
-                        this.aiResponse = this.aiResponse + content
-                    }
-                    this.editing = false
-                    this.aiResponseCustomize = true
+                    // try {
+                        for await (const part of stream) {
+                            const content = part.choices[0]?.delta?.content || ''
+                            this.aiResponse = this.aiResponse + content
+                        }
+                    // } catch (error) {
+                    //     this.errorToast('ChatGPT修正に失敗しました。<br>' + error)
+                    // } finally {
+                        this.editing = false
+                        this.aiResponseCustomize = true
+                    // }
+                    
+                    
                 }
 
 
@@ -586,10 +609,12 @@ import 'vue3-emoji-picker/css'
                         let searchText = this.keyCharacters
                         let replacement = mentionSyntax
                         const lastIndex = inputString.lastIndexOf(searchText);
+                        const hasAt = inputString[lastIndex - 1] && (inputString[lastIndex - 1] == '@' || inputString[lastIndex - 1] == '＠') ? 1 : 0
+                        console.log(hasAt)
                         if (lastIndex === -1) {
                             return inputString;
                         }
-                        const beforeLastIndex = inputString.slice(0, lastIndex);
+                        const beforeLastIndex = inputString.slice(0, (lastIndex - hasAt));
                         const position = this.caretPosition
                         const afterLastIndex = inputString.slice(lastIndex + searchText.length);
                         const result = beforeLastIndex + replacement.replace(/[@＠]/g, '') + afterLastIndex;

@@ -48,145 +48,128 @@
                 </div>
             </div>
             <div v-if="$store.state.filePreview.files.length" class="mySwiper-container">
-                <div v-if="source == 'post' || source == 'message' || source == 'notice' || source == 'user'" style="height:100%;">
+                <div v-if="canView" style="height:100%;">
                     <div class="mySwiper-wrapper" ref="mySwiper">                   
-                        <swiper class="firstswiper" style="background:none;border:none;width:100%;" 
-                            :space-between="10"
-                            :zoom="true"
-                            :modules="modules"
-                            :centeredSlides="true"
-                            :navigation="true"
-                            :thumbs="{ swiper: thumbsSwiper }"
-                            @slideChange="changeSwiperIndex"
-                            @swiper="onSwiper"
+                        <div ref="swiperContainer" class="swiper-container" style="background:none;border:none;width:100%;overflow: hidden;" 
+                            
                         >
-                            <swiper-slide style="background:none;border:none;width:100%" :key="file.id" v-for="(file, index) in $store.state.filePreview.files"> 
-                                <div v-if="f_index == index" class="swiper-zoom-container width90">
-                                    
-                                    <img
-                                        v-if="file.mime_type == 'image'"
-                                        style="max-width: 100%; margin: auto; max-height: 100%;"
-                                        :src="imageSource(file)"
-                                    />
-                                                            
-                                    <div v-else-if="canPreview && file.mime_type == 'video'" style="display:flex;height: -webkit-fill-available;max-height: 70vh;">
-                                        <video controls="controls" style="max-width: 79vw;max-height: 66vh;height: auto;background: #000;margin: auto;">
-                                            <source :src="fileUrlSource(file)">
-                                        </video>
-                                    </div>
-                                    <div v-else-if="canPreview && file.mime_type == 'audio'" style="display:flex;height: -webkit-fill-available;max-height: 70vh;">                    
-                                        <audio controls style="margin: auto;">
-                                            <source :src="fileUrlSource(file)">
-                                        </audio>
-                                    </div>
-                                    <div id="docViewer" v-if="canPreview && file.mime_type == 'application'">
-                                        <iframe id="docloaderframe" v-if="file.extension !== 'pdf'" @load="docLoader = false" class="docViewer-frame" v-show="!docLoader" :src="docUrl"></iframe>
-                                        <div v-show="canvasElementShow" class="signCanvas" :class="{'canSign' : isDrawing == false }" :id="'signCanvas_' + file.id + '_' + file.message_id">
-                                            <div v-if="!isDrawing" style="display:flex; flex-direction: column; background:white; padding: 20px 20px 0;">
-                                                <canvas :id="'canvas' + file.id + '_' + file.message_id" class="canvasClass" ref="signature"  style="background:white; z-index:1;border:1px dotted black;">
-                                                </canvas>
-                                                <span  style="font-size:16px; color:black;z-index:1;line-height:30px;">{{ $t('signBelow') }}</span>
-                                            </div>
-                                            <div v-if="isDrawing" :id="'signImage' + file.id + '_' + file.message_id" style="z-index: 2;display:flex; flex-direction: column;position:relative;">
-                                                <img class="resizeable" id="resizeable" v-if="isDrawing && file.extension == 'pdf'" :src="imgData" style="z-index:2; border: 1px solid black;touch-action:none;" />
-                                                <!-- <span v-if="isDrawing" style="font-size:small;color:black;z-index:1;line-height:30px;background:#ddd;">{{ $t('dragSign') }}</span> -->
-                                                <div class="corner" id="topRight"></div>
-                                                <!-- <div class="corner" id="topLeft"></div>
-                                                <div class="corner" id="bottomRight"></div> -->
-                                                <div class="corner" id="bottomLeft"></div>
-                                            </div>
-                                            <span style="position:fixed;top:20px;color:black;word-break:keep-all;z-index:1;font-size:15px;" v-if="isDrawing">サインは拡大縮小でき、好きな場所にドラッグで移動することができます。</span>
-                                          
-                                            <!-- <div style="position:absolute; bottom:0; z-index: 1; display:flex; flex-direction: column; align-items: flex-start;">
-                                               
-                                            </div> -->
+                            <div class="swiper-wrapper" > 
+                                <div class="swiper-slide" style="background:none;border:none;width:100%" :key="file.id" v-for="(file, index) in $store.state.filePreview.files">
+                                    <div class="swiper-zoom-container width90">
+                                        
+                                        <img
+                                            v-if="file.mime_type == 'image'"
+                                            style="max-width: 100%; margin: auto; max-height: 100%;"
+                                            :src="file.file_path"
+                                        />
+                                                                
+                                        <div v-else-if="canPreview && file.mime_type == 'video'" style="display:flex;height: -webkit-fill-available;max-height: 70vh;">
+                                            <video controls="controls" style="max-width: 79vw;max-height: 66vh;height: auto;background: #000;margin: auto;">
+                                                <source :src="file.file_path">
+                                            </video>
                                         </div>
-                                        <div ref="scrollParent" @scroll="scrollEvent" v-if="docUrl && file.extension == 'pdf'" id="scrollParent" style="height:100%; overflow:hidden auto;position:relative;">
-                                            <!-- <div v-if="imageUrls">
-                                                <img v-for="imgUrl in imageUrls" :src="imgUrl.src" style="position:absolute; z-index: 1;" :style="{ top: `${imgUrl.y}px`, left: `${imgUrl.x}px`, width: `${imgUrl.width}px`, height: `${imgUrl.height}px`}"/>
-                                            </div> -->
-                                            <!-- <PDFviewer :docUrl="docUrl"></PDFviewer> -->
-                                            <vue-pdf-embed style="position:relative;" :disableTextLayer="true" :disableAnnotationLayer="true" ref="pdf" :id="'pdfElement_' + file.id + '_' + file.message_id" :source="docUrl"/>
+                                        <div v-else-if="canPreview && file.mime_type == 'audio'" style="display:flex;height: -webkit-fill-available;max-height: 70vh;">                    
+                                            <audio controls style="margin: auto;">
+                                                <source :src="file.file_path">
+                                            </audio>
                                         </div>
-                                        <div v-if="docLoader" style="position:absolute;width:100%;height:100%;left:0;top:0;background:green;display:flex;">
-                                            <div id="loaderMini" style="background:var(--background-color);">
-                                                <div class="spinner-mini"></div>
-                                            </div> 
-                                        </div>
-                                        <div class="pdfButton-wrapper">
-                                            <button v-if="canSign && !canvasElementShow" @click="electronicSignatureRequest(currentFile)" class="signatureButton cursor-pointer" style="margin-right:5px;">{{$t('drawSignature')}}</button>                                                                                                   
-                                            
-                                            <button v-show="canvasElementShow && !isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="signImageAdd(file)">
-                                                <span v-if="!processing">{{$t('pdfSave')}}</span>
-                                                <div v-if="processing" id="loaderMini">
-                                                    <div class="spinner-nano" style="border: 4px #ffffff solid;border-top: 4px black solid;"></div>
+                                        <div id="docViewer" v-if="canPreview && file.mime_type == 'application'">
+                                            <iframe id="docloaderframe" v-if="file.extension !== 'pdf'" @load="docLoader = false" class="docViewer-frame" v-show="!docLoader" :src="docUrl"></iframe>
+                                            <div v-show="canvasElementShow" class="signCanvas" :class="{'canSign' : isDrawing == false }" :id="'signCanvas_' + file.id + '_' + file.message_id">
+                                                <div v-if="!isDrawing" style="display:flex; flex-direction: column; background:white; padding: 20px 20px 0;">
+                                                    <canvas :id="'canvas' + file.id + '_' + file.message_id" class="canvasClass" ref="signature"  style="background:white; z-index:1;border:1px dotted black;">
+                                                    </canvas>
+                                                    <span  style="font-size:16px; color:black;z-index:1;line-height:30px;">{{ $t('signBelow') }}</span>
                                                 </div>
-                                            </button>
-                                            <div class="signatureButton cursor-pointer" v-show="canvasElementShow && !isDragging" style="margin-right:5px;position:relative;">
-                                                <button type="button" style="height:100%;" @click="toggleOptions">
-                                                    ペンの幅を選択                    
+                                                <div v-if="isDrawing" :id="'signImage' + file.id + '_' + file.message_id" style="z-index: 2;display:flex; flex-direction: column;position:relative;">
+                                                    <img class="resizeable" id="resizeable" v-if="isDrawing && file.extension == 'pdf'" :src="imgData" style="z-index:2; border: 1px solid black;touch-action:none;" />
+                                                    <div class="corner" id="topRight"></div>
+                                                    <div class="corner" id="bottomLeft"></div>
+                                                </div>
+                                                <span style="position:fixed;top:25px;color:black;word-break:keep-all;z-index:1;font-size:15px;" v-if="isDrawing">サインは拡大縮小でき、好きな場所にドラッグで移動することができます。</span>
+                                            </div>
+                                            <div ref="scrollParent" @scroll="scrollEvent" v-if="docUrl && file.extension == 'pdf'" id="scrollParent" style="height:100%; overflow:hidden auto;position:relative;">
+                                                <vue-pdf-embed style="position:relative;" :disableTextLayer="true" :disableAnnotationLayer="true" ref="pdf" :id="'pdfElement_' + file.id + '_' + file.message_id" :source="docUrl"/>
+                                            </div>
+                                            <div v-if="docLoader" style="position:absolute;width:100%;height:100%;left:0;top:0;background:green;display:flex;">
+                                                <div id="loaderMini" style="background:var(--background-color);">
+                                                    <div class="spinner-mini"></div>
+                                                </div> 
+                                            </div>
+                                            <div class="pdfButton-wrapper">
+                                                <button v-if="canSign && !canvasElementShow" @click="electronicSignatureRequest(currentFile)" class="signatureButton cursor-pointer" style="margin-right:5px;">{{$t('drawSignature')}}</button>                                                                                                   
+                                                <button v-if="canSign && !canvasElementShow" @click="notSign(file)" class="signatureButton cursor-pointer" style="margin-right:5px;">サインしない</button>
+                                                <button v-show="canvasElementShow && !isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="signImageAdd(file)">
+                                                    <span v-if="!processing">{{$t('pdfSave')}}</span>
+                                                    <div v-if="processing" id="loaderMini">
+                                                        <div class="spinner-nano" style="border: 4px #ffffff solid;border-top: 4px black solid;"></div>
+                                                    </div>
                                                 </button>
-                                                <div v-if="showOptions" class="lineOptions">
-                                                    <div class="lineOption" @click="selectLineWidth(1)" :class="{ selected: selectedLineWidth === 1 }">
-                                                    <div class="line" style="border-bottom: 1px solid black;"></div>
-                                                    </div>
-                                                    <div class="lineOption" @click="selectLineWidth(2)" :class="{ selected: selectedLineWidth === 2 }">
-                                                    <div class="line" style="border-bottom: 2px solid black;"></div>
-                                                    </div>
-                                                    <div class="lineOption" @click="selectLineWidth(3)" :class="{ selected: selectedLineWidth === 3 }">
-                                                    <div class="line" style="border-bottom: 3px solid black;"></div>
+                                                <div class="signatureButton cursor-pointer" v-show="canvasElementShow && !isDragging" style="margin-right:5px;position:relative;padding: 0px;">
+                                                    <button type="button" style="height:100%;padding:5px;" @click="toggleOptions">
+                                                        ペンの幅を選択                    
+                                                    </button>
+                                                    <div v-if="showOptions" class="lineOptions">
+                                                        <div class="lineOption" @click="selectLineWidth(1)" :class="{ selected: selectedLineWidth === 1 }">
+                                                        <div class="line" style="border-bottom: 1px solid black;"></div>
+                                                        </div>
+                                                        <div class="lineOption" @click="selectLineWidth(2)" :class="{ selected: selectedLineWidth === 2 }">
+                                                        <div class="line" style="border-bottom: 2px solid black;"></div>
+                                                        </div>
+                                                        <div class="lineOption" @click="selectLineWidth(3)" :class="{ selected: selectedLineWidth === 3 }">
+                                                        <div class="line" style="border-bottom: 3px solid black;"></div>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <button v-show="canvasElementShow && !isDragging" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="clear">{{$t('eraseSignature')}}</button>
+                                                <button v-show="canvasElementShow && !isDragging" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="reset">{{$t('resetSignature')}}</button>
+                                                <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="savePdf(file)">
+                                                    <span v-if="!processing">サインを置きます</span>
+                                                    <div v-if="processing" id="loaderMini">
+                                                        <div class="spinner-nano" style="border: 4px #ffffff solid;border-top: 4px black solid;"></div>
+                                                    </div>
+                                                </button>
+                                                <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="cancelSign(file)">
+                                                    <span>{{$t('cancelSignature')}}</span>
+                                                </button>
+                                                <button v-if="file.multiple_flag == 1 && !file.unsigned_users.length && file.user_id == $store.state.user.id" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="downloadAll()">すべてダウンロード</button>
                                             </div>
-                                            <button v-show="canvasElementShow && !isDragging" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="clear">{{$t('eraseSignature')}}</button>
-                                            <button v-show="canvasElementShow && !isDragging" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="reset">{{$t('resetSignature')}}</button>
-                                            <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="savePdf(file)">
-                                                <span v-if="!processing">サインを置きます</span>
-                                                <div v-if="processing" id="loaderMini">
-                                                    <div class="spinner-nano" style="border: 4px #ffffff solid;border-top: 4px black solid;"></div>
-                                                </div>
-                                            </button>
-                                            <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="cancelSign(file)">
-                                                <span>{{$t('cancelSignature')}}</span>
-                                            </button>
-                                            <button v-if="file.multiple_flag == 1 && !file.unsigned_users.length && file.user_id == $store.state.user.id" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="downloadAll()">すべてダウンロード</button>
                                         </div>
-                                    </div>
-                                    <div v-else-if="canPreview && file.mime_type == 'text'" style="height: calc(100% - 37px);width:100%;">
-                                        <object
-                                            v-if="file.extension === 'txt'"
-                                            :data="fileUrlSource(file)"
-                                            type="text/html"
-                                            width="100%"
-                                            height="100%"
-                                        ></object>
-                                        <div v-else class="unsupportedFileWindow">
-                                        {{ $t('unsupportedFile') }}
+                                        <div v-else-if="canPreview && file.mime_type == 'text'" style="height: calc(100% - 37px);width:100%;">
+                                            <object
+                                                v-if="file.extension === 'txt'"
+                                                :data="file.file_path"
+                                                type="text/html"
+                                                width="100%"
+                                                height="100%"
+                                            ></object>
+                                            <div v-else class="unsupportedFileWindow">
+                                            {{ $t('unsupportedFile') }}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div v-else-if="!canPreview" class="unsupportedFileWindow">
-                                        {{$t('unsupportedFile')}}
+                                        <div v-else-if="!canPreview" class="unsupportedFileWindow">
+                                            {{$t('unsupportedFile')}}
+                                        </div>
                                     </div>
                                 </div>
-                            </swiper-slide>                     
-                        </swiper>                  
+
+                            </div>
+                            <div class="swiper-button-prev" style="top:40%;"></div>
+                            <div class="swiper-button-next" style="top:40%;"></div>                  
+                        </div>                  
                     </div>
                     <div class="second-swiper-wrapper" ref="secondswiper">                     
-                            <swiper class="swiper gallery-thumbs" style="background:none;border:none;" 
-                                :modules="modules"
-                                :slides-per-view="4"
-                                :watch-slides-progress="true"
-                                @swiper="setThumbsSwiper"
+                            <div thumbsSlider="" class="swiper gallery-thumbs" style="background:none;border:none;" 
                             >
-                                <swiper-slide :key="file.id" v-for="(file) in $store.state.filePreview.files"> 
-                                    <div class="swiper-zoom-container ssliderItem">
-                                        <img style="max-width:100%;margin:auto;max-height:100%;" v-if="file.mime_type == 'image'" :src="imageSource(file)">
+                                <div class="swiper-wrapper"> 
+                                    <div class="swiper-slide ssliderItem" :key="file.id" v-for="(file) in $store.state.filePreview.files">
+                                        <img style="max-width:100%;margin:auto;max-height:100%;" v-if="file.mime_type == 'image'" :src="file.file_path">
                                         <div v-if="file.mime_type !== 'image'" style="position:relative;">
                                             <FileIcon :ext="file.extension"/>
                                         </div>
                                     </div>
-                                </swiper-slide>                           
-                            </swiper>
+                                </div>                           
+                            </div>
                     </div>
                 </div>                
             </div> 
@@ -199,9 +182,12 @@
 </template>
 
 <script>
-    import { Swiper, SwiperSlide } from 'swiper/vue';
-    import 'swiper/css'
-    import { Navigation, Thumbs } from 'swiper';
+    import { onMounted, ref } from 'vue';
+
+    import Swiper from 'swiper';
+    import 'swiper/css/bundle';
+    import "swiper/css/zoom";
+    import { Zoom, Navigation, Thumbs } from 'swiper';
     import 'swiper/css/navigation'
     import 'swiper/css/thumbs'
     import VuePdfEmbed from 'vue-pdf-embed'
@@ -213,16 +199,25 @@
 
     export default {
         components: {
-            Swiper,
-            SwiperSlide,
             VuePdfEmbed,
             ConfirmWindow,
             FileIcon
         },
         setup(){
-            return {
-                modules: [Navigation, Thumbs]
-            }
+            // const swiper = new Swiper('.swiper-container', {
+            //     // Optional parameters
+            //     direction: 'horizontal',
+            //     loop: true,
+            //     zoom: true,
+            //     navigation: {
+            //         nextEl: '.swiper-button-next',
+            //         prevEl: '.swiper-button-prev',
+            //     },
+            // });
+            // console.log(swiper)
+            // return {
+            //     modules: [Navigation, Zoom, Thumbs]
+            // }
         },
         data(){
             return{
@@ -282,7 +277,8 @@
                 this.canvasCreate(this.currentFile) 
             }
             this.f_index = this.$store.state.filePreview.index
-            if(this.source == 'message' || this.source == 'user' || this.source == 'post'){
+            this.swiperCreate()
+            if(this.source == 'message' || this.source == 'user' || this.source == 'post' || this.source == 'notice'){
                 this.topSwiper.slideTo(this.f_index, false)
                 this.thumbsSwiper.slideTo(this.f_index, false)
             }
@@ -306,6 +302,9 @@
                 }
                 return false
             },
+            canView(){
+                return this.source == 'post' || this.source == 'message' || this.source == 'calendar' || this.source == 'user' || this.source == 'notice'
+            },
             message(){
                 return this.$store.state.filePreview.message
             },
@@ -323,6 +322,9 @@
             },
             currentFile(){
                 return this.$store.state.filePreview.files[this.f_index]
+            },
+            doc_path(){
+                return this.$store.state.filePreview.files[this.f_index].doc_path
             },
             canPreview(){
                 const supported = [
@@ -350,45 +352,34 @@
                     
         },
         methods:{
-            fileUrlSource(file){
-                const { source, $store } = this;
-                const baseLocation = $store.state.baseLocation;
-                if(source == 'message'){          
-                    return baseLocation + 
-                        '/shared_files/'+ 
-                        file.source_board_id + '/' + 
-                        file.id + '_' + 
-                        file.user_id + '_' + 
-                        file.message_id + '.' + 
-                        file.extension
-                }else if(source == 'post'){
-                    return baseLocation + '/post_files/' + 
-                        file.id + '_' +
-                        file.user_id + '_' + 
-                        file.path + '.' + 
-                        file.extension
-                }
-                else if(source == 'calendar'){
-                    return baseLocation + '/calendar/' + 
-                        file.id + '_' +
-                        file.user_id + '_' + 
-                        file.path + '.' + 
-                        file.extension
-                } else if (source === 'user') {
-                    return `${baseLocation}/user_files/${file.user_id}/${file.id}_${file.user_id}_${file.path}.${file.extension}`;
-                }
-            },
-            imageSource(file) {
-                const { source, $store } = this;
-                const baseLocation = $store.state.baseLocation;
-                    if (source === 'post') {
-                        return `${baseLocation}/post_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`;
-                    } else if (source === 'message') {
-                        return `${baseLocation}/shared_files/${$store.state.filePreview.message.record_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`;
-                    } else if (source === 'user') {
-                        return `${baseLocation}/user_files/${file.user_id}/${file.id}_${file.user_id}_${file.path}.${file.extension}`;
-                    }
-                return '';
+            swiperCreate(){
+                this.thumbsSwiper = new Swiper('.gallery-thumbs', {
+                    spaceBetween: 10,
+                    slidesPerView: 4,
+                    freeMode: true,
+                    watchSlidesProgress: true
+                })
+               this.topSwiper = new Swiper('.swiper-container', {
+                    // Optional parameters
+                    direction: 'horizontal',
+                    spaceBetween: 10,
+                    zoom: true,
+                    navigation: true,
+                    centeredSlides: true,
+                    modules: [Navigation, Zoom, Thumbs],
+                    thumbs: {
+                        swiper: this.thumbsSwiper 
+                    },
+                    on: {
+                        slideChange: (swiper) => {
+                            this.changeSwiperIndex(swiper)
+                        }
+                    },
+                    navigation: {
+                        nextEl: '.swiper-button-next',
+                        prevEl: '.swiper-button-prev',
+                    },
+                });
             },
             downloadAll(){
                 let src, name;
@@ -432,7 +423,6 @@
                     const minScale = 0.3; // Minimum scale
                     const maxScale = 2;
 
-                    // Use a higher pan sensitivity for smoother panning
 
                     hammertime.get("pinch").set({ enable: true });
                     hammertime.get("pan").set({ direction: Hammer.DIRECTION_ALL });
@@ -478,7 +468,6 @@
                 }
                 let x = ''
                 let y = ''
-                var gestureArea = document.getElementById('docViewer')
                 
                 this.interact(`${'#' + 'signImage' + file.id + '_' + file.message_id}`).resizable({
                     // resize from all edges and corners
@@ -529,19 +518,6 @@
                         })
                     ]
                 })
-                // interact(gestureArea).gesturable({
-                //     listeners: {
-                //         move (event) {
-                //             var scaleElement = document.getElementById('signImage' + file.id + '_' + file.message_id)
-                //             var currentScale = event.scale * angleScale.scale
-                            
-                //             scaleElement.style.transform = `translate(${x}px, ${y}px) scale(${currentScale})`
-                //         },
-                //         end (event) {
-                //             angleScale.scale = angleScale.scale * event.scale
-                //         }
-                //     }
-                // })
                 function dragMoveListener(event){
                     const target = event.target;
                     x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
@@ -587,9 +563,10 @@
                 setTimeout(() =>{
                     const canvas = document.getElementById('canvas' + file.id + '_' + file.message_id);
                     this.signaturePad = new SignaturePad(canvas)
-
+                    this.signaturePad.maxWidth = 2
+                    const w = window.innerWidth - 50;
                     if(this.$store.state.mobile){
-                        canvas.width = 350
+                        canvas.width = w
                         canvas.height = 200
                     }else{
                         canvas.width = 600
@@ -790,7 +767,7 @@
                             })
                             emitter.on(uniqueChannell, (data) => { 
                                 if(data.answer == this.$t('confirmToAction')){
-                                    this.imgData = this.$store.state.baseLocation + '/user_signature/' + path 
+                                    this.imgData = this.$store.state.baseLocation + '/content/user_signatures/' + path 
                                     this.isDragging = true
                                     this.isDrawing = true
                                     this.canvasElementShow = true
@@ -847,6 +824,7 @@
                     
                     setTimeout(() => {
                         this.topSwiper.allowClick = false
+                        this.topSwiper.zoom.disable()
                         this.thumbsSwiper.allowClick = false
                         this.topSwiper.allowSlideNext = false
                         this.topSwiper.allowSlidePrev = false
@@ -856,6 +834,28 @@
                     }, 500)
                 }
 
+                },
+                notSign(file){
+                    let params = ''
+                    if(file.original_file_id){
+                        params = {
+                            original_id: file.original_file_id,
+                            file_id: file.id,
+                        };
+                    }else{
+                        params = {
+                            file_id: file.id,
+                        };
+                    }
+                    let reminder = this.$store.state.filePreview.reminder
+                    axios.post('/cancel_sign', params).then(response => {
+                        if(reminder == 'board'){
+                            this.getMessageList()
+                        }else if(reminder == 'reminder'){
+                            emitter.emit('signedReload')
+                            this.getMessageList()
+                        }
+                    })
                 },
             signImageAdd(){
                 if(!this.signaturePad.isEmpty()){
@@ -931,18 +931,8 @@
                 
 
                 axios.post('/user_generate_file_key').then(response => {
-                    let url
-                    if(this.$store.state.filePreview.source == 'message'){
-                        url = this.$store.state.baseLocation + 
-                        '/shared_docs/' 
-                        + this.currentFile.board_id 
-                        + '/' + this.currentFile.id 
-                        + '_' + this.currentFile.user_id 
-                        + '_' + this.currentFile.message_id 
-                        + '.' + this.currentFile.extension 
-                        + '/' + response.data
-                        + '/' +this.$store.state.user.id
-                    }
+                    let url = this.doc_path + '/' + response.data + '/' + this.$store.state.user.id
+                    
                     const encodedUrl = encodeURIComponent(url);
                     axios.get(url, {responseType: 'blob'}).then(res => {
                         // this.docUrl = window.URL.createObjectURL(new Blob([res.data]));
@@ -1268,25 +1258,17 @@
         box-sizing: border-box;
         gap: 0;
       }
-      &.gallery-thumbs .swiper-slide {
-        width: 25%;
-        height: 100%;
+      &.gallery-thumbs .swiper-wrapper .swiper-slide {
+   
         transition-property: none;
         opacity: 0.5;
-        background:none;
         border:none;
-        flex-basis:100px;
       }
-      &.gallery-thumbs .swiper-zoom-container{
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-      &.gallery-thumbs .swiper-slide-thumb-active {
+      
+      &.gallery-thumbs .swiper-wrapper .swiper-slide-thumb-active {
         opacity: 1;
-        .swiper-zoom-container.ssliderItem{
-            border: solid thin var(--hoverBorder);
-        }
+        border: solid thin var(--hoverBorder);
+        
       }
       
     }
@@ -1336,7 +1318,7 @@
     @media screen and (min-width: 760px) {
         .swiper-zoom-container.width90{
             width: 90%;
-            height: calc(100% - 48px);
+            height: calc(100% - 60px);
             display: flex;
             justify-content: center;
         }
@@ -1359,7 +1341,7 @@
             height: 150px;
         }
         .width90{
-            height: 100%;
+            height: calc(100% - 48px);
             display: flex;
         }
         .file-preview-container{
@@ -1392,15 +1374,19 @@
             height:30px;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='currentColor' class='bi bi-arrow-left-circle' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8zm15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-4.5-.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5H11.5z'/%3E%3C/svg%3E");
         }
-        .swiper-zoom-container.ssliderItem{
-            width: 30px;
-            height: 20px;
+        .ssliderItem{
+            width: 30px !important;
+            height: 20px !important;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         .signatureButton{
             height: 30px;
             font-size: 12px;
             line-height: 0;
-            padding: 0;
+            padding: 5px;
         }
+
     }
 </style>

@@ -75,12 +75,7 @@ import BoardCreateButton from './BoardCreateButton.vue'
         },
         mounted() {
             
-            setTimeout(() => {
-                const el = document.getElementById('searchContainer')
-                if(el){
-                    el.scrollTo({top: this.$store.state.scrollRemember, left: 0})
-                }
-            },0)
+            
                 
             
         },

@@ -11,7 +11,8 @@
             <div id="recordBoxMenu" class="boxMenu boardMenuIcon" v-if="$store.state.menu.name == 'recordBoxMenu' && $store.state.menu.id == record.id" style="top: 25px;right: 25px;z-index:6;">
                 <ul>
                     <li @click="$emit('editRecord', record), closeMenu()" class="boxMenuItems cursor-pointer">{{`${appNameJp}を編集する`}}</li>
-                    <li class="boxMenuItems cursor-pointer">{{`${appNameJp}を削除する`}}</li>                  
+                    <li v-if="appName == 'challenge'" @click="updateStatus(), closeMenu()" class="boxMenuItems cursor-pointer">{{`ステータスを変更する`}}</li>
+                    <li @click="$emit('deleteRecord', record), closeMenu()" class="boxMenuItems cursor-pointer">{{`${appNameJp}を削除する`}}</li>                  
                 </ul>                                            
             </div>
             </Transition>
@@ -134,7 +135,7 @@ import PostComment from './PostComment.vue'
 import PostFiles from './PostFiles.vue';
 export default{
     props: ['record', 'appNameJp', 'appName'],
-    emits: ['setChargeTarget', 'setCommentCount', 'setClap', 'editRecord', 'updateStatus'],
+    emits: ['setChargeTarget', 'setCommentCount', 'setClap', 'editRecord', 'updateStatus', 'deleteRecord'],
     data(){
         return{
             maxLength: 200,

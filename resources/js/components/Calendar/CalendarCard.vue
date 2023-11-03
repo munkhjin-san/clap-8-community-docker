@@ -13,7 +13,7 @@
         <div class="cal-userlist-full" v-if="expanded" :style="{marginBottom: '10px'}"> 
             <div v-for="user in listTruncate">
                 <UserIcon :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
-                <p class="userName" style="white-space: break-spaces;font-size: 13px;margin-right: 15px;">{{ user.name }}</p>
+                <p class="userName" style="white-space: break-spaces;font-size: 12px;margin-right: 25px;">{{ user.name }}</p>
             </div>
             <div style="cursor: pointer;" @click="truncate = false" v-if="truncate && record.calendar_users.length > 6">...({{ record.calendar_users.length }})</div>
         </div>
@@ -23,7 +23,7 @@
         </div>
         <div :class="['cal-card-item', {'wrap cal-selectable' : expanded }]">{{ viewable ? record.title : '予定' }}</div>
         <div v-if="!expanded" class="cal-card-item" style="white-space: nowrap;">{{ time }}</div>
-        <div v-else :class="['cal-card-item', {'wrap cal-selectable' : expanded }]" style="white-space: nowrap;margin: 10px 0;display: flex;gap: 10px;align-items: center;">                
+        <div v-else :class="['cal-card-item', {'wrap cal-selectable' : expanded }]" style="line-height:1.5;margin: 10px 0;display: flex;gap: 10px;align-items: center;">                
             <div v-html="timeDetailed"></div>
         </div> 
         <div class="cal-card-item card-repet-info" v-if="expanded && record.repetition_type > 0 && viewable" v-html="repeatInformation"></div>
@@ -60,7 +60,7 @@
             </div>
         </div>
 
-        <div v-if="viewDetails && expanded" style="line-height: 1.5;">
+        <div v-if="viewDetails && expanded" style="line-height: 1.5;white-space: break-spaces;">
             <div>作成日 : {{ createdDate }}</div>
             <div>作成者 : {{ creator }}</div>
             <div>更新日 : {{ updatedDate }}</div>
@@ -179,7 +179,7 @@ export default{
             return `${moment(this.record.date_start).format('H:mm')} ~ ${moment(this.record.date_end).format('H:mm')}`
         },
         timeDetailed(){
-            return `${moment(this.record.date_start).format('H:mm')} ~ ${moment(this.record.date_end).format('H:mm')}`
+            return `${moment(this.record.date_start).format('YYYY/M/D(ddd) H:mm')} ~ ${moment(this.record.date_end).format('H:mm')}`
         },
         repeatInformation(){
             if(this.record.repetition_type == 0){
@@ -199,7 +199,7 @@ export default{
                 
             }else if(this.record.repetition_type == 2){
                 if(this.record.repeat_days && this.record.expiration_start && this.record.expiration_end){
-                    const until = moment(this.record.expiration_end).format('YYYY/M')
+                    const until = moment(this.record.expiration_end).format('YYYY/M/D')
                     return `${until}まで毎月<strong>${this.record.repeat_days}日</strong>`
                 }
             }else if(this.record.repetition_type == 3){

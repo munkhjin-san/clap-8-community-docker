@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\VerifyEmail;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Carbon\Carbon;
 class User extends Authenticatable
 {
     // use Notifiable;
@@ -22,7 +23,7 @@ class User extends Authenticatable
         'name', 'email', 'email_or_phone', 
         'phone', 'password','icon_id', 'login', 
         'phone_isVerified', 'phone_prefix', 'q_token', 
-        'is_public', 'color', 'language', 'work_email', 'footer_view'
+        'is_public', 'color', 'language', 'work_email', 'footer_view', 'ical_key'
     ];
 
     /**
@@ -154,8 +155,15 @@ class User extends Authenticatable
     public function weathers(){
         return $this->hasOne(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int');
     }
+    public function today_weather(){
+        $today = Carbon::now()->format('Y-m-d');
+        return $this->hasOne(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int')->where('type_id', 43)->where('date', $today);
+    }
     public function days_weathers(){
         return $this->hasMany(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int', 'date');
+    }
+    public function files(){
+        return $this->belongsToMany(UserAlbum::class, 'user_albums', 'user_id', 'id');
     }
     // public function sendEmailVerificationNotification()
     // {

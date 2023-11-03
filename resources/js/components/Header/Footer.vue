@@ -1,5 +1,5 @@
 <template>
-    <div id="boardFooterMobile" class="footerMenuContainer"> 
+    <div id="boardFooterMobile" class="footerMenuContainer" :style="{background: $store.state.dark ? '#262626' : '#000'}"> 
         <div @click="pushRoute(`board`)" class="footerMenu-item">
             <div class="icon-wrapper" style="height:42%;">
                 <svg style="fill:#fff;width:23px;" class="" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 39 32">
@@ -122,8 +122,7 @@ export default {
   height: 45px;
   display: flex;
   bottom: 0px;
-  z-index: 22;
-  background: #000;
+  z-index: 23;
 }
 .footerMenu-item{
   flex-basis: 100%;

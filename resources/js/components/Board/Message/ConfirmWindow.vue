@@ -185,7 +185,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                 }else{
                     params = {
                         msg_id:this.message.id,
-                        users:list,
+                        users:values,
                         type:this.requestType
                     }
                 }

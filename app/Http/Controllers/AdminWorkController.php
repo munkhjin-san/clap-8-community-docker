@@ -150,7 +150,7 @@ class AdminWorkController extends Controller{
 
             
             foreach ($all_users as $user) {
-                $shiftTypes = range(5, 15); // Shift types from 5 to 15
+                $shiftTypes = range(3, 15); // Shift types from 5 to 15
                 $shiftTypeCounts = array_fill_keys($shiftTypes, 0);
             
                 if (count($user->shift_records) > 0) {

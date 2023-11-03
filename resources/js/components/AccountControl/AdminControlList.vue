@@ -4,7 +4,7 @@
 
         <div class="admin-header">
             
-            <!-- <Hamburger /> -->
+            <Hamburger v-if="$store.state.mobile"/>
             <div class="searchBar-wrapper">
                 <Transition name="searchHide">
                     <UserSearchBar @setKeyord="setKeyord"/>

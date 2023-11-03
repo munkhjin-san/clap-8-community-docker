@@ -1,5 +1,5 @@
 <template>
-    <div v-if="UserAllData" style="width: 100%;height:100%;left:0;top:55px;" class="user-conteiner-inner" :class="{scrollable : !showModalContent && !showSettingModalContent}">   
+    <div v-if="UserAllData" style="width: 100%;height:100%;left:0;top:55px;" class="user-conteiner-inner" :class="{scrollable : !showModalContent && !showSettingModalContent && !introUpload}">   
         
         <router-view v-slot="{ Component }">
             <transition name="modalFade">
@@ -32,12 +32,13 @@
                             </svg>
                         </div>
                     </div>
-                    <div id="userMenuList" class="boxMenu" v-if="UserAllData.id == $store.state.user.id && $store.state.menu.id == 52 && $store.state.menu.name == 'userMenuList'" style="z-index: 9;right: 40px;top: 32px;">
-                        <ul>
-                            <li @click="profileEdit()" class="boxMenuItems cursor-pointer">{{$t('profileEdit')}}</li>
-                            <li @click="settingEdit()" class="boxMenuItems cursor-pointer">{{$t('personalEdit')}}</li>
-                            <li v-if="hasSalaryIncrease" @click="salaryEdit" class="boxMenuItems cursor-pointer">昇給課題</li>
-                        </ul>
+                    <div id="userMenuList" class="boxMenu" v-if="UserAllData.id == $store.state.user.id && $store.state.menu.id == 52 && $store.state.menu.name == 'userMenuList'" style="z-index: 9;right: 40px;top: 32px;display: flex;flex-direction: column;">
+
+                        <router-link class=" boxMenuItems menuLink" :to="{name: 'personal-info-settings'}">プロフィール編集</router-link>
+                        <!-- <router-link class=" boxMenuItems menuLink" :to="{name: 'account-settings'}">個人設定</router-link> -->
+                        <router-link class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link>
+                        <!-- <router-link class=" boxMenuItems menuLink" to="/support">サポートデスク</router-link> -->
+                        
                     </div>
     
                     <UserIconEdit 
@@ -45,8 +46,13 @@
                         :deviceWidth="deviceWidth"
                         :isAccessible="isAccessible"
                         :clapData="clapData"
+                        :movExist="movExist"
+                        :key="movExist.length"
+                        :introUpload="introUpload"
+                        @closeModal="introUpload = false"
                         @updateUser="updateUser"
                         @getUserInfo="getUserInfo"
+                        @addIntroFile="addIntroFile"
                     />
                     
                     <div v-if="UserAllData" class="second-bar">
@@ -96,23 +102,27 @@
                             <div v-if="UserAllData.recommend !== null" class="record">    
                                 <p class="record-inner" v-html="urlCheck(UserAllData.recommend)"></p>
                             </div>
-                            <div v-if="albumImages && albumImages.length" class="record">    
+                            <!-- <div v-if="albumImages && albumImages.length" class="record">    
                                 <div class="recordFile">                                                
                                     <div class="recordFile-inner">                                        
-                                        <swiper class="swiper" :space-between="10" style="border:none;" >
-                                            <swiper-slide v-for="(image, index) in images" :key="index" style="background-color:var(--kebab-bg1);">
-                                                <img @click="previewImage(image, index)" class="cursor-pointer" :src="`${$store.state.baseLocation}/user_files/${UserAllData.id}/${image.id}_${image.user_id}_${image.path}.${image.extension}`" style="width: auto;max-width: 100%;max-height: 130px;padding:10px;">
-                                            </swiper-slide>                                                           
-                                        </swiper>        
+                                        <div class="swiper-user" style="border:none;" >
+                                            <div class="swiper-wrapper">
+                                                <div class="swiper-slide" v-for="(image, index) in images" :key="index">
+                                                    <img @click="previewImage(image, index)" class="cursor-pointer" :src="`${$store.state.baseLocation}/user_files/${UserAllData.id}/${image.id}_${image.user_id}_${image.path}.${image.extension}`" style="width: auto;max-width: 100%;max-height: 130px;padding:10px;">
+                                                </div>  
+                                            </div>                                                     
+                                        </div>        
                                         <div class="file-area-content hasMessage" style="gap: 10px;">
-                                            <div @click="previewFile(file, index)" :key="index" class="file-wrap-rec" v-for="(file, index) in files">   
-                                                <FileIcon :ext="file.extension"/>
-                                                <p class="shared-file-name">{{fileNameFilter(file.name, file.extension)}}</p>                                            
+                                            <div @click="previewFile(file, index)" :key="index" class="file-wrap-rec" v-for="(file, index) in files">
+                                                <div class="file-area-container" style="flex-direction: row;">
+                                                    <FileIcon :ext="file.extension"/>
+                                                    <p class="shared-file-name">{{fileNameFilter(file.name, file.extension)}}</p>  
+                                                </div>   
                                             </div> 
                                         </div>                                                      
                                     </div>
                                 </div>
-                            </div>
+                            </div> -->
                             <div v-if="UserAllData.awareness!== null" class="title">
                                 <p class="record-inner">自己認識</p>
                             </div>
@@ -136,11 +146,9 @@
 
 import UserInfoEdit from './UserEditComps/UserInfoEdit.vue';
 import UserIconEdit from './UserEditComps/UserIconEdit.vue';
-import UserSettingEdit from './UserEditComps/UserSettingEdit.vue';
-import UserQRCode from './UserQRCode.vue'
 import HamBurger from '../Global/HamBurger.vue'
 import Salary from './Issue/Salary.vue'
-import { Swiper, SwiperSlide } from 'swiper/vue';
+import Swiper from 'swiper';
 import 'swiper/css'
 import Autolinker from 'autolinker';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
@@ -157,17 +165,14 @@ export default {
             qrLock: false,
             introduceWindow: false,
             clapData: null,
+            introUpload: false,
         }
     },
     components:{
         UserInfoEdit,
         UserIconEdit,
-        UserSettingEdit,
-        UserQRCode,
         HamBurger,
         Salary,
-        Swiper,
-        SwiperSlide,
         FileIcon
     },
     created(){
@@ -179,8 +184,8 @@ export default {
         this.$store.commit('setMessageUsers', data)
     },
     mounted() {
+         
         this.UserAllData = this.$route.meta.data && Object.hasOwn(this.$route.meta.data, 'id') ? this.$route.meta.data : null;
-        console.log('ppppppppppp', this.UserAllData)
         document.body.style.height = '100%';
         document.body.style.position = 'fixed';
         document.body.style.overflow = 'hidden';
@@ -189,7 +194,11 @@ export default {
         }
         
         this.deviceWidth = window.innerWidth
-        window.addEventListener('resize', this.handleResize)  
+        window.addEventListener('resize', this.handleResize)
+        setTimeout(() => {
+            this.swiperCreate()
+        },);
+        
         // this.getTags()
     },   
     unmounted(){
@@ -226,6 +235,16 @@ export default {
             return []
             
         },
+        movExist(){
+            let album = []
+            if(this.UserAllData && this.UserAllData.user_album && this.UserAllData.user_album.length){
+                for(let mov of this.UserAllData.user_album){
+                    album.push(mov)
+                }
+                return album
+            }
+            return album
+        },
         images(){
             return this.albumImages.filter(ob => ob.mime_type == 'image')
         },
@@ -245,7 +264,26 @@ export default {
         }
     },
     methods: { 
-        iconColorFilter: function (ext) {
+        addIntroFile(){
+            console.log('aaa')
+            this.introUpload = true
+
+        },
+        swiperCreate(){
+            if(this.images && this.images.length){
+                new Swiper('.swiper-user', {
+                    slidesPerView: 2,
+                    spaceBetween: 10,
+                    breakpoints: {
+                        640: {
+                            slidesPerView: 5,
+                            spaceBetween: 20,
+                        },
+                    }
+                })
+            }
+        },
+        iconColorFilter(ext) {
             var extensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
                 "doc", "docm", "docx", "dot", "dotx",
                 "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx",
@@ -281,37 +319,46 @@ export default {
             }            
         },
         fileNameFilter(name, ext) {
-            var str_lenght = name.length;
-            if (str_lenght > 8) {
-                var sliced = name.slice(0, 8) + " ..." + ext;
-                return sliced;
+            if(name){
+                var str_lenght = name.length;
+                if (str_lenght > 20) {
+                    var sliced = name.slice(0, 20) + " ..." + ext;
+                    return sliced;
+                }
+                return name;
             }
-            return name;
-
+            
+            return ''
         },   
         previewFile(file, index){
-                
+            const files = this.files.map(fileData => ({
+                ...fileData,
+                file_path: `${this.$store.state.baseLocation}/user_files/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+            }));     
             const data = {
                 active: true,
-                files: this.files,
+                files,
                 target: file,
                 source: 'user',
                 source_board_id: null,
                 index: index,
-                message: null
+                message: null,
             }
             this.$store.commit('setFilePreview', data)
         },
         previewImage(file, index){
-                
+            const files = this.images.map(fileData => ({
+                ...fileData,
+                file_path: `${this.$store.state.baseLocation}/user_files/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+            }));   
             const data = {
                 active: true,
-                files: this.images,
+                files,
                 target: file,
                 source: 'user',
                 source_board_id: null,
                 index: index,
-                message: null
+                message: null,
             }
             this.$store.commit('setFilePreview', data)
         },
@@ -345,7 +392,7 @@ export default {
                             }
                             
                         }
-                        window.document.title = `プロフィール - ${response.data.name}`; 
+                        
                     }                    
 
                 }).catch(function (error) {
@@ -411,6 +458,16 @@ export default {
 }
 </script>
 <style lang="scss" scoped>
+.menuLink{
+    text-decoration: none;
+}
+.menuLink:hover{
+    text-decoration: none;
+    font-weight: 400;
+}
+.recordFile-inner{
+    overflow: hidden;
+}
 .private-wrapper{
     width: 100%;
     height: 100%;

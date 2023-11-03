@@ -157,7 +157,7 @@ import moment from 'moment'
         position: absolute;
         top: 40px;
         box-shadow: 0 1px 2px 0 rgb(60 64 67 / 30%), 0 2px 6px 2px rgb(60 64 67 / 15%);
-        z-index: 15;
+        z-index: 25;
     }
     .grid-item {
         height: 50px;

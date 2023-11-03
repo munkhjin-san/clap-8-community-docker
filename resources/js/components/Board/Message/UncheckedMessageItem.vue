@@ -61,7 +61,7 @@
                         :message="message"
                         :reminder="reminder"
                     /> 
-                    <button v-if="message.message_remind_users" style="padding: 5px 10px 5px 10px;
+                    <button v-if="message.message_remind_users && message.message_remind_users.length" style="padding: 5px 10px 5px 10px;
                         font-size: 12px;
                         line-height: 1.5;
                         border-radius: 0px;

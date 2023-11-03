@@ -81,7 +81,8 @@
                         @editSend="editSend"
                         @deleteSend="deleteConfirm"
                         @shareTo="shareTo"
-                        @copyText="copyText"/>
+                        @copyText="copyText"
+                        @setEditing="setEditing"/>
                 </div>            
             </div> 
         </div>
@@ -122,7 +123,7 @@ export default {
         };
     },
     mounted() {
-        this.getMemo();
+        this.getMemo('mounted');
         if (this.$store.state.sharingData && this.$store.state.sharingData.to == 'memo') {
             this.memoCreateWindow = true;
         }
@@ -134,9 +135,18 @@ export default {
                 }, 0);
             }
         });
+        emitter.on('pusher-event', (e) => {
+
+            if(e.message.memo_updated && e.message.memo_updated.board_id == this.$store.state.activeBoard.id && e.message.memo_updated.from !== this.$store.state.user.id){
+                
+                this.getMemo('pusher')
+            }
+        })
+    },
+    unmounted(){
+        // this.setEditing(false)
     },
     created() {
-        this.$store.commit("setFileInstance", null);
     },
     watch: {
         memoCreateWindow(after, before) {
@@ -161,7 +171,7 @@ export default {
             }
         },
         ftSelector(after, before) {
-            this.getMemo();
+            this.getMemo('selectorchanged');
         }
     },
     computed: {
@@ -206,6 +216,20 @@ export default {
         }, 
     },  
     methods: {
+        setEditing(id, val){
+            if(this.$store.state.activeBoard.private_flag == 3) return
+            axios.post("/set_editing_memo", {id: id, value: val, board_id: this.$store.state.activeBoard.id}).then(response => {
+                if(val){
+                    // this.getMemo('setEdit');
+                }
+                
+            }).catch((error) => {
+                if (error.response) this.errorToast(this.$t(error.response.data.message))
+                else if (error.request) this.errorToast(this.$t('commonError'))
+                else this.errorToast(this.$t('commonError')) 
+            });
+
+        },
         copyText(text){
             navigator.clipboard.writeText(text)
             .then(() => {
@@ -279,12 +303,17 @@ export default {
         editSend(data) {
             this.loading = false;
             axios.post("/edit_memo", data).then(response => {
-                this.getMemo();
+                // this.getMemo('afteredit');
                 this.loading = false;
-                this.editAble = null;
+                if(data.id == this.editAble){
+                    this.editAble = null;
+                }
+                
             }).catch(function (error) {
                 this.loading = false;
-                this.editAble = null;
+                if(data.id == this.editAble){
+                    this.editAble = null;
+                }
                 if (error.response)
                     this.errorToast(this.$t('unknownError') + error.response.data.message);
                 else if (error.request)
@@ -300,6 +329,7 @@ export default {
                 content: message,
                 closeButton: true, 
                 autoClose: true,
+                answers: ['OK']
 
             }) 
         },
@@ -309,11 +339,15 @@ export default {
         },
         deleteSend(id) {
             axios.post("/delete_memo", { id: id }).then(response => {
-                this.getMemo();
-                this.editAble = null;
+                this.getMemo('afterdelete');
+                if(id == this.editAble){
+                    this.editAble = null;
+                }
             }).catch(function (error) {
                 this.loading = false;
-                this.editAble = false;
+                if(id == this.editAble){
+                    this.editAble = null;
+                }
                 if (error.response)
                     this.errorToast(this.$t('unknownError') + error.response.data.message);
                 else if (error.request)
@@ -342,7 +376,7 @@ export default {
                 message_id: null
             };
             axios.post("/add_memo", data).then(response => {
-                this.getMemo();
+                this.getMemo('afteradd');
                 this.createCancel();
                 this.loading = false;
             }).catch(function (error) {
@@ -371,7 +405,8 @@ export default {
             }
             this.addMemo();
         },
-        getMemo() {
+        getMemo(from) {
+            console.log(from)
             axios.post("/get_memo_api", { record_id: this.memoPathSwitcher.id }).then(response => {
                 this.memoList = response.data;
             });

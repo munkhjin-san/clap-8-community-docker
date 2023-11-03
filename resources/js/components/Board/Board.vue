@@ -284,7 +284,7 @@
                         }
                         if(targetBoard.length){
                             
-                            this.openBoard(targetBoard[0], 'watch')    
+                            // this.openBoard(targetBoard[0], 'watch')    
                             
                                                                         
                         }
@@ -317,7 +317,6 @@
                 //         this.$i18n.locale = 'en'
                 //     }
                 // }
-                window.document.title = `ボード`; 
             },    
             unmounted() {
                 this.$store.commit('setMenu', {name: '', id: null})
@@ -512,11 +511,17 @@
                         id: id
                     }).then(response => {
                         if(response.status == 200){
-                            if(this.openedBoard && this.openedBoard.id == id){
-                                console.log('qweqweqweqwe')
+                            if(this.openedBoard && this.openedBoard.id == id){                                
                                 this.closeMessageContainer()
                             }
                             this.getBoardList()
+                            const data = {
+                                text: '削除しました。',
+                                channel: Math.random().toString(36).substring(5),
+                                icon: 0,
+                                view: true
+                            }
+                            emitter.emit('setInfo', data)
                         }
                                     
                     });
@@ -543,14 +548,20 @@
                                 this.closeMessageContainer()
                             }
                             this.getBoardList()
+                            const data = {
+                                text: '退出しました。',
+                                channel: Math.random().toString(36).substring(5),
+                                icon: 0,
+                                view: true
+                            }
+                            emitter.emit('setInfo', data)
                         }
                                    
                 
                     }).catch(function (error) {
                         if (error.response) this.errorToast(this.$t(error.response.data.message))
                         else if (error.request) this.errorToast(this.$t('commonError'))
-                        else this.errorToast(this.$t('commonError'))       
-                        this.$store.commit('setUrlMessageId', null)                           
+                        else this.errorToast(this.$t('commonError'))                           
                     }.bind(this));
                 },
                 setInvite(board){
@@ -660,40 +671,31 @@
                 },
                 jumpToMessage(message){
                     
-                    // var width = window.innerWidth
-                    // || document.documentElement.clientWidth
-                    // || document.body.clientWidth;
-                    // if(width > 959){
-                        axios.post('/get_target_message', message).then(response => {  
-                            
-                            let board = this.allBoardList.filter( obj => obj.id == message.record_id);
-                            if(board.length){
-                                this.openBoard(board[0], 'search')
-                                setTimeout(() => {
-                                    document.getElementById('board_item_' + board[0].id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) 
-                                },100)                         
-                                this.messageList = response.data;
-                                this.messageContainerKey ++;
-                                this.messageLoader = false
-                                this.searchMessageView = false
-                                this.searchTargetId = message.id                        
-                                this.messageListType = 'search'                        
-                            }
-                            this.appendLock = false              
-                    
-                        }).catch(function (error) {
-                            if (error.response) this.errorToast(this.$t(error.response.data.message))
-                            else if (error.request) this.errorToast(this.$t('commonError'))
-                            else this.errorToast(this.$t('commonError'))       
-                            this.$store.commit('setUrlMessageId', null)                           
-                        }.bind(this));
-                    // }else{
-                    //     let board = this.allBoardList.filter( obj => obj.id == message.record_id);
-                    //     if(board.length){
-                    //         this.openBoard(board[0], 'search', message)
-                    //     }
-                    //     this.closeMessageSearch
-                    // }
+                    this.messageLoader = true
+                    axios.post('/get_target_message', message).then(response => {  
+                        
+                        let board = this.allBoardList.filter( obj => obj.id == message.record_id);
+                        if(board.length){
+                            this.openBoard(board[0], 'search')
+                            setTimeout(() => {
+                                document.getElementById('board_item_' + board[0].id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) 
+                            },100)                         
+                            this.messageList = response.data;
+                            this.messageContainerKey ++;
+                            this.messageLoader = false
+                            this.searchMessageView = false
+                            this.searchTargetId = message.id                        
+                            this.messageListType = 'search'                        
+                        }
+                        this.appendLock = false              
+                
+                    }).catch(function (error) {
+                        if (error.response) this.errorToast(this.$t(error.response.data.message))
+                        else if (error.request) this.errorToast(this.$t('commonError'))
+                        else this.errorToast(this.$t('commonError'))       
+                        this.$store.commit('setUrlMessageId', null)   
+                        this.messageLoader = false                        
+                    }.bind(this));
                 },
                 errorToast(message){
                     emitter.emit('setToast', {
@@ -891,6 +893,7 @@
                     }
                 },
                 openBoard(item, second_atr, message){
+                    console.log('open')
                         this.messageLoader = true
                         this.openedBoardId = item.id           
                         this.pageIndex = 1;
@@ -962,10 +965,6 @@
                     this.$store.commit('setActiveBoard', item);
                     this.$store.commit('setBoardList',this.allBoardList)
                     
-                    const b_title = this.boardTitle(item)
-                    if(b_title){
-                        window.document.title = `ボード - ${b_title}`; 
-                    }
                     
                     
                 },

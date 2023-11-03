@@ -132,7 +132,7 @@
             //         this.$i18n.locale = 'en'
             //     }
             // }
-            window.document.title = `ログイン`; 
+            window.document.title = `CLAP - ログイン`; 
         },
         methods: {
             // changeLogin(){
@@ -164,8 +164,8 @@
                     }).then(response => {
                         // Handle successful login
                         const url = this.intended ? this.intended : '/'
-                        window.location.href = url
-                        this.processing = false
+                        window.location.href = url.includes('login') ? '/' : url
+                        // this.processing = false
                     })
                     .catch(error => {
                         // Handle login error
@@ -189,9 +189,9 @@
                             }else{
                                 this.loginError = this.$t('loginError')
                             }
-                       }else{
-                            this.loginError = this.$t('loginError')
-                       }
+                        }else{
+                                this.loginError = this.$t('loginError')
+                        }
                     });
                 }else{
                     this.vali = true
