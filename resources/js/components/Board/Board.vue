@@ -279,12 +279,10 @@
                     if(chatId){
                         const targetBoard = this.allBoardList.filter(ob => ob.id == chatId)
                         if(this.routeWatchLock){
-                            this.routeWatchLock = false
                             return
                         }
                         if(targetBoard.length){
-                            
-                            // this.openBoard(targetBoard[0], 'watch')    
+                            this.openBoard(targetBoard[0], 'watch')    
                             
                                                                         
                         }
@@ -953,10 +951,11 @@
                         }
                         this.trayComponentKey ++;
                         this.searchWindowKey ++;
-                        if(second_atr == 'search'){
-                            this.routeWatchLock = true
-                        }
+                        this.routeWatchLock = true
                         this.$router.push(`/board/${item.id}`);
+                        setTimeout(() => {
+                            this.routeWatchLock = false
+                        }, 100);
 
                     const mentionable = item.board_to_users.filter(ob => ob.user_id !== this.$store.state.user.id && ob.user)
                     this.$store.commit('setMentionAbleUsers',mentionable)

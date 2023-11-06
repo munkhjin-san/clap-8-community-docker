@@ -88,6 +88,11 @@
                 if(!newVal.includes(oldVal) && !oldVal.includes(newVal)){
                     this.incompleteCall()
                 }
+                this.$store.commit('setMessageUsers', {
+                    active: false,
+                    userList: [],
+                    title: ''
+                })
             }
         },
         unmounted(){
