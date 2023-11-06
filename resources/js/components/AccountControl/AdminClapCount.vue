@@ -120,13 +120,16 @@ export default {
 }
 
 #customers td, #customers th {
-  border: 1px solid #ddd;
+  border: 1px solid var(--formBorder);
   padding: 8px;
 }
 
-#customers tr:nth-child(even){background-color: #f2f2f2;}
+#customers tr:nth-child(even){background-color:var(--bg3)}
 
-#customers tr:hover {background-color: #ddd;}
+#customers tr:hover {
+    background-color: var(--primary-color);
+    color: var(--background-color);
+}
 
 #customers th {
   padding-top: 12px;
