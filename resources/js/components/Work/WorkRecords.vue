@@ -43,19 +43,19 @@
                                 <p v-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time_edit_flag == 0" :class="lateTimeGenerate(day.time_card_records?.[day.day_full]?.[user.id]?.start_time, day.day_full, user.id)">
                                     {{ $store.state.mobile
                                         ? (day.time_card_records?.[day.day_full]?.[user.id]?.start_time
-                                          ? '出勤：' + formatTime(day.time_card_records[day.day_full][user.id].start_time)
+                                          ? '出勤：' + formatTime(day.time_card_records[day.day_full][user.id].start_time, 'start')
                                           : ' ')
                                         : (day.time_card_records?.[day.day_full]?.[user.id]?.start_time
-                                          ? formatTime(day.time_card_records[day.day_full][user.id].start_time)
+                                          ? formatTime(day.time_card_records[day.day_full][user.id].start_time, 'start')
                                           : '--') }}
                                 </p>
                                 <p class="timeEdit" title="勤務時間変更あり" v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time_edit_flag == 1" :class="lateTimeGenerate(day.time_card_records?.[day.day_full]?.[user.id]?.start_time, day.day_full, user.id)">
                                     {{ $store.state.mobile
                                         ? (day.time_card_records?.[day.day_full]?.[user.id]?.start_time
-                                          ? '出勤：' + formatTime(day.time_card_records[day.day_full][user.id].start_time)
+                                          ? '出勤：' + formatTime(day.time_card_records[day.day_full][user.id].start_time, 'start')
                                           : ' ')
                                         : (day.time_card_records?.[day.day_full]?.[user.id]?.start_time
-                                          ? formatTime(day.time_card_records[day.day_full][user.id].start_time)
+                                          ? formatTime(day.time_card_records[day.day_full][user.id].start_time, 'start')
                                           : '--') }}
                                           {{ $store.state.mobile ? '※勤務時間変更あり' : '' }}
                                 </p>
@@ -68,12 +68,12 @@
                                     {{ $store.state.mobile ? 
                                         (day.time_card_records?.[day.day_full]?.[user.id]?.start_time
                                         ? (day.time_card_records?.[day.day_full]?.[user.id]?.end_time
-                                            ? '退勤：' + formatTime(day.time_card_records?.[day.day_full]?.[user.id]?.end_time)
+                                            ? '退勤：' + formatTime(day.time_card_records?.[day.day_full]?.[user.id]?.end_time, 'end')
                                             : '退勤： 打刻なし')
                                         : ' ')
                                         : (day.time_card_records?.[day.day_full]?.[user.id]?.start_time
                                             ? (day.time_card_records?.[day.day_full]?.[user.id]?.end_time
-                                                ? formatTime(day.time_card_records?.[day.day_full]?.[user.id]?.end_time)
+                                                ? formatTime(day.time_card_records?.[day.day_full]?.[user.id]?.end_time, 'end')
                                                 : '打刻なし')
                                             : '--')
                                     }}
@@ -82,12 +82,12 @@
                                     {{ $store.state.mobile ? 
                                         (day.time_card_records?.[day.day_full]?.[user.id]?.start_time
                                         ? (day.time_card_records?.[day.day_full]?.[user.id]?.end_time
-                                            ? '退勤：' + formatTime(day.time_card_records?.[day.day_full]?.[user.id]?.end_time)
+                                            ? '退勤：' + formatTime(day.time_card_records?.[day.day_full]?.[user.id]?.end_time, 'end')
                                             : '退勤： 打刻なし')
                                         : ' ')
                                         : (day.time_card_records?.[day.day_full]?.[user.id]?.start_time
                                             ? (day.time_card_records?.[day.day_full]?.[user.id]?.end_time
-                                                ? formatTime(day.time_card_records?.[day.day_full]?.[user.id]?.end_time)
+                                                ? formatTime(day.time_card_records?.[day.day_full]?.[user.id]?.end_time, 'end')
                                                 : '打刻なし')
                                             : '--')
                                     }}
@@ -286,8 +286,8 @@
                     @reload="reload"
                     @closeModal="closeModal"
                     :chosenDate="chosenDate"
-                    :todayStartTime="formatTime(todayStartTime)"
-                    :todayEndTime="formatTime(todayEndTime)"
+                    :todayStartTime="formatTime(todayStartTime, 'start')"
+                    :todayEndTime="formatTime(todayEndTime, 'end')"
                     :todayBreakTime="todayBreakTime"
                     :customFieldData="customFieldData"
                     :info="info"
@@ -587,12 +587,28 @@
                 }
                 
             },
-            formatTime(time){
+            formatTime(time, val){
                 if(!time) return '--'
                 
                 if(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(time)){
-                    const date = new Date(`2000-01-01T${time}`)
-                    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                    var date = new Date("2000-01-01T" + time); // get current date
+                    var minutes = date.getMinutes();
+                    if(val == 'start'){
+                        var rounded = Math.ceil(minutes / 15) * 15;
+                    }else if(val == 'end'){
+                        var rounded = Math.floor(minutes / 15) * 15;
+                    }
+                    date.setMinutes(rounded);
+                    date.setSeconds(0);
+                    var hours = date.getHours();
+                    var minutes = date.getMinutes();
+
+                    // pad with zero if needed
+                    hours = hours < 10 ? '0' + hours : hours;
+                    minutes = minutes < 10 ? '0' + minutes : minutes;
+                    let roundedTime = hours + ':' + minutes
+                    return roundedTime
+
                 }else if(time === '打刻なし'){
                     return time
                 }
@@ -661,8 +677,20 @@
                 }.bind(this))
             },
             lateTimeGenerate(start_time, day, userId) {
-                if (start_time && this.shiftStartTime && userId == this.auth_user.id) {
-                    const value_start_s = new Date(day + ' ' + start_time).getTime();
+                var date = new Date("2000-01-01T" + start_time); // get current date
+                var minutes = date.getMinutes();
+                var rounded = Math.ceil(minutes / 15) * 15;
+                date.setMinutes(rounded);
+                date.setSeconds(0);
+                var hours = date.getHours();
+                var minutes = date.getMinutes();
+
+                // pad with zero if needed
+                hours = hours < 10 ? '0' + hours : hours;
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                let roundedTime = hours + ':' + minutes
+                if (roundedTime && this.shiftStartTime && userId == this.auth_user.id) {
+                    const value_start_s = new Date(day + ' ' + roundedTime).getTime();
                     const shift_start_s = new Date(day + ' ' + this.shiftStartTime).getTime();
                     
                     return value_start_s > shift_start_s ? 'late-class' : null;
@@ -670,8 +698,20 @@
                 
             },
             overTimeGenerate(end_time, day, userId) {
-                if(end_time && this.shiftEndTime && userId == this.auth_user.id){
-                    const value_end_s = new Date(day + ' ' + end_time).getTime();
+                var date = new Date("2000-01-01T" + end_time); // get current date
+                var minutes = date.getMinutes();
+                var rounded = Math.floor(minutes / 15) * 15;
+                date.setMinutes(rounded);
+                date.setSeconds(0);
+                var hours = date.getHours();
+                var minutes = date.getMinutes();
+
+                // pad with zero if needed
+                hours = hours < 10 ? '0' + hours : hours;
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                let roundedTime = hours + ':' + minutes
+                if(roundedTime && this.shiftEndTime && userId == this.auth_user.id){
+                    const value_end_s = new Date(day + ' ' + roundedTime).getTime();
                     const shift_end_s = new Date(day + ' ' + this.shiftEndTime).getTime();
                      
                     if (value_end_s > shift_end_s) {
