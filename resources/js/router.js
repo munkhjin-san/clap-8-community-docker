@@ -178,7 +178,14 @@ const routes = [
             document.body.style.height = '100%';
             document.body.style.position = 'fixed';
             document.body.style.overflow = 'hidden';
-            next();
+            const rootElement = document.getElementById('app');
+            const userId = parseInt(rootElement.getAttribute('data-user-id'));
+            const viewTrayUsers = [608, 610]
+            if(!viewTrayUsers.includes(userId)){
+                next({name:'board'});
+            }else{
+                next();
+            }
         }, 
     },
     {
