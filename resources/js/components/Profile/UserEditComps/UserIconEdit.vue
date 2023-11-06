@@ -64,9 +64,11 @@
                 <div style="font-size: 20px;margin-bottom: 20px;display:flex;justify-content:center;gap:5px;position:relative" v-if="UserAllData.name !== null">
                     <p><span>{{UserAllData.name}}</span></p>
                     <img @click.stop="updateWeather" style="cursor: pointer;" v-if="weathers" :src="'/images/icon_' + weathers.value_int + '.svg'" alt="Weather Icon" width="20" height="20" />
-                    <!-- <Transition name="downShiftPop">
-                        <WeatherUpdater v-if="$store.state.menu.name == 'weatherUpdater' && $store.state.menu.id == $store.state.user.id"/>
-                    </Transition> -->
+                    <Transition name="downShiftPop">
+                        <WeatherUpdater 
+                            v-if="$store.state.menu.name == 'weatherUpdater' && $store.state.menu.id == $store.state.user.id" 
+                            @reload="$emit('updateUser')"/>
+                    </Transition>
                 </div>
                 <div style="display:flex; font-size:12px;justify-content:center;" v-if="userDaysWeather.length">
                     <div v-for="(weather, index) in userDaysWeather" :key="index">
@@ -209,7 +211,7 @@
                 targetId: this.UserAllData.id,
                 uploadingProgress: 0,
                 orgImage: null,
-                weathers: this.UserAllData.weathers,
+                
                 iconSwiper: null,
                 viewAlbum: false,
                 tagText: '',
@@ -225,6 +227,9 @@
             WeatherUpdater
         },
         computed: {
+            weathers(){
+                return this.UserAllData.weathers
+            },
             userDaysWeather(){
                 const weathers = this.UserAllData.days_weathers
                 return weathers.sort((a, b) => new Date(a.date) - new Date(b.date));

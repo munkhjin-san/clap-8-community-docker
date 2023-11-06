@@ -160,7 +160,7 @@ class User extends Authenticatable
         return $this->hasOne(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int')->where('type_id', 43)->where('date', $today);
     }
     public function days_weathers(){
-        return $this->hasMany(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int', 'date');
+        return $this->hasMany(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int', 'date', 'id');
     }
     public function files(){
         return $this->belongsToMany(UserAlbum::class, 'user_albums', 'user_id', 'id');

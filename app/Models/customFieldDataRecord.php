@@ -32,4 +32,6 @@ class customFieldDataRecord extends Model
         'value_int' => 'int',
         'deleted_flag' => 'int',
     ];
+
+    protected $fillable = ['value_int'];
 }

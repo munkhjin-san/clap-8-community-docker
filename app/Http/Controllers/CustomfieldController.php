@@ -56,16 +56,27 @@ class CustomfieldController extends Controller{
     }
 
     public function saveWeather(Request $request){
-        $auth_user_id = Auth::id();
-        $custom_field_data = new customFieldDataRecord;
-        $custom_field_data->field_id = 7;
-        $custom_field_data->type_id = 43;
-        $custom_field_data->app_name = 'work';
-        $custom_field_data->date = $request->today;
-        $custom_field_data->user_id = $auth_user_id;
-        $custom_field_data->value_int = $request->value;
-        $custom_field_data->save();
-        return response()->json($custom_field_data);
+        $exists = customFieldDataRecord::where('user_id', Auth::id())->where('date', $request->today)->where('field_id', 7)->where('type_id', 43)->where('app_name', 'work')->get();
+
+        if(count($exists)){
+            foreach($exists as $exist){
+                $exist->update(['value_int' => $request->value]);
+            }            
+            return response()->json($exists);
+        }else{
+            $auth_user_id = Auth::id();
+            $custom_field_data = new customFieldDataRecord;
+            $custom_field_data->field_id = 7;
+            $custom_field_data->type_id = 43;
+            $custom_field_data->app_name = 'work';
+            $custom_field_data->date = $request->today;
+            $custom_field_data->user_id = $auth_user_id;
+            $custom_field_data->value_int = $request->value;
+            $custom_field_data->save();
+            return response()->json($custom_field_data);
+        }
+
+
     }
 
 

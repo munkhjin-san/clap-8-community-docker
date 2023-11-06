@@ -34,7 +34,7 @@
                   </label>
                 </li>
                 <li><input type="radio" v-on:change="saveWeather" name="test" id="cb3" v-model="weatherSelect" :value="2"/>
-                  <label for="cb3" style="padding: 0;">
+                  <label for="cb3" style="padding: 0;border-color: none;">
                     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/" version="1.1" x="0px" y="0px" width="20" height="20" viewBox="-0.5 -15.755 80 80" enable-background="new -0.5 -15.755 80 80" xml:space="preserve">
                       <defs>
                       </defs>
@@ -80,41 +80,44 @@
     
     import moment from 'moment';
     export default {
+        emits: ['reload'],
         data(){
-          return{
-            weatherSelect: null,
-            viewWeatherComponent: false,
-          }
+            return{
+                weatherSelect: null,
+                viewWeatherComponent: false,
+            }
         },
         mounted(){
         },
         methods: {
           
-          saveWeather(){
+        saveWeather(){
             let today = moment().local().format('YYYY-MM-DD') 
-              axios.post('/save_weather', {today, value: this.weatherSelect} ).then(
-              response => {
-                  const user_id = this.$store.state.user.id
-                  localStorage.setItem('weather_' + user_id, today)
+            axios.post('/save_weather', {today, value: this.weatherSelect} ).then(
+                response => {
+                    const user_id = this.$store.state.user.id
+                    localStorage.setItem('weather_' + user_id, today)
+                    this.$emit('reload')
+                    this.$store.commit('setMenu', {id: null, name: ''})
                 }
-              ).catch(function (error) {
+            ).catch(function (error) {
                 if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                 else if (error.request) this.errorToast('エラーが発生しました。')
                 else this.errorToast('エラーが発生しました。 ' + error.message)     
-              }.bind(this));
+            }.bind(this));
               
-          },
-            errorToast(message){
-              emitter.emit('setToast', {
-                  active: true,  
-                  type: 'info', 
-                  content: message,
-                  closeButton: false, 
-                  autoClose: false,
-                  answers: ['OK']
+        },
+        errorToast(message){
+            emitter.emit('setToast', {
+                active: true,  
+                type: 'info', 
+                content: message,
+                closeButton: false, 
+                autoClose: false,
+                answers: ['OK']
 
-              })                
-            },
+            })                
+        },
         }
     }
 </script>
@@ -194,11 +197,8 @@
         width: 100px;
         transition-duration: 0.2s;
         transform-origin: 50% 50%;
-      }
-      
-      :checked + label {
-        border-color: #ddd;
-      }
+      }    
+
       
       
       
@@ -211,9 +211,6 @@
             font-size: 16px;
             word-break: break-word;
         }
-        .list-wrapper{
-            
-            max-width: 75%;
-        }
+        
       }
 </style>
