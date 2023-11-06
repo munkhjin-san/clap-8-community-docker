@@ -300,14 +300,21 @@ class UserController extends Controller{
     public function save_intro(Request $request){
         if($request->uploadedImages){
             $user_album = $this->tempToServer($request);
-            foreach ($request->tags as $text) {
-                $tag = TagRecord::firstOrCreate(['text' => $text]);
-                $tagIds[] = $tag->id;
-            }
+        }
+        foreach ($request->tags as $text) {
+            $tag = TagRecord::firstOrCreate(['text' => $text]);
+            $tagIds[] = $tag->id;
+        }
+        if($user_album){
             $user_album->original->tags()->sync($tagIds);
             $user_album->original->title = $request->title;
             $user_album->original->save();
+        }else if($request->id){
+            $userAlbum_id = UserAlbum::findOrFail($request->id);
+            $userAlbum_id->title = $request->title;
+            $userAlbum_id->save();
         }
+        
         if($request->canceledImageIds){
             $this->cancelFile($request);
         }

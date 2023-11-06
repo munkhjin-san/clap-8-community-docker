@@ -78,7 +78,10 @@
         methods: {
             saveAlbum(){
                 if(this.processing) return
+
+                
                 const params = {
+                    id: this.editData ? this.editData.id : null,
                     title: this.introTitle,
                     uploadedImages : this.userAlbumbs.length ? this.userAlbumbs : [],
                     intro_flag : 1,

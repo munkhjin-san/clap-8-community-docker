@@ -70,6 +70,7 @@ class WorkController extends Controller
         $time_card_record = timecardRecord::whereYear('day', $currentYear)
             ->whereMonth('day', $currentMonth)
             ->whereIn('user_id', $users_list)
+            ->where('deleted_flag', 0)
             ->with([
                 'custom_field_data_records' => function ($q) use($users_list){
                     $q->whereIn('type_id', [37, 40, 39, 41])->whereIn('user_id', $users_list)->orderBy('created_at', 'desc');
@@ -376,7 +377,7 @@ class WorkController extends Controller
         return $roundedTime->setMinute($roundedMinutes)->format('H:i:s');
     }
     public function addData(Request $request){
-        $time_card = timecardRecord::where('month', '2023-10')->where('deleted_flag', 0)->get();
+        $time_card = timecardRecord::where('deleted_flag', 0)->get();
         foreach($time_card as $card){
             $user = User::select('work_time_day', 'work_type', 'id', 'name')->findOrFail($card->user_id);
             

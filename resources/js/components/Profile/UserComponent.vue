@@ -269,9 +269,7 @@ export default {
             this.introUpload = true
         },
         addIntroFile(){
-            console.log('aaa')
             this.introUpload = true
-
         },
         swiperCreate(){
             if(this.images && this.images.length){

@@ -12,6 +12,10 @@ use App\Models\positionRecord;
 use App\Models\officeRecord;
 use App\Models\workGroup;
 use App\Models\workGroupUser;
+use App\Models\NiceRecord;
+use App\Models\KnowledgeRecord;
+use App\Models\ChallengeRecord;
+use App\Models\ClapRecord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File; 
@@ -360,6 +364,61 @@ class AdminAccountController extends Controller
         }
 
         return 'deleted';
+    }
+    public function clap_statistics(Request $request) {      
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];  
+        $all_users = User::where('deleted_flag', '=', 0)
+        ->where('hide_flag', '=', 0)
+        ->where('partner_flag', '=', 0)
+        ->whereNotIn('name',  $ng_list)
+        ->select('id', 'name')
+        ->get();
+        $clap_data = [];
+        $claps = [];
+        $from = date($request->start . ' 00:00:00');
+        $to = date($request->end . ' 23:59:59');
+
+        
+        foreach($all_users as $user){
+            $var_id = $user->id;
+
+            $nice_from = $niceFrom = NiceRecord::where('deleted_flag', '=', 0)->whereBetween('created_at', [$from, $to])->where('user_id', '=', $var_id)->pluck('id')->toArray();
+            // return $nice_from;
+
+            $nice_to = NiceRecord::where('deleted_flag', '=', 0)->whereBetween('created_at', [$from, $to])->whereHas('to_users', function($q) use ($var_id){
+                $q->where('user_id', $var_id);
+            })->pluck('id')->toArray();
+
+            $merged = array_merge(array_diff($nice_from, $nice_to), array_diff($nice_to, $nice_from));
+
+            $knowledges = KnowledgeRecord::where('deleted_flag', 0)->where('user_id', $var_id)->pluck('id')->toArray();
+
+            $challenges = ChallengeRecord::where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->whereHas('to_users', function($q) use ($var_id){
+                $q->where('user_id', $var_id);
+            })->pluck('id')->toArray();
+
+            $knowledge_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'knowledge')->whereIn('record_id', $knowledges)->count();
+
+            $challenge_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'challenge')->whereIn('record_id', $challenges)->count();
+
+            $nice_from_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'nice')->whereIn('record_id', $merged)->count();
+
+            $sum = $nice_from_claps + $challenge_claps + $knowledge_claps;
+
+            $claps = [
+                "nice" => $nice_from_claps,
+                "challenge" => $challenge_claps,
+                "knowledge" => $knowledge_claps,
+                "sum" => $sum,
+                "name" => $user->name,
+                "id" => $user->id
+            ];
+            $clap_data[] = $claps; 
+
+        }
+
+        return response()->json($clap_data);
+
     }
     //
 }

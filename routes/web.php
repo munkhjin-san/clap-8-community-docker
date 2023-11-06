@@ -253,7 +253,8 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/work_group_sort', [AdminAccountController::class, 'workgroupSort']);
         // Admin Panel Work
         Route::post('/get_admin_work', [AdminWorkController::class, 'getAllMessage']);
-
+        // Admin clap statistics
+        Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
 
 
         //User

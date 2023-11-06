@@ -162,7 +162,7 @@
                     v-if="introUpload"
                     :UserAllData="UserAllData"
                     :editData="editData"
-                    @closeModal="$emit('closeModal')"
+                    @closeModal="closeModal()"
                     @updateUser="$emit('updateUser')"
                 />
             </Transition>
@@ -172,7 +172,7 @@
                     :tagText="tagText"
                     :tagAlbums="tagAlbums"
                     :targetId=targetId
-                    @closeModal="closeModal()"
+                    @closeModal="viewAlbum = false"
                 />
             </Transition>   
         </div>
@@ -211,7 +211,6 @@
                 targetId: this.UserAllData.id,
                 uploadingProgress: 0,
                 orgImage: null,
-                
                 iconSwiper: null,
                 viewAlbum: false,
                 tagText: '',
@@ -243,7 +242,7 @@
                 }
             },
             closeModal(){
-                this.viewAlbum = false
+                this.$emit('closeModal')
                 this.editData = null
             },
             viewalbumByTag(tag){

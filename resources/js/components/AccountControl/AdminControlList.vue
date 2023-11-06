@@ -16,6 +16,7 @@
                 <!-- <div class="admin-button" @click="mainMenu = 2" :class="{'is-active' : mainMenu == 2}">役職管理</div>
                 <div class="admin-button" @click="mainMenu = 3" :class="{'is-active' : mainMenu == 3}">事務所管理</div> -->
                 <div class="admin-button" @click="mainMenu = 5" :class="{'is-active' : mainMenu == 5}">ワーク管理</div>
+                <div class="admin-button" @click="mainMenu = 6" :class="{'is-active' : mainMenu == 6}">クラップ数集計</div>
             </div> 
         </div>
         <AdminAccount 
@@ -47,6 +48,10 @@
             :officeList="officeList"
             @getUsers="getUsers"
         />
+        <AdminClapCount 
+            v-if="mainMenu == 6"
+            :searchUser="searchUser"
+        />
     </div>
 </template>
 <script>
@@ -57,6 +62,7 @@
     import AdminWorkGroup from './AdminWorkGroup.vue'
     import AdminPosition from './AdminPosition.vue'
     import AdminOffice from './AdminOffice.vue'
+    import AdminClapCount from './AdminClapCount.vue'
     export default{
         data() {
             return {
@@ -126,7 +132,8 @@
             AdminWork,
             AdminWorkGroup,
             AdminPosition,
-            AdminOffice
+            AdminOffice,
+            AdminClapCount
         }
     }
 </script>
