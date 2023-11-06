@@ -6,7 +6,7 @@
                 <div class="side-menu-route-inner">   
                     <UserIcon :user="$store.state.user" imgClass="userMidIcon" size="25"/>
                     <div class="sideMenuUserName" style="white-space: break-spaces;display: flex;align-items: center;gap:5px;" v-if="$store.state.sideMenuView">{{ $store.state.user.name }}
-                        <img v-if="mood_val" :src="'/images/icon_' + mood_val.value_int + '.svg'" alt="Weather Icon" width="20" height="20" />
+                        <img v-if="todayWeather !== null" :src="`/images/icon_${todayWeather}.svg`" alt="Weather Icon" width="20" height="20" />
                     </div>
                 </div>
             </router-link>
@@ -106,7 +106,7 @@
 import UserIcon from '../Board/Mixed/UserIcon.vue';
 import GlowdNews from './GlowdNews.vue'
     export default {
-        props: ['session', 'auth_user', 'remember', 'totalBadge', 'boardBadge', 'mood_val'], 
+        props: ['session', 'auth_user', 'remember', 'totalBadge', 'boardBadge'], 
         
         data(){
             return{                
@@ -126,6 +126,12 @@ import GlowdNews from './GlowdNews.vue'
             GlowdNews
         },
         computed:{
+            todayWeather(){
+                if(this.$store.state.user && this.$store.state.user.weathers && this.$store.state.user.weathers.value_int !== null){
+                    return this.$store.state.user.weathers.value_int
+                }
+                return null
+            },
             newsItems(){
                 // return this.newsList.length ? this.newsList.slice(0, 5) : []
 

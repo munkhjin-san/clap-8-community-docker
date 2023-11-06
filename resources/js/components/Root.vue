@@ -5,7 +5,7 @@
                 <div @click="$store.commit('setSideMenuView', false)" v-if="$store.state.sideMenuView" class="overlay mobile" style="z-index: 26;"></div>
             </Transition>
 
-            <SideMenu :mood_val="mood_val" :board-badge="boardBadge" :total-badge="totalBadge" :auth_user="auth_user" :session="session" :remember="remember"/>
+            <SideMenu :board-badge="boardBadge" :total-badge="totalBadge" :auth_user="auth_user" :session="session" :remember="remember"/>
 
             <!-- <router-view :key="$route.name" /> -->
             <router-view :key="keyGen" :initial_date="initial_date"/>
@@ -20,7 +20,7 @@
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
 export default{
-    props: ['session', 'auth_user', 'remember', 'initial_date', 'mood_val'], 
+    props: ['session', 'auth_user', 'remember', 'initial_date'], 
     data(){
         return{
             differenceList: [],
