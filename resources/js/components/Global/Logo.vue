@@ -10,3 +10,20 @@
 
     </svg>
 </template>
+<style>
+.login-header > svg {
+  font-size: 3em;
+  margin-bottom: 25px;
+  width: 120px;
+  height: 60px;
+  fill: var(--primary-color);
+}
+@media screen and (max-width: 959px) {
+    .login-header > svg {
+        font-size: 2.5em;
+        width: 110px;
+        height: 35px;
+        margin-bottom: 15px;
+    }
+}
+</style>
