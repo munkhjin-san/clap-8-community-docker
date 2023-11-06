@@ -42,7 +42,7 @@
     import SharingData from '../Global/SharingData.vue'
     import FilePreview from '../Board/Tray/File/FilePreview.vue'
     export default {
-        props: ['auth_user'],
+        props: ['$store.state.user'],
         data() {
             return {
                 toast: {
@@ -124,15 +124,18 @@
         },
         methods:{
             incompleteCall(){
-                const string = '/user/' + this.auth_user.id
-                // const currentUrl = window.location.href;
-                // console.log(window.location)
-                if(window.location.pathname == string){
-                    this.viewIncompleteWindow = true
+                if(this.$store.state.user){
+                    const string = '/user/' + this.$store.state.user.id
+                    // const currentUrl = window.location.href;
+                    // console.log(window.location)
+                    if(window.location.pathname == string){
+                        this.viewIncompleteWindow = true
+                    }
+                    if (this.hasOneHourPassed(this.$store.state.user.id)) {
+                        this.viewIncompleteWindow = true
+                    }
                 }
-                if (this.hasOneHourPassed(this.auth_user.id)) {
-                    this.viewIncompleteWindow = true
-                }
+                
             },
             hasOneHourPassed(user_id) {
                 const lastCloseTime = localStorage.getItem('popupCloseTime_' + user_id);
@@ -147,16 +150,19 @@
                 return elapsedTime >= oneHour;
             },
             closePopup() {
-                const user_id = this.auth_user.id
-                const string = '/user/' + user_id
-                const currentUrl = window.location.href;
-                if(currentUrl.includes(string)){
-                    this.viewIncompleteWindow = false
-                }else{
-                    const currentTime = new Date().getTime();
-                    localStorage.setItem('popupCloseTime_' + user_id, currentTime);
-                    this.viewIncompleteWindow = false
+                if(this.$store.state.user){
+                    const user_id = this.$store.state.user.id
+                    const string = '/user/' + user_id
+                    const currentUrl = window.location.href;
+                    if(currentUrl.includes(string)){
+                        this.viewIncompleteWindow = false
+                    }else{
+                        const currentTime = new Date().getTime();
+                        localStorage.setItem('popupCloseTime_' + user_id, currentTime);
+                        this.viewIncompleteWindow = false
+                    }
                 }
+                
                 
             },
             closeModal(){

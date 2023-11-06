@@ -54,8 +54,9 @@
 </head>
 <body style="height:100%;">
     <div id="app" style="height:100%;width:100%;" data-user-id="{{ Auth::id() }}">
-    <over-ride :is-logged='@json(Auth::check())' :auth_user="{{Auth::user()}}"></over-ride>                
-        @if(Auth::check())                
+    <over-ride></over-ride>   
+        @if(Auth::check())     
+                      
             <form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
                 @csrf
             </form>                    
