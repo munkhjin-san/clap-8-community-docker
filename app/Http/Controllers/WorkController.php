@@ -283,37 +283,38 @@ class WorkController extends Controller
     {
         $auth_user_id = Auth::id();
         $user_id = $request->userId;
-        if (!empty($request->shift_array)) {
-            $shift_array = $request->shift_array;
-            $start_time_val = $request->shiftTimeStart . ':00';
-            $end_time_val = $request->shiftEndStart . ':00';
+        $shift_array = $request->shift_array;
+        $start_time_val = $request->shiftTimeStart;
+        $end_time_val = $request->shiftEndStart;
 
-            $shift_days = collect($shift_array)->pluck('date')->toArray();
-            $shift_record_check = shiftRecord::where('user_id', $auth_user_id)
-                ->whereIn('shift_day', $shift_days)
-                ->get()
-                ->keyBy('shift_day');
-            foreach ($shift_array as $shift) {
-                if($shift['type'] == 3 || $shift['type'] == 5){
+        $shift_days = collect($shift_array)->pluck('date')->toArray();
+        $shift_record_check = shiftRecord::where('user_id', $auth_user_id)
+            ->whereIn('shift_day', $shift_days)
+            ->get()
+            ->keyBy('shift_day');
+        foreach ($shift_array as $shift) {
+            if($shift['type'] == 3 || $shift['type'] == 5){
 
+            }
+            if ($shift_record_check->has($shift['date'])) {
+                $shift_record = $shift_record_check[$shift['date']];
+                if ($shift_record->shift_type !== $shift['type']) {
+                    $shift_record->shift_type = $shift['type'];
                 }
-                if ($shift_record_check->has($shift['date'])) {
-                    $shift_record = $shift_record_check[$shift['date']];
-                    if ($shift_record->shift_type !== $shift['type']) {
-                        $shift_record->shift_type = $shift['type'];
-                        $shift_record->update();
-                    }
-                } else {
-                    shiftRecord::create([
-                        'user_id' => $auth_user_id,
-                        'shift_day' => $shift['date'],
-                        'shift_type' => $shift['type'],
-                        'start_time' => $start_time_val,
-                        'end_time' => $end_time_val,
-                    ]);
-                }
+                $shift_record->start_time = $start_time_val;
+                $shift_record->end_time = $end_time_val;
+                $shift_record->update();
+            } else {
+                shiftRecord::create([
+                    'user_id' => $auth_user_id,
+                    'shift_day' => $shift['date'],
+                    'shift_type' => $shift['type'],
+                    'start_time' => $start_time_val,
+                    'end_time' => $end_time_val,
+                ]);
             }
         }
+        
 
         return response()->json($request);
     }
@@ -470,17 +471,11 @@ class WorkController extends Controller
         if($end->lt($start)){
             $start->subDay();
         }
-        if($request->shift_start_time && $request->shift_end_time){
-            $shift_start_time = Carbon::createFromFormat('H:i:s', $request->shift_start_time);
-            $shift_end_time = Carbon::createFromFormat('H:i:s', $request->shift_end_time);
-            $shift_time_difference_seconds = $shift_end_time->diffInSeconds($shift_start_time);
-            $shift_time_difference_seconds -= $request->breakTime * 60;
-            $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
-        }else{
-            $shift_time_difference_seconds = ($user->work_time_day * 60) + 3600;
-            $shift_time_difference_seconds -= $request->breakTime * 60;
-            $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
-        }
+        
+        $shift_time_difference_seconds = ($user->work_time_day * 60) + 3600;
+        $shift_time_difference_seconds -= $request->breakTime * 60;
+        $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
+        
         $time_difference_seconds = $end->diffInSeconds($start);
         $time_difference_seconds -= $request->breakTime * 60;
         $time_difference_seconds = max(0, $time_difference_seconds);

@@ -146,8 +146,8 @@
                     } 
                 }else{
                     this.holidayCount = 0
-                    this.startTime = ''
-                    this.endTime = ''
+                    this.startTime = '09:00'
+                    this.endTime = '18:00'
                 }
             },
             weekDay(num){
@@ -193,7 +193,16 @@
                 } else {
                     holidayNum = (lastDay >= 29) ? 9 : 8;
                 }
-                console.log(holidayNum)
+                if(this.endTime < this.startTime){
+                    emitter.emit('setToast', {
+                        active: true,  
+                        type: 'info', 
+                        content: '正しい時間を選択してください。',
+                        closeButton: true, 
+                        autoClose: true,
+                    })
+                    return
+                }
                 if(this.holidayCount >= holidayNum){
                     const result = await this.$refs.shiftTime.validate();
                     if (this.loading) return
