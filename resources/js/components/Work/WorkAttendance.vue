@@ -292,7 +292,7 @@
             },
             attendanceConfirm(){
                 if(this.disableButton) return
-                let yearMonth = this.selectedYear + '-' + '0' + (this.selectedMonth + 1);
+                let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
                 const params = {
                     date_year_month: yearMonth,
                     user: this.attendanceData.user,
