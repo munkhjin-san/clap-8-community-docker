@@ -5454,7 +5454,6 @@ input:autofill {
 }
 .login-header{
   width: 50%;
-  padding: 20px 0;
   text-align: center;
 }
 .login-content{
@@ -5552,12 +5551,11 @@ input:autofill {
     }
     .login-header{
         width: 100%;
-        padding: 30px 0 50px;
     }
     .login-header > svg {
         font-size: 2.5em;
-        width: 156px;
-        height: 60px;
+        width: 110px;
+        height: 35px;
         margin-bottom: 15px;
     }
     .login-header__p{

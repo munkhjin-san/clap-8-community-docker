@@ -226,13 +226,6 @@
         height:100%;
         overflow: hidden auto;
     }
-    .login-header > svg{
-        font-size: 3em;
-        margin-bottom: 25px;
-        width: 156px;
-        height: 60px;
-        fill: var(--primary-color);
-    }
     .login-header__p{
         font-size: 24px;
     }
@@ -306,11 +299,6 @@
         margin-top:30px; 
         margin-bottom:20px;
         width:100%;
-    }
-    .login-header{
-        width: 50%;
-        padding: 20px 0;
-        text-align: center;
     }
     .login-content{
         width: 35%;
@@ -400,16 +388,6 @@
         .login-form{
             flex-direction: column;
             align-items: center;
-        }
-        .login-header{
-            width: 100%;
-            padding: 30px 0 50px;
-        }
-        .login-header > svg {
-            font-size: 2.5em;
-            width: 156px;
-            height: 60px;
-            margin-bottom: 15px;
         }
         .login-header__p{
             font-size: 18px;
