@@ -162,8 +162,13 @@ class BoardController extends Controller
         }   
         // echo $id; 
         // return;
+        $today = Carbon::now()->format('Y-m-d');     
+        
+        $user = auth()->user()->load(['weathers' => function($q) use($today){
+            $q->where('type_id', 43)->where('date', $today);
+        }]);
        
-        return view('board')->with(array('initialDate'=> $date));
+        return view('board')->with(array('initialDate'=> $date, 'user' => $user));
 
     } 
     public function get_possible_board_list(){
