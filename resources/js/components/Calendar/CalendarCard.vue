@@ -31,7 +31,7 @@
         
         <div v-if="expanded && viewable">
             <div v-if="remarks" class="wrap cal-remark" v-html="remarks"></div>
-            <div v-if="record.referrer" style="white-space: break-spaces;line-height: 1.5;">
+            <div v-if="record.referrer" style="white-space: break-spaces;line-height: 1.5;user-select: all;">
                 <a :href="record.referrer">{{ record.referrer }}</a>
             </div>
             <div v-if="expanded && selectedFacilityExpaned && selectedFacilityExpaned.length" style="display: flex; flex-wrap: wrap;gap:10px;margin: 5px 0;">
