@@ -61,16 +61,20 @@
             </div>
 
             <div class="bar01">
-                <div style="font-size: 20px;margin-bottom: 20px;display:flex;justify-content:center;gap:5px;" v-if="UserAllData.name !== null">
+                <div style="font-size: 20px;margin-bottom: 20px;display:flex;justify-content:center;gap:5px;position:relative" v-if="UserAllData.name !== null">
                     <p><span>{{UserAllData.name}}</span></p>
-                    <img v-if="weathers" :src="'/images/icon_' + weathers.value_int + '.svg'" alt="Weather Icon" width="20" height="20" />
+                    <img @click.stop="updateWeather" style="cursor: pointer;" v-if="weathers" :src="'/images/icon_' + weathers.value_int + '.svg'" alt="Weather Icon" width="20" height="20" />
+                    <!-- <Transition name="downShiftPop">
+                        <WeatherUpdater v-if="$store.state.menu.name == 'weatherUpdater' && $store.state.menu.id == $store.state.user.id"/>
+                    </Transition> -->
                 </div>
                 <div style="display:flex; font-size:12px;justify-content:center;" v-if="userDaysWeather.length">
                     <div v-for="(weather, index) in userDaysWeather" :key="index">
                         <div style="display:flex;align-items:center;margin-right:5px;">
                             <p>{{dateFormat(weather.date)}}</p>
-                            <img :src="'/images/icon_' + weather.value_int + '.svg'" alt="Weather Icon" width="16" height="16" />
+                            <img :src="'/images/icon_' + weather.value_int + '.svg'" alt="Weather Icon" width="16" height="16" />                            
                         </div>
+                        
                     </div>
                 </div>                
                 <div v-if="UserAllData.name_kana" class="bar02">
@@ -119,8 +123,8 @@
                                         <div style="position: relative;">
                                             <div style="right:0;overflow:hidden;box-shadow: rgb(60 64 67 / 30%) 0px 1px 2px 0px, rgb(60 64 67 / 15%) 0px 2px">
                                                 <ul> 
-                                                    <li @click="introMovDeleteConfirm(mov.id)" class="boxMenuItems cursor-pointer">削除する</li> 
                                                     <li @click="editAlbum(mov)" class="boxMenuItems cursor-pointer">編集する</li>
+                                                    <li @click="introMovDeleteConfirm(mov.id)" class="boxMenuItems cursor-pointer">削除する</li> 
                                                 </ul>
                                             </div>
                                         </div>                                                    
@@ -184,6 +188,7 @@
     import { Navigation } from 'swiper';
     import 'swiper/css/navigation'
     import UserAlbumByTags from '../UserAlbumByTags.vue';
+    import WeatherUpdater from '../../Global/WeatherUpdater.vue';
     export default{
         props: ['UserAllData', 'deviceWidth', 'isAccessible', 'clapData', 'movExist', 'introUpload'],
         emits: ['updateUser', 'closeModal', 'addIntroFile', 'editIntro'],
@@ -209,14 +214,15 @@
                 viewAlbum: false,
                 tagText: '',
                 tagAlbums: '',
-                editData: null
+                editData: null,
             }
         },
         components: {
             UserIconPreLoad,
             UserIntroFile,
             PostTag,
-            UserAlbumByTags
+            UserAlbumByTags,
+            WeatherUpdater
         },
         computed: {
             userDaysWeather(){
@@ -226,6 +232,11 @@
             
         },  
         methods: {
+            updateWeather(){
+                if(this.UserAllData.id == this.$store.state.user.id){
+                    this.$store.commit('setMenu', { name: 'weatherUpdater', id: this.$store.state.user.id})
+                }
+            },
             closeModal(){
                 this.viewAlbum = false
                 this.editData = null

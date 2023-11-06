@@ -115,7 +115,7 @@ const store = createStore({
             },
             postBadge: [0,0,0],
             sharingData: null,
-            noticeBadge: 0
+            noticeBadge: 0,
         }
     },
     mutations: {

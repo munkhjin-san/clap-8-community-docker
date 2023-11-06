@@ -868,7 +868,6 @@ class WorkController extends Controller
             $attendance_record->night_work_time = $request->night_work_time;
             $attendance_record->stay_pay = $request->stay_pay;
             $attendance_record->move_pay = $request->move_pay;
-
             $attendance_record->save();
 
             return response()->json($attendance_record);

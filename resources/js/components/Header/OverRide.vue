@@ -42,7 +42,7 @@
     import SharingData from '../Global/SharingData.vue'
     import FilePreview from '../Board/Tray/File/FilePreview.vue'
     export default {
-        props: ['$store.state.user'],
+        props: [],
         data() {
             return {
                 toast: {
