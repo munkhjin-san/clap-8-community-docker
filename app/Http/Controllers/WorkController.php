@@ -719,6 +719,8 @@ class WorkController extends Controller
         if($user->work_type == 0){
             $all_worked_time = $worked_time + $annual_leave;
             $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
+        }else{
+            $month_over_time = $over_time;
         }
         
         $month_stay_allowance_count = $user->custom_field_data_records->where('value_int', 0)->count();
