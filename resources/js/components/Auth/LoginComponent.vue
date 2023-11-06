@@ -1,5 +1,5 @@
 <template>
-<div class="container login-wrapper">
+<div class="container login-wrapper" style="display: flex;height: 100%;">
     <div class="login-body">
         <Form v-slot="{ errors }" class="login-form" ref="loginform">
             <div class="login-header" style="display: flex;justify-content: center;margin-bottom: 20px;">   

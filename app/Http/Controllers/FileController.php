@@ -73,9 +73,9 @@ class FileController extends Controller
            
         $targetBoard = boardRecord::findOrFail($request->board_id);
         $usercheck = $targetBoard->board_to_users()->where('user_id','=', Auth::id())->first();
-        $timeLimit = $usercheck->joined_at; 
-        $messageFrom = $targetBoard->message_from;     
-        $time_condition = $messageFrom == 0 && $timeLimit;
+        $timeLimit = $usercheck->created_at; 
+        // $messageFrom = $targetBoard->message_from;     
+        $time_condition = $timeLimit;
 
 
         $allFiles = messageFile::where('board_id', $request->board_id)->when($time_condition, function ($query) use ($timeLimit) {
