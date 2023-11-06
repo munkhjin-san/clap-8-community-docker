@@ -64,7 +64,7 @@ export default{
             return result
         },
         mentionBoxNavigation(){ 
-            if(this.$refs.innerMention){
+            if(this.$refs.innerMention && this.mentionAbleList.length){
                 document.querySelectorAll("li").forEach((el) => {el.setAttribute('tabindex', 0)});
                 if(event.which === 38 || event.which === 40){
                     event.preventDefault()

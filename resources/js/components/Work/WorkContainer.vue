@@ -367,7 +367,7 @@
                         closeButton: true, 
                         autoClose: true,
                     }) 
-                }else if(this.usersCheckArray[0] == this.auth_user.id || this.auth_user.id == 608){
+                }else if(this.usersCheckArray[0] == this.auth_user.id || this.auth_user.id == 608 || this.auth_user.id == 610){
                     this.shiftAttendance = true
                 }
             },
