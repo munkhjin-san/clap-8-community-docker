@@ -6,7 +6,7 @@
                 <div class="side-menu-route-inner">   
                     <UserIcon :user="$store.state.user" imgClass="userMidIcon" size="25"/>
                     <div class="sideMenuUserName" style="white-space: break-spaces;display: flex;align-items: center;gap:5px;" v-if="$store.state.sideMenuView">{{ $store.state.user.name }}
-                        <img v-if="todayWeather !== null" :src="`/images/icon_${todayWeather}.svg`" alt="Weather Icon" width="20" height="20" />
+                        <img style="margin-right: 10px;" v-if="todayWeather !== null" :src="`/images/icon_${todayWeather}.svg`" alt="Weather Icon" width="20" height="20" />
                     </div>
                 </div>
             </router-link>
