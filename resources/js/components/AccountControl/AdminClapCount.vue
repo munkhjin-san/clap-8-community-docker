@@ -99,14 +99,7 @@ export default {
             this.allClapData()
         },
         allClapData(){
-            axios.post('/clap_statistics',{start:this.startDate, end: this.endDate}).then(             
-
-                response => {                    
-                
-                console.log(response.data)  
-                    this.clapData = response.data
-                    
-                });   
+            axios.post('/clap_statistics',{start:this.startDate, end: this.endDate}).then( response => { this.clapData = response.data });   
         }
     }
 }
