@@ -1,6 +1,7 @@
 {
     "name":"CLAP",
     "short_name":"CLAP",
+    "description": "CLAPをアプリケーションとしてインストールする",
     "icons":[
         {
             "src":"/android-chrome-192x192.png",
