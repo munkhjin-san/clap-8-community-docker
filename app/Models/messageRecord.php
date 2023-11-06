@@ -68,7 +68,7 @@ class messageRecord extends Model
         return $this->hasOne(memoRecord::class, 'message_id', 'id');
     }
     public function task(){
-        return $this->hasOne(taskRecord::class, 'message_id', 'id');
+        return $this->hasOne(taskRecord::class, 'message_id', 'id')->withTrashed();
     }
     protected $fillable = [
         'message'
