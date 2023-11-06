@@ -38,8 +38,14 @@
                 </div>
             </div>
             
-            <div class="employee" style="height: 100%;overflow: auto;">
-                
+            <div class="employee" style="height: 100%;overflow: auto;position: relative;">
+                <Transition name="modalFade">
+                    <div class="cal-day-loader" v-if="initialLoader" style="top: 0;">
+                        <div id="loaderMini">
+                            <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                        </div>
+                    </div>
+                </Transition>
                 <div class="row justify-content-center">
                    
                     <table id="customers">
@@ -78,6 +84,7 @@ export default {
             clapData: [],
             startDate: '2020-12-01',
             endDate: moment().format('YYYY-MM-DD'),
+            initialLoader: true
         }
     },
     mounted() {
@@ -99,7 +106,10 @@ export default {
             this.allClapData()
         },
         allClapData(){
-            axios.post('/clap_statistics',{start:this.startDate, end: this.endDate}).then( response => { this.clapData = response.data });   
+            axios.post('/clap_statistics',{start:this.startDate, end: this.endDate}).then( response => { 
+                this.clapData = response.data 
+                this.initialLoader = false
+            });   
         }
     }
 }
