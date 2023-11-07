@@ -1,6 +1,6 @@
 <template>
     <div @mousedown="closeFeedBack" class="overlay" style="z-index: 24">
-        <div class="incompleteWindow" @mousedown.stop>
+        <div class="users-list-popup" @mousedown.stop>
             <div style="display:flex">
                 <p style="font-weight:600;margin-right:20px;">{{ title }}</p>
                 <div style="margin-left:auto;display: flex;align-items: center;">                                          
@@ -55,21 +55,25 @@
     }
 </script>
 <style scoped lang="scss">
- 
     
 
-     .incompleteWindow{
-        box-shadow: rgb(0 0 0 / 35%) 0px 5px 15px;
-        padding: 20px;
-        margin: auto;
-        background: var(--background-color);
-        color: var(--primary-color);
-        max-width: 80%;
-        font-size: 14px;
-        line-height: 1.5;
-        max-height: 90%;
-        overflow: hidden auto;
-        max-height: 60vh;
-     }
-    
+.users-list-popup{
+    box-shadow: rgb(0 0 0 / 35%) 0px 5px 15px;
+    padding: 20px;
+    margin: auto;
+    background: var(--background-color);
+    color: var(--primary-color);
+    max-width: 80%;
+    font-size: 14px;
+    line-height: 1.5;
+    max-height: 90%;
+    overflow: hidden auto;
+    max-height: 60vh;
+    min-width: 20%;
+}
+@media screen and (max-width: 959px) {
+    .users-list-popup{
+        min-width: 50%;
+    }
+}
 </style>
