@@ -52,7 +52,7 @@
                         <UserIconPreLoad size="120" :title="UserAllData.name" :user="UserAllData" imgClass="profile-image"/>
                     </div>
                     <div id="iconMenuWrap" class="iconChange" v-if="$store.state.menu.name == 'iconMenuWrap' && $store.state.menu.id == 23">
-                        <div @click="iconViewModal = true" class="cursor-pointer">フルサイズを表示</div>
+                        <div @click="previewProfile(icon, 0)" class="cursor-pointer">フルサイズを表示</div>
                         <div @click="iconEditModal = true" class="cursor-pointer">{{$t('uploadIcon')}}</div>
                         <div v-if="auth_id == targetId" @click="iconDeleteConfirm()" class="cursor-pointer">{{$t('deleteIcon')}}</div>
                         
@@ -226,6 +226,9 @@
             WeatherUpdater
         },
         computed: {
+            icon(){
+                return this.UserAllData.icons
+            },
             weathers(){
                 return this.UserAllData.weathers
             },
@@ -258,6 +261,25 @@
             },
             movSrc(mov){
                 return mov.path.includes('intro') ? this.$store.state.baseLocation + '/user_album/' + this.targetId + '/' + mov.path : this.$store.state.baseLocation + '/user_album/' + this.targetId + '/' + mov.id + '_' + this.targetId + '_' + mov.path + '.' + mov.extension
+            },
+            previewProfile(file, index){
+                let target_data = file
+                if(target_data.use_of == 'profile'){
+                    target_data['file_path'] = this.$store.state.baseLocation + '/content/profile_icon/' + target_data.id + '_' + target_data.profile_id +  '_x.' + target_data.extension
+                }else{
+                    target_data['file_path'] = this.$store.state.baseLocation + '/content/profile_icon/' + target_data.id + '_' + target_data.profile_id +  '_200.' + target_data.extension
+                }
+                
+                const data = {
+                    active: true,
+                    files: [target_data],
+                    target: target_data,
+                    source: 'message',
+                    index: 0,
+                    message: null,
+                    reminder: 'board',
+                }
+                this.$store.commit('setFilePreview', data)
             },
             previewImage(file, index){
                 const files = this.movExist.map(fileData => ({
@@ -355,9 +377,7 @@
 
             },
             iconClickMenu(){
-                if(this.UserAllData.id == this.$store.state.user.id){
-                    this.$store.commit('setMenu', {name: 'iconMenuWrap', id: 23})
-                }
+                this.$store.commit('setMenu', {name: 'iconMenuWrap', id: 23})
             },
             cropComplete(){
                 if(!this.cropperInstance || this.sendLoader){
