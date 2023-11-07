@@ -173,7 +173,7 @@ class WorkController extends Controller
                         ->orderBy('created_at', 'desc')
                         ->get();
         $grouped_reserved_shifts = [];
-        $annual_leave = 0;
+        $annual_leave = [];
         $shift_count = $shift_record->where('shift_type', '!=', 0)->count();
         foreach($shift_record as $reserved_date){
             $date = $reserved_date->shift_day;
@@ -183,7 +183,10 @@ class WorkController extends Controller
             $shiftTypeAbbreviation = $reserved_date->shiftType->abbreviation;
             $shiftTypeColor = $reserved_date->shiftType->color;
             $value = $reserved_date->shiftType->value;
-            $annual_leave += $value;
+            if (!isset($annual_leave[$userId])) {
+                $annual_leave[$userId] = 0;
+            }
+            $annual_leave[$userId] += $value;
             $grouped_reserved_shifts[$date][$userId] = [
                 'shift_day' => $date,
                 'shift_type' => $shift_type,
@@ -197,8 +200,8 @@ class WorkController extends Controller
         foreach($user_record as $user){
             $shift_work_hours = $workdayNum * $user->work_time_day;
             if($user->work_type == 0 && $month_over_time && $month_work_time){
-                if(isset($month_work_time[$user->id]) && isset($month_over_time[$user->id])){
-                    $all_work_hours = $annual_leave + $month_work_time[$user->id];
+                if(isset($month_work_time[$user->id]) && isset($month_over_time[$user->id]) && isset($annual_leave[$user->id])){
+                    $all_work_hours = $annual_leave[$user->id] + $month_work_time[$user->id];
                     $month_over_time[$user->id] = $all_work_hours - $shift_work_hours; 
                 }  
             }
@@ -207,6 +210,8 @@ class WorkController extends Controller
                 'month_work_time' => $month_work_time[$user->id] ?? null,
                 'month_weather_average' => $mostCommonWeatherPerUser[$user->id] ?? null,
                 'month_achievement_average' => $mostCommonAchievementPerUser[$user->id] ?? null,
+                'month_should_work_time' => $shift_work_hours,
+                'month_annual_leave' => $annual_leave[$user->id] ?? null
             );
         }
         $responseArray = array(
@@ -288,7 +293,7 @@ class WorkController extends Controller
         $end_time_val = $request->shiftEndStart;
 
         $shift_days = collect($shift_array)->pluck('date')->toArray();
-        $shift_record_check = shiftRecord::where('user_id', $auth_user_id)
+        $shift_record_check = shiftRecord::where('user_id', $user_id)
             ->whereIn('shift_day', $shift_days)
             ->get()
             ->keyBy('shift_day');
@@ -306,7 +311,7 @@ class WorkController extends Controller
                 $shift_record->update();
             } else {
                 shiftRecord::create([
-                    'user_id' => $auth_user_id,
+                    'user_id' => $user_id,
                     'shift_day' => $shift['date'],
                     'shift_type' => $shift['type'],
                     'start_time' => $start_time_val,
@@ -378,7 +383,7 @@ class WorkController extends Controller
         return $roundedTime->setMinute($roundedMinutes)->format('H:i:s');
     }
     public function addData(Request $request){
-        $time_card = timecardRecord::where('deleted_flag', 0)->get();
+        $time_card = timecardRecord::where('deleted_flag', 0)->whereYear('day', 2023)->whereMonth('day', 10)->get();
         foreach($time_card as $card){
             $user = User::select('work_time_day', 'work_type', 'id', 'name')->findOrFail($card->user_id);
             
@@ -398,16 +403,15 @@ class WorkController extends Controller
             
             if($start && $end){
                 // Round the start and end times accordingly
-                // $roundedStartTime = $this->roundToNearest15Minutes($start->format('H:i:s'), true);
-                // $roundedEndTime = $this->roundToNearest15Minutes($end->format('H:i:s'), false);
-                // $card->start_time = $roundedStartTime;
-                // $card->end_time = $roundedEndTime;
-                $shift_time_difference_seconds = ($user->work_time_day * 60) + 3600;
-                $shift_time_difference_seconds -= $card->break_time * 60;
+                $roundedStartTime = $this->roundToNearest15Minutes($start->format('H:i:s'), true);
+                $roundedEndTime = $this->roundToNearest15Minutes($end->format('H:i:s'), false);
+                $card->start_time = $roundedStartTime;
+                $card->end_time = $roundedEndTime;
+                $shift_time_difference_seconds = ($user->work_time_day * 60);
                 $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
                 
-                $time_difference_seconds = $card->work_time * 60;
-                // $time_difference_seconds -= $card->break_time * 60;
+                $time_difference_seconds = Carbon::parse($roundedEndTime)->diffInSeconds($roundedStartTime);
+                $time_difference_seconds -= $card->break_time * 60;
                 $time_difference_seconds = max(0, $time_difference_seconds);
                 
             
@@ -434,7 +438,7 @@ class WorkController extends Controller
                     $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
                     $overtimeMinutes = floor($overtimeSeconds / 60);
                     $card->over_time = $overtimeMinutes;
-                    
+                    dd($overtimeMinutes);
                 } else {
                     $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
                     $latetimeMinutes = floor($latetimeSeconds / 60);
@@ -448,7 +452,7 @@ class WorkController extends Controller
                 //     $card->night_over_time = 0;
                 // }
                 $minutes = floor($time_difference_seconds / 60);
-                // $card->work_time = $minutes;
+                $card->work_time = $minutes;
                 $card->save();
             }
             

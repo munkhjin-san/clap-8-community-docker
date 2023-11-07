@@ -253,8 +253,8 @@
                     </div>
                     <div class="footer-cell">
                         <p v-if="$store.state.mobile">残業時間合計：</p>
-                        <p v-if="user.work_type == 1 || attendanceFlag">{{ monthAverage?.[user.id]?.month_over_time ? overTimeFormat(monthAverage?.[user.id]?.month_over_time) : '0時間' }}</p>
-                        <p v-else>0時間</p>
+                        <p v-if="user.work_type == 1 || showOverTime(monthAverage[user.id])">{{ monthAverage?.[user.id]?.month_over_time ? overTimeFormat(monthAverage?.[user.id]?.month_over_time) : '0時間' }}</p>
+                        <p v-else>--</p>
                     </div>
                     <div class="footer-cell">
                         <p v-if="!$store.state.mobile">--</p>
@@ -271,6 +271,7 @@
                     <div class="footer-cell">
                         <p v-if="$store.state.mobile">コンディション平均：</p>
                         <img class="condition-img" v-if="monthAverage?.[user.id]?.month_weather_average" :src="'/images/icon_' + monthAverage[user.id].month_weather_average + '.svg'" width="17" height="17"/>
+                        <p v-else>--</p>
                     </div>
                     <div class="footer-cell">
                         <p v-if="!$store.state.mobile">--</p>
@@ -357,6 +358,16 @@
             },
         },
         methods: {
+            showOverTime(monthAvg){
+                if(monthAvg){
+                    if(monthAvg.month_should_work_time && monthAvg.month_work_time && monthAvg.month_annual_leave != null){
+                        return monthAvg.month_work_time + monthAvg.month_annual_leave > monthAvg.month_should_work_time
+                    }else{
+                        return monthAvg.month_work_time > monthAvg.month_should_work_time
+                    }
+                }
+                return false
+            },
             closeModal(){
                 this.reportModal = false
                 this.customFieldData = []

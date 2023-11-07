@@ -366,7 +366,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/attendance_delete', [WorkController::class, 'attendanceDelete']);
         Route::post('/not_submitted', [WorkController::class, 'notSubmitted']);
         Route::post('/attendance_closed', [WorkController::class, 'attendanceClose']);
-        Route::get('/add_data', [WorkController::class, 'addData']);
+        // Route::get('/add_data', [WorkController::class, 'addData']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
         Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);

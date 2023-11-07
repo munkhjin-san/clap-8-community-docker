@@ -214,6 +214,7 @@
                             shiftEndStart : this.endTime,
                             shift_array : this.selectedShifts,
                             kintone_id: this.kintone_data.id,
+                            userId: this.usersData[0].id
                         }
                         axios.post('/add_shift', params).then(
                             response => {
