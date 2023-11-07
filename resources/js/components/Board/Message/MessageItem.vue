@@ -46,9 +46,9 @@
                             </svg>
                         </div>
                         <div 
-                            v-if="commentEditToggle == false && message.deleted_at == null"
+                            v-if="message.deleted_at == null"
                             @click.stop="messageMenu"
-                            
+                            :style="{ visibility: commentEditToggle ? 'hidden' : 'visible'}"
                             id="boardMessageMenuButton"  
                             class="boardMenuContainer cursor-pointer">
                         
@@ -613,6 +613,7 @@ import { nextTick } from 'vue'
                 this.$parent.$emit('copyText', ob)               
             }, 
             messageMenu(){
+                if(this.commentEditToggle) return
                 this.commentMenuLayer = 0
                 this.topOrBottom = 'top:18px'
                 this.right = 'right: 23px'

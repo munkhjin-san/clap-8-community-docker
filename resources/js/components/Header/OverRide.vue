@@ -26,7 +26,7 @@
         <Transition name="modalFade">
             <WeatherComponent v-if="$store.state.user"/>
         </Transition> 
-        <SharingData v-if="$store.state.sharingData"/>
+        <SharingData v-if="$store.state.sharingData && ($route.name == 'board' || $route.name == 'room')"/>
 
     </div>
 </template>
