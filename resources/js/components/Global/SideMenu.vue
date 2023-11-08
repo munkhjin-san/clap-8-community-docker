@@ -91,7 +91,7 @@
                 <GlowdNews :newsItems="newsItems"/>
                      
                 <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 20px;">   
-                    <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;display: flex;align-items: center;" to="/notice">お知らせ<span v-if="$store.state.noticeBadge" style="position: unset;width: fit-content;margin-left: 5px;" class="side-notification">{{ badgeFilter($store.state.noticeBadge)}}</span> </router-link>             
+                    <router-link v-if="$store.state.user.partner_flag !== 1" class="login-link jump-link" style="cursor: pointer;font-size: 15px;display: flex;align-items: center;" to="/notice">お知らせ<span v-if="$store.state.noticeBadge" style="position: unset;width: fit-content;margin-left: 5px;" class="side-notification">{{ badgeFilter($store.state.noticeBadge)}}</span> </router-link>             
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" to="/support/faq">サポートデスク</router-link>
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'settings'}">設定</router-link>
                 </div>         
