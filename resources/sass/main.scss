@@ -2005,9 +2005,12 @@ textarea{
 // .singleFile{
 //   margin: 0 0 10px 10px !important;
 // }
-.preUploadImage > div{
+.preUploadImage > div > div{
   display: flex;
   align-items: center;
+}
+.preUploadImage > div{
+  
  
   padding: 10px;
   background: var(--skItem1);
@@ -2076,7 +2079,7 @@ textarea{
   top: 5px;
   display: flex;
 }
-.preUploadImage > div > img {
+.preUploadImage > div > div > img {
   // max-width: 35px;
   max-height: 40px;
 }

@@ -974,6 +974,8 @@ class BoardController extends Controller
        
         $savedLastMessages = boardToUser::where('user_id', Auth::id())
             ->where('deleted_status', 0)
+            ->where('deleted_flag', 0)
+            ->whereNull('left_at')
             ->whereHas('board', function ($q) {
                 $q->where('deleted_flag', 0)->where('deleted_at', null);
             })

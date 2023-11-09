@@ -384,7 +384,7 @@
     }
     .admin-work-table{
         background-color: var(--background-color);
-        margin: 0px auto 20px;
+        width: 100%;
     }
     .admin-work-table td{
         padding: 10px;
