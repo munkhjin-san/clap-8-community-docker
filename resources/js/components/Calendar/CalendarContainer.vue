@@ -81,6 +81,7 @@
                 @jumpToDate="jumpToDate"
                 @edit="editRecord"
                 @delete="deleteRecordConfirm"
+                @scroll="scrollListen"
             />
         <!-- </Transition> -->
         <div title="" class="createBoardButton fileNewButton monthSiwtchButton" @click="switchView" :style="{zIndex: initialLoader ? 41 : 7}">

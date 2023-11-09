@@ -13,6 +13,7 @@
                     ref="monthScrollContainer" 
                     style="height:100%;overflow:hidden auto;" 
                     id="cal_month_view"
+                    @scroll="$emit('scroll', $event)"
                 >
                     <div id="weekdayhead" class="weekday-header" style="position: sticky;top: 0;">
                         <div class="weekday-header-item" v-for="num in 7">{{ weekDay(num) }}</div>
@@ -51,7 +52,7 @@ import MonthRow from './Month/MonthRow.vue';
 
 export default {
     props: ["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'facilitiesList', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'edit', 'delete'],
-    emits: ['fromMonth', 'slided', 'addRecord', 'dropFinish', 'jumpToDate', 'edit', 'delete'],
+    emits: ['fromMonth', 'slided', 'addRecord', 'dropFinish', 'jumpToDate', 'edit', 'delete', 'scroll'],
     data(){
         return{
             swipeMonth : this.selectedMonth,
