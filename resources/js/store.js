@@ -116,9 +116,11 @@ const store = createStore({
             postBadge: [0,0,0],
             sharingData: null,
             noticeBadge: 0,
+            keyboardOffset: 0
         }
     },
     mutations: {
+        setKeyboardOffset(state, data){state.keyboardOffset = data},
         setNoticeBadge(state, data){state.noticeBadge = data},
         setSharingData(state, data){state.sharingData = data},
         setFooterView(state, data){state.user.footer_view = data},
