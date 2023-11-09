@@ -16,6 +16,8 @@ use App\Models\NiceUseTag;
 use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
 use App\Models\UserLastRecord;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\Comment;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
@@ -300,7 +302,7 @@ class PostController extends Controller
             //         $body = 'プレイヤーに選ばれたチャレンジがあります。'; 
                     
             //         if($to_user !== $auth_user_id){
-            //             $mailAddress = User::where('id','=', $to_user)->select('email')->pluck('email')->first();
+            //             $Address = User::where('id','=', $to_user)->select('email')->pluck('email')->first();
             //             if(!empty($mailAddress)){
             //                 Mail::to($mailAddress)->send(new multiMail($title, $subject_inner, $body, $url, $param01, $param02, $param03, $param04));
             //             }
@@ -456,6 +458,55 @@ class PostController extends Controller
         $comment->user_id = Auth::id();
         $comment->emoji_flag = $request->emoji_flag;
         $comment->save();
+
+        $nameSpace = '\\App\\Models\\'; 
+        $model = $nameSpace . ucfirst($request->app_name) . 'Record'; 
+        $owner = $model::where('id', '=', $request->record_id)->first();
+        $owner_id = $owner->user_id;
+        $current_commenters_id = commentRecord::where('deleted_flag', '=', 0)->where('app_name', '=', $request->app_name)->where('record_id', '=', $request->record_id)->where('id', '!=', $comment->id)->where('user_id', '!=', Auth::id())->where('user_id', '!=', $owner_id)->pluck('user_id');
+        $current_commenters_id_unique = [];
+        foreach($current_commenters_id as $id){
+            if(!(in_array($id, $current_commenters_id_unique))){
+                $current_commenters_id_unique[] = $id;
+            }
+        }
+        if($request->app_name == 'challenge' || $request->app_name == 'nice'){           
+            
+            $to_users = $owner->to_users()->get();
+            foreach($to_users as $to_user){
+                if(!(in_array($to_user['id'], $current_commenters_id_unique)) && $to_user['id'] > 105 && $to_user['id'] !== Auth::id()){
+                    $current_commenters_id_unique[] = $to_user['id'];
+                }
+            }
+        }
+        
+        if($owner_id !== Auth::id()){
+            $current_commenters_id_unique[] = $owner_id;
+        }          
+
+        $app_name_list = [
+            "nice" => 'ナイス',
+            "knowledge" => 'ナレッジ',
+            "challenge" => 'チャレンジ'
+        ];
+        $app_name_title = $app_name_list[$request->app_name];
+        $from_name = Auth::user()->name . 'さんから、' . $app_name_title .'へコメントが届きました。'; 
+        $comment_body = $comment->messages;
+        $content = <<<EOD
+        $from_name
+        
+        コメント内容：
+        $comment_body
+        EOD;
+        
+        $subject ='【' . $app_name_title . 'へコメントが届きました】 ' . $owner->title;     
+
+        $mail_list = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $current_commenters_id_unique)->where('id', '!=', Auth::id())->pluck('email')->toArray();
+        foreach($mail_list as $mail){
+            Mail::to($mail)->send(new Comment($subject, $content, $comment->id, $request->app_name, $owner->id));                                  
+        
+        }         
+                
         return response()->json();  
     }
     public function post_add_clap(Request $request){
