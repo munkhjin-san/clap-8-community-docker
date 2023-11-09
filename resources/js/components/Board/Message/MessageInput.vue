@@ -459,53 +459,37 @@ import 'vue3-emoji-picker/css'
                 this.caretPosition = this.caretPosition + 2;
                 this.msgSave();
             },
-            createMention(){            
-                
-                if(this.messageReady.indexOf('[To:') > -1){
-                    this.mentionRecursive = true;
-                    var replace = this.messageReady.substring(
-                        this.messageReady.indexOf("[To:") + 4, 
-                        this.messageReady.indexOf("]")
-                    );  
-                    if(replace === '全員'){
-                        this.messageReady = this.messageReady.replace('[To:全員]', ' <span class="toAll">@全員</span>');
+            createMention(text){ 
+                if(!text || text == null || text == undefined){
+                    return ''
+                }     
+                const mentioned = text.replace(/\[To:(.*?)\]/g, (match, content) => {                    
+                    const strippedContent = content.replace(/^\s*\[To:|\]\s*$/g, '');                    
+                    if(strippedContent === '全員'){
                         var list = this.$store.state.mentionAbleUsers.map(obj => obj.user_id);                        
                         this.mentionedUsers = list;
-                        this.createMention()   
-                        this.mentionCounter ++
-                        
+                        return '<a class="toAll">@全員</a>'
                     }else{
+                        var filtered = this.filteredUsers.filter(obj=>obj.name === strippedContent)
                         
-                        var filtered = this.filteredUsers.filter(obj=>obj.name === replace)
                         if(filtered.length){
 
-                            var user = filtered[0]  
-                            let members = this.$store.state.mentionAbleUsers;
-                            let check_member = members.filter( obj => obj.user.id == user.id)       
+                            var user = filtered[0]      
                             
                             var check = this.mentionedUsers.indexOf(user.id);
-                            if(check == -1 && check_member.length){
-                                this.mentionedUsers.push(user.id);  
-                                this.messageReady = this.messageReady.replace('[To:'+user.name+']', ' <a href=/app/public/user?id='+user.id+'>@'+user.name+'</a>');    
-                                this.createMention()   
-                                this.mentionCounter ++                   
-                            }else{
-                                this.mentionRecursive = false;
-                                this.mentionCounter = 0;
-                            } 
-                        
-                        }else{
-                            this.mentionRecursive = false;
-                            this.mentionCounter = 0;
+                            if(check == -1){
+                                console.log('enter, ', user)
+                                this.mentionedUsers.push(user.id); 
+                                console.log(strippedContent)                                      
+                            }
+                            return `<a href=/app/public/user?id=${user.id}>@${strippedContent}</a>`     
                         }
-                    }             
-                    
-                }else{
-                    this.mentionRecursive = false;
-                    this.mentionCounter = 0;
-                }
+                        return match
+                    }
+                });    
+                return mentioned
             }, 
-            commentSendConfirm(recordId){
+            async commentSendConfirm(recordId){
                 var textCheck = document.getElementById('typeArea').textContent;     
                 var nospace = textCheck.replace(/\s/g, "")       
                 this.charLength = textCheck.length
@@ -525,17 +509,13 @@ import 'vue3-emoji-picker/css'
                         this.emojiFlag = 1; 
                     } 
                 }         
-                this.createMention()
+                const mentioned = await this.createMention(textCheck)
                 if(this.mentionRecursive){
                     this.commentSendConfirm(recordId)
-                }else{                                    
-                    // this.sendDisable = true;
-                    
-                    //     this.sendLoader = true;
+                }else{    
                     const a = Date.now().toString();
                     const b = Math.random().toString(36).substring(5);
                     const m_uid = a + '_' + b
-                    // return 
                     const replyFlag = this.$store.state.quot_reply.active && this.$store.state.quot_reply.which == 'reply'
                     const replyId = replyFlag ? this.$store.state.quot_reply.message.id : null
                     const quotFlag = this.$store.state.quot_reply.active && this.$store.state.quot_reply.which == 'quot'
@@ -549,7 +529,7 @@ import 'vue3-emoji-picker/css'
                     const queueMessage = {
                         deleted_at: null,
                         emoji_flag: this.emojiFlag,
-                        message: this.messageReady,
+                        message: mentioned,
                         user: this.$store.state.user,
                         reply_flag: replyFlag,
                         reply_id: replyId,
