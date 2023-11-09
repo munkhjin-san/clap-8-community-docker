@@ -217,7 +217,7 @@ export default{
                     }
                     this.$store.commit('setBoardBadge', response.data);
                     this.boardBadge = badgeValue;
-                    
+                    this.setBadge(badgeValue);
                     
                     
                     this.totalBadge = this.boardBadge;
@@ -231,7 +231,14 @@ export default{
                 });
             
             
-        },    
+        },  
+        setBadge(badgeCount) {
+            if ('setAppBadge' in navigator) {
+                navigator.setAppBadge(badgeCount);
+            } else {
+                // The browser does not support navigator.setAppBadge()
+            }
+        }  
     }
 }
 </script>

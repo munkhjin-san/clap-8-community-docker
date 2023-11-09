@@ -164,7 +164,7 @@
                     }).then(response => {
                         // Handle successful login
                         const url = this.intended ? this.intended : '/'
-                        window.location.href = url.includes('login') ? '/' : url
+                        window.location.href = url.includes('app/public') ? '/' : url
                         // this.processing = false
                     })
                     .catch(error => {
