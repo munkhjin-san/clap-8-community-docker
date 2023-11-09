@@ -972,12 +972,17 @@ import 'vue3-emoji-picker/css'
                 }
             },
             focused(){
-                // const el = document.getElementById('boardListInner')
-                // disableBodyScroll(el)
+                if ("virtualKeyboard" in navigator) {
+                    navigator.virtualKeyboard.overlaysContent = true;                    
+                }
             },
             blured(){
-                // const el = document.getElementById('boardListInner')
-                // enableBodyScroll(el)
+                if ("virtualKeyboard" in navigator) {                  
+                    navigator.virtualKeyboard.overlaysContent = false;
+                    setTimeout(() => {
+                        this.$store.commit('setKeyboardOffset', 0)
+                    }, 0);                    
+                }
             }
             
         }

@@ -11,6 +11,7 @@
                 />
                 </Transition>
                 <BoardList 
+                    v-show="!$store.state.mobile || ($store.state.mobile && $route.name == 'board')"
                     :list="filteredAllBoard"   
                     :openedBoard="openedBoard" 
                     :skeletonBoard="skeletonBoard"     
@@ -318,9 +319,14 @@
             },    
             unmounted() {
                 this.$store.commit('setMenu', {name: '', id: null})
+                if(navigator.virtualKeyboard){
+                    navigator.virtualKeyboard.removeEventListener('geometrychange', this.keyboardHeightListener);
+                }
             },
             mounted() {
-                
+                if(navigator.virtualKeyboard){
+                    navigator.virtualKeyboard.addEventListener('geometrychange', this.keyboardHeightListener);
+                }
 
                 console.log('mntd')
                 this.closeMessageContainer()
@@ -489,6 +495,11 @@
                 }
             },
             methods: {
+                keyboardHeightListener(event){
+                    const { x, y, width, height } = event.target.boundingRect;
+                    console.log('Virtual keyboard geometry changed:', x, y, width, height);
+                    this.$store.commit('setKeyboardOffset', height)
+                },
                 boardDeleteConfirm(id){    
                     var uniqueChannell = Math.random().toString(36).substring(5);   
                     emitter.emit('setToast', {

@@ -1,5 +1,5 @@
 <template>
-    <div id="boardAreaBoxInner" :class="['messageAreaContainer', {quotActive: $store.state.qoutWindowActive}]">
+    <div id="boardAreaBoxInner" :class="['messageAreaContainer', {quotActive: $store.state.qoutWindowActive}]" :style="{height: `calc(100% - ${$store.state.keyboardOffset}px)`}">
         <router-view v-slot="{ Component }">
                 <transition name="slideFromRight">
                     <component 
@@ -148,9 +148,6 @@ import moment from "moment";
                     id: null
                 }
             }
-        },
-        mounted(){
-            console.log('container_mounted')
         },
         components:{
             MessageItem,

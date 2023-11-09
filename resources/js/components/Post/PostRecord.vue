@@ -147,7 +147,6 @@ export default{
         if(id){
             id = parseInt(id)
             if(id == this.record.id){
-                console.log('uuu')
                 this.isExpanded = true
             }           
         }        
