@@ -101,24 +101,15 @@
                 </svg>
                 <span class="comment-count" style="line-height: 1;" v-if="record.comments_count">{{ record.comments_count }}</span>
             </div>
-                
-                
-                <!-- </p> -->
-         
-            
             <ClapButton @updateClap="setClap" :item="record" :appName="appName"/> 
         </div>
         <transition name="commentArea">
-            <!-- <div :key="isExpanded" class="commentArea" v-if="isExpanded">
-               
-            </div> -->
             <PostComment 
                 v-if="isExpanded"
                 :key="isExpanded"
                 :record="record"
                 :app_name="appName"
-                @updateCommentCount="setCommentCount"
-                
+                @updateCommentCount="setCommentCount"                
             />
         </transition>
         
@@ -152,6 +143,14 @@ export default{
         if(to_user && to_user.scrollHeight > to_user.clientHeight){
             this.viewExpand = true
         }
+        let id = this.$route.query.id
+        if(id){
+            id = parseInt(id)
+            if(id == this.record.id){
+                console.log('uuu')
+                this.isExpanded = true
+            }           
+        }        
     },
     components: { 
         UserIcon, 
