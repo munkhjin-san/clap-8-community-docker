@@ -5,7 +5,10 @@
 繰り返し設定 : 
 {{$details[0]['recursion']}}
 
-内容 : 
+タイトル：
+{{$details[0]['title']}}
+
+メモ : 
 {{$details[0]['content']}}
 
 @foreach($details as $detail)

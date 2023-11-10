@@ -645,6 +645,7 @@ class CalendarController extends Controller
         $recursion_types = ["1回のみ", "毎週", "毎月", "毎年"];
         foreach($c_records as $rec){            
             $d = [
+                "title" => $rec['title'],
                 "id" => $rec['id'],
                 "start_at" => Carbon::parse($rec['date_start'])->format('Y/m/d H:i'),
                 "recursion" => $recursion_types[$rec['repetition_type']],
