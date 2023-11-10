@@ -93,6 +93,14 @@
                     userList: [],
                     title: ''
                 })
+                this.$store.commit('setFilePreview', {
+                    active: false,
+                    files: [],
+                    source: null,
+                    source_board_id: null,
+                    index: 0,
+                    message: null
+                })
             }
         },
         unmounted(){
