@@ -55,7 +55,7 @@ export default{
             var leftM = x - 80;      
             leftM = leftM < 0 ? 10 : leftM      
             var messagePanel = window.innerHeight;
-            var bottomM = messagePanel - y + 5;  
+            var bottomM = messagePanel - y + 5 - this.$store.state.keyboardOffset;  
             const window_width = window.innerWidth
             const pc = window_width > 959
             const substract_from_left = pc ?  Math.floor(window_width * 0.2) : 0
