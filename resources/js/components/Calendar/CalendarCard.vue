@@ -39,7 +39,7 @@
                     <p style="color:#fff; font-size: 11px">{{selected}}</p>
                 </div>
             </div>
-            <div v-if="record.zoom_value && record.zoom_url" class="zoom-info-box">
+            <div v-if="record.zoom_value !== null && record.zoom_url" class="zoom-info-box">
                 <p>アカウント : <span class="zoom-info-item">{{ record.zoom_account ? record.zoom_account : '' }}</span></p>
                 <p>アカウントPASS : <span class="zoom-info-item">{{ record.zoom_account_pass ? record.zoom_account_pass : '' }}</span></p>
                 <p>ミーティングID : <span class="zoom-info-item">{{ record.zoom_id ? record.zoom_id : '' }}</span></p>
