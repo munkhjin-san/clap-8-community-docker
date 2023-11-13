@@ -105,7 +105,7 @@ export default{
         checkEctivity(){            
             const before = localStorage.getItem('notification_check')
             if(!before || moment().diff(moment(before), 'minutes') > 1){
-                this.notifyGet();
+                this.notifyGet('check_activity');
                 this.authCheck();
                 const time = moment().format('YYYY-MM-DD HH:mm:ss')
                 localStorage.setItem('notification_check', time)
@@ -237,6 +237,9 @@ export default{
                     }
                     if(from == 'pusher'){
                         // emitter.emit('notifyFetched', 1);
+                    }
+                    if(badgeValue > 0 && from == 'check_activity'){
+                        emitter.emit('notifyFetched', 1);
                     }
                 });
             
