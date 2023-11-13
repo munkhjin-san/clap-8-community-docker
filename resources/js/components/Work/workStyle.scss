@@ -813,13 +813,13 @@
         padding-top: 0px;
     }
   }
-  @media screen and (max-width: 440px) {
+  @media screen and (max-width: 540px) {
     .records-wrapper{
         height: calc(100% - 100px);
+        margin-top: 10px;
     }
     .work-monthpicker{
         justify-content: center;
         margin-right: 0;
-        margin-bottom: 10px;
     }
   }
