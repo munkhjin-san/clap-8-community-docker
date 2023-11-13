@@ -31,6 +31,14 @@
                     </template>
                 </masonry-wall>
             </div>
+            <!-- <div v-if="planShift" style="padding: 0 10px;">
+                <div class="incompleted-title">予定休暇を入力してください。</div>
+                    <WorkNotSubmitted 
+                        v-if="tempData"
+                        :item="tempData"
+                        plan="plan" 
+                    />
+            </div> -->
             <div v-if="incompletedTasksList.length" style="padding: 0 10px;">
                 <div class="incompleted-title">{{ $tc('expiredTaskWarning', incompletedTasksList.length, {number: incompletedTasksList.length})}}</div>
 
@@ -135,7 +143,9 @@ import { ref, onMounted } from 'vue';
                 timecardNotSubmittedList: [],
                 nextShiftSubmittedList: [],
                 remindMessages: [],
-                uncheckedMessages: []
+                uncheckedMessages: [],
+                planShift: false,
+                tempData: []
             }
         },
         components:{
@@ -150,6 +160,7 @@ import { ref, onMounted } from 'vue';
             this.getNotSubmitted()
             this.getRemindMessages()
             this.getUncheckedMessages()
+            // this.getPlannedShifts()
             this.isJumpToMessage
             if(!this.incompleteShow){
                 const currentTime = new Date().getTime();
@@ -211,6 +222,21 @@ import { ref, onMounted } from 'vue';
             },
         },
         methods: {
+            // getPlannedShifts(){
+            //     const currentDate = new Date();
+            //     const currentMonth = currentDate.getMonth();
+            //     const currentDay = currentDate.getDate();
+            //     axios.post('/get_temp_data', { user_code: this.$store.state.user.user_code}).then(
+            //         response => {
+            //             this.tempData = response.data.tempData
+            //             if((currentMonth === 9 && currentDay >= 25) || (currentMonth === 10 && currentDay <= 30)){
+            //                 if(response.data.shift_count < this.tempData.planned_days){
+            //                     this.planShift = true
+            //                 }
+            //             }
+            //         }
+            //     )
+            // },
             remindRequest(data){
                 axios.post('/remind_add', {
                         id: data.id
@@ -257,6 +283,7 @@ import { ref, onMounted } from 'vue';
             getIncompletedTasks(){
                 axios.post('/get_incompleted_tasks').then(response => {  
                     this.incompletedTasksList = response.data
+                    this.renewPopup()
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
@@ -266,6 +293,7 @@ import { ref, onMounted } from 'vue';
             getUnsignedMessages(){
                 axios.post('/get_unsigned_messages').then(response => {  
                     this.unsignedMessages = response.data.message_list
+                    this.renewPopup()
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
@@ -281,6 +309,7 @@ import { ref, onMounted } from 'vue';
                     this.shiftNotSubmittedList = response.data.shiftNotSubmittedList;
                     this.timecardNotSubmittedList = response.data.timecardNotSubmittedList;
                     this.nextShiftSubmittedList = response.data.nextShiftSubmittedList;
+                    this.renewPopup()
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
@@ -290,6 +319,7 @@ import { ref, onMounted } from 'vue';
             getUncheckedMessages(){
                 axios.post('/get_unchecked_messages').then(response => {  
                     this.uncheckedMessages = response.data
+                    this.renewPopup()
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
@@ -298,12 +328,18 @@ import { ref, onMounted } from 'vue';
             },
             getRemindMessages(){
                 axios.post('/get_remind_messages').then(response => {  
-                    this.remindMessages = response.data                   
+                    this.remindMessages = response.data
+                    this.renewPopup()                   
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
                     else this.errorToast('エラーが発生しました。 ' + error.message)     
                 }.bind(this))
+            },
+            renewPopup(){
+                const currentTime = new Date().getTime();
+                const user_id = this.$store.state.user.id
+                localStorage.setItem('popupCloseTime_' + user_id, currentTime);
             },
             errorToast(message){
                 emitter.emit('setToast', {
