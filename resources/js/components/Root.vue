@@ -17,6 +17,7 @@
 
 </template>
 <script>
+import moment from 'moment';
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
 export default{
@@ -42,11 +43,11 @@ export default{
     },
     mounted(){
         window.addEventListener('resize', this.handleResize);
-        window.addEventListener("focus", (event) => { 
-            this.authCheck();
+        window.addEventListener("focus", () => { 
+            this.checkEctivity();           
             this.$store.commit('setFocused', true);
         }, false);
-        window.addEventListener("blur", (event) => { 
+        window.addEventListener("blur", () => { 
             this.$store.commit('setFocused', false);            
         }, false);
         this.notifyGet('mounted');
@@ -101,6 +102,15 @@ export default{
         }
     },
     methods: {
+        checkEctivity(){            
+            const before = localStorage.getItem('notification_check')
+            if(!before || moment().diff(moment(before), 'minutes') > 1){
+                this.notifyGet();
+                this.authCheck();
+                const time = moment().format('YYYY-MM-DD HH:mm:ss')
+                localStorage.setItem('notification_check', time)
+            }
+        },
         setTotalBadge(){
             const sum = this.$store.state.postBadge.reduce((accumulator, currentValue) => accumulator + currentValue, 0);        
             const total = sum + this.boardBadge

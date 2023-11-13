@@ -93,10 +93,8 @@ export default {
         window.removeEventListener("mouseup", this.onMouseUp);
     },
     watch:{
-        '$store.state.focused'(){
-            
+        '$store.state.focused'(){            
             this.currentMinute = this.getCurrentMinute();
-            console.log(this.currentMinute)
         }
     },
     mounted(){
