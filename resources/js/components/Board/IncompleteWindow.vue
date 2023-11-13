@@ -163,9 +163,10 @@ import { ref, onMounted } from 'vue';
             // this.getPlannedShifts()
             this.isJumpToMessage
             if(!this.incompleteShow){
-                const currentTime = new Date().getTime();
-                const user_id = this.$store.state.user.id
-                localStorage.setItem('popupCloseTime_' + user_id, currentTime);
+                this.$emit('closePopup')
+                // const currentTime = new Date().getTime();
+                // const user_id = this.$store.state.user.id
+                // localStorage.setItem('popupCloseTime_' + user_id, currentTime);
             }
         },
         watch:{
@@ -283,7 +284,6 @@ import { ref, onMounted } from 'vue';
             getIncompletedTasks(){
                 axios.post('/get_incompleted_tasks').then(response => {  
                     this.incompletedTasksList = response.data
-                    this.renewPopup()
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
@@ -293,7 +293,6 @@ import { ref, onMounted } from 'vue';
             getUnsignedMessages(){
                 axios.post('/get_unsigned_messages').then(response => {  
                     this.unsignedMessages = response.data.message_list
-                    this.renewPopup()
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
@@ -309,7 +308,6 @@ import { ref, onMounted } from 'vue';
                     this.shiftNotSubmittedList = response.data.shiftNotSubmittedList;
                     this.timecardNotSubmittedList = response.data.timecardNotSubmittedList;
                     this.nextShiftSubmittedList = response.data.nextShiftSubmittedList;
-                    this.renewPopup()
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
@@ -319,7 +317,6 @@ import { ref, onMounted } from 'vue';
             getUncheckedMessages(){
                 axios.post('/get_unchecked_messages').then(response => {  
                     this.uncheckedMessages = response.data
-                    this.renewPopup()
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
@@ -329,17 +326,11 @@ import { ref, onMounted } from 'vue';
             getRemindMessages(){
                 axios.post('/get_remind_messages').then(response => {  
                     this.remindMessages = response.data
-                    this.renewPopup()                   
                 }).catch(function (error) {
                     if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
                     else if (error.request) this.errorToast('エラーが発生しました。')
                     else this.errorToast('エラーが発生しました。 ' + error.message)     
                 }.bind(this))
-            },
-            renewPopup(){
-                const currentTime = new Date().getTime();
-                const user_id = this.$store.state.user.id
-                localStorage.setItem('popupCloseTime_' + user_id, currentTime);
             },
             errorToast(message){
                 emitter.emit('setToast', {
