@@ -238,7 +238,7 @@ export default{
                     if(from == 'pusher'){
                         // emitter.emit('notifyFetched', 1);
                     }
-                    if(badgeValue > 0 && from == 'check_activity'){
+                    if(from == 'check_activity'){
                         emitter.emit('notifyFetched', 1);
                     }
                 });

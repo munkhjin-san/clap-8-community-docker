@@ -14,7 +14,7 @@ class ClapRecord extends Model
         'deleted_flag', 'from_user', 'record_id', 'app_name'
     ];
     public function user(){
-        return $this->hasOne(User::class, 'id', 'from_user');
+        return $this->hasOne(User::class, 'id', 'from_user')->select('id', 'name');
     }
     public function challenge_records(){
         return $this->belongsTo(ChallengeRecord::class, 'id');
