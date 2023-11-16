@@ -625,10 +625,15 @@ import 'vue3-emoji-picker/css'
                 }    
             }, 
             composeUpdate(){
-                this.keyCharacters = event.data
-                if(!this.keyCharacters.length){
-                    this.resetMention()
-                }
+                if(event.data == '@' || event.data == '＠'){                
+                    this.mentionBoxToggle = true
+                    this.keyCharacters = ''
+                }else{
+                    this.keyCharacters = event.data
+                    if(!this.keyCharacters.length){
+                        this.resetMention()
+                    }
+                }                
             },
             setEndOfContenteditable(pos){    
                 var node = document.querySelector("#typeArea");
