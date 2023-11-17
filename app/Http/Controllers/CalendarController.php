@@ -917,6 +917,9 @@ class CalendarController extends Controller
     }
     public function calendar_drop(Request $request){
         $record = CalendarRecord::findOrFail($request->id);
+        if($record->qualified_zoom !== null || $record->zoom_value !== null || $record->qualified_institution !== null || $record->qualified_car !== null){
+            throw ValidationException::withMessages(['message' => '施設予約のスケジュールはドラッグアンドドロップで移動できません。編集画面で編集してください。']);
+        } 
         $start = Carbon::parse($record->date_start);
         $end = Carbon::parse($record->date_end);
         $record_duration = $start->diff($end);
