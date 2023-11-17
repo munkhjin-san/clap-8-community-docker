@@ -88,6 +88,8 @@ Route::get('/health', function () {
 
 Route::post('/report_send', [ContentController::class, 'reportSend']);
 Route::group(["middleware"=>"auth"],function(){
+    Route::post('/pusher_authorizition',  [BoardController::class, "pusher_auth"]);
+    Route::post('/pusher_subscribe',  [BoardController::class, "pusher_subscribe"]);
     $id = Auth::id();
     Route::get('/user/{id}',  [BoardController::class, "index"]);
     Route::get('/user', function () {
@@ -366,6 +368,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/attendance_delete', [WorkController::class, 'attendanceDelete']);
         Route::post('/not_submitted', [WorkController::class, 'notSubmitted']);
         Route::post('/attendance_closed', [WorkController::class, 'attendanceClose']);
+        Route::post('/get_temp_data', [WorkController::class, 'get_temp_data']);
         // Route::get('/add_data', [WorkController::class, 'addData']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);

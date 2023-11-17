@@ -22,7 +22,7 @@ class MessageSent implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        return new Channel('chat');
+        return new PrivateChannel('chat');
     }
     public function broadcastAs()
     {

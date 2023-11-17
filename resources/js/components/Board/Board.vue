@@ -405,17 +405,6 @@
 
                 // Echo.channel('my-channel').listen('Message', (e) => {  
                 emitter.on('pusher-event', (e) => {
-                    // if(e.message.title && e.message.sender !== this.$store.state.user.id && e.message.board_members.includes(this.$store.state.user.id)){
-                    //     if (Notification.permission === 'granted') {
-                    //         this.sendNotification(e)
-                    //     } else if (Notification.permission !== 'denied') {
-                    //         Notification.requestPermission().then((permission) => {
-                    //         if (permission === 'granted') {
-                    //             this.sendNotification(e)
-                    //         }
-                    //         });
-                    //     }
-                    // }
                     if(e.message.board_id && e.message.sender !== this.$store.state.user.id){
                         const index = this.allBoardList.map( ob => ob.id).indexOf(e.message.board_id);                  
                         if(index > -1){
@@ -506,15 +495,6 @@
                 }
             },
             methods: {
-                // sendNotification(e){
-                //     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-                //         console.log(e)
-                //         navigator.serviceWorker.controller.postMessage({
-                //             type: 'pushNotification',
-                //             data: e,
-                //         });
-                //     } 
-                // },
                 keyboardHeightListener(event){
                     const { x, y, width, height } = event.target.boundingRect;
                     console.log('Virtual keyboard geometry changed:', x, y, width, height);

@@ -20,6 +20,8 @@
 import moment from 'moment';
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
+
+import Pusher from 'pusher-js';
 export default{
     props: ['session', 'auth_user', 'remember', 'initial_date'], 
     data(){
@@ -42,6 +44,27 @@ export default{
         window.removeEventListener('resize', this.handleResize);
     },
     mounted(){
+
+    // window.Pusher = Pusher;
+    // Pusher.logToConsole = true;
+    if(this.auth_user && this.auth_user.id){
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        let pusher = new Pusher(process.env.MIX_PUSHER_APP_KEY, {
+            cluster: process.env.MIX_PUSHER_APP_CLUSTER,
+            forceTLS: true,
+            channelAuthorization: { endpoint: "/pusher_subscribe", headers: { "X-CSRF-Token": csrfToken }},
+            userAuthentication: {
+                endpoint: "/pusher_authorizition", headers: { "X-CSRF-Token": csrfToken }
+            }
+        });
+        var channel = pusher.subscribe('private-chat');
+        channel.bind("pusher:subscription_error", (error) => {console.log(error)});
+        console.log(channel)
+        channel.bind('my-event', (e) => { emitter.emit('pusher-event',e) });
+    }
+
+
+
         window.addEventListener('resize', this.handleResize);
         window.addEventListener("focus", () => { 
             this.checkEctivity();           
@@ -56,6 +79,9 @@ export default{
         if(this.remember){
             this.$store.commit('setRemember',this.remember)
         }
+        // if(!navigator.userAgent.match(/iPhone/)){
+        //     Notification.requestPermission()
+        // }
         emitter.on('notifyUpdate', (data) => this.notifyUpdate(data));
         emitter.on('notifyGet', (data) => this.notifyGet(data));
         emitter.on('getNoticeBadge', (data) => this.getNoticeBadge());

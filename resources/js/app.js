@@ -7,18 +7,18 @@ import i18n from './plugins/i18n';
 import MasonryWall from '@yeger/vue-masonry-wall'
 import VueLazyload from 'vue3-lazyload';
 const app = createApp({});
+import * as PusherPushNotifications from "@pusher/push-notifications-web";
 
-
-if ("serviceWorker" in navigator) {
-    navigator.serviceWorker
-      .register("/service-worker.js")
-      .then(function (reg) {
-        console.log("Yes, it did.");
-      })
-      .catch(function (err) {
-        console.log("No it didn't. This happened:", err);
-      });
-  }
+// if ("serviceWorker" in navigator) {
+//     navigator.serviceWorker
+//       .register("/service-worker.js")
+//       .then(function (reg) {
+//         console.log("Yes, it did.");
+//       })
+//       .catch(function (err) {
+//         console.log("No it didn't. This happened:", err);
+//       });
+//   }
 
 
 
@@ -46,18 +46,50 @@ if(theme){
         document.documentElement.style.setProperty(pallete.className, dark ? pallete.dark : pallete.light);
     });
 } 
-import Pusher from 'pusher-js';
-window.Pusher = Pusher;
-// Pusher.logToConsole = true;
-let pusher = new Pusher(process.env.MIX_PUSHER_APP_KEY, {
-    cluster: process.env.MIX_PUSHER_APP_CLUSTER,
-    forceTLS: true
-});
-var channel = pusher.subscribe('chat');
-channel.bind('my-event', (e) => {
-    emitter.emit('pusher-event',e)        
-});
+// import Pusher from 'pusher-js';
+// window.Pusher = Pusher;
+// // Pusher.logToConsole = true;
+// if(store.state.user && store.state.user.id){
+//     console.log('pusher init')
+//     let pusher = new Pusher(process.env.MIX_PUSHER_APP_KEY, {
+//         cluster: process.env.MIX_PUSHER_APP_CLUSTER,
+//         forceTLS: true
+//     });
+//     var channel = pusher.subscribe('private-chat');
+//     channel.bind('my-event', (e) => {
+//         if(e.message.title && e.message.sender !== store.state.user.id && e.message.board_members.includes(store.state.user.id)){
+//             if (Notification.permission === 'granted' && !store.state.focused) {
+//                 if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+//                     console.log(e)
+//                     navigator.serviceWorker.controller.postMessage({
+//                         type: 'pushNotification',
+//                         data: {
+//                             title: e.message.title,
+//                             body: e.message.body,
+//                             data: e.message.board_id,
+//                             senderName: e.message.senderName,
+//                             tag: e.message.message_id,
+//                             icon_id: e.message.icon,
+//                             user_id: e.message.sender
+//                         },
+//                     });
+//                 } 
+//             }
+//         }
+//         emitter.emit('pusher-event',e)        
+//     });
 
+    
+//     const beamsClient = new PusherPushNotifications.Client({
+//       instanceId: "985c704d-7433-49c3-a7a7-8f40690e1b37",
+//     });
+    
+//     beamsClient.start()
+//         .then(() => beamsClient.addDeviceInterest('hello'))
+//         .then(() => console.log('Successfully registered and subscribed!'))
+//         .catch(console.error);
+    
+// }
 
 import Vue3TouchEvents from "vue3-touch-events";
 

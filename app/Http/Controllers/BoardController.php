@@ -44,6 +44,7 @@ use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Completions\CreateResponse;
 use App\Mail\Mention;
 use App\Mail\Confirm;
+use Hash;
 class BoardController extends Controller
 {
     protected $sharedService;
@@ -861,8 +862,14 @@ class BoardController extends Controller
                 "type" => "new_message",
                 "board_members" => $related_members,
                 "board_id" => $request->record_id,
-                "sender" => $auth_user_id
-            );                      
+                "sender" => $auth_user_id,
+                "body" => $chat->message_text,
+                "title" => $boardRecord->title,
+                "senderName" => $auth_user->name,
+                "message_id" => $chat->id,
+                "icon" => $auth_user->icon_id
+            );  
+
             event(new MessageSent($rebound));         
             $data = [
                 "success" => true,
@@ -2290,6 +2297,59 @@ class BoardController extends Controller
 
         $answer = $result['choices'][0]['message']['content'];
         return $answer;
+    }
+    public function pusher_auth(Request $request){
+      
+        $socket_id = $request['socket_id'];
+        $channel_name = $request['channel_name'];
+        $hash_prepare = $socket_id.'::user::{"id":"'.Auth::id().'"}';
+        
+        // $hash_prepare = $socket_id.':'.$channel_name;
+        // $hmac = hash('sha256', $hash_prepare);
+
+        $secret = config('app.pusher_secret');
+        $key = config('app.pusher_key');
+        // return response()->json($secret);
+
+
+                // Your secret key
+                // $secret = "7ad3773142a6692b25b8";
+
+                // Your string to be signed
+                $stringToSign = $socket_id.'::user::{"id":"'.Auth::id().'"}';
+        
+                // Creating the SHA256 hex digest using hash_hmac
+                $signature = hash_hmac('sha256', $stringToSign, $secret);
+        
+                // Concatenating the result as per your Ruby code
+                $auth = "{$key}:{$signature}";
+        
+                // Output the result
+                // Log::info($auth);
+        
+                return response()->json(['auth' => $auth, "user_data" => '{"id":"'.Auth::id().'"}']);
+    }
+    public function pusher_subscribe(Request $request){
+        $socket_id = $request['socket_id'];
+        $channel_name = $request['channel_name'];
+        // $hash_prepare = $socket_id.'::user::{"id":"'.Auth::id().'"}';
+        
+        $hash_prepare = $socket_id.':'.$channel_name;
+        // $hmac = hash('sha256', $hash_prepare);
+
+        $secret = config('app.pusher_secret');
+        $key = config('app.pusher_key');
+        
+                // Creating the SHA256 hex digest using hash_hmac
+                $signature = hash_hmac('sha256', $hash_prepare, $secret);
+        
+                // Concatenating the result as per your Ruby code
+                $auth = "{$key}:{$signature}";
+        
+                // Output the result
+                // Log::info($auth);
+        
+                return response()->json(['auth' => $auth]);
     }
 
 
