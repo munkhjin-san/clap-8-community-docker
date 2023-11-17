@@ -286,6 +286,7 @@ class CalendarController extends Controller
         $has_prev_date = null;
         if($request->editId){
             $target = CalendarRecord::findOrFail($request->editId);
+            $facility_check = $this->facility_validate($request, true);
             $has_prev_date = $target;
             if($request->edit_repeat){
                 
@@ -306,8 +307,10 @@ class CalendarController extends Controller
                 return response()->json('gggg');
             }
             
+        }else{
+            $facility_check = $this->facility_validate($request, true);
         }
-        $facility_check = $this->facility_validate($request, true);
+        
         // NO_REPEAT
         if($request->repetition_type == 0){
             $from_once = Carbon::parse($request->once_date);            
@@ -387,7 +390,7 @@ class CalendarController extends Controller
             if ($value !== null) {
                 $date_start_ready = $this->time_parser($instance, $request['time_start']);
                 $date_end_ready = $this->time_parser($instance, $request['time_end']);
-                $inst = $this->check_duplicate_facility($index, $value, $date_start_ready, $date_end_ready, true);
+                $inst = $this->check_duplicate_facility($index, $value, $date_start_ready, $date_end_ready, true, [$request['editId']]);
             }           
         }       
         
@@ -462,8 +465,8 @@ class CalendarController extends Controller
         }
         return $inst;
     }
-    private function check_duplicate_facility($index, $value, $start, $end, $throw){
-        $exists = CalendarRecord::where($index, $value)
+    private function check_duplicate_facility($index, $value, $start, $end, $throw, $exclude){
+        $exists = CalendarRecord::where($index, $value)->whereNotIn('id', $exclude)
         ->where(function ($query) use ($start, $end) {
             $query->where(function ($subquery) use ($start, $end) {
                 $subquery->where('date_start', '>=', $start)
@@ -486,9 +489,10 @@ class CalendarController extends Controller
     }
     private function execute_second_data_or_validate($request, $instance, $validate_index, $throw){
         if($validate_index){
+            $exclude = $request['editId'] ? [$request['editId']] : [];
             $date_start_ready = $this->time_parser($instance, $request['time_start']);
             $date_end_ready = $this->time_parser($instance, $request['time_end']);
-            $inst = $this->check_duplicate_facility($validate_index, $request['facility'][$validate_index], $date_start_ready, $date_end_ready, $throw);
+            $inst = $this->check_duplicate_facility($validate_index, $request['facility'][$validate_index], $date_start_ready, $date_end_ready, $throw, $exclude);
             return $inst;
         }
         
@@ -829,6 +833,7 @@ class CalendarController extends Controller
         $items = [];
         foreach($id_list as $id){
             $rec = [
+                "editId" => null,
                 "time_start" => $request->time_start,
                 "time_end" => $request->time_end,
                 "once_date" => $request->once_date,
