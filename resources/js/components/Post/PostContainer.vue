@@ -288,7 +288,14 @@ export default{
                         this.postList.unshift(response.data[0])
                     }
                 }else{
-                    this.postList.push(...response.data);
+                    response.data.forEach((responseItem) => {
+                        const existingPost = this.postList.find((post) => post.id === responseItem.id);
+                        if (existingPost) {
+                            Object.assign(existingPost, responseItem);
+                        } else {
+                            this.postList.push(responseItem);
+                        }
+                    });
                 }
                 setTimeout(() => {
                     this.infiniteLoader = false
