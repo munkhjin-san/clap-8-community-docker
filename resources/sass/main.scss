@@ -2005,7 +2005,7 @@ textarea{
 // .singleFile{
 //   margin: 0 0 10px 10px !important;
 // }
-.preUploadImage > div > div{
+.preImgWrapper{
   display: flex;
   align-items: center;
 }
@@ -2079,7 +2079,7 @@ textarea{
   top: 5px;
   display: flex;
 }
-.preUploadImage > div > div > img {
+.preImgWrapper > img {
   // max-width: 35px;
   max-height: 40px;
 }

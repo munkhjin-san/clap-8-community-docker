@@ -84,7 +84,7 @@
                     <div v-show="successUploadedFiles.length">
                         <div class="preUploadImage">    
                             <div :key="image.id" class="cursor-pointer" v-for="image in successUploadedFiles" style="margin: auto 10px 10px 0;min-height: 40px;user-select:none">
-                                <div @click="previewFile(image)">
+                                <div class="preImgWrapper" @click="previewFile(image)">
                                     <img draggable="false" v-if="image.mime_type == 'image'" :src="$store.state.baseLocation + '/temp_upload/' + image.id + '.' + image.extension">                                
                                     <FileIcon v-if="image.mime_type !== 'image'" :ext="image.extension"/>
                                     <p class="shared-file-name">{{image.name}}</p>
@@ -101,7 +101,7 @@
                     <div v-show="sharingFiles.length">
                         <div class="preUploadImage">  
                             <div :key="image.record.id" class="cursor-pointer" v-for="image in sharingFiles" style="margin: auto 10px 10px 0;user-select:none">
-                                <div @click="previewFile(image)">
+                                <div class="preImgWrapper" @click="previewFile(image)">
                                     <img draggable="false" v-if="image.record.mime_type == 'image'" :src="image.path" >
                                     <FileIcon v-if="image.record.mime_type !== 'image'" :ext="image.record.extension"/>
                                     <p class="shared-file-name">{{image.record.name}}</p>
