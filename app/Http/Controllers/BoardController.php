@@ -321,7 +321,8 @@ class BoardController extends Controller
 
             $to_users = $request->to_users;
             array_unshift($to_users, $auth_user_id);
-            foreach($to_users as $to_user){
+            $uniqueArray = array_unique($to_users);
+            foreach($uniqueArray as $to_user){
                 $boardToUser = new boardToUser;
                 $boardToUser->record_id = $board->id;
                 $boardToUser->user_id = $to_user; 
