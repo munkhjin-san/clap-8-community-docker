@@ -321,7 +321,8 @@ class BoardController extends Controller
 
             $to_users = $request->to_users;
             array_unshift($to_users, $auth_user_id);
-            foreach($to_users as $to_user){
+            $uniqueArray = array_unique($to_users);
+            foreach($uniqueArray as $to_user){
                 $boardToUser = new boardToUser;
                 $boardToUser->record_id = $board->id;
                 $boardToUser->user_id = $to_user; 
@@ -868,8 +869,33 @@ class BoardController extends Controller
                 "senderName" => $auth_user->name,
                 "message_id" => $chat->id,
                 "icon" => $auth_user->icon_id
-            );  
-
+            ); 
+            // $members = $related_members->map(function ($userId) {
+            //     return (string) $userId;
+            // })->toArray();
+            // $beamsClient = new \Pusher\PushNotifications\PushNotifications(array(
+            //     "instanceId" => config('app.pusher_instanceid'),
+            //     "secretKey" => config('app.pusher_primary_key'),
+            // ));
+            // $body = $auth_user->name . ':' . $chat->message_text;
+            // $deep_link = url('board/' . $request->record_id);
+            // $icon = url('content/profile_icon/' . $auth_user->icon_id . '_' . $auth_user_id . '_200.jpg');
+            // $badge = url('/96x96.png');
+            
+            // $publishResponse = $beamsClient->publishToUsers(
+            //     $members,
+            //     array("web" => array("notification" => array(
+            //             "title" => $boardRecord->title,
+            //             "body" => $body,
+            //             "deep_link" => $deep_link,
+            //             "icon" => $icon,
+            //             "hide_notification_if_site_has_focus" => true,
+            //         ),  
+            //         "excluded_users" => array($auth_user_id),
+            //         "data" => array(
+            //             "badge"=> $badge,
+            //         ))
+            //     ));
             event(new MessageSent($rebound));         
             $data = [
                 "success" => true,
@@ -2352,7 +2378,21 @@ class BoardController extends Controller
                 return response()->json(['auth' => $auth]);
     }
 
+    // public function pusher_beamToken(Request $request){
+    //     $beamsClient = new \Pusher\PushNotifications\PushNotifications(array(
+    //         "instanceId" => config('app.pusher_instanceid'),
+    //         "secretKey" => config('app.pusher_primary_key'),
+    //       ));
+    //     $userID = Auth::id(); // If you use a different auth system, do your checks here
+    //     $userIDInQueryParam = $request['user_id'];
 
+    //     if ($userID != $userIDInQueryParam) {
+    //         return response('Inconsistent request', 401);
+    //     } else {
+    //         $beamsToken = $beamsClient->generateToken($userID);
+    //         return response()->json($beamsToken);
+    //     }
+    // }
 
 
 

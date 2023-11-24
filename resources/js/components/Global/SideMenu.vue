@@ -90,7 +90,7 @@
             <div v-show="$store.state.sideMenuView" class="account-settings-wrap bottomItems">                
                 <GlowdNews :newsItems="newsItems"/>
                      
-                <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 20px;">   
+                <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 10px 20px 20px 20px;">   
                     <router-link v-if="$store.state.user.partner_flag !== 1" class="login-link jump-link" style="cursor: pointer;font-size: 15px;display: flex;align-items: center;" to="/notice">お知らせ<span v-if="$store.state.noticeBadge" style="position: unset;width: fit-content;margin-left: 5px;" class="side-notification">{{ badgeFilter($store.state.noticeBadge)}}</span> </router-link>             
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" to="/support/faq">サポートデスク</router-link>
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'settings'}">設定</router-link>
@@ -196,6 +196,8 @@ import GlowdNews from './GlowdNews.vue'
     font-size: 13px;
     color: var(--primary-color);
     text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .g-news-link:hover{
     color: var(--primary-color);
@@ -207,10 +209,10 @@ import GlowdNews from './GlowdNews.vue'
 }
 .gn-img-container{
     position: relative;
-    max-height: 180px;
+    max-height: 20vh;
+    min-height: 20vh;
     overflow: hidden;
     display: flex;
-    align-items: center;
 }
 .gn-banner{
     position: absolute;
@@ -230,13 +232,17 @@ import GlowdNews from './GlowdNews.vue'
 }
 .gn-image{
     width: 100%;
-    height: auto;
+    height: inherit;
+    object-fit: cover;
 }
 .gn-title{
     width: 100%;
     margin-top: 10px;
     text-align: left;
     line-height: 1.5;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
 }
 .naviBadge{
     font-size: 11px;
@@ -284,10 +290,10 @@ import GlowdNews from './GlowdNews.vue'
     margin:0;
     gap:10px;
     overflow: hidden;
-    height: 50px;
+    height: 6%;
     display: flex;
     padding: 0 20px;
-    min-height: 50px;
+    min-height: 35px;
     text-decoration: none;
     color: var(--primary-color);
 }
@@ -345,7 +351,7 @@ import GlowdNews from './GlowdNews.vue'
         min-width: calc(65vw - 55px);
     }
     .side-menu-route{    
-        min-height: 40px;
+        min-height: 35px;
         font-size: 13px;
     }
     .g-news-wrap{
