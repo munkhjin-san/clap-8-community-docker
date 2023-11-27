@@ -574,13 +574,13 @@ class CalendarController extends Controller
             $s_date = Carbon::parse($date_start_ready);
             $e_date = Carbon::parse($date_end_ready);
             $day = $s_date->format('Y-m-d H:i:s');
-            $meetings = $request['repetition_type'] == 0 ? $this->today_meetings($index, $token, $day) : [];
+            // $meetings = $request['repetition_type'] == 0 ? $this->today_meetings($index, $token, $day) : [];
 
             $s1 = $s_date->copy()->format('Y-m-d H:i:s');
             $s2 = $e_date->copy()->format('Y-m-d H:i:s');
 
-            $check_overlap = $request['repetition_type'] == 0 ? $this->check_meeting_overlap($meetings, $s1, $s2, null) : 'ok';
-            if($check_overlap == 'ok'){
+            // $check_overlap = $request['repetition_type'] == 0 ? $this->check_meeting_overlap($meetings, $s1, $s2, $has_prev_date['zoom_id']) : 'ok';
+            // if($check_overlap == 'ok'){
 
                 $start = Carbon::parse($s1);
                 $end = Carbon::parse($s2);
@@ -619,7 +619,7 @@ class CalendarController extends Controller
                 
                 
 
-            }
+            // }
         }
         $records = CalendarRecord::whereIn('id', $ids)->update([
             "title" => $request['title'],
@@ -639,6 +639,10 @@ class CalendarController extends Controller
             "created_at" => $has_prev_date ? $has_prev_date['created_at'] : now(),
             "created_user" => $has_prev_date ? $has_prev_date['created_user'] : Auth::id(),
         ]);
+
+        if($request['facility']['zoom_value'] !== null && $zoom_values['zoom_url'] == null){
+            throw ValidationException::withMessages(['message' => 'zoom予約に失敗しました。']);
+        }
 
         $targetIds = $request['users'];
         $targetUsersMail = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $targetIds)->where('id', '!=', Auth::id())->pluck('email')->toArray();
