@@ -268,10 +268,11 @@ class UserController extends Controller{
                 $album->intro_flag = $request['intro_flag'];
                 $album->save();
                 $set_path = "{$album->id}_{$album->user_id}_{$file_path}.{$album->extension}";
+                File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);
                 if($file_type == 'image' && $file_extension !== 'svg'){
 
                     $img = Image::make($fileContent)->orientate();
-                    File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
+                                          
                     $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
                     
                 }else{
@@ -301,6 +302,7 @@ class UserController extends Controller{
         if($request->uploadedImages){
             $user_album = $this->tempToServer($request);
         }
+        $tagIds = [];
         foreach ($request->tags as $text) {
             $tag = TagRecord::firstOrCreate(['text' => $text]);
             $tagIds[] = $tag->id;
