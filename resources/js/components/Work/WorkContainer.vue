@@ -2,7 +2,6 @@
     <div class="work-root">
         
         <div class="work-header">
-            <HamBurger v-if="$store.state.mobile"/>
             <WorkButtons
                 :usersData="usersData"
                 :workGroups="workGroups"
@@ -64,7 +63,6 @@
                     :usersData="usersData"
                     :kintone_data="kintone_data"
                     :shiftModal="shiftModal"
-                    :planned_days="planned_days"
                     @changeDate="changeDate"
                     @closeModal="shiftModal = false"
                     @reload="reload"
@@ -98,7 +96,6 @@
     import WorkButtons from './WorkButtons.vue'
     import MonthPicker from '../Global/MonthPicker.vue'
     import WorkRecords from './WorkRecords.vue'
-    import HamBurger from '../Global/HamBurger.vue'
     import workStyle from './workStyle.scss'
     import moment from 'moment'
     import WorkShifts from './WorkShifts.vue'
@@ -132,14 +129,18 @@
                 weathers: [],
                 windowWidth: window.innerWidth,
                 kintone_data: [],
-                planned_days: 0
+                consumedDays: 0,
+                startDate: '',
+                endDate: '',
+                plannedDays: 0,
+                grantedDays: 0,
+                workTemp: [],
+                remainingDays: 0
             }
         },
         created(){
             setTimeout(() => {
-                if(this.$store.state.mobile){
-                    this.todayScroll()
-                }
+                this.todayScroll()
             }, 500);
                 
            
@@ -152,6 +153,8 @@
                 this.monthAverage = this.$route.meta.data.month_average,
                 this.weathers = this.$route.meta.data.weather,
                 this.calendars = this.calendarData
+            }else{
+                this.getWorkData()
             }
             this.getShiftData()
             this.getWorkGroup()
@@ -314,7 +317,9 @@
                         this.shiftTypes = response.data.shift_type
                         this.shiftRecords = response.data.shift_record
                         this.kintone_data = response.data.kintone_data
-                        this.planned_days = response.data.planned_days
+                        // this.consumedDays = response.data.consumed_days
+                        // this.remainingDays = response.data.remaining_days
+                        // this.workTemp = response.data.workTemp
                         this.shiftStartTime = this.shiftRecords[0] ? this.shiftRecords[0].start_time : ''
                         this.shiftEndTime = this.shiftRecords[0] ? this.shiftRecords[0].end_time : ''
                         
@@ -418,7 +423,6 @@
             MonthPicker,
             WorkButtons,
             WorkRecords,
-            HamBurger,
             WorkShifts,
             WorkAttendance,
             WorkMembers

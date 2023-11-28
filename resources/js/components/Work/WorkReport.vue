@@ -16,13 +16,13 @@
                     <p class="report-header">本日の就業時間</p>
                     <div class="report-input">
                         <ul class="report-time">
-                            <li>
+                            <li class="taskDateTimePicker">
                                 {{editStartTime}}
                             </li>
                             <li class="between-line">
                                 ～
                             </li>
-                            <li>
+                            <li class="taskDateTimePicker">
                                 {{editEndTime}}
                             </li>
                         </ul>
@@ -65,7 +65,7 @@
                     <p class="report-header">本日の休憩時間</p>
                     <div class="report-input">
                         <ul>
-                            <li>{{breakTimeSelect}}分</li>
+                            <li class="taskDateTimePicker">{{breakTimeSelect}}分</li>
                         </ul>
                     </div>
                 </div>
@@ -83,7 +83,7 @@
                 <div class="report-field" v-if="breakTime">
                     <p class="report-header">休憩時間の選択</p>
                     <div class="report-input">
-                        <select class="report-breakTime dropDownSelector" v-model="breakTimeSelect" name="breakTimeSelect">
+                        <select class="report-breakTime dropDownSelector taskDateTimePicker" v-model="breakTimeSelect" name="breakTimeSelect">
                             <option :key="index" v-for="(item , index) in breakTimeOptions" :value="item.value">{{ item.label }}</option>
                         </select>
                     </div>

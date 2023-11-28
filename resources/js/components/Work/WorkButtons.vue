@@ -1,5 +1,7 @@
 <template>
     <div class="workButtons-wrapper">
+        <HamBurger v-if="$store.state.mobile"/>
+
         <button class="work-button" @click="clickButton('selectShift')">
             勤怠予定
         </button>
@@ -59,8 +61,13 @@
     </div>
 </template>
 <script>
+    import HamBurger from '../Global/HamBurger.vue'
+
     export default{
         props: ['usersData', 'usersCheckArray', 'workGroups', 'auth_user'],
+        components: {
+            HamBurger,
+        },
         data(){
             return{
                 buttons: [
