@@ -16,7 +16,7 @@
     position: absolute;
     right: 0;
     top: 50px;
-    z-index: 25;
+    z-index: 2;
     background: var(--bg3);
     box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 }
@@ -554,7 +554,6 @@
   }
   .records-wrapper{
     position: relative;
-    z-index: 24;
     flex: 1;
   }
   .work-members-modal{
@@ -672,7 +671,21 @@
   .alertTip{
     position: relative;
   }
-  
+  .hb-menu{
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    margin: 0 10px;
+    place-content: center;
+    cursor: pointer;
+    min-width: 30px;
+    position: relative;
+    }
+    .hb-menu:hover{
+        background: var(--bg2);
+
+    }
   // #20210420_096 work追加
   .alertTip::after {
     content: "";
@@ -735,7 +748,6 @@
     }
     .work-header{
         background-color: var(--bg2);
-        z-index: 1;
         padding: 0;
     }
     .work-button{

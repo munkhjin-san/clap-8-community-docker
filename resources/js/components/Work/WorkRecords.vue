@@ -202,13 +202,13 @@
                             <div >
                                 <div style="display:inline-block" v-if="isTodayOrFuture(day.day_full) && user.id == auth_user.id">
                                     <div class="workButton-wrapper">
-                                        <button v-if="today(day.day_full) && day.time_card_records?.[day.day_full]?.[user.id]?.stamp_flag == 0" @click="timeStampEnd()" class="workRecords-button">終業</button>
-                                        <button v-else-if="today(day.day_full) && day.time_card_records?.[day.day_full]?.[user.id]?.stamp_flag == null" @click="timeStampStart(day.shift_records?.[day.day_full]?.[user.id])" class="workRecords-button">始業</button>
+                                        <button v-if="today(day.day_full) && day.time_card_records?.[day.day_full]?.[user.id]?.stamp_flag == 0" @click="this.$emit('timeStampEnd')" class="workRecords-button">終業</button>
+                                        <button v-else-if="today(day.day_full) && day.time_card_records?.[day.day_full]?.[user.id]?.stamp_flag == null" @click="this.$emit('timeStampStart', day.shift_records?.[day.day_full]?.[user.id])" class="workRecords-button">始業</button>
                                         
-                                        <button v-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="timeStampEdit(day.shift_records?.[day.day_full]?.[user.id], true, user.id)">作成</button>
+                                        <button v-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="this.$emit('timeStampEdit', day.shift_records?.[day.day_full]?.[user.id], true, user.id)">作成</button>
                                         <p v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 1">申請中</p>
                                         <p v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 2">承認済み</p>
-                                        <button v-else class="workRecords-button" @click="timeStampEdit(day.time_card_records?.[day.day_full]?.[user.id], false, user.id)">編集</button>
+                                        <button v-else class="workRecords-button" @click="this.$emit('timeStampEdit', day.time_card_records?.[day.day_full]?.[user.id], false, user.id)">編集</button>
                                     </div>
                                 </div>
                                 <div style="display:inline-block" v-else-if="auth_user.work_authority > user.work_authority">
@@ -218,8 +218,8 @@
                                         <button v-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 2" @click="dailyCancel(user.id,day.day_full)" class="workRecords-button">承認取消</button>
                                         <p style="line-height: 2.5" v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 0">作成中</p>
                                         <p style="line-height: 2.5" v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 10">差戻中</p>
-                                        <button v-if="auth_user.id == 608 && day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="timeStampEdit(day.shift_records?.[day.day_full]?.[user.id], true, user.id)">作成</button>
-                                        <button v-else-if="auth_user.id == 608" class="workRecords-button" @click="timeStampEdit(day.time_card_records?.[day.day_full]?.[user.id], false, user.id)">編集</button>
+                                        <button v-if="auth_user.id == 608 && day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="this.$emit('timeStampEdit', day.shift_records?.[day.day_full]?.[user.id], true, user.id)">作成</button>
+                                        <button v-else-if="auth_user.id == 608" class="workRecords-button" @click="this.$emit('timeStampEdit', day.time_card_records?.[day.day_full]?.[user.id], false, user.id)">編集</button>
                                         <p v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null">--</p>
                                     </div>
                                 </div>
@@ -282,26 +282,12 @@
                 </div>
             </div>
         </div>
-            <div style="position: relative;" v-if="reportModal">
-                <WorkReport
-                    @reload="reload"
-                    @closeModal="closeModal"
-                    :chosenDate="chosenDate"
-                    :todayStartTime="formatTime(todayStartTime, 'start')"
-                    :todayEndTime="formatTime(todayEndTime, 'end')"
-                    :todayBreakTime="todayBreakTime"
-                    :customFieldData="customFieldData"
-                    :info="info"
-                    :createReport="createReport"
-                    :chosenUserId="chosenUserId"
-                    :shiftStartTime="shiftStartTime"
-                    :shiftEndTime="shiftEndTime"
-                />
-            </div>
+           
+                
+           
     </div>
 </template>
 <script>
-    import WorkReport from './WorkReport.vue'
     import moment from 'moment'
     export default{
         props: [
@@ -335,21 +321,13 @@
                     { label: '日報申請'},
                    
                 ],
-                reportModal: false,
-                chosenDate: null,
-                todayStartTime: null,
-                todayEndTime: null,
-                todayBreakTime: 0,
-                customFieldData: [],
+                
                 stampStart: true,
                 stampEnd: false,
-                info: [],
-                createReport: false,
-                chosenUserId: ''
+                
+                
+                
             }
-        },
-        mounted(){
-            this.getCustomFields()
         },
         computed: {
             
@@ -368,17 +346,7 @@
                 }
                 return false
             },
-            closeModal(){
-                this.reportModal = false
-                this.customFieldData = []
-                if(navigator.userAgent.match(/iPhone/)){
-                    const recordWrapper = document.querySelector('.records-wrapper')
-                    const style = recordWrapper.style;
-                    style.height = 'calc(100% - 90px)'
-                    this.$emit('todayScroll')
-                }
-               
-            },
+            
             overTimeFormat(minutes){
                 if (minutes === 0) {
                     return '0時間';
@@ -440,48 +408,7 @@
             isTodayOrFuture(date) {
                 return this.currentDay >= date;
             },
-            timeStampStart(data){
-                const month = this.selectedMonth + 1
-                if(data){
-                    var date = new Date(); // get current date
-                    var minutes = date.getMinutes();
-                    var quarterHours = Math.ceil(minutes / 15);
-                    date.setMinutes(quarterHours * 15);
-                    date.setSeconds(0);
-                    var hours = date.getHours();
-                    var minutes = date.getMinutes();
-
-                    // pad with zero if needed
-                    hours = hours < 10 ? '0' + hours : hours;
-                    minutes = minutes < 10 ? '0' + minutes : minutes;
-                    let time = hours + ':' + minutes + ':00'
-                    this.todayStartTime = time
-                    this.stampEnd = true
-                    this.stampStart = false
-                    const params = {
-                        start_time : time,
-                        day : this.currentDay
-                    }
-                    axios.post('/daily_report_add', params).then(
-                        response => {
-                            this.$emit('reload')
-                        }
-                    ).catch(function (error) {
-                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                        else if (error.request) this.errorToast('エラーが発生しました。')
-                        else this.errorToast('エラーが発生しました。 ' + error.message)     
-                    }.bind(this))
-                }else{
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: month + '月の勤怠予定を入力してください。',
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK'],
-                    }) 
-                }
-            },
+            
             errorToast(message){
                 emitter.emit('setToast', {
                     active: true,  
@@ -492,112 +419,7 @@
                     answers: ['OK']
                 })                
             },
-            timeStampEnd(){
-                var date = new Date(); // get current date
-                var minutes = date.getMinutes();
-                var rounded = Math.floor(minutes / 15) * 15;
-                date.setMinutes(rounded);
-                date.setSeconds(0);
-                var hours = date.getHours();
-                var minutes = date.getMinutes();
-
-                // pad with zero if needed
-                hours = hours < 10 ? '0' + hours : hours;
-                minutes = minutes < 10 ? '0' + minutes : minutes;
-                let time = hours + ':' + minutes + ':00'
-                this.todayEndTime = time
-                this.stampEnd = false
-                const params = {
-                    end_time : time,
-                    day : this.currentDay
-                }
-                const uniqueChannell = Math.random().toString(36).substring(5);
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: '本日の勤務を終業しますか。',
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: [this.$t('confirmToAction'),this.$t('cancelToAction')],
-                    channel: uniqueChannell
-
-                })            
-                emitter.on(uniqueChannell, (data) => { 
-                    if(data.answer === this.$t('confirmToAction')){
-                        axios.post('/daily_report_add', params).then(
-                            response => {
-                                this.$emit('reload')
-                                this.timeStampEdit(response.data, false, response.data.user_id)
-                            }
-                        ).catch(function (error) {
-                            if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                            else if (error.request) this.errorToast('エラーが発生しました。')
-                            else this.errorToast('エラーが発生しました。 ' + error.message)     
-                        }.bind(this))
-                    }else{
-                        this.stampEnd = true
-                    } 
-                });
-                
-                
-            },
-            getCustomFields(){
-                const params = {
-                    app_name : 'work'
-                };
-
-                axios.post('/custom_field_data', params ).then(
-                    response => {
-                            this.info = response.data
-                        }
-                    ).catch(function (error) {
-                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                        else if (error.request) this.errorToast('エラーが発生しました。')
-                        else this.errorToast('エラーが発生しました。 ' + error.message)     
-                    }.bind(this))
-
-            },
-            reload(){
-                this.$emit('reload')
-                this.closeModal()
-            },
-            timeStampEdit(data, val, userId, date){
-                const month = this.selectedMonth + 1
-                if(data){
-                    this.todayStartTime = data.start_time ? data.start_time : (data.shift_start_time ? data.shift_start_time : '09:00:00')
-                    this.todayEndTime = data.end_time ? data.end_time : (data.shift_end_time ? data.shift_end_time : '18:00:00')
-                    this.todayBreakTime = data.break_time ? data.break_time : 0
-                    this.chosenDate = data.day ? data.day : data.shift_day
-                    const fields = ['allowance', 'incident', 'achievement', 'comment'];
-                    fields.forEach(field => {
-                        if (data[field]) {
-                            this.customFieldData.push(data[field]);
-                        }else{
-                            this.customFieldData = []
-                        }
-                    });
-                    if(navigator.userAgent.match(/iPhone/)){
-                        const recordWrapper = document.querySelector('.records-wrapper')
-                        const style = recordWrapper.style;
-                        style.height = 'auto'
-                    }
-                    
-                
-                    this.chosenUserId = userId
-                    this.reportModal = true
-                    this.createReport = val
-                }else{
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: month + '月の勤怠予定を入力してください。',
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK'],
-                    }) 
-                }
-                
-            },
+            
             formatTime(time, val){
                 if(!time) return '--'
                 
@@ -736,8 +558,6 @@
                 return null;
             }
         },
-        components: {
-            WorkReport
-        }
+        
     }
 </script>

@@ -45,7 +45,9 @@
                 :attendanceFlag="attendanceFlag"
                 :weathers="weathers"
                 :selectedMonth="selectedMonth"
-                ref="workrecords"
+                @timeStampStart="timeStampStart"
+                @timeStampEnd="timeStampEnd"
+                @timeStampEdit="timeStampEdit"
                 @todayScroll="todayScroll"
                 @reload="reload"
             />
@@ -89,6 +91,21 @@
                     @selectedUsers="selectedUsers"
                 />
             </div>
+            <WorkReport
+                v-if="reportModal"
+                @reload="reload"
+                @closeModal="closeModal"
+                :chosenDate="chosenDate"
+                :todayStartTime="formatTime(todayStartTime, 'start')"
+                :todayEndTime="formatTime(todayEndTime, 'end')"
+                :todayBreakTime="todayBreakTime"
+                :customFieldData="customFieldData"
+                :info="info"
+                :createReport="createReport"
+                :chosenUserId="chosenUserId"
+                :shiftStartTime="shiftStartTime"
+                :shiftEndTime="shiftEndTime"
+            />
     </div>
 </template>
 
@@ -102,7 +119,8 @@
     import WorkAttendance from './WorkAttendance.vue'
     import holiday_jp from '@holiday-jp/holiday_jp'
     import WorkMembers from './WorkMembers.vue'
-    
+    import WorkReport from './WorkReport.vue'
+
     export default {
         data(){
             return {
@@ -135,13 +153,22 @@
                 plannedDays: 0,
                 grantedDays: 0,
                 workTemp: [],
-                remainingDays: 0
+                remainingDays: 0,
+                reportModal: false,
+                chosenDate: null,
+                todayStartTime: null,
+                todayEndTime: null,
+                todayBreakTime: 0,
+                customFieldData: [],
+                chosenUserId: '',
+                info: [],
+                createReport: false,
             }
         },
         created(){
             setTimeout(() => {
                 this.todayScroll()
-            }, 500);
+            });
                 
            
         },  
@@ -159,6 +186,7 @@
             this.getShiftData()
             this.getWorkGroup()
             this.getAttendanceData()
+            this.getCustomFields()
             const url = new URL(window.location.href);
             const action = url.searchParams.get("action");
 
@@ -180,10 +208,11 @@
                     
                     if (thisMonth !== valueMonth) {
                         this.selectedMonth = this.selectedMonth - 1;
+                        this.reload()
                     }
                     
-                    this.$refs.workrecords.timeStampEdit(formData, true, this.auth_user.id)
-                } else {
+                    this.timeStampEdit(formData, true, this.auth_user.id)
+                }  else {
                     this.selectShift();
                 }
             }
@@ -233,6 +262,187 @@
             }
         },
         methods: {
+            closeModal(){
+                this.reportModal = false
+                this.customFieldData = []
+                // if(navigator.userAgent.match(/iPhone/)){
+                //     const recordWrapper = document.querySelector('.records-wrapper')
+                //     const style = recordWrapper.style;
+                //     style.height = 'calc(100% - 90px)'
+                //     this.todayScroll()
+                // }
+               
+            },
+            formatTime(time, val){
+                if(!time) return '--'
+                
+                if(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(time)){
+                    var date = new Date("2000-01-01T" + time); // get current date
+                    var minutes = date.getMinutes();
+                    if(val == 'start'){
+                        var rounded = Math.ceil(minutes / 15) * 15;
+                    }else if(val == 'end'){
+                        var rounded = Math.floor(minutes / 15) * 15;
+                    }
+                    date.setMinutes(rounded);
+                    date.setSeconds(0);
+                    var hours = date.getHours();
+                    var minutes = date.getMinutes();
+
+                    // pad with zero if needed
+                    hours = hours < 10 ? '0' + hours : hours;
+                    minutes = minutes < 10 ? '0' + minutes : minutes;
+                    let roundedTime = hours + ':' + minutes
+                    return roundedTime
+
+                }else if(time === '打刻なし'){
+                    return time
+                }
+            },
+            getCustomFields(){
+                const params = {
+                    app_name : 'work'
+                };
+
+                axios.post('/custom_field_data', params ).then(
+                    response => {
+                            this.info = response.data
+                        }
+                    ).catch(function (error) {
+                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                        else if (error.request) this.errorToast('エラーが発生しました。')
+                        else this.errorToast('エラーが発生しました。 ' + error.message)     
+                    }.bind(this))
+
+            },
+            timeStampStart(data){
+                const month = this.selectedMonth + 1
+                if(data){
+                    var date = new Date(); // get current date
+                    var minutes = date.getMinutes();
+                    var quarterHours = Math.ceil(minutes / 15);
+                    date.setMinutes(quarterHours * 15);
+                    date.setSeconds(0);
+                    var hours = date.getHours();
+                    var minutes = date.getMinutes();
+
+                    // pad with zero if needed
+                    hours = hours < 10 ? '0' + hours : hours;
+                    minutes = minutes < 10 ? '0' + minutes : minutes;
+                    let time = hours + ':' + minutes + ':00'
+                    this.todayStartTime = time
+                    this.stampEnd = true
+                    this.stampStart = false
+                    const params = {
+                        start_time : time,
+                        day : this.currentDay
+                    }
+                    axios.post('/daily_report_add', params).then(
+                        response => {
+                            this.reload()
+                        }
+                    ).catch(function (error) {
+                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                        else if (error.request) this.errorToast('エラーが発生しました。')
+                        else this.errorToast('エラーが発生しました。 ' + error.message)     
+                    }.bind(this))
+                }else{
+                    emitter.emit('setToast', {
+                        active: true,  
+                        type: 'info', 
+                        content: month + '月の勤怠予定を入力してください。',
+                        closeButton: false, 
+                        autoClose: false,
+                        answers: ['OK'],
+                    }) 
+                }
+            },
+            timeStampEnd(){
+                var date = new Date(); // get current date
+                var minutes = date.getMinutes();
+                var rounded = Math.floor(minutes / 15) * 15;
+                date.setMinutes(rounded);
+                date.setSeconds(0);
+                var hours = date.getHours();
+                var minutes = date.getMinutes();
+
+                // pad with zero if needed
+                hours = hours < 10 ? '0' + hours : hours;
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                let time = hours + ':' + minutes + ':00'
+                this.todayEndTime = time
+                this.stampEnd = false
+                const params = {
+                    end_time : time,
+                    day : this.currentDay
+                }
+                const uniqueChannell = Math.random().toString(36).substring(5);
+                emitter.emit('setToast', {
+                    active: true,  
+                    type: 'info', 
+                    content: '本日の勤務を終業しますか。',
+                    closeButton: false, 
+                    autoClose: false,
+                    answers: [this.$t('confirmToAction'),this.$t('cancelToAction')],
+                    channel: uniqueChannell
+
+                })            
+                emitter.on(uniqueChannell, (data) => { 
+                    if(data.answer === this.$t('confirmToAction')){
+                        axios.post('/daily_report_add', params).then(
+                            response => {
+                                this.reload()
+                                this.timeStampEdit(response.data, false, response.data.user_id)
+                            }
+                        ).catch(function (error) {
+                            if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                            else if (error.request) this.errorToast('エラーが発生しました。')
+                            else this.errorToast('エラーが発生しました。 ' + error.message)     
+                        }.bind(this))
+                    }else{
+                        this.stampEnd = true
+                    } 
+                });
+                
+                
+            },
+            timeStampEdit(data, val, userId, date){
+                const month = this.selectedMonth + 1
+                if(data){
+                    this.todayStartTime = data.start_time ? data.start_time : (data.shift_start_time ? data.shift_start_time : '09:00:00')
+                    this.todayEndTime = data.end_time ? data.end_time : (data.shift_end_time ? data.shift_end_time : '18:00:00')
+                    this.todayBreakTime = data.break_time ? data.break_time : 0
+                    this.chosenDate = data.day ? data.day : data.shift_day
+                    const fields = ['allowance', 'incident', 'achievement', 'comment'];
+                    fields.forEach(field => {
+                        if (data[field]) {
+                            this.customFieldData.push(data[field]);
+                        }else{
+                            this.customFieldData = []
+                        }
+                    });
+                    // if(navigator.userAgent.match(/iPhone/)){
+                    //     const recordWrapper = document.querySelector('.records-wrapper')
+                    //     const style = recordWrapper.style;
+                    //     style.height = 'auto'
+                    // }
+                    
+                
+                    this.chosenUserId = userId
+                    this.reportModal = true
+                    this.createReport = val
+                }else{
+                    emitter.emit('setToast', {
+                        active: true,  
+                        type: 'info', 
+                        content: month + '月の勤怠予定を入力してください。',
+                        closeButton: false, 
+                        autoClose: false,
+                        answers: ['OK'],
+                    }) 
+                }
+                
+            },
             changeDate(month, year){
                 this.selectedYear = year
                 this.selectedMonth = month
@@ -258,6 +468,9 @@
                 }
             },
             reload(){
+                if(this.reportModal){
+                    this.closeModal()
+                }
                 if(this.usersCheckArray.length > 0){
                     this.getWorkData()
                     this.getShiftData()
@@ -317,9 +530,6 @@
                         this.shiftTypes = response.data.shift_type
                         this.shiftRecords = response.data.shift_record
                         this.kintone_data = response.data.kintone_data
-                        // this.consumedDays = response.data.consumed_days
-                        // this.remainingDays = response.data.remaining_days
-                        // this.workTemp = response.data.workTemp
                         this.shiftStartTime = this.shiftRecords[0] ? this.shiftRecords[0].start_time : ''
                         this.shiftEndTime = this.shiftRecords[0] ? this.shiftRecords[0].end_time : ''
                         
@@ -425,7 +635,8 @@
             WorkRecords,
             WorkShifts,
             WorkAttendance,
-            WorkMembers
+            WorkMembers,
+            WorkReport
         }
     }
 </script>
