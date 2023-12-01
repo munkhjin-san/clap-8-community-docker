@@ -345,8 +345,8 @@
         },
         methods: {
             downloadCSV(){
-                if(this.auth_user.position_id == 6 || this.auth_user.id == 608){
-                    var csv = '\ufeff' + '日付,メンバー	,予定,出勤,退勤,労働時間,残業時間,休憩時間,インシデント,目標達成率,コンディション,コメント\n';
+                if(this.auth_user.position_id == 6 || this.auth_user.id == 608 || this.auth_user.id == 610){
+                    var csv = '\ufeff' + '日付,メンバー	,予定,出勤,退勤,労働時間,残業時間,休憩時間,諸手当,インシデント,目標達成率,コンディション,コメント\n';
                     Object.values(this.daysList).forEach(obj => {
                         Object.values(obj.users).forEach(el => {
                             var allowanceValues = obj.time_card_records?.[obj.day_full]?.[el.id]?.allowance || [];
