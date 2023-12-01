@@ -348,6 +348,10 @@
                         Object.values(obj.users).forEach(el => {
                             var allowanceValues = obj.time_card_records?.[obj.day_full]?.[el.id]?.allowance || [];
                             var allowance = allowanceValues.map(allow => allow.label).join(' ');
+
+                            var commentText = obj.time_card_records?.[obj.day_full]?.[el.id]?.comment.value_text || '';
+                            var formattedComment = commentText.replace(/\n/g, ' '); // Replace newline characters with a space
+
                             var line =
                                 obj.formated_date + ',' +
                                 el.name + ',' +
@@ -361,7 +365,7 @@
                                 (obj.time_card_records?.[obj.day_full]?.[el.id]?.incident.label || '') + ',' +
                                 (obj.time_card_records?.[obj.day_full]?.[el.id]?.achievement.label || '') + ',' +
                                 (this.emojis[this.weathers?.[el.id]?.[obj.day_full]?.value_int] || '') + ',' +
-                                (obj.time_card_records?.[obj.day_full]?.[el.id]?.comment.value_text || '') + '\n';
+                                formattedComment + '\n';
                             csv += line;
                         });
                     });
