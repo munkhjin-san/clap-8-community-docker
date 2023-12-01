@@ -232,8 +232,13 @@
             </div>
             <div class="records-footer">
                 <div class="footer-row" v-for="(user, index) in usersData" :key="index">
-                    <div class="footer-cell">
+                    <div @click="downloadCSV()" class="footer-cell cursor-pointer" style="display:flex; justify-content: center; align-items: center; gap:10px">
                         <p v-if="index === 0">集計</p>
+                        <svg v-if="auth_user.id == 608 || auth_user.position_id == 6" xmlns="http://www.w3.org/2000/svg" id="Layer_2" data-name="Layer 2" viewBox="0 0 21.76 21.79" fill="#fff" width="15" height="15">
+                            <g id="logo">
+                                <path class="cls-1" d="m21.54.32c-.25-.3-.67-.39-1.04-.25h0c-.84.33-1.68.66-2.51,1-.84.34-1.67.68-2.5,1.02-1.67.68-3.33,1.38-4.99,2.07l-4.99,2.08L.52,8.35c-.27.11-.48.37-.52.71s.18.7.51.84h.01c.69.31,1.39.6,2.08.89l2.09.86c.7.28,3.95,1.5,4.24,1.6s.6.06.86-.17,6.1-6.39,6.1-6.39c.23-.23.22-.61-.02-.83s-.6-.2-.83.02l-5.71,5.43c-.16.15-.39.19-.59.1-.42-.19-4.51-1.88-5.16-2.14-.16-.06-.16-.28,0-.35l2.59-1.04,5.01-2.02c1.67-.68,3.34-1.35,5.01-2.03.59-.24,1.74-.72,2.42-1,.2-.08.4.12.31.31l-3.04,7.42-2.04,5.01c-.36.9-.73,1.79-1.09,2.69-.06.15-.28.16-.34,0l-1.52-3.53c-.15-.31-.56-.46-.92-.32s-.5.5-.37.81l2.22,6c.1.26.33.48.65.54.39.07.78-.16.94-.53h0c.7-1.67,1.39-3.33,2.08-4.99l2.07-4.99L21.69,1.26c.12-.29.09-.66-.15-.95Z"/>
+                            </g>
+                        </svg>
                     </div>
                     <div class="footer-cell">
                         {{ user.name }}
@@ -325,7 +330,7 @@
                 stampStart: true,
                 stampEnd: false,
                 
-                
+                emojis: ['🌈','☀️','☁️','☂️','⚡','☃️']
                 
             }
         },
@@ -336,6 +341,41 @@
             },
         },
         methods: {
+            downloadCSV(){
+                if(this.auth_user.position_id == 6 || this.auth_user.id == 608){
+                    var csv = '\ufeff' + '日付,メンバー	,予定,出勤,退勤,労働時間,残業時間,休憩時間,インシデント,目標達成率,コンディション,コメント\n';
+                    Object.values(this.daysList).forEach(obj => {
+                        Object.values(obj.users).forEach(el => {
+                            var allowanceValues = obj.time_card_records?.[obj.day_full]?.[el.id]?.allowance || [];
+                            var allowance = allowanceValues.map(allow => allow.label).join(' ');
+                            var line =
+                                obj.formated_date + ',' +
+                                el.name + ',' +
+                                (obj.shift_records?.[obj.day_full]?.[el.id]?.abbreviation || '') + ',' +
+                                (obj.time_card_records?.[obj.day_full]?.[el.id]?.start_time || '') + ',' +
+                                (obj.time_card_records?.[obj.day_full]?.[el.id]?.end_time || '') + ',' +
+                                this.workTimeFormat(obj.time_card_records?.[obj.day_full]?.[el.id]?.work_time) + ',' +
+                                (obj.time_card_records?.[obj.day_full]?.[el.id]?.over_time || '') + '分' + ',' +
+                                (obj.time_card_records?.[obj.day_full]?.[el.id]?.break_time || '') + '分' + ',' +
+                                (allowance || '') + ',' +
+                                (obj.time_card_records?.[obj.day_full]?.[el.id]?.incident.label || '') + ',' +
+                                (obj.time_card_records?.[obj.day_full]?.[el.id]?.achievement.label || '') + ',' +
+                                (this.emojis[this.weathers?.[el.id]?.[obj.day_full]?.value_int] || '') + ',' +
+                                (obj.time_card_records?.[obj.day_full]?.[el.id]?.comment.value_text || '') + '\n';
+                            csv += line;
+                        });
+                    });
+                    let blob = new Blob([csv], { type: 'text/csv' });
+                    let link = document.createElement('a');
+                    link.href = window.URL.createObjectURL(blob);
+                    link.download = 'work_' + (this.selectedMonth + 1) + '月' + '.csv';
+                    link.click();
+                }else{
+                    return
+                }
+                
+
+            },
             showOverTime(monthAvg){
                 if(monthAvg){
                     if(monthAvg.month_should_work_time && monthAvg.month_work_time && monthAvg.month_annual_leave != null){
