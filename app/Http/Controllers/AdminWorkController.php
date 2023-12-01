@@ -58,6 +58,7 @@ class AdminWorkController extends Controller{
         $dateToMonth = Carbon::createFromFormat('Y-m', $request->month)->subMonths(1);
         $prevMonth = $dateToMonth->format('Y-m');
         $month = $request->month;
+        $today = Carbon::now();
         [$currentYear, $currentMonth] = explode('-', $request->month);
         // $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?app=96';
         // $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?app=928';
@@ -95,7 +96,10 @@ class AdminWorkController extends Controller{
         $userIds = $all_users->pluck('id');
         
         $sevenDaysAgo = now()->subDays(7);
-
+        if($today->day == 1 || $today->day == 2 || $today->day == 3){
+            $currentMonth -= 1;
+        }
+        
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $userIds)
             ->where('date', '>=', $sevenDaysAgo) // Filter by the last 7 days
             ->whereYear('date', $currentYear)
