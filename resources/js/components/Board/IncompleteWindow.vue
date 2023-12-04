@@ -33,11 +33,17 @@
             </div>
             <!-- <div v-if="planShift" style="padding: 0 10px;">
                 <div class="incompleted-title">予定休暇を入力してください。</div>
+                <masonry-wall :items="[tempData]" :column-width="350" :gap="30">
+                    <template v-slot:default="{item}">
                     <WorkNotSubmitted 
-                        v-if="tempData"
-                        :item="tempData"
+                        v-if="item"
+                        :item="item"
+                        :consumedDays="consumedDays"
+                        :remainingDays="remainingDays"
                         plan="plan" 
                     />
+                </template>
+                </masonry-wall>
             </div> -->
             <div v-if="incompletedTasksList.length" style="padding: 0 10px;">
                 <div class="incompleted-title">{{ $tc('expiredTaskWarning', incompletedTasksList.length, {number: incompletedTasksList.length})}}</div>
@@ -145,7 +151,9 @@ import { ref, onMounted } from 'vue';
                 remindMessages: [],
                 uncheckedMessages: [],
                 planShift: false,
-                tempData: []
+                tempData: [],
+                consumedDays: 0,
+                remainingDays: 0,
             }
         },
         components:{
@@ -162,12 +170,15 @@ import { ref, onMounted } from 'vue';
             this.getUncheckedMessages()
             // this.getPlannedShifts()
             this.isJumpToMessage
-            if(!this.incompleteShow){
-                this.$emit('closePopup')
-                // const currentTime = new Date().getTime();
-                // const user_id = this.$store.state.user.id
-                // localStorage.setItem('popupCloseTime_' + user_id, currentTime);
-            }
+            setTimeout(() => {
+                if(!this.incompleteShow){
+                    this.$emit('closePopup')
+                    // const currentTime = new Date().getTime();
+                    // const user_id = this.$store.state.user.id
+                    // localStorage.setItem('popupCloseTime_' + user_id, currentTime);
+                }
+            },500)
+            
         },
         watch:{
             // '$store.state.focused' (after, before) {
@@ -191,6 +202,7 @@ import { ref, onMounted } from 'vue';
                        this.timecardNotSubmittedList.length || 
                        this.remindMessages.length || 
                        this.uncheckedMessages.length
+                       
             },
             isJumpToMessage(){
                 const url_string = window.location.href;
@@ -223,21 +235,31 @@ import { ref, onMounted } from 'vue';
             },
         },
         methods: {
-            // getPlannedShifts(){
-            //     const currentDate = new Date();
-            //     const currentMonth = currentDate.getMonth();
-            //     const currentDay = currentDate.getDate();
-            //     axios.post('/get_temp_data', { user_code: this.$store.state.user.user_code}).then(
-            //         response => {
-            //             this.tempData = response.data.tempData
-            //             if((currentMonth === 9 && currentDay >= 25) || (currentMonth === 10 && currentDay <= 30)){
-            //                 if(response.data.shift_count < this.tempData.planned_days){
-            //                     this.planShift = true
-            //                 }
-            //             }
-            //         }
-            //     )
-            // },
+            getPlannedShifts(){
+                const currentDate = new Date();
+                const currentMonth = currentDate.getMonth();
+                const currentDay = currentDate.getDate();
+                axios.post('/get_temp_data', { user_code: this.$store.state.user.user_code}).then(
+                    response => {
+                        if(response.data && response.data.tempData){
+                            this.tempData = response.data.tempData
+                            this.consumedDays= response.data.shift_count
+                            this.remainingDays = response.data.remaining_days
+                            if((currentMonth === 11 && currentDay >= 25) || (currentMonth === 0 && currentDay <= 30)){
+                                if(response.data.shift_count < this.tempData.planned_days){
+                                    this.planShift = true
+                                }else{
+                                    this.planShift = false
+                                }
+                            }
+                        }
+                    }
+                ).catch(function (error) {
+                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                    else if (error.request) this.errorToast('エラーが発生しました。')
+                    else this.errorToast('エラーが発生しました。 ' + error.message)     
+                }.bind(this))
+            },
             remindRequest(data){
                 axios.post('/remind_add', {
                         id: data.id
