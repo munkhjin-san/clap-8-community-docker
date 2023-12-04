@@ -96,7 +96,7 @@ class AdminWorkController extends Controller{
         $userIds = $all_users->pluck('id');
         
         $sevenDaysAgo = now()->subDays(7);
-        if($today->day == 1 || $today->day == 2 || $today->day == 3){
+        if($today->day == 1 || $today->day == 2 || $today->day == 3 || $today->day == 4 || $today->day == 5 || $today->day == 6){
             $currentMonth -= 1;
         }
         
