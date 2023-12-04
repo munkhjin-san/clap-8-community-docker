@@ -17,7 +17,7 @@ use App\Models\customFieldPartsRecord;
 
 use App\Models\workGroup;
 use App\Models\workGroupUser;
-
+// use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Events\Message;
 use Illuminate\Support\Facades\Http;
@@ -144,7 +144,7 @@ class WorkController extends Controller
                 'work_time_edit_flag' => $reserved_date['work_time_edit_flag']
             );
         }
-        $user_record = User::whereIn('id', $users_list)->select('name', 'id', 'work_type', 'work_time_day', 'work_authority', 'icon_id', 'position_id')->get();
+        $user_record = User::whereIn('id', $users_list)->select('name', 'id', 'work_type', 'work_time_day', 'work_authority', 'icon_id', 'position_id', 'user_code')->get();
 
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $users_list)->whereYear('date', $currentYear)->whereMonth('date', $currentMonth)->where('type_id', 43)->get()->groupBy('user_id')->map(function ($userRecords) {
             return $userRecords->keyBy('date'); // Key the records by date within each user group
@@ -224,6 +224,29 @@ class WorkController extends Controller
 
         return response()->json($responseArray);
     }
+    // public function get_temp_data(Request $request){
+    //     $notificationUser = User::select('name', 'id', 'icon_id')->findOrFail(610);
+    //     $tempData = workTemp::where('user_code', $request->user_code)->first();
+        
+        
+    //     if ($tempData) {
+    //         $startDate = $tempData->date;
+    //         $endDate = Carbon::parse($startDate)->addYear()->format('Y-m-d');
+    //         $tempData['notification_user'] = $notificationUser;
+    //         $tempData['endDate'] = $endDate;
+    //         $planned_shifts = shiftRecord::whereBetween('shift_day', [$startDate, $endDate])->where('shift_type', 3)->where('user_id', Auth::id())->count();
+    //         $remaining_days = $tempData->planned_days - $planned_shifts;
+    //         if($remaining_days > 0){
+    //             $data = [
+    //                 "shift_count" => $planned_shifts,
+    //                 "tempData" => $tempData,
+    //                 "remaining_days" => $remaining_days,
+    //             ];
+    //             return response()->json($data);
+    //         }
+    //     }
+    //     return response()->json('no data', 200);
+    // }
     public function getShiftData(Request $request){
         [$currentYear, $currentMonth] = explode('-', $request->current_date);
         $user = User::select('user_code')->findOrFail($request->work_group[0]);
@@ -249,7 +272,7 @@ class WorkController extends Controller
         
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
-        $planned_date = Carbon::now()->format('Y-m-d');
+        // $planned_date = Carbon::now()->format('Y-m-d');
         // if($responseData){
         //     foreach ($responseData['records'] as $data){
         //         if($data['社員ｺｰﾄﾞ']['value'] == $user->user_code){
@@ -258,15 +281,29 @@ class WorkController extends Controller
         //         }
         // }
         
-        $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
+        
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->whereIn('user_id', $request->work_group)
                         ->with(['shiftType'])
                         ->orderBy('created_at', 'desc')
                         ->get();
-        // $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();   }
-
+        $between_records = 0;
+        $remaining_days = 0;
+        // $work_temp = workTemp::where('user_code', $user_code)->where(function($q) use($currentYear, $currentMonth) {
+        //     $q->whereYear('date', '=', $currentYear)
+        //         ->whereMonth('date', '<=', $currentMonth)
+        //         ->orWhere(function ($q) use ($currentYear, $currentMonth) {
+        //             $q->whereYear('date', '<', $currentYear)
+        //                 ->whereMonth('date', '>=', $currentMonth);
+        //         });
+        // })->first();
+        // if($work_temp){
+        //     $planned_date = $work_temp->date;
+        //     $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
+        //     $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();
+        //     $remaining_days = $work_temp->planned_days - $between_records; 
+        // }
         if($auth_user->position_id <= 11){
             $shift_type = shiftType::where('deleted_flag', 0)->get();
         }else{
@@ -276,9 +313,11 @@ class WorkController extends Controller
             "shift_record" => $shift_record,
             "shift_type" => $shift_type,
             "kintone_data" => $recieve,
-            "test" => $responseData,
-            // 'planned_days' => $between_records
+            // "workTemp" => $remaining_days > 0 ? $work_temp : null,
+            // "consumed_days" => $remaining_days > 0 ? $between_records : null,
+            // "remaining_days" => $remaining_days > 0 ? $remaining_days : null,
         ];
+        
 
         return response()->json(
             $data
@@ -286,21 +325,18 @@ class WorkController extends Controller
     }
     public function shiftAdd(Request $request)
     {
-        $auth_user_id = Auth::id();
+        $auth_user = Auth::user();
         $user_id = $request->userId;
         $shift_array = $request->shift_array;
         $start_time_val = $request->shiftTimeStart;
         $end_time_val = $request->shiftEndStart;
-
         $shift_days = collect($shift_array)->pluck('date')->toArray();
         $shift_record_check = shiftRecord::where('user_id', $user_id)
             ->whereIn('shift_day', $shift_days)
             ->get()
             ->keyBy('shift_day');
         foreach ($shift_array as $shift) {
-            if($shift['type'] == 3 || $shift['type'] == 5){
-
-            }
+            $status_flag = $shift['type'] === 3 ? 1 : 0;
             if ($shift_record_check->has($shift['date'])) {
                 $shift_record = $shift_record_check[$shift['date']];
                 if ($shift_record->shift_type !== $shift['type']) {
@@ -316,6 +352,7 @@ class WorkController extends Controller
                     'shift_type' => $shift['type'],
                     'start_time' => $start_time_val,
                     'end_time' => $end_time_val,
+                    'status_flag' => $status_flag,
                 ]);
             }
         }
@@ -727,8 +764,8 @@ class WorkController extends Controller
             $month_over_time = $over_time;
         }
         
-        $month_stay_allowance_count = $user->custom_field_data_records->where('value_int', 0)->count();
-        $month_move_allowance_count = $user->custom_field_data_records->where('value_int', 1)->count();
+        $month_stay_allowance_count = $user->custom_field_data_records->where('value_int', 1)->count();
+        $month_move_allowance_count = $user->custom_field_data_records->where('value_int', 0)->count();
         
         if(!empty($attendance)){
             $attendance_flag = true;
@@ -888,12 +925,22 @@ class WorkController extends Controller
     public function notSubmitted(Request $request){
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
+        
         $notificationUser = User::where('deleted_flag', 0)->where('id', 610)->select('name', 'id', 'icon_id')->orderBy('created_at', 'desc')->first();
         $yesterday = date("Y-m-d",strtotime('-1 day'));
         $today = date("Y-m");
         $year = date("Y");
         $month = date("m");
         $day = date("d");
+        if($auth_user_id == 610 || $auth_user_id == 608){
+            $resposnsArray = array(
+                'debug' => [],
+                'yesterday' => $yesterday,
+                'shiftNotSubmittedList' => [],
+                'timecardNotSubmittedList' => []
+            );
+            return response()->json($resposnsArray);
+        }
         if(in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
             $resposnsArray = array(
                 'debug' => [],
@@ -916,7 +963,7 @@ class WorkController extends Controller
         $shiftNotSubmittedList = [];
         $shiftSubmittedList = [];
         $timecardNotSubmittedList = [];
-        if(empty($shift_record)){
+        if(count($shift_record) == 0){
             $shiftNotSubmittedList[] = array('year' => $year, 'month' => $month , 'value' => $today , 'month_flag' => 0 ,'notification_user' => $notificationUser);
         }else{
             if(empty($attendance_this_record)){
