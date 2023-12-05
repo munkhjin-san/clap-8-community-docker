@@ -76,8 +76,9 @@ class AdminWorkController extends Controller{
 
         // }
         $attendance_record = attendanceRecord::where('date_year_month', $month)->orderBy('created_at', 'desc')->get();
-
-        $all_users = User::where('partner_flag', '=', 0)->where('hide_flag', '=', 0)->where('retire', 0)
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $pos_list = [1, 2, 3, 4, 5];    
+        $all_users = User::where('partner_flag', '=', 0)->where('hide_flag', '=', 0)->where('retire', 0)->whereNotIn('name', $ng_list)
         ->with(['shift_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('shift_day', $currentYear)->whereMonth('shift_day', $currentMonth)->orderBy('created_at', 'desc');
         }])

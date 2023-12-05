@@ -40,7 +40,8 @@ class AdminAccountController extends Controller
         
     }
     public function getUserList(Request $request){
-        $user_list = User::with('user_detail')->with('positions')->with('offices')->with('work_group_user')->get();
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $user_list = User::with('user_detail')->with('positions')->whereNotIn('name', $ng_list)->with('offices')->with('work_group_user')->get();
         $position_list = positionRecord::with(['employees' => function($q){
                             $q->with('icons')->select('id', 'name', 'position_id', 'icon_id');
                         }])
