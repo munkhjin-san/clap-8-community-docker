@@ -171,7 +171,7 @@
                     <div class="input-inner-wrapper" style="margin-top:10px">
                         
                         <label class="check-container user" style="align-self: center;">
-                            <input id="retire" type="checkbox" v-model="user_retire" name="user_retire">
+                            <input id="retire" type="checkbox" :true-value="1" :false-value="0" v-model="user_retire" name="user_retire">
                             <span class="checkmark-mini" style="width: 18px; height:18px"></span>
                             <label for="retire">{{ checked }}</label>
                         </label>
@@ -235,7 +235,7 @@
                     offices: "",
                     work_type: 0,
                     checked: '退職者',
-                    user_retire: '',
+                    user_retire: 0,
                     workgroup:[],
                     work_time_day: '',
                     user_code: '',
