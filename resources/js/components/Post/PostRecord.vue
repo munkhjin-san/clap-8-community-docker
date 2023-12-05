@@ -139,7 +139,7 @@ export default{
         }
     },
     mounted(){
-        const to_user = this.$refs[`to_users_${this.record.id}`]
+        const to_user = this.$refs[`to_users_${this.record?.id}`]
         if(to_user && to_user.scrollHeight > to_user.clientHeight){
             this.viewExpand = true
         }

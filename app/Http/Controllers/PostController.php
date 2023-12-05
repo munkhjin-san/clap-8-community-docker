@@ -400,7 +400,7 @@ class PostController extends Controller
 
 
         $record = ChallengeRecord::findOrFail($request->record_id);
-        $record->challenge_awards()->attach(Auth::id(), ['award_bet' => $request->charge_bet]);
+        $record->challenge_awards()->attach(Auth::id(), ['award_bet' => $request->charge_bet, 'created_at' => now(), 'updated_at' => now()]);
         return response()->json();
 
         // $award = new challengeAward;

@@ -35,8 +35,8 @@
        
             <transition-group name="slidePop" tag="div" class="post-container scrollable" @scroll="scrollListen">
                 <PostRecord 
-                    v-for="record in records"
-                    :key="record.id"
+                    v-for="(record, index) in records"
+                    :key="`${record?.id}_${index}`"
                     :record="record"
                     :appName="appName"
                     :appNameJp="appNameJp"  
@@ -240,12 +240,17 @@ export default{
             this.create = true
         },
         closeCharge(id){
+            console.log(id)
             this.chargeTarget = null
-            let query = this.getQuery()
-            if(!query.hasOwnProperty('id') || !query.id){
-                query['id'] = id
+            if(id){
+                
+                let query = this.getQuery()
+                if(!query.hasOwnProperty('id') || !query.id){
+                    query['id'] = id
+                }
+                this.fetchPosts(query, id)
             }
-            this.fetchPosts(query, id)
+            
         },
         getQuery(){
             const id = this.$route.query.hasOwnProperty('id') && this.$route.query.id ? this.$route.query.id : null
