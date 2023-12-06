@@ -45,6 +45,7 @@ use OpenAI\Responses\Completions\CreateResponse;
 use App\Mail\Mention;
 use App\Mail\Confirm;
 use Hash;
+// use App\Jobs\SendNotification;
 class BoardController extends Controller
 {
     protected $sharedService;
@@ -864,44 +865,52 @@ class BoardController extends Controller
                 "board_members" => $related_members,
                 "board_id" => $request->record_id,
                 "sender" => $auth_user_id,
-                "body" => $chat->message_text,
-                "title" => $boardRecord->title,
-                "senderName" => $auth_user->name,
-                "message_id" => $chat->id,
-                "icon" => $auth_user->icon_id
             ); 
-            // $members = $related_members->map(function ($userId) {
-            //     return (string) $userId;
-            // })->toArray();
-            // $beamsClient = new \Pusher\PushNotifications\PushNotifications(array(
-            //     "instanceId" => config('app.pusher_instanceid'),
-            //     "secretKey" => config('app.pusher_primary_key'),
-            // ));
-            // $body = $auth_user->name . ':' . $chat->message_text;
-            // $deep_link = url('board/' . $request->record_id);
-            // $icon = url('content/profile_icon/' . $auth_user->icon_id . '_' . $auth_user_id . '_200.jpg');
-            // $badge = url('/96x96.png');
             
-            // $publishResponse = $beamsClient->publishToUsers(
-            //     $members,
-            //     array("web" => array("notification" => array(
-            //             "title" => $boardRecord->title,
-            //             "body" => $body,
-            //             "deep_link" => $deep_link,
-            //             "icon" => $icon,
-            //             "hide_notification_if_site_has_focus" => true,
-            //         ),  
-            //         "excluded_users" => array($auth_user_id),
-            //         "data" => array(
-            //             "badge"=> $badge,
-            //         ))
-            //     ));
+            
             event(new MessageSent($rebound));         
             $data = [
                 "success" => true,
                 "u_id" => $request->u_id,
                 "data" => $chat
             ];
+            // $members = $related_members->map(function ($userId) {
+            //     return (string) $userId;
+            // })->toArray();
+            
+            // $deep_link = url('board/' . $request->record_id);
+            // $icon = url('content/profile_icon/' . $auth_user->icon_id . '_' . $auth_user->id . '_200.jpg');
+            // $badge = url('/96x96.png');
+            // if(!empty($boardRecord) && $boardRecord->private_flag == 1){
+            //     $push_title = $auth_user->name;
+            //     if($request->attached_temp_files && $chat->message_text == null){
+            //         $body = 'ファイルメッセージ';
+            //     }else{
+            //         $body = $chat->message_text;
+            //     }
+            // }else{
+            //     $push_title = $boardRecord->title;
+            //     if($request->attached_temp_files && $chat->message_text == null){
+            //         $body = $auth_user->name . ':' . 'ファイルメッセージ';
+            //     }else{
+            //         $body = $auth_user->name . ':' . $chat->message_text;
+            //     }
+            // }
+            
+            // $payload = [
+            //     "body" => $body,
+            //     "title" => $push_title,
+            //     "link" => $deep_link,
+            //     "members" => $members,
+            //     "icon" => $icon,
+            //     "badge" => $badge,
+            //     "user_id" => $auth_user_id,
+            //     "user_name" => Auth::user()->name,
+            //     "message" => $chat->message_text,
+            //     "members_int" => $related_members->toArray(),
+            // ];
+            // SendNotification::dispatchAfterResponse($payload);
+            
             return response()->json($data);
              
         // }
@@ -1150,170 +1159,7 @@ class BoardController extends Controller
             
         }
         return response()->json($result);
-    }   
-    public function tabUpdate(Request $request){
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
-        if($auth_user_id){
-
-            if($request->tab == 0){
-                $other_tabs = boardGroup::where('user_id', '=', $auth_user_id)->where('active_flag', '=', 1)->get();
-                if($other_tabs){
-                    foreach($other_tabs as $remove_tab){
-                        $remove_tab->active_flag = 0;
-                        $remove_tab->save();
-                    }
-                }
-            }
-            else if($request->tab == -1){
-                $groupTab = boardGroup::where('user_id', '=', $auth_user_id)->where('name', '=', 'group_default')->first();
-                if($groupTab){
-                    $groupTab->active_flag = 1;
-                    $groupTab->save();
-                    $other_tabs = boardGroup::where('user_id', '=', $auth_user_id)->where('id', '!=', $groupTab->id)->where('active_flag', '=', 1)->get();
-                    if($other_tabs){
-                        foreach($other_tabs as $remove_tab){
-                            $remove_tab->active_flag = 0;
-                            $remove_tab->save();
-                        }
-                    }
-                }else{
-                    $newGroupTab = new boardGroup;
-                    $newGroupTab->user_id = $auth_user_id;
-                    $newGroupTab->name = 'group_default';
-                    $newGroupTab->active_flag = 1;
-                    $newGroupTab->hide_flag = 1;
-                    $newGroupTab->save();
-                    $other_tabs = boardGroup::where('user_id', '=', $auth_user_id)->where('id', '!=', $newGroupTab->id)->where('active_flag', '=', 1)->get();
-                    if($other_tabs){
-                        foreach($other_tabs as $remove_tab){
-                            $remove_tab->active_flag = 0;
-                            $remove_tab->save();
-                        }
-                    }
-                }
-            }else if($request->tab == -2){
-                // $group = boardGroup::firstOrCreate(['user_id' =>  $auth_user_id], ['name' => 'private_default'], ['active_flag' => 1]);
-                $groupTab = boardGroup::where('user_id', '=', $auth_user_id)->where('name', '=', 'private_default')->first();
-                if($groupTab){
-                    $groupTab->active_flag = 1;
-                    $groupTab->save();
-                    $other_tabs = boardGroup::where('user_id', '=', $auth_user_id)->where('id', '!=', $groupTab->id)->where('active_flag', '=', 1)->get();
-                    if($other_tabs){
-                        foreach($other_tabs as $remove_tab){
-                            $remove_tab->active_flag = 0;
-                            $remove_tab->save();
-                        }
-                    }
-                }else{
-                    $newGroupTab = new boardGroup;
-                    $newGroupTab->user_id = $auth_user_id;
-                    $newGroupTab->name = 'private_default';
-                    $newGroupTab->active_flag = 1;
-                    $newGroupTab->hide_flag = 1;
-                    $newGroupTab->save();
-                    $other_tabs = boardGroup::where('user_id', '=', $auth_user_id)->where('id', '!=', $newGroupTab->id)->where('active_flag', '=', 1)->get();
-                    if($other_tabs){
-                        foreach($other_tabs as $remove_tab){
-                            $remove_tab->active_flag = 0;
-                            $remove_tab->save();
-                        }
-                    }
-                }
-                
-                
-            }
-            else{
-                $tab = boardGroup::find($request->tab);
-                if($tab){
-                    $other_tabs = boardGroup::where('user_id', '=', $auth_user_id)->where('active_flag', '=', 1)->get();
-                    if($other_tabs){
-                        foreach($other_tabs as $remove_tab){
-                            $remove_tab->active_flag = 0;
-                            $remove_tab->save();
-                        }
-                    }
-                    $tab->active_flag = 1;
-                    $tab->save();
-                }
-            }
-            
-        return response()->json($request);
-        }
-        
-        
-    }
-    public function addGroup(Request $request){
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
-        if(!empty($auth_user_id) && !empty($request->title) && !empty($request->group_list)){
-            $group = new boardGroup;
-            $group->name = $request->title;
-            $group->user_id = $auth_user_id;
-            $group->board_list = $request->group_list;
-            $other_tabs = boardGroup::where('user_id', '=', $auth_user_id)->where('active_flag', '=', 1)->get();
-                if($other_tabs){
-                    foreach($other_tabs as $remove_tab){
-                        $remove_tab->active_flag = 0;
-                        $remove_tab->save();
-                    }
-                }
-            $group->active_flag = 1;
-            $group->save();
-            return response()->json($request);
-        }
-            
-        
-    }
-    public function editGroup(Request $request){
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
-        
-        if(!empty($auth_user_id) && !empty($request->title) && !empty($request->group_list) && !empty($request->group_id)){
-            $group = boardGroup::where('id', '=', $request->group_id)->first();
-            if($group){
-                $group->name = $request->title;            
-                $group->board_list = $request->group_list;
-                $other_tabs = boardGroup::where('id', '!=', $request->group_id)->where('user_id', '=', $auth_user_id)->where('active_flag', '=', 1)->get();
-                    if($other_tabs){
-                        foreach($other_tabs as $remove_tab){
-                            $remove_tab->active_flag = 0;
-                            $remove_tab->save();
-                        }
-                    }
-                $group->active_flag = 1;
-                $group->save();
-                return response()->json($group);
-            }
-            
-        }
-            
-        
-    }
-    public function getGroup(Request $request){
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
-        if(!empty($auth_user_id)){
-            $group = boardGroup::where('user_id', '=', $auth_user_id)->where('name', '!=', '')->get();
-            return response()->json($group);
-        }
-            
-        
-    }
-    public function deleteGroup(Request $request){
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
-        if(!empty($auth_user_id)){
-            $group = boardGroup::where('id', '=', $request->group_id)->where('user_id', '=', $auth_user_id)->first();
-            if($group){
-                $group->delete();                
-                $group->save();
-            }
-            return response()->json('success');
-        }
-            
-        
-    }
+    } 
     public function pinBoard(Request $request){
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
@@ -1566,7 +1412,7 @@ class BoardController extends Controller
             ->get();
 
         // return response()->json($list);
-        return [];
+        return response()->json($checkMessages);
     }
     public function checkRequest(Request $request){
 
@@ -1574,7 +1420,7 @@ class BoardController extends Controller
         if($request->type == 'confirm'){
             $message = messageRecord::findOrFail($request->msg_id);
             $message->check_flag = 1;
-            
+            $message->check_request_at = Carbon::now();
             $message->checkUsers()->attach($request->users);
             $message->save();
             $board = boardRecord::where('id', '=', $message->record_id)->first(); 
@@ -2386,13 +2232,14 @@ class BoardController extends Controller
     //     $userID = Auth::id(); // If you use a different auth system, do your checks here
     //     $userIDInQueryParam = $request['user_id'];
 
-    //     if ($userID != $userIDInQueryParam) {
-    //         return response('Inconsistent request', 401);
-    //     } else {
-    //         $beamsToken = $beamsClient->generateToken($userID);
-    //         return response()->json($beamsToken);
-    //     }
+        // if ($userID != $userIDInQueryParam) {
+        //     return response('Inconsistent request', 401);
+        // } else {
+        //     $beamsToken = $beamsClient->generateToken($userID);
+        //     return response()->json($beamsToken);
+        // }
     // }
+
 
 
 

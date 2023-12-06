@@ -76,7 +76,7 @@
                             v-if="item"
                             :message="item"
                             :reminder="reminder"
-                            @reload="() => reload()"
+                            @reload="() => getUncheckedMessages()"
                         />
                     </template>
                 </masonry-wall>
@@ -104,7 +104,7 @@
                             v-if="item"
                             :message="item"
                             @remindRequest="remindRequest"
-                            @reload="() => reload()"
+                            @reload="() => getRemindMessages()"
                         />
                     </template>
                 </masonry-wall>

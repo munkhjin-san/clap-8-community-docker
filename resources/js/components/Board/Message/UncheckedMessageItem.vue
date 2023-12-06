@@ -193,22 +193,22 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                 const message = this.message
                 var result;
                 switch (true) {
-                    case (message.message_attachments.length > 0 && message.message_attachments[0].mime_type == "image" && message.user_id == this.$store.state.user.id):
+                    case (message.message_attachments && message.message_attachments.length > 0 && message.message_attachments[0].mime_type == "image" && message.user_id == this.$store.state.user.id):
                         result = "commentImageBoxRight";
                         break;
-                    case (message.message_attachments.length > 0 && message.message_attachments[0].mime_type == "image" && message.user_id !== this.$store.state.user.id):
+                    case (message.message_attachments && message.message_attachments.length > 0 && message.message_attachments[0].mime_type == "image" && message.user_id !== this.$store.state.user.id):
                         result = "commentImageBoxLeft";
                         break;
-                    case (message.message_attachments.length > 0 && message.message_attachments[0].mime_type !== "image" && message.user_id == this.$store.state.user.id):
+                    case (message.message_attachments && message.message_attachments.length > 0 && message.message_attachments[0].mime_type !== "image" && message.user_id == this.$store.state.user.id):
                         result = "commentFileBoxRight";
                         break;
-                    case (message.message_attachments.length > 0 && message.message_attachments[0].mime_type !== "image" && message.user_id !== this.$store.state.user.id):
+                    case (message.message_attachments && message.message_attachments.length > 0 && message.message_attachments[0].mime_type !== "image" && message.user_id !== this.$store.state.user.id):
                         result = "commentFileBoxLeft";
                         break;
-                    case (message.message_attachments.length == 0 && message.user_id == this.$store.state.user.id):
+                    case (message.message_attachments && message.message_attachments.length == 0 && message.user_id == this.$store.state.user.id):
                         result = "commentTextBoxRight";
                         break;
-                    case (message.message_attachments.length == 0 && message.user_id !== this.$store.state.user.id):
+                    case (message.message_attachments && message.message_attachments.length == 0 && message.user_id !== this.$store.state.user.id):
                         result = "commentTextBoxLeft";
                         break;
                     default:
@@ -303,15 +303,12 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                     this.reacting = false
                 }
                 
-                
                 axios.post('/send_reaction_api', {id: msg.id}).then(response => {                
                         
                     // this.getCommentList(this.board_record.id); 
-                    this.$emit('reload')
                     if(msg.check_flag == 1){
-                            this.checkSendConfirm(response.data);
-                            this.$emit('reload')
-                        }               
+                        this.checkSendConfirm(response.data);
+                    }                                      
                     const a = window.location.pathname
                 });  
             }, 
@@ -332,7 +329,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                         channel: uniqueChannell
 
                     })            
-                    emitter.on(uniqueChannell, (data) => { data.answer === 'はい' ? this.checkSend(msg.id, 'check'): false});
+                    emitter.on(uniqueChannell, (data) => { data.answer === 'はい' ? this.checkSend(msg.id, 'check') : false});
                     
                 }
                 if(checked > -1 && reacted == -1){                   
@@ -354,8 +351,9 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                     user_id: this.$store.state.user.id,
                     pattern: which
                 };
-                axios.post('/check_send_api', params).then(response => 
-                {
+                axios.post('/check_send_api', params)
+                .then(response => {
+                    console.log('checksend')
                     this.$emit('reload')
                     this.tempHideCheckButton = null;
                 });
