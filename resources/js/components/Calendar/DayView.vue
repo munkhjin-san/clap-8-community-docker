@@ -31,7 +31,7 @@
         <div class="calendar-container-outer">
             <div class="calendar-header">   
             
-                <!-- <div class="day-label" style="min-height:30px;border-right: none;background: var(--past-calendar);"></div> -->
+                <div class="day-label" style="min-height:30px;border-right: none;background: var(--past-calendar);z-index: -1;"></div>
                 <div style="display: flex;width: 100%;position: relative;">
                     <div style="display: flex;width: 100%;">
                         <HourItem :ref="`hour_${hour}`" v-for="hour in hoursOfDay" :key="hour" :hour="hour"/>
