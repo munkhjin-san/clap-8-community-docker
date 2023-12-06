@@ -308,6 +308,8 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                     // this.getCommentList(this.board_record.id); 
                     if(msg.check_flag == 1){
                         this.checkSendConfirm(response.data);
+                    }else{
+                        this.$emit('reload')
                     }                                      
                     const a = window.location.pathname
                 });  
@@ -315,7 +317,10 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
             checkSendConfirm(msg){
                 var checked = msg.checked_users.map(ob => ob.id).indexOf(this.$store.state.user.id);
                 var unchecked = msg.unchecked_users.map(ob => ob.id).indexOf(this.$store.state.user.id);
-                var reacted =   msg.reacted_users.map(ob => ob.id).indexOf(this.$store.state.user.id);              
+                var reacted =   msg.reacted_users.map(ob => ob.id).indexOf(this.$store.state.user.id);
+                if(reacted == -1){
+                    this.$emit('reload')
+                }              
                 if(unchecked > -1 && reacted > -1){     
                     
                     var uniqueChannell = Math.random().toString(36).substring(5);   
@@ -329,7 +334,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
                         channel: uniqueChannell
 
                     })            
-                    emitter.on(uniqueChannell, (data) => { data.answer === 'はい' ? this.checkSend(msg.id, 'check') : false});
+                    emitter.on(uniqueChannell, (data) => { data.answer === 'はい' ? this.checkSend(msg.id, 'check') : this.$emit('reload')});
                     
                 }
                 if(checked > -1 && reacted == -1){                   
