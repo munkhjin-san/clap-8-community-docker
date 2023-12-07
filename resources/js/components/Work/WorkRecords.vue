@@ -218,8 +218,8 @@
                                         <button v-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 2" @click="dailyCancel(user.id,day.day_full)" class="workRecords-button">承認取消</button>
                                         <p style="line-height: 2.5" v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 0">作成中</p>
                                         <p style="line-height: 2.5" v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.status_flag == 10">差戻中</p>
-                                        <button v-if="auth_user.id == 608 && day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="this.$emit('timeStampEdit', day.shift_records?.[day.day_full]?.[user.id], true, user.id)">作成</button>
-                                        <button v-else-if="auth_user.id == 608" class="workRecords-button" @click="this.$emit('timeStampEdit', day.time_card_records?.[day.day_full]?.[user.id], false, user.id)">編集</button>
+                                        <button v-if="(auth_user.id == 608 || auth_user.id == 610) && day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null" class="workRecords-button" @click="this.$emit('timeStampEdit', day.shift_records?.[day.day_full]?.[user.id], true, user.id)">作成</button>
+                                        <button v-else-if="auth_user.id == 608 || auth_user.id == 610" class="workRecords-button" @click="this.$emit('timeStampEdit', day.time_card_records?.[day.day_full]?.[user.id], false, user.id)">編集</button>
                                         <p v-else-if="day.time_card_records?.[day.day_full]?.[user.id]?.work_time == null && day.time_card_records?.[day.day_full]?.[user.id]?.start_time == null">--</p>
                                     </div>
                                 </div>
