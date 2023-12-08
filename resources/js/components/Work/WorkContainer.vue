@@ -65,6 +65,10 @@
                     :usersData="usersData"
                     :kintone_data="kintone_data"
                     :shiftModal="shiftModal"
+                    :planned_record="planned_record"
+                    :workTemp="workTemp"
+                    :remainingDays="remainingDays"
+                    :startDate="startDate"
                     @changeDate="changeDate"
                     @closeModal="shiftModal = false"
                     @reload="reload"
@@ -147,11 +151,7 @@
                 weathers: [],
                 windowWidth: window.innerWidth,
                 kintone_data: [],
-                consumedDays: 0,
                 startDate: '',
-                endDate: '',
-                plannedDays: 0,
-                grantedDays: 0,
                 workTemp: [],
                 remainingDays: 0,
                 reportModal: false,
@@ -163,6 +163,7 @@
                 chosenUserId: '',
                 info: [],
                 createReport: false,
+                planned_record: [],
             }
         },
         created(){
@@ -187,6 +188,11 @@
             this.getWorkGroup()
             this.getAttendanceData()
             this.getCustomFields()
+            const query = this.$route.query
+            if(query.startDate){
+                this.startDate = query.startDate
+                this.selectShift()
+            }
             const url = new URL(window.location.href);
             const action = url.searchParams.get("action");
 
@@ -212,7 +218,7 @@
                     }
                     
                     this.timeStampEdit(formData, true, this.auth_user.id)
-                }  else {
+                } else {
                     this.selectShift();
                 }
             }
@@ -446,7 +452,7 @@
             changeDate(month, year){
                 this.selectedYear = year
                 this.selectedMonth = month
-                this.reload()
+                
             },
             closeMembers(users){
                 if(users.length > 0){
@@ -530,6 +536,9 @@
                         this.shiftTypes = response.data.shift_type
                         this.shiftRecords = response.data.shift_record
                         this.kintone_data = response.data.kintone_data
+                        this.remainingDays = response.data.remaining_days
+                        this.planned_record = response.data.planned_record
+                        this.workTemp = response.data.workTemp
                         this.shiftStartTime = this.shiftRecords[0] ? this.shiftRecords[0].start_time : ''
                         this.shiftEndTime = this.shiftRecords[0] ? this.shiftRecords[0].end_time : ''
                         

@@ -20,7 +20,7 @@
 import moment from 'moment';
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
-
+import * as PusherPushNotifications from "@pusher/push-notifications-web";
 import Pusher from 'pusher-js';
 export default{
     props: ['session', 'auth_user', 'remember', 'initial_date'], 
@@ -61,6 +61,8 @@ export default{
         channel.bind("pusher:subscription_error", (error) => {console.log(error)});
         console.log(channel)
         channel.bind('my-event', (e) => { emitter.emit('pusher-event',e) });
+                
+        this.beamsInit()
     }
 
 
@@ -128,6 +130,35 @@ export default{
         }
     },
     methods: {
+        async beamsInit(){
+            const beamsClient = new PusherPushNotifications.Client({
+                instanceId: process.env.MIX_PUSHER_INSTANCE_ID,
+            });
+            const beamsTokenProvider = await this.beamsToken()
+            this.beamsUser(beamsClient, beamsTokenProvider)
+        },
+        async beamsToken(){
+            return new PusherPushNotifications.TokenProvider({
+                url: "/pusher/beams-auth",
+            });
+        },
+        beamsUser(beamsClient, beamsTokenProvider){
+            beamsClient
+            .getUserId()
+            .then((userId) => {
+                console.log(userId, this.auth_user.id.toString())
+                if (userId !== null && userId !== this.auth_user.id.toString()) {
+                    return beamsClient.stop();
+                }else{
+                    beamsClient.start()
+                    .then(() => console.log('Successfully registered and subscribed!'))
+                    .then(() => beamsClient.setUserId(this.auth_user.id.toString(), beamsTokenProvider))
+                    .catch(console.error);
+                }
+            })
+            .catch(console.error);
+            
+        },
         checkEctivity(){            
             const before = localStorage.getItem('notification_check')
             if(!before || moment().diff(moment(before), 'minutes') > 1){
@@ -252,9 +283,7 @@ export default{
 
                     }
                     this.$store.commit('setBoardBadge', response.data);
-                    this.boardBadge = badgeValue;
-                    this.setBadge(badgeValue);
-                    
+                    this.boardBadge = badgeValue;                    
                     
                     this.totalBadge = this.boardBadge;
                     this.titleUpdate();

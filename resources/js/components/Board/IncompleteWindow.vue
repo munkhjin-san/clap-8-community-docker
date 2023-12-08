@@ -11,7 +11,7 @@
             
             <div v-if="shiftNotSubmittedList.length" style="padding: 0 10px;">
                 <div class="incompleted-title">勤怠予定が未提出です。対応をお願いします。</div>
-                <masonry-wall :items="shiftNotSubmittedList" :column-width="350" :gap="30">
+                <masonry-wall :items="shiftNotSubmittedList" :column-width="360" :gap="30">
                     <template v-slot:default="{item}">
                         <WorkNotSubmitted 
                             v-if="item"
@@ -22,7 +22,7 @@
             </div>
             <div v-if="timecardNotSubmittedList.length" style="padding: 0 10px;">
                 <div class="incompleted-title">日報が未提出です。対応をお願いします。</div>
-                <masonry-wall :items="timecardNotSubmittedList" :column-width="350" :gap="30">
+                <masonry-wall :items="timecardNotSubmittedList" :column-width="360" :gap="30">
                     <template v-slot:default="{item}">
                         <WorkNotSubmitted 
                             v-if="item"
@@ -31,24 +31,24 @@
                     </template>
                 </masonry-wall>
             </div>
-            <!-- <div v-if="planShift" style="padding: 0 10px;">
+            <div v-if="planShift" style="padding: 0 10px;">
                 <div class="incompleted-title">予定休暇を入力してください。</div>
-                <masonry-wall :items="[tempData]" :column-width="350" :gap="30">
+                <masonry-wall :items="[tempData]" :column-width="360" :gap="30">
                     <template v-slot:default="{item}">
                     <WorkNotSubmitted 
                         v-if="item"
                         :item="item"
                         :consumedDays="consumedDays"
                         :remainingDays="remainingDays"
-                        plan="plan" 
+                        plan="plan"
                     />
                 </template>
                 </masonry-wall>
-            </div> -->
+            </div>
             <div v-if="incompletedTasksList.length" style="padding: 0 10px;">
                 <div class="incompleted-title">{{ $tc('expiredTaskWarning', incompletedTasksList.length, {number: incompletedTasksList.length})}}</div>
 
-            <masonry-wall :items="incompletedTasksList" :column-width="350" :gap="30">
+            <masonry-wall :items="incompletedTasksList" :column-width="360" :gap="30">
                 <template v-slot:default="{item}">
                     <TaskBoxpreload 
                         boxClass="incompleted-task-box-container"
@@ -69,7 +69,7 @@
             </div>
             <div v-if="uncheckedMessages.length" style="padding: 0 10px;">
                 <div class="incompleted-title" style="">未確認メッセージが{{uncheckedMessages.length}}件あります。対応をお願いします。</div>
-                <masonry-wall :items="uncheckedMessages" :column-width="350" :gap="30">
+                <masonry-wall :items="uncheckedMessages" :column-width="360" :gap="30">
                     <template v-slot:default="{item}">
                         <UncheckedMessageItem 
                             boxClass="incompleted-task-box-container"
@@ -83,7 +83,7 @@
             </div>
             <div v-if="unsignedMessages.length" style="padding: 0 10px;">
                 <div class="incompleted-title" style="">{{ $tc('signatureRequestWarning', unsignedMessages.length,  {number: unsignedMessages.length})}}</div>
-                <masonry-wall :items="unsignedMessages" :column-width="350" :gap="30">
+                <masonry-wall :items="unsignedMessages" :column-width="360" :gap="30">
                     <template v-slot:default="{item}">
                         <UncheckedMessageItem 
                             boxClass="incompleted-task-box-container"
@@ -97,7 +97,7 @@
             </div>
             <div v-if="remindMessages.length" style="padding: 0 10px;">
                 <div class="incompleted-title" style="">リマインドメッセージが{{remindMessages.length}}件あります。対応をお願いします。</div>
-                <masonry-wall :items="remindMessages" :column-width="350" :gap="30">
+                <masonry-wall :items="remindMessages" :column-width="360" :gap="30">
                     <template v-slot:default="{item}">
                         <UncheckedMessageItem 
                             boxClass="incompleted-task-box-container"
@@ -168,14 +168,11 @@ import { ref, onMounted } from 'vue';
             this.getNotSubmitted()
             this.getRemindMessages()
             this.getUncheckedMessages()
-            // this.getPlannedShifts()
+            this.getPlannedShifts()
             this.isJumpToMessage
             setTimeout(() => {
                 if(!this.incompleteShow){
                     this.$emit('closePopup')
-                    // const currentTime = new Date().getTime();
-                    // const user_id = this.$store.state.user.id
-                    // localStorage.setItem('popupCloseTime_' + user_id, currentTime);
                 }
             },500)
             
@@ -196,12 +193,12 @@ import { ref, onMounted } from 'vue';
         },
         computed:{
             incompleteShow(){
-                return this.incompletedTasksList.length || 
+                return (this.incompletedTasksList.length || 
                        this.unsignedMessages.length || 
                        this.shiftNotSubmittedList.length || 
                        this.timecardNotSubmittedList.length || 
                        this.remindMessages.length || 
-                       this.uncheckedMessages.length
+                       this.uncheckedMessages.length) || this.planShift == true
                        
             },
             isJumpToMessage(){
@@ -237,15 +234,15 @@ import { ref, onMounted } from 'vue';
         methods: {
             getPlannedShifts(){
                 const currentDate = new Date();
-                const currentMonth = currentDate.getMonth();
-                const currentDay = currentDate.getDate();
-                axios.post('/get_temp_data', { user_code: this.$store.state.user.user_code}).then(
-                    response => {
-                        if(response.data && response.data.tempData){
-                            this.tempData = response.data.tempData
-                            this.consumedDays= response.data.shift_count
-                            this.remainingDays = response.data.remaining_days
-                            if((currentMonth === 11 && currentDay >= 25) || (currentMonth === 0 && currentDay <= 30)){
+                const currentYear = currentDate.getFullYear();
+                const targetDate = new Date(currentYear, 11, 20);
+
+                if(currentDate > targetDate){
+                    axios.post('/get_temp_data', { user_code: this.$store.state.user.user_code}).then(
+                        response => {
+                            if(response.data && response.data.tempData){
+                                this.tempData = response.data.tempData
+                                this.remainingDays = response.data.remaining_days
                                 if(response.data.shift_count < this.tempData.planned_days){
                                     this.planShift = true
                                 }else{
@@ -253,12 +250,12 @@ import { ref, onMounted } from 'vue';
                                 }
                             }
                         }
-                    }
-                ).catch(function (error) {
-                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) this.errorToast('エラーが発生しました。')
-                    else this.errorToast('エラーが発生しました。 ' + error.message)     
-                }.bind(this))
+                    ).catch(function (error) {
+                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                        else if (error.request) this.errorToast('エラーが発生しました。')
+                        else this.errorToast('エラーが発生しました。 ' + error.message)     
+                    }.bind(this))
+                }
             },
             remindRequest(data){
                 axios.post('/remind_add', {

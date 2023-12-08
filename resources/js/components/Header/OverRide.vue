@@ -1,7 +1,7 @@
 <template>
     <div style="position:fixed;left:0;top:0;width:0px;height:0px;background:red;z-index:1999">
             
-        <IncompleteWindow :key="$route.fullPath" v-if="$store.state.user && viewIncompleteWindow" 
+        <IncompleteWindow v-if="$store.state.user && viewIncompleteWindow" 
         :viewIncompleteWindow="viewIncompleteWindow"
         @closePopup="closePopup"/> 
         <Transition name="modalFade">
@@ -142,6 +142,8 @@
                     // console.log(window.location)
                     if(window.location.pathname == string){
                         this.viewIncompleteWindow = true
+                    }else{
+                        this.viewIncompleteWindow = false
                     }
                     if (this.hasOneHourPassed(this.$store.state.user.id)) {
                         this.viewIncompleteWindow = true

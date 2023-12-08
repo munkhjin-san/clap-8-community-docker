@@ -22,6 +22,6 @@ class shiftRecord extends Model
         return $this->belongsTo(timecardRecord::class, 'day', 'shift_day');
     }
 
-    protected $fillable = ['user_id', 'shift_month', 'shift_day', 'shift_type', 'start_time', 'end_time'];
+    protected $fillable = ['user_id', 'shift_month', 'shift_day', 'shift_type', 'start_time', 'end_time', 'status_flag'];
 
 }

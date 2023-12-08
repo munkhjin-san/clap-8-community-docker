@@ -1,7 +1,7 @@
 <template>
 <div class="container login-wrapper" style="display: flex;height: 100%;">
     <div class="login-body">
-        <Form v-slot="{ errors }" class="login-form" ref="loginform">
+        <Form v-slot="{ errors }" action="/login" method="post" class="login-form" ref="loginform">
             <div class="login-header" style="display: flex;justify-content: center;margin-bottom: 20px;">   
                 <Logo/>
             </div>
@@ -31,7 +31,7 @@
                         <Field 
                             id="password" 
                             type="password" 
-                            @keydown.enter="handleLogin()" 
+                            
                             v-model="user_password" 
                             class="login-plc" 
                             name="password" 
@@ -45,7 +45,8 @@
                 </div>
                 <div class="form-group row mb-0">
                     <div class="col-md-8 offset-md-4">
-                        <button @click="handleLogin()" type="button" class="btn btn-primary login-btn-change" :disabled="processing">
+                        <input type="hidden" name="_token" :value="csrfToken">
+                        <button type="submit" class="btn btn-primary login-btn-change" :disabled="processing">
                             <span v-if="!processing"> {{$t('login')}}</span>
                             <div v-if="processing" id="loaderMini">
                                 <div class="spinner-mini" style="border: 4px #ffffff solid;border-top: 4px var(--primary-button) solid;"></div>
@@ -103,6 +104,7 @@
                 loginError: '',
                 processing: false,
                 vali: false,
+                csrfToken: document.head.querySelector('meta[name="csrf-token"]').content
             }
         },
         computed: {

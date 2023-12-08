@@ -11,7 +11,7 @@
             </div>
             <div class="shift-title">
                 <p>予定の入力</p>
-                <div style="margin-left:auto;">
+                <div v-if="selectedShiftType == 3" style="margin-left:auto;">
                     <MonthPicker 
                         v-if="shiftModal"
                         :selectedMonth="shiftMonth"
@@ -29,8 +29,8 @@
                     </div>
                 </div>
                 <div class="shift-holiday">
-                    <p v-if="selectedShiftType == 3">計画有給: {{ this.scheduled_vacation }}日</p>
-                    <p v-if="selectedShiftType == 3">予定日: {{ this.planned_days }}日</p>
+                    <p v-if="selectedShiftType == 3">計画有給: {{ this.remainingdays }}日</p>
+                    <!-- <p v-if="selectedShiftType == 3 && this.plannedDays">予定日: {{ this.grantedDays }}日</p> -->
                     <p>休日数: {{holidayCount}}日</p>
                 </div>
                 <div class="shift-calendar">
@@ -44,7 +44,7 @@
                     <div class="shift-inner">
                         <div class="shift-month" v-for="(week, index) in calendarData" :key="index">                
                             <div class="shift-week" v-for="(day, index) in week" :key="index">
-                                <div @click="selectShift(day)" :class="{ 'hidden-date': !day.day_short, 'showed-date': day.day_short }">
+                                <div @click="selectShift(day, 0, index + 1)" :class="{ 'hidden-date': !day.day_short, 'showed-date': day.day_short }">
                                     <div>
                                         <div class="shift-day" :class="{'shift-saturday' : index == 5, 'shift-sunday' : index == 6, 'shift-everyholiday' : day.day_holiday}">
                                         {{ day.day_short }}
@@ -100,7 +100,10 @@
             'usersData',
             'kintone_data',
             'shiftModal',
-            'planned_days'
+            'workTemp',
+            'remainingDays',
+            'planned_record',
+            'startDate'
             ],
         data() {
             return {
@@ -113,21 +116,41 @@
                 shiftMonth: this.selectedMonth,
                 shiftYear: this.selectedYear,
                 windowWidth: window.innerWidth,
+                tempData: [],
+                plannedCount: 0,
+                remainingdays: this.remainingDays ? this.remainingDays : 0,
+                statusFlag: 0,
             }
         },
         mounted(){
             this.isShiftRecord(this.shiftRecords)
         },
-        computed:{
-            scheduled_vacation(){
-                const remainingdays = this.kintone_data.planned_days - this.kintone_data.consumed_days
-                return remainingdays >= 0 ? remainingdays : 0
-            }       
+        computed:{ 
+            tempStartDate(){
+                return this.workTemp ? this.workTemp.date : this.startDate
+            },
+            tempStartEnd(){
+                return this.workTemp ? moment(this.workTemp.date).clone().add(1, 'year') : moment(this.startDate).clone().add(1, 'year')
+            } 
         },
         watch: {
             shiftRecords(newVal, oldVal){
                 if(newVal != oldVal){
                     this.isShiftRecord(newVal)
+                }
+            },
+            tempStartDate(newDate) {
+                if(newDate){
+                    this.shiftYear = moment(newDate).year()
+                    this.shiftMonth = moment(newDate).month()
+                    this.selectedShiftType = 3
+                    this.$emit('changeDate', moment(newDate).month(), moment(newDate).year());
+                    this.$emit('reload')
+                }   
+            },
+            remainingDays(newVal){
+                if(newVal){
+                    this.remainingdays = newVal
                 }
             }
         },
@@ -141,10 +164,12 @@
                         let date = {
                             day_full : shift.shift_day,
                         }
-                        this.selectedShiftType = shift.shift_type.id
-                        this.selectShift(date)
+                        this.selectedShiftType = shift.shift_type.id,
+                        this.selectShift(date, shift.status_flag, 0)
                     } 
                 }else{
+                    this.selectedShiftType = this.tempStartDate ? 3 : 0
+                    this.selectedShifts = []
                     this.holidayCount = 0
                     this.startTime = '09:00'
                     this.endTime = '18:00'
@@ -153,34 +178,84 @@
             weekDay(num){
                 return moment().weekday(num).locale(this.$store.state.local).format("dd")
             },
-            selectShift(date){
-                if(this.selectedShiftType == 3 && this.scheduled_vacation <= 0){
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: '予定された休暇日はありません。',
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK']
-                    })   
-                    return
-                }
+            selectShift(date, status_flag, val){
                 let existingShift = this.selectedShifts.find(shift => shift.date === date.day_full)
-                
                 if (existingShift) {
+                    if(existingShift.type == 3 && existingShift.status_flag == 1){
+                        emitter.emit('setToast', {
+                            active: true,  
+                            type: 'info', 
+                            content: '計画有給を変えることができません。',
+                            closeButton: false, 
+                            autoClose: false,
+                            answers: ['OK']
+                        })   
+                        return
+                    }
                     this.selectedShifts = this.selectedShifts.filter(shift => shift.date !== date.day_full);   
+                    if(val && this.selectedShiftType == 3 && existingShift.type == 3){
+                        this.remainingdays++
+                    }
                 } else {
-                    this.selectedShifts.push({date: date.day_full, type: this.selectedShiftType});
+                    this.selectedShifts.push({date: date.day_full, type: this.selectedShiftType, status_flag: status_flag});
+                    if(val && this.selectedShiftType == 3){
+                        this.remainingdays--
+                    }
                 }
                 this.holidayCount = this.selectedShifts.filter(shift => shift.type === 0).length
+                if(this.selectedShiftType == 3){
+                    
+                    if(moment(date.day_full).isBefore(moment(this.tempStartDate)) || moment(date.day_full).isAfter(moment(this.tempStartEnd))){
+                        this.selectedShifts.pop()
+                        this.remainingdays++
+                        emitter.emit('setToast', {
+                            active: true,  
+                            type: 'info', 
+                            content: '予定日を選択してください。',
+                            closeButton: false, 
+                            autoClose: false,
+                            answers: ['OK']
+                        })   
+                        return
+                    }
+                    if(this.remainingdays < 0){
+                        this.remainingdays = 0
+                        this.selectedShifts.pop()
+                        emitter.emit('setToast', {
+                            active: true,  
+                            type: 'info', 
+                            content: '予定された休暇日はありません。',
+                            closeButton: false, 
+                            autoClose: false,
+                            answers: ['OK']
+                        })   
+                        return
+                    }
+                }
+                
+                
             },
             selectedShift(date){
-                return this.selectedShifts.map(shift => {
+                const mergedShifts = [...this.planned_record, ...this.selectedShifts].reduce((result, shift) => {
+                    const existingShiftIndex = result.findIndex(existing => existing.date === shift.date);
+
+                    if (existingShiftIndex === -1) {
+                        result.push(shift);
+                    } else {
+                        result[existingShiftIndex] = shift;
+                    }
+
+                    return result;
+                }, []);
+
+                return mergedShifts.map(shift => {
                     if (shift.date === date.day_full) {
                         let shiftType = this.shiftTypes.find(st => st.id === shift.type)
                         return shiftType ? shiftType.name : null;
                     }
                 }).join('');
+
+                
             },
             async shiftAdd(){
                 if(this.attendanceFlag) return
@@ -203,7 +278,7 @@
                     })
                     return
                 }
-                if(this.holidayCount >= holidayNum){
+                if(this.holidayCount >= holidayNum || this.tempStartDate){
                     const result = await this.$refs.shiftTime.validate();
                     if (this.loading) return
 
@@ -213,8 +288,8 @@
                             shiftTimeStart : this.startTime,
                             shiftEndStart : this.endTime,
                             shift_array : this.selectedShifts,
-                            kintone_id: this.kintone_data.id,
-                            userId: this.usersData[0].id
+                            // kintone_id: this.kintone_data.id,
+                            userId: this.usersData[0].id,
                         }
                         axios.post('/add_shift', params).then(
                             response => {
@@ -240,7 +315,6 @@
                 
             },
             setDate(date){
-                console.log(date)
                 this.shiftYear = date.year
                 this.shiftMonth = date.month - 1
                 this.$emit('changeDate', this.shiftMonth, this.shiftYear)

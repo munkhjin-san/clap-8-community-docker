@@ -48,6 +48,9 @@ class CustomfieldController extends Controller{
     public function getTodayWeather(Request $request){
         $auth_user_id = Auth::id();
         $custom_field_data = customFieldDataRecord::where('user_id', $auth_user_id)->where('date', $request->today)->where('type_id', 43)->where('deleted_flag', 0)->first();
+        if($auth_user_id == 608){
+            return response()->json('weekend');
+        }
         $shift_record = shiftRecord::where('user_id', $auth_user_id)->where('shift_day', $request->today)->first();
         if($shift_record !==null && ($shift_record->shift_type == 2 || $shift_record->shift_type == 5 || $shift_record->shift_type == 0 || $shift_record->shift_type == 14 || $shift_record->shift_type == 15)){
             return response()->json('weekend');

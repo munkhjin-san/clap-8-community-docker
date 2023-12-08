@@ -28,7 +28,8 @@
                                     || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 5 
                                     || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 14 
                                     || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 15
-                                    || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 16) }">
+                                    || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 16
+                                    || day.shift_records?.[day.day_full]?.[user.id]?.shift_type == 3) }">
                                     {{ day.shift_records?.[day.day_full]?.[user.id]?.abbreviation ?? '--'}}
                                 </p>
                                 <p v-else-if="day.shift_records == 0 && day.time_card_records[day.day_full]" class="alertTip" title="勤怠予定を作成してください">

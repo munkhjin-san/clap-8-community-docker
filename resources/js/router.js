@@ -161,6 +161,7 @@ const routes = [
     {
         path: '/work',
         name: 'work',
+        props: true,
         component: () => import('./components/Work/WorkContainer.vue'),
         beforeEnter: (to, from, next) => {
             fetchTimeCard(to, next, from)

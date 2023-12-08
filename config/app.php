@@ -23,7 +23,8 @@ return [
     'pusher_id' => env('PUSHER_APP_ID', ''),
     'pusher_secret' => env('PUSHER_APP_SECRET', ''),
     'pusher_cluster' => env('PUSHER_APP_CLUSTER', ''), 
-
+    'pusher_instanceid' => env('PUSHER_INSTANCE_ID'),
+    'pusher_primary_key' => env('PUSHER_PRIMARY_KEY'),
 
     'twilio_sid' => env('TWILIO_SID'),
     'twilio_auth_token' => env('TWILIO_AUTH_TOKEN'),

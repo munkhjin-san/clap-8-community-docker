@@ -61,7 +61,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/genertate_my_groups', [CalendarController::class, 'genertate_my_groups']);
 // Route::get('/update_last_act', [AutoJobController::class, 'update_last_act']);
 // temp_routes
-
+Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
 Route::get('/help/{any?}', function () {
     return view('help');
@@ -75,9 +75,9 @@ Route::get('/shared_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentControl
 Route::get('/managed_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentController::class, 'docTransfer']);
 Route::get('/{sub_folder}/{path}/{keyword}/{user_id}', [ContentController::class, 'cdnExtractDocsPost']);
 Route::get('/firstload', [NotificationController::class, "index"]);
-
+Route::get('/firebase_test', [BoardController::class, "firebase_test"]);
 // Route::view('/auth', 'auth.login')->name('auth')->middleware('guest');
-Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
+// Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
 
 
 
@@ -90,6 +90,7 @@ Route::post('/report_send', [ContentController::class, 'reportSend']);
 Route::group(["middleware"=>"auth"],function(){
     Route::post('/pusher_authorizition',  [BoardController::class, "pusher_auth"]);
     Route::post('/pusher_subscribe',  [BoardController::class, "pusher_subscribe"]);
+    Route::get('/pusher/beams-auth', [BoardController::class, "pusher_beamToken"]);
     $id = Auth::id();
     Route::get('/user/{id}',  [BoardController::class, "index"]);
     Route::get('/user', function () {
@@ -179,12 +180,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/get_memo_api', [BoardController::class, 'getMemo']); 
         Route::post('/complete_task_api', [BoardController::class, 'completeTask']); 
         Route::post('/task_update_api', [BoardController::class, 'updateTask']); 
-        Route::post('/task_notify_api', [BoardController::class, 'notifyTask']); 
-        Route::post('/tab_update_api', [BoardController::class, 'tabUpdate']); 
-        Route::post('/add_group_api', [BoardController::class, 'addGroup']); 
-        Route::post('/get_group_api', [BoardController::class, 'getGroup']); 
-        Route::post('/edit_group_api', [BoardController::class, 'editGroup']); 
-        Route::post('/delete_group_api', [BoardController::class, 'deleteGroup']); 
+        Route::post('/task_notify_api', [BoardController::class, 'notifyTask']);    
         Route::post('/pin_board_api', [BoardController::class, 'pinBoard']); 
         Route::post('/task_edit_api', [BoardController::class, 'taskEdit']); 
         Route::post('/task_delete_api', [BoardController::class, 'taskDelete']); 

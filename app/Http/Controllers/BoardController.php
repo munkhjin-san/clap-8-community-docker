@@ -45,7 +45,7 @@ use OpenAI\Responses\Completions\CreateResponse;
 use App\Mail\Mention;
 use App\Mail\Confirm;
 use Hash;
-// use App\Jobs\SendNotification;
+use App\Jobs\SendNotification;
 class BoardController extends Controller
 {
     protected $sharedService;
@@ -874,42 +874,42 @@ class BoardController extends Controller
                 "u_id" => $request->u_id,
                 "data" => $chat
             ];
-            // $members = $related_members->map(function ($userId) {
-            //     return (string) $userId;
-            // })->toArray();
+            $members = $related_members->map(function ($userId) {
+                return (string) $userId;
+            })->toArray();
             
-            // $deep_link = url('board/' . $request->record_id);
-            // $icon = url('content/profile_icon/' . $auth_user->icon_id . '_' . $auth_user->id . '_200.jpg');
-            // $badge = url('/96x96.png');
-            // if(!empty($boardRecord) && $boardRecord->private_flag == 1){
-            //     $push_title = $auth_user->name;
-            //     if($request->attached_temp_files && $chat->message_text == null){
-            //         $body = 'ファイルメッセージ';
-            //     }else{
-            //         $body = $chat->message_text;
-            //     }
-            // }else{
-            //     $push_title = $boardRecord->title;
-            //     if($request->attached_temp_files && $chat->message_text == null){
-            //         $body = $auth_user->name . ':' . 'ファイルメッセージ';
-            //     }else{
-            //         $body = $auth_user->name . ':' . $chat->message_text;
-            //     }
-            // }
+            $deep_link = url('board/' . $request->record_id);
+            $icon = url('content/profile_icon/' . $auth_user->icon_id . '_' . $auth_user->id . '_200.jpg');
+            $badge = url('/96x96.png');
+            if(!empty($boardRecord) && $boardRecord->private_flag == 1){
+                $push_title = $auth_user->name;
+                if($request->attached_temp_files && $chat->message_text == null){
+                    $body = 'ファイルメッセージ';
+                }else{
+                    $body = $chat->message_text;
+                }
+            }else{
+                $push_title = $boardRecord->title;
+                if($request->attached_temp_files && $chat->message_text == null){
+                    $body = $auth_user->name . ':' . 'ファイルメッセージ';
+                }else{
+                    $body = $auth_user->name . ':' . $chat->message_text;
+                }
+            }
             
-            // $payload = [
-            //     "body" => $body,
-            //     "title" => $push_title,
-            //     "link" => $deep_link,
-            //     "members" => $members,
-            //     "icon" => $icon,
-            //     "badge" => $badge,
-            //     "user_id" => $auth_user_id,
-            //     "user_name" => Auth::user()->name,
-            //     "message" => $chat->message_text,
-            //     "members_int" => $related_members->toArray(),
-            // ];
-            // SendNotification::dispatchAfterResponse($payload);
+            $payload = [
+                "body" => $body,
+                "title" => $push_title,
+                "link" => $deep_link,
+                "members" => $members,
+                "icon" => $icon,
+                "badge" => $badge,
+                "user_id" => $auth_user_id,
+                "user_name" => Auth::user()->name,
+                "message" => $chat->message_text,
+                "members_int" => $related_members->toArray(),
+            ];
+            SendNotification::dispatchAfterResponse($payload);
             
             return response()->json($data);
              
@@ -2224,21 +2224,21 @@ class BoardController extends Controller
                 return response()->json(['auth' => $auth]);
     }
 
-    // public function pusher_beamToken(Request $request){
-    //     $beamsClient = new \Pusher\PushNotifications\PushNotifications(array(
-    //         "instanceId" => config('app.pusher_instanceid'),
-    //         "secretKey" => config('app.pusher_primary_key'),
-    //       ));
-    //     $userID = Auth::id(); // If you use a different auth system, do your checks here
-    //     $userIDInQueryParam = $request['user_id'];
+    public function pusher_beamToken(Request $request){
+        $beamsClient = new \Pusher\PushNotifications\PushNotifications(array(
+            "instanceId" => config('app.pusher_instanceid'),
+            "secretKey" => config('app.pusher_primary_key'),
+          ));
+        $userID = Auth::id(); // If you use a different auth system, do your checks here
+        $userIDInQueryParam = $request['user_id'];
 
-        // if ($userID != $userIDInQueryParam) {
-        //     return response('Inconsistent request', 401);
-        // } else {
-        //     $beamsToken = $beamsClient->generateToken($userID);
-        //     return response()->json($beamsToken);
-        // }
-    // }
+        if ($userID != $userIDInQueryParam) {
+            return response('Inconsistent request', 401);
+        } else {
+            $beamsToken = $beamsClient->generateToken($userID);
+            return response()->json($beamsToken);
+        }
+    }
 
 
 

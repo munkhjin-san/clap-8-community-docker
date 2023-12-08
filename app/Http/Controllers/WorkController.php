@@ -17,7 +17,7 @@ use App\Models\customFieldPartsRecord;
 
 use App\Models\workGroup;
 use App\Models\workGroupUser;
-// use App\Models\workTemp;
+use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Events\Message;
 use Illuminate\Support\Facades\Http;
@@ -224,29 +224,29 @@ class WorkController extends Controller
 
         return response()->json($responseArray);
     }
-    // public function get_temp_data(Request $request){
-    //     $notificationUser = User::select('name', 'id', 'icon_id')->findOrFail(610);
-    //     $tempData = workTemp::where('user_code', $request->user_code)->first();
+    public function get_temp_data(Request $request){
+        $notificationUser = User::select('name', 'id', 'icon_id')->findOrFail(610);
+        $tempData = workTemp::where('user_code', $request->user_code)->first();
         
         
-    //     if ($tempData) {
-    //         $startDate = $tempData->date;
-    //         $endDate = Carbon::parse($startDate)->addYear()->format('Y-m-d');
-    //         $tempData['notification_user'] = $notificationUser;
-    //         $tempData['endDate'] = $endDate;
-    //         $planned_shifts = shiftRecord::whereBetween('shift_day', [$startDate, $endDate])->where('shift_type', 3)->where('user_id', Auth::id())->count();
-    //         $remaining_days = $tempData->planned_days - $planned_shifts;
-    //         if($remaining_days > 0){
-    //             $data = [
-    //                 "shift_count" => $planned_shifts,
-    //                 "tempData" => $tempData,
-    //                 "remaining_days" => $remaining_days,
-    //             ];
-    //             return response()->json($data);
-    //         }
-    //     }
-    //     return response()->json('no data', 200);
-    // }
+        if ($tempData) {
+            $startDate = $tempData->date;
+            $endDate = Carbon::parse($startDate)->addYear()->format('Y-m-d');
+            $tempData['notification_user'] = $notificationUser;
+            $tempData['endDate'] = $endDate;
+            $planned_shifts = shiftRecord::whereBetween('shift_day', [$startDate, $endDate])->where('shift_type', 3)->where('user_id', Auth::id())->count();
+            $remaining_days = $tempData->planned_days - $planned_shifts;
+            if($remaining_days > 0){
+                $data = [
+                    "shift_count" => $planned_shifts,
+                    "tempData" => $tempData,
+                    "remaining_days" => $remaining_days,
+                ];
+                return response()->json($data);
+            }
+        }
+        return response()->json('no data', 200);
+    }
     public function getShiftData(Request $request){
         [$currentYear, $currentMonth] = explode('-', $request->current_date);
         $user = User::select('user_code')->findOrFail($request->work_group[0]);
@@ -290,20 +290,25 @@ class WorkController extends Controller
                         ->get();
         $between_records = 0;
         $remaining_days = 0;
-        // $work_temp = workTemp::where('user_code', $user_code)->where(function($q) use($currentYear, $currentMonth) {
-        //     $q->whereYear('date', '=', $currentYear)
-        //         ->whereMonth('date', '<=', $currentMonth)
-        //         ->orWhere(function ($q) use ($currentYear, $currentMonth) {
-        //             $q->whereYear('date', '<', $currentYear)
-        //                 ->whereMonth('date', '>=', $currentMonth);
-        //         });
-        // })->first();
-        // if($work_temp){
-        //     $planned_date = $work_temp->date;
-        //     $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
-        //     $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();
-        //     $remaining_days = $work_temp->planned_days - $between_records; 
-        // }
+        $work_temp = workTemp::where('user_code', $user_code)->where(function($q) use($currentYear, $currentMonth) {
+            $q->whereYear('date', '=', $currentYear)
+                ->whereMonth('date', '<=', $currentMonth)
+                ->orWhere(function ($q) use ($currentYear, $currentMonth) {
+                    $q->whereYear('date', '<', $currentYear)
+                        ->whereMonth('date', '>=', $currentMonth);
+                });
+        })->first();
+        $planned_record = shiftRecord::whereIn('user_id', $request->work_group)
+                            ->where('shift_type', 3)
+                            ->orderBy('created_at', 'desc')
+                            ->select('shift_day AS date', 'shift_type AS type', 'status_flag')
+                            ->get();
+        if($work_temp){
+            $planned_date = $work_temp->date;
+            $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
+            $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();
+            $remaining_days = $work_temp->planned_days - $between_records; 
+        }
         if($auth_user->position_id <= 11){
             $shift_type = shiftType::where('deleted_flag', 0)->get();
         }else{
@@ -311,11 +316,12 @@ class WorkController extends Controller
         }
         $data = [
             "shift_record" => $shift_record,
+            "planned_record" => $planned_record,
             "shift_type" => $shift_type,
             "kintone_data" => $recieve,
-            // "workTemp" => $remaining_days > 0 ? $work_temp : null,
-            // "consumed_days" => $remaining_days > 0 ? $between_records : null,
-            // "remaining_days" => $remaining_days > 0 ? $remaining_days : null,
+            "workTemp" => $work_temp ? $work_temp : null,
+            "consumed_days" => $remaining_days > 0 ? $between_records : 0,
+            "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
         ];
         
 
