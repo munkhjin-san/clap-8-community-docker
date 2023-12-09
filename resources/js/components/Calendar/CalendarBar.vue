@@ -17,7 +17,7 @@
                             </svg>                       
                         </div> 
                         <p v-if="tempGroup || createWindow">{{ tempGroup ? 'グループを編集する' : '新しいグループ作成する' }}</p>
-                        
+                        <div v-if="tempGroup" style="margin-left: auto;" @click="deleteConfirm" class="commentEditButton">削除する</div>
                     </div> 
                     <div v-if="!tempGroup && !createWindow">                        
                         <div class="si-box">
@@ -27,7 +27,8 @@
                             </div>
                         </div>
                     </div>
-                    <div v-if="tempGroup || createWindow" style="background: inherit;">                        
+                    <div v-if="tempGroup || createWindow" style="background: inherit;">    
+
                         <div class="si-box">
                             <FormShortText
                                 :initialValue="tempGroup ? tempGroup.name : ''"
@@ -257,23 +258,57 @@ export default{
             }
             return ''
         },
-        async validation(){               
+        async validation(){              
+            try {          
+                let result = true        
+                let checkRef = ['groupTitle', 'groupUsers']
+                for(const check of checkRef){
+                    const exec = await this.$refs[check].$refs[check].validate()
+                    result = result * exec.valid
+                }                
                 
-                try {          
-                    let result = true        
-                    let checkRef = ['groupTitle', 'groupUsers']
-                    for(const check of checkRef){
-                        const exec = await this.$refs[check].$refs[check].validate()
-                        result = result * exec.valid
-                    }                
-                    
-                    return result
-                } catch (error) {
-                    console.error('Error fetching data:', error);
-                    throw error; 
-                }               
+                return result
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                throw error; 
+            }               
+        },
+        deleteConfirm(){
+            var uniqueChannell = Math.random().toString(36).substring(5);  
+            const answers = ['はい', 'いいえ']
+            emitter.emit('setToast', {
+                active: true,  
+                type: 'info', 
+                content: 'グループを削除しますか。',
+                closeButton: true, 
+                autoClose: false,
+                answers: answers,
+                channel: uniqueChannell
+
+            })            
+            emitter.on(uniqueChannell, (data) => {                 
+                if(data.answer == answers[0]){
+                    this.deleteExecute()
+                }                
+            });
+        },
+        deleteExecute(){
+            if(!this.tempGroup) return
+            axios.post('/delete_my_group', {id: this.tempGroup.id} ).then(response => {  
                 
-            },
+                this.$emit('updated')                
+                this.getMyGroup(1)
+                this.title = ''
+                this.tempGroup = null
+                this.editingUserList = []
+                this.createWindow = false
+        
+            }).catch(function (error) {
+                if (error.response) this.errorToast(this.$t(error.response.data.message))
+                else if (error.request) this.errorToast(this.$t('commonError'))
+                else this.errorToast(this.$t('commonError'))                          
+            }.bind(this));
+        },
         async submit(){
             this.loading = true
             this.processing = true

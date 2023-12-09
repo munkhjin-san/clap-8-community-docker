@@ -880,7 +880,7 @@ class CalendarController extends Controller
         return response()->json($items);       
     }
     public function get_my_groups(Request $request){
-        $myGroupCheck = MyGroup::where('user_id', Auth::id())->exists();        
+        $myGroupCheck = MyGroup::where('user_id', Auth::id())->where('deleted_flag', 0)->exists();        
         if(!$myGroupCheck){            
             $newMyGroup = MyGroup::create([
                 'user_id' => Auth::id(),
@@ -902,7 +902,7 @@ class CalendarController extends Controller
             });
         }])->get();
 
-        $groups = MyGroup::where('user_id', Auth::id())->with('users')->get();
+        $groups = MyGroup::where('user_id', Auth::id())->where('deleted_flag', 0)->with('users')->get();
         $my_work_groups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
         $res = [
             "my_groups" => $groups,
@@ -944,6 +944,12 @@ class CalendarController extends Controller
         }
         
     } 
+    public function delete_my_group(Request $request){
+        $groups = MyGroup::findOrFail($request->id);
+        $groups->users()->detach();
+        $groups->delete();
+        return response()->json($groups); 
+    }
     public function calendar_more_users(Request $request){
         $user = MyGroup::where('user_id', Auth::id())->latest()->first();
         $rec = $user->users()->pluck('id')->toArray();        
