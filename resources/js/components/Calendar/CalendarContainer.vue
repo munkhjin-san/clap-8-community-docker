@@ -133,8 +133,8 @@
                 <ul>
                     <li class="boxMenuItems cursor-pointer" @click.stop="switchView(1)">月（すべて）</li>
                     <li class="boxMenuItems cursor-pointer" @click.stop="switchView(0)">日（すべて）</li>
-                    <li v-if="$store.state.user.id == 604" class="boxMenuItems cursor-pointer" @click.stop="switchView(2)">月（メンバー別）</li>                    
-                    <li v-if="$store.state.user.id == 604" class="boxMenuItems cursor-pointer" @click.stop="switchView(3)">日（メンバー別）</li>      
+                    <li class="boxMenuItems cursor-pointer" @click.stop="switchView(2)">月（メンバー別）</li>                    
+                    <li class="boxMenuItems cursor-pointer" @click.stop="switchView(3)">日（メンバー別）</li>      
                 </ul>              
             </div>
         </Transition>
