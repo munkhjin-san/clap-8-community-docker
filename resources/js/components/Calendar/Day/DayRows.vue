@@ -1,7 +1,7 @@
 <template>
 <div :id="`day_val_${day.full}`" class="day-tc" :style="{ minHeight: `${layer * 70 + 10}px` }">
     <!-- <div :ref="`cal_${day.full}`" :class="['day-label', {isToday : isToday}]" v-html="computedDay(day)"></div> -->
-    <div :ref="`cal_${day.full}`" :class="['day-label', {isPastDay : isPastDay}, {isToday : isToday}]" v-html="computedDay(day)"></div>
+    <div @click="listView(day)" :ref="`cal_${day.full}`" :class="['day-label', {isPastDay : isPastDay}, {isToday : isToday}]" v-html="computedDay(day)"></div>
     <HourRow
         v-for="(hour, hourIndex) in hoursOfDay" 
         :hour="hour"
@@ -33,7 +33,7 @@ import HourRow from './HourRow.vue';
 import SeparateLine from './SeparateLine.vue';
 export default{
     props: ['day', 'hoursOfDay', 'records', 'facilitiesList', 'orderCreator'],
-    emits: ['releaseScroll', 'load', 'scrollToTime', 'edit', 'dropFinish', 'delete', 'create'],
+    emits: ['releaseScroll', 'load', 'scrollToTime', 'edit', 'dropFinish', 'delete', 'create', 'setListView'],
     components: {HourRow, SeparateLine},
     computed:{
         layer(){
@@ -77,6 +77,18 @@ export default{
         
     },
     methods:{
+        enter(){
+            if(this.$store.state.draggingCalendar){
+                this.dragActive = true
+            }
+            
+        },
+        leave(){
+            this.dragActive = false
+        },
+        listView(day){
+            this.$emit('setListView', day.full)
+        },
         computedDay(day){
             moment.locale('ja')
             const top = moment(day.full).format('D')

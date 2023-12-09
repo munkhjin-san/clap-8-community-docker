@@ -59,6 +59,7 @@
                     @edit="val => $emit('edit', val)"
                     @delete="val => $emit('delete', val)"
                     @dropFinish="(record, date) => $emit('dropFinish', record, date)"
+                    @setListView="(val) => $emit('setListView', val)"
                 />
             </div>
             
@@ -72,7 +73,7 @@ import DayRows from './Day/DayRows.vue'
 import HourItem from './Day/HourItem.vue';
 export default {
     props: ['daysOfMonth', 'records', 'initialLoader', 'facilitiesList'],
-    emits: ['scroll', 'load', 'releaseScroll', 'edit', 'dropFinish', 'delete', 'create'],
+    emits: ['scroll', 'load', 'releaseScroll', 'edit', 'dropFinish', 'delete', 'create', 'setListView'],
     data(){
         return{
             touchStartX: 0,

@@ -10,10 +10,11 @@ use App\Mail\VerifyEmail;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Carbon\Carbon;
+use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     // use Notifiable;
-    use SoftDeletes;
+    use HasApiTokens, Notifiable, SoftDeletes;
     /**
      * The attributes that are mass assignable.
      *

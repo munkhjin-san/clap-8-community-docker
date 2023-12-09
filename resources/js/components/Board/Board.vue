@@ -398,7 +398,6 @@
                 //     document.body.style.background = 'var(--background-color)'
                 // }
                 this.getBoardList('mounted')
-                // this.getGroup();
                 this.getUnsentMessages();
                 this.getTaskNotify();
                 
@@ -1064,29 +1063,6 @@
                 selectCustomGroup(group){
                     this.activeGroupName = group.name
                     this.activeGroupButton = group.id 
-                },
-                getGroup(which){
-                    axios.post('/get_group_api').then(response => {
-                        this.userGroupList = response.data;
-                        var defaultGroup = this.userGroupList.filter(obj => obj.active_flag == 1)[0];                 
-                        if(defaultGroup){  
-                            if(defaultGroup.name == 'group_default'){
-                                this.activeGroupName = 'グループ';
-                                this.activeGroupButton = -1;
-                            }else if(defaultGroup.name == 'private_default'){
-                                this.activeGroupName = '個別';
-                                this.activeGroupButton = -2;
-                            }else{
-                                this.activeGroupName = defaultGroup.name;
-                                this.activeGroupButton = defaultGroup.id;    
-                            }                  
-                            
-    
-                        }
-                        if(which == 9){
-                            this.selectDefaultGroup(0)
-                        }
-                    });
                 },
                 boardCreateClose(){
                     this.newBoardWindow = false

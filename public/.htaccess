@@ -21,6 +21,8 @@
 
 
     RewriteEngine On
+    RewriteCond %{HTTP:Authorization} ^(.+)$
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
     RewriteCond %{HTTPS} off
     # if /public/ is part of original URL then remove it
     RewriteCond %{THE_REQUEST} /public/(\S*) [NC]

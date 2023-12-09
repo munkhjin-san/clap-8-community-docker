@@ -17,6 +17,24 @@ use Illuminate\Support\Facades\Mail;
 
 class ContentController extends Controller
 {
+    public function iconTransferApi(Request $request){   
+        try {       
+            // $filePath = $request->which .'/' . $request->path;
+            $exists = Storage::disk('local')->exists($request->which .'/' . $request->path);
+            if($exists){            
+                $fileContents = Storage::disk('local')->get($request->which .'/' . $request->path);            
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $contentType = finfo_buffer($finfo, $fileContents);
+                finfo_close($finfo);
+                return response($fileContents)->header('Content-Type', $contentType);
+            }else{
+                return response()->file(public_path('images/backup.png'));
+            }
+            
+        } catch (FileNotFoundException $exception) {
+            abort(404);
+        }
+    }
     public function iconTransfer(Request $request){   
         try {       
             // $filePath = $request->which .'/' . $request->path;

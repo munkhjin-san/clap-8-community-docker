@@ -326,6 +326,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/calendar_add_record', [CalendarController::class, 'calendar_add_record']);
         Route::post('/get_my_groups', [CalendarController::class, 'get_my_groups']);
         Route::post('/update_selected_calendar_members', [CalendarController::class, 'update_selected_calendar_members']);
+        Route::post('/select_work_group', [CalendarController::class, 'select_work_group']);
         Route::post('/calendar_more_users', [CalendarController::class, 'calendar_more_users']);
         Route::post('/set_more_members', [CalendarController::class, 'set_more_members']);
         Route::post('/get_calendar_search', [CalendarController::class, 'get_calendar_search']);

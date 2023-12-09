@@ -7,6 +7,9 @@ use App\Models\CalendarRecord;
 use App\Models\CalendarGroup;
 use App\Models\User;
 use App\Models\MyGroup;
+use App\Models\workGroup;
+use App\Models\workGroupUser;
+use App\Models\MyWorkGroup;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Facades\Image;
@@ -231,12 +234,30 @@ class CalendarController extends Controller
             
             $newMyGroup = MyGroup::create([
                 'user_id' => Auth::id(),
-                'name' =>  Auth::user()->name . 'カレンダーグループ'
+                'name' =>  Auth::user()->name . 'カレンダーグループ',
+                'selected' => true
             ]);
             $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
         }        
-        $gr = MyGroup::where('user_id', Auth::id())->latest()->first();
-        $list = $gr->selected_users()->pluck('id')->toArray();
+        $gr = MyGroup::where('user_id', Auth::id())->where('selected', true)->latest()->first();
+        $myWorkGroups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
+
+        $work_group_users_id = workGroupUser::whereIn('record_id', $myWorkGroups)
+        ->whereHas('user', function ($q){
+            $q->where('retire', 0)->where('hide_flag', 0);
+        })->distinct()->pluck('user_id')->toArray();
+        
+        // $work_group_with_user = workGroup::whereHas('work_group_user', function($q){
+        //     $q->where('user_id', Auth::id());
+        // })->with(['work_group_user' => function ($q){
+        //     $q->whereHas('user', function ($q){
+        //         $q->where('retire', 0)->where('hide_flag', 0);
+        //     });
+        // }])->get();
+        
+        $my_group_ids = $gr ? $gr->selected_users()->pluck('id')->toArray() : [];
+
+        $list = array_merge($my_group_ids, $work_group_users_id);
         $date = $request["day"];
 
         $carbonDate = Carbon::parse($date);
@@ -868,25 +889,57 @@ class CalendarController extends Controller
             $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
         }
 
-        $user = MyGroup::where('user_id', Auth::id())->latest()->first();
-        $user_list = $user->users()->get();
+        // $user = MyGroup::where('user_id', Auth::id())->latest()->first();
+        // $user_list = $user->users()->get();
         
-        return response()->json($user_list); 
+        // return response()->json($user_list); 
+
+        $work_group_with_user = workGroup::whereHas('work_group_user', function($q){
+            $q->where('user_id', Auth::id());
+        })->with(['work_group_user' => function ($q){
+            $q->whereHas('user', function ($q){
+                $q->where('retire', 0)->where('hide_flag', 0);
+            });
+        }])->get();
+
+        $groups = MyGroup::where('user_id', Auth::id())->with('users')->get();
+        $my_work_groups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
+        $res = [
+            "my_groups" => $groups,
+            "work_groups" => $work_group_with_user,
+            "my_work_groups" => $my_work_groups
+        ];
+        
+        return response()->json($res); 
+    }
+    public function select_work_group(Request $request){
+        $my_work_groups = MyWorkGroup::where('user_id', Auth::id())->delete();
+        $create = MyWorkGroup::create([
+            'user_id' => Auth::id(),
+            'work_group_id' => $request->work_group_id
+        ]);
+        $groups = MyGroup::where('user_id', Auth::id())->update(['selected' => false]);
+        return response()->json($create); 
     }
     public function update_selected_calendar_members(Request $request){
-        if($request->id == -1){
-            $user = MyGroup::where('user_id', Auth::id())->latest()->first();
+        if($request->user_id == -1){
+            $user = MyGroup::findOrFail($request->group_id);
             $rec = $user->users()->update([
                 'updated_at' => now(),
                 'selected_as_calendar_member' => $request->value
             ]);
-            return response()->json($rec);
+            $user->update(['selected' => $request->value]);
+            $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $request->group_id)->update(['selected' => false]);
+            $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
+            return response()->json($user);
         }else{
-            $user = MyGroup::where('user_id', Auth::id())->latest()->first();
-            $rec = $user->users()->where('user_id', $request->id)->update([
+            $user = MyGroup::findOrFail($request->group_id);
+            $rec = $user->users()->where('user_id', $request->user_id)->update([
                 'updated_at' => now(),
                 'selected_as_calendar_member' => $request->value
             ]);
+            $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $request->group_id)->update(['selected' => false]);
+            $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
             return response()->json($rec); 
         }
         
@@ -900,8 +953,19 @@ class CalendarController extends Controller
         return response()->json($merged_users); 
     }
     public function set_more_members(Request $request){
-        $user = MyGroup::where('user_id', Auth::id())->latest()->first();
-        $user->users()->syncWithPivotValues($request->users, ['selected_as_calendar_member' => 1, "created_at" => now()]);  
+        if($request->id){
+            $group = MyGroup::findOrFail($request->id);
+          
+        }else{
+            $group = new MyGroup;
+            $group->user_id = Auth::id();
+            
+        }
+        $group->selected = true;
+        $group->name = $request->title;
+        $group->save();
+        $group->users()->syncWithPivotValues($request->users, ['selected_as_calendar_member' => 1, "created_at" => now()]);  
+        $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $group->id)->update(['selected' => false]);
         return response()->json($request->users); 
     }
     public function get_calendar_search(Request $request){
