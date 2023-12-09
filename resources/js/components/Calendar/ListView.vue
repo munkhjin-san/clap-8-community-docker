@@ -10,6 +10,13 @@
         class="calendar-day-root"
         @mouseup="onMouseUp"
         >
+        <Transition name="modalFade">
+            <div class="cal-day-loader" v-if="initialLoader">
+                <div id="loaderMini">
+                    <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                </div>
+            </div>
+        </Transition>
         <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 15}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
           
             <div class="calendar-header">  
@@ -41,7 +48,7 @@ import moment from 'moment';
 import ListRow from './List/ListRow.vue'
 import UserItem from './List/UserItem.vue'
 export default{
-    props: ['records', 'activeMembers', 'selectedDate', 'facilitiesList', 'edit', 'delete'],
+    props: ['records', 'activeMembers', 'selectedDate', 'facilitiesList', 'edit', 'delete', 'initialLoader'],
     computed:{
         colors(){
             return [

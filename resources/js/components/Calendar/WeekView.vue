@@ -9,11 +9,25 @@
         class="calendar-day-root"
         
         @mouseup="onMouseUp">
+        <Transition name="modalFade">
+            <div class="cal-day-loader" v-if="initialLoader">
+                <div id="loaderMini">
+                    <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                </div>
+            </div>
+        </Transition>
         <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 8}) * ${days.length})`}">
-          
+            
             <div class="calendar-header">  
                 <div ref="spacer" class="left-member-tile"></div>
-                <div @click="shiftToListView($event,day.day_full)" @mousedown="onMouseDown" :ref="`w_day_${day.day_full}`" v-for="day in days" class="w-day-item" style="cursor: pointer;">
+                <div 
+                    :id="`day_val_w_${day.day_full}`"
+                    @click="shiftToListView($event,day.day_full)" 
+                    @mousedown="onMouseDown" :ref="`w_day_${day.day_full}`" 
+                    v-for="day in days" 
+                    class="w-day-item" 
+                    style="cursor: pointer;"
+                >
                     <div :class="['top-day-tile', {isPastDay : isPastDay(day)}, {isTodayWeek : isToday(day)}]" >
                         <div :class="['cal-m-day-title', {'special-day': specialDay(day), 'isSaturday' : isSaturday(day)}]">{{ dayTitle(day) }}</div>
                         <p class="pc" style="margin-left: 5px;white-space: nowrap;overflow: hidden;font-size:11px;color:tomato" v-if="day.day_holiday">{{ day.day_holiday }}</p>
@@ -113,18 +127,18 @@ export default{
     },
     mounted(){
         window.addEventListener("mouseup", this.onMouseUp);
-        const today = moment().format('YYYY-MM-DD')
-        const el = this.$refs[`w_day_${today}`]
-        if(el && el.length){
-            const rect = el[0].getBoundingClientRect()
-            const r_el = this.$refs.cal_week_view
-            const space = this.$refs.spacer
-            console.log(space.getBoundingClientRect())
-            if(r_el && space){
-                const index = this.$store.state.mobile ? 0 : 60
-                r_el.scrollTo(rect.x - space.getBoundingClientRect().width - index, 0)
-            }
-        }
+        // const today = moment().format('YYYY-MM-DD')
+        // const el = this.$refs[`w_day_${today}`]
+        // if(el && el.length){
+        //     const rect = el[0].getBoundingClientRect()
+        //     const r_el = this.$refs.cal_week_view
+        //     const space = this.$refs.spacer
+        //     console.log(space.getBoundingClientRect())
+        //     if(r_el && space){
+        //         const index = this.$store.state.mobile ? 0 : 60
+        //         r_el.scrollTo(rect.x - space.getBoundingClientRect().width - index, 0)
+        //     }
+        // }
         // .scrollIntoView()
     },
     methods:{

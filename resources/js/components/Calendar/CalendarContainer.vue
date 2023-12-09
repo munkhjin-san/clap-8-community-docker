@@ -97,7 +97,7 @@
             />
             <WeekView 
                 v-if="viewType == 2"
-                ref="monthView"
+                ref="weekView"
                 :records="recordList"
                 :selected-year="selectedYear"
                 :selected-month="selectedMonth"
@@ -122,6 +122,7 @@
                 :activeMembers="activeMembers"
                 :selectedDate="selectedDate"
                 :facilitiesList="facilitiesList"
+                :initialLoader="initialLoader"
                 @edit="editRecord"
                 @delete="deleteRecordConfirm"
                 ref="ListView"
@@ -620,16 +621,33 @@ export default{
                       
         },
         jumpExecute(day){
-            const id = this.viewType == 0 ? 'day_val_' : 'day_val_m_'
+            const id = this.viewType == 0 ? 'day_val_' : this.viewType == 1 ? 'day_val_m_' : this.viewType == 2 ? 'day_val_w_' : '_'
             const el = document.getElementById(id + day)   
             if(el){
-                el.scrollIntoView({block: 'start', behavior: 'instant'})
+                if(this.viewType == 2){
+                    const el = this.$refs.weekView?.$refs[`w_day_${day}`]
+                    if(el && el.length){
+                        const rect = el[0].getBoundingClientRect()
+                        const r_el = this.$refs.weekView?.$refs.cal_week_view
+                        const space = this.$refs.weekView?.$refs.spacer
+                        console.log(rect)
+                        if(r_el && space){
+                            const index = this.$store.state.mobile ? 0 : 60
+                            const l = rect.x - space.getBoundingClientRect().width - index
+                            console.log(l)
+                            r_el.scrollBy(l, 0)
+                        }
+                    }
+                }else{
+                    el.scrollIntoView({block: 'start', behavior: 'instant'})
+                }                
                 if(this.viewType == 1){
                     this.$refs.monthView?.$refs.monthScrollContainer?.scrollBy(0, -40)
-                    nextTick(() => {
+                    
+                }   
+                nextTick(() => {
                         this.initialLoader = false
                     })
-                }   
             }     
                                  
             this.initialLoader = false
