@@ -22,7 +22,7 @@
                     <div v-if="!tempGroup && !createWindow">                        
                         <div class="si-box">
                             <p style="margin-bottom: 15px;">編集するグループを選択してください。</p>
-                            <div @click="tempGroup = group" v-for="group in myGroups">
+                            <div @click="editGroupStart(group)" v-for="group in myGroups">
                                 <div style="padding: 20px;border: solid thin var(--calendarBorder);cursor: pointer;margin: 15px 0;">{{ group.name }}</div>
                             </div>
                         </div>
@@ -225,6 +225,10 @@ export default{
         
     },
     methods: {
+        editGroupStart(group){
+            this.tempGroup = group
+            this.title = group.name
+        },
         selectWorkGroup(event){
             const id = parseInt(event.target.value)
             const value = event.target.checked
