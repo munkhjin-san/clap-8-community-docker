@@ -38,7 +38,10 @@
             
             <div >
                 <div v-for="user in listMembers" style="display: flex;">
-                    <div class="left-member-tile">{{user.name}}</div>
+                    <div class="left-member-tile" style="gap:5px">
+                        <UserIcon :user="user" imgClass="userMidIcon" size="25"/>
+                        <div>{{user.name}}</div>
+                    </div>
                     <WeekDay 
                         @mousedown="onMouseDown" 
                         v-for="day in days" 
@@ -59,6 +62,7 @@
 import moment from 'moment';
 import WeekRecord from './Week/WeekRecord.vue';
 import WeekDay from './Week/WeekDay.vue';
+import UserIcon from '../Board/Mixed/UserIcon.vue';
 export default{
     props: ["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'facilitiesList', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'edit', 'delete', 'activeMembers'],
     emits: ['edit', 'delete'],
@@ -120,7 +124,8 @@ export default{
     },
     components:{
         WeekRecord,
-        WeekDay
+        WeekDay,
+        UserIcon
     },
     unmounted(){
         window.removeEventListener("mouseup", this.onMouseUp);
