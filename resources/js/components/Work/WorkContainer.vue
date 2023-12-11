@@ -193,35 +193,27 @@
                 this.startDate = query.startDate
                 this.selectShift()
             }
-            const url = new URL(window.location.href);
-            const action = url.searchParams.get("action");
 
-            if (action) {
-                const value = url.searchParams.get("value");
-                const shiftType = url.searchParams.get("shiftType");
-                const shiftStartTime = url.searchParams.get("shiftStartTime");
-                const shiftEndTime = url.searchParams.get("shiftEndTime");
-                if (action === "1") {
+            if (query.action) {
+                if(query.action == 1){
                     const formData = {
-                        end_time: shiftEndTime,
-                        day: value,
-                        start_time: shiftStartTime,
-                        shift_type: shiftType
+                        end_time: query.shiftEndTime,
+                        day: query.date,
+                        start_time: query.shiftStartTime,
+                        shift_type: query.shiftType
                     };
-
                     const thisMonth = this.selectedMonth + 1
-                    const valueMonth = Number(value.split('-')[1])
+                    const valueMonth = Number(query.date.split('-')[1])
                     
                     if (thisMonth !== valueMonth) {
                         this.selectedMonth = this.selectedMonth - 1;
                         this.reload()
                     }
-                    
                     this.timeStampEdit(formData, true, this.auth_user.id)
-                } else {
+                }else if (query.action == 2){
                     this.selectShift();
                 }
-            }
+            } 
         },
         computed: {
             relocateUsers(){
@@ -449,10 +441,10 @@
                 }
                 
             },
-            changeDate(month, year){
+            changeDate(month, year, fromShift){
                 this.selectedYear = year
                 this.selectedMonth = month
-                
+                this.reloadFromShift(fromShift)
             },
             closeMembers(users){
                 if(users.length > 0){
@@ -492,6 +484,9 @@
                 }   
                  
             },
+            reloadFromShift(val){
+                this.getShiftData(val)
+            },
             setDate(date){
                 this.selectedYear = date.year
                 this.selectedMonth = date.month - 1
@@ -525,7 +520,7 @@
                     else this.errorToast('エラーが発生しました。 ' + error.message)     
                 }.bind(this))
             },
-            getShiftData(){
+            getShiftData(val){
                 let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
                 const params = {
                     current_date : yearMonth,
@@ -533,14 +528,21 @@
                 }
                 axios.post('/get_shift_data', params).then(
                     response => {
-                        this.shiftTypes = response.data.shift_type
-                        this.shiftRecords = response.data.shift_record
-                        this.kintone_data = response.data.kintone_data
-                        this.remainingDays = response.data.remaining_days
-                        this.planned_record = response.data.planned_record
-                        this.workTemp = response.data.workTemp
-                        this.shiftStartTime = this.shiftRecords[0] ? this.shiftRecords[0].start_time : ''
-                        this.shiftEndTime = this.shiftRecords[0] ? this.shiftRecords[0].end_time : ''
+                        if(val){
+                            this.remainingDays = response.data.remaining_days
+                            this.planned_record = response.data.planned_record
+                            this.workTemp = response.data.workTemp
+                        }else{
+                            this.remainingDays = response.data.remaining_days
+                            this.planned_record = response.data.planned_record
+                            this.workTemp = response.data.workTemp
+                            this.shiftTypes = response.data.shift_type
+                            this.shiftRecords = response.data.shift_record
+                            this.kintone_data = response.data.kintone_data
+                            this.shiftStartTime = this.shiftRecords[0] ? this.shiftRecords[0].start_time : ''
+                            this.shiftEndTime = this.shiftRecords[0] ? this.shiftRecords[0].end_time : ''
+                        }
+                        
                         
                     }
                 ).catch(function (error) {

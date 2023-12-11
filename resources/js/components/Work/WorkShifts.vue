@@ -145,7 +145,6 @@
                     this.shiftMonth = moment(newDate).month()
                     this.selectedShiftType = 3
                     this.$emit('changeDate', moment(newDate).month(), moment(newDate).year());
-                    this.$emit('reload')
                 }   
             },
             remainingDays(newVal){
@@ -208,10 +207,12 @@
                     if(moment(date.day_full).isBefore(moment(this.tempStartDate)) || moment(date.day_full).isAfter(moment(this.tempStartEnd))){
                         this.selectedShifts.pop()
                         this.remainingdays++
+                        const content = moment(date.day_full).format('YYYY/MM/DD') + 'は計画期間外です。<br>設定可能な期間は' + '<strong>' + moment(this.tempStartDate).format('YYYY/MM/DD') + '</strong>' + '-' + '<strong>' + this.tempStartEnd.format('YYYY/MM/DD') + '</strong>'
+
                         emitter.emit('setToast', {
                             active: true,  
-                            type: 'info', 
-                            content: '予定日を選択してください。',
+                            type: 'info',
+                            content: content,
                             closeButton: false, 
                             autoClose: false,
                             answers: ['OK']
@@ -224,7 +225,7 @@
                         emitter.emit('setToast', {
                             active: true,  
                             type: 'info', 
-                            content: '予定された休暇日はありません。',
+                            content: '計画有給日数が足りない又は当年の計画有給は付与されていません。',
                             closeButton: false, 
                             autoClose: false,
                             answers: ['OK']
@@ -317,7 +318,7 @@
             setDate(date){
                 this.shiftYear = date.year
                 this.shiftMonth = date.month - 1
-                this.$emit('changeDate', this.shiftMonth, this.shiftYear)
+                this.$emit('changeDate', this.shiftMonth, this.shiftYear, true)
             },
             errorToast(message){
                 emitter.emit('setToast', {

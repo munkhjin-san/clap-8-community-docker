@@ -64,8 +64,7 @@
             },
             timeCardAdd(flag,item){
                 const { value, shiftType, shiftStartTime, shiftEndTime } = item;
-                const url = `/app/public/work?action=${flag}&value=${value}&shiftType=${shiftType}&shiftStartTime=${shiftStartTime}&shiftEndTime=${shiftEndTime}`;
-                window.open(url, '_blank').focus();
+                flag == 1 ? this.$router.push({name: 'work', query: { action: flag, date: value, shiftType: shiftType, shiftStartTime: shiftStartTime, shiftEndTime: shiftEndTime }}) : this.$router.push({name: 'work', query: { action: flag }})
             }
 
         }

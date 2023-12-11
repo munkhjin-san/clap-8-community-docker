@@ -290,14 +290,7 @@ class WorkController extends Controller
                         ->get();
         $between_records = 0;
         $remaining_days = 0;
-        $work_temp = workTemp::where('user_code', $user_code)->where(function($q) use($currentYear, $currentMonth) {
-            $q->whereYear('date', '=', $currentYear)
-                ->whereMonth('date', '<=', $currentMonth)
-                ->orWhere(function ($q) use ($currentYear, $currentMonth) {
-                    $q->whereYear('date', '<', $currentYear)
-                        ->whereMonth('date', '>=', $currentMonth);
-                });
-        })->first();
+        $work_temp = workTemp::where('user_code', $user_code)->first();
         $planned_record = shiftRecord::whereIn('user_id', $request->work_group)
                             ->where('shift_type', 3)
                             ->orderBy('created_at', 'desc')

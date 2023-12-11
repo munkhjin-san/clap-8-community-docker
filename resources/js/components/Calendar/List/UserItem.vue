@@ -1,6 +1,10 @@
 <template>
 <div style="display: flex;">
-    <div class="left-member-tile">{{userData.user.name}}</div>
+    <div class="left-member-tile" style="gap:5px">
+        <UserIcon :user="userData.user" imgClass="userMidIcon" size="25"/>
+        <div>{{userData.user.name}}</div>
+    </div>
+    
      <ListRow
         v-for="hour in hoursOfDay"
         :data="hour"
@@ -14,10 +18,12 @@
 <script>
 import ListRow from './ListRow.vue';
 import moment from 'moment';
+import UserIcon from '../../Board/Mixed/UserIcon.vue';
 export default{
     props: ['userData', 'colors', 'facilitiesList', 'delete', 'edit'],
     components:{
-        ListRow
+        ListRow,
+        UserIcon
     },
     computed:{
         hoursOfDay() {
