@@ -10,7 +10,7 @@
         </router-view> 
         <Transition name="inputSlide" appear>
             <MessageInput 
-                v-if="!messageLoader"
+                v-if="!messageLoader && openedBoard"
                 :openedBoard="openedBoard" 
                 :replyKey="replyKey"
                 :unread="unread"

@@ -61,9 +61,13 @@ import FileIcon from '../Board/Mixed/FileIcon.vue';
                 this.$store.commit('setSharingData', null)
             },
             onReset(){
-                setTimeout(()=> {
-                    this.$store.commit('setSharingData', null)
-                },0)
+                if(!this.$store.state.mobile){
+                    setTimeout(()=> {
+                        this.$store.commit('setSharingData', null)
+                    },0)
+                }
+
+               
 
             },
             onMove(e){

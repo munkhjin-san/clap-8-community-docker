@@ -809,6 +809,9 @@ import { nextTick } from 'vue'
                 }else if(to !== 'board'){
                     this.$router.push({name: to})
                 }
+                else if(to == 'board' && this.$store.state.mobile){
+                    this.$router.push({name: 'board'})
+                }
                 this.closeMenu()
             }
               
