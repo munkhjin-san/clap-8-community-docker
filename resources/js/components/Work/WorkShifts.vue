@@ -202,7 +202,8 @@
                     }
                 }
                 this.holidayCount = this.selectedShifts.filter(shift => shift.type === 0).length
-                if(this.selectedShiftType == 3){
+                console.log(existingShift)
+                if(this.selectedShiftType == 3 && !existingShift){
                     
                     if(moment(date.day_full).isBefore(moment(this.tempStartDate)) || moment(date.day_full).isAfter(moment(this.tempStartEnd))){
                         this.selectedShifts.pop()
