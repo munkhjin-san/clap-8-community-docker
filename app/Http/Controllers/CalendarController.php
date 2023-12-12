@@ -490,11 +490,14 @@ class CalendarController extends Controller
         $exists = CalendarRecord::where($index, $value)->whereNotIn('id', $exclude)
         ->where(function ($query) use ($start, $end) {
             $query->where(function ($subquery) use ($start, $end) {
+                $subquery->where('date_start', '<', $end)
+                         ->where('date_end', '>', $start);
+            })->orWhere(function ($subquery) use ($start, $end) {
                 $subquery->where('date_start', '>=', $start)
-                    ->where('date_start', '<', $end);
+                         ->where('date_start', '<', $end);
             })->orWhere(function ($subquery) use ($start, $end) {
                 $subquery->where('date_end', '>', $start)
-                    ->where('date_end', '<=', $end);
+                         ->where('date_end', '<=', $end);
             });
         })->exists();
         if($exists == true){
