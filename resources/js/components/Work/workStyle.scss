@@ -139,6 +139,7 @@
 }
 .header-row{
     display: table-row;
+    word-break: keep-all;
 }
 .header-cell{
     display: table-cell;

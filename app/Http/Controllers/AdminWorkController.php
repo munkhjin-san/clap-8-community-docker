@@ -60,21 +60,29 @@ class AdminWorkController extends Controller{
         $month = $request->month;
         $today = Carbon::now();
         [$currentYear, $currentMonth] = explode('-', $request->month);
-        // $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?app=96';
-        // $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?app=928';
-
-        // $headers = [
-        //     'Authorization' => 'Basic', // Example custom header
-        //     'X-Cybozu-API-Token' => 'ejYioBZZgazR5xDJKuilRadcdeo5uCeJRbvN16HF'
-        // ];
+        $user_list = User::where('retire', 0)->where('deleted_flag', 0)->whereNotNull('user_code')->pluck('user_code')->toArray();
+        $strings = array_map('strval', $user_list);
+        $result = '(' . implode(', ', $strings) . ')';
+        $queryParams = [
+            'app' => '9',
+            "query" => "社員コード in $result limit 200",
+            'fields' => ['社員コード', '文字列__1行__15']
+        ];
+        
+        $queryString = http_build_query($queryParams);
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+        $headers = [
+            'Authorization' => 'Basic', 
+            'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
+        ];
         $recieve = [];
-        // $response = Http::withHeaders($headers)->get($url);
-        // $responseContent = $response->body();
-        // $responseData = $response->json();
-        // foreach ($responseData['records'] as $data){
-        //     $recieve[] = ['user_code'=>$data['社員コード']['value'], 'general_position'=>$data['職位']['value']];
+        $response = Http::withHeaders($headers)->get($url);
+        $responseContent = $response->body();
+        $responseData = $response->json();
+        foreach ($responseData['records'] as $data){
+            $recieve[] = ['user_code'=>$data['社員コード']['value'], 'general_position'=>$data['文字列__1行__15']['value']];
 
-        // }
+        }
         $attendance_record = attendanceRecord::where('date_year_month', $month)->orderBy('created_at', 'desc')->get();
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
         $pos_list = [1, 2, 3, 4, 5];    

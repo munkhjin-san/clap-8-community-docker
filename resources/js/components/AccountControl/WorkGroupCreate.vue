@@ -230,6 +230,7 @@
     font-size: 16px;
     border: 1px solid #ccc;
     box-sizing: border-box;
+    color: var(--primary-color);
   }
   .recordText-workGroup::placeholder{
     font-size:14px !important;

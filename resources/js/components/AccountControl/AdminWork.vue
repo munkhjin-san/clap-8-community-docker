@@ -28,7 +28,7 @@
                         <td>社員名</td>
                         <td>勤怠確定</td>
                         <td>インシデント</td>
-                        <!-- <td>職階</td>                         -->
+                        <td>職階</td>                        
                         <td>連続</td>
                         <td>勤怠予定入力</td>
                         <td>計画有給</td>
@@ -73,11 +73,11 @@
                                 </div>
                                 <p v-else>--</p>
                         </td>
-                        <!-- <td style="border:1px solid #666;">
+                        <td style="border:1px solid #666;">
                             <div v-for="(data, index) in kintone_data">
-                                <p v-if="user.user_code && data.user_code && user.user_code == data.user_code">{{data.general_position}}</p>
+                                <p v-if="item.user_code && data.user_code && item.user_code == data.user_code">{{data.general_position}}</p>
                             </div>
-                        </td> -->
+                        </td>
                         <td style="border:1px solid #666;">
                             <div>
                                 <img v-if="weather_average[item.id] != null" :src="'/images/icon_' + weather_average[item.id].current_value + '.svg'" alt="Weather Icon" width="30" height="17" />
