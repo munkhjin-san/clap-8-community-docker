@@ -5,7 +5,7 @@
         :class="[{'pop-cal-card' : expanded}]"
         :style="{
             minWidth: recordWidth, 
-            marginTop: `${(record.order * 20) + (record.order + 1) * 10}px`,
+            marginTop: `${(record.order * 60) + (record.order + 1) * 10}px`,
             left: recordLeft,
             maxHeight: maxHeight,
             opacity: opacity,
@@ -13,8 +13,8 @@
             maxWidth: expanded ? '400%' : recordWidth, 
             width: 'max-content',
             minHeight: 'auto',
-            lineHeight: '16px'
         }"
+        
         :id="`dayRecord_${this.record.id}`"
         @dragover.prevent 
         @trigger="dragStart"

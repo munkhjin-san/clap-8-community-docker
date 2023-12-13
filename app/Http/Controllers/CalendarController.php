@@ -897,20 +897,20 @@ class CalendarController extends Controller
         
         // return response()->json($user_list); 
 
-        $work_group_with_user = workGroup::whereHas('work_group_user', function($q){
-            $q->where('user_id', Auth::id());
-        })->with(['work_group_user' => function ($q){
-            $q->whereHas('user', function ($q){
-                $q->where('retire', 0)->where('hide_flag', 0);
-            });
-        }])->get();
+        // $work_group_with_user = workGroup::whereHas('work_group_user', function($q){
+        //     $q->where('user_id', Auth::id());
+        // })->with(['work_group_user' => function ($q){
+        //     $q->whereHas('user', function ($q){
+        //         $q->where('retire', 0)->where('hide_flag', 0);
+        //     });
+        // }])->get();
 
         $groups = MyGroup::where('user_id', Auth::id())->where('deleted_flag', 0)->with('users')->get();
         $my_work_groups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
         $res = [
             "my_groups" => $groups,
-            "work_groups" => $work_group_with_user,
-            "my_work_groups" => $my_work_groups
+            "work_groups" => [],
+            "my_work_groups" => []
         ];
         
         return response()->json($res); 
@@ -933,7 +933,7 @@ class CalendarController extends Controller
             ]);
             $user->update(['selected' => $request->value]);
             $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $request->group_id)->update(['selected' => false]);
-            $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
+            // $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
             return response()->json($user);
         }else{
             $user = MyGroup::findOrFail($request->group_id);
@@ -942,7 +942,7 @@ class CalendarController extends Controller
                 'selected_as_calendar_member' => $request->value
             ]);
             $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $request->group_id)->update(['selected' => false]);
-            $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
+            // $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
             return response()->json($rec); 
         }
         

@@ -17,12 +17,12 @@
             </div>
             <div style="cursor: pointer;" @click="truncate = false" v-if="truncate && record.calendar_users.length > 6">...({{ record.calendar_users.length }})</div>
         </div>
-        <div v-else-if="mode !== 'mini'" style="display: flex;">
+        <div v-else style="display: flex;">
             <UserIcon v-for="user in record.calendar_users.slice(0, 3)" :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
             <span style="line-height: 15px;" v-if="record.calendar_users.length > 3">...({{ record.calendar_users.length }})</span>
         </div>
         <div :class="['cal-card-item', {'wrap cal-selectable' : expanded }]">{{ viewable ? record.title : '予定' }}</div>
-        <div v-if="!expanded && mode !== 'mini'" class="cal-card-item" style="white-space: nowrap;">{{ time }}</div>
+        <div v-if="!expanded" class="cal-card-item" style="white-space: nowrap;">{{ time }}</div>
         <div v-if="expanded" :class="['cal-card-item', {'wrap cal-selectable' : expanded }]" style="line-height:1.5;margin: 10px 0;display: flex;gap: 10px;align-items: center;">                
             <div v-html="timeDetailed"></div>
         </div> 

@@ -131,8 +131,8 @@
         <Transition name="modalFade">
             <div id="calendarViewMenu" class="boxMenu boardMenuIcon" v-if="$store.state.menu.name == 'calendarViewMenu' && $store.state.menu.id == 79" style="top: auto;right: 55px;z-index:6;bottom: 70px;">
                 <ul>
-                    <li class="boxMenuItems cursor-pointer" @click.stop="switchView(1)">月（すべて）</li>
-                    <li class="boxMenuItems cursor-pointer" @click.stop="switchView(0)">日（すべて）</li>
+                    <li class="boxMenuItems cursor-pointer" @click.stop="switchView(1)">月（カレンダー）</li>
+                    <li class="boxMenuItems cursor-pointer" @click.stop="switchView(0)">月（時間）</li>
                     <li class="boxMenuItems cursor-pointer" @click.stop="switchView(2)">月（メンバー別）</li>                    
                     <li class="boxMenuItems cursor-pointer" @click.stop="switchView(3)">日（メンバー別）</li>      
                 </ul>              

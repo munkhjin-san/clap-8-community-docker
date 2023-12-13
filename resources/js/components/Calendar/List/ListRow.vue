@@ -1,5 +1,5 @@
 <template>
-    <div class="w-day-item" :style="{position: 'relative', minHeight: `${layer * 30 + 15}px`}" @mouseenter="enter" @mouseleave="leave">
+    <div class="w-day-item" :style="{position: 'relative', minHeight: `${layer * 70 + 10}px`}" @mouseenter="enter" @mouseleave="leave">
         <!-- <div 
             v-for="item in data.records" 
             :style="{
