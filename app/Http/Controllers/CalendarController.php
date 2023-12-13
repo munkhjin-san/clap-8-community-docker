@@ -242,10 +242,7 @@ class CalendarController extends Controller
         $gr = MyGroup::where('user_id', Auth::id())->where('selected', true)->latest()->first();
         $myWorkGroups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
 
-        $work_group_users_id = workGroupUser::whereIn('record_id', $myWorkGroups)
-        ->whereHas('user', function ($q){
-            $q->where('retire', 0)->where('hide_flag', 0);
-        })->distinct()->pluck('user_id')->toArray();
+        $work_group_users_id = [];
         
         // $work_group_with_user = workGroup::whereHas('work_group_user', function($q){
         //     $q->where('user_id', Auth::id());
