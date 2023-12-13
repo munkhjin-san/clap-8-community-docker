@@ -17,7 +17,6 @@
                             </svg>                       
                         </div> 
                         <p v-if="tempGroup || createWindow">{{ tempGroup ? 'グループを編集する' : '新しいグループ作成する' }}</p>
-                        <div v-if="tempGroup" style="margin-left: auto;" @click="deleteConfirm" class="commentEditButton">削除する</div>
                     </div> 
                     <div v-if="!tempGroup && !createWindow">                        
                         <div class="si-box">

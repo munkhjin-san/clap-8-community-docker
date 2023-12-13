@@ -131,6 +131,7 @@ export default{
         window.removeEventListener("mouseup", this.onMouseUp);
     },
     mounted(){
+        localStorage.setItem('viewType', 2)
         window.addEventListener("mouseup", this.onMouseUp);
         // const today = moment().format('YYYY-MM-DD')
         // const el = this.$refs[`w_day_${today}`]

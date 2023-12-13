@@ -91,6 +91,7 @@ export default{
         window.removeEventListener("mouseup", this.onMouseUp);
     },
     mounted(){
+        localStorage.setItem('viewType', 3)
         window.addEventListener("mouseup", this.onMouseUp);
 
         const now = moment().subtract(1, 'hour').startOf('hour').format('H')        

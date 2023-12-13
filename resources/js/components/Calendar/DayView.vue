@@ -99,6 +99,7 @@ export default {
         }
     },
     mounted(){
+        localStorage.setItem('viewType', 0)
         window.addEventListener("mouseup", this.onMouseUp);
         localStorage.setItem('viewType', 0)
         if(this.$store.state.tempRecord){
