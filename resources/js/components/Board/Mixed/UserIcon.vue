@@ -1,5 +1,5 @@
 <template>
-    <div :title="user && user.name ? user.name : ''"  @click.stop="pushInstantUser($event, user.id)">
+    <div :title="user && user.name ? user.name : ''"  @click="pushInstantUser($event, user.id)">
         <img v-if="userIcon" draggable="false" :class="[imgClass, themeIcon]" v-lazy="{src: userIcon}" :style="imgStyle" />
         <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
             <circle cx="15" cy="15" r="15" fill="#ddd"/>
@@ -32,6 +32,7 @@
             pushInstantUser(event, id){
                 if(this.$store.state.user && id == this.$store.state.user.id) return
                 if(this.disableInstant) return
+                event.stopPropagation()
                 const cX = event.clientX;
                 const cY = event.clientY;  
                 const data = {

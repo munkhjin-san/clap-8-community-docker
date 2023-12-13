@@ -1,7 +1,7 @@
 <template>
     <div >
         <img v-if="item.private_flag == 0 && boardIcon" draggable="false" loading="lazy" :class="[imgClass, themeIcon]" :src="boardIcon" :style="imgStyle">
-        <UserIcon v-if="item.private_flag > 0 && correspondUser" :user="correspondUser" :imgClass="imgClass" size="45"/>
+        <UserIcon v-if="item.private_flag > 0 && correspondUser" :disableInstant="true" :user="correspondUser" :imgClass="imgClass" size="45"/>
         <svg v-if="!boardIcon && !correspondUser" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
             <circle cx="15" cy="15" r="15" fill="#ddd"/>
         </svg>
