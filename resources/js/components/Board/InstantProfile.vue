@@ -14,9 +14,9 @@
                             <router-link class="user-link" :to="'/user/' + user.id">{{user.name}}</router-link>
                             <img v-if="user.weathers" style="margin-left:10px" :src="'/images/icon_' + user.weathers.value_int + '.svg'" alt="Weather Icon" width="16" height="16">
                         </div>
-                        <div v-if="!user.is_blocked_by && user.work_email" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'mailto:' + user.work_email">{{user.work_email}}</a></div>
-                        <div v-if="!user.is_blocked_by && user.phone_number" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'tel:' + user.phone_number">{{user.phone_number}}</a></div>   
-                        
+                        <div v-if="user.work_email" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'mailto:' + user.work_email">{{user.work_email}}</a></div>
+                        <div v-if="user.phone_number" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'tel:' + user.phone_number">{{user.phone_number}}</a></div>   
+                        <div v-if="$store.state.user.partner_flag !== 1" style="margin-bottom:10px;height:14px;cursor:pointer"><a :href="`/start_private_board?with=${user.id}`" class="prvt">個別ボード</a></div>   
 
                     </div>
                     
@@ -34,7 +34,7 @@
                         <div class="mini-sk" style="margin-bottom:10px;height:14px;width: 50%;"></div>
                         <div class="mini-sk" style="margin-bottom:10px;height:14px;width: 85%;"></div>
                         <div class="mini-sk" style="margin-bottom:10px;height:14px;width: 65%;"></div>     
-                        <!-- <div class="mini-sk" style="margin-bottom:10px;height:14px;width: 45%;"></div>                 -->
+                        <div v-if="$store.state.user.partner_flag !== 1" class="mini-sk" style="margin-bottom:10px;height:14px;width: 45%;"></div>                
                     </div>
                 </div>
             </div>
@@ -179,22 +179,24 @@
             },
             privateBoard(){
                 
-                    const board_check = this.allBoardList.filter(ob => ob.private_flag == 1)
-                    let exist_flag = false
-                    for(let i in board_check){
-                        const exist = board_check[i].board_to_users.filter(ob => ob.user_id == this.info.user.id)
-                        if(exist.length){
-                            const url = `${window.location.origin}/chat/${exist[0].record_id}`       
-                            window.open(url, '_blank');      
-                            return                      
-                        }else{
-                            // const url = window.location.origin + '/app/public/board?correspond_target=' + this.info.user.id    
-                            // window.open(url, '_blank'); 
+                
+
+                    // const board_check = this.allBoardList.filter(ob => ob.private_flag == 1)
+                    // let exist_flag = false
+                    // for(let i in board_check){
+                    //     const exist = board_check[i].board_to_users.filter(ob => ob.user_id == this.info.user.id)
+                    //     if(exist.length){
+                    //         const url = `${window.location.origin}/chat/${exist[0].record_id}`       
+                    //         window.open(url, '_blank');      
+                    //         return                      
+                    //     }else{
+                    //         // const url = window.location.origin + '/app/public/board?correspond_target=' + this.info.user.id    
+                    //         // window.open(url, '_blank'); 
 
 
-                            return
-                        }
-                    }
+                    //         return
+                    //     }
+                    // }
 
                 // if(this.info.user.id == this.$store.state.user.id){
                 //     const url = window.location.origin + '/app/public/board?id=' + this.myBoard.id                    

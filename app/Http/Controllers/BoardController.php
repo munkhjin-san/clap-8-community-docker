@@ -54,6 +54,56 @@ class BoardController extends Controller
     {
         $this->sharedService = $sharedService;
     }
+    public function start_private_board(Request $request){
+        $with = $request['with'];
+
+        if($with){
+            $correspondId = (int) $with;
+            $checkCurrentBoard = boardRecord::where('private_flag', '=', 1)
+            ->whereHas('board_to_users', function($q){
+                $q->where('user_id', '=', Auth::user()->id)->withTrashed();
+            })->whereHas('board_to_users', function($q)use($correspondId){
+                $q->where('user_id', '=', $correspondId)->withTrashed();
+            })->first();
+
+            if(!empty($checkCurrentBoard)){ 
+                $restoreUsers = $checkCurrentBoard->board_to_users()->where('deleted_status', 1)->update([
+                    'deleted_status' => 0,
+                    'created_at' => now()
+                ]);                        
+                $arr = [
+                    "restored" => $restoreUsers,
+                    "message" => "existAndAccessable",
+                    "success" => true,
+                    "data" => $checkCurrentBoard
+                ];   
+                $newUrl = url('board/' . $checkCurrentBoard->id);
+                return redirect($newUrl);
+            }else{            
+                $board = new boardRecord;
+                $board->user_id = $auth_user_id;
+                $board->private_flag = $request->private_flag;        
+                $board->title = 'NoTitle';                
+                $board->save();      
+                
+                $to_users = [Auth::id(), $correspond];
+
+                foreach($uniqueArray as $to_user){
+                    $boardToUser = new boardToUser;
+                    $boardToUser->record_id = $board->id;
+                    $boardToUser->user_id = $to_user; 
+                    if($to_user == $auth_user_id){
+                        $boardToUser->admin_flag = 1;
+                        $boardToUser->last_act = now();
+                    }                
+                    $boardToUser->save();                   
+                }      
+                $newUrl = url('board/' . $board->id);
+                return redirect($newUrl);      
+            }
+        }
+        return $with;
+    }
     public function index(Request $request){ 
 
         // $q = '文章を修正してください。';
@@ -1812,7 +1862,7 @@ class BoardController extends Controller
     }
     public function getInstantUser(Request $request){
         $today = Carbon::now()->format('Y-m-d');
-        $user = User::where('id', $request->id)->with(['weathers' => function($q) use ($today){
+        $user = User::where('id', $request->id)->where('id', '>', 105)->where('retire', 0)->with(['weathers' => function($q) use ($today){
             $q->where('type_id', 43)->where('date', $today);
         }])->select('id', 'name', 'phone_number', 'work_email', 'icon_id')->first();
         if($user){

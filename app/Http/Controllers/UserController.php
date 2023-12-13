@@ -549,7 +549,7 @@ class UserController extends Controller{
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
 
-        $list = User::where('id', '=', $request->id)
+        $list = User::where('id', '=', $request->id)->where('id', '>', 105)
         ->where('deleted_flag','=', 0)->with('positions')->with('offices')->with('icons')->with(['user_album' => function($q){
             $q->where('deleted_flag','=', 0)->with('tags');
         }])

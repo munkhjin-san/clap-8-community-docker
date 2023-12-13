@@ -16,7 +16,7 @@
         <Transition name="modalFade">
             <FilePreview v-if="$store.state.filePreview.active"/>
         </Transition> 
-        <InstantProfile v-if="$store.state.instantUser.id && $store.state.menu.name=='instantProfileWindow' && $store.state.menu.id==5000"/>  
+        <InstantProfile :key="$store.state.instantUser.cY + $store.state.instantUser.cX" v-if="$store.state.instantUser.id && $store.state.menu.name=='instantProfileWindow' && $store.state.menu.id==5000"/>  
         <Transition name="modalFade">
             <Toast v-if="toast.active" :data="toast" @close="resetToast"/>
         </Transition>

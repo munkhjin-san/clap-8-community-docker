@@ -98,6 +98,8 @@ Route::group(["middleware"=>"auth"],function(){
         return redirect("/user/{$id}");
     });
     Route::get('/user/{id}/{settings}',  [BoardController::class, "index"]);
+
+        Route::get('/start_private_board', [BoardController::class, 'start_private_board']);
         Route::get('/' ,function () {
             {return Redirect::route('board');}
         });

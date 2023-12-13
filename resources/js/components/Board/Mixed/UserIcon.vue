@@ -1,5 +1,5 @@
 <template>
-    <div :title="user && user.name ? user.name : ''">
+    <div :title="user && user.name ? user.name : ''"  @click.stop="pushInstantUser($event, user.id)">
         <img v-if="userIcon" draggable="false" :class="[imgClass, themeIcon]" v-lazy="{src: userIcon}" :style="imgStyle" />
         <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
             <circle cx="15" cy="15" r="15" fill="#ddd"/>
@@ -26,6 +26,20 @@
                 }else{
                     return null
                 }
+            },
+        },
+        methods:{
+            pushInstantUser(event, id){
+                if(this.$store.state.user && id == this.$store.state.user.id) return
+                const cX = event.clientX;
+                const cY = event.clientY;  
+                const data = {
+                    id: id,
+                    cX: cX,
+                    cY: cY
+                }
+                this.$store.commit('setInstantUser', data)   
+                this.$store.commit('setMenu', {name: 'instantProfileWindow', id: 5000})                 
             },
         }
     }

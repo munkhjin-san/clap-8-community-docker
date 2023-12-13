@@ -11,9 +11,9 @@
         }"
     >
         <div class="cal-userlist-full" v-if="expanded" :style="{marginBottom: '10px'}"> 
-            <div v-for="user in listTruncate">
+            <div v-for="user in listTruncate" style="width: fit-content;">
                 <UserIcon :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
-                <p class="userName" style="white-space: break-spaces;font-size: 12px;margin-right: 25px;">{{ user.name }}</p>
+                <p @click.stop="pushInstantUser($event, user.id)" class="userName" style="white-space: break-spaces;font-size: 12px;margin-right: 25px;">{{ user.name }}</p>
             </div>
             <div style="cursor: pointer;" @click="truncate = false" v-if="truncate && record.calendar_users.length > 6">...({{ record.calendar_users.length }})</div>
         </div>
@@ -212,6 +212,21 @@ export default{
             const unit = this.$store.state.mobile ? '500vw' : '120vw'
             return `calc(((${unit}  - 30px) / 96 * ${steps}) + 1px)`
         }
+    },
+    methods:{
+        pushInstantUser(event, id){
+            if(id == this.$store.state.user.id) return
+            const cX = event.clientX;
+            const cY = event.clientY;  
+            const data = {
+                id: id,
+                cX: cX,
+                cY: cY
+            }
+            console.log(data)
+            this.$store.commit('setInstantUser', data)   
+            this.$store.commit('setMenu', {name: 'instantProfileWindow', id: 5000})                 
+        },
     }
 }
 </script>
