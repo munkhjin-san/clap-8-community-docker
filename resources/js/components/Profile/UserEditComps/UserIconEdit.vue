@@ -49,11 +49,11 @@
             <div class="profile-icon-content">
                 <div id="imageWrap" style="position: relative;width: fit-content;margin: auto;min-height: 120px;">
                     <div @click.stop="iconClickMenu" class="cursor-pointer">
-                        <UserIconPreLoad size="120" :title="UserAllData.name" :user="UserAllData" imgClass="profile-image"/>
+                        <UserIconPreLoad size="120" :disableInstant="true" :title="UserAllData.name" :user="UserAllData" imgClass="profile-image"/>
                     </div>
                     <div id="iconMenuWrap" class="iconChange" v-if="$store.state.menu.name == 'iconMenuWrap' && $store.state.menu.id == 23">
                         <div @click="previewProfile(icon, 0)" class="cursor-pointer">フルサイズを表示</div>
-                        <div @click="iconEditModal = true" class="cursor-pointer">{{$t('uploadIcon')}}</div>
+                        <div v-if="auth_id == targetId" @click="iconEditModal = true" class="cursor-pointer">{{$t('uploadIcon')}}</div>
                         <div v-if="auth_id == targetId" @click="iconDeleteConfirm()" class="cursor-pointer">{{$t('deleteIcon')}}</div>
                         
                     </div>
