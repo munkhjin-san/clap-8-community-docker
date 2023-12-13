@@ -903,7 +903,7 @@ class BoardController extends Controller
                     }
                 }         
                 
-                $mails = User::whereIn('id', $request->mentioned_users)->whereNotNull('email')->pluck('email')->toArray();
+                $mails = User::whereIn('id', $request->mentioned_users)->where('retire', 0)->whereNotNull('email')->pluck('email')->toArray();
                 foreach($mails as $to){
                     Mail::to($to)->send(new Mention($b_title, $content, $block_flag, $board->id, $chat->id));
                 }
