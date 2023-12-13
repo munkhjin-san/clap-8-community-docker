@@ -879,7 +879,7 @@ class BoardController extends Controller
             })->toArray();
             
             $deep_link = url('board/' . $request->record_id);
-            $icon = url('content/profile_icon/' . $auth_user->icon_id . '_' . $auth_user->id . '_200.jpg');
+            $icon = url('content_api/profile_icon/' . $auth_user->icon_id . '_' . $auth_user->id . '_200.jpg');
             $badge = url('/96x96.png');
             if(!empty($boardRecord) && $boardRecord->private_flag == 1){
                 $push_title = $auth_user->name;
