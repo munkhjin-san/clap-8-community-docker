@@ -8,7 +8,7 @@
             <div class="admin-account-center-inner" :key="item.id" v-for="item in paginatedOrders">
                 <div class="account-wrapper">
                     <div style="display:flex; align-items:center;margin-bottom:10px;">
-                        <UserIconPreLoad size="45" :title="item.name" :user="item" imgClass="boardNormalIcon"/>
+                        <UserIconPreLoad :disableInstant="true" size="45" :title="item.name" :user="item" imgClass="boardNormalIcon"/>
                         <div style="display:flex; flex-direction:column">
                             <span style="margin-left:10px;">{{item.name}}</span>
                             <!-- <span style="margin-left:10px; margin-top:10px;">{{ item.name_kana }}</span> -->
