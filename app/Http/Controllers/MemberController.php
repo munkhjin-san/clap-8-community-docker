@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\positionRecord;
+use App\Models\User;
 use App\Models\SalaryIssue;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -32,12 +33,163 @@ class MemberController extends Controller
                         // },
                         'today_weather'
                     ])
-                    ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email');
+                    ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
             }
         ])
         ->orderBy('sort_flag', 'asc')
         ->get();   
-        return response()->json($list);
+
+        $allEmployees = collect($list)->pluck('employees')->flatten()->filter(function ($employee) {
+            return $employee['user_code'] != null;
+        })->pluck('user_code')->toArray();
+        $strings = array_map('strval', $allEmployees);
+        $result = '(' . implode(', ', $strings) . ')';
+        $queryParams = [
+            'app' => '9',
+            "query" => "社員コード in $result limit 200",
+            'fields' => ['$id', '社員コード', '氏名', '文字列__1行__15']
+        ];
+        
+        $queryString = http_build_query($queryParams);
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+        $headers = [
+            'Authorization' => 'Basic', 
+            'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
+        ];
+        $response = Http::withHeaders($headers)->get($url);
+        $responseContent = $response->body();
+        $responseData = $response->json();
+
+        if(!$request->byShokkai){
+            $departments = collect($list)->map(function ($department) use ($responseData) {
+                $department['employees'] = collect($department['employees'])->map(function ($employee) use ($responseData) {
+                    $user_code = $employee['user_code'];
+                    if(isset($responseData['records'])){
+                        $index = collect($responseData['records'])->search(function ($item) use ($user_code) {
+                            return isset($item['社員コード']) && $item['社員コード']['value'] == $user_code;
+                        });
+                        if($index){
+                            $shokkai = array(
+                                "id" => (int) $responseData['records'][$index]['$id']['value'],
+                                "name" => $responseData['records'][$index]['氏名']['value'],
+                                "level" => $responseData['records'][$index]['文字列__1行__15']['value'],
+                                "code" => $responseData['records'][$index]['社員コード']['value'],
+                            );
+                            $employee['shokkai'] = $shokkai;
+                        }                    
+                    }
+                    return $employee;
+                })->toArray();
+                return $department;
+            })->toArray();
+            return response()->json($departments);
+        }else{
+
+            $pre = [];
+            $pr = [];
+            $sks = array(
+                array(
+                    "id" => 61,
+                    "name" => "職階G",
+                    "level" => "G",
+                    "employees" => array(),
+                ), 
+                array(
+                    "id" => 62,
+                    "name" => "職階F",
+                    "level" => "F",
+                    "employees" => array(),
+                ), 
+                array(
+                    "id" => 63,
+                    "name" => "職階E",
+                    "level" => "E",
+                    "employees" => array(),
+                ), 
+                array(
+                    "id" => 64,
+                    "name" => "職階D",
+                    "level" => "D",
+                    "employees" => array(),
+                ), 
+                array(
+                    "id" => 65,
+                    "name" => "職階C",
+                    "level" => "C",
+                    "employees" => array(),
+                ), 
+                array(
+                    "id" => 66,
+                    "name" => "職階B",
+                    "level" => "B",
+                    "employees" => array(),
+                ), 
+                array(
+                    "id" => 67,
+                    "name" => "職階A",
+                    "level" => "A",
+                    "employees" => array(),
+                ), 
+                array(
+                    "id" => 68,
+                    "name" => "一般職",
+                    "level" => "一般職",
+                    "employees" => array(),
+                ), 
+                array(
+                    "id" => 68,
+                    "name" => "未分類",
+                    "level" => "",
+                    "employees" => array(),
+                ), 
+            );
+            $collection = collect($sks);
+            $s_list = $collection->map(function($sk) use ($responseData) {
+                $rs = collect($responseData['records']);
+                $filteredCollection = $rs->where('文字列__1行__15.value', '=', $sk['level']);
+                $filteredArray = $filteredCollection->values()->pluck('社員コード.value')->map(function ($item) {
+                    return (int) $item;
+                })->toArray();
+                $emp = User::where('hide_flag', 0)
+                ->where('position_id', '>', 5)
+                ->where('partner_flag', 0)
+                ->whereIn('user_code', $filteredArray)
+                ->with([
+                    'positions' => function ($q) {
+                        $q->where('deleted_flag', 0);
+                    },
+                    'offices',
+                    'today_weather'
+                ])
+                ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code')->get();
+                $sk['employees'] = $emp;
+                $sk['user_codes'] = $filteredArray;
+                return $sk;
+            })->values()->toArray();
+
+            $officers = positionRecord::where('deleted_flag', 0)
+            ->where('id', '<=', 5)
+            ->with([
+                'employees' => function ($q) use ($today) {
+                    $q->where('hide_flag', 0)
+                        ->where('partner_flag', 0)
+                        ->with([
+                            'positions' => function ($q) {
+                                $q->where('deleted_flag', 0);
+                            },
+                            'offices',
+                            'today_weather'
+                        ])
+                        ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
+                }
+            ])
+            ->orderBy('sort_flag', 'asc')
+            ->get()->values()->toArray(); 
+            $merged = array_merge($officers, $s_list);
+            return response()->json($merged);
+        }
+        
+        
     }
     public function get_kadai_list(Request $request){
 
