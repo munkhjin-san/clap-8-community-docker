@@ -8,7 +8,7 @@
 </template>
 <script>
     export default {
-        props: ['user', 'imgClass', 'imgStyle', 'size'],        
+        props: ['user', 'imgClass', 'imgStyle', 'size', 'disableInstant'],        
         computed:{
             themeIcon(){
                 if(this.user && this.user.a_version == 0){
@@ -31,6 +31,7 @@
         methods:{
             pushInstantUser(event, id){
                 if(this.$store.state.user && id == this.$store.state.user.id) return
+                if(this.disableInstant) return
                 const cX = event.clientX;
                 const cY = event.clientY;  
                 const data = {
