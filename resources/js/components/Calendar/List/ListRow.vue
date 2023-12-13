@@ -1,5 +1,5 @@
 <template>
-    <div class="w-day-item" :style="{position: 'relative', minHeight: `${layer * 70 + 10}px`}" @mouseenter="enter" @mouseleave="leave">
+    <div class="w-day-item" :style="{position: 'relative', minHeight: `${layer * 70 + 30}px`}" @click.self.stop="createAtTime" @mousedown="setBeforeState" @touchstart="setBeforeState">
         <!-- <div 
             v-for="item in data.records" 
             :style="{
@@ -35,9 +35,11 @@ import moment from 'moment'
 import ListRecord from './ListRecord.vue';
 export default{
     props: ['data', 'colors', 'facilitiesList', 'edit', 'delete'],
+    emits: ['create'],
     data(){
         return{
             dragActive: false,
+            beforeState: 0
         }
     },
     mounted(){
@@ -61,6 +63,9 @@ export default{
         },
     },
     methods:{
+        setBeforeState(event){
+            this.beforeState = event.x     
+        },
         width(record){
             const minutesDifference = Math.abs(moment(record.date_start).diff(moment(record.date_end), 'minutes'))
             const steps = Math.ceil(minutesDifference / 15)
@@ -86,7 +91,32 @@ export default{
             const min = val.val
             const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm');
             return merge
-        }
+        },
+        createAtTime(event){
+            if(Math.abs(event.x - this.beforeState) > 15) {
+                return
+            }
+            const targetElement = event.target;
+            const elementWidth = targetElement.offsetWidth;
+            const clickX = event.clientX - targetElement.getBoundingClientRect().left;
+            let min = ''
+            if (clickX < elementWidth / 2) {
+                min = '00'
+            } else {
+                min = '30'
+            }
+            const date = this.data.date
+            const time = this.data.hour.split(":");
+            const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
+            const d = {
+                x: event.x,
+                y: event.y,
+                time: merge,
+                stamp: moment()
+            }
+            this.$emit('create', d, this.data.user)
+            
+        },
         
     }
 }

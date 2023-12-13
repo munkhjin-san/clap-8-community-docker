@@ -16,7 +16,7 @@
                 </div>
             </div>
         </Transition>
-        <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 8}) * ${days.length})`}">
+        <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 8}) * ${days.length + 1})`}">
             
             <div class="calendar-header">  
                 <div ref="spacer" class="left-member-tile"></div>
@@ -38,9 +38,11 @@
             
             <div >
                 <div v-for="user in listMembers" style="display: flex;">
-                    <div class="left-member-tile" style="gap:5px">
-                        <UserIcon :user="user" imgClass="userMidIcon" size="25"/>
-                        <div>{{user.name}}</div>
+                    <div class="left-member-tile">
+                        <div>
+                            <UserIcon :user="user" imgClass="userMidIcon" size="25"/>
+                            <div>{{user.name}}</div>
+                        </div>                        
                     </div>
                     <WeekDay 
                         @mousedown="onMouseDown" 
@@ -52,6 +54,7 @@
                         :facilitiesList="facilitiesList"
                         @edit="val => $emit('edit', val)"
                         @delete="val => $emit('delete', val)"
+                        @addRecord="(type, day, user) => $emit('addRecord',type, day, user)"
                         />
                 </div>
             </div>
@@ -65,7 +68,7 @@ import WeekDay from './Week/WeekDay.vue';
 import UserIcon from '../Board/Mixed/UserIcon.vue';
 export default{
     props: ["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'facilitiesList', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'edit', 'delete', 'activeMembers'],
-    emits: ['edit', 'delete'],
+    emits: ['edit', 'delete', 'addRecord'],
     data(){
         return{
             cursorPos: [0, 0],
@@ -219,48 +222,3 @@ export default{
     }
 }
 </script>
-<style lang="scss">
-.w-day-item{
-    border-bottom: 1px solid var(--calendarBorder);
-    border-right: 1px solid var(--calendarBorder);
-    box-sizing: border-box;
-    background: var(--background-color);
-    flex: 1;
-    min-width: 0;
-}
-.left-member-tile{
-    flex: 1;
-    border-right: 1px solid var(--calendarBorder);
-    border-bottom: 1px solid var(--calendarBorder);
-    box-sizing: border-box;
-    padding: 10px;
-    font-size: 13px;
-    position: sticky;
-    left: 0;
-    z-index: 3;
-    background: var(--background-color);
-    word-break: keep-all;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-}
-.top-day-tile{
-    min-height: 30px;
-    line-height: 30px;
-    text-align: center;
-    background: var(--background-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    flex-wrap: wrap;
-}
-.isTodayWeek {
-    background: rgb(197, 175, 114);
-    color: rgb(255, 255, 255);
-}
-.calendar-container-outer-week{
-    color: var(--primary-color);
-}
-</style>

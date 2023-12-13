@@ -125,6 +125,7 @@
                 :initialLoader="initialLoader"
                 @edit="editRecord"
                 @delete="deleteRecordConfirm"
+                @create="createAtTime"
                 ref="ListView"
             />
         <!-- </Transition> -->
@@ -200,6 +201,7 @@
                 :facilitiesList="facilitiesList"  
                 :preSelected="preSelected"
                 :edit_all_record="edit_all_record"
+                :preSelectedMembers="preSelectedMembers"
                 @close="closeCreate"      
             />
             
@@ -266,7 +268,8 @@ export default{
             },
             edit_all_record: true,
             activeMembers: [],
-            listDetails: null
+            listDetails: null,
+            preSelectedMembers: []
         };
     },
     components:{
@@ -299,7 +302,6 @@ export default{
             this.viewType = 0 
             const date = moment(this.initial_date).startOf('month').format('YYYY-MM-DD')
             this.getCalendar(date, 'mounted')
-            // console.log('hasId', tempId)
             this.$store.commit('setTempRecord', tempId)
         }else{
             const date = moment().format('YYYY-MM-DD')
@@ -313,7 +315,9 @@ export default{
         if(this.$store.state.sharingData){
             this.createWindow = true
         }
-        this.updateGoogleCalendar()
+        if(this.$store.state.user){
+            this.preSelectedMembers.push(this.$store.state.user)
+        }
     },
     computed:{
         selectedDate(){
@@ -356,17 +360,9 @@ export default{
     },
     methods:{
         setListView(data){
-            // const date = moment([this.selectedYear, this.selectedMonth, this.selectedDay]).format('YYYY-MM-DD')
-            // console.log(date)
-            // return
-            // console.log(data)
-            // this.listDetails = data
             const day = moment(data).date()
             this.selectedDay = day
             this.viewType = 3
-        },
-        updateGoogleCalendar(){
-            // if(this.$store.state.user.)
         },
         fastCreateOpen(){
             if(this.fastCreate.time){
@@ -379,8 +375,7 @@ export default{
                     time: null,
                     stamp: null
                 }
-            }
-            
+            }            
 
         },
         shiftToMonth(direction){
@@ -401,15 +396,19 @@ export default{
                                      
             
         },
-        addRecord(type, value){
+        addRecord(type, value, user){
             if(type == 'day'){
-                console.log(value)
+                if(user){
+                    const index = this.preSelectedMembers.find(ob => ob.id == user.id)
+                    if(!index){
+                        this.preSelectedMembers.push(user)
+                    }                    
+                }
                 const hour = moment().add(1, 'hour').startOf('hour').hour()
                 const d = moment(value).hour(hour).minute(0).second(0).format('YYYY-MM-DD HH:mm:ss')
-                console.log(d)
                 this.preSelected = d
                 this.createWindow = true
-
+                
             }
         },
         deleteRecordConfirm(record){
@@ -562,7 +561,6 @@ export default{
             this.getCalendar(dateInstance, 'updated')
         },
         jumpToDate(date){
-            console.log('jj')
             this.appendLock = true
             const dataDate = moment(date)
             if(this.selectedMonth !== dataDate.month() || this.selectedYear !== dataDate.year()){
@@ -641,7 +639,6 @@ export default{
                 this.selectedMonth = this.activeMonth = moment().month()
                 this.selectedYear = this.activeYear = moment().year()
                 this.selectedDay = moment().date()
-                console.log(this.selectedDay)
                 this.records = []
                 const date = moment([this.selectedYear, this.selectedMonth , 1]).format('YYYY-MM-DD')
                 this.getCalendar(date, 'mounted')
@@ -658,11 +655,9 @@ export default{
                         const rect = el[0].getBoundingClientRect()
                         const r_el = this.$refs.weekView?.$refs.cal_week_view
                         const space = this.$refs.weekView?.$refs.spacer
-                        console.log(rect)
                         if(r_el && space){
                             const index = this.$store.state.mobile ? 0 : 60
                             const l = rect.x - space.getBoundingClientRect().width - index
-                            console.log(l)
                             r_el.scrollBy(l, 0)
                         }
                     }
@@ -689,6 +684,7 @@ export default{
                 const date = moment([this.selectedYear, this.selectedMonth, 1]).format('YYYY-MM-DD')
                 this.getCalendar(date, 'updated')
             }
+            this.preSelectedMembers = [this.$store.state.user]
         },
         setDate(date){
             this.appendLock = true
@@ -710,7 +706,14 @@ export default{
             
             
         },
-        createAtTime(data){    
+        createAtTime(data, user){             
+            if(user){
+                const index = this.preSelectedMembers.find(ob => ob.id == user.id)
+                if(!index){
+                    this.preSelectedMembers = [this.$store.state.user] 
+                    this.preSelectedMembers.push(user)
+                }                    
+            }  
             if(this.$store.state.menu.name && this.$store.state.menu.name !== 'scheduleCreateFast'){
                 this.$store.commit('setMenu', {id: null, name: ''})
                 return
@@ -836,7 +839,6 @@ export default{
             this.viewType = 0
             this.records = []
             this.getCalendar(date)
-            console.log(date)
             this.searchView = false
             
         },
@@ -845,7 +847,6 @@ export default{
             for(const index in this.facilitiesList){
                 
                 const values = this.facilitiesList[index].filter(ob => ob.selected).map(ob => ob.value)
-                console.log(index, values)
                 if(values && values.length){
                     fac[index] = values
                 }   

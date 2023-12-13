@@ -1,10 +1,11 @@
 <template>
 <div style="display: flex;">
-    <div class="left-member-tile" style="gap:5px">
-        <UserIcon :user="userData.user" imgClass="userMidIcon" size="25"/>
-        <div>{{userData.user.name}}</div>
-    </div>
-    
+    <div class="left-member-tile">
+        <div>  
+            <UserIcon :user="userData.user" imgClass="userMidIcon" size="25"/>
+            <div style="line-height: 1.5;">{{userData.user.name}}</div>
+        </div>
+    </div>    
      <ListRow
         v-for="hour in hoursOfDay"
         :data="hour"
@@ -12,6 +13,7 @@
         :colors="colors"
         @edit="val => $emit('edit', val)"
         @delete="val => $emit('delete', val)"
+        @create="(date, user) => $emit('create', date, user)"
     /> 
 </div>
 </template>
@@ -21,6 +23,7 @@ import moment from 'moment';
 import UserIcon from '../../Board/Mixed/UserIcon.vue';
 export default{
     props: ['userData', 'colors', 'facilitiesList', 'delete', 'edit'],
+    emits: ['create'],
     components:{
         ListRow,
         UserIcon
@@ -39,7 +42,7 @@ export default{
                        
                 
                 // return ordered
-                hours.push({hour: currentHour.format('H:mm'), records: hourRecords, user: this.userData.user});
+                hours.push({hour: currentHour.format('H:mm'), records: hourRecords, user: this.userData.user, date: this.userData.date});
                 currentHour.add(1, 'hour');
             }
             return hours;

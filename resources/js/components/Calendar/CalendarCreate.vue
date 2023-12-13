@@ -40,7 +40,16 @@
                     path="calendar_more_users"
                 />
             </div>
-
+            <div v-if="!release_flag" class="si-box" style="position:relative;">
+                <div>
+                    <p :class="['form-title-small', 'form-title-active']">編集許可</p>
+                </div>
+                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                    <input @change="setEditAllDefault" type="checkbox" id="edit_all" v-model="edit_all">
+                    <label for="edit_all" style="min-width: 80px;" class="cursor-pointer"><span></span></label>
+                    <div class="switch-toggle"></div>
+                </div>  
+            </div> 
             <div v-if="!edit_all" class="si-box" style="position:relative;">
                 <div>
                     <p :class="['form-title-small', 'form-title-active']">非公開設定</p>
@@ -52,16 +61,7 @@
                 </div>  
             </div>  
 
-            <div v-if="!release_flag" class="si-box" style="position:relative;">
-                <div>
-                    <p :class="['form-title-small', 'form-title-active']">編集許可</p>
-                </div>
-                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
-                    <input type="checkbox" id="edit_all" v-model="edit_all">
-                    <label for="edit_all" style="min-width: 80px;" class="cursor-pointer"><span></span></label>
-                    <div class="switch-toggle"></div>
-                </div>  
-            </div>  
+             
             <div style="margin: 30px 0 -10px 0;">
                 <p :class="['form-title-small', 'form-title-active']">繰り返し設定</p>
             </div>
@@ -334,13 +334,13 @@ import FormOptionSelector from '../Global/FormOptionSelector.vue';
 import BoardSelector from '../Global/BoardSelector.vue'
 import moment from 'moment';
 export default{
-    props:['editTarget', 'facilitiesList', 'preSelected', 'edit_all_record'],
+    props:['editTarget', 'facilitiesList', 'preSelected', 'edit_all_record', 'preSelectedMembers'],
     emits: ['close'],
     data(){
         return{
             title: this.editTarget && this.editTarget.title ? this.editTarget.title : "",
             remarks: this.editTarget && this.editTarget.remarks ? this.editTarget.remarks : "",
-            calendar_users: this.editTarget && this.editTarget.calendar_users ? this.editTarget.calendar_users : [this.$store.state.user],
+            calendar_users: this.editTarget && this.editTarget.calendar_users ? this.editTarget.calendar_users : this.preSelectedMembers,
             referrer: this.editTarget && this.editTarget.referrer ? this.editTarget.referrer : "",
             release_flag: this.editTarget && this.editTarget.release_flag ? true : false,
             edit_all: this.editTarget && this.editTarget.edit_all ? true : false,
@@ -401,6 +401,12 @@ export default{
             //     }
             // }
         }
+        if(!this.editTarget){
+            const editAll = localStorage.getItem('editAllDefault')
+            if(editAll && editAll == 1){
+                this.edit_all = true
+            }
+        }
     },
     components:{
         FormShortText, 
@@ -415,6 +421,10 @@ export default{
         BoardSelector
     },
     methods:{
+        setEditAllDefault(event){
+            const val = event.target.checked ? 1 : 0
+            localStorage.setItem('editAllDefault', val)            
+        },
         setMembers(values){
             console.log(values)
             this.calendar_users = values

@@ -17,7 +17,7 @@
                 </div>
             </div>
         </Transition>
-        <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 15}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
+        <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 13}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
           
             <div class="calendar-header">  
                 <div ref="spacer" class="left-member-tile"></div>
@@ -38,6 +38,7 @@
                     :colors="colors"
                     @edit="val => $emit('edit', val)"
                     @delete="val => $emit('delete', val)"
+                    @create="(date, user) => $emit('create', date, user)"
                 />
             </div>
         </div>
@@ -49,6 +50,7 @@ import ListRow from './List/ListRow.vue'
 import UserItem from './List/UserItem.vue'
 export default{
     props: ['records', 'activeMembers', 'selectedDate', 'facilitiesList', 'edit', 'delete', 'initialLoader'],
+    emits: ['create'],
     computed:{
         colors(){
             return [
@@ -146,57 +148,3 @@ export default{
 
 }
 </script>
-<style lang="scss">
-.top-list-tile{
-    min-height: 30px;
-    line-height: 30px;
-    background: var(--background-color);
-    font-size: 12px;
-}
-.top-list-tile > div{
-    transform: translateX(-15px);
-}
-.w-day-item{
-    border-bottom: 1px solid var(--calendarBorder);
-    border-right: 1px solid var(--calendarBorder);
-    box-sizing: border-box;
-    background: var(--background-color);
-    flex: 1;
-    min-width: 0;
-}
-.left-member-tile{
-    flex: 1;
-    border-right: 1px solid var(--calendarBorder);
-    border-bottom: 1px solid var(--calendarBorder);
-    box-sizing: border-box;
-    padding: 10px;
-    font-size: 13px;
-    position: sticky;
-    left: 0;
-    z-index: 3;
-    background: var(--background-color);
-    word-break: keep-all;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: flex;
-    align-items: center;
-}
-.top-day-tile{
-    min-height: 30px;
-    line-height: 30px;
-    text-align: center;
-    background: var(--background-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    flex-wrap: wrap;
-}
-.isTodayWeek {
-    background: rgb(197, 175, 114);
-    color: rgb(255, 255, 255);
-}
-.calendar-container-outer-week{
-    color: var(--primary-color);
-}
-</style>
