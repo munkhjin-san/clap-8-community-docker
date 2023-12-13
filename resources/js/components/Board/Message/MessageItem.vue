@@ -23,7 +23,7 @@
         >
             <div id="commentBody">
                 <div :id="'reply_' + message.id" class="commentHeder" style="position:relative;">
-                    <div v-if="message.user && message.user.deleted_at == null" @click.stop="pushInstantUser($event, message.user_id)" class="column-01 cursor-pointer">                        
+                    <div v-if="message.user && message.user.deleted_at == null" class="column-01 cursor-pointer">                        
                         <UserIconPreLoad size="30" :user="message.user" imgClass="userNormalIcon"/>                       
                     </div>   
                     <div v-else class="column-01 cursor-pointer"> 

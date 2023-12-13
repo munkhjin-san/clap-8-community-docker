@@ -106,7 +106,7 @@
                                         <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member" :value="user.id" name="memberCheckBox" type="checkbox">
                                         <span class="cal-check-mark" style="top: 10px;"></span>
                                         <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                            <UserIcon size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
+                                            <UserIcon :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
                                             <p class="userName">{{user.name}}</p>                                    
                                         </div>
                                     </label>  

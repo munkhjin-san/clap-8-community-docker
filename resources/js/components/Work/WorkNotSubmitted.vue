@@ -2,7 +2,7 @@
     <div class="shift-submitted-masonry">
         <div class="shift-submitted-masonry-inner">
             <div style="display:flex;align-items:center;position:relative">
-                <UserIcon size="30" :user="item.notification_user" imgClass="userNormalIcon"/>
+                <UserIcon :disableInstant="true" size="30" :user="item.notification_user" imgClass="userNormalIcon"/>
                 <p class="userName" style="margin-left:10px;">{{ item.notification_user.name }}</p>
             </div>
             <div v-if="plan == 'plan'">

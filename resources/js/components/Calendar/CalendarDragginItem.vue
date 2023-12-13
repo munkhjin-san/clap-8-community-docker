@@ -17,7 +17,7 @@
         >
             <div class="calendar-card-inner">            
                 <div style="display: flex;">
-                    <UserIcon v-for="user in record.calendar_users.slice(0, 3)" :user="user" imgClass="userSmallIcon" size="15"/>
+                    <UserIcon v-for="user in record.calendar_users.slice(0, 3)" :user="user" :disableInstant="true" imgClass="userSmallIcon" size="15"/>
                     <span style="line-height: 15px;" v-if="record.calendar_users.length > 3">...({{ record.calendar_users.length }})</span>
                 </div>
                 <div style="white-space: nowrap;">{{ time }}</div>          

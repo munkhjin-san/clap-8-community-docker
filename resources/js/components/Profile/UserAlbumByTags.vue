@@ -15,7 +15,7 @@
                         <div class="post-second-wrap" style="gap: 10px;margin: 0;">
                             <div class="post-user-wrap">
                                 <div style="display:flex;align-items: center;">
-                                    <UserIcon :user="item" imgClass="userNormalIcon" size="30"/>
+                                    <UserIcon :disableInstant="true" :user="item" imgClass="userNormalIcon" size="30"/>
                                     <router-link class="memberNameLink" :to="`/user/${item.id}`">
                                         <p class="userName">{{ item ? item.name : '' }}</p>
                                     </router-link>

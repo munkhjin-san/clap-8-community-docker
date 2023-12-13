@@ -4,7 +4,7 @@
             <div class="request-container">
                 
                 <div style="display:flex;align-items:center;position:relative;margin-bottom: 10px;">                      
-                    <UserIconPreLoad v-if="message.user" size="30" :user="message.user" imgClass="userNormalIcon"/>    
+                    <UserIconPreLoad :disableInstant="true" v-if="message.user" size="30" :user="message.user" imgClass="userNormalIcon"/>    
                     <div v-else>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30" imgClass="userNormalIcon">
                             <circle cx="15" cy="15" r="15" fill="#ddd"/>
@@ -83,7 +83,7 @@
                         </div>
                         <div @click.stop="viewReactedUsersList" v-if="message.reacted_users" style="display:flex;padding: 10px;margin: 5px 0 -15px -15px;height: 15px;">
                             <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in message.reacted_users.slice(0,3)">  
-                                <UserIconPreLoad :title="user.name" size="30" :user="user" imgClass="userSmallIcon"/>                                         
+                                <UserIconPreLoad :disableInstant="true" :title="user.name" size="30" :user="user" imgClass="userSmallIcon"/>                                         
                             </div>
                             <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="message.reacted_users.length > 3">...({{message.reacted_users.length}})</span>
                         </div>                                    
@@ -113,7 +113,7 @@
                     <div id="reactedUserListAll" v-if="$store.state.menu.name == 'reactedUserListAll' && $store.state.menu.id == message.id" class="taskUsersList" style="left: 0;top: 35px;width: fit-content;">
                         <div @click.stop="pushInstantUser($event, user.id)" :key="user.id" class="mentionBox-inner" v-for="user in reactedUsersList">                                                
                             <div class="column-01"> 
-                                <UserIconPreLoad size="25" :user="user" imgClass="userMidIcon"/>   
+                                <UserIconPreLoad :disableInstant="true" size="25" :user="user" imgClass="userMidIcon"/>   
                             </div> 
                             <p class="cursor-pointer" style="margin: auto auto auto 5px;font-size: 13px;">{{user.name}}</p>                                                                           
                         </div>

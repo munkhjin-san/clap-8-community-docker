@@ -73,7 +73,7 @@
                     <div class="post-second-wrap" style="gap: 10px">
                         <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers(item)}]">
                             <div v-if="item.app_type == 2 || item.app_type == 3" style="display:flex;align-items: center;">
-                                <UserIcon :user="item.user" imgClass="userNormalIcon" size="30"/>
+                                <UserIcon :disableInstant="true" :user="item.user" imgClass="userNormalIcon" size="30"/>
                                 <p class="userName">{{ item.user ? item.user.name : '' }}</p>
                             </div>                
                             <div v-if="item.app_type == 4 || item.app_type == 3" style="position: relative;">
@@ -83,7 +83,7 @@
                                     </svg>
                                     <div :ref="`to_users_${item.id}`" :class="['toUserListContainer']">
                                         <div :key="user.id" v-for="user in item.to_users" style="display: flex;align-items: center;">                                                             
-                                            <UserIcon size="30" :user="user" :imgClass="isMultipleUsers(item) ? 'toUsersIconSmall' : 'toUsersIcon'"/> 
+                                            <UserIcon :disableInstant="true" size="30" :user="user" :imgClass="isMultipleUsers(item) ? 'toUsersIconSmall' : 'toUsersIcon'"/> 
                                             <p style="width: max-content;" class="userName">{{ user.name }}</p>                                       
                                         </div>                               
                                     </div>

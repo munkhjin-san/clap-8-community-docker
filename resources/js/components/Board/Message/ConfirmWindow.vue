@@ -28,7 +28,7 @@
                             <span class="checkmark-mini"></span>
                         </label>  
                         <div @click="checkmMemberSelect(user.user.id)" class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;">
-                            <UserIconPreLoad size="30" :title="user.user.name" :user="user.user" imgClass="userNormalIcon"/>                      
+                            <UserIconPreLoad :disableInstant="true" size="30" :title="user.user.name" :user="user.user" imgClass="userNormalIcon"/>                      
                             <div style="align-self: center;padding:0 10px;">
                                 <p style="line-height: 1.3;font-size: 16px;">{{user.user.name}}</p>                                          
                             </div>                                      
@@ -42,7 +42,7 @@
                             <span class="checkmark-mini"></span>
                         </label>  
                         <div @click="checkmMemberSelect(user.user.id)" class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;">
-                            <UserIconPreLoad size="30" :title="user.user.name" :user="user.user" imgClass="userNormalIcon"/>                      
+                            <UserIconPreLoad :disableInstant="true" size="30" :title="user.user.name" :user="user.user" imgClass="userNormalIcon"/>                      
                             <div style="align-self: center;padding:0 10px;">
                                 <p style="line-height: 1.3;font-size: 16px;">{{user.user.name}}</p>                                          
                             </div>                                      
