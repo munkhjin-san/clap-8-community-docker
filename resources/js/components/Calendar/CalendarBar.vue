@@ -72,7 +72,7 @@
         <div @click="$emit('jumpToday')" class="c-bar-button">本日</div>
         <Transition name="modalFade">
             <div v-if="$store.state.menu.id == 6 && $store.state.menu.name == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menuId = null">
-                <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color)">       
+                <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);min-height: 150px;">       
                     <div v-if="myGroups.length">
                         <div v-for="group in myGroups">  
                             <div style="display: flex;align-items: center;white-space: nowrap;padding: 0 15px;gap: 15px;position:relative;">
@@ -119,6 +119,9 @@
                                 </div>
                             </div>
                         </div> 
+                    </div>
+                    <div v-else class="no-comment-text" style="position: unset;margin-top: 30px;padding: 20px;">
+                        <div>現在マイグループありません。</div>
                     </div>
                     <div title="新規作成" id="boardCreate" class="createBoardButton fileNewButton" style="z-index: 7;" @click="createWindow = true, addUsersWindow = true">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="fill: rgb(0, 0, 0); margin: auto;">

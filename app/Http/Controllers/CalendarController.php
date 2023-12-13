@@ -234,7 +234,7 @@ class CalendarController extends Controller
             
             $newMyGroup = MyGroup::create([
                 'user_id' => Auth::id(),
-                'name' =>  Auth::user()->name . 'カレンダーグループ',
+                'name' =>  'マイグループ',
                 'selected' => true
             ]);
             $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
@@ -883,14 +883,14 @@ class CalendarController extends Controller
         return response()->json($items);       
     }
     public function get_my_groups(Request $request){
-        $myGroupCheck = MyGroup::where('user_id', Auth::id())->where('deleted_flag', 0)->exists();        
-        if(!$myGroupCheck){            
-            $newMyGroup = MyGroup::create([
-                'user_id' => Auth::id(),
-                'name' =>  Auth::user()->name . 'カレンダーグループ'
-            ]);
-            $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
-        }
+        // $myGroupCheck = MyGroup::where('user_id', Auth::id())->where('deleted_flag', 0)->exists();        
+        // if(!$myGroupCheck){            
+        //     $newMyGroup = MyGroup::create([
+        //         'user_id' => Auth::id(),
+        //         'name' =>  Auth::user()->name . 'カレンダーグループ'
+        //     ]);
+        //     $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
+        // }
 
         // $user = MyGroup::where('user_id', Auth::id())->latest()->first();
         // $user_list = $user->users()->get();
