@@ -1362,7 +1362,7 @@ class BoardController extends Controller
                     $block_flag = true;
                 }
             }
-            $mails = User::whereIn('id', $request['send_list'])->whereNotNull('email')->pluck('email')->toArray();
+            $mails = User::whereIn('id', $request['send_list'])->where('retire', 0)->whereNotNull('email')->pluck('email')->toArray();
             foreach($mails as $to){
                 Mail::to($to)->send(new Confirm($b_title, $content, $block_flag, $request['board_id'], $request['msg_id'], $type));
             }
