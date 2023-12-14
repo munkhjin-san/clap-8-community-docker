@@ -5207,6 +5207,7 @@ font-size: 13px;
 }
 .cal-w-wrap{
     position: relative;
+    cursor: pointer;
 }
 .pop-w-card{
     width: calc(100vw / 7 * 1.5);
@@ -5540,13 +5541,13 @@ input:autofill {
     min-width: 0;
 }
 .left-member-tile{
-    flex: 1;
+    width: 130px;
     border-right: 1px solid var(--calendarBorder);
     border-bottom: 1px solid var(--calendarBorder);
     box-sizing: border-box;
     font-size: 13px;
     position: sticky;
-    left: 0;
+    left: 0px;
     z-index: 3;
     background: var(--background-color);
     word-break: keep-all;
@@ -5554,6 +5555,8 @@ input:autofill {
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
+    transition: width 0.3s;
+    white-space: nowrap;
 }
 .left-member-tile > div {
     display: flex;

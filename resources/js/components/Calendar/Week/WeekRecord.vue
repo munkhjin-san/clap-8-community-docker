@@ -5,7 +5,8 @@
     flex-direction: column;
     gap: 10px;
     position: relative;
-    padding: 3px;">
+    padding: 3px;
+    padding-bottom: 15px;">
         <div v-for="record in dayRecords" >
             <!-- {{ item.title }} -->
             <div v-if="expanded(record)" style="height: 59px;"></div>

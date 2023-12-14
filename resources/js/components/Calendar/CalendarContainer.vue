@@ -107,6 +107,7 @@
                 :active-year="activeYear"
                 :holidays="holidays"
                 :activeMembers="activeMembers"
+                :appendLock="appendLock"
                 @slided="slided"
                 @fromMonth="fromMonth"
                 @addRecord="addRecord"
@@ -115,6 +116,8 @@
                 @edit="editRecord"
                 @delete="deleteRecordConfirm"
                 @setListView="setListView"
+                @create="createAtTime"
+                @resetFastCreate="resetFastCreate"
             />
             <ListView 
                 v-if="viewType == 3"
@@ -126,6 +129,7 @@
                 @edit="editRecord"
                 @delete="deleteRecordConfirm"
                 @create="createAtTime"
+                @resetFastCreate="resetFastCreate"
                 ref="ListView"
             />
         <!-- </Transition> -->

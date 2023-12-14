@@ -7,7 +7,7 @@
         }" 
         ref="cal_week_view" 
         class="calendar-day-root"
-        
+        @scroll="scrollListen"
         @mouseup="onMouseUp">
         <Transition name="modalFade">
             <div class="cal-day-loader" v-if="initialLoader">
@@ -19,7 +19,7 @@
         <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 8}) * ${days.length + 1})`}">
             
             <div class="calendar-header">  
-                <div ref="spacer" class="left-member-tile"></div>
+                <div ref="spacer" :style="{ width: hideName ? '45px' : `130px`}" class="left-member-tile"></div>
                 <div 
                     :id="`day_val_w_${day.day_full}`"
                     @click="shiftToListView($event,day.day_full)" 
@@ -38,23 +38,27 @@
             
             <div >
                 <div v-for="user in listMembers" style="display: flex;">
-                    <div class="left-member-tile">
-                        <div>
-                            <UserIcon :user="user" imgClass="userMidIcon" size="25"/>
-                            <div>{{user.name}}</div>
+                    <div @click="hideName = false" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`}">
+                        <div style="cursor: pointer;">
+                            <UserIcon :disableInstant="hideName" :user="user" imgClass="userMidIcon" size="25"/>
+                            <div @click.stop="pushInstantUser($event, user.id)" :style="{lineHeight: 1.5, visibility: hideName ? 'hidden' : 'visible'}">{{user.name}}</div>
                         </div>                        
                     </div>
                     <WeekDay 
                         @mousedown="onMouseDown" 
+                        @touchstart="handleTouchStart"
+                        @touchmove="handleTouchMove"
                         v-for="day in days" 
                         :key="`${user.id}_${day.day_full}`" 
                         :user="user" 
                         :day="day"
                         :colors="colors"
                         :facilitiesList="facilitiesList"
+                        :beforeState="beforeState"
                         @edit="val => $emit('edit', val)"
                         @delete="val => $emit('delete', val)"
                         @addRecord="(type, day, user) => $emit('addRecord',type, day, user)"
+                        @create="(date, user) => $emit('create', date, user)"
                         />
                 </div>
             </div>
@@ -67,12 +71,18 @@ import WeekRecord from './Week/WeekRecord.vue';
 import WeekDay from './Week/WeekDay.vue';
 import UserIcon from '../Board/Mixed/UserIcon.vue';
 export default{
-    props: ["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'facilitiesList', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'edit', 'delete', 'activeMembers'],
-    emits: ['edit', 'delete', 'addRecord'],
+    props: ["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'facilitiesList', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'edit', 'delete', 'activeMembers', 'appendLock'],
+    emits: ['edit', 'delete', 'addRecord', 'create', 'resetFastCreate'],
     data(){
         return{
             cursorPos: [0, 0],
-            beforeState: 0
+            beforeState: 0,
+            hideName: false,
+            lockScroll: false,
+            scrollCount: 0,
+            startX: 0,
+            startY: 0,
+            isHorizontalScroll: null
         }
     },
     computed:{
@@ -150,7 +160,66 @@ export default{
         // }
         // .scrollIntoView()
     },
+    watch:{
+        lockScroll(after, before){
+            if(after){
+                setTimeout(() => {
+                    this.lockScroll = false
+                }, 300);
+            }
+        }
+    },
     methods:{
+        pushInstantUser(event, id){
+            if(this.$store.state.user && id == this.$store.state.user.id) return
+            const cX = event.clientX;
+            const cY = event.clientY;  
+            const data = {
+                id: id,
+                cX: cX,
+                cY: cY
+            }
+            this.$store.commit('setInstantUser', data)   
+            this.$store.commit('setMenu', {name: 'instantProfileWindow', id: 5000})                 
+        },
+        handleTouchStart(event) {
+            this.startX = event.touches[0].clientX;
+            this.startY = event.touches[0].clientY;
+            this.isHorizontalScroll = null;
+        },
+        handleTouchMove(event) {
+        if (this.isHorizontalScroll === null) {
+            const deltaX = Math.abs(event.touches[0].clientX - this.startX);
+            const deltaY = Math.abs(event.touches[0].clientY - this.startY);
+            const scrollThreshold = 10;
+            if (deltaX > scrollThreshold || deltaY > scrollThreshold) {
+            this.determineScrollDirection(deltaX, deltaY);
+            }
+        }
+        },
+        determineScrollDirection(deltaX, deltaY) {
+            const scrollThreshold = 5;
+            if (deltaX > deltaY && deltaX > scrollThreshold) {
+                this.isHorizontalScroll = true;
+            } else if (deltaY > deltaX && deltaY > scrollThreshold) {
+                this.isHorizontalScroll = false;
+            }
+        },
+        scrollListen(){
+            // console.log(this.isHorizontalScroll)
+            if(this.$store.state.mobile && !this.lockScroll && !this.appendLock && this.scrollCount > 0 && this.isHorizontalScroll){
+                // const currentScrollLeft = event.target.scrollLeft;
+                // this.hideName = currentScrollLeft > this.lastScrollLeft    
+                // if(currentScrollLeft > this.lastScrollLeft){
+                    this.hideName = true
+                    this.lockScroll = true
+                    
+                // }           
+                // this.lastScrollLeft = currentScrollLeft;
+            }        
+            this.scrollCount ++   
+            this.$emit('resetFastCreate')
+        },
         shiftToListView(event, date){
             if(Math.abs(event.pageX - this.beforeState) > 15) {
                 console.log('stop!!!', Math.abs(event.x - this.beforeState))

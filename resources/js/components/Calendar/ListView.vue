@@ -9,6 +9,7 @@
         id="cal_list_view" 
         class="calendar-day-root"
         @mouseup="onMouseUp"
+        @scroll="scrollListen"
         >
         <Transition name="modalFade">
             <div class="cal-day-loader" v-if="initialLoader">
@@ -17,28 +18,26 @@
                 </div>
             </div>
         </Transition>
-        <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 13}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
+        <div @mousedown="onMouseDown" @touchstart="handleTouchStart" @touchmove="handleTouchMove" class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 13}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
           
             <div class="calendar-header">  
-                <div ref="spacer" class="left-member-tile"></div>
+                <div ref="spacer" :style="{ width: hideName ? '45px' : `130px`}" class="left-member-tile"></div>
                 <div :ref="`w_day_${index}`" v-for="(hour, index) in hoursOfDay" class="w-day-item" style="border-right: solid thin transparent;">
-                    <div :class="['top-list-tile']" >
-                        <div>{{ hour.hour }}</div>
-                        
-                    </div> 
+                    <div :class="['top-list-tile']" ><div>{{ hour.hour }}</div></div> 
                 </div>
-            </div>
-      
+            </div>     
             
-            <div @mousedown="onMouseDown">
+            <div>
                 <UserItem 
                     v-for="userData in listMembers"
                     :userData="userData"
                     :facilitiesList="facilitiesList"
                     :colors="colors"
+                    :hideName="hideName"
                     @edit="val => $emit('edit', val)"
                     @delete="val => $emit('delete', val)"
                     @create="(date, user) => $emit('create', date, user)"
+                    @viewFull="hideName = false"
                 />
             </div>
         </div>
@@ -50,7 +49,27 @@ import ListRow from './List/ListRow.vue'
 import UserItem from './List/UserItem.vue'
 export default{
     props: ['records', 'activeMembers', 'selectedDate', 'facilitiesList', 'edit', 'delete', 'initialLoader'],
-    emits: ['create'],
+    emits: ['create', 'resetFastCreate'],
+    data(){
+        return{
+            hideName: false,
+            lastScrollLeft: 0,
+            scrollDirection: null,
+            lockScroll: false,
+            startX: 0,
+            startY: 0,
+            isHorizontalScroll: null
+        }
+    },
+    watch:{
+        lockScroll(after, before){
+            if(after){
+                setTimeout(() => {
+                    this.lockScroll = false
+                }, 300);
+            }
+        }
+    },
     computed:{
         colors(){
             return [
@@ -100,9 +119,48 @@ export default{
             const el = this.$refs[`w_day_${now}`]
             if(el && el.length){
                 el[0].scrollIntoView({block : 'start', inline: "start" })
+                setTimeout(() => {
+                    this.hideName = false
+                }, 0);
+                
             }
     },
     methods:{
+        handleTouchStart(event) {
+            this.startX = event.touches[0].clientX;
+            this.startY = event.touches[0].clientY;
+            this.isHorizontalScroll = null;
+        },
+        handleTouchMove(event) {
+        if (this.isHorizontalScroll === null) {
+            const deltaX = Math.abs(event.touches[0].clientX - this.startX);
+            const deltaY = Math.abs(event.touches[0].clientY - this.startY);
+            const scrollThreshold = 10;
+            if (deltaX > scrollThreshold || deltaY > scrollThreshold) {
+                this.determineScrollDirection(deltaX, deltaY);
+            }
+        }
+        },
+        determineScrollDirection(deltaX, deltaY) {
+            const scrollThreshold = 5;
+            if (deltaX > deltaY && deltaX > scrollThreshold) {
+                this.isHorizontalScroll = true;
+            } else if (deltaY > deltaX && deltaY > scrollThreshold) {
+                this.isHorizontalScroll = false;
+            }
+        },
+        scrollListen(event){            
+            if(this.$store.state.mobile && !this.lockScroll && this.isHorizontalScroll){
+                // const currentScrollLeft = event.target.scrollLeft;
+                // this.hideName = currentScrollLeft > this.lastScrollLeft    
+                // if(currentScrollLeft > this.lastScrollLeft){
+                    this.hideName = true
+                    this.lockScroll = true
+                // }           
+                // this.lastScrollLeft = currentScrollLeft;
+            }            
+            this.$emit('resetFastCreate')
+        },
         scrollTo(index){            
             requestAnimationFrame(() => {
                 const val = window.innerWidth / 6 * index

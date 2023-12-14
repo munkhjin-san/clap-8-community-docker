@@ -1,9 +1,9 @@
 <template>
 <div style="display: flex;">
-    <div class="left-member-tile">
-        <div>  
-            <UserIcon :user="userData.user" imgClass="userMidIcon" size="25"/>
-            <div style="line-height: 1.5;">{{userData.user.name}}</div>
+    <div @mousedown.stop @click="$emit('viewFull', true)" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`}">
+        <div style="cursor: pointer;">  
+            <UserIcon :disableInstant="hideName" :user="userData.user" imgClass="userMidIcon" size="25"/>
+            <div @click.stop="pushInstantUser($event, userData.user)" :style="{lineHeight: 1.5, visibility: hideName ? 'hidden' : 'visible'}">{{userData.user.name}}</div>
         </div>
     </div>    
      <ListRow
@@ -22,8 +22,8 @@ import ListRow from './ListRow.vue';
 import moment from 'moment';
 import UserIcon from '../../Board/Mixed/UserIcon.vue';
 export default{
-    props: ['userData', 'colors', 'facilitiesList', 'delete', 'edit'],
-    emits: ['create'],
+    props: ['userData', 'colors', 'facilitiesList', 'delete', 'edit', 'hideName'],
+    emits: ['create', 'viewFull'],
     components:{
         ListRow,
         UserIcon
@@ -49,6 +49,18 @@ export default{
         },
     },
     methods:{
+        pushInstantUser(event, id){
+            if(this.$store.state.user && id == this.$store.state.user.id) return
+            const cX = event.clientX;
+            const cY = event.clientY;  
+            const data = {
+                id: id,
+                cX: cX,
+                cY: cY
+            }
+            this.$store.commit('setInstantUser', data)   
+            this.$store.commit('setMenu', {name: 'instantProfileWindow', id: 5000})                 
+        },
         orderCreator(order, list, date){
             let break_point_rear = moment(date).startOf('day')
             let cooked = [];
