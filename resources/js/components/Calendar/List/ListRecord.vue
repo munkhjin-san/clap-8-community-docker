@@ -151,12 +151,18 @@ export default{
             nextTick(() => {
                 const el = document.getElementById(`dayRecord_${this.record.id}`)
                 if(el){
-                    const rect = el.getBoundingClientRect();
-                    const compare_value = this.$store.state.mobile ? 30 : 80
+                    const rect = el.getBoundingClientRect();                   
+                    const compare_value = document.getElementById('listViewSpacer')?.clientWidth || 110
+                    console.log(compare_value)
                     if(rect.x < compare_value){
                         const val = moment(record.date_start).isAfter(moment(record.date_start).startOf('day').add(1, 'hour')) ? 1 : 0
-                        const time = moment(record.date_start).subtract(val, 'hour').startOf('hour').format('H:mm')
-                        this.$emit('scrollToTime', time)
+                        const time = moment(record.date_start).subtract(val, 'hour').startOf('hour').hour()
+                        if(time <= 1){
+                            document.getElementById(`cal_list_view`)?.scrollTo({ left: 0, behavior: 'smooth'})
+                        }else{
+                            document.getElementById(`w_day_${time}`)?.scrollIntoView({behavior: 'smooth'})
+                        }
+                        
 
                     }else{
                         const right_check = rect.x + rect.width

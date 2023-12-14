@@ -21,8 +21,8 @@
         <div @mousedown="onMouseDown" @touchstart="handleTouchStart" @touchmove="handleTouchMove" class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 13}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
           
             <div class="calendar-header">  
-                <div ref="spacer" :style="{ width: hideName ? '45px' : `130px`}" class="left-member-tile"></div>
-                <div :ref="`w_day_${index}`" v-for="(hour, index) in hoursOfDay" class="w-day-item" style="border-right: solid thin transparent;">
+                <div id="listViewSpacer" ref="spacer" :style="{ width: hideName ? '45px' : `130px`}" class="left-member-tile"></div>
+                <div :id="`w_day_${index}`" :ref="`w_day_${index}`" v-for="(hour, index) in hoursOfDay" class="w-day-item" style="border-right: solid thin transparent;">
                     <div :class="['top-list-tile']" ><div>{{ hour.hour }}</div></div> 
                 </div>
             </div>     

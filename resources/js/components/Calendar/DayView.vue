@@ -34,7 +34,7 @@
                 <div class="day-label" style="min-height:30px;border-right: none;background: var(--past-calendar);z-index: -1;"></div>
                 <div style="display: flex;width: 100%;position: relative;">
                     <div style="display: flex;width: 100%;">
-                        <HourItem :ref="`hour_${hour}`" v-for="hour in hoursOfDay" :key="hour" :hour="hour"/>
+                        <HourItem :id="`d_day_${index}`" :ref="`hour_${hour}`" v-for="(hour, index) in hoursOfDay" :key="hour" :hour="hour"/>
                     </div>
                     <div :style="{width: barWidth}" class="hour-bar"></div>
                 </div>
