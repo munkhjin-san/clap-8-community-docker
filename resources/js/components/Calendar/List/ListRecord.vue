@@ -10,7 +10,7 @@
             maxHeight: maxHeight,
             opacity: opacity,
             transform: expanded ? `translate(${shiftRight}px, ${shiftBottom}px)` : `translate(0, 0)`,
-            maxWidth: expanded ? '400%' : recordWidth, 
+            maxWidth: expanded ? '250%' : recordWidth, 
             width: 'max-content',
             minHeight: 'auto',
         }"
