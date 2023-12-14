@@ -1,5 +1,5 @@
 <template>
-    <div class="month-drop-area cal-m-row" :class="{activeMonth: thisMonth}" @mouseenter="enter" @mouseleave="leave">
+    <div @click.stop="createAtTime" class="month-drop-area cal-m-row" :class="{activeMonth: thisMonth}" @mouseenter="enter" @mouseleave="leave">
         <Transition name="modalFade">
             <div v-if="dragActive && $store.state.draggingCalendar" @mouseup="gotMove(val)" class="month-drop-popup"></div>
         </Transition>
@@ -26,6 +26,7 @@
                 @edit="val => $emit('edit', val)"
                 @delete="val => $emit('delete', val)"
                 @fromMonth="val => $emit('fromMonth', val)"
+                
             />
         </transition-group>     
 
@@ -38,7 +39,7 @@ import MonthRecord from './MonthRecord.vue'
 import moment from 'moment';
     export default {
         props:['day', 'records', 'selectedYear', 'selectedMonth', 'colors', 'taskCount', 'facilitiesList'],
-        emits: ['fromMonth', 'addRecord', 'dropFinish', 'jumpToDate', 'edit', 'delete', 'setParentDroppable'],
+        emits: ['fromMonth', 'addRecord', 'dropFinish', 'jumpToDate', 'edit', 'delete', 'setParentDroppable', 'create'],
         data() {
             return{
                 dragActive: false
@@ -96,6 +97,23 @@ import moment from 'moment';
             },
             addTask(day){
                 this.$emit('addTask', day)
+            },
+            createAtTime(event){
+                const targetElement = event.target;
+                const elementWidth = targetElement.offsetWidth;
+                const clickX = event.clientX - targetElement.getBoundingClientRect().left;
+                
+                const date = this.day.day_full
+                const time = moment().add(1, 'hour').startOf('hour').format('HH:mm:ss')
+                const merge = `${date} ${time}`
+                const d = {
+                    x: event.x,
+                    y: event.y,
+                    time: merge,
+                    stamp: moment()
+                }
+                this.$emit('create', d, this.user)
+                
             },
         },
         components:{

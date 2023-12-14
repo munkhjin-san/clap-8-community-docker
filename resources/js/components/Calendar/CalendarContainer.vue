@@ -94,6 +94,7 @@
                 @edit="editRecord"
                 @delete="deleteRecordConfirm"
                 @scroll="scrollListen"
+                @create="createAtTime"
             />
             <WeekView 
                 v-if="viewType == 2"

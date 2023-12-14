@@ -37,6 +37,7 @@
                                 @jumpToDate="val => $emit('jumpToDate', val)"
                                 @addRecord="(type, val) => $emit('addRecord' ,type ,val)"
                                 @dropFinish="(record, date) => $emit('dropFinish', record, date)"
+                                @create="(date, user) => $emit('create', date)"
                             />
                         </div>
                     </div>
@@ -52,7 +53,7 @@ import MonthRow from './Month/MonthRow.vue';
 
 export default {
     props: ["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'facilitiesList', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'edit', 'delete'],
-    emits: ['fromMonth', 'slided', 'addRecord', 'dropFinish', 'jumpToDate', 'edit', 'delete', 'scroll'],
+    emits: ['fromMonth', 'slided', 'addRecord', 'dropFinish', 'jumpToDate', 'edit', 'delete', 'scroll', 'create'],
     data(){
         return{
             swipeMonth : this.selectedMonth,
