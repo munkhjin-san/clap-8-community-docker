@@ -10,12 +10,12 @@
             maxHeight: maxHeight,
             opacity: opacity,
             transform: expanded ? `translate(${shiftRight}px, ${shiftBottom}px)` : `translate(0, 0)`,
-            maxWidth: expanded ? '250%' : recordWidth, 
+            maxWidth: recordWidth, 
             width: 'max-content',
             minHeight: 'auto',
         }"
         
-        :id="`dayRecord_${this.record.id}`"
+        :id="`dayRecord_${this.record.id}_${this.user.id}`"
         @dragover.prevent 
         @trigger="dragStart"
         :options="{delay: 400}"
@@ -66,7 +66,7 @@ export default{
         if(this.$store.state.tempRecord && this.$store.state.tempRecord == this.record.id){   
             this.$store.commit('setMenu', {id: this.record.id, name: `cal_${this.record.id}`})
             nextTick(() => {
-                document.getElementById(`dayRecord_${this.record.id}`)?.scrollIntoView({block: 'center', inline: 'center'})
+                document.getElementById(`dayRecord_${this.record.id}_${this.user.id}`)?.scrollIntoView({block: 'center', inline: 'center'})
                 console.log('jumpfromday')
             })           
         }
@@ -90,7 +90,7 @@ export default{
         },
         recordWidth(){
             if(this.expanded){
-                return '200%'
+                return '250%'
             }else{
                 const minutesDifference = Math.abs(moment(this.record.date_start).diff(moment(this.record.date_end), 'minutes'))
                 const steps = Math.ceil(minutesDifference / 15)
@@ -149,7 +149,7 @@ export default{
             this.$store.commit('setMenu', {id: this.record.id, name: `cal_${this.record.id}`, user_id: this.user.id})
 
             nextTick(() => {
-                const el = document.getElementById(`dayRecord_${this.record.id}`)
+                const el = document.getElementById(`dayRecord_${this.record.id}_${this.user.id}`)
                 if(el){
                     const rect = el.getBoundingClientRect();                   
                     const compare_value = document.getElementById('listViewSpacer')?.clientWidth || 110
@@ -160,7 +160,11 @@ export default{
                         if(time <= 1){
                             document.getElementById(`cal_list_view`)?.scrollTo({ left: 0, behavior: 'smooth'})
                         }else{
-                            document.getElementById(`w_day_${time}`)?.scrollIntoView({behavior: 'smooth'})
+                            // document.getElementById(`w_day_${time}`)?.scrollIntoView({behavior: 'smooth'})
+                            const realTime =  moment(record.date_start).hour()
+                            const index = el.parentElement.clientWidth * realTime
+                            console.log(index)
+                            document.getElementById(`cal_list_view`)?.scrollTo({ left: index, behavior: 'smooth'})
                         }
                         
 
