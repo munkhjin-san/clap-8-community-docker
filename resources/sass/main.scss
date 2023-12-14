@@ -5557,6 +5557,7 @@ input:autofill {
     align-items: center;
     transition: width 0.3s;
     white-space: nowrap;
+    cursor: default;
 }
 .left-member-tile > div {
     display: flex;
