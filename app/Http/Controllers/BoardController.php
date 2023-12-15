@@ -81,18 +81,18 @@ class BoardController extends Controller
                 return redirect($newUrl);
             }else{            
                 $board = new boardRecord;
-                $board->user_id = $auth_user_id;
-                $board->private_flag = $request->private_flag;        
+                $board->user_id = Auth::id();
+                $board->private_flag = 1; 
                 $board->title = 'NoTitle';                
                 $board->save();      
                 
-                $to_users = [Auth::id(), $correspond];
+                $to_users = [Auth::id(), $correspondId];
 
-                foreach($uniqueArray as $to_user){
+                foreach($to_users as $to_user){
                     $boardToUser = new boardToUser;
                     $boardToUser->record_id = $board->id;
                     $boardToUser->user_id = $to_user; 
-                    if($to_user == $auth_user_id){
+                    if($to_user == Auth::id()){
                         $boardToUser->admin_flag = 1;
                         $boardToUser->last_act = now();
                     }                
