@@ -11,7 +11,7 @@
             <HamBurger v-if="$store.state.mobile"/>
             <div class="calendar-search-wrap" id="memberSearchResultWindow" >
                 <PostSearchBar 
-                    @searchStart="searchStart"  
+                    @searchStart="val => keyword = val"  
                     :searching="searching"
                     className="newChatMemberSearch" 
                     :customPlaceHolder="`メンバーを検索`"
@@ -20,8 +20,8 @@
         </div>
         <div class="member-container">
             
-            <div v-for="position in positions" style="">
-                <p class="position-title">{{position.name}}</p>
+            <div v-for="(position, index) in positions" style="">
+                <p class="position-title" :class="{'first-position' : index == 0}">{{position.name}}</p>
                 <div v-if="position.employees" class="employee-container">
                     <MemberItem 
                         v-for="member in position.employees"
@@ -75,7 +75,7 @@ export default{
         return{
             memberList: [],
             searching: false,
-            possibleWords: [],
+            keyword: '',
             levels: [
                 {active: false, label: "一般職"}, 
                 {active: false, label: "A"}, 
@@ -99,41 +99,37 @@ export default{
             return this.levels.filter(ob => ob.active == true).map(s => s.label)
         },
         sortableList(){
-            return this.memberList            
+            const keyword = this.keyword; 
+            if (!keyword.trim()) {
+                return this.memberList.map(position => ({
+                    ...position,
+                    employees: [...position.employees]
+                }));
+            }
+            return this.memberList.map(position => {
+                const filteredEmployees = position.employees.filter(employee => {
+                    const name = employee.name || '';
+                    const email = employee.work_email || '';
+                    const phone = employee.phone_number || '';
+                    const name_kana = employee.name_kana || '';
+
+                    return (
+                        name.toLowerCase().includes(keyword.toLowerCase()) ||
+                        email.toLowerCase().includes(keyword.toLowerCase()) ||
+                        name_kana.toLowerCase().includes(keyword.toLowerCase()) ||
+                        phone.includes(keyword)
+                    );
+                });
+                return {
+                    ...position,
+                    employees: filteredEmployees
+                };
+            });
+        
         },
         positions(){
-            if(this.sortableList.length){
-                let list = []
-                for(let pos of this.sortableList){
-                    let item = pos
-                    let members = pos.employees
-                    if(this.possibleWords.length){
-                        const filteredUsers = members.filter(user => {
-                            return this.possibleWords.some(keyword => {
-                                const indexes = ['name', 'name_kana', 'phone_number', 'work_emai'];
-                                let word_set = ''
-                                for(const index of indexes){
-                                    if(user[index]){
-                                        word_set = word_set + ` ${user[index]}`
-                                    }
-                                }
-                                return word_set.includes(keyword)
-                            });
-                        });
-                        if(filteredUsers.length){
-                            item['employees'] = filteredUsers
-                            list.push(item)
-                        }
-                    }else{
-                        if(members.length){
-                            list.push(pos)
-                        }                        
-                    }                    
-                }
-                return list
-            }else{
-                return []
-            }
+            const hasMembers = this.sortableList.filter( pos => pos.employees && pos.employees.length)
+            return hasMembers.length ? hasMembers : []
         },
     },
     components: {
@@ -151,53 +147,6 @@ export default{
                 return
             }
             this.getMembers(val)
-        },
-        subMemberList(allList){
-            if(allList.length){
-                if (this.selectedShokkai.length === 0 && this.possibleWords.length === 0) {
-                    return allList;
-                }
-                return allList.filter(user => {
-                    const hasShokkai = user.shokkai && user.shokkai.level;
-                    const shokkaiMatch = hasShokkai ? this.selectedShokkai.includes(user.shokkai.level) : false;
-                    const wordsMatch = this.possibleWords.some(word =>
-                            ['name', 'name_kana', 'phone_number', 'work_email'].some(prop =>
-                            user[prop] && user[prop].toLowerCase().includes(word.toLowerCase())
-                        )
-                    );
-                    return (shokkaiMatch || this.selectedShokkai.length === 0) && (wordsMatch || this.possibleWords.length === 0);
-                });                   
-                   
-            }else{
-                return []
-            }
-        },
-        searchStart(val){
-            if(val){                    
-                const encoded = encodeURI(val);
-                const url_add = 'https://www.google.com/transliterate?langpair=ja-Hira|ja&text='
-                fetch(url_add + encoded) 
-                .then((response) => response.json())
-                .then((data) => {
-                    this.possibleWords = []
-                    data.forEach(ob => {
-                        if(ob.length > 1){
-                            const list = ob[1]
-                            if(list.length){
-                                list.forEach(word => {
-                                    this.possibleWords.push(word)
-                                })
-                            }
-                        }
-                        
-                    })
-                })
-                .catch((e) => {
-                    this.possibleWords.push(after)
-                });
-            }else{
-                this.possibleWords = []
-            }
         },
         getMembers(sort){
             this.sortByShokkai = sort
@@ -225,9 +174,9 @@ export default{
     width: 100%;
 }
 .member-container{
-    height: calc(100% - 60px);
+    height: calc(100% - 80px);
     overflow: hidden auto;
-    padding: 0 20px;
+    padding: 0 20px 20px 20px;
     color: var(--primary-color);
     position: relative;
 }
@@ -267,8 +216,11 @@ export default{
   line-height: 17px;
 }
 .position-title{
-  font-size: 14px;
-  padding: 15px 0;
+  font-size: 15px;
+  padding: 25px 0;
+}
+.first-position{
+    padding-top: 10px;
 }
 .shokkai-selector{
     display: flex;
