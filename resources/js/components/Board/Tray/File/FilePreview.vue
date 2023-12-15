@@ -1020,7 +1020,7 @@
                 return result;
             },
             downloadFile(){
-                if(this.source == 'message'){                    
+                if(this.canView){                    
                     this.direcDownload();
                 }
                 this.$store.commit('setMenu', {name: '', id: null})
@@ -1029,12 +1029,11 @@
             direcDownload(){
                 let src, name;
                 
-                if(this.$store.state.filePreview.source == 'message'){
-                    const path = this.currentFile.board_id + '/' + this.currentFile.id + '_' + this.currentFile.user_id + '_' + this.currentFile.message_id + '.' + this.currentFile.extension        
-                    name = this.currentFile.name
-                    src = this.$store.state.baseLocation + '/shared_files/'+ path;
+                
+                name = this.currentFile.name
+                src = this.currentFile.file_path;
                     
-                }
+            
                 const link = document.createElement('a');
                 link.href = src;
                 link.download = '';
