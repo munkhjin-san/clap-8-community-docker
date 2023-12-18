@@ -3,7 +3,7 @@
     <div @mousedown.stop @click="$emit('viewFull', true)" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`}">
         <div style="cursor: pointer;">  
             <UserIcon :disableInstant="hideName" :user="userData.user" imgClass="userMidIcon" size="25"/>
-            <div @click.stop="pushInstantUser($event, userData.user)" :style="{lineHeight: 1.5, visibility: hideName ? 'hidden' : 'visible'}">{{userData.user.name}}</div>
+            <div @click.stop="pushInstantUser($event, userData.user.id)" :style="{lineHeight: 1.5, visibility: hideName ? 'hidden' : 'visible'}">{{userData.user.name}}</div>
         </div>
     </div>    
      <ListRow
@@ -50,6 +50,7 @@ export default{
     },
     methods:{
         pushInstantUser(event, id){
+            console.log(this.$store.state.user, id)
             if(this.$store.state.user && id == this.$store.state.user.id) return
             const cX = event.clientX;
             const cY = event.clientY;  
