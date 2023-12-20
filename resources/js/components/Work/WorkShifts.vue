@@ -131,6 +131,10 @@
             },
             tempStartEnd(){
                 return this.workTemp ? moment(this.workTemp.date).clone().add(1, 'year') : moment(this.startDate).clone().add(1, 'year')
+            },
+            between(){
+                let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
+                return (moment(yearMonth).isAfter(moment(this.tempStartDate).format('YYYY-MM')) || moment(yearMonth).isBefore(moment(this.tempStartEnd).format('YYYY-MM'))) && this.selectedShiftType == 3
             } 
         },
         watch: {
@@ -264,7 +268,7 @@
                 const month = this.shiftMonth + 1
                 var lastDay = new Date(this.shiftYear, month, 0).getDate();
                 var holidayNum;
-                console.log(month)
+                console.log(this.between)
                 if (month == 12 || month == 1) {
                     holidayNum = (this.usersData[0].position_id <= 11) ? ((month == 12) ? 10 : 12) : 9;
                 } else {
@@ -280,7 +284,7 @@
                     })
                     return
                 }
-                if(this.holidayCount >= holidayNum || this.tempStartDate){
+                if(this.holidayCount >= holidayNum || this.between){
                     const result = await this.$refs.shiftTime.validate();
                     if (this.loading) return
 
