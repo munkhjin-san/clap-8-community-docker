@@ -314,36 +314,48 @@
 
             },
             timeStampStart(data){
+                console.log(data)
                 const month = this.selectedMonth + 1
                 if(data){
-                    var date = new Date(); // get current date
-                    var minutes = date.getMinutes();
-                    var quarterHours = Math.ceil(minutes / 15);
-                    date.setMinutes(quarterHours * 15);
-                    date.setSeconds(0);
-                    var hours = date.getHours();
-                    var minutes = date.getMinutes();
+                    if(data.shift_type == 3){
+                        emitter.emit('setToast', {
+                            active: true,  
+                            type: 'info', 
+                            content: '計画有給設定しているため日報作成ができません。',
+                            closeButton: false, 
+                            autoClose: false,
+                            answers: ['OK'],
+                        })
+                    }else{
+                        var date = new Date(); // get current date
+                        var minutes = date.getMinutes();
+                        var quarterHours = Math.ceil(minutes / 15);
+                        date.setMinutes(quarterHours * 15);
+                        date.setSeconds(0);
+                        var hours = date.getHours();
+                        var minutes = date.getMinutes();
 
-                    // pad with zero if needed
-                    hours = hours < 10 ? '0' + hours : hours;
-                    minutes = minutes < 10 ? '0' + minutes : minutes;
-                    let time = hours + ':' + minutes + ':00'
-                    this.todayStartTime = time
-                    this.stampEnd = true
-                    this.stampStart = false
-                    const params = {
-                        start_time : time,
-                        day : this.currentDay
-                    }
-                    axios.post('/daily_report_add', params).then(
-                        response => {
-                            this.reload()
+                        // pad with zero if needed
+                        hours = hours < 10 ? '0' + hours : hours;
+                        minutes = minutes < 10 ? '0' + minutes : minutes;
+                        let time = hours + ':' + minutes + ':00'
+                        this.todayStartTime = time
+                        this.stampEnd = true
+                        this.stampStart = false
+                        const params = {
+                            start_time : time,
+                            day : this.currentDay
                         }
-                    ).catch(function (error) {
-                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                        else if (error.request) this.errorToast('エラーが発生しました。')
-                        else this.errorToast('エラーが発生しました。 ' + error.message)     
-                    }.bind(this))
+                        axios.post('/daily_report_add', params).then(
+                            response => {
+                                this.reload()
+                            }
+                        ).catch(function (error) {
+                            if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
+                            else if (error.request) this.errorToast('エラーが発生しました。')
+                            else this.errorToast('エラーが発生しました。 ' + error.message)     
+                        }.bind(this))
+                    }
                 }else{
                     emitter.emit('setToast', {
                         active: true,  
@@ -406,29 +418,40 @@
             },
             timeStampEdit(data, val, userId, date){
                 const month = this.selectedMonth + 1
+                console.log(data)
                 if(data){
-                    this.todayStartTime = data.start_time ? data.start_time : (data.shift_start_time ? data.shift_start_time : '09:00:00')
-                    this.todayEndTime = data.end_time ? data.end_time : (data.shift_end_time ? data.shift_end_time : '18:00:00')
-                    this.todayBreakTime = data.break_time ? data.break_time : 0
-                    this.chosenDate = data.day ? data.day : data.shift_day
-                    const fields = ['allowance', 'incident', 'achievement', 'comment'];
-                    fields.forEach(field => {
-                        if (data[field]) {
-                            this.customFieldData.push(data[field]);
-                        }else{
-                            this.customFieldData = []
-                        }
-                    });
+                    if(data.shift_type == 3){
+                        emitter.emit('setToast', {
+                            active: true,  
+                            type: 'info', 
+                            content: '計画有給設定しているため日報作成ができません。',
+                            closeButton: false, 
+                            autoClose: false,
+                            answers: ['OK'],
+                        })
+                    }else{
+                        this.todayStartTime = data.start_time ? data.start_time : (data.shift_start_time ? data.shift_start_time : '09:00:00')
+                        this.todayEndTime = data.end_time ? data.end_time : (data.shift_end_time ? data.shift_end_time : '18:00:00')
+                        this.todayBreakTime = data.break_time ? data.break_time : 0
+                        this.chosenDate = data.day ? data.day : data.shift_day
+                        const fields = ['allowance', 'incident', 'achievement', 'comment'];
+                        fields.forEach(field => {
+                            if (data[field]) {
+                                this.customFieldData.push(data[field]);
+                            }else{
+                                this.customFieldData = []
+                            }
+                        });
+                        this.chosenUserId = userId
+                        this.reportModal = true
+                        this.createReport = val
+                    }
+                    
                     // if(navigator.userAgent.match(/iPhone/)){
                     //     const recordWrapper = document.querySelector('.records-wrapper')
                     //     const style = recordWrapper.style;
                     //     style.height = 'auto'
                     // }
-                    
-                
-                    this.chosenUserId = userId
-                    this.reportModal = true
-                    this.createReport = val
                 }else{
                     emitter.emit('setToast', {
                         active: true,  
