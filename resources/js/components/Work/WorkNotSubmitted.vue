@@ -6,7 +6,7 @@
                 <p class="userName" style="margin-left:10px;">{{ item.notification_user.name }}</p>
             </div>
             <div v-if="plan == 'plan'">
-                <p style="line-height:2;">{{ item.date }}から{{ item.endDate }}の<br>計画有給を入れてください。</p>
+                <p style="line-height:2;">{{ item.date }}から{{ item.endDate }}までの計画有給を入れてください。<br>期間：2023年12月29日</p>
                 <div style="width:100%;margin-top:10px;">
                     <button class="shift-button" v-on:click="shiftPlannedLeave(item)">計画有給を入力</button>
                 </div>
