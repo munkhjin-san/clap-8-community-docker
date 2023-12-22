@@ -37,7 +37,9 @@ export default{
                     delay: 10000,
                     disableOnInteraction: false
                 },
-                spaceBetween: 10
+                spaceBetween: 10,
+                loop: true,
+                slidesPerView: 1,
             })
         }, 300);  
     },
