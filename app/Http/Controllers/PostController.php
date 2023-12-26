@@ -136,7 +136,8 @@ class PostController extends Controller
             $query->where('text', 'LIKE', '%' . $key . '%');
         })
         ->orderBy('hits', 'desc')->orderBy('created_at', 'desc')
-        ->when($super, function ($query) use ($key) {
+        ->when(empty($key), function ($query) use ($key) {
+            
             $query->take(10);
         })
         ->get([

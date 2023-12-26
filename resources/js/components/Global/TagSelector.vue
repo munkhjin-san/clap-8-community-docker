@@ -7,7 +7,7 @@
         @input="searchStart"
         :class="['taskUserSelecArea', 'tagSelectorIndepend', 'selectorFocus']"   
    
-        :create-option="tag => ({ text: tag, id: null})"
+        :create-option="tag => ({ text: tag, id: randomId()})"
         style="background-image: unset; margin:0px;" 
         v-model="selectedTag" 
         name="to_users" 
@@ -59,6 +59,9 @@ export default {
         // }
     },
     methods:{
+        randomId(){
+            return Math.random().toString(36).substring(5);
+        },
         searchStart(event){
             this.value = event.target.value
             this.search(event.target.value, this)
