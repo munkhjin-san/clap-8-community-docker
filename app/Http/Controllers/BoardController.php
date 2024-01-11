@@ -907,6 +907,41 @@ class BoardController extends Controller
                 foreach($mails as $to){
                     Mail::to($to)->send(new Mention($b_title, $content, $block_flag, $board->id, $chat->id));
                 }
+                $members = array_map(function ($userId) {
+                    return (string) $userId;
+                }, $request->mentioned_users);
+                
+                $deep_link = url('board/' . $request->record_id);
+                $icon = url('content_api/profile_icon/' . $auth_user->icon_id . '_' . $auth_user->id . '_200.jpg');
+                $badge = url('/96x96.png');
+                if(!empty($boardRecord) && $boardRecord->private_flag == 1){
+                    $push_title = $auth_user->name;
+                    if($request->attached_temp_files && $chat->message_text == null){
+                        $body = 'ファイルメッセージ';
+                    }else{
+                        $body = $chat->message_text;
+                    }
+                }else{
+                    $push_title = $boardRecord->title;
+                    if($request->attached_temp_files && $chat->message_text == null){
+                        $body = $auth_user->name . ':' . 'ファイルメッセージ';
+                    }else{
+                        $body = $auth_user->name . ':' . $chat->message_text;
+                    }
+                }
+                $payload = [
+                    "body" => $body,
+                    "title" => $push_title,
+                    "link" => $deep_link,
+                    "members" => $members,
+                    "icon" => $icon,
+                    "badge" => $badge,
+                    "user_id" => $auth_user_id,
+                    "user_name" => Auth::user()->name,
+                    "message" => $chat->message_text,
+                    "members_int" => $request->mentioned_users,
+                ];
+                SendNotification::dispatchAfterResponse($payload);
             }
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
             $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
@@ -924,42 +959,9 @@ class BoardController extends Controller
                 "u_id" => $request->u_id,
                 "data" => $chat
             ];
-            $members = $related_members->map(function ($userId) {
-                return (string) $userId;
-            })->toArray();
             
-            $deep_link = url('board/' . $request->record_id);
-            $icon = url('content_api/profile_icon/' . $auth_user->icon_id . '_' . $auth_user->id . '_200.jpg');
-            $badge = url('/96x96.png');
-            if(!empty($boardRecord) && $boardRecord->private_flag == 1){
-                $push_title = $auth_user->name;
-                if($request->attached_temp_files && $chat->message_text == null){
-                    $body = 'ファイルメッセージ';
-                }else{
-                    $body = $chat->message_text;
-                }
-            }else{
-                $push_title = $boardRecord->title;
-                if($request->attached_temp_files && $chat->message_text == null){
-                    $body = $auth_user->name . ':' . 'ファイルメッセージ';
-                }else{
-                    $body = $auth_user->name . ':' . $chat->message_text;
-                }
-            }
             
-            $payload = [
-                "body" => $body,
-                "title" => $push_title,
-                "link" => $deep_link,
-                "members" => $members,
-                "icon" => $icon,
-                "badge" => $badge,
-                "user_id" => $auth_user_id,
-                "user_name" => Auth::user()->name,
-                "message" => $chat->message_text,
-                "members_int" => $related_members->toArray(),
-            ];
-            SendNotification::dispatchAfterResponse($payload);
+            
             
             return response()->json($data);
              
