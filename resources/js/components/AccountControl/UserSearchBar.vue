@@ -1,7 +1,7 @@
 <template>
     <div>
         <div style="display:flex;">
-            <div class="searchBarInner" style="width: 100%;height:60px;"> 
+            <div class="searchBarInner" style="width: 100%;margin-bottom: 15px;"> 
                 <!-- :style="{width: $store.state.mobile ? '100%' : '15%',marginLeft: 'auto'}"  -->
                 <input id="adminUserSearch" @keyup="setKeyord" class="searchBarArea searchInputArea memberSearch" placeholder="ユーザー検索" type="text" style="margin: auto 0 auto auto;width:100%;background:#fff"/>
                 <div style="position: absolute;left: 10px;display: flex;height: 30px;">

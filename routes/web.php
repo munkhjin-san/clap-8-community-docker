@@ -30,6 +30,7 @@ use App\Http\Controllers\AdminWorkController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\NoticeController;
+use App\Http\Controllers\LessonController;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -60,6 +61,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/move_note_to_task', [AutoJobController::class, 'move_note_to_task']);
 // Route::get('/genertate_my_groups', [CalendarController::class, 'genertate_my_groups']);
 // Route::get('/update_last_act', [AutoJobController::class, 'update_last_act']);
+Route::get('/sync_first_month_calendar_shift', [AutoJobController::class, 'sync_first_month_calendar_shift']);
 // temp_routes
 Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
@@ -98,7 +100,7 @@ Route::group(["middleware"=>"auth"],function(){
         return redirect("/user/{$id}");
     });
     Route::get('/user/{id}/{settings}',  [BoardController::class, "index"]);
-
+    Route::get('/learning/{any?}',  [BoardController::class, "index"])->where('any', '.*')->name('learning');
         Route::get('/start_private_board', [BoardController::class, 'start_private_board']);
         Route::get('/' ,function () {
             {return Redirect::route('board');}
@@ -165,6 +167,8 @@ Route::group(["middleware"=>"auth"],function(){
         Route::get('/user_album/{user_id}/{path}', [ContentController::class, 'userFileTransfer']);
         Route::get('/notice_files/{path}', [ContentController::class, 'noticeFileTransfer']);
         Route::get('/notice_temp/{path}', [ContentController::class, 'noticeTempFileTransfer']);
+        Route::get('/lesson_files/{path}', [ContentController::class, 'lessonFileTransfer']);
+        Route::get('/frame_test', [ContentController::class, 'embedded_video']);
         // Board
         Route::post('/chat_list', [BoardController::class, 'getAllMessage']); // 一覧表示API
         Route::post('/chat_create', [BoardController::class, 'create_new_board']); // 作成API
@@ -283,7 +287,12 @@ Route::group(["middleware"=>"auth"],function(){
         Route::get('/ical_url_generate', [CalendarController::class, 'ical_url_generate']);
         Route::post('/get_albums', [UserController::class, 'get_albums']);
 
-
+        Route::get('/env', function () {
+            dd([
+                'FFPROBE_BINARIES' => env('FFPROBE_BINARIES'),
+                'FFMPEG_BINARIES' => env('FFMPEG_BINARIES'),
+            ]);
+        });
     
         
         // ->middleware('throttle:3,1');
@@ -369,6 +378,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/not_submitted', [WorkController::class, 'notSubmitted']);
         Route::post('/attendance_closed', [WorkController::class, 'attendanceClose']);
         Route::post('/get_temp_data', [WorkController::class, 'get_temp_data']);
+        Route::get('/shift_manipulation', [WorkController::class, 'shift_manipulation']);
         // Route::get('/add_data', [WorkController::class, 'addData']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
@@ -390,4 +400,21 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/notice_delete_file', [NoticeController::class, 'notice_delete_file']);
         Route::post('/notice_add_record', [NoticeController::class, 'notice_add_record']);
         Route::delete('/notice_delete', [NoticeController::class, 'notice_delete']);
+
+        // Lessons
+        Route::get('/get_lessons', [LessonController::class, 'get_lessons']);
+        Route::get('/get_learning_themes', [LessonController::class, 'get_learning_themes']);
+        Route::get('/get_themes_portfolio', [LessonController::class, 'get_themes_portfolio']);
+        Route::post('/lesson_add_record', [LessonController::class, 'lesson_add_record']);
+        Route::delete('/lesson_remove_record', [LessonController::class, 'lesson_remove_record']);
+        Route::post('/save_lesson_portfolio', [LessonController::class, 'save_lesson_portfolio']);
+        Route::post('/get_lesson_portfolio', [LessonController::class, 'get_lesson_portfolio']);
+        Route::post('/save_lesson_form', [LessonController::class, 'save_lesson_form']);
+
+        Route::post('/create_learning_theme', [LessonController::class, 'create_learning_theme']);
+        Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);
+        Route::get('/get_portfolios_list', [LessonController::class, 'get_portfolios_list']);
+
+        Route::post('/upload_lesson_file', [LessonController::class, 'upload_lesson_file']);
+        // Lessons
 });

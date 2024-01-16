@@ -355,5 +355,24 @@ class ContentController extends Controller
         
 
     }
+    public function lessonFileTransfer(Request $request){     
+        
+
+        try {
+            $filePath = $request->path;
+            $fileContents = Storage::disk('local')->get('lesson_files/' . $filePath);
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $contentType = finfo_buffer($finfo, $fileContents);
+            finfo_close($finfo);
+            return response($fileContents)->header('Content-Type', $contentType);
+        } catch (FileNotFoundException $exception) {
+            abort(404);
+        }
+        
+
+    }
+    public function embedded_video(Request $request){
+        return '<img src="/lesson_files/65a63399c6b75.webp"/>';
+    }
 
 }

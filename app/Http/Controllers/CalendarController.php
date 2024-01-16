@@ -427,7 +427,7 @@ class CalendarController extends Controller
         ]);
 
         $new_record->save();
-        $new_record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now(),"created_at" => now()]);
+        $new_record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now(),"updated_at" => now()]);
         if($request['facility']['qualified_institution'] !== null){            
             $new_record->update([
                 "qualified_institution" => $request['facility']['qualified_institution']
@@ -903,7 +903,7 @@ class CalendarController extends Controller
         // }])->get();
 
         $groups = MyGroup::where('user_id', Auth::id())->where('deleted_flag', 0)->with('users')->get();
-        $my_work_groups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
+        // $my_work_groups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
         $res = [
             "my_groups" => $groups,
             "work_groups" => [],
@@ -928,8 +928,12 @@ class CalendarController extends Controller
                 'updated_at' => now(),
                 'selected_as_calendar_member' => $request->value
             ]);
-            $user->update(['selected' => $request->value]);
-            $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $request->group_id)->update(['selected' => false]);
+           
+            if($request->by == 'byGroup'){
+                $user->update(['selected' => $request->value]);
+                $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $request->group_id)->update(['selected' => false]);
+            }
+            
             // $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
             return response()->json($user);
         }else{
@@ -975,10 +979,10 @@ class CalendarController extends Controller
         return response()->json($request->users); 
     }
     public function get_calendar_search(Request $request){
-        $gr = MyGroup::where('user_id', Auth::id())->latest()->first();
-        $list = $gr->selected_users()->pluck('id')->toArray();
+        $gr_list = MyGroup::where('user_id', Auth::id())->where('selected', 1)->with('selected_users')->get();
+        $all_ids = $gr_list->pluck('selected_users')->flatten()->pluck('id')->toArray();
+        $list = array_unique($all_ids);
         $key = $request->key;
-
         $records = CalendarRecord::where(DB::raw("CONCAT_WS('', title, ' ', remarks, ' ', referrer)"), 'LIKE', '%' . $key . '%')
         ->whereHas('calendar_users', function ($query) use ($list) {
             $query->whereIn('users.id', $list);
@@ -990,6 +994,7 @@ class CalendarController extends Controller
             });
         })
         ->select('id', 'title', 'remarks', 'referrer', 'date_start', 'date_end', 'zoom_value', 'qualified_institution', 'qualified_car')
+        ->with('calendar_users')
         ->orderBy('date_start', 'desc')
         ->get();
         return response()->json($records); 
@@ -1005,7 +1010,7 @@ class CalendarController extends Controller
         $record_duration_minute = ($record_duration->h * 60 + $record_duration->i);
 
         $new_start = Carbon::parse($request->date);
-        $end_day = Carbon::now()->endOfDay();
+        $end_day = Carbon::parse($request->date)->endOfDay();
         $new_diff = $new_start->diff($end_day);
         $new_diff_minute = ($new_diff->h * 60 + $new_diff->i);
 

@@ -70,6 +70,7 @@
                     :remainingDays="remainingDays"
                     :startDate="startDate"
                     @changeDate="changeDate"
+                    @canChangePlanned="canChangePlanned"
                     @closeModal="shiftModal = false"
                     @reload="reload"
                 />
@@ -521,6 +522,10 @@
                         this.workGroups = response.data
                     }
                 )
+            },
+            canChangePlanned(date){
+                this.planned_record = this.planned_record.filter(shift => shift.date !== date.day_full);   
+                console.log(this.planned_record)
             },
             getWorkData(){
                 let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')

@@ -20,6 +20,7 @@ use App\Models\workGroupUser;
 use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Events\Message;
+use App\Services\SharedService;
 use Illuminate\Support\Facades\Http;
 
 use Illuminate\Http\Request;
@@ -33,6 +34,10 @@ use Log;
 
 class WorkController extends Controller
 {
+    protected $sharedService;
+    public function __construct(SharedService $sharedService) {
+        $this->sharedService = $sharedService;
+    }
     //
     public function index(Request $request){
         
@@ -272,15 +277,36 @@ class WorkController extends Controller
         
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
-        // $planned_date = Carbon::now()->format('Y-m-d');
         // if($responseData){
         //     foreach ($responseData['records'] as $data){
         //         if($data['社員ｺｰﾄﾞ']['value'] == $user->user_code){
-        //             $recieve = ['date'=>$data['当年度有休付与日']['value'], 'user_code'=>$data['社員ｺｰﾄﾞ']['value'], 'all_days'=>$data['付与日数']['value'], 'planned_days'=>$data['計画消化日数']['value'], 'consumed_days'=>$data['消化日数合計']['value'], 'remaining_days'=>$data['残日数1']['value']];
-        //             $planned_date = $data['付与年度']['value'];
+        //             foreach($data['計画付与テーブル']['value'] as $subtable){
+        //                 if($subtable['value']['区分']['value'] == '計画消化'){
+        //                     $recieve[] = $subtable['value']['計画付与日']['value'];
+        //                 }
+        //             }
         //         }
+        //     }
         // }
-        
+        // if($recieve){
+        //     foreach($recieve as $date){
+        //         $shiftbydate = shiftRecord::where('shift_day', $date)->where('user_id', Auth::id())->first();
+        //         if($shiftbydate){
+        //             $shiftbydate->shift_type = 3;
+        //             $shiftbydate->shift_day = $date;
+        //             $shiftbydate->status_flag = 1;
+        //             $shiftbydate->user_id = Auth::id();
+        //             $shiftbydate->save();
+        //         }else{
+        //             $shiftbydate = new shiftRecord;
+        //             $shiftbydate->shift_type = 3;
+        //             $shiftbydate->shift_day = $date;
+        //             $shiftbydate->status_flag = 1;
+        //             $shiftbydate->user_id = Auth::id();
+        //             $shiftbydate->save();   
+        //         }
+        //     }
+        // }
         
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
@@ -311,7 +337,7 @@ class WorkController extends Controller
             "shift_record" => $shift_record,
             "planned_record" => $planned_record,
             "shift_type" => $shift_type,
-            "kintone_data" => $recieve,
+            "kintone_data" => $responseData,
             "workTemp" => $work_temp ? $work_temp : null,
             "consumed_days" => $remaining_days > 0 ? $between_records : 0,
             "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
@@ -321,6 +347,77 @@ class WorkController extends Controller
         return response()->json(
             $data
         );
+    }
+    public function shift_manipulation(Request $request){
+        $users = User::where('deleted_flag', 0)->where('retire', 0)->where('partner_flag', 0)->select('id', 'user_code')->get();
+        foreach($users as $user){
+            $user_code = $user->user_code;
+            if($user_code){
+                $queryParams = [
+                    'app' => '605',
+                    "query" => '年 = '. 2023 . ' and 社員ｺｰﾄﾞ = ' . $user_code,
+                    // "query" => "レコード番号 =" . $request->id,
+                    // 'fields' => ["レコード番号", "社員コード", "ステータス", "氏名", "管理番号", "日時"]
+                ];
+                
+                $queryString = http_build_query($queryParams);
+                $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+        
+                $headers = [
+                    'Authorization' => 'Basic',
+                    'X-Cybozu-API-Token' => 'Nxwn6FfbuQ7fcBX9Hi3rjyoEpdlLNUHyWYrEBWKZ'
+                ];
+                $recieve = [];
+                $response = Http::withHeaders($headers)->get($url);
+                $responseContent = $response->body();
+                $responseData = $response->json();
+                if($responseData && $responseData['records']){
+                    foreach ($responseData['records'] as $data){
+                        if($data['社員ｺｰﾄﾞ']['value'] == $user->user_code){
+                            foreach($data['計画付与テーブル']['value'] as $subtable){
+                                if($subtable['value']['区分']['value'] == '計画消化'){
+                                    if($subtable['value']['日付']['value'] != null){
+                                        $recieve[] = $subtable['value']['日付']['value'];
+                                    }else{
+                                        $recieve[] = $subtable['value']['計画付与日']['value'];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                if($recieve){
+                    foreach($recieve as $date){
+                        $date1 = Carbon::create(2024, 1, 1);
+                        $date2 = Carbon::parse($date);
+                        if($date1->lessThan($date2)){
+                            $shiftbydate = shiftRecord::where('shift_day', $date)->where('user_id', $user->id)->first();
+                            if($shiftbydate){
+                                $shiftbydate->shift_type = 3;
+                                $shiftbydate->shift_day = $date;
+                                $shiftbydate->status_flag = 1;
+                                $shiftbydate->planned_year = 2023;
+                                $shiftbydate->user_id = $user->id;
+                                $shiftbydate->save();
+                            }else{
+                                $shiftbydate = new shiftRecord;
+                                $shiftbydate->shift_type = 3;
+                                $shiftbydate->shift_day = $date;
+                                $shiftbydate->start_time = "09:00:00";
+                                $shiftbydate->end_time = "18:00:00";
+                                $shiftbydate->status_flag = 1;
+                                $shiftbydate->planned_year = 2023;
+                                $shiftbydate->user_id = $user->id;
+                                $shiftbydate->save();   
+                            }
+                        }
+                    }
+                }
+            }   
+            
+        }
+        return response()->json($users);
+        
     }
     public function shiftAdd(Request $request)
     {
@@ -334,6 +431,13 @@ class WorkController extends Controller
             ->whereIn('shift_day', $shift_days)
             ->get()
             ->keyBy('shift_day');
+        if ($request->deleted) {
+            $deleted_days = array_column($request->deleted, 'date');
+            shiftRecord::where('user_id', $user_id)
+                        ->whereIn('shift_day', $deleted_days)
+                        ->delete();
+        }
+        $this->sharedService->syncShiftToCalendar($user_id, $request->year, $request->month, $shift_array);
         foreach ($shift_array as $shift) {
             $status_flag = $shift['type'] === 3 ? 1 : 0;
             if ($shift_record_check->has($shift['date'])) {
@@ -582,7 +686,7 @@ class WorkController extends Controller
                         ->where('type_id', $fieldData['field_type_id'])
                         ->get();
                     if($customFieldData){
-                        $customFieldData->each->delete();;
+                        $customFieldData->each->delete();
                     }
                     if ($field == 'allowance') {
                         foreach ($fieldData['value'] as $val) {

@@ -56,7 +56,7 @@
             >
                 <template #selected-option="option">
                     <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;margin-right: 5px;">
-                        <UserIcon :user="option" imgClass="userMidIcon"/>
+                        <UserIcon :disableInstant="true" :user="option" imgClass="userMidIcon"/>
                         <p>{{ option.name }}</p>
                     </div>
                 </template>
@@ -68,7 +68,7 @@
                 </template>
                 <template slot="option" slot-scope="option" v-slot:option="option" >
                     <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;">
-                        <UserIcon :user="option" imgClass="userMidIcon"/>
+                        <UserIcon :disableInstant="true" :user="option" imgClass="userMidIcon"/>
                         <p>{{ option.name }}</p>
                     </div>
                 

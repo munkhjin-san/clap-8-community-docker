@@ -120,6 +120,7 @@
                 plannedCount: 0,
                 remainingdays: this.remainingDays ? this.remainingDays : 0,
                 statusFlag: 0,
+                deletedShifts: [],
             }
         },
         mounted(){
@@ -184,7 +185,11 @@
             selectShift(date, status_flag, val){
                 let existingShift = this.selectedShifts.find(shift => shift.date === date.day_full)
                 if (existingShift) {
-                    if(existingShift.type == 3 && existingShift.status_flag == 1){
+                    if(this.$store.state.user.id == 610){
+                        this.$emit('canChangePlanned', date)
+                        this.deletedShifts.push({date: date.day_full, type: this.selectedShiftType, status_flag: status_flag});   
+                    }
+                    if(this.$store.state.user.id != 610 && existingShift.type == 3 && existingShift.status_flag == 1){
                         emitter.emit('setToast', {
                             active: true,  
                             type: 'info', 
@@ -195,11 +200,14 @@
                         })   
                         return
                     }
-                    this.selectedShifts = this.selectedShifts.filter(shift => shift.date !== date.day_full);   
+                    this.selectedShifts = this.selectedShifts.filter(shift => shift.date !== date.day_full);
                     if(val && this.selectedShiftType == 3 && existingShift.type == 3){
                         this.remainingdays++
                     }
                 } else {
+                    if(this.$store.state.user.id == 610){
+                        this.deletedShifts = this.deletedShifts.filter(shift => shift.date !== date.day_full);
+                    }
                     this.selectedShifts.push({date: date.day_full, type: this.selectedShiftType, status_flag: status_flag});
                     if(val && this.selectedShiftType == 3){
                         this.remainingdays--
@@ -238,8 +246,6 @@
                         return
                     }
                 }
-                
-                
             },
             selectedShift(date){
                 const mergedShifts = [...this.planned_record, ...this.selectedShifts].reduce((result, shift) => {
@@ -295,7 +301,10 @@
                             shiftEndStart : this.endTime,
                             shift_array : this.selectedShifts,
                             // kintone_id: this.kintone_data.id,
+                            year: this.shiftYear,
+                            month: this.shiftMonth + 1,
                             userId: this.usersData[0].id,
+                            deleted: this.deletedShifts
                         }
                         axios.post('/add_shift', params).then(
                             response => {

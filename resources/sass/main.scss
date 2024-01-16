@@ -2335,7 +2335,6 @@ textarea{
     border: 1px solid var(--formBorder);
 }
 .recordTextArea {
-    resize: none;
     width: 100%;
     height: 200px;
     // margin-bottom: 40px;
@@ -4958,7 +4957,7 @@ font-size: 13px;
     position: sticky;
     top: 0;
     background: var(--background-color);
-    z-index: 12;
+    z-index: 15;
 }
 
 .hour-tc {
@@ -4996,14 +4995,21 @@ font-size: 13px;
     position: relative;
     cursor:pointer;
 }
- 
+.tiptap {
+    outline: none;
+    min-height: 300px;
+    h1, h2, h3 {
+        font-size: revert !important;
+        font-weight: normal !important;
+    }
+}
 .fish-eye:checked::before {
     content: "";
     background-color: var(--primary-color);
     border-radius: 50%;
-    height: 50%;
+    height: 10px;
     position: absolute;
-    width: 50%;
+    width: 10px;
     left: 0;
     right: 0;
     top: 0;
@@ -5118,7 +5124,7 @@ font-size: 13px;
     left: 0;
     top: 91px;
     width: 100%;
-    height: calc(100% - 90px);
+    height: calc(100% - 91px);
     z-index: 40;
     background: var(--background-color);
 }
@@ -5131,7 +5137,7 @@ font-size: 13px;
     overflow: hidden;
 }
 .cal-selectable{
-    user-select: all;
+    user-select: text;
     cursor: text;
 }
 .min-separete{
@@ -5196,7 +5202,7 @@ font-size: 13px;
 .cal-remark{
     line-height: 1.5;
     // margin-top: 10px;
-    user-select: all;
+    user-select: text;
     cursor: text;
 }
 .card-repet-info{
@@ -5357,11 +5363,32 @@ font-size: 13px;
     color: var(--primary-color);
 
 }
+.spanSeparate{
+    width: 1px;
+    left: 3px;
+    top: 21px;
+    border-left: solid thin var(--primary-color);
+    min-width: 1px;
+    margin-left: 13px;
+    height: calc(100% - 22px);
+    position: absolute;
+}
+.spanTitle{
+    padding: 5px 0px 5px 5px;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    background: var(--bg3);
+    z-index: 2;
+}
 .cal-search-item > p {
     overflow: hidden;
 }
 .monthSiwtchButton{
     bottom: 75px;
+}
+.taskRecycleButton{
+    bottom: 65px !important;
 }
 input:autofill {
   -webkit-text-fill-color: var(--primary-color);
@@ -5526,7 +5553,7 @@ input:autofill {
 .top-list-tile{
     min-height: 30px;
     line-height: 30px;
-    background: var(--background-color);
+    // background: var(--background-color);
     font-size: 12px;
 }
 .top-list-tile > div{
@@ -5540,6 +5567,15 @@ input:autofill {
     flex: 1;
     min-width: 0;
 }
+.hour-full-day-wrap{
+    position:absolute;
+    left: calc(100% - 10px);
+    height:fit-content;
+    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    top: 0;
+}
 .left-member-tile{
     width: 130px;
     border-right: 1px solid var(--calendarBorder);
@@ -5551,7 +5587,7 @@ input:autofill {
     z-index: 11;
     background: var(--background-color);
     word-break: keep-all;
-    overflow: hidden;
+    // overflow: hidden;
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
@@ -5582,6 +5618,115 @@ input:autofill {
 }
 .calendar-container-outer-week{
     color: var(--primary-color);
+}
+    
+.cal-todayTitle > div > svg {
+    fill: #fff !important;
+}
+.cal-todayTitle{
+    background: #C5AF72;
+    color: #fff !important;
+}
+.cal-m-day-head-section{
+    display: flex;
+    width: 100%;
+    height: 35px;
+    font-size: 12px;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    cursor: pointer;
+}
+.m-day-add{
+    width:40px;
+    height: 40px;
+    display: flex;
+    place-content: center;
+    align-items: center;
+    margin-left: auto;
+    cursor: pointer;
+}
+.cal-m-day-title{
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    width: -moz-available;
+    max-width: calc(100% - 38px);
+    margin-left: 10px;
+}
+.m-record-add{
+    width: 25px;
+    height: 25px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: inherit;
+    border-radius: 50px;
+    margin-right: 3px;
+    cursor: pointer;
+}
+.cal-m-row{
+    background: var(--bg3);
+    position: relative;
+}
+.m-record-add:hover > svg{
+    fill: var(--primary-color);
+}
+.activeMonth{
+    background: var(--background-color);
+}
+.month-drop-popup{
+    position: absolute;
+    background: rgba(102, 154, 222, 60%);
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+.isSaturday{
+    color: #0c68ab;
+}
+.special-day {
+    color: tomato;
+}
+.viewSwitchMenu{
+    top: auto;
+    right: 60px;
+    z-index:6;
+    bottom: 10px;
+}
+.learning { 
+    h1, h2, h3 {
+        font-size: revert !important;
+        font-weight: normal !important;
+    }
+    .ql-size-large{
+        font-size: 1.5em;
+    }
+    .ql-size-small {
+        font-size: 0.75em;
+    }
+    .ql-size-huge {
+        font-size: 2.5em;
+    }
+    .ql-align-center {
+        text-align: center;
+    }
+    .ql-align-right {
+        text-align: right;
+    }
+}
+.lessonShift-enter-active,
+.lessonShift-leave-active {
+    transition: transform 0.2s ease;
+}
+
+.lessonShift-enter-from,
+.lessonShift-leave-to {
+    transform: translateX(100vw);
 }
 @media screen and (max-width: 959px) {
     .vertical-wrapper{
@@ -5632,6 +5777,9 @@ input:autofill {
     .monthSiwtchButton{
         bottom: 85px !important;
     }
+    .taskRecycleButton{
+        bottom: 75px !important;
+    }
     .c-bar-button{
         font-size: 12px;
     }
@@ -5642,8 +5790,8 @@ input:autofill {
         top: 105px;
     }
     .cal-day-loader{
-        height: calc(100% - 135px);
-        top: 135px;
+        height: calc(100% - 136px);
+        top: 136px;
     }
     .calendar-container-outer {
         width: 500vw;
@@ -5766,8 +5914,15 @@ input:autofill {
         height: -webkit-fill-available;
         
     }
+    .fileNewButton{
+        bottom: 20px;
+        width: 45px;
+        height: 45px;
+    }
     .createBoardButton{
-        bottom: 30px;
+        bottom: 20px;
+        width: 45px;
+        height: 45px;
     }
     .searchMessageArea{
         width: -webkit-fill-available;
@@ -6203,7 +6358,12 @@ input:autofill {
     .no-comment-text {
     font-size: 14px !important;
     }
-
+    .viewSwitchMenu{
+        top: auto;
+        right: 70px;
+        z-index:6;
+        bottom: 10px;
+    }
 
 }
 @media screen and (max-width: 380px) {

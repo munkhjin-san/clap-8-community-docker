@@ -8,8 +8,7 @@
                             style="max-width:100%;margin:auto;max-height:100%;" 
                             v-if="file.mime_type == 'image'"
                             class="list-image-mobile" 
-                            v-lazy="{src: `${$store.state.baseLocation}/calendar_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`}"
-                           
+                            v-lazy="{src: `${$store.state.baseLocation}/calendar_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`}"                           
                         />
                     </div>
                     <div v-if="file.mime_type !== 'image' && !file.removed_at" style="position:relative;">
@@ -27,91 +26,39 @@
     </div>
 </template>
 
-<script>
-    import {filesize} from "filesize";
-    import FileIcon from "../Board/Mixed/FileIcon.vue";
-    import moment from 'moment';
-    export default {
-        props: ['list'],
+<script setup>
+import {filesize} from "filesize";
+import FileIcon from "../Board/Mixed/FileIcon.vue";
+import { useStore } from "vuex";
+    const store = useStore()
+    const props = defineProps(['list'])
+
+    const previewFile = (file, index) => {
+        if(store.state.sharingData) return
+        let file_list = props.list
+        const files = file_list.map(fileData => ({
+            ...fileData,
+            file_path: `${store.state.baseLocation}/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+            doc_path: `${store.state.baseLocation}/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`
+        }));
+        let target_data = file       
         
-        mounted() {
-        },
-        components:{
-            FileIcon,
-        },
-        computed:{
-            
-            
-        },
-        methods:{
-            untilDay(file){
-                moment.locale(this.$store.state.local);
-                const date = file.created_at   
-                const deletionDate = moment(date).add(90, 'days');
-                const currentDate = moment();
-                const duration = moment.duration(deletionDate.diff(currentDate));
-                const days = Math.round(duration.asDays());
-                if(days >= 0){
-                    return this.$tc('fileExpireDate', days, {days: days})
-                }
-                return this.$t('deleted')
-            },
-            canSign(file){
-                
-                const unsignedUsers = file.unsigned_users;
-                if(unsignedUsers){
-                    const includesUser = Object.values(unsignedUsers).some(user => user.id === this.$store.state.user.id);
-                    return includesUser
-                }
-                return false
-                
-            },
-            viewUsersList(users, title){
-                const data = {
-                    active: true,
-                    userList: users,
-                    title: title
-                }
-                this.$store.commit('setMessageUsers', data)
-                
-            },
-            previewFile(file, index){
-                if(this.$store.state.sharingData) return
-                let file_list = this.list
-                const files = file_list.map(fileData => ({
-                    ...fileData,
-                    file_path: `${this.$store.state.baseLocation}/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
-                    doc_path: `${this.$store.state.baseLocation}/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`
-                }));
-                let target_data = file
-                
-                
-                    const data = {
-                        active: true,
-                        files,
-                        target: target_data,
-                        source: 'calendar',
-                        index: index,
-                        message: null,
-                    }
-                    this.$store.commit('setFilePreview', data)
-                
-            },
-            fileNameFilter(file){
-                // const lastDot = file.name.lastIndexOf('.');
-                // const fileName = file.name.substring(0, lastDot);
-                // var str_lenght = fileName.length;
-                // if (str_lenght > 20) {
-                //     var sliced = fileName.slice(0, 20) + " ..." + file.extension;
-                //     return sliced;
-                // }
-                return file.name;
-            },
-            fileSizeView (bytes) {
-                if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
-                else return filesize(bytes, {standard: "jedec", round: 0});
-            },
-            
+        const data = {
+            active: true,
+            files,
+            target: target_data,
+            source: 'calendar',
+            index: index,
+            message: null,
         }
+        store.commit('setFilePreview', data)
+        
     }
+    const fileNameFilter = (file) => {
+        return file.name;
+    }
+    const fileSizeView = (bytes) => {
+        if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
+        else return filesize(bytes, {standard: "jedec", round: 0});
+    }          
 </script>

@@ -1,6 +1,6 @@
 <template>
     <div style="overflow:hidden; height: 100%; width: 100%;">
-        <div style="height: calc(100% - 60px); overflow: hidden auto;">
+        <div style="height: calc(100% - 105px); overflow: hidden auto;">
             <div class="admin-work-header">
                 <div class="admin-button" v-on:click="downloadCSV">CSVダウンロード</div>
                 <div class="admin-month-wrapper">

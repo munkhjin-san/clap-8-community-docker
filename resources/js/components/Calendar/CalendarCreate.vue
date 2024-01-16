@@ -22,9 +22,6 @@
                     @setValue="val => title = val"
                 />
             </div>
-            <!-- <div class="si-box" v-if="!editTarget">
-                <BoardSelector @setMembers="setMembers" :update="boardSelectorKey"/>
-            </div> -->
             <div class="si-box">
                 <UserSelector 
                     :hasBoardSelect="!editTarget"
@@ -321,7 +318,7 @@
     </div>
     
 </template>
-<script>
+<script setup>
 import FormShortText from '../Global/FormShortText.vue';
 import FormLongText from '../Global/FormLongText.vue'
 import UserSelector from '../Global/UserSelector.vue'
@@ -331,315 +328,276 @@ import FormFileUploader from '../Global/FormFileUploader.vue'
 import TimePicker from '../Global/TimePicker.vue'
 import ItemSelector from '../Global/ItemSelector.vue';
 import FormOptionSelector from '../Global/FormOptionSelector.vue';
-import BoardSelector from '../Global/BoardSelector.vue'
 import moment from 'moment';
-export default{
-    props:['editTarget', 'facilitiesList', 'preSelected', 'edit_all_record', 'preSelectedMembers'],
-    emits: ['close'],
-    data(){
-        return{
-            title: this.editTarget && this.editTarget.title ? this.editTarget.title : "",
-            remarks: this.editTarget && this.editTarget.remarks ? this.editTarget.remarks : "",
-            calendar_users: this.editTarget && this.editTarget.calendar_users ? this.editTarget.calendar_users : this.preSelectedMembers,
-            referrer: this.editTarget && this.editTarget.referrer ? this.editTarget.referrer : "",
-            release_flag: this.editTarget && this.editTarget.release_flag ? true : false,
-            edit_all: this.editTarget && this.editTarget.edit_all ? true : false,
-            zoom_waiting_room: this.editTarget && this.editTarget.zoom_waiting_room ? this.editTarget.zoom_waiting_room : 0,
-            repetition_type: this.editTarget && this.editTarget.repetition_type && this.edit_all_record ? this.editTarget.repetition_type : 0,            
-            all_day: this.editTarget && moment(this.editTarget.date_start).format('HH:mm') == '00:00' && moment(this.editTarget.date_end).format('HH:mm') == '23:59' ? 1 : 0,
-            
-            
-            time_start: this.editTarget && this.editTarget.date_start ? moment(this.editTarget.date_start).format('HH:mm') : this.preSelected ? moment(this.preSelected).format('HH:mm') : moment().add(1, 'hour').startOf('hour').format('HH:mm'),
-            time_end: this.editTarget && this.editTarget.date_end ? moment(this.editTarget.date_end).format('HH:mm') : this.preSelected ? moment(this.preSelected).add(1, 'hour').format('HH:mm') : moment().add(2, 'hour').startOf('hour').format('HH:mm'),
-            once_date: this.editTarget && this.editTarget.date_end ? moment(this.editTarget.date_start).format('YYYY-MM-DD') : this.preSelected ? moment(this.preSelected).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
-            referrer: this.editTarget && this.editTarget.referrer ? this.editTarget.referrer : "",
-            repeat_span: {
-                weekly: {
-                    selected_days: [false, true, false, false, false, false, false],
-                    repeat_date_from: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_start).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
-                    repeat_date_to: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_end).format('YYYY-MM-DD') : moment().add(1, 'week').format('YYYY-MM-DD'),
-                },
-                monthly: {
-                    selected_day: this.editTarget && this.editTarget.repeat_days !== null ? parseInt(this.editTarget.repeat_days) : moment().date(), 
-                    repeat_date_from: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_start).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
-                    repeat_date_to: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_end).format('YYYY-MM-DD') : moment().add(1, 'month').format('YYYY-MM-DD'),
-                },
-                yearly: {
-                    selected_month: moment().month() + 1,
-                    selected_day: this.editTarget && this.editTarget.repeat_days !== null ? parseInt(this.editTarget.repeat_days) : moment().date(),
-                    year_from: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_start).year() : moment().year(),
-                    year_to: this.editTarget && this.editTarget.repetition_type > 0 ? moment(this.editTarget.expiration_start).year() : moment().add(1, 'year').year()
-                }
-            },
-            facility: {
-                qualified_institution: this.editTarget && this.editTarget.qualified_institution !== null ? this.editTarget.qualified_institution : null,
-                qualified_car: this.editTarget && this.editTarget.qualified_car !== null ? this.editTarget.qualified_car : null,
-                zoom_value: this.editTarget && this.editTarget.zoom_value !== null ? this.editTarget.zoom_value : null,
-            },
-            uploadedFiles: this.editTarget && this.editTarget.files ? this.editTarget.files : [],
-            processing: false,
-            userSelectorKey: 0,
-            boardSelectorKey: 0
-            
+import { computed, onMounted, ref } from 'vue';
+import { useStore } from 'vuex';
+    const store = useStore()
+
+    const props = defineProps(['editTarget', 'facilitiesList', 'preSelected', 'edit_all_record', 'preSelectedMembers'])
+    const emit = defineEmits(['close'])
+
+    const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
+    const remarks = ref(props.editTarget && props.editTarget.remarks ? props.editTarget.remarks : "")
+    const calendar_users = ref(props.editTarget && props.editTarget.calendar_users ? props.editTarget.calendar_users : props.preSelectedMembers)
+    const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
+    const release_flag = ref(props.editTarget && props.editTarget.release_flag ? true : false)
+    const edit_all = ref(props.editTarget && props.editTarget.edit_all ? true : false)
+    const zoom_waiting_room = ref(props.editTarget && props.editTarget.zoom_waiting_room ? props.editTarget.zoom_waiting_room : 0)
+    const repetition_type = ref(props.editTarget && props.editTarget.repetition_type && props.edit_all_record ? props.editTarget.repetition_type : 0)            
+    const all_day = ref(props.editTarget &&  Math.abs(moment(props.editTarget.date_start).diff(moment(props.editTarget.date_end), 'hours')) >= 23 ? true : false)   
+    
+    const time_start = ref(props.editTarget && props.editTarget.date_start ? moment(props.editTarget.date_start).format('HH:mm') : props.preSelected  ? moment(props.preSelected ).format('HH:mm') : moment().add(1, 'hour').startOf('hour').format('HH:mm'))
+    const time_end = ref(props.editTarget && props.editTarget.date_end ? moment(props.editTarget.date_end).format('HH:mm') : props.preSelected  ? moment(props.preSelected ).add(1, 'hour').format('HH:mm') : moment().add(2, 'hour').startOf('hour').format('HH:mm'))
+    const once_date = ref(props.editTarget && props.editTarget.date_end ? moment(props.editTarget.date_start).format('YYYY-MM-DD') : props.preSelected  ? moment(props.preSelected ).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'))
+    const repeat_span = ref({
+        weekly: {
+            selected_days: [false, true, false, false, false, false, false],
+            repeat_date_from: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_start).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
+            repeat_date_to: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_end).format('YYYY-MM-DD') : moment().add(1, 'week').format('YYYY-MM-DD'),
+        },
+        monthly: {
+            selected_day: props.editTarget && props.editTarget.repeat_days !== null ? parseInt(props.editTarget.repeat_days) : moment().date(), 
+            repeat_date_from: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_start).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
+            repeat_date_to: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_end).format('YYYY-MM-DD') : moment().add(1, 'month').format('YYYY-MM-DD'),
+        },
+        yearly: {
+            selected_month: moment().month() + 1,
+            selected_day: props.editTarget && props.editTarget.repeat_days !== null ? parseInt(props.editTarget.repeat_days) : moment().date(),
+            year_from: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_start).year() : moment().year(),
+            year_to: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_start).year() : moment().add(1, 'year').year()
         }
-    },    
-    mounted(){
-        if(this.editTarget && this.editTarget.repetition_type == 1 && this.editTarget.repeat_week){
-            const repeats = this.editTarget.repeat_week.split(',').map(Number);
+    })
+    const facility = ref({
+        qualified_institution:  ref( props.editTarget && props.editTarget.qualified_institution !== null ? props.editTarget.qualified_institution : null),
+        qualified_car: ref(props.editTarget && props.editTarget.qualified_car !== null ? props.editTarget.qualified_car : null),
+        zoom_value: ref(props.editTarget && props.editTarget.zoom_value !== null ? props.editTarget.zoom_value : null)
+    })
+    const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
+    const processing = ref(false)
+    const userSelectorKey = ref(0)
+ 
+    onMounted(() => {
+        if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
+            const repeats = props.editTarget.repeat_week.split(',').map(Number);
             console.log(repeats)
             let pre = [false, false, false, false, false, false, false]
-            repeats.forEach(val => {
-                // console.log('val',val)
+            repeats.forEach(val => {                
                 pre[val] = true
             });
-            this.repeat_span.weekly.selected_days = pre
-            // for(const i in this.repeat_span.weekly.selected_days){
-            //     console.log('i', i)
-            //     if(repeats.includes(i)){
-            //         console.log('hihi', i)
-            //         this.repeat_span.weekly.selected_days[i] = true
-            //     }
-            // }
+            repeat_span.value.weekly.selected_days = pre
         }
-        if(!this.editTarget){
+        if(!props.editTarget){
             const editAll = localStorage.getItem('editAllDefault')
             if(editAll && editAll == 1){
-                this.edit_all = true
+                edit_all.value = true
             }
         }
-    },
-    components:{
-        FormShortText, 
-        FormLongText, 
-        UserSelector, 
-        LoaderButton, 
-        DatePicker, 
-        FormFileUploader,
-        TimePicker,
-        ItemSelector,
-        FormOptionSelector,
-        BoardSelector
-    },
-    methods:{
-        setEditAllDefault(event){
-            const val = event.target.checked ? 1 : 0
-            localStorage.setItem('editAllDefault', val)            
-        },
-        setMembers(values){
-            console.log(values)
-            this.calendar_users = values
-            this.userSelectorKey ++
-        },
-        setEditAll(){
-            this.repetition_type = event.target.checked == false ? 0 : this.editTarget.repetition_type           
-        },
-        setAllDay(){
-            if(event.target.checked){
-                this.time_start = '00:00'
-                this.time_end = '23:59'
-            }
-        },
-        closeModal(val){
-            this.$store.commit('setSharingData', null)
-            this.$emit('close', val)
-        },
-        async validation(){               
-                
-            try {                    
-                let result = true
-                let checkRef = ['calendarUsers', 'calendarTitle']
-                if(!this.all_day){
-                    checkRef.push('calendarNormalTimeStart', 'calendarNormalTimeEnd')
-                }   
-                if(this.repetition_type == 0){
-                    checkRef.push('calendarNormalDate')
-                }else if(this.repetition_type == 1){
-                    checkRef.push('calendarRepeatSpanEnd', 'calendarRepeatSpanStart')
-                }
-                else if(this.repetition_type == 2){
-                    checkRef.push('monthlyDaySelector', 'calendarRepeatSpanEnd', 'calendarRepeatSpanStart')
-                }
-                else if(this.repetition_type == 3){
-                    checkRef.push('yearSelectorSelectedDay','yearSelectorSelectedMonth', 'yearSelectorEnd', 'yearSelectorStart')
-                }
-                for(const check of checkRef){
-                    const exec = await this.$refs[check].$refs[check].validate()
-                    result = result * exec.valid
-                }        
-                if(this.repetition_type == 1){
-                    result = result * this.selectedDaysValid
-                }             
-                
-                return result
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                throw error; // Re-throw the error to handle it further if needed
-            }               
-            
-        },
-        async second_validation(){
-            if(this.time_start == this.time_end){
-                return {
-                    valid: false,
-                    error: '開始時間と終了時間は同じにすることが出来ません。'
-                }
-            }else {
-                const model = moment().format('YYYY-MM-DD')
-                const a = `${model} ${this.time_end}:00`
-                const b = `${model} ${this.time_start}:00`
-                if(moment(a).isBefore(moment(b))){
-                    return {
-                        valid: false,
-                        error: '終了時間は開始時間より先にすることが出来ません。'
-                    }
-                }
-                
-            }
-            return {
-                valid: true,
-                error: ''
-            }
-        },
-        checkConfirm(){
-            // if(this.editTarget && this.editTarget.repetition_type > 0){
-            //     const uniqueChannell = Math.random().toString(36).substring(5);
-            //     const content = this.edit_all_record ? '繰り返しスケジュールのすべてのレコードを編集します。<br>よろしいですか。' : 'このスケジュールのみを編集します。<br>よろしいですか。'
-            //     emitter.emit('setToast', {
-            //         active: true,   
-            //         type: 'info', 
-            //         content: content,
-            //         closeButton: false, 
-            //         autoClose: false,
-            //         answers: ['OK', 'キャンセル'],
-            //         channel: uniqueChannell
+    })
 
-            //     })
-            //     let ans = false
-            //     emitter.on(uniqueChannell, (data) => {                                        
-            //         data.answer == 'OK' ? this.createSend()  : false                                  
-            //     });  
-            // }else{
-                this.createSend()
-            // }
-        },
-        async createSend(){
-            this.processing = true
-            const valid = await this.validation()
-            if(!valid){
-                this.processing = false
-                return
-            }
-            const second_validate = await this.second_validation()
-            console.log(second_validate)
-            if(!second_validate.valid){
-                this.errorToast(second_validate.error)
-                this.processing = false
-                return
-            }
-            
-            const params = {
-                editId: this.editTarget ? this.editTarget.id : null,
-                edit_repeat: this.edit_all_record,
-                title: this.title,
-                remarks: this.remarks,
-                users: this.calendar_users.map(ob => ob.id),
-                referrer: this.referrer,
-                release_flag: this.release_flag,
-                edit_all: !this.release_flag ? this.edit_all : false,
-                repetition_type: this.repetition_type,
-                zoom_waiting_room: this.zoom_waiting_room,
-                time_start:  this.all_day ? '00:00' : this.time_start,
-                time_end: this.all_day ? '23:59' : this.time_end,
-                once_date: this.once_date,
-                repeat_span: this.repeat_span,
-                facility: this.facility,
-                file_ids: this.uploadedFiles.length ? this.uploadedFiles.map(ob => ob.id) : []
-            }
-            axios.post('/calendar_add_record',params)
-            .then(response =>  {
-                // this.closeModal(true)
-                const data = {
-                    text: this.editTarget ? '編集しました。' : '作成しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
-                }
-                emitter.emit('setInfo', data)
-                this.processing = false
-                this.$store.commit('setSharingData', null)
-                this.$emit('close', true)     
-            })
-            .catch(function (error) {
-                if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) this.errorToast('エラーが発生しました。')
-                else this.errorToast('エラーが発生しました。 ' + error.message)      
-                this.processing = false     
-                          
-            }.bind(this));
-        },
-        errorToast(message){
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
+    const setEditAllDefault = (event) => {
+        const val = event.target.checked ? 1 : 0
+        localStorage.setItem('editAllDefault', val)            
+    }
 
-            })  
-            this.processing = false
-            
-        }, 
-    },
-    computed:{
-        selectedDaysValid(){
-            if(this.repetition_type == 1){
-                const selected = this.repeat_span.weekly.selected_days.filter(ob => ob == true)
-                return selected.length
-            }
-            return true
-        },
-        avialableDay(){
-            this.repeat_span
-            if(this.repeat_span.yearly.selected_month){
-                const month = this.repeat_span.yearly.selected_month
-                if (month === 2) {
-                    return Array.from({ length: 28 }, (_, index) => index + 1);
-                } else {
-                    const is31DaysMonth = moment(`${moment().year()}-${month}-31`, 'YYYY-MM-DD').isValid();
-                    console.log(is31DaysMonth)
-                    return Array.from({ length: is31DaysMonth ? 31 : 30 }, (_, index) => index + 1);
-                }
-            }else{
-                const def = Array.from({ length: 31 }, (_, index) => index + 1);
-                return def
-            }
-            
-        },
-        week(){
-            return [
-                { num: 1, name: '月'},
-                { num: 2, name: '火'},
-                { num: 3, name: '水'},
-                { num: 4, name: '木'},
-                { num: 5, name: '金'},
-                { num: 6, name: '土'},
-                { num: 0, name: '日'}
-            ]
-        },
-        avialabeStartYear(){
-            const thisYear = moment().year()
-            const limit = thisYear + 10
-            const list = Array.from({ length: limit - thisYear + 1 }, (_, i) => thisYear + i);
-            return list
-        },
-        avialabeEndYear(){
-            const index = this.repetition_type == 2 ? 'monthly' : 'yearly'
-            const thisYear = this.repeat_span[index].year_from
-            const limit = thisYear + 10
-            const list = Array.from({ length: limit - thisYear + 1 }, (_, i) => thisYear + i);
-            return list
+    const setAllDay = () => {
+        if(event.target.checked){
+            time_start.value = '00:00'
+            time_end.value = '23:59'
         }
     }
-}
+    const closeModal = (val) => {
+        store.commit('setSharingData', null)
+        emit('close', val)
+    }
+    const calendarUsers = ref(null)
+    const calendarTitle = ref(null)
+    const calendarNormalTimeStart = ref(null)
+    const calendarNormalTimeEnd = ref(null)
+    const calendarNormalDate = ref(null)
+    const calendarRepeatSpanEnd = ref(null)
+    const calendarRepeatSpanStart = ref(null)
+    const monthlyDaySelector = ref(null)
+    const yearSelectorSelectedDay = ref(null)
+    const yearSelectorSelectedMonth = ref(null)
+    const yearSelectorEnd = ref(null)
+    const yearSelectorStart = ref(null)
+    
+    const validation = async () => {               
+        
+        try {       
+            const checkRef = []            
+            let result = true
+            checkRef.push(calendarUsers, calendarTitle)
+
+            
+            if(!all_day.value){
+                checkRef.push(calendarNormalTimeStart, calendarNormalTimeEnd)
+            }   
+            if(repetition_type.value == 0){
+                checkRef.push(calendarNormalDate)
+            }else if(repetition_type.value == 1){
+                checkRef.push(calendarRepeatSpanEnd, calendarRepeatSpanStart)
+            }
+            else if(repetition_type.value == 2){
+                checkRef.push(monthlyDaySelector, calendarRepeatSpanEnd, calendarRepeatSpanStart)
+            }
+            else if(repetition_type.value == 3){
+                checkRef.push(yearSelectorSelectedDay,yearSelectorSelectedMonth, yearSelectorEnd, yearSelectorStart)
+            }
+            
+            for(const check of checkRef){
+                const exec = await check.value.$refs[check.value['uId']].validate()
+                result = result * exec.valid
+            }        
+            if(repetition_type.value == 1){
+                result = result * selectedDaysValid.value
+            }             
+            
+            return result
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            throw error; // Re-throw the error to handle it further if needed
+        }               
+        
+    }
+    const second_validation = async () => {
+        if(time_start.value == time_end.value){
+            return {
+                valid: false,
+                error: '開始時間と終了時間は同じにすることが出来ません。'
+            }
+        }else {
+            const model = moment().format('YYYY-MM-DD')
+            const a = `${model} ${time_end.value}:00`
+            const b = `${model} ${time_start.value}:00`
+            if(moment(a).isBefore(moment(b))){
+                return {
+                    valid: false,
+                    error: '終了時間は開始時間より先にすることが出来ません。'
+                }
+            }
+            
+        }
+        return {
+            valid: true,
+            error: ''
+        }
+    }
+    const checkConfirm = () => {
+        createSend()        
+    }
+    const createSend = async () => {
+        processing.value = true
+        const valid = await validation()
+        if(!valid){
+            processing.value = false
+            return
+        }
+        const second_validate = await second_validation()
+        console.log(second_validate)
+        if(!second_validate.valid){
+            errorToast(second_validate.error)
+            processing.value = false
+            return
+        }
+        
+        const params = {
+            editId: props.editTarget ? props.editTarget.id : null,
+            edit_repeat: props.edit_all_record,
+            title: title.value,
+            remarks: remarks.value,
+            users: calendar_users.value.map(ob => ob.id),
+            referrer: referrer.value,
+            release_flag: release_flag.value,
+            edit_all: !release_flag.value ? edit_all.value : false,
+            repetition_type: repetition_type.value,
+            zoom_waiting_room: zoom_waiting_room.value,
+            time_start:  all_day.value ? '00:00' : time_start.value,
+            time_end: all_day.value ? '23:59' : time_end.value,
+            once_date: once_date.value,
+            repeat_span: repeat_span.value,
+            facility: facility.value,
+            file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : []
+        }
+        axios.post('/calendar_add_record',params)
+        .then(response =>  {
+            const data = {
+                text: props.editTarget ? '編集しました。' : '作成しました。',
+                channel: Math.random().toString(36).substring(5),
+                icon: 0,
+                view: true
+            }
+            emitter.emit('setInfo', data)
+            processing.value = false
+            store.commit('setSharingData', null)
+            emit('close', true)     
+        })
+        .catch(function (error) {
+            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) errorToast('エラーが発生しました。')
+            else errorToast('エラーが発生しました。 ' + error.message)      
+            processing.value = false     
+                        
+        });
+    }
+    const errorToast = (message) => {
+        emitter.emit('setToast', {
+            active: true,  
+            type: 'info', 
+            content: message,
+            closeButton: false, 
+            autoClose: false,
+            answers: ['OK']
+
+        })  
+        processing.value = false        
+    } 
+
+    const selectedDaysValid = computed(() => {
+        if(repetition_type.value == 1){
+            const selected = repeat_span.value.weekly.selected_days.filter(ob => ob == true)
+            return selected.length
+        }
+        return true
+    })
+    const avialableDay = computed(() => {
+        repeat_span.value
+        if(repeat_span.value.yearly.selected_month){
+            const month = repeat_span.value.yearly.selected_month
+            if (month === 2) {
+                return Array.from({ length: 28 }, (_, index) => index + 1);
+            } else {
+                const is31DaysMonth = moment(`${moment().year()}-${month}-31`, 'YYYY-MM-DD').isValid();
+                console.log(is31DaysMonth)
+                return Array.from({ length: is31DaysMonth ? 31 : 30 }, (_, index) => index + 1);
+            }
+        }else{
+            const def = Array.from({ length: 31 }, (_, index) => index + 1);
+            return def
+        }        
+    })
+    const week = computed(() => {
+        return [
+            { num: 1, name: '月'},
+            { num: 2, name: '火'},
+            { num: 3, name: '水'},
+            { num: 4, name: '木'},
+            { num: 5, name: '金'},
+            { num: 6, name: '土'},
+            { num: 0, name: '日'}
+        ]
+    })
+    const avialabeStartYear = computed(() => {
+        const thisYear = moment().year()
+        const limit = thisYear + 10
+        const list = Array.from({ length: limit - thisYear + 1 }, (_, i) => thisYear + i);
+        return list
+    })
+    const avialabeEndYear = computed(() => {
+        const index = repetition_type.value == 2 ? 'monthly' : 'yearly'
+        const thisYear = repeat_span.value[index].year_from
+        const limit = thisYear + 10
+        const list = Array.from({ length: limit - thisYear + 1 }, (_, i) => thisYear + i);
+        return list
+    })
 </script>

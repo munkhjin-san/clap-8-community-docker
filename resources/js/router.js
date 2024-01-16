@@ -28,24 +28,12 @@ const routes = [
                 ]
             }
         ],
-        beforeEnter: (to, from, next) => {
-            document.body.style.height = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
-            // if(window.innerWidth < 959){
-            //     document.body.style.background = 'var(--background-color)'
-            // }
-            next();
-        },
     },
     { 
         path: '/members', 
         name: 'members',  
         component: () => import('./components/Members/MembersRoot.vue'),
         beforeEnter: (to, from, next) => {
-            document.body.style.height = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
             if(window.innerWidth < 959){
                 document.body.style.background = 'var(--background-color)'
             }
@@ -149,13 +137,7 @@ const routes = [
     {
         path: '/calendar',
         name: 'calendar',
-        component: () => import('./components/Calendar/CalendarContainer.vue'),
-        beforeEnter: (to, from, next) => {
-            document.body.style.height = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
-            next();
-        }, 
+        component: () => import('./components/Calendar/CalendarContainer.vue'),       
         
     },
     {
@@ -165,9 +147,6 @@ const routes = [
         component: () => import('./components/Work/WorkContainer.vue'),
         beforeEnter: (to, from, next) => {
             fetchTimeCard(to, next, from)
-            document.body.style.height = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
         }
         
     },
@@ -175,10 +154,14 @@ const routes = [
         path: '/admin_control',
         name: 'admin_control',
         component: () => import('./components/AccountControl/AdminControlList.vue'),
+        children: [
+            { path: 'account',props: true, name: 'account', component: () => import('./components/AccountControl/AdminAccount.vue') },
+            { path: 'workgroup',props: true, name: 'workgroup', component: () => import('./components/AccountControl/AdminWorkGroup.vue') },
+            { path: 'workcontrol',props: true, name: 'workcontrol', component: () => import('./components/AccountControl/AdminWork.vue') },
+            { path: 'clapcount',props: true, name: 'clapcount', component: () => import('./components/AccountControl/AdminClapCount.vue') },
+            { path: 'learningcontrol',props: true, name: 'learningcontrol', component: () => import('./components/AccountControl/LearningControl/LearningControl.vue') },
+        ],
         beforeEnter: (to, from, next) => {
-            document.body.style.height = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
             const rootElement = document.getElementById('app');
             const userId = parseInt(rootElement.getAttribute('data-user-id'));
             const viewTrayUsers = [608, 610]
@@ -211,12 +194,6 @@ const routes = [
                 }, 
             }
         ],
-        beforeEnter: (to, from, next) => {
-            document.body.style.height = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
-            next();
-        }, 
     },
     {
         path: '/notice',
@@ -233,41 +210,79 @@ const routes = [
                         to.meta.data = response.data
                         next();
                     })
-                    // document.body.style.height = '100%';
-                    // document.body.style.position = 'fixed';
-                    // document.body.style.overflow = 'hidden';
                     
                 }, 
             }
         ],
-        beforeEnter: (to, from, next) => {
-            document.body.style.height = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
-            next();
-        }, 
     },
     {
         path: '/settings',
         component: () => import('./components/Settings/Settings.vue'),
         name: 'settings',
         props: true,
-        beforeEnter: (to, from, next) => {
-            document.body.style.height = '100%';
-            document.body.style.position = 'fixed';
-            document.body.style.overflow = 'hidden';
-            next();
-        },
         
     },
+    {
+        path: '/learning',
+        name: 'learning',
+        component: () => import('./components/Learning/Learning.vue'),
+        children: [
+            { 
+                path: ':topicId',
+                name: 'lesson',
+                component: () => import('./components/Learning/Lesson.vue'),
+                children: [
+                    {
+                        path: 'discussion',
+                        name: 'discussion',
+                        props: true,
+                        component: () => import('./components/Learning/GroupDiscussion.vue'),
+                    },
+                    {
+                        path: 'portfoliodraft',
+                        name: 'portfoliodraft',
+                        props: true,
+                        component: () => import('./components/Learning/LessonPortfolio.vue')
+                    },
+                    {
+                        path: 'portfolio',
+                        name: 'portfolio',
+                        props: true,
+                        component: () => import('./components/Learning/CompletePortfolio.vue')
+                    },
+                    {
+                        path: 'more',
+                        name: 'more',
+                        props: true,
+                        component: () => import('./components/Learning/MoreDetailed.vue')
+                    },
+                    {
+                        path: 'form',
+                        name: 'form',
+                        component: () => import('./components/Learning/LessonForm.vue')
+                    },
+                    {
+                        path: 'finish',
+                        name: 'finish',
+                        component: () => import('./components/Learning/LessonFinish.vue')
+                    }
+                ],
+                beforeEnter: (to, from, next) => {
+                    axios.get(`/get_lessons?topic_id=${to.params.topicId}`).then(
+                        response => {
+                            to.meta.data = response.data
+                            next();
+                        })
+                }
+            }
+        ],
+    }
+
     
 
 
 ]
 function resolveBeforeEnter(to, next, from) {
-    document.body.style.height = '100%';
-    document.body.style.position = 'fixed';
-    document.body.style.overflow = 'hidden';
     axios.post('/profile_get_update_user', {id: to.params.userId})
     .then(response => {
         to.meta.data = response.data;
@@ -276,17 +291,9 @@ function resolveBeforeEnter(to, next, from) {
     .catch(error => {
         next();
         to.meta.data = null
-        // console.error('API request failed:', from);
-        // alert('メンバーが見つかりませんでした。');
-        // // location.replace('/')
-        // next(false);
-
     });
 }
 function fetchPosts(to, next, from, path) {
-    document.body.style.height = '100%';
-    document.body.style.position = 'fixed';
-    document.body.style.overflow = 'hidden';
     if(window.innerWidth < 959){
         document.body.style.background = 'var(--background-color)'
     }
@@ -301,12 +308,7 @@ function fetchPosts(to, next, from, path) {
         next();
     })
     .catch(error => {
-        // console.error('API request failed:', from);
-        // alert('User Not Found');
-        // location.replace('/')
-        // next(false);
         next()
-
     });
 }
 
@@ -320,7 +322,6 @@ function fetchTimeCard(to, next, from){
     })
     .then(response => {
         to.meta.data = response.data
-
         next()
     })
     .catch(error => {
@@ -333,11 +334,9 @@ const router = createRouter({
     routes
 })
 router.beforeEach((to, from, next) => {
-    // Commit to the store globally before each route
     if(store.state.mobile){
         store.commit('setSideMenuView', false);
-    }
-    
+    }    
     next();
   });
 export default router

@@ -138,15 +138,19 @@ export default{
         MemberItem
     },
     mounted(){
-        this.getMembers(false)
+
+        const val = JSON.parse(localStorage.getItem('memberViewType'))
+        const flag = val == null ? false : val
+        this.getMembers(flag)
     },
     methods:{
         switchView(val){
             this.$store.commit('setMenu', {name: '', id: null})
+            localStorage.setItem('memberViewType', val)
             if(this.sortByShokkai == val) {               
                 return
             }
-            this.getMembers(val)
+            this.getMembers(val)            
         },
         getMembers(sort){
             this.sortByShokkai = sort

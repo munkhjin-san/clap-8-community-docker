@@ -8,7 +8,7 @@
             <div class="admin-account-center-inner" :key="item.id" v-for="item in paginatedOrders">
                 <div class="account-wrapper">
                     <div style="display:flex; align-items:center;margin-bottom:10px;">
-                        <UserIconPreLoad :disableInstant="true" size="45" :title="item.name" :user="item" imgClass="boardNormalIcon"/>
+                        <UserIconPreLoad :disableInstant="true" size="30" :title="item.name" :user="item" imgClass="userNormalIcon"/>
                         <div style="display:flex; flex-direction:column">
                             <span style="margin-left:10px;">{{item.name}}</span>
                             <!-- <span style="margin-left:10px; margin-top:10px;">{{ item.name_kana }}</span> -->
@@ -169,7 +169,7 @@ import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
         background-color: #000 !important;
     }
     .admin-account-center-inner{
-        padding: 10px;
+        padding: 15px;
         background: var(--background-color);
         display: flex;
         flex-direction: column;
@@ -218,9 +218,9 @@ import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
       }
       .user-record-parent {
         display: grid;
-        grid-template-columns: 33% 33% 33%;
-        gap: 10px;
-        height: calc(100% - 60px);
+        grid-template-columns: repeat(3, 1fr);
+        gap: 20px;
+        height: calc(100% - 105px);
         overflow: hidden auto;
         margin-left:15px;
       }

@@ -116,7 +116,15 @@ const store = createStore({
             postBadge: [0,0,0],
             sharingData: null,
             noticeBadge: 0,
-            keyboardOffset: 0
+            keyboardOffset: 0,
+            colors:[
+                "#f7d5d5",
+                "#ffd4a8",
+                "#f8f2a6",
+                "#cee4d2",
+                "#c2d2e4",
+                "#d6cfed"
+            ]
         }
     },
     mutations: {

@@ -59,7 +59,6 @@ export default{
         });
         var channel = pusher.subscribe('private-chat');
         channel.bind("pusher:subscription_error", (error) => {console.log(error)});
-        console.log(channel)
         channel.bind('my-event', (e) => { emitter.emit('pusher-event',e) });
                 
         this.beamsInit()
@@ -146,7 +145,6 @@ export default{
             beamsClient
             .getUserId()
             .then((userId) => {
-                console.log(userId, this.auth_user.id.toString())
                 if (userId !== null && userId !== this.auth_user.id.toString()) {
                     return beamsClient.stop();
                 }else{

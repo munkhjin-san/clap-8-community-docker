@@ -5,137 +5,103 @@
         <div class="admin-header">
             
             <Hamburger v-if="$store.state.mobile"/>
-            <div class="searchBar-wrapper">
-                <Transition name="searchHide">
-                    <UserSearchBar @setKeyord="setKeyord"/>
-                </Transition>
-            </div>
+            
             <div class="admin-button-wrapper">
-                <div class="admin-button" @click="mainMenu = 0" :class="{'is-active' : mainMenu == 0 }">アカウント管理</div>
-                <div class="admin-button" @click="mainMenu = 4" :class="{'is-active' : mainMenu == 4}">ワークグループ管理</div>
-                <!-- <div class="admin-button" @click="mainMenu = 2" :class="{'is-active' : mainMenu == 2}">役職管理</div>
-                <div class="admin-button" @click="mainMenu = 3" :class="{'is-active' : mainMenu == 3}">事務所管理</div> -->
-                <div class="admin-button" @click="mainMenu = 5" :class="{'is-active' : mainMenu == 5}">ワーク管理</div>
-                <div class="admin-button" @click="mainMenu = 6" :class="{'is-active' : mainMenu == 6}">クラップ数集計</div>
+                <div class="admin-button" @click="$router.push({name: 'account'})" :class="{'is-active' : $route.name == 'account' }">アカウント管理</div>
+                <div class="admin-button" @click="$router.push({name: 'workgroup'})" :class="{'is-active' : $route.name == 'workgroup'}">ワークグループ管理</div>
+                <!-- <div class="admin-button" @click="$router.push({name: 'account'})2" :class="{'is-active' : $route.name == 2}">役職管理</div>
+                <div class="admin-button" @click="$router.push({name: 'account'})3" :class="{'is-active' : $route.name == 3}">事務所管理</div> -->
+                <div class="admin-button" @click="$router.push({name: 'workcontrol'})" :class="{'is-active' : $route.name == 'workcontrol'}">ワーク管理</div>
+                <div class="admin-button" @click="$router.push({name: 'clapcount'})" :class="{'is-active' : $route.name == 'clapcount'}">クラップ数集計</div>
+                <div class="admin-button" @click="$router.push({name: 'learningcontrol'})" :class="{'is-active' : $route.name == 'learningcontrol'}">研修</div>
             </div> 
         </div>
-        <AdminAccount 
+        <div v-if="$route.name == 'workcontrol' || $route.name == 'account'" class="searchBar-wrapper">
+            <Transition name="searchHide">
+                <UserSearchBar @setKeyord="setKeyord"/>
+            </Transition>
+        </div>
+        <router-view
             :searchUser="searchUser"
             @getUsers="getUsers"
             :positionLabel="positionLabel"
             :officeLabel="officeLabel"
             :workGroup="workGroup"
-            v-if="mainMenu == 0"
-        />
-        <AdminWork
-            :searchUser="searchUser"
             :mainMenu="mainMenu" 
-            v-if="mainMenu == 5"
-        />
-        <AdminWorkGroup
             :userList="userList" 
             :workgroupusers="workGroupUsers"
-            v-if="mainMenu == 4"
-            :searchUser="searchUser"
-            @getUsers="getUsers"
-        />
-        <AdminPosition 
-            v-if="mainMenu == 2"
             :positionList="positionList"
-        />
-        <AdminOffice 
-            v-if="mainMenu == 3"
             :officeList="officeList"
-            @getUsers="getUsers"
-        />
-        <AdminClapCount 
-            v-if="mainMenu == 6"
-            :searchUser="searchUser"
-        />
+        ></router-view>
     </div>
 </template>
-<script>
-    import AdminAccount from './AdminAccount.vue'
-    import Hamburger from '../Global/HamBurger.vue'
-    import UserSearchBar from './UserSearchBar.vue'
-    import AdminWork from './AdminWork.vue'
-    import AdminWorkGroup from './AdminWorkGroup.vue'
-    import AdminPosition from './AdminPosition.vue'
-    import AdminOffice from './AdminOffice.vue'
-    import AdminClapCount from './AdminClapCount.vue'
-    export default{
-        data() {
-            return {
-                mainMenu: 0,
-                keywords: null,
-                userList: [],
-                positionList: [],
-                positionLabel: [],
-                officeList: [],
-                officeLabel: [],
-                workGroup: [],
-                workGroupUsers: [],
-            }
-        },
-        mounted(){
-            this.getUsers()
-        },
-        computed: {
-            searchUser(){
-                if(this.keywords){
-                    let lowSearch = this.keywords.toLowerCase()
-                    return this.userList.filter(user => 
-                        Object.values(user).some(val => 
-                            String(val).toLowerCase().includes(lowSearch)
-                        )
-                    )
-                }else{         
-                    return this.userList
-                }
-            }, 
-        },
-        methods: {
-            getUsers(){
-                axios.get('/get_user_list').then(response => {  
-                    this.userList = response.data.user_list
-                    this.positionList = response.data.position_list    
-                    this.positionLabel = response.data.position_list_label
-                    this.officeList = response.data.office_list
-                    this.officeLabel = response.data.office_list_label
-                    this.workGroup = response.data.work_group  
-                    this.workGroupUsers = response.data.work_group_users
-                }).catch(function (error) {
-                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) this.errorToast('エラーが発生しました。')
-                    else this.errorToast('エラーが発生しました。 ' + error.message)     
-                }.bind(this))
-            },
-            errorToast(message){
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: message,
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: ['OK']
-                })                
-            },
-            setKeyord(val){
-                this.keywords = val
-            },
-        },
+<script setup>
+import Hamburger from '../Global/HamBurger.vue'
+import UserSearchBar from './UserSearchBar.vue'
+import { computed, onMounted, ref } from 'vue'
 
-        components:{
-            AdminAccount,
-            Hamburger,
-            UserSearchBar,
-            AdminWork,
-            AdminWorkGroup,
-            AdminPosition,
-            AdminOffice,
-            AdminClapCount
+    const mainMenu = ref(0)
+    const keywords = ref(null)
+    const userList = ref([])
+    const positionList = ([])
+    const positionLabel = ref([])
+    const officeList = ref([])
+    const officeLabel = ref([])
+    const workGroup = ref([])
+    const workGroupUsers = ref([])
+
+    onMounted(() => {
+        getUsers()
+    })
+       
+    const searchUser = computed(() => {
+        if(keywords.value){
+            let lowSearch = keywords.value.toLowerCase()
+            return userList.value.filter(user => 
+                Object.values(user).some(val => 
+                    String(val).toLowerCase().includes(lowSearch)
+                )
+            )
+        }else{         
+            return userList.value
         }
+    })
+       
+
+    const getUsers = () => {
+        axios.get('/get_user_list').then(response => {  
+            userList.value = response.data.user_list
+            positionList.value = response.data.position_list    
+            positionLabel.value = response.data.position_list_label
+            officeList.value = response.data.office_list
+            officeLabel.value = response.data.office_list_label
+            workGroup.value = response.data.work_group  
+            workGroupUsers.value = response.data.work_group_users
+        }).catch(function (error) {
+            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) errorToast('エラーが発生しました。')
+            else errorToast('エラーが発生しました。 ' + error.message)     
+        })
     }
+
+    const errorToast = (message) => {
+        emitter.emit('setToast', {
+            active: true,  
+            type: 'info', 
+            content: message,
+            closeButton: false, 
+            autoClose: false,
+            answers: ['OK']
+        })                
+    }
+
+    const setKeyord = (val) => {
+        keywords.value = val
+    }
+        
+
+
+
 </script>
 <style>
 .searchBar-wrapper{
@@ -156,6 +122,7 @@
     fill:var(--primary-color);
     width: 100%;
     height: 100%;
+    overflow: hidden;
 }
 .admin-column-left{
     float: left;
@@ -201,7 +168,8 @@
 
 @media screen and (max-width: 959px) {
     .searchBar-wrapper{
-        width: calc(100% - 65px);
+        width: calc(100% - 40px);
+        margin: 0 20px;
     }
     .admin-header{
         min-height: 140px;

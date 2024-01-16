@@ -252,8 +252,8 @@ import moment from 'moment'
 import OpenAI from "openai";
 import evalutions from '../../../../assets/evalutions'
 import FormLongText from '../../Global/FormLongText.vue';
-import FormShortText from '../../Global/FormShortText.vue';
-import { KintoneRestAPIClient } from "@kintone/rest-api-client";
+// import FormShortText from '../../Global/FormShortText.vue';
+// import { KintoneRestAPIClient } from "@kintone/rest-api-client";
 
 
 export default{
@@ -292,7 +292,7 @@ export default{
     components:{
         LoaderButton,
         FormLongText,
-        FormShortText
+        // FormShortText
     },
     mounted(){
         const currentMonth = moment().month();

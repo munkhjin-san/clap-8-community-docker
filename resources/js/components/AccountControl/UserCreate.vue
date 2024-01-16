@@ -110,13 +110,13 @@
                     </div>
                 </div>
                 <div class="input-wrapper-memo mt-20" v-if="partnerForm == false" style="flex-direction:column">
-                    <span class="user form-label">表示さますか</span>
+                    <span class="user form-label">メンバーページに表示</span>
                     <div class="input-inner-wrapper" style="margin-top:10px;">
                         
                         <label class="check-container user" style="align-self: center;margin:auto">
                             <input id="membershow" type="checkbox" :true-value="1" :false-value="0" v-model="member_show" name="member_show">
                             <span class="checkmark-mini" style="width: 18px; height:18px"></span>
-                            <label for="membershow">しない</label>
+                            <label for="membershow">表示しない</label>
                         </label>
                     </div>
                 </div>

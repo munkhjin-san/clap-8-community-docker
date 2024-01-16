@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Services;
-
+use Carbon\Carbon;
 use App\Models\boardRecord;
 use App\Models\boardToUser;
 use App\Models\User;
@@ -13,6 +13,9 @@ use App\Models\appRememberRecord;
 use App\Models\searchHistoryRecord;
 use App\Models\taskRecord;
 use App\Models\taskUser;
+use App\Models\CalendarRecord;
+use App\Models\shiftRecord;
+use App\Models\shiftType;
 use App\Events\Message;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -25,6 +28,35 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 class SharedService
 {
+    public function syncShiftToCalendar($userId, $year, $month, $shift_array){
+        $deleteAll = CalendarRecord::whereHas('calendar_users', function ($query) use ($userId) {
+            $query->where('users.id', $userId);
+        })->whereYear('date_start', $year)->whereMonth('date_start', $month)->where('shift', 1)->delete();
+        foreach($shift_array as $shift){
+            if(in_array( $shift['type'], [0, 2, 3, 5, 14, 15])){
+                $shiftType = shiftType::find($shift['type']);
+                $instance = Carbon::parse($shift['date']); 
+                $start_instance = $instance->clone()->hour('00')->minute('00')->second('00');
+                $end_instance = $instance->clone()->hour('23')->minute('59')->second('00');
+                $start = Carbon::createFromFormat('Y-m-d H:i:s', $start_instance);
+                $end = Carbon::createFromFormat('Y-m-d H:i:s', $end_instance);
+                $record = CalendarRecord::create([
+                    "title" => $shiftType['name'],
+                    "updated_user" => $userId,
+                    "user_id" => $userId,
+                    "created_user" => $userId,
+                    "date_start" => $start,
+                    "date_end" => $end,
+                    "release_flag" => 0,
+                    "shift" => 1
+                ]);
+                $record->calendar_users()->syncWithPivotValues([$userId], ["created_at" => now(),"updated_at" => now()]);
+            }
+            
+        }
+        return 'success';
+        
+    }
     public function getUserState($target_id, $self){
         
         $data = User::where('id', $target_id)

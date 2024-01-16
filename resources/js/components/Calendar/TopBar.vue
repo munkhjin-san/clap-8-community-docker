@@ -73,7 +73,7 @@
                             <div style="display: flex;align-items: center;white-space: nowrap;padding: 0 15px;gap: 15px;position:relative;">
                                 <div>
                                     <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                        <input @change="selectAll(group)" :checked="group.selected" name="memberRadioBox" type="checkbox">
+                                        <input @change="selectAll(group, 'byGroup')" :checked="group.selected" name="memberRadioBox" type="checkbox">
                                         <span class="cal-check-mark" style="top: 13px;"></span>
                                         <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
                                                     
@@ -100,7 +100,18 @@
                                 </Transition>
                                 
                             </div>
+                             
                             <div v-if="group.selected">
+                                <div style="padding:0 15px 0 30px;display:flex;"> 
+                                    <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
+                                        <input @change="selectAll(group, 'byMember')" :checked="allSelected(group)" name="memberCheckBox" type="checkbox">
+                                        <span class="cal-check-mark" style="top: 13px;"></span>
+                                        <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
+
+                                            <p class="userName" style="line-height: 30px;margin-left: 0;">全員選択</p>                                    
+                                        </div>
+                                    </label> 
+                                </div>
                                 <div :key="user.id" v-for="user in group.users" style="padding:0 15px 0 30px;display:flex;">                                
                                     <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
                                         <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member" :value="user.id" name="memberCheckBox" type="checkbox">
@@ -153,266 +164,210 @@
         </Transition>
     </div>
 </template>
-<script>
+<script setup>
 import UserIcon from '../Board/Mixed/UserIcon.vue'
 import UserSelector from '../Global/UserSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
 import FormShortText from '../Global/FormShortText.vue'
-export default{
-    props: ['facilitiesList'],
-    emits: ['jumpToday', 'updated', 'setFacility', 'setActiveMembers'],
-    data(){
-        return{
-            list: [],
-            checked: [],
-            addUsersWindow: false,
-            selectedUsers: [],
-            loading: false,
-            expandedGroups: [],
-            tempGroup: null,
-            editingUserList: [],
-            title: '',
-            groupType: 0,
-            workGroupList: [],
-            myWorkGroupList: [],
-            createWindow: false, 
-            menuId: null
-        }
-    },
-    components: {
-        UserIcon,
-        UserSelector,
-        LoaderButton,
-        FormShortText
-    },
-    computed:{
-        myUsers(){
-            return this.list ? this.list : []
-        },
-        myGroups(){
-            return this.list ? this.list : []
-        },
-        workGroups(){
-            return this.workGroupList
-        }
-        
-        
-    },
-    mounted(){
-        this.getMyGroup()
-        
-    },
-    methods: {
-        editGroupStart(group){
-            this.tempGroup = group
-            this.title = group.name
-            this.addUsersWindow = true
-        },
-        selectWorkGroup(event){
-            const id = parseInt(event.target.value)
-            const value = event.target.checked
-            axios.post('/select_work_group',{work_group_id: id, value: value}).then(response => {  
-                this.$emit('updated')
-                this.getMyGroup()        
-            }).catch(function (error) {
-                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                else if (error.request) this.errorToast(this.$t('commonError'))
-                else this.errorToast(this.$t('commonError'))                          
-            }.bind(this));
+import { computed, onMounted, ref } from 'vue'
+import { useStore } from 'vuex'
 
-        },
-        allSelected(group){
-            // this.myUsers.forEach(item => {
-            //     if(item.pivot.selected_as_calendar_member == 0 || item.pivot.selected_as_calendar_member == false){
-            //         return false
-            //     }
-            // });
-            const hasUnselected = group.users.map( ob=> ob.pivot ).filter(ob => ob.selected_as_calendar_member == 0 || ob.selected_as_calendar_member == false)
-            return !hasUnselected.length
-        },
-        facilityTitle(index){
-            if(index == 'qualified_institution'){
-                return '施設'
-            }else 
-            if(index == 'zoom_value'){
-                return 'WEB会議'
-            }else if(index == 'qualified_car'){
-                return '車両'
-            }
-            return ''
-        },
-        async validation(){              
-            try {          
-                let result = true        
-                let checkRef = ['groupTitle', 'groupUsers']
-                for(const check of checkRef){
-                    const exec = await this.$refs[check].$refs[check].validate()
-                    result = result * exec.valid
-                }                
-                
-                return result
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                throw error; 
-            }               
-        },
-        deleteConfirm(group){
-            var uniqueChannell = Math.random().toString(36).substring(5);  
-            const answers = ['はい', 'いいえ']
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: 'グループを削除しますか。',
-                closeButton: true, 
-                autoClose: false,
-                answers: answers,
-                channel: uniqueChannell
-
-            })            
-            emitter.on(uniqueChannell, (data) => {                 
-                if(data.answer == answers[0]){
-                    this.deleteExecute(group)
-                }                
-            });
-        },
-        deleteExecute(group){
-            if(!group) return
-            axios.post('/delete_my_group', {id: group.id} ).then(response => {  
-                this.completed('削除した。')     
-        
-            }).catch(function (error) {
-                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                else if (error.request) this.errorToast(this.$t('commonError'))
-                else this.errorToast(this.$t('commonError'))                          
-            }.bind(this));
-        },
-        async submit(){
-            this.loading = true
-            this.processing = true
-            const valid = await this.validation()
-            if(!valid){
-                this.loading = false
-                return
-            }
-            const params = {
-                id: this.tempGroup ? this.tempGroup.id : null,
-                title: this.title,
-                users: this.editingUserList.map(ob => ob.id)
-            }
-            axios.post('/set_more_members', params ).then(response => {  
-                this.completed('保存しました。')                
-        
-            }).catch(function (error) {
-                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                else if (error.request) this.errorToast(this.$t('commonError'))
-                else this.errorToast(this.$t('commonError'))                          
-            }.bind(this));
-        },
-        completed(message){
-            this.$emit('updated')                
-            this.getMyGroup(1)
-            this.title = ''
-            this.tempGroup = null
-            this.editingUserList = []
-            this.createWindow = false
-            this.addUsersWindow = false
-            const data = {
-                text: message,
-                channel: Math.random().toString(36).substring(5),
-                icon: 0,
-                view: true
-            }
-            emitter.emit('setInfo', data)
-            this.$store.commit('setMenu', {name: 'calendarMemberSelector', id: 6})
-            this.menuId = null
-        },
-        closeModal(){
-            this.addUsersWindow = false
-            this.createWindow = false
-            this.tempGroup = null
-            this.$store.commit('setMenu', {name: 'calendarMemberSelector', id: 6})
-        },
-        
-        getMyGroup(flag){
-            axios.post('/get_my_groups').then(response => {  
-                
-                this.list = response.data.my_groups
-                this.selectedUsers = response.data.my_groups
-                this.workGroupList = response.data.work_groups
-                this.myWorkGroupList = response.data.my_work_groups
-
-                const uniqueUserIds = new Set();
-                const memberList = [];
-                this.selectedUsers.forEach((group) => {
-                    if(group.selected){
-                        group.users.forEach(user => {
-                            if (!uniqueUserIds.has(user.id) && user.pivot && user.pivot.selected_as_calendar_member) {
-                                uniqueUserIds.add(user.id);
-                                memberList.push(user);
-                            }
-                        });
-                    }                    
-                });
-                this.workGroupList.forEach((group) => {
-                    if(this.myWorkGroupList.includes(group.id)){
-                        group.work_group_user.forEach(work_group_user => {
-                            if (work_group_user.user && !uniqueUserIds.has(work_group_user.user.id)) {
-                                uniqueUserIds.add(work_group_user.user.id);
-                                memberList.push(work_group_user.user);
-                            }
-                        });
-                    }                    
-                });
-                this.$emit('setActiveMembers', memberList)
-                if(flag){
-                    this.loading = false                    
-                }
-        
-            }).catch(function (error) {
-                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                else if (error.request) this.errorToast(this.$t('commonError'))
-                else this.errorToast(this.$t('commonError'))                          
-            }.bind(this));
-        },
-        errorToast(message){
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })   
-        },
-        checkmMemberSelect(){
-
-        },
-        update(event, group){
-            
-            const val = event.target.checked
-            const id = event.target.value
-            this.updateSelectedUsers(id, val, group.id)
-        },
-        selectAll(group){
-            group.users.forEach(item => {
-                item.pivot.selected_as_calendar_member = event.target.checked
-            });
-            const val = event.target.checked
-            const user_id = -1
-            this.updateSelectedUsers(user_id, val, group.id)
-        },
-        updateSelectedUsers(user_id, val, group_id){
-            axios.post('/update_selected_calendar_members',{user_id: user_id, value: val, group_id: group_id}).then(response => {  
-                this.$emit('updated')
-                this.getMyGroup()        
-            }).catch(function (error) {
-                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                else if (error.request) this.errorToast(this.$t('commonError'))
-                else this.errorToast(this.$t('commonError'))                          
-            }.bind(this));
-        }
-
+    const props = defineProps(['facilitiesList', 'selectedYear', 'selectedMonth'])
+    const emit = defineEmits(['jumpToday', 'updated', 'setFacility', 'setActiveMembers'])
+    const store = useStore()
+    const list = ref([])
+    const addUsersWindow = ref(false)
+    const selectedUsers = ref([])
+    const loading = ref(false)
+    const tempGroup = ref(null)
+    const editingUserList = ref([])
+    const title = ref('')
+    const workGroupList = ref([])
+    const myWorkGroupList = ref([])
+    const createWindow = ref(false) 
+    const menuId = ref(null)
+    const groupTitle = ref(null)
+    const groupUsers = ref(null)
+    const myGroups = computed(() => {
+        return list.value ? list.value : []
+    })        
+    const formRefs = {
+        groupTitle, 
+        groupUsers
     }
-}
+    
+    onMounted(() => {
+        getMyGroup()        
+    })
+
+    const editGroupStart = (group) => {
+        tempGroup.value = group
+        title.value = group.name
+        addUsersWindow.value = true
+    }
+    const allSelected = (group) => {
+        const hasUnselected = group.users.map( ob=> ob.pivot ).filter(ob => ob.selected_as_calendar_member == 0 || ob.selected_as_calendar_member == false)
+        return !hasUnselected.length
+    }
+    const facilityTitle = (index) => {
+        if(index == 'qualified_institution'){
+            return '施設'
+        }else 
+        if(index == 'zoom_value'){
+            return 'WEB会議'
+        }else if(index == 'qualified_car'){
+            return '車両'
+        }
+        return ''
+    }
+    const validation = async () => {              
+        try {          
+            let result = true
+            for(let index in formRefs){
+                const validate = await formRefs[index].value.$refs[index].validate()    
+                result = result * validate.valid            
+            }
+            return result
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            throw error; 
+        }               
+    }
+    const deleteConfirm = (group) => {
+        var uniqueChannell = Math.random().toString(36).substring(5);  
+        const answers = ['はい', 'いいえ']
+        emitter.emit('setToast', {
+            active: true,  
+            type: 'info', 
+            content: 'グループを削除しますか。',
+            closeButton: true, 
+            autoClose: false,
+            answers: answers,
+            channel: uniqueChannell
+
+        })            
+        emitter.on(uniqueChannell, (data) => {                 
+            if(data.answer == answers[0]){
+                deleteExecute(group)
+            }                
+        });
+    }
+    const deleteExecute = (group) => {
+        if(!group) return
+        axios.post('/delete_my_group', {id: group.id} ).then(response => {  
+            completed('削除した。')     
+    
+        }).catch(function (error) {
+            if (error.response) errorToast(error.response.data.message)                    
+        });
+    }
+    const submit = async () => {
+        loading.value = true
+        const valid = await validation()
+        if(!valid){
+            loading.value = false
+            return
+        }
+        const params = {
+            id: tempGroup.value ? tempGroup.value.id : null,
+            title: title.value,
+            users: editingUserList.value.map(ob => ob.id)
+        }
+        axios.post('/set_more_members', params ).then(response => {  
+            completed('保存しました。')                
+    
+        }).catch(function (error) {
+            if (error.response) errorToast(error.response.data.message)                      
+        });
+    }
+    const completed = (message) => {
+        emit('updated')                
+        getMyGroup(1)
+        title.value = ''
+        tempGroup.value = null
+        editingUserList.value = []
+        createWindow.value = false
+        addUsersWindow.value = false
+        const data = {
+            text: message,
+            channel: Math.random().toString(36).substring(5),
+            icon: 0,
+            view: true
+        }
+        emitter.emit('setInfo', data)
+        store.commit('setMenu', {name: 'calendarMemberSelector', id: 6})
+        menuId.value = null
+    }
+    const closeModal = () => {
+        addUsersWindow.value = false
+        createWindow.value = false
+        tempGroup.value = null
+        store.commit('setMenu', {name: 'calendarMemberSelector', id: 6})
+    }
+    
+    const getMyGroup = (flag) => {
+        axios.post('/get_my_groups', {
+            year: props.selectedYear,
+            month: props.selectedMonth + 1
+        }).then(response => {  
+            
+            list.value = response.data.my_groups
+            selectedUsers.value = response.data.my_groups
+            workGroupList.value = response.data.work_groups
+            myWorkGroupList.value = response.data.my_work_groups
+
+            const uniqueUserIds = new Set();
+            const memberList = [];
+            selectedUsers.value.forEach((group) => {
+                if(group.selected){
+                    group.users.forEach(user => {
+                        if (!uniqueUserIds.has(user.id) && user.pivot && user.pivot.selected_as_calendar_member) {
+                            uniqueUserIds.add(user.id);
+                            memberList.push(user);
+                        }
+                    });
+                }                    
+            });
+            emit('setActiveMembers', memberList)
+            if(flag){
+                loading.value = false                    
+            }
+    
+        }).catch(function (error) {
+            if (error.response) errorToast(error.response.data.message)                        
+        });
+    }
+    const errorToast = (message) => {
+        emitter.emit('setToast', {
+            active: true,  
+            type: 'info', 
+            content: message,
+            closeButton: false, 
+            autoClose: false,
+            answers: ['OK']
+
+        })   
+    }
+    const update = (event, group) => {
+        
+        const val = event.target.checked
+        const id = event.target.value
+        updateSelectedUsers(id, val, group.id, 'byMember')
+    }
+    const selectAll = (group, by) => {
+        group.users.forEach(item => {
+            item.pivot.selected_as_calendar_member = event.target.checked
+        });
+        const val = event.target.checked
+        const user_id = -1
+        updateSelectedUsers(user_id, val, group.id, by)
+    }
+    const updateSelectedUsers = (user_id, val, group_id, by) => {
+        axios.post('/update_selected_calendar_members',{user_id: user_id, value: val, group_id: group_id, by: by}).then(response => {  
+            emit('updated')
+            getMyGroup()        
+        }).catch(function (error) {
+            if (error.response) errorToast(error.response.data.message)                 
+        });
+    }
 </script>

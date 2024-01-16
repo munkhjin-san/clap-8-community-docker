@@ -19,6 +19,8 @@ use App\Models\NoticeFiles;
 use App\Models\NoticeRecords;
 use App\Models\AppFileRecord;
 use App\Models\taskUser;
+use App\Models\shiftRecord;
+use App\Models\shiftType;
 use App\Mail\Warning;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -44,6 +46,7 @@ class AutoJobController extends Controller
         // $this->middleware('throttle:3,1');
     }
     public function update_last_act(){
+
         // $users = boardToUser::whereNotNull('user_id')->get();
         // foreach($users as $user){
         //     $user->timestamps = false; // Disable timestamp updates
@@ -52,6 +55,30 @@ class AutoJobController extends Controller
         // }
         // echo('ss');
         // return;
+    }
+    public function sync_first_month_calendar_shift(){
+       
+        $users = User::where('deleted_flag', 0)->where('retire', 0)->where('hide_flag', 0)->pluck('id')->toArray();
+        foreach($users as $id){
+            $shift_records = shiftRecord::where('user_id', $id)
+            ->where('shift_day', '>', '2023-12-31')
+            ->whereIn('shift_type', [0, 2, 3, 5, 14, 15])
+            ->select('shift_type AS type', 'shift_day AS date')
+            // ->groupBy('shift_day')
+            ->get()->groupBy(function($date) {
+                return Carbon::parse($date->date)->format('Y-m');
+            });
+            
+            foreach ($shift_records as $key => $value) {
+                $date = Carbon::parse($key);
+
+                $year = $date->year; 
+                $month = $date->month; 
+                $createSchedule = $this->sharedService->syncShiftToCalendar($id, $year, $month, $value);   
+                echo($createSchedule);
+            }
+           
+        }
     }
     public function move_note_to_task(){
         $all_memos = memoRecord::where('deleted_flag', 0)->get();

@@ -17,25 +17,25 @@
     
 </div>
 </template>
-<script>
+<script setup>
 import moment from 'moment';
 import Autolinker from 'autolinker';
-export default {
-    props: ['searchResult', 'searchFetch'],
-    emits: ['jumpToRecord'],
-    methods: {
-        time(item){
+
+    const props = defineProps(['searchResult', 'searchFetch'])
+    const emit = defineEmits(['jumpToRecord'])
+    
+        const time = (item) => {
             const from = moment(item.date_start).format('YYYY/MM/DD(ddd) H:mm')
             const to = moment(item.date_end).format('H:mm')
             return `${from} ~ ${to}`
-        },
-        urlCheck(text){
+        }
+        const urlCheck = (text) => {
             if(text){                
                 var linkedText = Autolinker.link(text, {stripPrefix: false});     
                 return linkedText;                
             }   
         }
-    },
+ 
     
-}
+
 </script>

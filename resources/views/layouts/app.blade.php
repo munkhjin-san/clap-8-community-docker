@@ -12,6 +12,7 @@
     <meta name="google" content="notranslate">
     <meta charset="utf-8">
     <meta name="robots" content="noindex">
+    <meta name="theme-color" content="#262626"/>
     <!-- <meta name="googlebot" content="index, follow"> -->
     <meta name="csrf-token" content="{{ csrf_token() }}">    
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
@@ -52,7 +53,7 @@
         }, false);
     </script>
 </head>
-<body style="height:100%;">
+<body style="height:100%;position:fixed;overflow:hidden">
     <div id="app" style="height:100%;width:100%;" data-user-id="{{ Auth::id() }}">
     <over-ride></over-ride>               
         
@@ -95,6 +96,7 @@
     --task-background: #dddddd;
     --past-calendar: #cccccc;
     --third-color: #878787;
+    --inactive-background: #efefef
 }
 
 // If the app is in dark mode, update the variables
@@ -127,6 +129,7 @@
     --task-background: #3d3d3d;
     --past-calendar: #494949;
     --third-color: #e4e6eb;
+    --inactive-background: #292929
 }
 .header {
     background-color: var(--background-color);

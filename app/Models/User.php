@@ -117,7 +117,6 @@ class User extends Authenticatable
         return $this->belongsToMany(messageFile::class, 'message_sign_users');
     }
 
-
     /**
      * Get the users who have blocked the current user.
      */
@@ -165,6 +164,9 @@ class User extends Authenticatable
     }
     public function files(){
         return $this->belongsToMany(UserAlbum::class, 'user_albums', 'user_id', 'id');
+    }
+    public function portfolio(){
+        return $this->hasMany(LessonPortfolio::class, 'user_id');
     }
     // public function sendEmailVerificationNotification()
     // {
