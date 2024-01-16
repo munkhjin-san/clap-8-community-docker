@@ -322,9 +322,7 @@ import axios from 'axios';
 .portfolio-control-table {
         border-collapse: collapse;
         width: 100%;
-    }
 
-    .portfolio-control-table {
         th, td{
             border: 1px solid var(--calendarBorder);
             padding: 10px;
@@ -355,4 +353,8 @@ import axios from 'axios';
             
         }
     }
+
+  
+        
+    
 </style>
