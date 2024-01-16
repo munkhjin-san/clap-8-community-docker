@@ -61,7 +61,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/move_note_to_task', [AutoJobController::class, 'move_note_to_task']);
 // Route::get('/genertate_my_groups', [CalendarController::class, 'genertate_my_groups']);
 // Route::get('/update_last_act', [AutoJobController::class, 'update_last_act']);
-Route::get('/sync_first_month_calendar_shift', [AutoJobController::class, 'sync_first_month_calendar_shift']);
+// Route::get('/sync_first_month_calendar_shift', [AutoJobController::class, 'sync_first_month_calendar_shift']);
 // temp_routes
 Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
