@@ -130,7 +130,16 @@
                             <div v-if="UserAllData.awareness !== null" class="record">
                                 <p class="record-inner">{{UserAllData.awareness}}</p>
                             </div>          
-                                
+                            <div v-if="userPortfolio && userPortfolio.length" class="title" style="margin-bottom: 10px;">
+                                <p class="record-inner">ポートフォリオ</p>
+                            </div>
+                            <div v-if="userPortfolio && userPortfolio.length" class="record">
+                                <div v-for="portfolio in userPortfolio" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
+                                    <p class="record-inner" style="font-size: 13px;">{{ portfolio.title }}</p>
+                                    <p class="record-inner"><strong>{{ portfolio.portfolio_title }}</strong></p>
+                                    <p class="record-inner">{{ portfolio.content }}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -206,6 +215,9 @@ export default {
         window.removeEventListener('resize', this.handleResize)
     },    
     computed:{
+        userPortfolio(){
+            return this.UserAllData.portfolio.filter(data => data.status == 3)
+        },
         hasSalaryIncrease(){
             return this.$store.state.user && this.UserAllData && this.$store.state.user.user_code && this.UserAllData.id == this.$store.state.user.id
         },

@@ -98,7 +98,8 @@ class LessonController extends Controller
                 "negative_feedback" => $request->n_feedback ?? $lessonPortfolio->negative_feedback, 
                 "status" => $request->status ?? $lessonPortfolio->status,
                 "understand" => $request->understand ?? $lessonPortfolio->understand,
-                "not_understand_content" => $request->not_understand_content ?? $lessonPortfolio->not_understand_content
+                "not_understand_content" => $request->not_understand_content ?? $lessonPortfolio->not_understand_content,
+                "portfolio_title" => $request->portfolio_title ?? $lessonPortfolio->portfolio_title
             ]);
 
 

@@ -314,7 +314,8 @@ import axios from 'axios';
 .theme-item{
     padding: 20px 20px;
     cursor: pointer;
-    background: #ffffff;
+    background: var(--background-color);
+    color: var(--primary-color);
     border: solid thin var(--calendarBorder);
     position: relative;
     line-height: 2;

@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-if="selectedTopic && selectedTopic.active == 1">
         <div style="line-height: 1.8;height:calc(100% - 110px);display: flex;justify-content: center;align-items: center;position: absolute;width: 100%;">
             <div style="background-color: var(--background-color);padding: 20px;">
                 <div class="flex gap-10" style="margin-bottom: 30px;">
@@ -21,6 +21,35 @@
     </div>
 </template>
 <script setup>
-    import LoaderButton from '../Global/LoaderButton.vue';
-    const props = defineProps(['selectedTopic'])
+    import { useRouter } from 'vue-router';
+    import LoaderButton from '../../Global/LoaderButton.vue';
+    const props = defineProps(['selectedTopic', 'available'])
+    import { onBeforeMount } from 'vue';
+    const router = useRouter()
+    onBeforeMount(() => {
+        setTimeout(() => {
+            if(props.available){
+                backToast()
+            }
+        }, 500)
+    })
+    const backToast = () => {
+        const uniqueChannell = Math.random().toString(36).substring(5);
+
+        emitter.emit('setToast', {
+            active: true,  
+            type: 'info', 
+            content: 'グループディスカッションを完了してください。',
+            closeButton: false, 
+            autoClose: false,
+            touchClose: false,
+            answers: ['戻る'],
+            channel: uniqueChannell
+        })  
+        emitter.on(uniqueChannell, (data) => {                            
+            if(data.answer === '戻る'){
+                router.go(-1)
+            }
+        })
+    }
 </script>

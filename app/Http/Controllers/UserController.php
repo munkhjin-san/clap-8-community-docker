@@ -24,8 +24,8 @@ use App\Models\KnowledgeRecord;
 use App\Models\ChallengeRecord;
 use App\Models\ClapRecord;
 use App\Events\Message;
-
-
+// use FFMpeg;
+// use FFMpeg\Filters\Video\VideoFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File; 
@@ -267,16 +267,42 @@ class UserController extends Controller{
                 $album->extension = $file_extension;
                 $album->intro_flag = $request['intro_flag'];
                 $album->save();
-                $set_path = "{$album->id}_{$album->user_id}_{$file_path}.{$album->extension}";
+                $set_path = "{$album->id}_{$album->user_id}_{$file_path}.{$file_extension}";
+                // $width = 280;
+                // $thumbnail_path = "{$album->id}_{$album->user_id}_{$file_path}_thumbnail.webp";
                 File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);
                 if($file_type == 'image' && $file_extension !== 'svg'){
 
                     $img = Image::make($fileContent)->orientate();
-                                          
-                    $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
                     
+                    $img->save(storage_path('app') . $path .'/'. $set_path, 30);
+                    // $thumbnail = $img->encode('webp')->resize($width, null, function($constraint) {
+                    //     $constraint->aspectRatio();
+                    //     $constraint->upsize();
+                    // });  
+                    // $thumbnail->save(storage_path('app') . $path .'/'. $thumbnail_path, 100);
                 }else{
+                    // $video = FFMpeg::fromDisk('local')->open($filetemp);
+                    // $format = new \FFMpeg\Format\Video\X264('libmp3lame', 'libx264');
+                    // $format->setKiloBitrate(1000); 
+                    // $format->setAdditionalParameters(['-preset', 'ultrafast']);;
+                    // $videoWidth = $video->getVideoStream()->getDimensions()->getWidth();
+                    // $videoHeight = $video->getVideoStream()->getDimensions()->getHeight();
+                    // if($videoWidth > 640){
+                    //     $scale = ceil(640 / ($videoWidth / $videoHeight));
+                    //     $video->addFilter(function (VideoFilters $filters) use($scale) {
+                    //         $filters->resize(new \FFMpeg\Coordinate\Dimension(640, $scale));
+                    //     });
+                    // }
+                    // $video->export()
+                    // ->toDisk('local')
+                    // ->inFormat($format)
+                    // ->save($path . '/' . "{$album->id}_{$album->user_id}_{$file_path}.mp4");
+                    // $album->extension = 'mp4';
+                    // $album->save();
+
                     $result = file_put_contents(storage_path('app/' . $path . '/' . $set_path), $fileContent);
+
                 } 
                 Storage::disk('local')->delete($filetemp);
 
@@ -328,7 +354,9 @@ class UserController extends Controller{
 
             foreach ($existingAlbums as $album) {
                 $set_path = $album->id . '_' . $album->user_id . '_' . $album->path . '.' . $album->extension;
+                // $thumbnail_path = $album->id . '_' . $album->user_id . '_' . $album->path . '_thumbnail.webp';
                 Storage::disk('local')->delete($request->path . '/' . $set_path);
+                // Storage::disk('local')->delete($request->path . '/' . $thumbnail_path);
                 $album->delete();
             }
         } 
@@ -478,6 +506,7 @@ class UserController extends Controller{
                 $intro_record->tags()->detach();
                 $intro_record->delete();
                 Storage::disk('local')->delete($path . '_' . $intro_record->path . '.' . $intro_record->extension);
+                // Storage::disk('local')->delete($path . '_' . $intro_record->path . '_thumbnail.webp');
                 return response()->json('saved');  
             }
         }
@@ -560,7 +589,7 @@ class UserController extends Controller{
             ->where('date', '<', $today)
             ->orderBy('date', 'desc')
             ->limit(5);
-        }])
+        }])->with('portfolio')
         // ->select(
         //     'id',
         //     'name',

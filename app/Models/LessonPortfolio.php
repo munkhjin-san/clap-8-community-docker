@@ -24,7 +24,8 @@ class LessonPortfolio extends Model
         'positive_feedback',
         'negative_feedback',
         'understand',
-        'not_understand_content'
+        'not_understand_content',
+        'portfolio_title'
     ];
 
 }

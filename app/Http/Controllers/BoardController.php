@@ -78,7 +78,12 @@ class BoardController extends Controller
                     "data" => $checkCurrentBoard
                 ];   
                 $newUrl = url('board/' . $checkCurrentBoard->id);
-                return redirect($newUrl);
+                if($request['nodirect']){
+                    return response()->json($checkCurrentBoard->id);
+                }else{
+                    return redirect($newUrl);
+                }
+                
             }else{            
                 $board = new boardRecord;
                 $board->user_id = Auth::id();
@@ -99,7 +104,11 @@ class BoardController extends Controller
                     $boardToUser->save();                   
                 }      
                 $newUrl = url('board/' . $board->id);
-                return redirect($newUrl);      
+                if($request['nodirect']){
+                    return response()->json($board->id);
+                }else{
+                    return redirect($newUrl);
+                }   
             }
         }
         return $with;

@@ -163,7 +163,7 @@
                             >
                                 <div class="swiper-wrapper"> 
                                     <div class="swiper-slide ssliderItem" :key="file.id" v-for="(file) in $store.state.filePreview.files">
-                                        <img style="max-width:100%;margin:auto;max-height:100%;" v-if="file.mime_type == 'image'" :src="file.file_path">
+                                        <img style="max-width:100%;margin:auto;max-height:100%;" v-if="file.mime_type == 'image'" :src="file.thumbnail_path">
                                         <div v-if="file.mime_type !== 'image'" style="position:relative;">
                                             <FileIcon :ext="file.extension"/>
                                         </div>

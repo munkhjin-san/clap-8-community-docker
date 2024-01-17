@@ -4,7 +4,7 @@
             <div class="swiper" style="border:none;">
                 <div class="swiper-wrapper">
                     <div class="swiper-slide" v-for="(image, index) in images" :key="index">
-                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="$store.state.baseLocation + '/post_files/' + image.id + '_' + image.user_id + '_' + image.path + '.' + image.extension" style="width: auto;max-width: 100%;max-height: 130px;">
+                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="$store.state.baseLocation + '/post_files/' + image.id + '_' + image.user_id + '_' + image.path + '_thumbnail.webp'" style="width: auto;max-width: 100%;max-height: 130px;">
                     </div>  
                 </div>                                                          
             </div>        
@@ -76,6 +76,7 @@
                     const files = this.images.map(fileData => ({
                         ...fileData,
                         file_path: `${this.$store.state.baseLocation}/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+                        thumbnail_path: `${this.$store.state.baseLocation}/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}_thumbnail.webp`
                     }));
                     const data = {
                         active: true,

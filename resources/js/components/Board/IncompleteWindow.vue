@@ -15,7 +15,8 @@
                     <template v-slot:default="{item}">
                         <WorkNotSubmitted 
                             v-if="item"
-                            :item="item" 
+                            :item="item"
+                            @close="closeOverRide()" 
                         />
                     </template>
                 </masonry-wall>
@@ -26,7 +27,8 @@
                     <template v-slot:default="{item}">
                         <WorkNotSubmitted 
                             v-if="item"
-                            :item="item" 
+                            :item="item"
+                            @close="closeOverRide()" 
                         />
                     </template>
                 </masonry-wall>
@@ -41,6 +43,7 @@
                         :consumedDays="consumedDays"
                         :remainingDays="remainingDays"
                         plan="plan"
+                        @close="closeOverRide()"
                     />
                 </template>
                 </masonry-wall>
@@ -232,6 +235,10 @@ import { ref, onMounted } from 'vue';
             },
         },
         methods: {
+            closeOverRide(){
+                console.log('eeeeeee')
+                this.$emit('closePopup')
+            },
             getPlannedShifts(){
                 const currentDate = new Date();
                 const currentYear = currentDate.getFullYear();

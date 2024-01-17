@@ -56,15 +56,16 @@
 <script>
     export default {
         props:['item', 'plan', 'consumedDays', 'remainingDays'],
-       
         methods: {
             shiftPlannedLeave(item){
                 const { date } = item
                 this.$router.push({name: `work`, query: { startDate: date }})
+                this.$emit('close')
             },
             timeCardAdd(flag,item){
                 const { value, shiftType, shiftStartTime, shiftEndTime } = item;
                 flag == 1 ? this.$router.push({name: 'work', query: { action: flag, date: value, shiftType: shiftType, shiftStartTime: shiftStartTime, shiftEndTime: shiftEndTime }}) : this.$router.push({name: 'work', query: { action: flag }})
+                this.$emit('close')
             }
 
         }

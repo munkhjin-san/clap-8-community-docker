@@ -229,42 +229,55 @@ const routes = [
         children: [
             { 
                 path: ':topicId',
-                name: 'lesson',
-                component: () => import('./components/Learning/Lesson.vue'),
+                name: 'top',
+                component: () => import('./components/Learning/LessonTop.vue'),
                 children: [
+                    {
+                        path: 'basicknowledge',
+                        name: 'basicknowledge',
+                        props: true,
+                        component: () => import('./components/Learning/BasicKnowledge/Lesson.vue'),
+                    },
                     {
                         path: 'discussion',
                         name: 'discussion',
                         props: true,
-                        component: () => import('./components/Learning/GroupDiscussion.vue'),
+                        component: () => import('./components/Learning/Discussion/GroupDiscussion.vue'),
                     },
                     {
                         path: 'portfoliodraft',
                         name: 'portfoliodraft',
                         props: true,
-                        component: () => import('./components/Learning/LessonPortfolio.vue')
+                        component: () => import('./components/Learning/BasicKnowledge/LessonPortfolio.vue')
                     },
                     {
                         path: 'portfolio',
                         name: 'portfolio',
                         props: true,
-                        component: () => import('./components/Learning/CompletePortfolio.vue')
+                        component: () => import('./components/Learning/Portfolio/CompletePortfolio.vue')
                     },
                     {
                         path: 'more',
                         name: 'more',
                         props: true,
-                        component: () => import('./components/Learning/MoreDetailed.vue')
+                        component: () => import('./components/Learning/BasicKnowledge/MoreDetailed.vue'),
+                        beforeEnter: (to, from, next) => {
+                            axios.get(`/get_support_account`).then(
+                                response => {
+                                    to.meta.data = response.data
+                                    next();
+                                })
+                        }
                     },
                     {
                         path: 'form',
                         name: 'form',
-                        component: () => import('./components/Learning/LessonForm.vue')
+                        component: () => import('./components/Learning/Portfolio/LessonForm.vue')
                     },
                     {
                         path: 'finish',
                         name: 'finish',
-                        component: () => import('./components/Learning/LessonFinish.vue')
+                        component: () => import('./components/Learning/Portfolio/LessonFinish.vue')
                     }
                 ],
                 beforeEnter: (to, from, next) => {

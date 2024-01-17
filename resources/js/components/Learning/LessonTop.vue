@@ -1,0 +1,164 @@
+<template>
+    <div style="height: 100%;width: 100%;overflow: hidden auto;">
+        <div style="display: flex;align-items: center;height: 50px;position: sticky;top: 0;background: var(--bg2);z-index: 3;">
+            <div style="height: 50px;width: 50px;cursor: pointer;display: flex;justify-content: center;align-items: center;fill:var(--primary-color)" @click="goBack()">
+                <svg version="1.1" width="15" height="15" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
+                </svg> 
+            </div>
+            <div>{{ title ? title : '' }}</div>        
+        </div>
+        <div v-if="noData" style="line-height: 1.8;height:calc(100% - 50px);display: flex;justify-content: center;align-items: center;">
+            <p>現在データはありません。</p>
+        </div>
+        <div v-else-if="$route.name == 'top' && selectedTopic && selectedTopic.active == 1">
+            <TransitionGroup name="t-list" class="topic-container" tag="div">
+            <div 
+                v-for="topic in subtopics"
+                :key=topic.val
+            >
+            <div :class="['topic-item', {'inactive-theme' : status < topic.val}, {'inactive-theme' : topic.val == 1 && !discussionDay}]" @click="select(topic)">
+                <div class="flex gap-10">
+                    <div class="topic-title">{{ topic.title }}</div>
+                    <div v-if="status > topic.val" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
+                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
+                    </div>
+                </div>
+                
+            </div>                            
+            </div>
+            </TransitionGroup>
+        </div>
+        <router-view 
+            :content="content"
+            :topicId="topicId"
+            :portfolioId="portfolioId"
+            :temp_content="temp_content"
+            :selectedTopic="selectedTopic"
+            :lesson_n_feedBack="lesson_n_feedBack"
+            :lesson_p_feedBack="lesson_p_feedBack"
+            :currentStatus="currentStatus"
+            :lessons="lessons"
+            :understand="understand"
+            :available="available"
+            :title_data="title_data"
+            >
+        </router-view>
+    </div>
+</template>
+<script setup>
+    import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+    import { computed, onMounted, ref, inject, provide, onBeforeMount } from 'vue';
+    const subtopics = [{val: 0, title:'基礎知識'},{val: 1, title: 'グループディスカッション'},{val: 2, title: 'ポートフォリオ'}]
+    const props = defineProps(['selectedTopic'])
+    const router = useRouter()
+    const route = useRoute()
+    const content = ref("")
+    const portfolioId = ref(null)
+    const temp_content = ref("")
+    const lesson_n_feedBack = ref("")
+    const lesson_p_feedBack = ref("")
+    const theme = inject('getThemes')
+    const lessons = ref([])
+    const understand = ref(null)
+    const title_data = ref('')
+    const select = (topic) => {
+        if(topic.val == 0){
+            router.push({name: 'basicknowledge'})
+        }else if(topic.val == 1 && topic.val <= status.value && discussionDay.value){
+            router.push({name: 'discussion'})
+        }else if(topic.val == 2 && topic.val <= status.value){
+            router.push({name: 'portfolio'})
+        }
+    }
+    const discussionDay = computed(() => {
+        if(props.selectedTopic && props.selectedTopic.discussion_date){
+            const currentDate = new Date();
+            const discussionDate = new Date(props.selectedTopic.discussion_date)
+            return currentDate >= discussionDate
+        }else{
+            return false
+        }
+    })
+    const noData = computed(() => {
+        return props.selectedTopic && props.selectedTopic.active == 0
+    })
+    const topicId = computed(() => {
+        return route.params.topicId
+    })
+    onBeforeRouteUpdate((to, from, next) => {
+        theme()
+        next();
+    })
+    onMounted(() => {
+        if(route.meta.data && Object.keys(route.meta.data).length){
+            lessons.value = route.meta.data;
+            getLessonPortfolios()
+        }
+    })
+    const available = computed(() =>{
+        if(props.selectedTopic && props.selectedTopic.lesson_portfolio){
+            if(props.selectedTopic.lesson_portfolio.status < 2){
+                return true
+            }
+            return false
+        }
+        return true
+    })
+    const title = computed(() => {
+        const prefix = getTitlePrefix(route.name);
+        const topicTitle = props.selectedTopic ? props.selectedTopic.title : '';
+        return `${topicTitle}${prefix}`;
+    })
+    const status = computed(() => {
+        if(props.selectedTopic){
+            if(props.selectedTopic.lesson_portfolio && props.selectedTopic.lesson_portfolio.status != null){
+                return props.selectedTopic.lesson_portfolio.status
+            }
+            return 0
+        }
+    })
+    const currentStatus = computed(() => {
+        if(props.selectedTopic){
+            return props.selectedTopic.lesson_portfolio && props.selectedTopic.lesson_portfolio.status != 3 || !props.selectedTopic.lesson_portfolio
+        }else{
+            return false
+        }
+    })
+    const goBack = () => {
+        if(route.name == 'top'){
+            router.push({name : 'learning'})
+        }else{
+            router.go(-1)
+        }
+    }
+    const getTitlePrefix = (name) => {
+        const titleMappings = {
+            top: '',
+            basicknowledge: ' ／ 基礎知識',
+            more: ' ／ 基礎知識',
+            portfoliodraft: ' ／ ポートフォリオ作成',
+            discussion: ' ／ グループディスカッション',
+            portfolio: ' ／ ポートフォリオ',
+            form: ' ／ アンケート',
+            finish: '',
+        };
+
+        return titleMappings[name] || '';
+    }
+    const getLessonPortfolios = () => {
+        axios.post('/get_lesson_portfolio', {topic_id: topicId.value}).then(response => {
+            if(response.data){
+                content.value = response.data.basic_knowledge ? response.data.basic_knowledge : ''
+                portfolioId.value = response.data.id
+                temp_content.value = response.data.content ? response.data.content : ''
+                understand.value = response.data.understand ? response.data.understand : ''
+                lesson_n_feedBack.value = response.data.negative_feedback ? response.data.negative_feedback : ''
+                lesson_p_feedBack.value = response.data.positive_feedback ? response.data.positive_feedback : ''
+                title_data.value = response.data.portfolio_title ? response.data.portfolio_title : ''
+            }
+        })
+    }
+    provide('getLessonPortfolios', getLessonPortfolios)
+
+</script>

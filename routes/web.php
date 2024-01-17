@@ -31,6 +31,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\LessonController;
+use App\Models\User;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -416,5 +417,9 @@ Route::group(["middleware"=>"auth"],function(){
         Route::get('/get_portfolios_list', [LessonController::class, 'get_portfolios_list']);
 
         Route::post('/upload_lesson_file', [LessonController::class, 'upload_lesson_file']);
+        Route::get('/get_support_account', function () {
+            $support = User::where('name', '研修サポート')->first();
+            return empty($support) ? 0 : $support->id;
+        });
         // Lessons
 });

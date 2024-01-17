@@ -4,7 +4,13 @@
         <div class="post-separetor" style="margin-bottom: 0;"></div> -->
         <div>
             <p><strong>ディスカッション用のポートフォリオを作成してください。</strong></p>
-            <p style="font-size: 13px;color: gray;">ポートフォリオとは<br>ポートフォリオは、個人やプロフェッショナルが自身のスキル、経験、および達成をまとめ、共有するための重要なツールです。<br>これは、仕事や学術的な成果、プロジェクト参加経験などを包括的に紹介し、他者に対して自己プレゼンテーションを行うための手段となります。</p>
+            <p style="font-size: 13px;color: gray;">
+                <strong>ポートフォリオとは</strong><br>
+                ポートフォリオは、自分の学んだことや経験をまとめた記録です。<br>
+                これには、研修で学んだ内容、過去に取り組んだプロジェクトやその成果、自分の強みや特性、自分の意見や考え方などを含めます。<br>
+                ポートフォリオを作ることで、自分がどう成長したか、どのように考えているかを他の人に示すことができます。<br>
+                また、フィードバックを受け入れて改善することで、さらに自分自身を深く理解し、発展させることができます。
+            </p>
         </div>
         <div class="si-box" style="margin:0">
             <FormLongText
@@ -25,15 +31,15 @@
                 <LoaderButton @triggered="tempSavePort('save')" :loading="processing_save" :content="'保存する'"/>
             </div> 
             <div>
-                <LoaderButton @triggered="nextStage" :loading="processing" :content="'次へ'"/>
+                <LoaderButton @triggered="nextStage" :loading="processing" :content="'基礎知識完了'"/>
             </div>
         </div>
     </div>
 </template>
 <script setup>
     import { useRouter } from 'vue-router';
-    import FormLongText from '../Global/FormLongText.vue';
-    import LoaderButton from '../Global/LoaderButton.vue';
+    import FormLongText from '../../Global/FormLongText.vue';
+    import LoaderButton from '../../Global/LoaderButton.vue';
     import { ref, inject } from 'vue'
     const props = defineProps(['comment', 'temp_content', 'portfolioId', 'selectedTopic'])
     const content = ref(props.temp_content || '')
@@ -60,7 +66,7 @@
                 lesson()
                 
                 if(status == 'next'){
-                    router.push({name: 'discussion'})
+                    router.push({name: 'top'})
                     processing.value = false
                 }else{
                     const data = {

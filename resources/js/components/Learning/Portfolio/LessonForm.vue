@@ -1,5 +1,5 @@
 <template>
-    <div style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">
+    <div v-if="selectedTopic && selectedTopic.active == 1" style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">
         <QuestionRadio
             questionId="question1"
             :question=faq1
@@ -34,11 +34,11 @@
 </template>
 <script setup>
     import { useRouter } from 'vue-router';
-    import LoaderButton from '../Global/LoaderButton.vue';
+    import LoaderButton from '../../Global/LoaderButton.vue';
     import QuestionRadio from './QuestionRadio.vue';
-    import { ref, inject } from 'vue';
+    import { ref, inject, onBeforeMount } from 'vue';
     const router = useRouter()
-    const props = defineProps(['topicId', 'portfolioId'])
+    const props = defineProps(['topicId', 'portfolioId', 'selectedTopic', 'available'])
     const question1 = ref(null)
     const question2 = ref(null)
     const question3 = ref(null)
@@ -49,9 +49,14 @@
     const faq1 = ref('今回の研修内容は、今後の業務や活動にどれくらい反映できると感じますか？')
     const faq2 = ref('今回の研修の目的を正しく理解し、能動的に参加することができていましたか？')
     const faq3 = ref('今回の研修を受けたことで、意識や態度、能力の向上に繋がったと感じますか？')
-    const theme = inject('getThemes')
     const errorMessage = ref('')
-
+    onBeforeMount(() => {
+        setTimeout(() => {
+            if(props.available){
+                backToast()
+            }
+        }, 500)
+    })
     const saveForm = () => {
         if(question1.value != null && question2.value != null && question3.value != null){
             processing.value = true
@@ -91,4 +96,23 @@
             processing.value = false
             
         }
+    const backToast = () => {
+        const uniqueChannell = Math.random().toString(36).substring(5);
+
+        emitter.emit('setToast', {
+            active: true,  
+            type: 'info', 
+            content: 'グループディスカッションを完了してください。',
+            closeButton: false, 
+            autoClose: false,
+            touchClose: false,
+            answers: ['戻る'],
+            channel: uniqueChannell
+        })  
+        emitter.on(uniqueChannell, (data) => {                            
+            if(data.answer === '戻る'){
+                router.go(-1)
+            }
+        })
+    }
 </script>
