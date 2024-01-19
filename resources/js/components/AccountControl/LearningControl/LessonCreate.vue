@@ -87,7 +87,8 @@ import { computed, ref } from 'vue';
     const createSend = async() => {
             const richContent = richEdit.value.editor.getHTML()
             const richContentDetailed = richEditDetailed.value.editor.getHTML()
-            if(!richContent || !richContentDetailed || !title.value || !selectedPriority.value){
+            if(!richContent || !richContentDetailed || !title.value || selectedPriority.value == null){
+                console.log(selectedPriority.value, title.value )
                 processing.value = false
                 return
             }
