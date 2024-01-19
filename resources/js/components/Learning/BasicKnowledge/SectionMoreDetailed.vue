@@ -3,7 +3,6 @@
         <div v-if="$route.name == 'more'" style="background: inherit;">
             <div class="lessons-topic">
                 <div>
-                    <span style="font-size: 24px;background-color: #000;color: white;font-weight: 600;padding: 0 20px;">{{ material ? material.title : '' }}</span>
                     <div v-if="material" v-html="material.content_detailed"></div>
                 </div>
             </div>
