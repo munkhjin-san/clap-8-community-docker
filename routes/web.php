@@ -63,6 +63,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/genertate_my_groups', [CalendarController::class, 'genertate_my_groups']);
 // Route::get('/update_last_act', [AutoJobController::class, 'update_last_act']);
 // Route::get('/sync_first_month_calendar_shift', [AutoJobController::class, 'sync_first_month_calendar_shift']);
+Route::get('/create_thumbnails', [AutoJobController::class, 'createThumbnails']);
 // temp_routes
 Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
@@ -76,7 +77,7 @@ Auth::routes();
 Route::get('/storage/app/private/{folder}/{folder_id}/{path}', [FileController::class, 'getFile']);
 Route::get('/shared_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentController::class, 'docTransfer']);
 Route::get('/managed_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentController::class, 'docTransfer']);
-Route::get('/{sub_folder}/{path}/{keyword}/{user_id}', [ContentController::class, 'cdnExtractDocsPost']);
+Route::get('/{sub_folder}/{path}/{keyword}/{user_id}', [ContentController::class, 'cdnExtractDocsPost'])->where('sub_folder', '!=', '(learning)');;
 Route::get('/firstload', [NotificationController::class, "index"]);
 Route::get('/firebase_test', [BoardController::class, "firebase_test"]);
 // Route::view('/auth', 'auth.login')->name('auth')->middleware('guest');
@@ -405,7 +406,7 @@ Route::group(["middleware"=>"auth"],function(){
         // Lessons
         Route::get('/get_lessons', [LessonController::class, 'get_lessons']);
         Route::get('/get_learning_themes', [LessonController::class, 'get_learning_themes']);
-        Route::get('/get_themes_portfolio', [LessonController::class, 'get_themes_portfolio']);
+        Route::get('/get_lesson_themes', [LessonController::class, 'get_lesson_themes']);
         Route::post('/lesson_add_record', [LessonController::class, 'lesson_add_record']);
         Route::delete('/lesson_remove_record', [LessonController::class, 'lesson_remove_record']);
         Route::post('/save_lesson_portfolio', [LessonController::class, 'save_lesson_portfolio']);
@@ -421,5 +422,8 @@ Route::group(["middleware"=>"auth"],function(){
             $support = User::where('name', '研修サポート')->first();
             return empty($support) ? 0 : $support->id;
         });
+
+
+        Route::post('/section_update', [LessonController::class, 'section_update']);
         // Lessons
 });

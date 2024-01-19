@@ -1,44 +1,49 @@
 <template>
-    <div v-if="selectedTopic && selectedTopic.active == 1" style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">
-        <QuestionRadio
-            questionId="question1"
-            :question=faq1
-            :answers=answers1
-            :errorMessage="errorMessage"
-            :key="errorMessage"
-            v-model="question1"
-            @setValue = "val => question1 = val"
-        />
-        <QuestionRadio
-            questionId="question2"
-            :question=faq2
-            :answers=answers2
-            :errorMessage="errorMessage"
-            :key="errorMessage"
-            v-model="question2"
-            @setValue = "val => question2 = val"
-        />
-        <QuestionRadio
-            questionId="question3"
-            :question=faq3
-            :key="errorMessage"
-            :errorMessage="errorMessage"
-            :answers=answers3
-            v-model="question3"
-            @setValue = "val => question3 = val"
-        />
-      <div>
-        <LoaderButton @triggered="saveForm" :loading="processing" :content="'研修完了'"/>
-      </div>
+    <div class="section-wrapper" style="height: calc(100% - 50px);">
+        <div class="section-inner" v-if="selectedTopic && selectedTopic.active == 1">          
+            <QuestionRadio
+                questionId="question1"
+                :question=faq1
+                :answers=answers1
+                :errorMessage="errorMessage"
+                :key="errorMessage"
+                v-model="question1"
+                @setValue = "val => question1 = val"
+            />
+            <div style="height: 20px;"></div>
+            <QuestionRadio
+                questionId="question2"
+                :question=faq2
+                :answers=answers2
+                :errorMessage="errorMessage"
+                :key="errorMessage"
+                v-model="question2"
+                @setValue = "val => question2 = val"
+            />
+            <div style="height: 20px;"></div>
+            <QuestionRadio
+                questionId="question3"
+                :question=faq3
+                :key="errorMessage"
+                :errorMessage="errorMessage"
+                :answers=answers3
+                v-model="question3"
+                @setValue = "val => question3 = val"
+            />
+            <div>
+                <LoaderButton @triggered="saveConfirm" :loading="processing" :content="'研修完了'"/>
+            </div>
+        </div>
     </div>
 </template>
 <script setup>
-    import { useRouter } from 'vue-router';
+    import { useRoute, useRouter } from 'vue-router';
     import LoaderButton from '../../Global/LoaderButton.vue';
     import QuestionRadio from './QuestionRadio.vue';
     import { ref, inject, onBeforeMount } from 'vue';
     const router = useRouter()
-    const props = defineProps(['topicId', 'portfolioId', 'selectedTopic', 'available'])
+    const route = useRoute()
+    const props = defineProps(['selectedTopic', 'available'])
     const question1 = ref(null)
     const question2 = ref(null)
     const question3 = ref(null)
@@ -50,14 +55,39 @@
     const faq2 = ref('今回の研修の目的を正しく理解し、能動的に参加することができていましたか？')
     const faq3 = ref('今回の研修を受けたことで、意識や態度、能力の向上に繋がったと感じますか？')
     const errorMessage = ref('')
+    const portfolio = inject('portfolio')
     onBeforeMount(() => {
         setTimeout(() => {
-            if(props.available){
+            if(portfolio && portfolio.status < 2){
                 backToast()
             }
         }, 500)
     })
-    const saveForm = () => {
+    const saveConfirm = () => {
+        const uniqueChannell = Math.random().toString(36).substring(5);
+        const answers = ['OK', 'キャンセル']
+        emitter.emit('setToast', {
+            active: true,  
+            type: 'info', 
+            content: 'ポートフォリオを完了にしますか。\n※完了後に、編集するができません。',
+            closeButton: false, 
+            autoClose: false,
+            touchClose: false,
+            answers: answers,
+            channel: uniqueChannell
+        })  
+        emitter.on(uniqueChannell, async (data) => {                            
+            if(data.answer === answers[0]){
+                await saveForm()
+                setTimeout(() => {                    
+                    processing.value = false
+                    router.push({name: 'finish'})
+                }, 1000);
+                // router.go(-1)
+            }
+        })  
+    }
+    const saveForm = async() => {
         if(question1.value != null && question2.value != null && question3.value != null){
             processing.value = true
             const params = {
@@ -67,18 +97,19 @@
                 answer1: answers1.value[question1.value],
                 answer2: answers2.value[question2.value],
                 answer3: answers3.value[question3.value],
-                topic_id: props.topicId,
-                portfolio_id: props.portfolioId,
+                lesson_theme_id: route.params.lessonThemeId,
                 status: 3,
             }
-            axios.post('/save_lesson_form', params).then(response => {
-                processing.value = false
-                router.push({name: 'finish'})
-            }).catch(function (error) {
+            try{
+                const response = await axios.post('/save_lesson_form', params)
+                return response.status
+            }
+            catch(error){
                 if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
                 else if (error.request) errorToast('エラーが発生しました。')
-                else errorToast('エラーが発生しました。 ' + error.message)                       
-            });
+                else errorToast('エラーが発生しました。 ' + error.message)     
+            }
+            
         }else{
             errorMessage.value = '必須です'
         }

@@ -23,12 +23,13 @@
 <script setup>
     import { useRouter } from 'vue-router';
     import LoaderButton from '../../Global/LoaderButton.vue';
-    const props = defineProps(['selectedTopic', 'available'])
-    import { onBeforeMount } from 'vue';
+    const props = defineProps(['selectedTopic'])
+    import { inject, onBeforeMount } from 'vue';
     const router = useRouter()
+    const portfolio = inject('portfolio')
     onBeforeMount(() => {
         setTimeout(() => {
-            if(props.available){
+            if(portfolio && portfolio.status < 2){
                 backToast()
             }
         }, 500)

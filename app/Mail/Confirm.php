@@ -37,7 +37,7 @@ class Confirm extends Mailable
     public function build()
     {   
       
-        return $this->text('emails.board.' . $this->type)
+        return $this->view('emails.board.' . $this->type)
         ->subject($this->subject)
         ->with([
             'content' => $this->content,

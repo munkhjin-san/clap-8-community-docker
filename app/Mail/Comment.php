@@ -36,7 +36,7 @@ class Comment extends Mailable
     public function build()
     {   
       
-        return $this->text('emails.post.comment')
+        return $this->view('emails.post.comment')
         ->subject($this->subject)
         ->with([
             'content' => $this->content,

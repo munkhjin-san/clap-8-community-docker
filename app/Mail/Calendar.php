@@ -32,7 +32,7 @@ class Calendar extends Mailable
     public function build()
     {   
       
-        return $this->text('emails.calendar.created')
+        return $this->view('emails.calendar.created')
         ->subject('【カレンダー】' . $this->subject)
         ->with([
             'details' => $this->details,

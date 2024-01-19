@@ -9,7 +9,7 @@ class LessonForm extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'topic_id',
+        'lesson_theme_id',
         'user_id',
         'question1',
         'answer1',

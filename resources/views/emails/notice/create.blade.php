@@ -1,5 +1,5 @@
-お知らせが送られました。
+お知らせが送られました。<br><br>
 
-以下のURLにて内容をご確認ください。
+以下のURLにて内容をご確認ください。<br><br>
 
-{{url('notice/' . $notice_id)}}
+<a href="{{url('notice/' . $notice_id)}}">{{url('notice/' . $notice_id)}}</a>

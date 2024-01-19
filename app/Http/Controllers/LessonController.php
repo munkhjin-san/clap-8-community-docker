@@ -8,6 +8,7 @@ use App\Models\LessonPortfolio;
 use App\Models\LessonTheme;
 use App\Models\User;
 use App\Models\LessonForm;
+use App\Models\LessonSection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Facades\Image;
@@ -16,7 +17,7 @@ class LessonController extends Controller
 {
     public function get_lessons(Request $request){
         
-        $lessons = LessonMaterial::where('topic_id', $request->topic_id)->get();
+        $lessons = LessonMaterial::where('lesson_theme_id', $request->lesson_theme_id)->get();
 
      
         return response()->json($lessons);
@@ -31,7 +32,7 @@ class LessonController extends Controller
         $themes = LessonTheme::get();
         return response()->json($themes);
     }
-    public function get_themes_portfolio(){
+    public function get_lesson_themes(){
         $themes_portfolio = LessonTheme::with(['lesson_portfolio' => function ($q){
             $q->where('user_id', Auth::id());
         }])->get();
@@ -67,8 +68,9 @@ class LessonController extends Controller
                 "content_detailed" => $request->content_detailed,
                 "title" => $request->title,
                 "has_feedback" => $request->has_feedback,
-                "topic_id" => $request->topic_id,
-                "updated_by" => Auth::id()
+                "lesson_theme_id" => $request->lesson_theme_id,
+                "updated_by" => Auth::id(),
+                "priority" => $request->priority
             ]);
         }
         else{
@@ -77,69 +79,91 @@ class LessonController extends Controller
                 "content_detailed" => $request->content_detailed,
                 "title" => $request->title,
                 "has_feedback" => $request->has_feedback,
-                "topic_id" => $request->topic_id,
+                "lesson_theme_id" => $request->lesson_theme_id,
                 "updated_by" => Auth::id(),
-                "user_id" => Auth::id()
+                "user_id" => Auth::id(),
+                "priority" => $request->priority
 
             ]);
         }
         return response()->json($lesson);
     }
+    public function check_portfolio($theme_id, $user_id){
+        $lessonPortfolio = LessonPortfolio::where('lesson_theme_id', $theme_id)->where('user_id', $user_id)->first();
+        if(empty($lessonPortfolio)){
+            $newLessonPortfolio = LessonPortfolio::create([
+                "lesson_theme_id" => $theme_id,
+                "user_id" => Auth::id(),
+            ]);
+            return $newLessonPortfolio;
+        }
+        return $lessonPortfolio;
+    }
+    public function section_update(Request $request){
 
+        $validatedData = $request->validate([
+            'material_id' => 'required',
+        ]);
+        $portfolio = $this->check_portfolio($request->lesson_theme_id, Auth::id());
+        
+        $lessonSection = LessonSection::where('material_id', (int) $request->material_id)->where('user_id', Auth::id())->first();
+        if(empty($lessonSection)){
+            $lessonSection = new LessonSection; 
+            $lessonSection->save();    
+        }
+        $update = $lessonSection->update([
+            "material_id" => (int) $request->material_id,
+            "portfolio_id" => $portfolio->id,
+            "user_id" => Auth::id(),
+            "status" => $request->section_status,
+            "content" => $request->content,
+        ]);         
+        return response()->json();
+    }
 
     public function save_lesson_portfolio(Request $request){
-        if($request->portfolio_id){
-            $lessonPortfolio = LessonPortfolio::findOrFail($request->portfolio_id);
+      
+            // $lessonPortfolio = LessonPortfolio::findOrFail($request->portfolio_id);
+        $validatedData = $request->validate([
+            'theme_id' => 'required',
+        ]);
+        $lessonPortfolio = $this->check_portfolio($request->theme_id, Auth::id());
 
-            $lessonPortfolio->update([
-                "content" => $request->content ?? $lessonPortfolio->content,
-                "basic_knowledge" => $request->basic_knowledge ?? $lessonPortfolio->basic_knowledge,
-                "positive_feedback" => $request->p_feedback ?? $lessonPortfolio->positive_feedback,
-                "negative_feedback" => $request->n_feedback ?? $lessonPortfolio->negative_feedback, 
-                "status" => $request->status ?? $lessonPortfolio->status,
-                "understand" => $request->understand ?? $lessonPortfolio->understand,
-                "not_understand_content" => $request->not_understand_content ?? $lessonPortfolio->not_understand_content,
-                "portfolio_title" => $request->portfolio_title ?? $lessonPortfolio->portfolio_title
-            ]);
-
-
-        }else{
-            $lessonPortfolio = LessonPortfolio::create([
-                "basic_knowledge" => $request->basic_knowledge,
-                "topic_id" => $request->topic_id,
-                "title" => $request->title,
-                "not_understand_content" => $request->not_understand_content,
-                "user_id" => Auth::id(),
-                "status" => $request->status,
-                "understand" => $request->understand
-            ]);
+        $lessonPortfolio->update([
+            "content" => $request->content ?? $lessonPortfolio->content,
+            "positive_feedback" => $request->p_feedback ?? $lessonPortfolio->positive_feedback,
+            "negative_feedback" => $request->n_feedback ?? $lessonPortfolio->negative_feedback, 
+            "status" => $request->status ?? $lessonPortfolio->status,
+            "understand" => $request->understand ?? $lessonPortfolio->understand,
+            "portfolio_title" => $request->portfolio_title ?? $lessonPortfolio->portfolio_title
+        ]);
             
-        }
+      
+        
         return response()->json($lessonPortfolio);
     }
 
     public function get_lesson_portfolio(Request $request){
-        $lesson_portfolio = LessonPortfolio::where('topic_id', $request->topic_id)->where('user_id', Auth::id())->first();
-
+        $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $request->lesson_theme_id)
+        ->where('user_id', Auth::id())
+        ->with('lesson_sections')
+        ->first();
         return response()->json($lesson_portfolio);
     }
     public function get_portfolios_list(Request $request){
-        $lesson_portfolio = LessonPortfolio::where('topic_id', $request->theme_id)->with('user')->get();
+        $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $request->theme_id)->with('user')->get();
 
         return response()->json($lesson_portfolio);
     }
     public function save_lesson_form(Request $request){
-        try {
-            $lesson_portfolio = LessonPortfolio::findOrFail($request->portfolio_id)->update([
-                "status" => $request->status,
-            ]);
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['error' => 'レッスンポートフォリオが見つかりません'], 404);
-        }
+        $portfolio = $this->check_portfolio($request->lesson_theme_id, Auth::id());
+        $portfolio->update([
+            "status" => $request->status
+        ]);
         
         $lesson_form = LessonForm::create([
             "user_id" => Auth::id(),
-            "topic_id" => $request->topic_id,
+            "lesson_theme_id" => $request->lesson_theme_id,
             "question1" => $request->question1,
             "answer1" => $request->answer1,
             "question2" => $request->question2,

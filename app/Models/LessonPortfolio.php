@@ -13,9 +13,16 @@ class LessonPortfolio extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id')->select('id', 'name', 'icon_id');
     }
-    
+    public function lesson_sections()
+    {
+        return $this->hasMany(LessonSection::class, 'portfolio_id', 'id')->with('lesson_material');
+    }
+    public function lesson_theme()
+    {
+        return $this->hasOne(LessonTheme::class, 'id', 'lesson_theme_id')->select('id', 'title');
+    }
     protected $fillable = [
-        'topic_id',
+        'lesson_theme_id',
         'user_id',
         'content',
         'title',

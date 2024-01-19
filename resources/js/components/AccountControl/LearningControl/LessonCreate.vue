@@ -30,7 +30,14 @@
                 <div style="font-size: 14px;margin-bottom: 15px;">基礎知識の内容（理解できなかった際）</div>
                 <RichEditor ref="richEditDetailed" :initilaValue="initialValueDetailed"/>
             </div>
-            
+            <div class="si-box" style="height: 70%;">
+                <div>
+                    <div v-for="priority in priorities" style="display: flex;align-items: center;padding: 5px 0;">
+                        <input class="fish-eye" v-model="selectedPriority" type="radio" :id="priority.value" name="answer" :value="priority.value" >
+                        <label style="margin-left:10px;cursor:pointer" :for="priority.value">{{priority.content}}</label>
+                    </div>
+                </div>
+            </div>
             <!-- <div class="si-box" style="position:relative;">
                 <div>
                     <p :class="['form-title-small', {'form-title-active' : hasFeedBack}]">「理解」依頼</p>
@@ -58,14 +65,19 @@ import FormShortText from '../../Global/FormShortText.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
 import RichEditor from '../../Global/RichEditor.vue';
 import { computed, ref } from 'vue';
-   
-    const props = defineProps(['editTarget', 'topicId'])
+    const priorities = [
+        {value: 0, content: 'ヘッダー'},
+        {value: 1, content: 'セクション'},
+    ]
+    
+    const props = defineProps(['editTarget', 'lessonThemeId'])
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
     const hasFeedBack =  ref(props.editTarget && props.editTarget.has_feedback ? props.editTarget.has_feedback : false)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : false)
     const richEdit = ref(null)
     const richEditDetailed = ref(null)
+    const selectedPriority = ref(props.editTarget ? props.editTarget.priority : null)
     const initialValue = computed(() => {
         return props.editTarget && props.editTarget.content ? props.editTarget.content : ''
     })
@@ -75,7 +87,7 @@ import { computed, ref } from 'vue';
     const createSend = async() => {
             const richContent = richEdit.value.editor.getHTML()
             const richContentDetailed = richEditDetailed.value.editor.getHTML()
-            if(!richContent || !richContentDetailed || !title.value){
+            if(!richContent || !richContentDetailed || !title.value || !selectedPriority.value){
                 processing.value = false
                 return
             }
@@ -83,11 +95,12 @@ import { computed, ref } from 'vue';
                 
                 const params = {
                     edit_id: props.editTarget ? props.editTarget.id : null,
-                    topic_id: props.topicId,
+                    lesson_theme_id: props.lessonThemeId,
                     title: title.value,
                     content: richContent,
                     content_detailed: richContentDetailed,
-                    has_feedback: hasFeedBack.value
+                    has_feedback: hasFeedBack.value,
+                    priority: selectedPriority.value
                 }
         
                 axios.post('/lesson_add_record',params)

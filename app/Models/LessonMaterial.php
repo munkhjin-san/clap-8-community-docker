@@ -9,17 +9,18 @@ class LessonMaterial extends Model
 {
     use HasFactory, SoftDeletes;
 
-    public function portfolio()
+    public function section_status()
     {
-        return $this->hasOne(LessonPortfolio::class, 'topic_id', 'topic_id');
+        return $this->hasOne(LessonSection::class, 'material_id');
     }
     protected $fillable = [
-        'topic_id',
+        'lesson_theme_id',
         'user_id',
         'title',
         'content_detailed',
         'content',
         'has_feedback',
-        'updated_by'
+        'updated_by',
+        'priority'
     ];
 }

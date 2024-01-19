@@ -40,6 +40,7 @@ class PostController extends Controller
         $files = FileRecord::whereIn('id', $list)->get();
         foreach($files as $file){
             Storage::disk('local')->delete($path . '/' . $file->id . '_' . $file->user_id . '_' . $file->path . '.' . $file->extension);
+            // Storage::disk('local')->delete($path . '/' . $file->id . '_' . $file->user_id . '_' . $file->path . '_thumbnail.' . $file->extension);
             $file->update(["deleted_flag" => 1]);
         }
         return $files;
@@ -216,15 +217,19 @@ class PostController extends Controller
             
             $fileRecord->user_id = Auth::id();
             $fileRecord->save();
-            $set_path = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
-
-            
+            $set_path = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $file_extension;
+            // $thumbnail_path = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '_thumbnail.webp';
+            // $height = 130;
             if($file_type == 'image' && $file_extension !== 'svg'){
                 $img = Image::make($file)->orientate();
                     
                 File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
                 $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
-                
+                // $thumbnail = $img->encode('webp')->resize(null, $height, function($constraint) {
+                //     $constraint->aspectRatio();
+                //     $constraint->upsize();
+                // });  
+                // $thumbnail->save(storage_path('app') . $path .'/'. $thumbnail_path, 100);
             }else{
                 Storage::disk('local')->putFileAs(
                     $path, $file, $set_path
@@ -493,12 +498,8 @@ class PostController extends Controller
         $app_name_title = $app_name_list[$request->app_name];
         $from_name = Auth::user()->name . 'さんから、' . $app_name_title .'へコメントが届きました。'; 
         $comment_body = $comment->messages;
-        $content = <<<EOD
-        $from_name
-        
-        コメント内容：
-        $comment_body
-        EOD;
+        $content = $from_name . '<br>コメント内容：<br>' . $comment_body;
+       
         
         $subject ='【' . $app_name_title . 'へコメントが届きました】 ' . $owner->title;     
 

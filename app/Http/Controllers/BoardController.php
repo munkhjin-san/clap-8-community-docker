@@ -767,7 +767,7 @@ class BoardController extends Controller
             $chat = new messageRecord;
         }           
             $chat->record_id = $request->record_id;
-            $chat->user_id = $auth_user_id;
+            $chat->user_id = $request->override_user_id ? $request->override_user_id : $auth_user_id;
             
             if($request->message){
                 $chat->message = $request->message;
@@ -953,12 +953,14 @@ class BoardController extends Controller
                 SendNotification::dispatchAfterResponse($payload);
             }
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
-            $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
+            if(!$request->override_user_id){
+                $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
+            }            
             $rebound = array(
                 "type" => "new_message",
                 "board_members" => $related_members,
                 "board_id" => $request->record_id,
-                "sender" => $auth_user_id,
+                "sender" => $request->override_user_id ? $request->override_user_id : $auth_user_id,
             ); 
             
             

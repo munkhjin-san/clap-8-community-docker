@@ -225,18 +225,42 @@ const routes = [
     {
         path: '/learning',
         name: 'learning',
-        component: () => import('./components/Learning/Learning.vue'),
+        component: () => import('./components/Learning/LearningRoot.vue'),
         children: [
             { 
-                path: ':topicId',
+                path: ':lessonThemeId',
                 name: 'top',
-                component: () => import('./components/Learning/LessonTop.vue'),
+                component: () => import('./components/Learning/LessonContainer.vue'),
                 children: [
                     {
-                        path: 'basicknowledge',
-                        name: 'basicknowledge',
+                        path: 'basic',
+                        name: 'basic',
                         props: true,
-                        component: () => import('./components/Learning/BasicKnowledge/Lesson.vue'),
+                        component: () => import('./components/Learning/BasicKnowledge/BasicContainer.vue'),
+                        children: [
+                            {
+                                path: ':materialId',
+                                name: 'material',
+                                props: true,
+                                component: () => import('./components/Learning/BasicKnowledge/Section.vue'),
+                                children: [
+                                    {
+                                        path: 'more',
+                                        name: 'more',
+                                        props: true,
+                                        component: () => import('./components/Learning/BasicKnowledge/SectionMoreDetailed.vue'),
+                                        beforeEnter: (to, from, next) => {
+                                            axios.get(`/get_support_account`).then(
+                                                response => {
+                                                    to.meta.support_user_id = response.data
+                                                    next();
+                                                })
+                                        }
+                                    },
+                                ]
+                            }
+                            
+                        ]
                     },
                     {
                         path: 'discussion',
@@ -248,7 +272,7 @@ const routes = [
                         path: 'portfoliodraft',
                         name: 'portfoliodraft',
                         props: true,
-                        component: () => import('./components/Learning/BasicKnowledge/LessonPortfolio.vue')
+                        component: () => import('./components/Learning/BasicKnowledge/BasicDraftPortfolio.vue')
                     },
                     {
                         path: 'portfolio',
@@ -256,19 +280,7 @@ const routes = [
                         props: true,
                         component: () => import('./components/Learning/Portfolio/CompletePortfolio.vue')
                     },
-                    {
-                        path: 'more',
-                        name: 'more',
-                        props: true,
-                        component: () => import('./components/Learning/BasicKnowledge/MoreDetailed.vue'),
-                        beforeEnter: (to, from, next) => {
-                            axios.get(`/get_support_account`).then(
-                                response => {
-                                    to.meta.data = response.data
-                                    next();
-                                })
-                        }
-                    },
+                    
                     {
                         path: 'form',
                         name: 'form',
@@ -278,10 +290,10 @@ const routes = [
                         path: 'finish',
                         name: 'finish',
                         component: () => import('./components/Learning/Portfolio/LessonFinish.vue')
-                    }
+                    },
                 ],
                 beforeEnter: (to, from, next) => {
-                    axios.get(`/get_lessons?topic_id=${to.params.topicId}`).then(
+                    axios.get(`/get_lessons?lesson_theme_id=${to.params.lessonThemeId}`).then(
                         response => {
                             to.meta.data = response.data
                             next();

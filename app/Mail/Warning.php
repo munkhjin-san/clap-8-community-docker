@@ -48,7 +48,7 @@ class Warning extends Mailable
         // $subject = "[Glowddd]" . $this->from_name . $subjectArray[$this->language];
         $app_title = "[Glowd]";
         $sub = $app_title . ' ' . $subjectArray[$this->language];
-        return $this->text($path)
+        return $this->view($path)
         ->subject($sub)
         ->with([
             'board_id' => $this->board_id,

@@ -36,7 +36,7 @@ class Mention extends Mailable
     public function build()
     {   
       
-        return $this->text('emails.board.mention')
+        return $this->view('emails.board.mention')
         ->subject('【メンション】' . $this->subject)
         ->with([
             'content' => $this->content,

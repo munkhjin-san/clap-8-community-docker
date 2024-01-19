@@ -4,7 +4,7 @@
             <LessonCreate 
                 v-if="createWindow"
                 :editTarget="editTarget"
-                :topicId="activeLesson"
+                :lessonThemeId="activeLesson"
                 @createFinish="createFinish"           
             />
             
@@ -216,7 +216,7 @@ import axios from 'axios';
     }
     const getLesson = (id) => {
         activeLesson.value = id
-        axios.get(`/get_lessons?topic_id=${id}`).then(response => {
+        axios.get(`/get_lessons?lesson_theme_id=${id}`).then(response => {
             lessons.value = response.data
         })
     }

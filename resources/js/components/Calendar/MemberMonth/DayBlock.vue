@@ -27,7 +27,9 @@ import { useStore } from 'vuex';
 
 
     const dayRecordsAfter = computed(() => {
-        const user_records = props.day.records.filter(ob =>  ob.calendar_users.map(item => item.id).includes(props.user.id))
+        const user_records = props.day.records.filter(ob =>  ob.calendar_users.map(item => item.id).includes(props.user.id)).sort((a, b) => {
+            return new Date(a.date_start) - new Date(b.date_start);
+        }); 
         return user_records
     })
     const dropFinish = inject('dropFinish')

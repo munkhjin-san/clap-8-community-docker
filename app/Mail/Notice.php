@@ -33,7 +33,7 @@ class Notice extends Mailable
     public function build()
     {   
       
-        return $this->text('emails.notice.create')
+        return $this->view('emails.notice.create')
         ->subject('【お知らせ】' . $this->title)
         ->with([
             'notice_id' => $this->notice_id,

@@ -34,7 +34,7 @@ class ReportToAdmin extends Mailable
     {   
         $path = 'emails.report_to_admin';
         $report_subjects = "【Glowd.app】お問い合わせ。";
-        return $this->text($path)
+        return $this->view($path)
         ->subject($report_subjects)
         ->with([
             'id' => $this->id,

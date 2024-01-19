@@ -12,6 +12,6 @@ class LessonTheme extends Model
     protected $fillable = ['title', 'discussion_date', 'active'];
 
     public function lesson_portfolio(){
-        return $this->hasOne(LessonPortfolio::class, 'topic_id')->select('topic_id', 'status', 'understand');
+        return $this->hasOne(LessonPortfolio::class, 'lesson_theme_id')->select('lesson_theme_id', 'status', 'understand');
     }
 }

@@ -1,0 +1,242 @@
+<template>
+    <div style="height: 100%;width: 100%;overflow: hidden">
+        
+
+        
+            <Transition name="modalFade">
+                <Explain @close="moreDetail = false" v-if="moreDetail"/>
+            </Transition>
+            <div style="display: flex;align-items: center;height: 50px;position: sticky;top: 0;background: var(--bg2);z-index: 3;">
+                <div style="height: 50px;width: 50px;min-width:50px;cursor: pointer;display: flex;justify-content: center;align-items: center;fill:var(--primary-color)" @click="goBack()">
+                    <svg version="1.1" width="15" height="15" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
+                    </svg> 
+                </div>
+                <!-- <div>{{ title ? title : '' }}</div>         -->
+                <div class="lesson-nav-bar">
+                    <div class="lesson-breadcumb" v-for="(navi, index) in $route.matched" @click="$router.push(naviItem(navi, index).route)">
+                        {{ naviItem(navi, index).label }}
+                    </div>
+                </div>
+                
+            </div>
+        <div style="height: 100%;">    
+            <div v-if="noData" style="line-height: 1.8;height:calc(100% - 50px);display: flex;justify-content: center;align-items: center;">
+                <p>現在データはありません。</p>
+            </div>
+            <div v-else-if="$route.name == 'top' && selectedTopic && selectedTopic.active == 1" style="height: calc(100% - 50px);overflow: hidden auto;">
+                <div style="padding:20px;
+                    white-space: break-spaces;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: var(--primary-color);
+                    background: var(--background-color);
+                    margin: 0 20px 20px;"
+                >
+                    <p style="font-size: 18px;margin-bottom: 15px;">研修プログラムについて<br></p>
+                    <p>この研修プログラムは、社会活動で求められる9つの職能を学ぶためのものです。<br>まず、CLAPのラーニングアプリを使用して基礎学習を行い、内容を理解します。<br>理解が困難な場合は、補足資料の確認やフォローアップ面談を通じてサポートを受けることができます。<br>次に、基礎学習を理解した参加者は、グループディスカッションのためのポートフォリオを作成します。<br>このディスカッションでは、ポートフォリオを発表し、ポジティブフィードバックとネガティブフィードバックを受けて、ポートフォリオを完成させます。<br>完成したポートフォリオは、各参加者のマイページのプロフィール欄に自動的に掲載されます。<br>基礎学習を完了し、ポートフォリオが完成した参加者は、1つのテーマの履修が完了したとみなされます。</p>
+            
+                    <p style="font-size: 18px;margin: 15px 0;">ポートフォリオとは<br></p>
+                    <p>ポートフォリオは、自分の学んだことや経験をまとめた記録です。<br>これには、研修で学んだ内容、過去に取り組んだプロジェクトやその成果、自分の強みや特性、自分の意見や考え方などを含めます。<br>ポートフォリオを作ることで、自分がどう成長したか、どのように考えているかを他の人に示すことができます。<br>また、フィードバックを受け入れて改善することで、さらに自分自身を深く理解し、発展させることができます。</p>
+                    <a @click="moreDetail = true" style="cursor: pointer;">もっと詳しく知りたい</a>
+                </div>
+                <TransitionGroup name="t-list" class="topic-container" tag="div" style="padding-bottom: 0;">
+        
+                <div v-for="topic in subtopics"
+                    :key=topic.val :class="['topic-item' , {'inactive-theme' : status < topic.val || topic.val == 1 && !discussionDay}]" @click="select(topic)">
+                    <div class="flex gap-10 flex-col">
+                        <div class="flex align-center" style="gap:5px;">
+                            <div v-if="status > topic.val" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
+                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
+                            </div>
+                            <div class="topic-title">{{ topic.title }}</div>
+                        </div>
+                        
+                        <div v-if="topic.val == 0 && sections_status.length" class="flex flex-col gap-10" style="margin-top: 10px;">
+                            <div style="gap:5px;" class="flex align-center" v-for="section in sections_status" :key="section.id">
+                                <div v-if="section.status == 2" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
+                                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
+                                </div>
+                                <div v-else-if="section.status == 1" style="background-color: rgb(255, 165, 0); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
+                                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
+                                </div>
+                                <div style="overflow: hidden;text-overflow: ellipsis;">{{ section.lesson_material.title }}</div>
+                            </div>
+                            <div style="gap:5px;" class="flex align-center">
+                                <div v-if="portfolio && portfolio.status >= 1" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
+                                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
+                                </div>
+                                <div v-else-if="portfolio && portfolio.status == 0" style="background-color: rgb(255, 165, 0); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
+                                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
+                                </div>
+                                <div style="overflow: hidden;text-overflow: ellipsis;">ポートフォリオ作成</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                                    
+                </div>
+                </TransitionGroup>
+            </div>
+            <!-- <router-view 
+                :content="content"
+                :selectedTopic="selectedTopic"
+                :currentStatus="currentStatus"
+                :materials="materials"
+                >
+            </router-view> -->
+            <RouterView
+                :selectedTopic="selectedTopic"
+                :materials="materials"
+                :sections_status="sections_status"
+            />
+        </div>
+    </div>
+</template>
+<script setup>
+    import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+    import { computed, onMounted, ref, inject, provide, onBeforeMount, defineAsyncComponent  } from 'vue';
+    const subtopics = [{val: 0, title:'基礎知識'},{val: 1, title: 'グループディスカッション'},{val: 2, title: 'ポートフォリオ'}]
+    const props = defineProps(['selectedTopic'])
+    const router = useRouter()
+    const route = useRoute()
+    const content = ref("")
+    const theme = inject('getThemes')
+    const materials = ref([])
+    
+
+    const portfolio = ref(null)
+    const Explain = defineAsyncComponent(() =>
+        import('./LessonExplain.vue')
+    )
+    const moreDetail = ref(false)
+    const select = (topic) => {
+        if(topic.val == 0){
+            router.push({name: 'basic'})
+        }else if(topic.val == 1 && topic.val <= status.value && discussionDay.value){
+            router.push({name: 'discussion'})
+        }else if(topic.val == 2 && topic.val <= status.value){
+            router.push({name: 'portfolio'})
+        }
+    }
+    const discussionDay = computed(() => {
+        if(props.selectedTopic && props.selectedTopic.discussion_date){
+            const currentDate = new Date();
+            const discussionDate = new Date(props.selectedTopic.discussion_date)
+            return currentDate >= discussionDate
+        }else{
+            return false
+        }
+    })
+    const noData = computed(() => {
+        return props.selectedTopic && props.selectedTopic.active == 0
+    })
+    const sections_status = computed(() => {
+        return portfolio.value && portfolio.value.lesson_sections ? portfolio.value.lesson_sections : []
+    })
+    onBeforeRouteUpdate((to, from, next) => {
+        theme()
+        next();
+    })
+    onMounted(() => {
+        if(route.meta.data && Object.keys(route.meta.data).length){
+            materials.value = route.meta.data;
+            getLessonPortfolios()
+        }
+    })
+    const naviItem = (item, index) => {
+        if(index == 0){
+            return { label: '', route: {}}
+        }else if(index == 1){
+            return {
+                label: props.selectedTopic ? props.selectedTopic.title : '',
+                route: { name: item.name}
+            }
+        }else if(index == 2){
+            return {
+                label: getTitlePrefix(item.name),
+                route: {name: item.name}
+            }
+        }
+        else if(index == 3){
+            return {
+                label: getSubPrefix.value,
+                route: {name: item.name}
+            }
+        }
+        else if(index == 4){
+            return {
+                label: ' ／ 詳細',
+                route: {name: item.name}
+            }
+        }
+    }
+    const navigations = computed(() => {
+       return route.path.split('/')
+    })
+
+    const title = computed(() => {
+        const prefix = getTitlePrefix(route.name);
+        const topicTitle = props.selectedTopic ? props.selectedTopic.title : '';
+        const subPrefix = getSubPrefix.value
+        return `${topicTitle}${prefix}${subPrefix}`;
+    })
+    const getSubPrefix = computed(() => {
+        const materialId = route.params?.materialId
+        if(materialId && materials.value){
+            const title = materials.value.filter(ob => ob.id == materialId)[0]?.title
+            return title ? ` ／ ${title}` : ''
+        }
+        return ''
+    })
+    const status = computed(() => {
+        if(props.selectedTopic){
+            if(props.selectedTopic.lesson_portfolio && props.selectedTopic.lesson_portfolio.status != null){
+                return props.selectedTopic.lesson_portfolio.status
+            }
+            return 0
+        }
+    })
+    const currentStatus = computed(() => {
+        if(props.selectedTopic){
+            return props.selectedTopic.lesson_portfolio && props.selectedTopic.lesson_portfolio.status != 3 || !props.selectedTopic.lesson_portfolio
+        }else{
+            return false
+        }
+    })
+    const goBack = () => {
+        if(route.name == 'top'){
+            router.push({name : 'learning'})
+        }else if(route.name == 'basic'){
+            router.push({name : 'top'})
+        }else{
+            router.go(-1)
+        }
+    }
+    const getTitlePrefix = (name) => {
+        const titleMappings = {
+            top: '',
+            basic: ' ／ 基礎知識',
+            more: ' ／ 基礎知識',
+            section: ' ／ 基礎知識',
+            portfoliodraft: ' ／ ポートフォリオ作成',
+            discussion: ' ／ グループディスカッション',
+            portfolio: ' ／ ポートフォリオ',
+            form: ' ／ アンケート',
+            finish: '',
+        };
+
+        return titleMappings[name] || '';
+    }
+    const getLessonPortfolios = async() => {
+        axios.post('/get_lesson_portfolio', {lesson_theme_id: route.params.lessonThemeId}).then(response => {
+            if(response.data){
+                portfolio.value = response.data
+                // temp_content.value = response.data.content ? response.data.content : ''
+            }
+        })
+    }
+    provide('getLessonPortfolios', getLessonPortfolios)
+    provide('portfolio', portfolio)
+
+</script>

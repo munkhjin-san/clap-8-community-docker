@@ -41,7 +41,7 @@ class ReportFeedBack extends Mailable
 
         $app_title = "[Glowd]";
         $sub = $app_title . ' ' . $report_subjects[$this->language];
-        return $this->text($path)
+        return $this->view($path)
         ->subject($sub)
         ->with([
             'id' => $this->id,
