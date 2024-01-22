@@ -4,7 +4,7 @@
             <div class="swiper" style="border:none;">
                 <div class="swiper-wrapper">
                     <div class="swiper-slide" v-for="(image, index) in images" :key="index">
-                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="$store.state.baseLocation + '/post_files/' + image.id + '_' + image.user_id + '_' + image.path + '.' + image.extension" style="width: auto;max-width: 100%;max-height: 130px;">
+                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="$store.state.baseLocation + '/post_files/thumbnail/' + image.id + '_' + image.user_id + '_' + image.path + '_thumbnail.webp'" style="width: auto;max-width: 100%;max-height: 130px;">
                     </div>  
                 </div>                                                          
             </div>        
