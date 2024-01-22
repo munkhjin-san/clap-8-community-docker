@@ -63,7 +63,7 @@ class AutoJobController extends Controller
     public function board_files_thumbnail(){
         $files = Storage::allFiles('/shared_files');
         $imageFiles = array_filter($files, function ($file) {
-            return in_array(pathinfo($file, PATHINFO_EXTENSION), ['jpg', 'jpeg', 'png', 'gif']);
+            return in_array(pathinfo($file, PATHINFO_EXTENSION), ['JPG', 'JPEG', 'PNG', 'GIF', 'jpg', 'jpeg', 'png', 'gif']);
         });
 
         foreach($imageFiles as $file){
@@ -98,7 +98,7 @@ class AutoJobController extends Controller
     public function createThumbnails(){
         $files = Storage::allFiles('/post_files');
         $imageFiles = array_filter($files, function ($file) {
-            return in_array(pathinfo($file, PATHINFO_EXTENSION), ['JPG', 'JPEG', 'PNG', 'GIF']);
+            return in_array(pathinfo($file, PATHINFO_EXTENSION), ['JPG', 'JPEG', 'PNG', 'GIF', 'jpg', 'jpeg', 'png', 'gif']);
         });
         foreach($imageFiles as $file) {
             GeneratePostThumbnail::dispatch($file)->onQueue('postThumbnail');

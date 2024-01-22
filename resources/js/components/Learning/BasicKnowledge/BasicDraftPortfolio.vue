@@ -2,14 +2,23 @@
     <div class="section-wrapper" style="height: calc(100% - 50px);">
         <div class="section-inner">    
             <div>
-                <p><strong>ディスカッション用のポートフォリオを作成してください。</strong></p>
-                <div style="font-size: 13px;margin-top: 15px;">
+                <div>
                     <div v-if="selectedTopic && selectedTopic.guidance" v-html="selectedTopic?.guidance"></div>
+                </div>
+                
+                <div style="margin-top: 30px;" class="section-contents" >
+                    <p style="margin-bottom: 10px;"><strong>重要だと理解した部分</strong></p>
+                    <div v-for="section in portfolio?.lesson_sections">
+                        <p>{{ section?.lesson_material?.title }}</p>
+                        <p>{{ section?.content }}</p>
+                    </div>
+                    
                 </div>
             </div>
             <div class="si-box">
+                <p v-if="portfolio?.status < 1" :style="{marginBottom: portfolio?.status < 1 ? '20px' : '0'}"><strong>ディスカッション用のポートフォリオを作成してください。</strong></p>
                 <FormShortText
-                    v-if="portfolio && portfolio.status < 1"
+                    v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.portfolio_title : portfolio_title"
                     ref="portfolioTitle"
                     placeHolder="ポートフォリオタイトル"
@@ -19,11 +28,11 @@
                     label="タイトル"
                     @setValue="val => portfolio_title = val"
                 />
-                <p v-else>{{ portfolio?.portfolio_title }}</p>
+                <p v-else><strong>ポートフォリオタイトル<br></strong>{{ portfolio?.portfolio_title }}</p>
             </div>
             <div class="si-box">
                 <FormLongText
-                    v-if="portfolio && portfolio.status < 1"
+                    v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.content : content"   
                     :placeHolder="`ポートフォリオ内容`"
                     :key="portfolio ? portfolio.content : 0"
@@ -34,7 +43,7 @@
                     label="タイトル"
                     @setValue="val => content = val"
                 />
-                <p v-else>{{ portfolio?.content }}</p>
+                <p v-else><strong>ポートフォリオ内容<br></strong>{{ portfolio?.content }}</p>
             </div>
             
             <div v-if="portfolio && portfolio.status < 1" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
