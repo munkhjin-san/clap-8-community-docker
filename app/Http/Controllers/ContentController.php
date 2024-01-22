@@ -285,6 +285,24 @@ class ContentController extends Controller
         
 
     }
+    public function postThumbnailTransfer(Request $request){     
+        
+
+        try {           
+            
+
+            $filePath = $request->path;
+            $fileContents = Storage::disk('local')->get('post_files/thumbnail/' . $filePath);
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $contentType = finfo_buffer($finfo, $fileContents);
+            finfo_close($finfo);
+            return response($fileContents)->header('Content-Type', $contentType);
+        } catch (FileNotFoundException $exception) {
+            abort(404);
+        }      
+        
+
+    }
     public function calendarFileTransfer(Request $request){     
         
 

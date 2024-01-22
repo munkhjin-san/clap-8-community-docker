@@ -3,13 +3,23 @@
         <div class="section-inner">    
             <div>
                 <p><strong>ディスカッション用のポートフォリオを作成してください。</strong></p>
-                <p style="font-size: 13px;color: gray;">
-                    <strong>ポートフォリオとは</strong><br>
-                    ポートフォリオは、自分の学んだことや経験をまとめた記録です。<br>
-                    これには、研修で学んだ内容、過去に取り組んだプロジェクトやその成果、自分の強みや特性、自分の意見や考え方などを含めます。<br>
-                    ポートフォリオを作ることで、自分がどう成長したか、どのように考えているかを他の人に示すことができます。<br>
-                    また、フィードバックを受け入れて改善することで、さらに自分自身を深く理解し、発展させることができます。
-                </p>
+                <div style="font-size: 13px;margin-top: 15px;">
+                    <div v-if="selectedTopic && selectedTopic.guidance" v-html="selectedTopic?.guidance"></div>
+                </div>
+            </div>
+            <div class="si-box">
+                <FormShortText
+                    v-if="portfolio && portfolio.status < 1"
+                    :initialValue="portfolio ? portfolio.portfolio_title : portfolio_title"
+                    ref="portfolioTitle"
+                    placeHolder="ポートフォリオタイトル"
+                    uId="portfolioTitle"
+                    name="portfolioTitle"
+                    rules="required"
+                    label="タイトル"
+                    @setValue="val => portfolio_title = val"
+                />
+                <p v-else>{{ portfolio?.portfolio_title }}</p>
             </div>
             <div class="si-box">
                 <FormLongText
@@ -24,7 +34,7 @@
                     label="タイトル"
                     @setValue="val => content = val"
                 />
-                <p v-else>{{ portfolio ? portfolio.content : "" }}</p>
+                <p v-else>{{ portfolio?.content }}</p>
             </div>
             
             <div v-if="portfolio && portfolio.status < 1" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
@@ -43,6 +53,7 @@
     import { useRoute, useRouter } from 'vue-router';
     import FormLongText from '../../Global/FormLongText.vue';
     import LoaderButton from '../../Global/LoaderButton.vue';
+    import FormShortText from '../../Global/FormShortText.vue';
     import { ref, inject } from 'vue'
     const props = defineProps(['selectedTopic'])
     const content = ref('')
@@ -53,6 +64,7 @@
     const route = useRoute()
     const lesson = inject('getLessonPortfolios')
     const portfolio = inject('portfolio')
+    const portfolio_title = ref('')
     const tempSavePort = async(status) => {
         const result = await portfolioBody.value.$refs.recordBody.validate()
         if(result.valid){
@@ -66,7 +78,8 @@
             const params = {
                 content: content.value ? content.value : portfolio?.content,
                 status: portfolioStatus,
-                theme_id: route.params.lessonThemeId
+                theme_id: route.params.lessonThemeId,
+                portfolio_title: portfolio_title.value ? portfolio_title.value : portfolio?.portfolio_title
             }
             axios.post('/save_lesson_portfolio', params).then(response => {
                 

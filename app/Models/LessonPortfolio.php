@@ -31,7 +31,7 @@ class LessonPortfolio extends Model
         'positive_feedback',
         'negative_feedback',
         'understand',
-        'not_understand_content',
+        'noticed',
         'portfolio_title'
     ];
 

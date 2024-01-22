@@ -17,5 +17,6 @@ class LessonForm extends Model
         'answer2',
         'question3',
         'answer3',
+        'content'
     ];
 }

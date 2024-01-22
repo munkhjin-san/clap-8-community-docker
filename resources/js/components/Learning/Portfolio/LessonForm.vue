@@ -1,6 +1,8 @@
 <template>
     <div class="section-wrapper" style="height: calc(100% - 50px);">
-        <div class="section-inner" v-if="selectedTopic && selectedTopic.active == 1">          
+        <div class="section-inner" v-if="selectedTopic && selectedTopic.active == 1"> 
+            <p style="font-size: 18px;"><strong>研修に関するアンケート</strong></p>
+            <div style="height: 20px;"></div>         
             <QuestionRadio
                 questionId="question1"
                 :question=faq1
@@ -30,7 +32,21 @@
                 v-model="question3"
                 @setValue = "val => question3 = val"
             />
-            <div>
+            <div class="si-box">
+                <p style="margin-bottom: 20px;"><strong>その他ご意見をお聞かせください。</strong></p>
+                <FormLongText 
+                    :initialValue="content"   
+                    :placeHolder="`ご意見`"
+                    ref="portfolioBody"
+                    rules="required"
+                    uId="recordBody"
+                    name="recordBody"
+                    label="タイトル"
+                    @setValue="val => content = val"
+                />
+            </div>
+            
+            <div class="si-box">
                 <LoaderButton @triggered="saveConfirm" :loading="processing" :content="'研修完了'"/>
             </div>
         </div>
@@ -41,6 +57,7 @@
     import LoaderButton from '../../Global/LoaderButton.vue';
     import QuestionRadio from './QuestionRadio.vue';
     import { ref, inject, onBeforeMount } from 'vue';
+    import FormLongText from '../../Global/FormLongText.vue';
     const router = useRouter()
     const route = useRoute()
     const props = defineProps(['selectedTopic', 'available'])
@@ -56,9 +73,10 @@
     const faq3 = ref('今回の研修を受けたことで、意識や態度、能力の向上に繋がったと感じますか？')
     const errorMessage = ref('')
     const portfolio = inject('portfolio')
+    const content = ref('')
     onBeforeMount(() => {
         setTimeout(() => {
-            if(portfolio && portfolio.status < 2){
+            if(portfolio?.status < 2){
                 backToast()
             }
         }, 500)
@@ -99,6 +117,7 @@
                 answer3: answers3.value[question3.value],
                 lesson_theme_id: route.params.lessonThemeId,
                 status: 3,
+                content: content.value ? content.value : ''
             }
             try{
                 const response = await axios.post('/save_lesson_form', params)

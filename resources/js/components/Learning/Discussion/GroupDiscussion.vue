@@ -6,16 +6,13 @@
                 <p><strong>ポートフォリオ</strong></p>
                 <p>{{ portfolio ? portfolio.content : '' }}</p>
             </div>
-            <div>
-                <p><strong>どのようなフィードバックをもらいましたか。</strong></p>
-                
-            </div>
             <div class="si-box">
+                <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>どのようなフィードバックをもらいましたか。</strong></p>
                 <FormLongText
                     v-if="portfolio && portfolio.status == 1"
                     :initialValue="portfolio ? portfolio.positive_feedback : p_feedBack"   
-                    :placeHolder="`ポジティブフィードバックの内容と気付き`"
-                    :key="portfolio.positive_feedback"
+                    :placeHolder="`ポジティブフィードバックの内容`"
+                    :key="portfolio ? portfolio.positive_feedback : 0"
                     ref="p_feedbackBody"
                     uId="recordBody"
                     name="recordBody"
@@ -24,14 +21,14 @@
                 />
                 <div v-else>
                     <p>ポジティブフィードバック</p>
-                    <p>{{ portfolio.positive_feedback }}</p>
+                    <p>{{ portfolio?.positive_feedback }}</p>
                 </div>
             </div>
             <div class="si-box">
                 <FormLongText
                     v-if="portfolio && portfolio.status == 1 "
                     :initialValue="portfolio ? portfolio.negative_feedback : n_feedBack"   
-                    :placeHolder="`ネガティブフィードバックの内容と気付き`"
+                    :placeHolder="`ネガティブフィードバックの内容`"
                     :key="portfolio.negative_feedback"
                     ref="n_feedbackBody"
                     uId="recordBody"
@@ -41,7 +38,24 @@
                 />
                 <div v-else>
                     <p>ネガティブフィードバック</p>
-                    <p>{{ portfolio.negative_feedback }}</p>
+                    <p>{{ portfolio?.negative_feedback }}</p>
+                </div>
+            </div>
+            <div class="si-box">
+                <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>フィードバックによる気づきや学び</strong></p>
+                <FormLongText
+                    v-if="portfolio && portfolio.status == 1 "
+                    :initialValue="portfolio ? portfolio.noticed : noticed"   
+                    :placeHolder="`気付きと学びの内容`"
+                    :key="portfolio.noticed"
+                    ref="noticedBody"
+                    uId="recordBody"
+                    name="recordBody"
+                    label="タイトル"
+                    @setValue="val => noticed = val"
+                />
+                <div v-else>
+                    <p>{{ portfolio?.noticed }}</p>
                 </div>
             </div>
             <div v-if="portfolio && portfolio.status == 1 " style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
@@ -62,7 +76,7 @@
     import axios from 'axios';
     import FormLongText from '../../Global/FormLongText.vue';
     import LoaderButton from '../../Global/LoaderButton.vue';
-    import { ref, inject, computed, onBeforeMount } from 'vue'
+    import { ref, inject, computed, onBeforeMount, onMounted } from 'vue'
     import { useRoute, useRouter } from 'vue-router';
     const props = defineProps([
         'selectedTopic',
@@ -72,6 +86,7 @@
     const n_feedBack = ref(portfolio ? portfolio.negative_feedback : "")
     const p_feedbackBody = ref(null)
     const n_feedbackBody = ref(null)
+    const noticed = ref(portfolio ? portfolio.noticed : "")
     const processing = ref(false)
     const router = useRouter()
     const lesson = inject('getLessonPortfolios')
@@ -95,8 +110,9 @@
         }
         return true
     })
-    onBeforeMount(() => {
+    onMounted(() => {
         setTimeout(() => {
+            console.log(discussionDay.value, group_available.value)
             if(!discussionDay.value || group_available.value){
                 errorToast()
             }
@@ -115,6 +131,7 @@
         const params = {
             p_feedback: p_feedBack.value ? p_feedBack.value : portfolio.positive_feedback,
             n_feedback: n_feedBack.value ? n_feedBack.value : portfolio.negative_feedback,
+            noticed: noticed.value ? noticed.value : portfolio.noticed,
             theme_id: route.params.lessonThemeId,
             status: portfolioStatus,
         }

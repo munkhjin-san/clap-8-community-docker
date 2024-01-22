@@ -21,6 +21,8 @@ use App\Models\AppFileRecord;
 use App\Models\taskUser;
 use App\Models\shiftRecord;
 use App\Models\shiftType;
+use App\Models\FileRecord;
+use App\Models\UserAlbum;
 use App\Mail\Warning;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -35,6 +37,8 @@ use Illuminate\Support\Str;
 use App\Services\SharedService;
 use Faker\Factory as Faker;
 use Illuminate\Support\Facades\DB;
+use App\Jobs\GenerateThumbnailJob;
+use App\Jobs\GeneratePostThumbnail;
 class AutoJobController extends Controller
 
 {
@@ -55,6 +59,74 @@ class AutoJobController extends Controller
         // }
         // echo('ss');
         // return;
+    }
+    public function board_files_thumbnail(){
+        $files = Storage::allFiles('/shared_files');
+        $imageFiles = array_filter($files, function ($file) {
+            return in_array(pathinfo($file, PATHINFO_EXTENSION), ['jpg', 'jpeg', 'png', 'gif']);
+        });
+
+        foreach($imageFiles as $file){
+
+            GenerateThumbnailJob::dispatch($file);
+            // $parentDirectory = dirname($file);
+            // $fileName = pathinfo(basename($file), PATHINFO_FILENAME);
+      
+            //     $height = 130;
+            
+            //         $img = Image::make(storage_path('app/'.$file));
+                    
+            //         $thumbnail = $img->encode('webp')->resize(null, $height, function($constraint) {
+            //             $constraint->aspectRatio();
+            //             $constraint->upsize();
+            //         });  
+            //         if (!Storage::disk('local')->exists($parentDirectory . '/thumbnail')) {
+            //             Storage::disk('local')->makeDirectory($parentDirectory . '/thumbnail');
+            //         }
+            //         $thumbnailPath = storage_path('app/') .  $parentDirectory . '/thumbnail/' .  $fileName  . '_thumbnail.webp';
+            //         $thumbnail->save($thumbnailPath, 100);
+            
+           
+            // echo($fileName);           
+
+            echo('<br>');
+        }
+        // dd($imageFiles);
+        return 'hi';
+
+    }
+    public function createThumbnails(){
+        $files = Storage::allFiles('/post_files');
+        $imageFiles = array_filter($files, function ($file) {
+            return in_array(pathinfo($file, PATHINFO_EXTENSION), ['jpg', 'jpeg', 'png', 'gif']);
+        });
+        foreach($imageFiles as $file) {
+            GeneratePostThumbnail::dispatch($file)->onQueue('postThumbnail');
+            
+        }
+
+
+
+        // foreach ($file_records as $file) {
+        //     $imgPath = storage_path('app/post_files/') . $file->id . '_' . $file->user_id . '_' . $file->path . '.' . $file->extension;
+        //     $height = 130;
+        //     if (file_exists($imgPath)) {
+        //         $img = Image::make($imgPath);
+                
+        //         $thumbnail = $img->encode('webp')->resize(null, $height, function($constraint) {
+        //             $constraint->aspectRatio();
+        //             $constraint->upsize();
+        //         });  
+        
+        //         // Save the thumbnail
+        //         $thumbnailPath = storage_path('app/post_files/') . $file->id . '_' . $file->user_id . '_' . $file->path . '_thumbnail.webp';
+        //         $thumbnail->save($thumbnailPath, 100);
+        //     }
+        // }
+ 
+        
+
+        return 'success';
     }
     public function sync_first_month_calendar_shift(){
        

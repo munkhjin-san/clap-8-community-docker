@@ -2,15 +2,19 @@
     <div class="section-wrapper" style="height: calc(100% - 50px);">
         <div v-if="selectedTopic && selectedTopic.active == 1"  class="section-inner">  
     
-            <div v-if="selectedTopic && selectedTopic.guidance" v-html="selectedTopic?.guidance"></div>
+            <!-- <div v-if="selectedTopic && selectedTopic.guidance" v-html="selectedTopic?.guidance"></div> -->
             
             <div v-if="portfolio && portfolio.positive_feedback">
                 <p><strong>ポジティブフィードバック</strong></p>
                 <p>{{ portfolio.positive_feedback }}</p>
             </div>
-            <div v-if="portfolio && portfolio.negative_feedback">
+            <div class="si-box" v-if="portfolio && portfolio.negative_feedback">
                 <p><strong>ネガティブフィードバック</strong></p>
                 <p>{{ portfolio.negative_feedback }}</p>
+            </div>
+            <div class="si-box" v-if="portfolio && portfolio.noticed">
+                <p><strong>フィードバックによる気づきや学び</strong></p>
+                <p>{{ portfolio.noticed }}</p>
             </div>
             <div class="si-box">
                 <p :style="{marginBottom: portfolio && portfolio.status == 2 ? '20px' : '0'}"><strong>{{portfolio && portfolio.status == 2 ? 'ポートフォリオを完成してください。' : 'ポートフォリオ'}}</strong></p>
@@ -25,7 +29,7 @@
                     label="タイトル"
                     @setValue="val => portfolio_title = val"
                 />
-                <p v-else>{{ portfolio ? portfolio.portfolio_title : '' }}</p>
+                <p v-else>{{ portfolio?.portfolio_title }}</p>
             </div>
             <div class="si-box">
                 <FormLongText
@@ -40,7 +44,7 @@
                     label="タイトル"
                     @setValue="val => portfolioContent = val"
                 />
-                <p v-else>{{ portfolio ? portfolio.content : '' }}</p>
+                <p v-else>{{ portfolio?.content }}</p>
             </div>
             <div v-if="portfolio && portfolio.status == 2" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                 <div>
@@ -71,7 +75,7 @@
     const route = useRoute()
     onBeforeMount(() => {
         setTimeout(() => {
-            if(portfolio && portfolio.status < 2 || !portfolio){
+            if(props.selectedTopic?.lesson_portfolio?.status < 2 || !props.selectedTopic.lesson_portfolio){
                 backToast()
             }
         }, 500)

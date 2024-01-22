@@ -135,7 +135,8 @@ class LessonController extends Controller
             "negative_feedback" => $request->n_feedback ?? $lessonPortfolio->negative_feedback, 
             "status" => $request->status ?? $lessonPortfolio->status,
             "understand" => $request->understand ?? $lessonPortfolio->understand,
-            "portfolio_title" => $request->portfolio_title ?? $lessonPortfolio->portfolio_title
+            "portfolio_title" => $request->portfolio_title ?? $lessonPortfolio->portfolio_title,
+            "noticed" => $request->noticed ?? $lessonPortfolio->noticed
         ]);
             
       
@@ -170,6 +171,7 @@ class LessonController extends Controller
             "answer2" => $request->answer2,
             "question3" => $request->question3,
             "answer3" => $request->answer3,
+            "content" => $request->content,
         ]);
 
         return response()->json($lesson_form);

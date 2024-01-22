@@ -43,7 +43,18 @@
                         </div>
                         <span class="form-error" style="font-size: 11px;color:tomato">{{ selectedRadio != null ? '' : radioError }}</span>
                     </div>
-                
+                    <div class="si-box">                       
+                        <FormLongText
+                            :initialValue="notUnderstandContent"   
+                            :placeHolder="`理解できなかった理由`"
+                            ref="moreDetailContent"
+                            rules="required|max:2000"
+                            uId="recordBody"
+                            name="recordBody"
+                            label="タイトル"
+                            @setValue="val => notUnderstandContent = val"
+                        />
+                    </div>
         
                             
                             
@@ -89,6 +100,7 @@ import { ref,inject, onMounted, } from 'vue';
     const route = useRoute()
     const props = defineProps(['material', 'lessonThemeId', 'selectedTopic', 'portfolioId', 'sectionUpdate'])
     const comment = ref("")
+    const notUnderstandContent = ref("")
     const router = useRouter()
     const processing = ref(false)
     const moreDetailContent = ref(null)
@@ -133,7 +145,7 @@ import { ref,inject, onMounted, } from 'vue';
 研修テーマ :【${props.selectedTopic.title}】
 セクション :【${props.material.title}】
 サポート希望 : ${supportType}
-
+理解できなかった理由 : ${notUnderstandContent.value}
 上記の通り、サポート依頼を受付完了しました。
 ※このメッセージは自動生成されたメッセージです。`,
                 record_id: chat.data,

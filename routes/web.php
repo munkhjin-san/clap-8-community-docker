@@ -64,6 +64,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/update_last_act', [AutoJobController::class, 'update_last_act']);
 // Route::get('/sync_first_month_calendar_shift', [AutoJobController::class, 'sync_first_month_calendar_shift']);
 Route::get('/create_thumbnails', [AutoJobController::class, 'createThumbnails']);
+Route::get('/board_files_thumbnail', [AutoJobController::class, 'board_files_thumbnail']);
 // temp_routes
 Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
@@ -165,6 +166,8 @@ Route::group(["middleware"=>"auth"],function(){
         Route::get('/managed_files/{board_id}/{sub_folder}/{path}', [ContentController::class, 'managedFileThumbTransfer']);
 
         Route::get('/post_files/{path}', [ContentController::class, 'postFileTransfer']);
+        Route::get('/post_files/thumbnail/{path}', [ContentController::class, 'postThumbnailTransfer']);
+
         Route::get('/calendar_files/{path}', [ContentController::class, 'calendarFileTransfer']);
         Route::get('/user_album/{user_id}/{path}', [ContentController::class, 'userFileTransfer']);
         Route::get('/notice_files/{path}', [ContentController::class, 'noticeFileTransfer']);
