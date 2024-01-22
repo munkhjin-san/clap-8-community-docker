@@ -5,7 +5,7 @@
 CLAPにアクセスし内容を確認してください。 <br><br>
 @else
 メッセージ内容：<br>
-{{$content}}<br><br>
+<p style="white-space:break-spaces">{{$content}}</p><br><br>
 @endif
 以下のURLにて内容をご確認ください。<br>
 <a href="{!! url('board/' . $board_id . '?m=' . $message_id) !!}">{!! url('board/' . $board_id . '?m=' . $message_id) !!}</a>
