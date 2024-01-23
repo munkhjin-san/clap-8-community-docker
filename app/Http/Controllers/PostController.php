@@ -806,16 +806,21 @@ class PostController extends Controller
                 });  
             });          
             $query->when(($path == 'challenge'), function($q) use($target_users){
-                $q->whereHas('to_users', function ($query) use ($target_users) {
-                    $query->whereIn('users.id', $target_users);
-                });  
+                foreach($target_users as $user_id){
+                    $q->whereHas('to_users', function ($query) use ($user_id) {
+                        $query->where('users.id', $user_id);
+                    });
+                }  
             }); 
             $query->when(($path == 'nice'), function($q) use($target_users){
-                $q->whereHas('to_users', function ($query) use ($target_users) {
-                    $query->whereIn('users.id', $target_users);
-                })->OrWhereHas('user', function ($query) use ($target_users) {
-                    $query->whereIn('id', $target_users);
-                });  
+                foreach($target_users as $user_id){
+                    $q->whereHas('to_users', function ($query) use ($user_id) {
+                        $query->where('users.id', $user_id);
+                    })
+                    ->OrWhereHas('user', function ($query) use ($target_users) {
+                        $query->whereIn('id', $target_users);
+                    });
+                }
             });               
            
         }          
