@@ -52,91 +52,74 @@
     </div>  
 </template>
 
-<script>
+<script setup>
+import { ref } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue'
-    export default {
-        props:['chargeTarget'],
-        emits: ['close'],
-        components: {
-            LoaderButton
-        },
-        data(){
-            return{
-                possibleAmount: null,
-                charge_bet: null,
-                chargeOptions: [],
-                chargeLock: false,
-                value: '',
-                fetched: false
-            }
-        },
-        mounted() {
-            this.getMyCharge()
-        },
-        methods:{
-            closeChargeModal(flag){
-                this.$emit('close', flag)
-            },
-            getMyCharge(){
-                axios.get('post_get_possible_charge').then(response => {  
-                    setTimeout(() => {
-                        this.possibleAmount = response.data    
-                        this.pushChargeSelect(this.possibleAmount)   
-                        this.fetched = true
-                    }, 500);
-                              
-                }).catch(function (error) {                
-                                       
-                }.bind(this));
-            },
-            pushChargeSelect(my_charge){
-                var award_bit = my_charge/100;
-                var chargeOptions = [];
-                for (let step = 1; step < award_bit + 1; step++) {
-                    chargeOptions.push({ label : step * 100 + '円' , value : step * 100 });
-                }
-                this.chargeOptions = chargeOptions;
+import { onMounted } from 'vue';
+import { inject } from 'vue';
 
-            },
-            challengeChargeBet(){
+    const props = defineProps(['chargeTarget'])
+    const emit = defineEmits(['close'])
+    const possibleAmount = ref(null)
+    const charge_bet = ref(null)
+    const chargeOptions = ref([])
+    const chargeLock = ref(false)
+    const value = ref('')
+    const fetched = ref(false)
+            
+    onMounted(() => {
+        getMyCharge()
+    })
 
+    const closeChargeModal = (flag) => {
+        emit('close', flag)
+    }
+    const getMyCharge = () => {
+        axios.get('post_get_possible_charge').then(response => {  
+            setTimeout(() => {
+                possibleAmount.value = response.data    
+                pushChargeSelect(possibleAmount.value)   
+                fetched.value = true
+            }, 500);                              
+        })
+    }
+    const pushChargeSelect = (my_charge) => {
+        var award_bit = my_charge/100;
+        var charges = [];
+        for (let step = 1; step < award_bit + 1; step++) {
+            charges.push({ label : step * 100 + '円' , value : step * 100 });
+        }
+        chargeOptions.value = charges;
 
-                if(this.chargeLock || !this.chargeTarget || !this.charge_bet || this.charge_bet.value == 0 || this.charge_bet.value == '0') return
-                this.chargeLock = true
-                axios.post('challenge_charge_to',{ charge_bet: this.charge_bet.value, record_id: this.chargeTarget } ).then(response => { 
-                    setTimeout(() => {     
-                        var uniqueChannell = Math.random().toString(36).substring(5);
-                        emitter.emit('setToast', {
-                            active: true,  
-                            type: 'info', 
-                            content: 'チャージしました。',
-                            closeButton: false, 
-                            autoClose: true,
-                            answers: ['OK'],
-                            channel: uniqueChannell
-                        })  
-                        this.closeChargeModal(this.chargeTarget)                    
-                        this.chargeLock = false                   
-                    }, 1000);
+    }
+    const challengeChargeBet = () => {
 
-                }).catch(function (error) {
-                    if (error.response) this.errorToast(this.$t(error.response.data.message))
-                    else if (error.request) this.errorToast(this.$t('commonError'))
-                    else this.errorToast(this.$t('commonError'))                          
-                }.bind(this));
-                
-            },
-            errorToast(message){
+        if(chargeLock.value|| !props.chargeTarget || !charge_bet.value || charge_bet.value.value == 0 || charge_bet.value.value == '0') return
+        chargeLock.value= true
+        axios.post('challenge_charge_to',{ charge_bet: charge_bet.value.value, record_id: props.chargeTarget } ).then(response => { 
+            setTimeout(() => {     
+                var uniqueChannell = Math.random().toString(36).substring(5);
                 emitter.emit('setToast', {
                     active: true,  
                     type: 'info', 
-                    content: message,
+                    content: 'チャージしました。',
                     closeButton: false, 
-                    autoClose: false,
-                    answers: ['OK']
+                    autoClose: true,
+                    answers: ['OK'],
+                    channel: uniqueChannell
+                })  
+                closeChargeModal(props.chargeTarget)                    
+                chargeLock.value= false                   
+            }, 1000);
 
-                })   
-            },
-        }
+        }).catch(function (error) {
+            if (error.response) errorToast(error.response.data.message)
+            else if (error.request) errorToast('エラーが発生しました。')
+            else errorToast('エラーが発生しました。')                          
+        });
+        
     }
+    const errorToast = inject('errorToast')
+        
+    
 </script>

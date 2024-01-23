@@ -1,6 +1,6 @@
 <template>
 <div id="mRw1" class="md-window" style="z-index:60;-webkit-transform: translate3d(0,0,0);transform: translate3d(0, 0, 0);">
-    <div class="searchMessageArea" style="padding: 10px;">
+    <div class="searchMessageArea" style="padding: 10px;overflow: hidden auto;">
         <div style="display:flex;height: 40px;min-height: 40px;line-height: 40px;">
             <p style="margin:0 20px;" class="copyareaTitle">{{appTitle}}検索</p>
             <div @click="closeMessageSearch" style="margin:0 0 0 auto;cursor:pointer;width:40px;height:40px;display:flex">
@@ -12,9 +12,10 @@
         <div style="margin: 15px 0  ;display:flex;padding: 0 20px;position:relative" class="advancedSearchWindowContainer">
             <input 
                 ref="postAdvancedSearch"
+                @click="isFocusing++"
                 @focus="searchFocus" 
                 @blur="searchBlur" 
-                @keyup.enter="triggerSearch" 
+                @keyup.enter.prevent="triggerSearch" 
                 type="search"
                 spellcheck="false" 
                 autocomplete="off" 
@@ -25,17 +26,11 @@
                 class="searchInputArea"
                 @keyup="setKeyWord"
                 @keydown="setSelected"
-                style="border: solid thin var(--formBorder);padding:3px 10px;width:100%;color: var(--primary-color);"
+                style="border: solid thin var(--primary-color);padding:5px 10px;width:100%;color: var(--primary-color);min-height: 35px;"
             />
-            <!-- <button @click="getPostSearch(1)" style="background:#000;color:#fff;padding:5px 20px;font-size:13px;position:relative;width:100px;min-width:100px;height:33px;white-space: nowrap;">
-                <span v-if="!searchMiniLoader">検索</span>
-                <div v-if="searchMiniLoader" id="loaderMicro" style="margin-top:0;">
-                    <div class="spinner-micro" style="width: 15px;height: 15px;border: 4px #ffffff solid;border-top: 4px #000 solid;"></div>
-                </div>
-            </button> -->
-            <LoaderButton @triggered="getPostSearch(1)" :loading="searchMiniLoader" content="検索"/>
-            <Transition name="searchWindowToggle">
-            <div id="historyWrapWindow" v-if="isFocusing" style="position: absolute;top: 32px;width: calc(100% - 170px);z-index: 5;">
+            <!-- <LoaderButton @triggered="getPostSearch(1)" :loading="searchMiniLoader" content="検索"/> -->
+            <Transition name="searchWindowToggle" class="shadow-me" tag="div" style="overflow: hidden;">
+            <div id="historyWrapWindow" v-if="isFocusing > 1" class="" style="position: absolute;top: 35px;width: calc(100% - 170px);z-index: 7;">
                 <SearchHistory 
                     @setKeyWordFromHistory="setKeyWordFromHistory"
                     v-if="searchHistory.length" 
@@ -44,15 +39,80 @@
                 />
             </div>
             </Transition>
+            <div>
+                
+            </div>
+            <div class="post-search-nav-bar">
+                <Transition name="modalFade">
+                    <div v-if="searchMiniLoader" class="spinner-nano" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                </Transition>
+                <Transition name="modalFade">    
+                    <div v-if="keyword.length" @click="resetSearch">
+                        <svg data-v-7913614c="" class="modalWindowCloseButton" version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="fill:rgb(134 134 134);">
+                            <path data-v-7913614c="" d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
+                        </svg>
+                    </div>
+                </Transition>
+            </div>
         </div>
-        <div>
-            <div @scroll="tagInfinite" style="display:flex;font-size:12px;flex-wrap:wrap;margin:0 20px;max-height: 135px;overflow:hidden auto;transition: max-height 0.5s;height: fit-content;">
-                <div class="tag-list-container">
-                    <div @click="selectTag(tag)" :key="tag.id" v-for="tag in usedTags" class="tagListItem cell-tag" :class="{selectedTag : selectedTags.includes(tag.id)}">
-                        <div>#{{sanitized(tag.text)}} ({{tag.occurrence}})</div>
-                    </div>                
+        <div style="margin: 5px 20px 30px 20px;">            
+            <div v-if="detailedSearchToggle" style="background-color: var(--background-color);">
+                <div>
+                    <div style="margin-bottom: 10px;">
+                        <p>期間</p>
+                    </div>
+                    <div style="display: flex;gap: 10px;margin-top: 20px;align-items: center;">
+                        <DatePicker
+                            :initialValue="fromDate"
+                            ref="calendarRepeatSpanStart"
+                            uId="calendarRepeatSpanStart"
+                            name="calendarRepeatSpanStart"
+                            :rules="''"
+                            @setValue="setFromDate"
+                        />
+                        <span>～</span>
+                        <DatePicker
+                            :initialValue="toDate"
+                            ref="calendarRepeatSpanEnd"
+                            uId="calendarRepeatSpanEnd"
+                            name="calendarRepeatSpanEnd"
+                            :rules="''"
+                            @setValue="setToDate"
+                        />
+                    </div>
+                </div>
+                
+                <div style="background: var(--background-color);">
+                    <div style="margin-top: 20px;margin-bottom: 20px;">
+                        <p>メンバーを含む</p>
+                    </div>
+                    <UserSelector 
+                        :selfInclude="true" 
+                        :initialSelected="targetUsers"
+                        :placeHolder="appName == 'challenge' ?  'プレイヤー名' : appName == 'nice' ? '宛先名' : '投稿者名'"
+                        rules=""
+                        @setUser="selectUser"
+                        uId="recordUsers"
+                        name="recordUsers"
+                        ref="recordUsers"
+                        :path="appName == 'nice' ? 'post_get_nice_users' : `board_possible_users`"
+                    />
+                </div>
+                <div style="margin-top: 20px;margin-bottom: 10px;">
+                    <p>タグを含む</p>
+                </div>
+                <div @scroll="tagInfinite" style="display:flex;font-size:12px;flex-wrap:wrap;max-height: 135px;overflow:hidden auto;transition: max-height 0.5s;height: fit-content;margin-bottom: 20px;">
+                    <div class="tag-list-container">
+                        <div @click="selectTag(tag)" :key="tag.id" v-for="tag in usedTags" class="tagListItem cell-tag" :class="{selectedTag : selectedTags.includes(tag.id)}">
+                            <div>#{{sanitized(tag.text)}} ({{tag.occurrence}})</div>
+                        </div>                
+                    </div>
                 </div>
             </div>
+            <a @click="detailedSearch" style="cursor: pointer;font-size: 12px;">{{ detailedSearchToggle ? 'クリア' : '条件追加'}}</a>
+        </div>
+        <div>
+            
         </div>
         <div style="display:flex;margin: 10px 0;font-size:14px;padding: 0 20px;"> 
             <div v-if="fetchCount > 0">
@@ -66,15 +126,15 @@
             </div>
         </div>
         
-        <div @scroll="getAppend" id="searchScrollOn" class="post-search-result-window" v-if="result.length && !searchMiniLoader">
+        <div id="searchScrollOn" class="post-search-result-window" v-if="result.length && !searchMiniLoader">
          
             <div @click="jumpToRecord(item)" :key="item.id" v-for="item in result" class="" style="padding: 15px;background: var(--background-color);">
                 <div class="recordBox-inner">        
                     <div class="post-second-wrap" style="gap: 10px">
                         <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers(item)}]">
                             <div v-if="item.app_type == 2 || item.app_type == 3" style="display:flex;align-items: center;">
-                                <UserIcon :disableInstant="true" :user="item.user" imgClass="userNormalIcon" size="30"/>
-                                <p class="userName">{{ item.user ? item.user.name : '' }}</p>
+                                <UserIcon :disableInstant="true" :user="item.user" imgClass="toUsersIcon" size="30"/>
+                                <p class="userName" v-html="item.user ? nameHighlight(item.user.name) : ''"></p>
                             </div>                
                             <div v-if="item.app_type == 4 || item.app_type == 3" style="position: relative;">
                                 <div style="display: flex;align-items: center;">
@@ -84,7 +144,7 @@
                                     <div :ref="`to_users_${item.id}`" :class="['toUserListContainer']">
                                         <div :key="user.id" v-for="user in item.to_users" style="display: flex;align-items: center;">                                                             
                                             <UserIcon :disableInstant="true" size="30" :user="user" :imgClass="isMultipleUsers(item) ? 'toUsersIconSmall' : 'toUsersIcon'"/> 
-                                            <p style="width: max-content;" class="userName">{{ user.name }}</p>                                       
+                                            <p style="width: max-content;" class="userName" v-html="nameHighlight(user.name)"></p>                                       
                                         </div>                               
                                     </div>
                                 </div>
@@ -93,13 +153,10 @@
                         
                         <PostDate :record="item" dateClass="dateText"/> 
                         <div @click="updateStatus" v-if="appName == 'challenge'" style="font-size: 14px;margin-left: 10px;cursor:pointer">{{ status(item) }}</div>
-                    </div> 
-
-                    
+                    </div>                     
 
                     <div v-if="appName == 'knowledge' || appName == 'nice'" class="recordContents" style="line-heigth:1.5;margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                         <div class="recordContents-inner">        
-                            <!--<read-more more-str="続きを表示する" :text="urlCheck(item.content)" link="#" less-str="閉じる" :max-chars="200"></read-more>-->
                             <p v-html="searchMessageBody(item.content)"></p>
 
                         </div>                                           
@@ -107,7 +164,6 @@
                     <div v-if="appName == 'challenge'">
                         <div class="recordContents" style="line-heigth:1.5;margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                             <div class="recordContents-inner">        
-                                <!--<read-more more-str="続きを表示する" :text="urlCheck(item.content_rule)" link="#" less-str="閉じる" :max-chars="200"></read-more>-->
                                 <p v-html="searchMessageBody(item.content_rule)"></p>
                             </div>                                           
                         </div>
@@ -116,15 +172,10 @@
                         </div>
                         <div class="recordContents" style="line-heigth:1.5;margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                             <div class="recordContents-inner">        
-                                <!--<read-more more-str="続きを表示する" :text="urlCheck(item.content_goal)" link="#" less-str="閉じる" :max-chars="200"></read-more>-->
                                 <p v-html="searchMessageBody(item.content_goal)"></p>
                             </div>                                           
                         </div>
                     </div>
-
-
-                    <!-- <PostFiles v-if="item['files'].length" :items="item['files']"/>                        -->
-
                     <div class="recordReferrer" v-if="item.referrer">
                         <div class="recordReferrer-inner">            
                             参照元 : <a target="_blank" :href="item.referrer">{{ referrerFilter(item.referrer) }}</a>            
@@ -143,7 +194,7 @@
            
             
         </div>  
-        <div v-if="fetchCount > 0 && !result.length" class="no-comment-text" style="font-size: 14px;top:40vh;padding: 0 50px;line-height:2"><p>検索結果はありません</p></div> 
+        <div v-if="fetchCount > 0 && !result.length" class="no-comment-text" style="font-size: 14px;top:40vh;padding: 0 50px;line-height:2;position:unset;"><p>検索結果はありません</p></div> 
         <PostSearchPager 
             v-if="fetchCount > 0 && result.length" 
             :key="pagerKey"
@@ -156,451 +207,387 @@
 </div>
 </template>
 
-<script>
+<script setup>
 import moment from 'moment'
 import Autolinker from 'autolinker';
 import UserIcon from '../Board/Mixed/UserIcon.vue'
 import PostSearchPager from './PostSearchPager.vue'
 import SearchHistory from './SearchHistory.vue'
 import PostDate from './PostDate.vue';
-import LoaderButton from '../Global/LoaderButton.vue'
-    export default {
-        props: [
-            'appName',
-            'appTitle'
-        ],
-        data(){
-            return{
-                keyword: '',
-                resultSortDateReverse: false,
-                searchResult: [],
-                searchMiniLoader: false,
-                searchAppendLoader: false,
-                fetchCount: 0,
-                usedTags: [],
-                selectedTags: [],
-                searchPageIndex: 1,
-                activePage: 1,
-                possiblePage: 1,
-                resultCount: 0,
-                pagerKey: 200,
-                searchHistory: [],
-                isFocusing: false,
-                timeout: 0,
-                selectedHistory: -1,
-                tagOffset: 1,
-                infineLock: false,
-                searchState: 'first'
+// import LoaderButton from '../Global/LoaderButton.vue'
+import UserSelector from '../Global/UserSelector.vue';
+import DatePicker from '../Global/DatePicker.vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useStore } from 'vuex';
+
+    const props = defineProps(['appName', 'appTitle'])
+    const emit = defineEmits(['closePostSearch'])
+    const keyword = ref('')
+    const resultSortDateReverse = ref(false)
+    const searchResult = ref([])
+    const searchMiniLoader = ref(false)
+    const searchAppendLoader = ref(false)
+    const fetchCount = ref(0)
+    const usedTags = ref([])
+    const selectedTags = ref([])
+    const searchPageIndex = ref(1)
+    const possiblePage = ref(1)
+    const resultCount = ref(0)
+    const pagerKey = ref(200)
+    const searchHistory = ref([])
+    const isFocusing = ref(false)
+    const timeout = ref(0)
+    const selectedHistory = ref(-1)
+    const tagOffset = ref(1)
+    const infineLock = ref(false)
+    const searchState = ref('first')
+    const detailedSearchToggle = ref(false)
+    const fromDate = ref(null)
+    const toDate = ref(null)
+    const targetUsers = ref([])
+    const postAdvancedSearch = ref(null)
+    const store = useStore()
+
+    const result = computed(() => {
+        return searchResult.value        
+    })
+
+    onUnmounted(() => {
+        window.removeEventListener('click', onClickSearch);
+        window.removeEventListener('touchstart', onClickSearch);
+    })
+    onMounted(() => {
+        window.addEventListener('click', onClickSearch);
+        window.addEventListener('touchstart', onClickSearch);
+        getFeaturedTags([], 'first')
+        postAdvancedSearch.value?.focus()
+    })
+    watch(() => keyword, (after) => {
+        if(selectedTags.value.length == 0 && !after){
+            resetSearch()
+        }; 
+    })
+
+    const setFromDate = (val) => {
+        fromDate.value = val
+        getPostSearch(1)
+    }
+    const setToDate = (val) => {
+        toDate.value = val
+        getPostSearch(1)
+    }
+    const detailedSearch = () => {
+        detailedSearchToggle.value = !detailedSearchToggle.value
+        if(!detailedSearchToggle.value){
+            resetSearch()
+        }
+    }
+    const nameHighlight = (name) => {
+        if(targetUsers.value.length){
+            const hit = targetUsers.value.find(ob => ob.name == name)
+            if(hit){
+                return "<span style='background: yellow;color:var(--primary-button)'>" + name + "</span>"
             }
-        },
-        components:{
-            UserIcon,
-            PostSearchPager,
-            SearchHistory,
-            PostDate,
-            LoaderButton
-        },
-        computed: {
-            result(){
-                return this.searchResult
-                // if(this.searchResult && this.searchResult.data){
-                //     return this.searchResult.data
-                //     // if(this.resultSortDateReverse){
-                //     //     return this.searchResult.data.sort((a,b) => (a.created_at > b.created_at) ? 1 : ((b.created_at > a.created_at) ? -1 : 0))                    
-                //     // }else{
-                //     //     return  this.searchResult.sort((a,b) => (a.created_at < b.created_at) ? 1 : ((b.created_at < a.created_at) ? -1 : 0))                    
-                //     // }
-                // }else {
-                //     return [];
-                // } 
-                
-            },
-            suggestion(){
-                if(this.fetchCount == 0){
-                    return 'キーワードを入力して検索ボタンを押してください'
-                }else if(!this.result.length){
-                    return '検索結果はありません'
-                }
+            return name
+        }
+        return name
+    }
+    const sanitized = (text) => {
+        const sanitizedString = text ? text.replace(/#|♯|＃/g, '') : '';
+        return sanitizedString;
+    }
+    const isMultipleUsers = (item) => {
+        return store.state.mobile && item && item.to_users && item.to_users.length > 1
+    }
+    const status = (item) => {
+        if(item.app_type == 4){
+            var todayDate = (moment().format("YYYY-MM-DD"));
+                                
+            if(todayDate <= item.date_end && item.status_flag == 0){
+                var statusText = '実施中';
+                return statusText;
+            }                
+            else if(item.status_flag == 1)
+            {
+                var statusText = '達成';
+                return statusText;
             }
-
-        },
-        watch: {
-            
-        },
-        unmounted(){
-            window.removeEventListener('click', this.onClickSearch);
-            window.removeEventListener('touchstart', this.onClickSearch);
-            // window.removeEventListener('keydown', this.onSelectHistory);
-        },
-        mounted() {
-            window.addEventListener('click', this.onClickSearch);
-            window.addEventListener('touchstart', this.onClickSearch);
-            // window.addEventListener('keydown', this.onSelectHistory);
-            setTimeout(() =>{
-                const el = document.getElementById('searchScrollOn')
-                // disableBodyScroll(el)
-                // document.body.style.height = '100%';
-                // document.body.style.width = '100%';
-                // document.body.style.position = 'fixed';
-                // document.body.style.overflow = 'hidden';
-            },0)
-            this.getFeaturedTags([], 'first')
-            // this.getSearchHistory()
-            this.$refs['postAdvancedSearch'].focus()
-        },
-        watch:{
-            keyword(after, before){
-                if(this.selectedTags.length == 0 && !after){
-                    this.resetSearch()
-                };            
-            },
-            // selectedTags(after, before){
-            //     if(!after.length && !this.keyword){
-            //         this.resetSearch()
-            //     }
-            // }
-        },
-        methods:{ 
-            sanitized(text){
-                const sanitizedString = text ? text.replace(/#|♯|＃/g, '') : '';
-                return sanitizedString;
-            },
-            isMultipleUsers(item){
-                return this.$store.state.mobile && item && item.to_users && item.to_users.length > 1
-            },
-            status(item){
-                if(item.app_type == 4){
-                    var todayDate = (moment().format("YYYY-MM-DD"));
-                                        
-                    if(todayDate <= item.date_end && item.status_flag == 0){
-                        var statusText = '実施中';
-                        return statusText;
-                    }                
-                    else if(item.status_flag == 1)
-                    {
-                        var statusText = '達成';
-                        return statusText;
-                    }
-                    else if(item.status_flag == 2)
-                    {
-                        var statusText = '未達成';
-                        return statusText;
-                    } else if(item.status_flag == 3)
-                    {
-                        var statusText = '中止';
-                        return statusText;
-                    }
-                    else if(todayDate > item.date_end){
-                        var statusText = '結果待ち';
-                        return statusText;
-                    }
-                }
-            },
-            tagInfinite(){
-                var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);   
-                if(percent > 99 && !this.infineLock){
-                    this.tagOffset ++;
-                    this.getFeaturedTags(this.selectedTags, this.searchState)
-                }
-            },
-            resetSearch(){
-                
-                this.selectedTags = [];
-                this.searchResult = [];
-                this.getFeaturedTags([], 'reset');
-                this.fetchCount = 0;
-            },
-            onSelectHistory(){
-                // if(this.isFocusing){    
-                //     $('li').attr('tabindex', 0); 
-                //     if(event.which === 38 || event.which === 40){
-                //         event.preventDefault()
-                //     }
-                //     if(event.which === 38){
-                //         this.selectedHistory = this.selectedHistory == 0 ? this.searchHistory.length - 1 : this.selectedHistory - 1
-                //         setTimeout(() => { 
-                //             $('li.selectedHistoryItem').focus() 
-                //             const input = document.getElementById('advancedSearchInputPost')
-                //             input.value = $('li.selectedHistoryItem').text()
-                //             // this.keyword = $('li.selectedHistoryItem').text()
-                //         },0)                         
-                //     }
-                //     if(event.which === 40){//dooshoo                        
-                //         this.selectedHistory = this.selectedHistory == this.searchHistory.length - 1 ? 0 : this.selectedHistory + 1
-                //         setTimeout(() => { 
-                //             $('li.selectedHistoryItem').focus() 
-                //             const input = document.getElementById('advancedSearchInputPost')
-                //             input.value = $('li.selectedHistoryItem').text()
-                //             // this.keyword = $('li.selectedHistoryItem').text()
-                //         },0)                          
-                //     } 
-                // }
-            },
-            triggerSearch(){
-                event.preventDefault()
-                if(this.isFocusing && this.selectedHistory !== -1){
-                    let input = document.getElementById('advancedSearchInputPost')
-                    input.value = this.searchHistory[this.selectedHistory].content
-                    this.getPostSearch(1)
-                    this.isFocusing = false
-                }else{
-                    this.getPostSearch(1)
-                }
-                this.isFocusing = false
-            },
-            onClickSearch(){
-                const el = document.getElementById('historyWrapWindow')
-                const input = document.getElementById('advancedSearchInputPost')
-                if(el && input && !el.contains(event.target) && !input.contains(event.target) && this.isFocusing){
-                    this.isFocusing = false
-                }
-
-            }, 
-            autoFillDebounce(val) {
-                if (this.timeout) clearTimeout(this.timeout)
-                this.timeout = setTimeout(() => {
-                    this.getSearchHistory()
-                }, 300)
-            },
-            setSelected(){
-                if(event.which === 27){
-                    this.isFocusing = false;
-                    this.selectedHistory = -1;
-                    document.getElementById('advancedSearchInputPost').value = '';
-                    document.getElementById('advancedSearchInputPost').blur();
-                    this.keyword = '',
-                    this.searchHistory = []
-                    return
-                } 
-                if(event.which === 38 || event.which === 40){
-                    event.preventDefault()
-                    
-                    if(this.isFocusing){
-                        if(event.which === 38){
-                            this.selectedHistory = this.selectedHistory == 0 ? this.searchHistory.length - 1 : this.selectedHistory - 1
-                            // setTimeout(() => { 
-                            //     // $('li.selectedHistoryItem').focus() 
-                            //     // const input = document.getElementById('advancedSearchInputPost')
-                            //     // input.value = $('li.selectedHistoryItem').text()
-                            //     // this.keyword = $('li.selectedHistoryItem').text()
-                            // },0)                         
-                        }
-                        if(event.which === 40){//dooshoo                        
-                            this.selectedHistory = this.selectedHistory == this.searchHistory.length - 1 ? 0 : this.selectedHistory + 1
-                            // setTimeout(() => { 
-                            //     $('li.selectedHistoryItem').focus() 
-                            //     const input = document.getElementById('advancedSearchInputPost')
-                            //     input.value = $('li.selectedHistoryItem').text()
-                            //     // this.keyword = $('li.selectedHistoryItem').text()
-                            // },0)                          
-                        } 
-                    }
-                    
-                }
-            },
-            setKeyWord(){
-                
-                if(event.which === 38 || event.which === 40 || event.which === 13){
-                    event.preventDefault()
-                    
-                    return
-                    
-                }
-                else{
-                    this.keyword = event.currentTarget.value
-                    this.autoFillDebounce()
-                }
-                
-            },
-            setKeyWordFromHistory(val){
-                const input = document.getElementById('advancedSearchInputPost')
-                input.value = val
-                this.keyword = val
-                this.isFocusing = false
-                this.getPostSearch(1)
-            },
-            searchFocus(){
-                this.isFocusing = true
-                this.getSearchHistory()
-            },
-            searchBlur(){
-                // setTimeout(() => {
-                //     this.isFocusing = false
-                // },100)
-                
-            },
-            getSearchHistory(){
-                const inputSearch = document.getElementById('advancedSearchInputPost')
-                const text = inputSearch.value
-                axios.post('/get_history', {key: text}).then(response => {       
-                    this.searchHistory = response.data
-                }).catch(function (error) {
-
-                }.bind(this)).then(() => {
-                    this.selectedHistory = -1
-                });
-            },
-            setActivePage(page){
-                this.searchPageIndex = page
-                this.getPostSearch(this.searchPageIndex)
-            }, 
-            setNavi(val){
-                this.searchPageIndex = this.searchPageIndex + val
-                this.getPostSearch(this.searchPageIndex)
-            },
-            getAppend(){
-                
-            },
-            orderChange(){
-                this.resultSortDateReverse = !this.resultSortDateReverse
-                this.getPostSearch(1)
-            },
-            selectTag(tag){
-                if(this.selectedTags.includes(tag.id)){
-                    // this.selectedTags.splice(this.selectedTags.findIndex(item => item == tag.id), 1)
-                    const current = this.selectedTags
-                    // this.selectedTags = [];
-                    this.usedTags = []
-                    this.selectedTags = current;
-                    const newList = current.filter(ob => ob !== tag.id)
-                    this.selectedTags = newList
-                }else{
-                    this.usedTags = []
-                    this.selectedTags.push(tag.id)
-                } 
-                
-                this.getPostSearch(1)
-                if(!this.selectedTags.length){
-                    this.getFeaturedTags([], 'first')
-                }
-            }, 
-            getFeaturedTags(tags, sub_param){
-                // const tagIds = tags.map(ob => ob.id)
-                this.infineLock = true
-                const inputSearch = document.getElementById('advancedSearchInputPost')
-                const text = inputSearch.value
-                var keyList = text.split(/[\u{20}\u{3000}]/u); 
-                axios.post('/get_featured_tags',{
-                    app_name: this.appName, 
-                    tags: tags, 
-                    offset: this.tagOffset,
-                    key_list: keyList,
-                    pattern: sub_param
-                }).then(response => {  
-                    this.usedTags = response.data      
-                    if(!this.usedTags.length){
-                        this.selectedTags = [];
-                    } 
-            
-                }).catch(function (error) {
-
-                }.bind(this)).then(() => {
-                    this.infineLock = false
-                    this.searchState = sub_param
-                });
-            },
-            referrerFilter(link){
-                var str_lenght = link.length;
-                if (str_lenght > 45) {
-                    var sliced = link.slice(0, 45) + " ...";
-                    return sliced;
-                }
-                return link;
-            },  
-            momentMessage (date) {
-                moment.locale('ja');  
-                
-                return moment(date).isSame(moment(), 'day') ? 
-                moment(date).format('HH:mm') : 
-                moment(date).isSame(moment(), 'year') ? 
-                moment(date).format('M / D (dd) HH:mm') : 
-                moment(date).format('YYYY / M / D (dd) HH:mm')                       
-            },
-            closeMessageSearch(){
-                window.removeEventListener('touchstart', this.onClickSearch);
-                window.removeEventListener('click', this.onClickSearch);
-                this.$emit('closePostSearch')
-            },
-            searchMessageBody(text){                
-                const a = text.replace(this.keyword, "<span style='background: yellow;color:var(--primary-button)'>" + this.keyword + "</span>");           
-                let r = this.urlCheck(a);                
-                return r
-            },
-            urlCheck: function (text) {
-                if(text){                
-                    var linkedText = Autolinker.link(text, {stripPrefix: false});              
-                    return linkedText;                
-                }            
-            },
-            getPostSearch(index){
-                this.searchPageIndex = index
-                const inputSearch = document.getElementById('advancedSearchInputPost')
-                if(inputSearch){
-                    inputSearch.blur()
-                }
-                const text = inputSearch.value
-                if(this.searchMiniLoader || (!this.selectedTags.length && !text) || this.searchAppendLoader) return
-                
-                
-                this.searchMiniLoader = true
-                this.searchAppendLoader = true
-                var keyList = text.split(/[\u{20}\u{3000}]/u);   
-                const params = {
-                    app_name: this.appName,
-                    key_list: keyList,
-                    tags: this.selectedTags,
-                    order: this.resultSortDateReverse ? 'asc' : 'desc',
-                    key_word : text
-                }
-                axios.post('/post_advanced_search?page=' + index, params).then(response => {  
-                    this.searchResult = response.data.data
-                    this.possiblePage = response.data.last_page
-                    this.resultCount = response.data.total
-                    // if(this.selectedTags.length){
-                        this.getFeaturedTags(this.selectedTags, 'afterSearch')
-                    // }
-            
-                }).catch(function (error) {
-
-                }.bind(this)).then(() => {
-                    this.searchMiniLoader = false
-                    this.searchAppendLoader = false 
-                    this.fetchCount ++
-                });
-            },
-            jumpToRecord(item){
-                let appName;
-                switch (true) {
-                    case (item.app_type == 0):
-                        appName = "home";
-                        break;
-                    case (item.app_type == 1):
-                        appName = "board";
-                        break;
-                    case (item.app_type == 2):
-                        appName = "knowledge";
-                        break;
-                    case (item.app_type == 3):
-                        appName = "nice";
-                        break;
-                    case (item.app_type == 4):
-                        appName = "challenge";
-                        break;
-                    default:
-                        appName = null;
-                }
-                const url = '/app/public/' + appName + '?id=' + item.id;
-                const link = document.createElement('a');
-                link.href = url;
-                link.target = '_blank'                    
-                document.body.appendChild(link);            
-                link.click();   
-                link.remove();
+            else if(item.status_flag == 2)
+            {
+                var statusText = '未達成';
+                return statusText;
+            } else if(item.status_flag == 3)
+            {
+                var statusText = '中止';
+                return statusText;
+            }
+            else if(todayDate > item.date_end){
+                var statusText = '結果待ち';
+                return statusText;
             }
         }
     }
+    const tagInfinite = () => {
+        var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);   
+        if(percent > 99 && !infineLock.value){
+            tagOffset.value ++;
+            getFeaturedTags(selectedTags.value, searchState.value)
+        }
+    }
+    const resetSearch = () => {
+        
+        selectedTags.value = [];
+        searchResult.value = [];
+        getFeaturedTags([], 'reset');
+        fetchCount.value = 0;
+        targetUsers.value = []
+        fromDate.value = null
+        toDate.value = null
+        postAdvancedSearch.value.value = ''
+    }
+    const triggerSearch = () => {
+        if(isFocusing.value && selectedHistory.value !== -1){
+            let input = postAdvancedSearch.value
+            input.value = searchHistory.value[selectedHistory.value].content
+            getPostSearch(1)
+            isFocusing.value = 0
+        }else{
+            getPostSearch(1)
+        }
+        isFocusing.value = 0
+    }
+    const onClickSearch = () => {
+        const el = document.getElementById('historyWrapWindow')
+        const input = postAdvancedSearch.value
+        if(el && input && !el.contains(event.target) && !input.contains(event.target) && isFocusing.value){
+            isFocusing.value = 0
+        }
+    }
+    const autoFillDebounce = (val) => {
+        if (timeout.value) clearTimeout(timeout.value)
+        timeout.value = setTimeout(() => {
+            getSearchHistory()
+            getPostSearch(1)
+        }, 300)
+    }
+    const setSelected = (event) => {
+        if(event.which === 27){
+            isFocusing.value = 0;
+            selectedHistory.value = -1;
+            postAdvancedSearch.value.value = '';
+            postAdvancedSearch.value.blur();
+            keyword.value = '',
+            searchHistory.value = []
+            return
+        } 
+        if(event.which === 38 || event.which === 40){
+            event.preventDefault()            
+            if(isFocusing.value){
+                if(event.which === 38){
+                    selectedHistory.value = selectedHistory.value == 0 ? searchHistory.value.length - 1 : selectedHistory.value - 1                  
+                }
+                if(event.which === 40){//dooshoo                        
+                    selectedHistory.value = selectedHistory.value == searchHistory.value.length - 1 ? 0 : selectedHistory.value + 1                        
+                } 
+            }
+            
+        }
+    }
+    const setKeyWord = (event) => {        
+        if(event.which === 38 || event.which === 40 || event.which === 13){
+            event.preventDefault()            
+            return           
+        }
+        else{
+            keyword.value = event.currentTarget.value
+            autoFillDebounce()
+        }        
+    }
+    const setKeyWordFromHistory = (val) => {
+        const input = postAdvancedSearch.value
+        input.value = val
+        keyword.value = val
+        isFocusing.value = 0
+        getPostSearch(1)
+    }
+    const searchFocus = () => {
+        isFocusing.value++
+        getSearchHistory()
+    }
+    const getSearchHistory = () => {
+        const inputSearch = postAdvancedSearch.value
+        const text = inputSearch.value
+        axios.post('/get_history', {key: text}).then(response => {       
+            searchHistory.value = response.data
+        }).catch(function (error) {
+
+        }).then(() => {
+            selectedHistory.value = -1
+        });
+    }
+    const setActivePage = (page) => {
+        searchPageIndex.value = page
+        getPostSearch(searchPageIndex.value)
+    } 
+    const setNavi = (val) => {
+        searchPageIndex.value = searchPageIndex.value + val
+        getPostSearch(searchPageIndex.value)
+    }
+    const orderChange = () => {
+        resultSortDateReverse.value = !resultSortDateReverse.value
+        getPostSearch(1)
+    }
+    const selectUser = (val) => {
+        targetUsers.value = val
+        getPostSearch(1)
+    }
+    const selectTag = (tag) => {
+        if(selectedTags.value.includes(tag.id)){
+            const current = selectedTags.value
+            usedTags.value = []
+            selectedTags.value = current;
+            const newList = current.filter(ob => ob !== tag.id)
+            selectedTags.value = newList
+        }else{
+            usedTags.value = []
+            selectedTags.value.push(tag.id)
+        } 
+        
+        getPostSearch(1)
+        if(!selectedTags.value.length){
+            getFeaturedTags([], 'first')
+        }
+    }
+    const getFeaturedTags = (tags, sub_param) => {
+        infineLock.value = true
+        const inputSearch = postAdvancedSearch.value
+        const text = inputSearch.value
+        var keyList = text.split(/[\u{20}\u{3000}]/u); 
+        axios.post('/get_featured_tags',{
+            app_name: props.appName, 
+            tags: tags, 
+            offset: tagOffset.value,
+            key_list: keyList,
+            pattern: sub_param,
+            target_users: targetUsers.value.map(ob => ob.id),
+            from: fromDate.value,
+            to: toDate.value
+        }).then(response => {  
+            usedTags.value = response.data      
+            if(!usedTags.value.length){
+                selectedTags.value = [];
+            } 
+    
+        }).catch(function (error) {
+
+        }).then(() => {
+            infineLock.value = false
+            searchState.value = sub_param
+        });
+    }
+    const referrerFilter = (link) => {
+        var str_lenght = link.length;
+        if (str_lenght > 45) {
+            var sliced = link.slice(0, 45) + " ...";
+            return sliced;
+        }
+        return link;
+    } 
+    const closeMessageSearch = () => {
+        window.removeEventListener('touchstart', onClickSearch);
+        window.removeEventListener('click', onClickSearch);
+        emit('closePostSearch')
+    }
+    const searchMessageBody = (text) => {                
+        const a = text.replace(keyword.value, "<span style='background: yellow;color:var(--primary-button)'>" + keyword.value + "</span>");           
+        let r = urlCheck(a);                
+        return r
+    }
+    const urlCheck = (text) => {
+        if(text){                
+            var linkedText = Autolinker.link(text, {stripPrefix: false});              
+            return linkedText;                
+        }            
+    }
+    const getPostSearch = (index) => {
+        searchPageIndex.value = index
+        const inputSearch = postAdvancedSearch.value
+        isFocusing.value = 0
+        const text = inputSearch.value
+        if(searchMiniLoader.value || (!selectedTags.value.length && !text && !targetUsers.value.length) || searchAppendLoader.value) return
+        
+        
+        searchMiniLoader.value = true
+        searchAppendLoader.value = true
+        var keyList = text.split(/[\u{20}\u{3000}]/u);   
+        const params = {
+            app_name: props.appName,
+            key_list: keyList,
+            tags: selectedTags.value,
+            order: resultSortDateReverse.value ? 'asc' : 'desc',
+            key_word : text,
+            target_users: targetUsers.value.map(ob => ob.id),
+            from: fromDate.value,
+            to: toDate.value
+        }
+        axios.post('/post_advanced_search?page=' + index, params).then(response => {  
+            searchResult.value = response.data.data
+            possiblePage.value = response.data.last_page
+            resultCount.value = response.data.total
+            getFeaturedTags(selectedTags.value, 'afterSearch')            
+    
+        }).catch(function (error) {
+
+        }).then(() => {
+            searchMiniLoader.value = false
+            searchAppendLoader.value = false 
+            fetchCount.value ++
+        });
+    }
+    const jumpToRecord = (item) => {
+        let appName;
+        switch (true) {
+            case (item.app_type == 0):
+                appName = "home";
+                break;
+            case (item.app_type == 1):
+                appName = "board";
+                break;
+            case (item.app_type == 2):
+                appName = "knowledge";
+                break;
+            case (item.app_type == 3):
+                appName = "nice";
+                break;
+            case (item.app_type == 4):
+                appName = "challenge";
+                break;
+            default:
+                appName = null;
+        }
+        const url = '/app/public/' + appName + '?id=' + item.id;
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank'                    
+        document.body.appendChild(link);            
+        link.click();   
+        link.remove();
+    }
 </script>
 <style scoped lang="scss">
+    .post-search-nav-bar{
+        position: absolute;
+        right: 21px;
+        bottom: 1px;
+        width: fit-content;
+        height: calc(100% - 2px);
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        background: var(--background-color);
+        gap: 10px;
+        cursor: pointer;
+    }
     .tag-list-container {
         display: flex;
         flex-wrap: wrap;
@@ -614,8 +601,6 @@ import LoaderButton from '../Global/LoaderButton.vue'
         transition: transform 0.5s;
     }
     .post-search-result-window{
-        height: -webkit-fill-available;
-        overflow: hidden auto;
         font-size:13px;
         padding:15px;
         background:var(--bg2);

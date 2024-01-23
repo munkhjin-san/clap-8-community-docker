@@ -684,6 +684,30 @@ class PostController extends Controller
             $tag_list = $request->tags;
 
             $query = $model::query()->where(DB::raw('deleted_flag'), '=', '0'); 
+            $target_users = $request->target_users;
+            if(count($target_users)){    
+       
+                $query->when(($request->app_name == 'knowledge'), function($q) use($target_users){
+                    $q->whereHas('user', function ($query) use ($target_users) {
+                        $query->whereIn('id', $target_users);
+                    });  
+                });          
+                $query->when(($request->app_name == 'nice') || ($request->app_name == 'challenge'), function($q) use($target_users){
+                    $q->whereHas('to_users', function ($query) use ($target_users) {
+                        $query->whereIn('users.id', $target_users);
+                    });  
+                });               
+               
+            }          
+            $to = $request->to;
+            $from = $request->from;
+    
+            $query->when(!empty($from), function($q) use($from) {
+                $q->whereDate('created_at', '>=', $from);
+            });
+            $query->when(!empty($to), function($q) use($to) {
+                $q->whereDate('created_at', '<=', $to);
+            });
             if(!empty($request->key_list)){
                 foreach($request->key_list as $key){ 
                     if($request->app_name == 'challenge'){
@@ -768,7 +792,31 @@ class PostController extends Controller
                     $query->where('text', $tag);
                 });                       
             }
-        }                
+        }       
+        $target_users = $request->target_users;
+        if(count($target_users)){    
+       
+            $query->when(($path == 'knowledge'), function($q) use($target_users){
+                $q->whereHas('user', function ($query) use ($target_users) {
+                    $query->whereIn('id', $target_users);
+                });  
+            });          
+            $query->when(($path == 'nice') || ($path == 'challenge'), function($q) use($target_users){
+                $q->whereHas('to_users', function ($query) use ($target_users) {
+                    $query->whereIn('users.id', $target_users);
+                });  
+            });               
+           
+        }          
+        $to = $request->to;
+        $from = $request->from;
+
+        $query->when(!empty($from), function($q) use($from) {
+            $q->whereDate('created_at', '>=', $from);
+        });
+        $query->when(!empty($to), function($q) use($to) {
+            $q->whereDate('created_at', '<=', $to);
+        });
         foreach($request->key_list as $key){ 
             $query->when(($path == 'knowledge' || $path == 'nice'), function($q) use($key){
                 $q->where(DB::raw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags)"), 'LIKE', '%' . $key . '%');

@@ -7,82 +7,66 @@
         <p class="clap-count" v-if="item.claps.length" style="line-height: 1;">{{item.claps.length}}</p>                                                              
     </div>  
 </template>
-<script>
-    export default {
-        props: ['item', 'appName'],
-        emits: ['updateClap'],
-        data(){
-            return{
-                clapDisable :false,
-                loading: false
+<script setup>
+import { inject } from 'vue';
+import { ref, computed } from 'vue';
+import { useStore } from 'vuex';
+
+        const props = defineProps(['item', 'appName'])
+        const emit = defineEmits(['updateClap'])
+        const store = useStore()
+        const loading = ref(false)
+       
+        const iconFill = computed(() => {
+            return clapped.value || props.item.user_id == store.state.user.id ? 'var(--primary-color)' : 'rgb(169, 169, 169)'
+        })
+        const canClap = computed(() => {
+            if(props.appName == 'knowledge' || props.appName == 'nice'){
+                return props.item.user_id == store.state.user.id ? false : true                    
+            }else if(props.appName == 'challenge'){
+                if(props.item.award_entry == 1){
+                    const player = props.item.to_users.filter(ob => ob.id == store.state.user.id)
+                    return player.length ? false : true
+                }else{
+                    return true
+                }
             }
-        },
-        computed:{
-            iconFill(){
-                if(this.clapped || this.item.user_id == this.$store.state.user.id){
-                    return 'var(--primary-color)'
-                }else if(this.canClap){
-                    return 'rgb(169, 169, 169)'
-                }
-            },
-            canClap(){
-                if(this.appName == 'knowledge' || this.appName == 'nice'){
-                    return this.item.user_id == this.$store.state.user.id ? false : true                    
-                }else if(this.appName == 'challenge'){
-                    if(this.item.award_entry == 1){
-                        const player = this.item.to_users.filter(ob => ob.id == this.$store.state.user.id)
-                        return player.length ? false : true
-                    }else{
-                        return true
+        })
+        const clapped = computed(() => {
+            const clapped = props.item.claps.filter(ob => ob.from_user == store.state.user.id)
+            return clapped.length ? true : false
+        })
+
+        const sendClap = () => {
+            if(!canClap.value){
+                return
+            }
+            loading.value = true
+            const action = clapped.value ? 1 : 0
+            axios.post('post_add_clap',{ 
+                record_id: props.item.id, 
+                app_name: props.appName,
+                action: action
+            }).then(response => {   
+                loading.value = false   
+                if(action == 0){
+                    const data = {
+                        text: 'CLAPしました。',
+                        channel: Math.random().toString(36).substring(5),
+                        icon: 0,
+                        view: true
                     }
+                    emitter.emit('setInfo', data)
                 }
-            },
-            clapped(){
-                const clapped = this.item.claps.filter(ob => ob.from_user == this.$store.state.user.id)
-                return clapped.length ? true : false
-            },
-        },
-        methods:{
-            sendClap(){
-                if(!this.canClap){
-                    return
-                }
-                this.loading = true
-                const action = this.clapped ? 1 : 0
-                axios.post('post_add_clap',{ 
-                    record_id: this.item.id, 
-                    app_name: this.appName,
-                    action: action
-                }).then(response => {   
-                    this.loading = false   
-                    if(action == 0){
-                        const data = {
-                            text: 'CLAPしました。',
-                            channel: Math.random().toString(36).substring(5),
-                            icon: 0,
-                            view: true
-                        }
-                        emitter.emit('setInfo', data)
-                    }
-                    
-                    this.$emit('updateClap', response.data)
-                }).catch(function (error) {
-                    if (error.response) this.errorToast(this.$t(error.response.data.message))
-                    else if (error.request) this.errorToast(this.$t('commonError'))
-                    else this.errorToast(this.$t('commonError'))            
-                    this.loading = false                  
-                }.bind(this));
-            },
-            errorToast(message){
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: message,
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: ['OK']
-                })   
-            },
+                
+                emit('updateClap', response.data)
+            }).catch(function (error) {
+                if (error.response) errorToast(error.response.data.message)
+                else if (error.request) errorToast('エラーが発生しました。')
+                else errorToast('エラーが発生しました。')            
+                loading.value = false                  
+            });
         }
-    }
+        const errorToast = inject('errorToast')
+
 </script>
