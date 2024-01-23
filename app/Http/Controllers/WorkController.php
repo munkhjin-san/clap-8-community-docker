@@ -388,7 +388,7 @@ class WorkController extends Controller
                 }
                 if($recieve){
                     foreach($recieve as $date){
-                        $date1 = Carbon::create(2024, 1, 1);
+                        $date1 = Carbon::create(2024, 1, 20);
                         $date2 = Carbon::parse($date);
                         if($date1->lessThan($date2)){
                             $shiftbydate = shiftRecord::where('shift_day', $date)->where('user_id', $user->id)->first();
@@ -448,6 +448,7 @@ class WorkController extends Controller
                 $shift_record->start_time = $start_time_val;
                 $shift_record->end_time = $end_time_val;
                 $shift_record->status_flag = $status_flag;
+                $shift_record->planned_year = $request->year;
                 $shift_record->update();
             } else {
                 shiftRecord::create([
@@ -457,6 +458,7 @@ class WorkController extends Controller
                     'start_time' => $start_time_val,
                     'end_time' => $end_time_val,
                     'status_flag' => $status_flag,
+                    'planned_year' => $request->year,
                 ]);
             }
         }
