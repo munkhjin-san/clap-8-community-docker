@@ -241,7 +241,7 @@ import { ref, onMounted } from 'vue';
             },
             getPlannedShifts(){
                 const currentDate = new Date();
-                const currentYear = currentDate.getFullYear();
+                const currentYear = currentDate.getFullYear() - 1;
                 const targetDate = new Date(currentYear, 11, 20);
 
                 if(currentDate > targetDate){
