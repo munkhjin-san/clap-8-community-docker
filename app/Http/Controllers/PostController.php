@@ -805,9 +805,16 @@ class PostController extends Controller
                     $query->whereIn('id', $target_users);
                 });  
             });          
-            $query->when(($path == 'nice') || ($path == 'challenge'), function($q) use($target_users){
+            $query->when(($path == 'challenge'), function($q) use($target_users){
                 $q->whereHas('to_users', function ($query) use ($target_users) {
                     $query->whereIn('users.id', $target_users);
+                });  
+            }); 
+            $query->when(($path == 'nice'), function($q) use($target_users){
+                $q->whereHas('to_users', function ($query) use ($target_users) {
+                    $query->whereIn('users.id', $target_users);
+                })->OrWhereHas('user', function ($query) use ($target_users) {
+                    $query->whereIn('id', $target_users);
                 });  
             });               
            
