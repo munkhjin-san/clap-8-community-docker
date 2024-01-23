@@ -59,7 +59,7 @@
             <div v-if="detailedSearchToggle" style="background-color: var(--background-color);">
                 <div>
                     <div style="margin-bottom: 10px;">
-                        <p>期間</p>
+                        <p style="font-size: 14px;">期間</p>
                     </div>
                     <div style="display: flex;gap: 10px;margin-top: 20px;align-items: center;">
                         <DatePicker
@@ -84,12 +84,12 @@
                 
                 <div style="background: var(--background-color);">
                     <div style="margin-top: 20px;margin-bottom: 20px;">
-                        <p>メンバーを含む</p>
+                        <p style="font-size: 14px;">メンバーを含む</p>
                     </div>
                     <UserSelector 
                         :selfInclude="true" 
                         :initialSelected="targetUsers"
-                        :placeHolder="appName == 'challenge' ?  'プレイヤー名' : appName == 'nice' ? '宛先名' : '投稿者名'"
+                        :placeHolder="appName == 'challenge' ?  'プレイヤー名' : appName == 'nice' ? '投稿者名または宛先名' : '投稿者名'"
                         rules=""
                         @setUser="selectUser"
                         uId="recordUsers"
@@ -99,7 +99,7 @@
                     />
                 </div>
                 <div style="margin-top: 20px;margin-bottom: 10px;">
-                    <p>タグを含む</p>
+                    <p style="font-size: 14px;">タグを含む</p>
                 </div>
                 <div @scroll="tagInfinite" style="display:flex;font-size:12px;flex-wrap:wrap;max-height: 135px;overflow:hidden auto;transition: max-height 0.5s;height: fit-content;margin-bottom: 20px;">
                     <div class="tag-list-container">
