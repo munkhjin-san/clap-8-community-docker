@@ -816,11 +816,9 @@ class PostController extends Controller
                 foreach($target_users as $user_id){
                     $q->whereHas('to_users', function ($query) use ($user_id) {
                         $query->where('users.id', $user_id);
-                    })
-                    ->OrWhereHas('user', function ($query) use ($target_users) {
-                        $query->whereIn('id', $target_users);
                     });
                 }
+                $q->orWhereIn('user_id', $target_users);
             });               
            
         }          
