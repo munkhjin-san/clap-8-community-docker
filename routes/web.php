@@ -321,6 +321,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/post_comment_delete', [PostController::class, 'post_comment_delete']);
         Route::post('/post_status_update', [PostController::class, 'post_status_update']);
         Route::post('/post_get_nice_users', [PostController::class, 'post_get_nice_users']);
+        Route::post('/post_get_all_possible_users', [PostController::class, 'post_get_all_possible_users']);
         Route::post('/post_get_challenge_users', [PostController::class, 'post_get_challenge_users']);
         Route::get('/get_post_badge', [PostController::class, 'get_post_badge']);
         Route::patch('/update_post_badge', [PostController::class, 'update_post_badge']);

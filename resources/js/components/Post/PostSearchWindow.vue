@@ -95,7 +95,7 @@
                         uId="recordUsers"
                         name="recordUsers"
                         ref="recordUsers"
-                        :path="appName == 'nice' ? 'post_get_nice_users' : `board_possible_users`"
+                        :path="'post_get_all_possible_users'"
                     />
                 </div>
                 <div style="margin-top: 20px;margin-bottom: 10px;">

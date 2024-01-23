@@ -577,6 +577,10 @@ class PostController extends Controller
         $record->save();
         return response()->json($record);  
     }
+    public function post_get_all_possible_users(Request $request){
+        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->select('id', 'name', 'icon_id')->get();
+        return response()->json($other_users); 
+    }
     public function post_get_challenge_users(Request $request){
         $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
         return response()->json($other_users); 
