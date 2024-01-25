@@ -73,7 +73,7 @@
                         work_group_users : this.workgroup_users,
                     }
 
-                    axios.post('work_group_add', params).then(response => {
+                    axios.post('/work_group_add', params).then(response => {
                         this.processing = false
                         this.$emit('postFinish')
                     }).catch(function (error) {
@@ -101,7 +101,7 @@
                         work_group_name : this.work_group_name,
                         work_group_users : this.workgroup_users
                     }
-                    axios.post('work_group_edit', params).then(response => {
+                    axios.post('/work_group_edit', params).then(response => {
                         this.processing = false
                         this.$emit('postFinish')
                     }).catch(function (error) {
@@ -140,7 +140,7 @@
                 })            
                 emitter.on(uniqueChannell, (data) => { 
                     if(data.answer === this.$t('confirmToAction')){
-                        axios.post('work_group_delete', params).then(
+                        axios.post('/work_group_delete', params).then(
                             response => {
                                 this.processing = false
                                 this.$emit('postFinish')
