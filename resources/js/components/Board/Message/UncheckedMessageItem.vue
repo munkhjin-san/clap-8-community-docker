@@ -61,7 +61,7 @@
                         :message="message"
                         :reminder="reminder"
                     /> 
-                    <button v-if="message.message_remind_users && message.message_remind_users.length" style="padding: 5px 10px 5px 10px;
+                    <button v-if="remindedUsers" style="padding: 5px 10px 5px 10px;
                         font-size: 12px;
                         line-height: 1.5;
                         border-radius: 0px;
@@ -156,6 +156,9 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
             }); 
         },
         computed:{
+            remindedUsers(){
+                return this.message.message_remind_users && this.message.message_remind_users.length ? this.message.message_remind_users.find(val => val.user_id == this.$store.state.user.id) : null
+            },
             userReacts(){
                 return this.message.unchecked_users.length || this.message.checked_users.length || this.message.reacted_users.length
             },
