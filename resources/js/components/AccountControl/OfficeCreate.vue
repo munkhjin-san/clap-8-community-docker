@@ -175,7 +175,7 @@
                 })            
                 emitter.on(uniqueChannell, (data) => { 
                     if(data.answer === this.$t('confirmToAction')){
-                        axios.post('office_delete', params).then(
+                        axios.post('/office_delete', params).then(
                             response => {
                                 this.processing = false
                                 this.$emit('postFinish')
