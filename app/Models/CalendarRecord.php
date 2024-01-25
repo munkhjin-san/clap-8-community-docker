@@ -70,6 +70,7 @@ class CalendarRecord extends Model
         "zoom_account",
         "zoom_account_pass",
         "created_at",
-        "shift"
+        "shift",
+        "descendant_of"
     ];
 }
