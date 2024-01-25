@@ -660,6 +660,7 @@ class CalendarController extends Controller
             "created_at" => $has_prev_date ? $has_prev_date['created_at'] : now(),
             "created_user" => $has_prev_date ? $has_prev_date['created_user'] : Auth::id(),
             "descendant_of" => $has_prev_date ? $has_prev_date['id'] : null,
+            "real_created_at" => now()
         ]);
 
         if($request['facility']['zoom_value'] !== null && $zoom_values['zoom_url'] == null){
