@@ -448,7 +448,7 @@ class WorkController extends Controller
                 $shift_record->start_time = $start_time_val;
                 $shift_record->end_time = $end_time_val;
                 $shift_record->status_flag = $status_flag;
-                $shift_record->planned_year = $request->year;
+                $shift_record->planned_year = $request->planned_year;
                 $shift_record->update();
             } else {
                 shiftRecord::create([
@@ -458,7 +458,7 @@ class WorkController extends Controller
                     'start_time' => $start_time_val,
                     'end_time' => $end_time_val,
                     'status_flag' => $status_flag,
-                    'planned_year' => $request->year,
+                    'planned_year' => $request->planned_year,
                 ]);
             }
         }

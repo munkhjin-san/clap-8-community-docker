@@ -303,6 +303,7 @@
                             // kintone_id: this.kintone_data.id,
                             year: this.shiftYear,
                             month: this.shiftMonth + 1,
+                            planned_year: this.tempStartDate.substring(0, 4),
                             userId: this.usersData[0].id,
                             deleted: this.deletedShifts
                         }
