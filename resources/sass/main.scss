@@ -31,14 +31,12 @@ $theme: 'light';
 }
 body {
     line-height: 1;
-
-    scrollbar-color:#000 #fff;
-    scrollbar-width: thin;
-
-    // #20210420_096 work追加
     -webkit-overflow-scrolling: touch;
     top: 0 !important;
     overscroll-behavior-y: contain;
+    background: var(--bg2);
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+    width: 100%;
     
 }
 ol, ul {
@@ -658,6 +656,7 @@ progress {
     display: flex;
     flex-direction: column;
     gap: 20px;
+    scrollbar-width: none !important;
 }
 .post-container::-webkit-scrollbar {
     width: 0;
@@ -1307,6 +1306,11 @@ img {
 .selectorOpened{
   max-height: 250px;
   transition: max-height 0.15s ease;
+}
+.ls-video{
+    max-width: 500px;
+    width: 100%;
+    margin: 10px 0;
 }
 .shadow-me{
   box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
@@ -3273,12 +3277,6 @@ input:-webkit-autofill:active{
   background-color: #000;
 }
 
-body{
-//   background:#ddd;
-    background: var(--bg2);
-    -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
-    width: 100%;
-}
 
 .vue-color__chrome__alpha-wrap, 
 .vue-color__chrome__toggle-btn, 
@@ -4284,7 +4282,8 @@ font-size: 13px;
 .left-panel-outer{
     overflow:hidden scroll;
     -webkit-overflow-scrolling: touch;    
-    height: 100%
+    height: 100%;
+    
 }
 .newMemberNotify{
     padding: 2px 3px 2px 3px;
@@ -5728,6 +5727,7 @@ input:autofill {
 .lessonShift-leave-to {
     transform: translateX(100vw);
 }
+
 @media screen and (max-width: 959px) {
     .vertical-wrapper{
       max-height: 400px;
