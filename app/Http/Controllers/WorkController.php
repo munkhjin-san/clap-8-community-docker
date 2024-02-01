@@ -265,7 +265,12 @@ class WorkController extends Controller
             $recieve['notification_user'] = $notificationUser;
             $recieve['endDate'] = $endDate;
             $planned_shifts = shiftRecord::whereBetween('shift_day', [$startDate, $endDate])->where('shift_type', 3)->where('user_id', Auth::id())->count();
-            $remaining_days = $recieve['planned_days'] - $planned_shifts;
+            $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $startDate);
+            if ($plannedDateCarbon->year === 2023) {
+                $remaining_days = 0;
+            } else {
+                $remaining_days = $recieve['planned_days'] - $planned_shifts;
+            }
             if($remaining_days > 0){
                 $data = [
                     "shift_count" => $planned_shifts,
@@ -349,7 +354,13 @@ class WorkController extends Controller
             $planned_date = $recieve['date'];
             $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
             $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();
-            $remaining_days = $recieve['planned_days'] - $between_records; 
+            $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $planned_date);
+            if ($plannedDateCarbon->year === 2023) {
+                $remaining_days = 0;
+            } else {
+                $remaining_days = $recieve['planned_days'] - $between_records; 
+            }
+           
         }
         if($auth_user->position_id <= 11){
             $shift_type = shiftType::where('deleted_flag', 0)->get();
