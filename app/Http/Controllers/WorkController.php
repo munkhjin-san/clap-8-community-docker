@@ -231,20 +231,45 @@ class WorkController extends Controller
     }
     public function get_temp_data(Request $request){
         $notificationUser = User::select('name', 'id', 'icon_id')->findOrFail(610);
-        $tempData = workTemp::where('user_code', $request->user_code)->first();
+        $currentYear = Carbon::now()->year;
+        $queryParams = [
+            'app' => '605',
+            "query" => '年 = '. $currentYear . ' and 社員ｺｰﾄﾞ = ' . $request->user_code,
+        ];
         
+        $queryString = http_build_query($queryParams);
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+
+        $headers = [
+            'Authorization' => 'Basic',
+            'X-Cybozu-API-Token' => 'Nxwn6FfbuQ7fcBX9Hi3rjyoEpdlLNUHyWYrEBWKZ'
+        ];
+        $recieve = [];
+        $response = Http::withHeaders($headers)->get($url);
+        $responseContent = $response->body();
+        $responseData = $response->json();
         
-        if ($tempData) {
-            $startDate = $tempData->date;
+        if($responseData){
+            if(isset($responseData['records'])){
+                foreach ($responseData['records'] as $data){
+                    if($data['社員ｺｰﾄﾞ']['value'] == $request->user_code){
+                        $recieve = ['date'=>$data['当年度有休付与日']['value'], 'user_code'=>$data['社員ｺｰﾄﾞ']['value'], 'planned_days'=>$data['計画消化日数']['value']];
+                    }
+                }
+            }
+        }
+        
+        if ($recieve) {
+            $startDate = $recieve['date'];
             $endDate = Carbon::parse($startDate)->addYear()->format('Y-m-d');
-            $tempData['notification_user'] = $notificationUser;
-            $tempData['endDate'] = $endDate;
+            $recieve['notification_user'] = $notificationUser;
+            $recieve['endDate'] = $endDate;
             $planned_shifts = shiftRecord::whereBetween('shift_day', [$startDate, $endDate])->where('shift_type', 3)->where('user_id', Auth::id())->count();
-            $remaining_days = $tempData->planned_days - $planned_shifts;
+            $remaining_days = $recieve['planned_days'] - $planned_shifts;
             if($remaining_days > 0){
                 $data = [
                     "shift_count" => $planned_shifts,
-                    "tempData" => $tempData,
+                    "tempData" => $recieve,
                     "remaining_days" => $remaining_days,
                 ];
                 return response()->json($data);
@@ -277,17 +302,15 @@ class WorkController extends Controller
         
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
-        // if($responseData){
-        //     foreach ($responseData['records'] as $data){
-        //         if($data['社員ｺｰﾄﾞ']['value'] == $user->user_code){
-        //             foreach($data['計画付与テーブル']['value'] as $subtable){
-        //                 if($subtable['value']['区分']['value'] == '計画消化'){
-        //                     $recieve[] = $subtable['value']['計画付与日']['value'];
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+        if($responseData){
+            if(isset($responseData['records'])){
+                foreach ($responseData['records'] as $data){
+                    if($data['社員ｺｰﾄﾞ']['value'] == $user->user_code){
+                        $recieve = ['date'=>$data['当年度有休付与日']['value'], 'user_code'=>$data['社員ｺｰﾄﾞ']['value'], 'planned_days'=>$data['計画消化日数']['value']];
+                    }
+                }
+            }
+        }
         // if($recieve){
         //     foreach($recieve as $date){
         //         $shiftbydate = shiftRecord::where('shift_day', $date)->where('user_id', Auth::id())->first();
@@ -316,17 +339,17 @@ class WorkController extends Controller
                         ->get();
         $between_records = 0;
         $remaining_days = 0;
-        $work_temp = workTemp::where('user_code', $user_code)->first();
+        // $work_temp = workTemp::where('user_code', $user_code)->first();
         $planned_record = shiftRecord::whereIn('user_id', $request->work_group)
                             ->where('shift_type', 3)
                             ->orderBy('created_at', 'desc')
                             ->select('shift_day AS date', 'shift_type AS type', 'status_flag')
                             ->get();
-        if($work_temp){
-            $planned_date = $work_temp->date;
+        if($recieve){
+            $planned_date = $recieve['date'];
             $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
             $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();
-            $remaining_days = $work_temp->planned_days - $between_records; 
+            $remaining_days = $recieve['planned_days'] - $between_records; 
         }
         if($auth_user->position_id <= 11){
             $shift_type = shiftType::where('deleted_flag', 0)->get();
@@ -338,7 +361,7 @@ class WorkController extends Controller
             "planned_record" => $planned_record,
             "shift_type" => $shift_type,
             "kintone_data" => $responseData,
-            "workTemp" => $work_temp ? $work_temp : null,
+            "workTemp" => $recieve ? $recieve : null,
             "consumed_days" => $remaining_days > 0 ? $between_records : 0,
             "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
         ];
@@ -390,7 +413,8 @@ class WorkController extends Controller
                     foreach($recieve as $date){
                         $date1 = Carbon::create(2024, 1, 20);
                         $date2 = Carbon::parse($date);
-                        if($date1->lessThan($date2)){
+                        $date3 = Carbon::create(2024, 1, 1);
+                        if($date2->lessThan($date1) && $date2->greaterThanOrEqualTo($date3)){
                             $shiftbydate = shiftRecord::where('shift_day', $date)->where('user_id', $user->id)->first();
                             if($shiftbydate){
                                 $shiftbydate->shift_type = 3;
@@ -440,6 +464,7 @@ class WorkController extends Controller
         $this->sharedService->syncShiftToCalendar($user_id, $request->year, $request->month, $shift_array);
         foreach ($shift_array as $shift) {
             $status_flag = $shift['type'] === 3 ? 1 : 0;
+            $planned_year = $shift['type'] === 3 ? $request->planned_year : $request->year;
             if ($shift_record_check->has($shift['date'])) {
                 $shift_record = $shift_record_check[$shift['date']];
                 if ($shift_record->shift_type !== $shift['type']) {
@@ -448,7 +473,7 @@ class WorkController extends Controller
                 $shift_record->start_time = $start_time_val;
                 $shift_record->end_time = $end_time_val;
                 $shift_record->status_flag = $status_flag;
-                $shift_record->planned_year = $request->planned_year;
+                $shift_record->planned_year = $planned_year;
                 $shift_record->update();
             } else {
                 shiftRecord::create([
@@ -458,7 +483,7 @@ class WorkController extends Controller
                     'start_time' => $start_time_val,
                     'end_time' => $end_time_val,
                     'status_flag' => $status_flag,
-                    'planned_year' => $request->planned_year,
+                    'planned_year' => $planned_year,
                 ]);
             }
         }
