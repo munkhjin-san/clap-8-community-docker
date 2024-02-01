@@ -169,10 +169,10 @@
                             day_full : shift.shift_day,
                         }
                         this.selectedShiftType = shift.shift_type.id,
-                        this.selectShift(date, shift.status_flag, 0)
+                        this.selectShift(date, shift.status_flag, 0, shift.planned_year)
                     } 
                 }else{
-                    this.selectedShiftType = this.tempStartDate ? 3 : 0
+                    this.selectedShiftType = this.startDate ? 3 : 0
                     this.selectedShifts = []
                     this.holidayCount = 0
                     this.startTime = '09:00'
@@ -182,7 +182,7 @@
             weekDay(num){
                 return moment().weekday(num).locale(this.$store.state.local).format("dd")
             },
-            selectShift(date, status_flag, val){
+            selectShift(date, status_flag, val, planned_year){
                 let existingShift = this.selectedShifts.find(shift => shift.date === date.day_full)
                 if (existingShift) {
                     if(this.$store.state.user.id == 610){
@@ -217,7 +217,7 @@
                 console.log(existingShift)
                 if(this.selectedShiftType == 3 && !existingShift){
                     
-                    if(moment(date.day_full).isBefore(moment(this.tempStartDate)) || moment(date.day_full).isAfter(moment(this.tempStartEnd))){
+                    if(planned_year != 2023 && (moment(date.day_full).isBefore(moment(this.tempStartDate)) || moment(date.day_full).isAfter(moment(this.tempStartEnd)))){
                         this.selectedShifts.pop()
                         this.remainingdays++
                         const content = moment(date.day_full).format('YYYY/MM/DD') + 'は計画期間外です。<br>設定可能な期間は' + '<strong>' + moment(this.tempStartDate).format('YYYY/MM/DD') + '</strong>' + '-' + '<strong>' + this.tempStartEnd.format('YYYY/MM/DD') + '</strong>'
