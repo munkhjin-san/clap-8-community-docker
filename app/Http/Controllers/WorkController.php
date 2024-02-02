@@ -58,20 +58,7 @@ class WorkController extends Controller
             $current_date = Carbon::now()->format('Y-m');
             [$currentYear, $currentMonth] = explode('-', $current_date);
         }
-        $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
 
-        if ($currentMonth == 12) {
-            $holidayNum = 10;
-        } elseif ($currentMonth == 1) {
-            $holidayNum = 12;
-        } else {
-            if ($lastDay >= 29) {
-                $holidayNum = 9;
-            } elseif ($lastDay <= 28) {
-                $holidayNum = 8;
-            }
-        }
-        $workdayNum = $lastDay - $holidayNum;
         $time_card_record = timecardRecord::whereYear('day', $currentYear)
             ->whereMonth('day', $currentMonth)
             ->whereIn('user_id', $users_list)
@@ -202,7 +189,24 @@ class WorkController extends Controller
             ];                
         }
         $month_average_data = [];
+        $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
         foreach($user_record as $user){
+            if($user->position_id == 12){
+                $holidayNum = 9;
+            }else{
+                if ($currentMonth == 12) {
+                    $holidayNum = 10;
+                } elseif ($currentMonth == 1) {
+                    $holidayNum = 12;
+                } else {
+                    if ($lastDay >= 29) {
+                        $holidayNum = 9;
+                    } elseif ($lastDay <= 28) {
+                        $holidayNum = 8;
+                    }
+                }
+            }
+            $workdayNum = $lastDay - $holidayNum;
             $shift_work_hours = $workdayNum * $user->work_time_day;
             if($user->work_type == 0 && $month_over_time && $month_work_time){
                 if(isset($month_work_time[$user->id]) && isset($month_over_time[$user->id]) && isset($annual_leave[$user->id])){
