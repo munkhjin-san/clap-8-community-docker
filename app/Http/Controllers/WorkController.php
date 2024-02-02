@@ -824,18 +824,23 @@ class WorkController extends Controller
 
         // Calculate the last day of the current month
         $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
-
-        if ($monthNum == 12) {
-            $holidayNum = 10;
-        } elseif ($monthNum == 1) {
-            $holidayNum = 12;
-        } else {
-            if ($lastDay >= 29) {
-                $holidayNum = 9;
-            } elseif ($lastDay <= 28) {
-                $holidayNum = 8;
+        
+        if($user->work_type == 0){
+            if ($monthNum == 12) {
+                $holidayNum = 10;
+            } elseif ($monthNum == 1) {
+                $holidayNum = 12;
+            } else {
+                if ($lastDay >= 29) {
+                    $holidayNum = 9;
+                } elseif ($lastDay <= 28) {
+                    $holidayNum = 8;
+                }
             }
+        }else{
+            $holidayNum = 9;
         }
+        
         $workdayNum = $lastDay - $holidayNum;
         $userData = $user->makeHidden('attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records');
         $attendance = $user->attendance_records->first();
