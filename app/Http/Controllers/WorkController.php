@@ -819,13 +819,14 @@ class WorkController extends Controller
                     ->whereMonth('date', $currentMonth)
                     ->select('value_int', 'user_id');
             }
-        ])->select('id','name','work_type', 'work_time_day', 'user_code')->findOrFail($user_list[0]);        
+        ])->select('id','name','work_type', 'work_time_day', 'user_code', 'position_id')->findOrFail($user_list[0]);        
         $monthNum = (int)$currentMonth;
 
         // Calculate the last day of the current month
         $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
-        
-        if($user->work_type == 0){
+        if($user->position_id == 12){
+            $holidayNum = 9;
+        }else{
             if ($monthNum == 12) {
                 $holidayNum = 10;
             } elseif ($monthNum == 1) {
@@ -837,8 +838,6 @@ class WorkController extends Controller
                     $holidayNum = 8;
                 }
             }
-        }else{
-            $holidayNum = 9;
         }
         
         $workdayNum = $lastDay - $holidayNum;
