@@ -41,16 +41,22 @@
                     <div class="video-grid">
                         <div class="video-item">
                             <p><strong>研修プログラムの説明</strong></p>
-                            <video></video>
+                            <video controls="controls" style="max-width: 100%;margin-top: 15px;">
+                                <source src="/lesson_files/program-explaination.mp4">
+                            </video>
                         </div>
-                        <div class="video-item">
+                        <!-- <div class="video-item">
                             <p><strong>グループディスカッションの説明</strong></p>
                             <video></video>
-                        </div>
+                        </div> -->
                         <div class="video-item">
                             <p><strong>ポートフォリオの説明</strong></p>
-                            <video></video>
+                            <video controls="controls" style="max-width: 100%;margin-top: 15px;">
+                                <source src="/lesson_files/portfolio-explaination.mp4">
+                            </video>
                         </div>
+                        <div class="video-item"></div>
+                        
                     </div>
 
                 </div>
@@ -269,7 +275,7 @@
 .video-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+  gap: 30px;
   margin-top: 20px;
 }
 
