@@ -83,7 +83,7 @@
 </template>
 <script>
     import { Field, Form } from 'vee-validate'
-    import Logo from '../Global/Logo'
+    import Logo from '../Global/Logo.vue'
     
     import moment from 'moment';
     export default {

@@ -98,7 +98,7 @@
 import colors from '../../../../../assets/colors.json'
 import MemoSortButton from "./MemoSortButton.vue";
 import MemoRecycleButton from "./MemoRecycleButton.vue";
-import MemoBox from './MemoBox'
+import MemoBox from './MemoBox.vue'
 export default {
     props: ["fullScreen", "ftSelector"],
     data() {

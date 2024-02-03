@@ -42,11 +42,11 @@
                 </div>
             </div>
             <div class="si-box">
-                <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>フィードバックによる気づきや学び</strong></p>
+                <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>フィードバックから得た発見と成長</strong></p>
                 <FormLongText
                     v-if="portfolio && portfolio.status == 1 "
                     :initialValue="portfolio ? portfolio.noticed : noticed"   
-                    :placeHolder="`気付きと学びの内容`"
+                    :placeHolder="`発見と成長の内容`"
                     :key="portfolio.noticed"
                     ref="noticedBody"
                     uId="recordBody"
@@ -111,12 +111,12 @@
         return true
     })
     onMounted(() => {
-        setTimeout(() => {
-            console.log(discussionDay.value, group_available.value)
-            if(!discussionDay.value || group_available.value){
-                errorToast()
-            }
-        }, 500);
+        // setTimeout(() => {
+        //     console.log(discussionDay.value, group_available.value)
+        //     if(!discussionDay.value || group_available.value){
+        //         errorToast()
+        //     }
+        // }, 500);
         
     })
     const saveContent = async(status) => {
@@ -201,24 +201,19 @@
             router.push({name: 'top'})
         })   
     }
-    const errorToast = () => {
+    const errorToast = (message) => {
             const uniqueChannell = Math.random().toString(36).substring(5);
 
             emitter.emit('setToast', {
                 active: true,  
                 type: 'info', 
-                content: group_available.value ? '基礎知識を完了してください。' : 'グループディスカッションの日常調整連絡お待ちください。',
+                content: message,
                 closeButton: false, 
                 autoClose: false,
                 touchClose: false,
-                answers: ['戻る'],
+                answers: ['OK'],
                 channel: uniqueChannell
             })  
-            emitter.on(uniqueChannell, (data) => {                            
-                if(data.answer === '戻る'){
-                    router.go(-1)
-                }
-            })
         }
     
 </script>

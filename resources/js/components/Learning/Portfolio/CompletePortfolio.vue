@@ -13,11 +13,17 @@
                 <p>{{ portfolio.negative_feedback }}</p>
             </div>
             <div class="si-box" v-if="portfolio && portfolio.noticed">
-                <p><strong>フィードバックによる気づきや学び</strong></p>
+                <p><strong>フィードバックから得た発見と成長</strong></p>
                 <p>{{ portfolio.noticed }}</p>
             </div>
+            <div class="si-box" v-if="portfolio && portfolio.content">
+                <p><strong>ディスカッション用ポートフォリオタイトル</strong></p>
+                <p>{{ portfolio.portfolio_title }}</p>
+                <p><strong>ディスカッション用ポートフォリオ内容</strong></p>
+                <p>{{ portfolio.content }}</p>
+            </div>
             <div class="si-box">
-                <p :style="{marginBottom: portfolio && portfolio.status == 2 ? '20px' : '0'}"><strong>{{portfolio && portfolio.status == 2 ? 'ポートフォリオを完成してください。' : 'ポートフォリオ'}}</strong></p>
+                <p :style="{marginBottom: portfolio && portfolio.status == 2 ? '20px' : '0'}"><strong>{{portfolio && portfolio.status == 2 ? 'フィードバックによる発見と成長を反映し、ポートフォリオを完成させてください。' : 'ポートフォリオ'}}</strong></p>
                 <FormShortText
                     v-if="portfolio && portfolio.status == 2"
                     :initialValue="portfolio ? portfolio.portfolio_title : portfolio_title"
@@ -29,7 +35,7 @@
                     label="タイトル"
                     @setValue="val => portfolio_title = val"
                 />
-                <p v-else>{{ portfolio?.portfolio_title }}</p>
+                <p v-else>{{ portfolio?.public_title }}</p>
             </div>
             <div class="si-box">
                 <FormLongText
@@ -44,7 +50,7 @@
                     label="タイトル"
                     @setValue="val => portfolioContent = val"
                 />
-                <p v-else>{{ portfolio?.content }}</p>
+                <p v-else>{{ portfolio?.public_content }}</p>
             </div>
             <div v-if="portfolio && portfolio.status == 2" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                 <div>
@@ -91,15 +97,16 @@
                 processing_save.value = true
             }
             const params = {
-                portfolio_title: portfolio_title.value ? portfolio_title.value : portfolio.portfolio_title,
-                content: portfolioContent.value ? portfolioContent.value : portfolio.content,
+                portfolio_title: portfolio.portfolio_title,
+                content: portfolio.content,
                 theme_id: route.params.lessonThemeId,
-                status: 2,
+                public_title: portfolio_title.value ? portfolio_title.value : portfolio.portfolio_title,
+                public_content: portfolioContent.value ? portfolioContent.value : portfolio.content,
+                status: 3,
             }
             axios.post('/save_lesson_portfolio', params).then(response => {
                 if(status == 'next'){
-                    processing.value = false
-                    router.push({name: 'form'})
+
                 }else{
                     const data = {
                         text: props.editTarget ? '編集しました。' :'保存しました。',
@@ -119,7 +126,28 @@
         
     }
     const nextStage = () => {
-        savePortfolio('next')
+        const uniqueChannell = Math.random().toString(36).substring(5);
+        const answers = ['OK', 'キャンセル']
+        emitter.emit('setToast', {
+            active: true,  
+            type: 'info', 
+            content: 'ポートフォリオを完了にしますか。\n※完了後に、編集するができません。',
+            closeButton: false, 
+            autoClose: false,
+            touchClose: false,
+            answers: answers,
+            channel: uniqueChannell
+        })  
+        emitter.on(uniqueChannell, async (data) => {                            
+            if(data.answer === answers[0]){
+                await savePortfolio('next')
+                setTimeout(() => {                    
+                    processing.value = false
+                    router.push({name: 'form'})
+                }, 1000);
+            }
+        }) 
+        
     }
     const errorToast = (message) => {
             emitter.emit('setToast', {

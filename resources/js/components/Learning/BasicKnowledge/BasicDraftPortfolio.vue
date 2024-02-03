@@ -7,7 +7,7 @@
                 </div>
                 
                 <div style="margin-top: 30px;" class="section-contents" >
-                    <p style="margin-bottom: 10px;"><strong>重要だと理解した部分</strong></p>
+                    <p style="margin-bottom: 10px;"><strong>重要だと理解した点</strong></p>
                     <div v-for="section in portfolio?.lesson_sections">
                         <p>{{ section?.lesson_material?.title }}</p>
                         <p>{{ section?.content }}</p>
@@ -16,25 +16,25 @@
                 </div>
             </div>
             <div class="si-box">
-                <p v-if="portfolio?.status < 1" :style="{marginBottom: portfolio?.status < 1 ? '20px' : '0'}"><strong>ディスカッション用のポートフォリオを作成してください。</strong></p>
+                <p v-if="portfolio?.status < 1" :style="{marginBottom: portfolio?.status < 1 ? '20px' : '0'}"><strong>ディスカッション用のポートフォリオを作成してください</strong></p>
                 <FormShortText
                     v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.portfolio_title : portfolio_title"
                     ref="portfolioTitle"
-                    placeHolder="ポートフォリオタイトル"
+                    placeHolder="ディスカッション用ポートフォリオタイトル"
                     uId="portfolioTitle"
                     name="portfolioTitle"
                     rules="required"
                     label="タイトル"
                     @setValue="val => portfolio_title = val"
                 />
-                <p v-else><strong>ポートフォリオタイトル<br></strong>{{ portfolio?.portfolio_title }}</p>
+                <p v-else><strong>ディスカッション用ポートフォリオタイトル<br></strong>{{ portfolio?.portfolio_title }}</p>
             </div>
             <div class="si-box">
                 <FormLongText
                     v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.content : content"   
-                    :placeHolder="`ポートフォリオ内容`"
+                    :placeHolder="`ディスカッション用ポートフォリオ内容`"
                     :key="portfolio ? portfolio.content : 0"
                     ref="portfolioBody"
                     rules="required|max:2000"
@@ -43,7 +43,7 @@
                     label="タイトル"
                     @setValue="val => content = val"
                 />
-                <p v-else><strong>ポートフォリオ内容<br></strong>{{ portfolio?.content }}</p>
+                <p v-else><strong>ディスカッション用ポートフォリオ内容<br></strong>{{ portfolio?.content }}</p>
             </div>
             
             <div v-if="portfolio && portfolio.status < 1" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
@@ -51,7 +51,7 @@
                     <LoaderButton @triggered="tempSavePort('save')" :loading="processing_save" :content="'一時保存'"/>
                 </div> 
                 <div>
-                    <LoaderButton @triggered="nextStage" :loading="processing" :content="'基礎知識完了'"/>
+                    <LoaderButton @triggered="nextStage" :loading="processing" :content="'作成完了'"/>
                 </div>
             </div>
 

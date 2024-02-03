@@ -57,8 +57,8 @@
 </template>
 <script>
 
-import TaskContainer from './Tray/Task/TaskContainer'
-import MemoContainer from './Tray/Memo/MemoContainer'
+import TaskContainer from './Tray/Task/TaskContainer.vue'
+import MemoContainer from './Tray/Memo/MemoContainer.vue'
 import FileContainer from './Tray/File/FileContainer.vue'
 export default {
     props: [

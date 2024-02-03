@@ -34,7 +34,7 @@
 <script>
     import IncompleteWindow from '../Board/IncompleteWindow.vue'
     import IncompleteFeedBack from '../Board/IncompleteFeedBack.vue'
-    import Toast from './Toast/Toast'
+    import Toast from './Toast/Toast.vue'
     import theme from '../../../assets/theme.json'
     import MessageUsers from '../Board/Message/MessageUsers.vue'
     import Info from './Toast/Info.vue'

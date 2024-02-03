@@ -3,9 +3,9 @@
         <div class="section-inner">
 
         
-            <div v-if="$route.name == 'material'" style="background:inherit">
+            <div style="background:inherit">
                 <div>
-                    <p v-if="material" v-html="material.content"></p>
+                    <p v-if="material" v-html="filteredContent"></p>
                 </div>
                 <div class="post-separetor"></div>
                 <div v-if="sectionStatus != 2">
@@ -18,11 +18,11 @@
                 </div>
                 
                 <div v-if="selectedAnswer == 1 || sectionStatus == 2" class="si-box" style="margin:0">
-                    <p :style="{marginBottom: sectionStatus != 2 ? '20px' : '0'}"><strong>{{ sectionStatus != 2 ? '基礎知識の内容で特に重要だと理解した部分を入力してください。' : '基礎知識の内容で理解した部分。'}}</strong></p>
+                    <p :style="{marginBottom: sectionStatus != 2 ? '20px' : '0'}"><strong>{{ sectionStatus != 2 ? '基礎知識の内容で特に重要だと理解した点を入力してください' : '基礎知識の内容で特に重要だと理解した点'}}</strong></p>
                     <FormLongText
                         v-if="sectionStatus != 2"
                         :initialValue="sectionContent ? sectionContent : comment"   
-                        :placeHolder="`理解した内容`"
+                        :placeHolder="`理解した点`"
                         :key="sectionContent ? sectionContent : 0"
                         ref="understandComment"
                         rules="required|max:2000"
@@ -31,7 +31,11 @@
                         label="タイトル"
                         @setValue="val => comment = val"
                     />
-                    <p v-else>{{ sectionContent ? sectionContent : "" }}</p>
+                    <div v-else>
+                        <p >{{ sectionContent ? sectionContent : "" }}</p>
+                        <router-link :to="{name: 'more'}">もっと詳しく知りたい</router-link>
+                    </div>
+                    
                 </div>
                 
                 <div v-if="sectionStatus != 2" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
@@ -48,22 +52,29 @@
                 :material="material"
                 :selectedTopic="selectedTopic"
                 :sectionUpdate="sectionUpdate"
+                :sectionStatus="sectionStatus"
             >
             </router-view>
         </div>
     </div>
 </template>
 <script setup>
-    import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
+    import { useRoute, useRouter } from 'vue-router';
     import FormLongText from '../../Global/FormLongText.vue';
     import LoaderButton from '../../Global/LoaderButton.vue'
-    import { ref, computed, inject, watch } from 'vue'
+    import { ref, computed, inject } from 'vue'
     const router = useRouter()
     const route = useRoute()
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
 
     const getLessonPortfolios = inject('getLessonPortfolios')
 
+    const filteredContent = computed(() => {
+        
+        return material.value.content.replace(/\[\[learning_video src="(.*?)" learning_video\]\]/g, (match, videoSrc) => {
+            return `<video class="ls-video"  controls="controls"><source src="${videoSrc}"></video>`;
+        });
+    })
     const material = computed(() => {
         return props.filteredMaterials ? props.filteredMaterials.filter(val => val.id == route.params.materialId)[0] : ''
     })
@@ -77,7 +88,6 @@
     
     const comment = ref("")
     const processing = ref(false)
-    const formKey = ref(0)
     const list = ref([
         { value: 1, content: '理解しました'},
         { value: 0, content: 'もっと詳しく知りたい'}        
@@ -86,7 +96,6 @@
  
     const radioError = ref("")
     const processing_save = ref(false) 
-    const portfolio = inject('portfolio')
 
     const validate = async(status) => {
         const valid = await understandComment.value.$refs.recordBody.validate()

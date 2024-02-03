@@ -81,29 +81,12 @@
             }
         }, 500)
     })
-    const saveConfirm = () => {
-        const uniqueChannell = Math.random().toString(36).substring(5);
-        const answers = ['OK', 'キャンセル']
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: 'ポートフォリオを完了にしますか。\n※完了後に、編集するができません。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: answers,
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, async (data) => {                            
-            if(data.answer === answers[0]){
-                await saveForm()
-                setTimeout(() => {                    
-                    processing.value = false
-                    router.push({name: 'finish'})
-                }, 1000);
-                // router.go(-1)
-            }
-        })  
+    const saveConfirm = async() => {        
+        await saveForm()
+        setTimeout(() => {                    
+            processing.value = false
+            router.push({name: 'finish'})
+        }, 1000);         
     }
     const saveForm = async() => {
         if(question1.value != null && question2.value != null && question3.value != null){

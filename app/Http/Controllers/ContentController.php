@@ -377,12 +377,10 @@ class ContentController extends Controller
         
 
         try {
-            $filePath = $request->path;
-            $fileContents = Storage::disk('local')->get('lesson_files/' . $filePath);
-            $finfo = finfo_open(FILEINFO_MIME_TYPE);
-            $contentType = finfo_buffer($finfo, $fileContents);
-            finfo_close($finfo);
-            return response($fileContents)->header('Content-Type', $contentType);
+            $root_path = storage_path('app');
+            $filePath = $request->user_id . '/' . $request->path;
+            $p1 = $root_path . '/lesson_files/' . $filePath;
+            return response()->file($p1);
         } catch (FileNotFoundException $exception) {
             abort(404);
         }

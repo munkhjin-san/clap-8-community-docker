@@ -426,7 +426,8 @@ Route::group(["middleware"=>"auth"],function(){
             $support = User::where('name', '研修サポート')->first();
             return empty($support) ? 0 : $support->id;
         });
-
+        Route::get('/get_lesson_files', [LessonController::class, 'get_lesson_files']);
+        Route::delete('/remove_lesson_file', [LessonController::class, 'remove_lesson_file']);
 
         Route::post('/section_update', [LessonController::class, 'section_update']);
         // Lessons

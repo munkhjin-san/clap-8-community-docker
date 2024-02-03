@@ -37,12 +37,27 @@
                     <p style="line-height: 2.5;margin-bottom: 25px;">この研修プログラムは、社会活動で求められる9つの職能を学ぶためのものです。<br>まず、CLAPのラーニングアプリを使用して基礎学習を行い、内容を理解します。<br>理解が困難な場合は、補足資料の確認やフォローアップ面談を通じてサポートを受けることができます。<br>次に、基礎学習を理解した参加者は、グループディスカッションのためのポートフォリオを作成します。<br>このディスカッションでは、ポートフォリオを発表し、ポジティブフィードバックとネガティブフィードバックを受けて、ポートフォリオを完成させます。<br>完成したポートフォリオは、各参加者のマイページのプロフィール欄に自動的に掲載されます。<br>基礎学習を完了し、ポートフォリオが完成した参加者は、1つのテーマの履修が完了したとみなされます。</p>
                     <p style="font-size: 18px;margin: 15px 0;">ポートフォリオとは<br></p>
                     <p style="line-height: 2.5;">ポートフォリオは、自分の学んだことや経験をまとめた記録です。<br>これには、研修で学んだ内容、過去に取り組んだプロジェクトやその成果、自分の強みや特性、自分の意見や考え方などを含めます。<br>ポートフォリオを作ることで、自分がどう成長したか、どのように考えているかを他の人に示すことができます。<br>また、フィードバックを受け入れて改善することで、さらに自分自身を深く理解し、発展させることができます。</p>
-                    <a @click="moreDetail = true" style="cursor: pointer;">もっと詳しく知りたい</a>
+                    <!-- <a @click="moreDetail = true" style="cursor: pointer;">もっと詳しく知りたい</a> -->
+                    <div class="video-grid">
+                        <div class="video-item">
+                            <p><strong>研修プログラムの説明</strong></p>
+                            <video></video>
+                        </div>
+                        <div class="video-item">
+                            <p><strong>グループディスカッションの説明</strong></p>
+                            <video></video>
+                        </div>
+                        <div class="video-item">
+                            <p><strong>ポートフォリオの説明</strong></p>
+                            <video></video>
+                        </div>
+                    </div>
+
                 </div>
-                <TransitionGroup name="t-list" class="topic-container" tag="div" style="padding-bottom: 0;">
+                <TransitionGroup name="t-list" class="topic-container" tag="div" style="padding-bottom: 20px;">
         
                 <div v-for="topic in subtopics"
-                    :key=topic.val :class="['topic-item' , {'inactive-theme' : status < topic.val || topic.val == 1 && !discussionDay}]" @click="select(topic)">
+                    :key=topic.val :class="['topic-item' , {'inactive-theme' : status < topic.val}]" @click="select(topic)">
                     <div class="flex gap-10 flex-col">
                         <div class="flex align-center" style="gap:5px;">
                             <div v-if="status > topic.val" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
@@ -114,21 +129,21 @@
     const select = (topic) => {
         if(topic.val == 0){
             router.push({name: 'basic'})
-        }else if(topic.val == 1 && topic.val <= status.value && discussionDay.value){
+        }else if(topic.val == 1 && topic.val <= status.value){
             router.push({name: 'discussion'})
         }else if(topic.val == 2 && topic.val <= status.value){
             router.push({name: 'portfolio'})
         }
     }
-    const discussionDay = computed(() => {
-        if(props.selectedTopic && props.selectedTopic.discussion_date){
-            const currentDate = new Date();
-            const discussionDate = new Date(props.selectedTopic.discussion_date)
-            return currentDate >= discussionDate
-        }else{
-            return false
-        }
-    })
+    // const discussionDay = computed(() => {
+    //     if(props.selectedTopic && props.selectedTopic.discussion_date){
+    //         const currentDate = new Date();
+    //         const discussionDate = new Date(props.selectedTopic.discussion_date)
+    //         return currentDate >= discussionDate
+    //     }else{
+    //         return false
+    //     }
+    // })
     const filteredMaterials = computed(() => {
         return materials.value && materials.value.length ? materials.value.filter(ob => ob.priority == 1) : [] 
     })
@@ -212,10 +227,13 @@
         }
     })
     const goBack = () => {
+        console.log(route.name)
         if(route.name == 'top'){
             router.push({name : 'learning'})
         }else if(route.name == 'basic'){
             router.push({name : 'top'})
+        }else if(route.name == 'material'){
+            router.push({name : 'basic'})
         }else{
             router.go(-1)
         }
@@ -247,3 +265,17 @@
     provide('portfolio', portfolio)
 
 </script>
+<style scoped>
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+@media screen and (max-width: 959px) {
+  .video-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

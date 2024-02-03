@@ -80,7 +80,7 @@
 import MessageItem from "./MessageItem.vue";
 import MessageItemQueue from "./MessageItemQueue.vue";
 import MessageInput from './MessageInput.vue';
-import UserIcon from '../Mixed/UserIcon';
+import UserIcon from '../Mixed/UserIcon.vue';
 import MessageHeader from '../../Mobile/MessageHeader.vue';
 import moment from "moment";
     export default {

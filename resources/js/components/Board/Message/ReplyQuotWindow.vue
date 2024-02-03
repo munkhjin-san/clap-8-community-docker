@@ -23,7 +23,7 @@
     </div>
 </template>
 <script>
-import QuoteSelectionWindow from '../Message/QuoteSelectionWindow'
+import QuoteSelectionWindow from '../Message/QuoteSelectionWindow.vue'
     export default {
         data(){
             return{               

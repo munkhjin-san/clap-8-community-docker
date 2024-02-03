@@ -1,5 +1,5 @@
 <template>
-    <div class="editor-root" style="padding: 0;overflow: hidden auto;height: calc(100% - 30px);">
+    <div class="editor-root" style="padding: 0;overflow: hidden auto;height: calc(100% - 30px);" @click="colorPickerView = null, filePickerView = false, activeFile = null">
         <div class="toolbar-root" v-if="editor">
             <button @click="editor.chain().focus().toggleBold().run()" :class="['toolbar-button', {'command-active': editor.isActive('bold')}]">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="inherit"><path d="M8 11H12.5C13.8807 11 15 9.88071 15 8.5C15 7.11929 13.8807 6 12.5 6H8V11ZM18 15.5C18 17.9853 15.9853 20 13.5 20H6V4H12.5C14.9853 4 17 6.01472 17 8.5C17 9.70431 16.5269 10.7981 15.7564 11.6058C17.0979 12.3847 18 13.837 18 15.5ZM8 13V18H13.5C14.8807 18 16 16.8807 16 15.5C16 14.1193 14.8807 13 13.5 13H8Z"></path></svg>
@@ -35,18 +35,18 @@
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 4H21V6H8V4ZM3 3.5H6V6.5H3V3.5ZM3 10.5H6V13.5H3V10.5ZM3 17.5H6V20.5H3V17.5ZM8 11H21V13H8V11ZM8 18H21V20H8V18Z"></path></svg>
             </button> -->
             <div style="display: flex;position: relative;">
-                <button @click.stop="$store.commit('setMenu', { name: 'ckpick', id: 55})" :class="['toolbar-button', {'command-active': editor.isActive('textStyle', 'color')}]">
+                <button @click.stop="colorPickerView = 55" :class="['toolbar-button', {'command-active': editor.isActive('textStyle', 'color')}]">
                     <svg style="color:#ff8787" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M5.55397 22H3.3999L10.9999 3H12.9999L20.5999 22H18.4458L16.0458 16H7.95397L5.55397 22ZM8.75397 14H15.2458L11.9999 5.88517L8.75397 14Z"></path></svg>
                 </button>
-                <button @click.stop="$store.commit('setMenu', { name: 'ckpick', id: 20})" :class="['toolbar-button', {'command-active': editor.isActive('highlight')}]">
+                <button @click.stop="colorPickerView = 20" :class="['toolbar-button', {'command-active': editor.isActive('highlight')}]">
                     <svg style="background: #fcffa6;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M5.55397 22H3.3999L10.9999 3H12.9999L20.5999 22H18.4458L16.0458 16H7.95397L5.55397 22ZM8.75397 14H15.2458L11.9999 5.88517L8.75397 14Z"></path></svg>
                 </button>
                 <Transition name="slidePop">
                     <div 
                         id="ckpick" 
                         class="color-grid" 
-                        v-if="$store.state.menu.name == 'ckpick' && ($store.state.menu.id == 20 || $store.state.menu.id == 55)"
-                        :style="{left: `-${$store.state.menu.id}px`}"
+                        v-if="colorPickerView"
+                        :style="{left: `-${colorPickerView}px`}"
                         >                        
                         <div v-for="row in colorShadesArray" :key="row[0]" class="color-row">
                             <div 
@@ -54,27 +54,46 @@
                                 :key="color"
                                 class="color-item"
                                 :style="{ backgroundColor: color }"
-                                @click="selectColor(color)"
+                                @click.stop="selectColor(color)"
                             ></div>
                         </div>
                         <button style="background: var(--bg2);width: fit-content;padding: 5px;margin-top: 10px;font-size: 12px;" @click="resetColor">リセット</button>
                     </div>
                 </Transition>
+                <Transition name="slidePop">
+                    <div class="file-picker" id="videopick" v-if="filePickerView" :style="{left: `0`}">  
+                        <div style="position: relative;">
+                            <div v-if="uploading" class="overlay" style="position: absolute;color: white;"><strong>アップロード中</strong></div>
+                            <div class="file-grid">
+                                <div :title="file?.replace('lesson_files/', '')" @click.stop="activeFile = file" :key="file" v-for="file in fileList" :class="['lesson-file-item', {'lesson-file-active' : activeFile == file}]">
+                                    <img v-if="fileExtension(file) == 'webp'" style="max-height: 50px;" v-lazy="{src: `/${file}`}" />
+                                    <video v-else style="max-height: 50px;width: 100%;height: 100%;" :src="`/${file}`"></video>                                    
+                                </div> 
+                            </div>          
+                            <div style="padding: 10px;">
+                                <input @click.stop @change.stop="uploadImage" ref="filePicker" type="file" style="display: none;" name="videoPicker" id="videoPicker"/>
+                                <button style="background: var(--bg2);width: fit-content;padding: 5px;margin-top: 10px;font-size: 12px;" @click.stop="uploadStart">アップロード</button>
+                                <button v-if="activeFile" style="background: var(--bg2);width: fit-content;padding: 5px;margin-top: 10px;font-size: 12px;margin-left: 10px;" @click.stop="applyFile()">適用</button>
+                                <button v-if="activeFile" style="background: var(--bg2);width: fit-content;padding: 5px;margin-top: 10px;font-size: 12px;margin-left: 10px;" @click.stop="deleteFile()">削除</button>
+                            </div>
+                        </div>                       
+                    </div>
+                </Transition>
             </div>
 
-            <!-- <button :class="['toolbar-button']">
-                <label for="videoPicker" class="toolbar-button">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M16 4C16.5523 4 17 4.44772 17 5V9.2L22.2133 5.55071C22.4395 5.39235 22.7513 5.44737 22.9096 5.6736C22.9684 5.75764 23 5.85774 23 5.96033V18.0397C23 18.3158 22.7761 18.5397 22.5 18.5397C22.3974 18.5397 22.2973 18.5081 22.2133 18.4493L17 14.8V19C17 19.5523 16.5523 20 16 20H2C1.44772 20 1 19.5523 1 19V5C1 4.44772 1.44772 4 2 4H16ZM15 6H3V18H15V6ZM8 8H10V11H13V13H9.999L10 16H8L7.999 13H5V11H8V8ZM21 8.84131L17 11.641V12.359L21 15.1587V8.84131Z"></path></svg>
-                </label>
-                <input @change="uploadVideo" type="file" style="display: none;" name="videoPicker" id="videoPicker"/>
-            </button> -->
+            <button @click.stop="filePickerView = true" :class="['toolbar-button']">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 8L9.00319 2H19.9978C20.5513 2 21 2.45531 21 2.9918V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5501 3 20.9932V8ZM10 4V9H5V20H19V4H10Z"></path></svg>
+            </button>
+            
 
-            <button :class="['toolbar-button']">
+            
+
+            <!-- <button :class="['toolbar-button']">
                 <label for="imagePicker" class="toolbar-button">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 15V18H24V20H21V23H19V20H16V18H19V15H21ZM21.0082 3C21.556 3 22 3.44495 22 3.9934V13H20V5H4V18.999L14 9L17 12V14.829L14 11.8284L6.827 19H14V21H2.9918C2.44405 21 2 20.5551 2 20.0066V3.9934C2 3.44476 2.45531 3 2.9918 3H21.0082ZM8 7C9.10457 7 10 7.89543 10 9C10 10.1046 9.10457 11 8 11C6.89543 11 6 10.1046 6 9C6 7.89543 6.89543 7 8 7Z"></path></svg>
                 </label>
-                <input @change="uploadVideo" type="file" style="display: none;" name="imagePicker" id="imagePicker"/>
-            </button>
+                <input @change="uploadImage" type="file" style="display: none;" name="imagePicker" id="imagePicker"/>
+            </button> -->
         </div>
         <div class="editor-wrap">             
             <editor-content :editor="editor" />
@@ -109,6 +128,14 @@ const editor = useEditor({
     Image
   ],
 })
+const colorPickerView = ref(null)
+const fileList = ref([])
+const activeFile = ref(null)
+const filePicker = ref(null)
+const uploading = ref(false)
+onMounted(() =>{
+    getFileList()
+})
 defineExpose({editor})
 const colorShadesArray = [
   ['#000000', '#666666', '#999999', '#cccccc', '#d9d9d9', '#f3f3f3', '#ffffff'],
@@ -120,22 +147,31 @@ const colorShadesArray = [
   ['#85200c', '#b45f06', '#bf9000', '#134f5c', '#1155cc', '#351c75', '#741b47'],
   ['#5b0f00', '#783f04', '#7f6000', '#0c343d', '#1c4587', '#20124d', '#4c1130']
 ];
+
+const uploadStart = () => {
+    filePicker.value.click()
+}
 const resetColor = () => {
-    if(store.state.menu.id == 55){
+    if(colorPickerView.value == 55){
         editor.value.chain().focus().unsetColor().run()
-    }else if(store.state.menu.id == 20){
+    }else if(colorPickerView.value == 20){
         editor.value.chain().focus().unsetHighlight().run()
     }
-    store.commit('setMenu', {id: null, name: ''})
+    colorPickerView.value = null
 }
 const selectColor = (color) => {
     console.log(color)
-    if(store.state.menu.id == 55){
+    if(colorPickerView.value == 55){
         editor.value.chain().focus().setColor(color).run()
-    }else if(store.state.menu.id == 20){
+    }else if(colorPickerView.value == 20){
         editor.value.chain().focus().setHighlight({ color: color }).run()
     }
-    store.commit('setMenu', {id: null, name: ''})
+    colorPickerView.value = null
+}
+const getFileList = () => {
+    axios.get('/get_lesson_files').then(response => {
+        fileList.value = response.data
+    })
 }
 const setLink = () => {
       const previousUrl = editor.value.getAttributes('link').href
@@ -160,11 +196,16 @@ const setLink = () => {
         .setLink({ href: url })
         .run()
     }
+const fileExtension = (name) => {
+    return name.split('.')[1]
+}
 const uploadingProgress = ref(0)
-const uploadVideo = (event) => {
-    console.log(event.target.files)
+const filePickerView = ref(false)
+const uploadImage = (event) => {
+ 
     const files = event.target.files
     if(files){
+        uploading.value = true
         const formData = new FormData()                   
       
         formData.append('file', files[0])
@@ -174,25 +215,66 @@ const uploadVideo = (event) => {
         axios.post('/upload_lesson_file', formData , { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) } )
         .then(response =>{    
             if(event.target.id == 'imagePicker'){
-                editor.value.chain().focus().setImage({ src: response.data }).run()
+                // editor.value.chain().focus().setImage({ src: response.data }).run()
             }else if(event.target.id == 'videoPicker'){
-                editor.value.chain().focus().insertContent(`hello`).run()
-                console.log('tttttttt')
+                // editor.value.chain().focus().insertContent(`hello`).run()
+                // console.log('tttttttt')
             }
+            getFileList()
             
             
         })
         .catch((error) => {
+            alert(error.response.data.message)
         })
         .then(() => {
-
+            uploading.value = false
         });
 
     }
 }   
+const applyFile = () => {
+    if(fileExtension(activeFile.value) == 'webp'){
+        editor.value.chain().focus().setImage({ src: `/${activeFile.value}` }).run()
+    }else{
+        editor.value.chain().insertContentAt(editor.value.state.selection.anchor, `[[learning_video src="/${activeFile.value}" learning_video]]`).focus().run()
+    }
+}
+
+const deleteFile = () => {
+    axios.delete(`/remove_lesson_file?path=${activeFile.value}`).then(() => {
+        getFileList()
+        activeFile.value = null
+    })
+}
 </script>
 <style scoped>
-
+.file-picker{
+    position: absolute;
+    background: var(--background-color);
+    z-index: 5;
+    width: 230px;
+    top: 30px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.07), 0 4px 8px rgba(0,0,0,.07), 0 8px 16px rgba(0,0,0,.07), 0 16px 32px rgba(0,0,0,.07), 0 32px 64px rgba(0,0,0,.07);
+}
+.file-grid{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* Three columns with equal width */
+    grid-auto-rows: 1fr; 
+    padding: 10px;
+    max-height: 200px;
+    overflow: hidden auto;
+}
+.lesson-file-item{
+    display: flex;
+    align-items: center;
+    justify-content: center;    
+    border: solid thin transparent;
+    padding: 5px;
+}
+.lesson-file-active{
+    border: solid thin var(--primary-color);
+}
 .color-grid {
     top: 30px;
     display: flex;

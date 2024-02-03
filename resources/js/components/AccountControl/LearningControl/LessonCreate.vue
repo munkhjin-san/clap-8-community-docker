@@ -26,10 +26,10 @@
                 <div style="font-size: 14px;margin-bottom: 15px;">基礎知識の内容</div>
                 <RichEditor ref="richEdit" :initilaValue="initialValue"/>
             </div>
-            <div class="si-box" style="height: 70%;">
+            <!-- <div class="si-box" style="height: 70%;">
                 <div style="font-size: 14px;margin-bottom: 15px;">基礎知識の内容（理解できなかった際）</div>
                 <RichEditor ref="richEditDetailed" :initilaValue="initialValueDetailed"/>
-            </div>
+            </div> -->
             <div class="si-box" style="height: 70%;">
                 <div>
                     <div v-for="priority in priorities" style="display: flex;align-items: center;padding: 5px 0;">
@@ -86,8 +86,8 @@ import { computed, ref } from 'vue';
     })
     const createSend = async() => {
             const richContent = richEdit.value.editor.getHTML()
-            const richContentDetailed = richEditDetailed.value.editor.getHTML()
-            if(!richContent || !richContentDetailed || !title.value || selectedPriority.value == null){
+            // const richContentDetailed = richEditDetailed.value.editor.getHTML()
+            if(!richContent || !title.value || selectedPriority.value == null){
                 console.log(selectedPriority.value, title.value )
                 processing.value = false
                 return
@@ -99,7 +99,7 @@ import { computed, ref } from 'vue';
                     lesson_theme_id: props.lessonThemeId,
                     title: title.value,
                     content: richContent,
-                    content_detailed: richContentDetailed,
+                    content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
                     has_feedback: hasFeedBack.value,
                     priority: selectedPriority.value
                 }

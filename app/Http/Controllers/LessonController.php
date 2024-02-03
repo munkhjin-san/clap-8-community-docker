@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 class LessonController extends Controller
 {
     public function get_lessons(Request $request){
@@ -136,7 +137,9 @@ class LessonController extends Controller
             "status" => $request->status ?? $lessonPortfolio->status,
             "understand" => $request->understand ?? $lessonPortfolio->understand,
             "portfolio_title" => $request->portfolio_title ?? $lessonPortfolio->portfolio_title,
-            "noticed" => $request->noticed ?? $lessonPortfolio->noticed
+            "noticed" => $request->noticed ?? $lessonPortfolio->noticed,
+            "public_title" => $request->public_title ?? $lessonPortfolio->public_title,
+            "public_content" => $request->public_content ?? $lessonPortfolio->public_content,
         ]);
             
       
@@ -181,26 +184,41 @@ class LessonController extends Controller
         $file = $request['file'];
         $uniqueID = uniqid();
         $path = '/lesson_files';
-        if($request['type'] == 'imagePicker'){
+        $mime = $file->getMimeType();
+        $fileName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+        if (strpos($mime, 'image') !== false) {
             $ext = 'webp';
             $img = Image::make($file)->orientate();
             
             File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);      
             $thumbnail = $img->encode('webp');  
             
-            $thumbnail->save(storage_path('app') . $path .'/'. $uniqueID . '.' . $ext , 100);
-            $url = '/lesson_files/' . $uniqueID . '.' . $ext;
+            $thumbnail->save(storage_path('app') . $path .'/' . $fileName . '_' . $uniqueID . '.' . $ext , 100);
+            $url = '/lesson_files/' . $fileName . '_' . $uniqueID . '.' . $ext;
             return response()->json($url);
-        }else if($request['type'] == 'videoPicker'){
+        }elseif (strpos($mime, 'video') !== false) {
             $ext = $file->getClientOriginalExtension();
             
             File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);      
             Storage::disk('local')->putFileAs(
-                $path, $file, $uniqueID . '.' . $ext
+                $path, $file, $fileName . '_'  . $uniqueID . '.' . $ext
             );
-            $url = '/lesson_files/' . $uniqueID . '.' . $ext;
+            $url = '/lesson_files/' . $fileName . '_'. $uniqueID . '.' . $ext;
             return response()->json($url);
+        }else{
+            throw ValidationException::withMessages(['message' => '動画・画像のみアップロード可能です。']);          
         }
         
+    }
+    public function get_lesson_files(Request $request){
+        $files = Storage::allFiles('/lesson_files');
+        usort($files, function ($a, $b) {
+            return Storage::lastModified($b) - Storage::lastModified($a);
+        });
+        return response()->json($files);
+    }
+    public function remove_lesson_file(Request $request){
+        $deleted = Storage::delete('/' . $request->path);
+        return response()->json($deleted);
     }
 }

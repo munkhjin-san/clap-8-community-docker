@@ -127,7 +127,7 @@ export default {
         Field, 
         Form, 
         FileIcon: defineAsyncComponent(() => import('../Board/Mixed/FileIcon.vue')),
-        LoaderButton: defineAsyncComponent(() => import('../Global/LoaderButton')),
+        LoaderButton: defineAsyncComponent(() => import('../Global/LoaderButton.vue')),
     },
     mounted() {
         

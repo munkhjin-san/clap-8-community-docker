@@ -153,7 +153,7 @@
     import TrayComponent from './Tray.vue'
     import BoardSearchBar from './Search/BoardSearchBar.vue'
     import { nextTick } from 'vue'
-    import InviteMember from './InviteMember'
+    import InviteMember from './InviteMember.vue'
     import BoardCreateWindow from './BoardCreateWindow.vue'
     import BoardMembers from './BoardMembers.vue'
 

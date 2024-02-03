@@ -32,7 +32,9 @@ class LessonPortfolio extends Model
         'negative_feedback',
         'understand',
         'noticed',
-        'portfolio_title'
+        'portfolio_title',
+        'public_title',
+        'public_content'
     ];
 
 }
