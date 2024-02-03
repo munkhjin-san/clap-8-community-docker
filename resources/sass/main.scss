@@ -1308,8 +1308,8 @@ img {
   transition: max-height 0.15s ease;
 }
 .ls-video{
-    max-width: 500px;
-    width: 100%;
+    max-width: 50%;
+    width: 50%;
     margin: 10px 0;
 }
 .shadow-me{
@@ -5729,6 +5729,11 @@ input:autofill {
 }
 
 @media screen and (max-width: 959px) {
+    .ls-video{
+        max-width: 100%;
+        width: 100%;
+        margin: 10px 0;
+    }
     .vertical-wrapper{
       max-height: 400px;
     }
