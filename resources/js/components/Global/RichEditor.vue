@@ -138,6 +138,7 @@ onMounted(() =>{
 })
 defineExpose({editor})
 const colorShadesArray = [
+  ['var(--primary-color)', 'var(--background-color)'],
   ['#000000', '#666666', '#999999', '#cccccc', '#d9d9d9', '#f3f3f3', '#ffffff'],
   ['#980000', '#ff9900', '#ffff00', '#00ffff', '#4a86e8', '#9900ff', '#ff00ff'],
   ['#e6b8af', '#fce5cd', '#fff2cc', '#d0e0e3', '#c9daf8', '#d9d2e9', '#ead1dc'],
