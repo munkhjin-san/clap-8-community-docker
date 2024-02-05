@@ -136,8 +136,8 @@
                             <div v-if="userPortfolio && userPortfolio.length" class="record">
                                 <div v-for="portfolio in userPortfolio" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
                                     <p class="record-inner" style="font-size: 13px;">{{ portfolio.lesson_theme.title }}</p>
-                                    <p class="record-inner"><strong>{{ portfolio.portfolio_title }}</strong></p>
-                                    <p class="record-inner">{{ portfolio.content }}</p>
+                                    <p class="record-inner"><strong>{{ portfolio.public_title }}</strong></p>
+                                    <p class="record-inner">{{ portfolio.public_content }}</p>
                                 </div>
                             </div>
                         </div>
