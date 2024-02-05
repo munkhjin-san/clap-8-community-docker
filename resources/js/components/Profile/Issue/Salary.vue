@@ -192,7 +192,7 @@
                                 <Transition name="modalFade">
                                 <div id="aplliedKadaiBoxMenu" class="boxMenu boardMenuIcon" v-if="$store.state.menu.name == 'aplliedKadaiBoxMenu' && $store.state.menu.id == template.id" style="top: 25px;right: 40px;z-index:6;">
                                     <ul>
-                                        <li class="boxMenuItems cursor-pointer" @click.stop="editIssue(template)">編集する</li>
+                                        <!-- <li class="boxMenuItems cursor-pointer" @click.stop="editIssue(template)">編集する</li> -->
                                         <li class="boxMenuItems cursor-pointer" @click.stop="deleteAppliedConfirm(template)">削除する</li>
                                     </ul>                                            
                                 </div>
