@@ -969,6 +969,7 @@ class WorkController extends Controller
                             ->where('user_id', $request->user['id'])->get();
             $user_work_time_day = $request->user['work_time_day'];
             $half_day_holiday = $shift_records->where('shift_type', 6)->count();
+            $planned_paid_holiday = $shift_records->where('shift_type', 3)->count();
             $petitionType8_count = $shift_records->where('shift_type', 5)->count();
             $petitionType7_count = $shift_records->where('shift_type', 13)->count();
             $petitionType6_count = $shift_records->where('shift_type', 12)->count();
@@ -986,6 +987,7 @@ class WorkController extends Controller
             $absence_days = ($working_hour_low - $request->worked_days) + $request->holiday_worked_days;
             $attendance_record = new attendanceRecord;
             $attendance_record->half_day_holiday = $half_day_holiday;
+            $attendance_record->planned_paid_holiday = $planned_paid_holiday;
             $attendance_record->petitionType8_count = $petitionType8_count;
             $attendance_record->petitionType7_count = $petitionType7_count;
             $attendance_record->petitionType6_count = $petitionType6_count;
@@ -1173,6 +1175,7 @@ class WorkController extends Controller
             $attendance_record->normal_working_days = 0;
             $attendance_record->holiday_working_days = 0;
             $attendance_record->paid_holiday_hours = 0;
+            $attendance_record->planned_paid_holiday = 0;
             $attendance_record->petitionType8_count = 0;
             $attendance_record->petitionType7_count = 0;
             $attendance_record->petitionType6_count = 0;

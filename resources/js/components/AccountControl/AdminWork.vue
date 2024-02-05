@@ -253,7 +253,7 @@
                 }
             },
             downloadCSV(){
-                var csv = '\ufeff' + '社員コード,社員名,所定労働時間,就業形態,職階,勤怠月,給与支払日,確定フラグ,予定稼働日,通常出勤日数,休日出勤日数,欠勤日数,年休時間,1日年休,半日年休,1時間年休,2時間年休,3時間年休,4時間年休,5時間年休,6時間年休,7時間年休,慶弔休暇,特別休暇,休業,労働時間,欠勤時間,残業時間,深夜勤務,遠方手当,宿泊日当\n';
+                var csv = '\ufeff' + '社員コード,社員名,所定労働時間,就業形態,職階,勤怠月,給与支払日,確定フラグ,予定稼働日,通常出勤日数,休日出勤日数,欠勤日数,年休時間,計画年休,1日年休,半日年休,1時間年休,2時間年休,3時間年休,4時間年休,5時間年休,6時間年休,7時間年休,慶弔休暇,特別休暇,休業,労働時間,欠勤時間,残業時間,深夜勤務,遠方手当,宿泊日当\n';
                 this.attendance_record_items.forEach(el => {
                     const data = this.kintone_data.filter(ob => ob.user_code == el['user_code'])
                     const shokkai = data && data.length ? data[0]['general_position'] : ''
@@ -270,6 +270,7 @@
                     + el['holiday_working_days'] + ',' 
                     + el['absence_days'] + ',' 
                     + el['paid_holiday_hours'] + ','
+                    + el['planned_paid_holiday'] + ','
                     + el['petitionType8_count'] + ','
                     + el['half_day_holiday'] + ','
                     + el['petitionType1_count'] + ','
