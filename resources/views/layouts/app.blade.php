@@ -51,6 +51,14 @@
             }
             t = now;
         }, false);
+
+        if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+            artwork: [
+            { src: '/maskable_icon.png', sizes: '512x512', type: 'image/png' },
+            ],
+        });
+        }
     </script>
 </head>
 <body style="height:100%;position:fixed;overflow:hidden">
