@@ -20,6 +20,7 @@
                 <FormShortText
                     v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.portfolio_title : portfolio_title"
+                    :key="`p_key_${portfolio && portfolio.id ? portfolio.id : 0}`"
                     ref="portfolioTitle"
                     placeHolder="ディスカッション用ポートフォリオタイトル"
                     uId="portfolioTitle"
