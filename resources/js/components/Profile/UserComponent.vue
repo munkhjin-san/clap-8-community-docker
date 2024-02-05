@@ -36,7 +36,7 @@
 
                         <router-link class=" boxMenuItems menuLink" :to="{name: 'personal-info-settings'}">プロフィール編集</router-link>
                         <!-- <router-link class=" boxMenuItems menuLink" :to="{name: 'account-settings'}">個人設定</router-link> -->
-                        <!-- <router-link class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link> -->
+                        <router-link v-if="$store.state.user.partner_flag !== 1 && $store.state.user.user_code" class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link>
                         <!-- <router-link class=" boxMenuItems menuLink" to="/support">サポートデスク</router-link> -->
                         
                     </div>

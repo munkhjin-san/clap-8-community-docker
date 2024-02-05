@@ -517,7 +517,7 @@ $theme_details = [
         $responseData = $response->json();
         
         if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])){
-            if($responseData['records'][0]['ステータス']['value'] !== '未処理'){
+            if($responseData['records'][0]['ステータス']['value'] == '管理部提出'){
                 throw ValidationException::withMessages(['message' => 'ステータスが<strong>'.$responseData['records'][0]['ステータス']['value'] . '</strong>のため申請ができません。']);
             }
 
@@ -590,7 +590,7 @@ $theme_details = [
                 $status_data = [
                     'app' => '928',
                     "id"=> $record_id,
-                    "action" => "管理部提出",
+                    "action" => "CLAPにて作成済",
                 ];    
                 $status_update = Http::withHeaders($headers)->put($status_url, $status_data);
                 $status_response = $status_update->json();
