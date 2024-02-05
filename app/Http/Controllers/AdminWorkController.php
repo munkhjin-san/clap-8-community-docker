@@ -235,7 +235,9 @@ class AdminWorkController extends Controller{
             ->whereNotIn('name', $ng_list)
             ->whereNotIn('position_id', $pos_list)
             ->with(['shift_records' => function($q) use($year){
-                $q->where('planned_year', $year)->where('shift_type', 3)->select('shift_type', 'shift_day', 'user_id', 'planned_year');
+                $q->where('planned_year', $year)->where('shift_type', 3)
+                ->select('shift_type', 'shift_day', 'user_id', 'planned_year')
+                ->orderBy('shift_day', 'asc');
             }])->with('workTemps')->select('id', 'name', 'position_id', 'user_code')->get();
         
         return response()->json($all_users);

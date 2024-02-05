@@ -10,7 +10,7 @@
         </div>
         
         <table>
-            <thead>
+            <thead style="position:sticky; top: -1px;">
                 <tr>
                     <th>名前</th>
                     <th>当年度有休付与日</th>
