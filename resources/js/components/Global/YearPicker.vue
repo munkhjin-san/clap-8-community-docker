@@ -1,70 +1,92 @@
 <template>
-    <div style="position:relative;color: rgb(255, 255, 255);background: rgb(0, 0, 0);height: 40px;width:15%;">
-        <div @click.stop="$store.commit('setMenu', {name: 'cMonthPicker', id:87})" style="width: 100%;height: 100%;flex;align-items: center;cursor:pointer;place-content: center;display:flex">
-            {{ year }}
+    <div class="monthPicker">
+        <div @click.stop="openYearPicker" style="width: 100%;height: 100%;flex;align-items: center;cursor:pointer;place-content: center;display:flex">
+            {{ year }}年
         </div>
         <Transition name="slidePop">
-            <div v-if="$store.state.menu.name=='cMonthPicker' && $store.state.menu.id==87" class="monthPicker" style="left:0;">
-                <div style="width: 100%;color: #000;font-size: 14px;text-align: center;padding: 10px 0;">有効期間</div>
-                <div style="display:flex;">
-                    <div v-if="pickerIs == 'year'" id="cMonthPicker" class="grid-container year-picker" style="grid-template-columns: repeat(1, 1fr);">
-                        <div @click.stop="setYear(y)" :key="`y_start_${y}`" :id="`y_start_${y}`" :class="{thisYear : y == year}" v-for="y in yearList" class="grid-item">{{ y }}</div>
-                    </div>
-                    <div v-if="pickerIs == 'year'" id="cMonthPicker" class="grid-container year-picker" style="grid-template-columns: repeat(1, 1fr);">
-                        <div @click.stop="setYear(y)" :key="`y_end_${y}`" :id="`y_end_${y}`" :class="{thisYear : y == year}" v-for="y in yearList" class="grid-item">{{ y }}</div>
-                    </div>
+            <div id="cYearPicker" v-if="$store.state.menu.name=='cYearPicker' && $store.state.menu.id==87" class="month-grid" style="right:0;">
+                <div v-if="pickerIs == 'year'" class="grid-container year-picker">
+                    <div @click.stop="setYear(y)" :id="`y_${y}`" :class="{thisYear : y == year}" v-for="y in yearList" class="grid-item">{{ y }}年</div>
                 </div>
-
             </div>
         </Transition>
     </div>
 
 </template>
 
-<script>
-import moment from 'moment'
-import { nextTick } from 'vue'
-    export default {        
-        props: [],
-        emits: ['setDate'],
-        data(){
-            return{
-                pickerIs: 'year',
-                year: moment().year(),
-                open: false    
+<script setup>
+import { computed, nextTick, ref } from 'vue'
+import { useStore } from 'vuex';
+        const props = defineProps(['selectedYear'])
+        const emit = defineEmits(['setDate'])
+        const pickerIs = ref('year')
+        const year = ref(props.selectedYear)
+        const store = useStore()
+        const yearList = computed(() => {
+            return Array.from({ length: 12 }, (_, i) => year.value - 5 + i);
+        })
+        
+        const openYearPicker = () => {
+            if(store.state.menu.name == 'cYearPicker'){
+                store.commit('setMenu',{ name: '', id: null})
+                return
             }
-        },  
-        mounted() {
-            
-        },
-        watch:{
-            '$store.state.menu.name'(after){
-                nextTick(() =>{
-                    const el = document.getElementById(`y_${this.year}`)
-                    document.getElementById('cMonthPicker').scrollTo(0, el.offsetTop)
-                })
-            }
-        },
-        computed:{
-            yearList(){
-                return Array.from({ length: (this.year + 100) - 1970 + 1 }, (_, i) => 1970 + i)
-            }
-        },
-        methods:{
-            increase(){
-                if(this.year >= (this.year + 100)) return
-                this.year ++;
-            },
-            decrease(){
-                if(this.year <= 1970) return
-                this.year --;
-            },
-            setYear(y){
-                // this.year = y
-                // this.$emit('setDate', {year: this.year})
-                // this.$store.commit('setMenu',{ name: '', id: null})
-            },            
+            store.commit('setMenu', {name: 'cYearPicker', id:87})   
         }
-    }
+            
+        const setYear = (y) => {
+            year.value = y
+            emit('setDate', {year: y})
+            store.commit('setMenu',{ name: '', id: null})
+        }          
+        
 </script>
 
+<style lang="scss" scoped>
+    .grid-picker{
+        height: 40px !important; 
+        margin: 0 0;
+    }
+    .monthPicker{
+        user-select: none;
+        display:flex;
+        justify-content: center;
+        position: relative;
+    }
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        background-color: var(--message-background);
+    }
+    .month-grid{
+        position: absolute;
+        top: 40px;
+        box-shadow: 0 1px 2px 0 rgb(60 64 67 / 30%), 0 2px 6px 2px rgb(60 64 67 / 15%);
+        z-index: 25;
+    }
+    .grid-item {
+        height: 50px;
+        width: 80px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        color: var(--primary-color);
+        font-size: 14px;
+        text-align: center;
+        fill: var(--primary-color);
+    }
+    .grid-item:hover:not(#activateButton) {
+        background: var(--bg2);
+    }
+    .year-picker{
+        max-height: 200px;
+        overflow: hidden auto;
+    }
+
+    @media screen and (max-width: 959px){
+        .grid-container{
+            background-color: var(--message-background);
+        }
+    }
+</style>

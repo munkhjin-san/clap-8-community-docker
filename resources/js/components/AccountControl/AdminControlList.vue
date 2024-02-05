@@ -12,6 +12,7 @@
                 <!-- <div class="admin-button" @click="$router.push({name: 'account'})2" :class="{'is-active' : $route.name == 2}">役職管理</div>
                 <div class="admin-button" @click="$router.push({name: 'account'})3" :class="{'is-active' : $route.name == 3}">事務所管理</div> -->
                 <div class="admin-button" @click="$router.push({name: 'workcontrol'})" :class="{'is-active' : $route.name == 'workcontrol'}">ワーク管理</div>
+                <div class="admin-button" @click="$router.push({name: 'plannedpaid'})" :class="{'is-active' : $route.name == 'plannedpaid'}">計画有給管理</div>
                 <div class="admin-button" @click="$router.push({name: 'clapcount'})" :class="{'is-active' : $route.name == 'clapcount'}">クラップ数集計</div>
                 <div class="admin-button" @click="$router.push({name: 'learningcontrol'})" :class="{'is-active' : $route.name == 'learningcontrol'}">研修</div>
             </div> 

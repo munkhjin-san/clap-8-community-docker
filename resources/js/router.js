@@ -160,6 +160,7 @@ const routes = [
             { path: 'workcontrol',props: true, name: 'workcontrol', component: () => import('./components/AccountControl/AdminWork.vue') },
             { path: 'clapcount',props: true, name: 'clapcount', component: () => import('./components/AccountControl/AdminClapCount.vue') },
             { path: 'learningcontrol',props: true, name: 'learningcontrol', component: () => import('./components/AccountControl/LearningControl/LearningControl.vue') },
+            { path: 'plannedpaid',props:true, name: 'plannedpaid', component: () => import('./components/AccountControl/WorkPlannedPaid.vue')}
         ],
         beforeEnter: (to, from, next) => {
             const rootElement = document.getElementById('app');

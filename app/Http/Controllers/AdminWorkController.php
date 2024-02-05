@@ -9,7 +9,7 @@ use App\Models\workGroup;
 
 
 use App\Models\shiftType;
-
+use App\Models\workTemp;
 
 use App\Models\customFieldDataRecord;
 
@@ -224,5 +224,20 @@ class AdminWorkController extends Controller{
 
         return response()->json($responseArray);
 
+    }
+
+    public function get_planned_shifts(Request $request){
+        $year = $request->year;
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $pos_list = [1, 2, 3, 4, 5];    
+        $all_users = User::where('partner_flag', 0)->where('hide_flag', 0)
+            ->where('retire', 0)
+            ->whereNotIn('name', $ng_list)
+            ->whereNotIn('position_id', $pos_list)
+            ->with(['shift_records' => function($q) use($year){
+                $q->where('planned_year', $year)->where('shift_type', 3)->select('shift_type', 'shift_day', 'user_id', 'planned_year');
+            }])->with('workTemps')->select('id', 'name', 'position_id', 'user_code')->get();
+        
+        return response()->json($all_users);
     }
 }

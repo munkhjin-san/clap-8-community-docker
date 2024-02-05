@@ -264,7 +264,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/get_admin_work', [AdminWorkController::class, 'getAllMessage']);
         // Admin clap statistics
         Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
-
+        Route::post('/get_planned_shifts', [AdminWorkController::class, 'get_planned_shifts']);
 
         //User
         Route::post('/user_delete_account', [UserController::class, 'deleteAccount']);

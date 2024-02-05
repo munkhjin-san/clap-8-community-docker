@@ -20,7 +20,7 @@
                 <FormShortText
                     v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.portfolio_title : portfolio_title"
-                    :key="`p_key_${portfolio && portfolio.id ? portfolio.id : 0}`"
+                    :key="`p_key_${portfolio && portfolio.portfolio_title ? portfolio.portfolio_title : 0}`"
                     ref="portfolioTitle"
                     placeHolder="ディスカッション用ポートフォリオタイトル"
                     uId="portfolioTitle"
@@ -36,7 +36,7 @@
                     v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.content : content"   
                     :placeHolder="`ディスカッション用ポートフォリオ内容`"
-                    :key="portfolio ? portfolio.content : 0"
+                    :key="`${portfolio ? portfolio.content : 0}_${$route.fullPath}_${portfolio.updated_at}`"
                     ref="portfolioBody"
                     rules="required|max:2000"
                     uId="recordBody"
@@ -106,6 +106,7 @@
                     emitter.emit('setInfo', data)
                     processing_save.value = false
                 }
+                lesson()
             }).catch(function (error) {
                 if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
                 else if (error.request) errorToast('エラーが発生しました。')

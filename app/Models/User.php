@@ -168,6 +168,9 @@ class User extends Authenticatable
     public function portfolio(){
         return $this->hasMany(LessonPortfolio::class, 'user_id')->with('lesson_theme');
     }
+    public function workTemps(){
+        return $this->hasOne(workTemp::class, 'user_code', 'user_code');
+    }
     // public function sendEmailVerificationNotification()
     // {
     //     if($this->phone){
