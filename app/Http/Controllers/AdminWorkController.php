@@ -164,6 +164,7 @@ class AdminWorkController extends Controller{
             
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 15); // Shift types from 5 to 15
+                dd($shiftTypes);
                 $shiftTypeCounts = array_fill_keys($shiftTypes, 0);
             
                 if (count($user->shift_records) > 0) {
@@ -188,7 +189,7 @@ class AdminWorkController extends Controller{
                     
                     $totalPaidHours = 0;
                     foreach ($shiftTypes as $shift_type) {
-                        if($shift_type == 5 || $shift_type == 14 || $shift_type == 15){
+                        if($shift_type == 5 || $shift_type == 14 || $shift_type == 15 || $shift_type == 3){
                             $totalPaidHours += $shiftTypeCounts[$shift_type] * 8;
                         }else if($shift_type == 6){
                             $totalPaidHours += $shiftTypeCounts[$shift_type] * 4;
