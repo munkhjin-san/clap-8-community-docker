@@ -31,10 +31,16 @@
                         消化日数合計: {{ editUser.shift_records ? editUser.shift_records.length : null }}
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 20px;">
-                        消費された日付:
-                        <div v-for="shift in editUser.shift_records" :key="shift.id">
-                             <input class="taskDateTimePicker" :class="[{'date-color' : $store.state.dark }]"  :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)">
-                        </div>
+                        <table>
+                            <tr>
+                                <th>消費された日付</th>
+                                <th>変更日付</th>
+                            </tr>
+                            <tr v-for="shift in editUser.shift_records" :key="shift.id">
+                                <td><input class="taskDateTimePicker" :class="[{'date-color' : $store.state.dark }]"  :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)"></td>
+                                <td>{{ shift.changed_day }}</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
                 <div class="si-box">
@@ -50,7 +56,7 @@
                     <th>計画消化日数</th>
                     <th>消化日数合計</th>
                     <th>計画付与日</th>
-                    <!-- <th>変更日付</th> -->
+                    <th>変更日付</th>
                     <th></th>
                 </tr>
             </thead>
@@ -65,11 +71,11 @@
                             {{ shift.shift_day }}
                         </div>
                     </td>
-                    <!-- <td>
+                    <td>
                         <div v-for="shift in user.shift_records" :key="shift.id">
                             {{ shift.changed_day }}
                         </div>
-                    </td> -->
+                    </td>
                     <td><button class="workRecords-button" @click="changePlannedShifts(user)">変更</button></td>
                 </tr>
             </tbody>
