@@ -33,12 +33,12 @@
                     <div style="display: flex; flex-direction: column; gap: 20px;">
                         <table>
                             <tr>
-                                <th>消費された日付</th>
+                                <th>計画付与日</th>
                                 <th>変更前</th>
                             </tr>
                             <tr v-for="shift in editUser.shift_records" :key="shift.id">
                                 <td><input class="taskDateTimePicker" :class="[{'date-color' : $store.state.dark }]"  :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)"></td>
-                                <td>{{ shift.changed_day }}</td>
+                                <td>{{ shift?.old_shift?.shift_day }}</td>
                             </tr>
                         </table>
                     </div>
@@ -55,8 +55,7 @@
                     <th>当年度有休付与日</th>
                     <th>計画消化日数</th>
                     <th>消化日数合計</th>
-                    <th>計画付与日</th>
-                    <th>変更前</th>
+                    <th>計画付与日 / 変更前</th>
                     <th></th>
                 </tr>
             </thead>
@@ -67,14 +66,10 @@
                     <td>{{ user.work_temps ? user.work_temps.planned_days : null }}</td>
                     <td>{{ user.shift_records ? user.shift_records.length : null }}</td>
                     <td>
-                        <div v-for="shift in user.shift_records" :key="shift.id">
-                            {{ shift.shift_day }}
-                        </div>
-                    </td>
-                    <td>
-                        <div v-for="shift in user.shift_records" :key="shift.id">
-                            {{ shift.changed_day }}
-                        </div>
+                        <tr v-for="shift in user.shift_records" :key="shift.id">
+                            <td>{{ shift.shift_day }}</td>
+                            <td v-if="shift.old_shift">{{ shift?.old_shift?.shift_day }}</td>
+                        </tr>
                     </td>
                     <td><button class="workRecords-button" @click="changePlannedShifts(user)">変更</button></td>
                 </tr>

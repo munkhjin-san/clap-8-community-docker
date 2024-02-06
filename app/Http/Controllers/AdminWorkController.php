@@ -235,8 +235,8 @@ class AdminWorkController extends Controller{
             ->whereNotIn('name', $ng_list)
             ->whereNotIn('position_id', $pos_list)
             ->with(['shift_records' => function($q) use($year){
-                $q->where('planned_year', $year)->where('shift_type', 3)
-                ->select('shift_type', 'shift_day', 'user_id', 'planned_year', 'id', 'changed_day')
+                $q->where('planned_year', $year)->where('shift_type', 3)->with('old_shift')
+                ->select('shift_type', 'shift_day', 'user_id', 'planned_year', 'id', 'descendant_of')
                 ->orderBy('shift_day', 'asc');
             }])->with('workTemps')->select('id', 'name', 'position_id', 'user_code')->get();
         
@@ -253,11 +253,18 @@ class AdminWorkController extends Controller{
                     $existingShift->delete();
                 }
                 $shiftRecord = shiftRecord::findOrFail($shift['id']);
-                $shiftRecord->update([
+                $newShift = shiftRecord::create([
+                    "user_id" => $shiftRecord->user_id,
+                    "start_time" => $shiftRecord->start_time,
+                    "end_time" => $shiftRecord->end_time,
+                    "status_flag" => 1,
                     "shift_day" => $shift['shift_day'],
-                    "changed_day" => $shiftRecord->shift_day,
+                    "descendant_of" => $shiftRecord->id,
+                    "shift_type" => 3,
+                    "planned_year" => $shiftRecord->planned_year
                 ]);
-                $updatedShifts[] = $shiftRecord;
+                $shiftRecord->delete();
+                $updatedShifts[] = $newShift;
             }
             return response()->json(['updated_shifts' => $updatedShifts]);
         }

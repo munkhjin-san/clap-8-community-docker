@@ -21,7 +21,9 @@ class shiftRecord extends Model
     public function time_card_records(){
         return $this->belongsTo(timecardRecord::class, 'day', 'shift_day');
     }
-
-    protected $fillable = ['user_id', 'shift_month', 'shift_day', 'shift_type', 'start_time', 'end_time', 'status_flag', 'planned_year', 'changed_day'];
+    public function old_shift(){
+        return $this->hasOne(shiftRecord::class, 'id', 'descendant_of')->select('id', 'shift_day')->withTrashed();
+    }
+    protected $fillable = ['user_id', 'shift_month', 'shift_day', 'shift_type', 'start_time', 'end_time', 'status_flag', 'planned_year', 'descendant_of'];
 
 }
