@@ -266,7 +266,8 @@ Route::group(["middleware"=>"auth"],function(){
         // Admin clap statistics
         Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
         Route::post('/get_planned_shifts', [AdminWorkController::class, 'get_planned_shifts']);
-
+        Route::post('/change_planned_shifts', [AdminWorkController::class, 'change_planned_shifts']);
+        
         //User
         Route::post('/user_delete_account', [UserController::class, 'deleteAccount']);
         Route::post('/user_generate_file_key', [UserController::class, 'generate_key']);
