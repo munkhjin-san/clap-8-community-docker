@@ -326,11 +326,13 @@ import axios from 'axios';
         return content
     }
     const downloadCSV = () => {
-        var csv = '\ufeff' + '研修生,ステータス,基礎知識理解,ポートフォリオ,ポジティブフィードバック,ネガティブフィードバック\n';
+        var csv = '\ufeff' + '研修生,ステータス,ディスカッション用ポートフォリオ,本ポートフォリオ\n';
         portfolios.value.forEach(item => {
             const status = status_values[item.status]
-            const understand = item.understand ? `理解しました。${item.basic_knowledge}` : `理解できました。${item.not_understand_content}`
-            var line = `${item.user.name},${status},${understand.replace(/,|\n/g, '')},${item.content.replace(/,|\n/g, '')},${item.positive_feedback.replace(/,|\n/g, '')},${item.negative_feedback.replace(/,|\n/g, '')}\n`;
+            const discussion_portfolio = item.content ? item.content : ''
+            const public_portfolio = item.public_content ? item.public_content : ''
+            // const understand = item.understand ? `理解しました。${item.basic_knowledge}` : `理解できました。${item.not_understand_content}`
+            var line = `${item.user.name},${status},${discussion_portfolio?.replace(/,|\n/g, '')},${public_portfolio?.replace(/,|\n/g, '')}\n`;
             csv += line;
         });
         let blob = new Blob([csv], { type: 'text/csv' });
