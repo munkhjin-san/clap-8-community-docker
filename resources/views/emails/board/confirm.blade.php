@@ -5,7 +5,7 @@
 CLAPにアクセスし内容を確認してください。 <br><br>
 @else
 メッセージ内容：<br>
-<p style="white-space:break-spaces">{{$content}}</p>
+<p>{!! nl2br($content) !!}</p>
 @endif
 <br><br>
 以下のURLにて内容をご確認ください。

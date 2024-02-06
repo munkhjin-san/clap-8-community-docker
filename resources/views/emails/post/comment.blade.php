@@ -1,5 +1,5 @@
 
-"{!!$content!!}"<br><br>
+<p>{!! nl2br($content) !!}</p><br><br>
 
 以下のURLにて内容をご確認ください。<br>
 <br>
