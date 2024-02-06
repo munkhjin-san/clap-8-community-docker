@@ -236,10 +236,23 @@ class AdminWorkController extends Controller{
             ->whereNotIn('position_id', $pos_list)
             ->with(['shift_records' => function($q) use($year){
                 $q->where('planned_year', $year)->where('shift_type', 3)
-                ->select('shift_type', 'shift_day', 'user_id', 'planned_year')
+                ->select('shift_type', 'shift_day', 'user_id', 'planned_year', 'id')
                 ->orderBy('shift_day', 'asc');
             }])->with('workTemps')->select('id', 'name', 'position_id', 'user_code')->get();
         
         return response()->json($all_users);
+    }
+
+    public function change_planned_shifts(Request $request){
+        $changedShifts = $request->shifts;
+        if(!empty((array)$changedShifts)){
+            foreach($changedShifts as $shift){
+                $shiftRecord = shiftRecord::findOrFail($shift['id'])->update([
+                    "shift_day" => $shift['shift_day'],
+                ]);
+            }
+            return response()->json($shiftRecord);
+        }
+        return 'changed shifts empty';
     }
 }
