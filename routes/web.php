@@ -432,5 +432,6 @@ Route::group(["middleware"=>"auth"],function(){
         Route::delete('/remove_lesson_file', [LessonController::class, 'remove_lesson_file']);
 
         Route::post('/section_update', [LessonController::class, 'section_update']);
+        Route::put('/update_portfolio_status', [LessonController::class, 'update_portfolio_status']);
         // Lessons
 });

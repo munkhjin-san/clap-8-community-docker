@@ -221,4 +221,11 @@ class LessonController extends Controller
         $deleted = Storage::delete('/' . $request->path);
         return response()->json($deleted);
     }
+    public function update_portfolio_status(Request $request){
+        $validatedData = $request->validate([
+            'id' => 'required',
+        ]);
+        $update = LessonPortfolio::findOrFail($request->id)->update(['status' => $request->value]);
+        return response()->json($update);
+    }
 }

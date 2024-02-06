@@ -111,32 +111,61 @@
                             <tr>
                                 <th>研修生</th>
                                 <th>ステータス</th>
-                                <th>基礎知識理解</th>
-                                <th>ポートフォリオ</th>
+                                <!-- <th>基礎知識理解</th> -->
+                                <th>ディスカッション用ポートフォリオ</th>
+                                <th>本ポートフォリオ</th>
                                 <th>ポジティブフィードバック</th>
                                 <th>ネガティブフィードバック</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="portfolio in portfolios">
-                                <td style="max-width: 110px;overflow: hidden;white-space: nowrap;">{{ portfolio?.user.name }}</td>
-                                <td style="white-space: nowrap;text-align: left;">
+                                <td style="max-width: 110px;overflow: hidden;white-space: nowrap;position: relative;">{{ portfolio?.user.name }}</td>
+                                <td style="white-space: nowrap;text-align: left;position: relative;" @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `status_control${portfolio.id}`})">
                                     <div v-for="status in portfolio.status" style="padding: 5px 0;">
                                         {{ status_values[status] }}
+                                        <span style="margin-left:15px">
+                                            <button style="padding: 2px 10px;font-size: 10px;" @click="statusUpdate(status - 1, portfolio.id)" class="commentEditButton">差し戻す</button>
+                                        </span>
                                     </div>
+                                    
                                 </td>
-                                <td style="text-align: center;">
+                                <!-- <td style="text-align: center;">
                                     <div class="pt-content">
                                         <p @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `pt_understand${portfolio.id}`})" style="overflow: hidden;max-height: 40px;">{{ portfolio.understand ? '✅' : '❌' }}</p>
                                         <p v-if="$store.state.menu.name == `pt_understand${portfolio.id}` && $store.state.menu.id == portfolio.id" :id="`pt_understand${portfolio.id}`" class="pt-popup shadow-me" v-html="understandValue(portfolio)"></p>
                                     </div>
+                                </td> -->
+                                <td>
+                                    <div class="pt-content">
+                                        <p @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `pt_content${portfolio.id}`})" style="overflow: hidden;max-height: 40px;">
+                                            <p v-if="portfolio.portfolio_title">{{ portfolio.portfolio_title }}</p>
+                                            <p>{{ portfolio.content }}</p>
+                                        </p>
+                                        <p v-if="$store.state.menu.name == `pt_content${portfolio.id}` && $store.state.menu.id == portfolio.id" :id="`pt_content${portfolio.id}`" class="pt-popup shadow-me">
+                                            <p v-if="portfolio.portfolio_title">{{ portfolio.portfolio_title }}</p>
+                                            <p>{{ portfolio.content }}</p>
+                                        </p>
+                                    </div>
                                 </td>
                                 <td>
+                                    <div class="pt-content">
+                                        <p @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `pt_content_public${portfolio.id}`})" style="overflow: hidden;max-height: 40px;">
+                                            <p v-if="portfolio.public_title">{{ portfolio.public_title }}</p>
+                                            <p>{{ portfolio.public_content }}</p>
+                                        </p>
+                                        <p v-if="$store.state.menu.name == `pt_content_public${portfolio.id}` && $store.state.menu.id == portfolio.id" :id="`pt_content_public${portfolio.id}`" class="pt-popup shadow-me">
+                                            <p v-if="portfolio.public_title">{{ portfolio.public_title }}</p>
+                                            <p>{{ portfolio.public_content }}</p>
+                                        </p>
+                                    </div>
+                                </td>
+                                <!-- <td>
                                     <div class="pt-content">
                                         <p @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `pt_content${portfolio.id}`})" style="overflow: hidden;max-height: 40px;">{{ portfolio.content }}</p>
                                         <p v-if="$store.state.menu.name == `pt_content${portfolio.id}` && $store.state.menu.id == portfolio.id" :id="`pt_content${portfolio.id}`" class="pt-popup shadow-me">{{ portfolio.content }}</p>
                                     </div>
-                                </td>
+                                </td> -->
                                 <td>
                                     <div class="pt-content">
                                         <p @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `pt_positive${portfolio.id}`})" style="overflow: hidden;max-height: 40px;">{{ portfolio.positive_feedback }}</p>
@@ -197,6 +226,22 @@ import axios from 'axios';
 
         })            
         emitter.on(uniqueChannell, (data) => { data.answer === answers[0] ? deleteTheme(id): false});
+    }
+    const statusUpdate = (value, id) => {
+        axios.put(`/update_portfolio_status`, {id: id, value: value}).then(response => {
+            const data = {
+                text: '保存しました。',
+                channel: Math.random().toString(36).substring(5),
+                icon: 0,
+                view: true
+            }
+            emitter.emit('setInfo', data)
+            getPortfolios()
+        }).catch(function (error) {
+            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) errorToast('エラーが発生しました。')
+            else errorToast('エラーが発生しました。 ' + error.message)                       
+        });
     }
     const deleteTheme = (id) => {
         axios.delete(`/delete_learning_theme?id=${id}`).then(response => {
@@ -293,6 +338,19 @@ import axios from 'axios';
         link.download = `${selectedLesson.value.title}.csv`;
         link.click();
     }
+    const errorToast = (message) => {
+            emitter.emit('setToast', {
+                active: true,  
+                type: 'info', 
+                content: message,
+                closeButton: false, 
+                autoClose: false,
+                answers: ['OK']
+
+            })  
+            processing.value = false
+            
+        }
 </script>
 <style>
 .lcontrol{
