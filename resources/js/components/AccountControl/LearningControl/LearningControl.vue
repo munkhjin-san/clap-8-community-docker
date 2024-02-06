@@ -110,7 +110,7 @@
                     <table class="portfolio-control-table">
                         <thead style="position: sticky;top: 0;background: var(--background-color);z-index: 1;background: var(--bg3);">
                             <tr>
-                                <th>研修生</th>
+                                <th>氏名</th>
                                 <th>ステータス</th>
                                 <!-- <th>基礎知識理解</th> -->
                                 <th>ディスカッション用ポートフォリオ</th>
