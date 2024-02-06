@@ -34,7 +34,7 @@
                         <table>
                             <tr>
                                 <th>消費された日付</th>
-                                <th>変更日付</th>
+                                <th>変更前</th>
                             </tr>
                             <tr v-for="shift in editUser.shift_records" :key="shift.id">
                                 <td><input class="taskDateTimePicker" :class="[{'date-color' : $store.state.dark }]"  :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)"></td>
@@ -56,7 +56,7 @@
                     <th>計画消化日数</th>
                     <th>消化日数合計</th>
                     <th>計画付与日</th>
-                    <th>変更日付</th>
+                    <th>変更前</th>
                     <th></th>
                 </tr>
             </thead>
