@@ -108,7 +108,7 @@
                     </div> -->
                 <div style="height: calc(100% - 70px);overflow: auto;width: 100%;">
                     <table class="portfolio-control-table">
-                        <thead style="position: sticky;top: 0;background: var(--background-color);">
+                        <thead style="position: sticky;top: 0;background: var(--background-color);z-index: 1;background: var(--bg3);">
                             <tr>
                                 <th>研修生</th>
                                 <th>ステータス</th>
