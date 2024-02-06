@@ -200,7 +200,7 @@ import axios from 'axios';
     const editThemeTarget = ref(null)
     const themeRecords = ref([])
     const portfolios = ref([])
-    const status_values = ['', '✅基礎知識', '✅グループディスカッション', '✅ポートフォリオ']
+    const status_values = ['', '✅基礎知識', '✅ディスカッション', '✅ポートフォリオ']
     onMounted(() => {
         getThemes()
     })
