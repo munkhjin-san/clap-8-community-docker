@@ -204,6 +204,21 @@ class ContentController extends Controller
             }
         }
     }
+    public function calendarDocTransfer(Request $request){
+        if($request->user_id){
+            $user = User::findOrFail($request->user_id);
+            if($request->keyword == $user->file_key){
+                try {
+                    $filePath = '/calendar_files/' . $request->path;
+                    return response()->file(storage_path('app/' . $filePath ));
+                } catch (FileNotFoundException $exception) {
+                    abort(404);
+                }
+            }else{
+                abort(404);
+            }
+        }
+    }
     public function getSignature(Request $request){   
         try {       
             $fileContents = Storage::disk('local')->get('user_signature/' . $request->path);

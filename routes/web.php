@@ -81,6 +81,7 @@ Route::get('/managed_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentContro
 Route::get('/{sub_folder}/{path}/{keyword}/{user_id}', [ContentController::class, 'cdnExtractDocsPost'])->where('sub_folder', '!=', '(learning)');;
 Route::get('/firstload', [NotificationController::class, "index"]);
 Route::get('/firebase_test', [BoardController::class, "firebase_test"]);
+Route::get('/calendar_files/{path}/{keyword}/{user_id}', [ContentController::class, 'calendarDocTransfer']);
 // Route::view('/auth', 'auth.login')->name('auth')->middleware('guest');
 // Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
 
