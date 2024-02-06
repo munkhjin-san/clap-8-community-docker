@@ -22,7 +22,7 @@
                 コンテンツ管理                
             </div>
             <div v-if="activeLesson" @click="tab = 1, getPortfolios()" class="footerTabSelector" :class="{selectedMenu : tab == 1}" style="position: relative;width: fit-content;padding: 0 20px;">
-                研修生
+                参加者管理
             </div>
         </div>      
         <div v-if="tab == 0" style="height: calc(100% - 35px);">
