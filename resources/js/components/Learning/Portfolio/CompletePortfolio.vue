@@ -97,11 +97,11 @@
                 processing_save.value = true
             }
             const params = {
-                portfolio_title: portfolio.portfolio_title,
-                content: portfolio.content,
+                portfolio_title: portfolio.value.portfolio_title,
+                content: portfolio.value.content,
                 theme_id: route.params.lessonThemeId,
-                public_title: portfolio_title.value ? portfolio_title.value : portfolio.portfolio_title,
-                public_content: portfolioContent.value ? portfolioContent.value : portfolio.content,
+                public_title: portfolio_title.value ? portfolio_title.value : portfolio.value.portfolio_title,
+                public_content: portfolioContent.value ? portfolioContent.value : portfolio.value.content,
                 status: 3,
             }
             axios.post('/save_lesson_portfolio', params).then(response => {
