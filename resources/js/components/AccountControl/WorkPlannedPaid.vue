@@ -33,7 +33,7 @@
                     <div style="display: flex; flex-direction: column; gap: 20px;">
                         消費された日付:
                         <div v-for="shift in editUser.shift_records" :key="shift.id">
-                             <input class="taskDateTimePicker" :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)">
+                             <input class="taskDateTimePicker date-color" :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)">
                         </div>
                     </div>
                 </div>
