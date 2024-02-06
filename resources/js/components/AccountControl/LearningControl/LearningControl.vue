@@ -122,11 +122,11 @@
                             <tr v-for="portfolio in portfolios">
                                 <td style="max-width: 110px;overflow: hidden;white-space: nowrap;position: relative;">{{ portfolio?.user.name }}</td>
                                 <td style="white-space: nowrap;text-align: left;position: relative;" @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `status_control${portfolio.id}`})">
-                                    <div v-for="status in portfolio.status" style="padding: 5px 0;">
-                                        {{ status_values[status] }}
-                                        <span style="margin-left:15px">
-                                            <button style="padding: 2px 10px;font-size: 10px;" @click="statusUpdate(status - 1, portfolio.id)" class="commentEditButton">差し戻す</button>
-                                        </span>
+                                    <div v-for="status in portfolio.status" style="padding: 5px 0;display: flex;white-space: nowrap;flex-wrap: nowrap;gap: 15px;justify-content: space-between;">
+                                        <div>{{ status_values[status] }}</div>
+                                        <div>
+                                            <button style="padding: 2px 10px;font-size: 10px;background: gray;" @click="statusUpdate(status - 1, portfolio.id)" class="commentEditButton">差し戻す</button>
+                                        </div>
                                     </div>
                                     
                                 </td>
