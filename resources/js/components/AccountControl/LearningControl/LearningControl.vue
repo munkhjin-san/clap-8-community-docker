@@ -115,8 +115,8 @@
                                 <!-- <th>基礎知識理解</th> -->
                                 <th>ディスカッション用ポートフォリオ</th>
                                 <th>本ポートフォリオ</th>
-                                <th>ポジティブフィードバック</th>
-                                <th>ネガティブフィードバック</th>
+                                <!-- <th>ポジティブフィードバック</th>
+                                <th>ネガティブフィードバック</th> -->
                             </tr>
                         </thead>
                         <tbody>
@@ -167,7 +167,7 @@
                                         <p v-if="$store.state.menu.name == `pt_content${portfolio.id}` && $store.state.menu.id == portfolio.id" :id="`pt_content${portfolio.id}`" class="pt-popup shadow-me">{{ portfolio.content }}</p>
                                     </div>
                                 </td> -->
-                                <td>
+                                <!-- <td>
                                     <div class="pt-content">
                                         <p @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `pt_positive${portfolio.id}`})" style="overflow: hidden;max-height: 40px;">{{ portfolio.positive_feedback }}</p>
                                         <p v-if="$store.state.menu.name == `pt_positive${portfolio.id}` && $store.state.menu.id == portfolio.id" :id="`pt_positive${portfolio.id}`" class="pt-popup shadow-me">{{ portfolio.positive_feedback }}</p>
@@ -178,7 +178,7 @@
                                         <p @click.stop="$store.commit('setMenu', { id: portfolio.id, name: `pt_negative${portfolio.id}`})" style="overflow: hidden;max-height: 40px;">{{ portfolio.negative_feedback }}</p>
                                         <p v-if="$store.state.menu.name == `pt_negative${portfolio.id}` && $store.state.menu.id == portfolio.id" :id="`pt_negative${portfolio.id}`" class="pt-popup shadow-me">{{ portfolio.negative_feedback }}</p>
                                     </div>
-                                </td>
+                                </td> -->
                             </tr>
                         </tbody>
                     </table>
