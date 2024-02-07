@@ -15,7 +15,50 @@ use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Completions\CreateResponse;
 class MemberController extends Controller
 {
-    public function get_members_list(Request $request){
+    public function reset_charge(){
+        $today = Carbon::today();
+
+        if ($today->day == 1 && in_array($today->month, [3, 6, 9, 12])) {
+            echo "Yay, lets reset";
+        
+
+            $list = $this->fetch_members(true);
+            $blocks = collect($list);
+            $charge_amounts = array(
+                "G" => 12000,
+                "F" => 12000,
+                "E" => 9000,
+                "D" => 9000,
+                "C" => 6000,
+                "B" => 6000,
+                "A" => 3000,
+                "一般職" => 3000
+            );
+            foreach($blocks as $block){
+                if($block['id'] <= 5){
+                    $members = $block['employees'];
+                    foreach($members as $member){
+                        $user = User::find($member['id']);
+                        $user->timestamps = false; 
+                        $user->update(['award_charge' => 15000]);
+                        $user->timestamp = true;
+                    }
+                }else if($block['level']){
+                    $members = $block['employees'];
+                    foreach($members as $member){
+                        $user = User::find($member['id']);
+                        $user->timestamps = false; 
+                        $user->update(['award_charge' => $charge_amounts[$block['level']]]);
+                        $user->timestamp = true;
+                    }
+                }
+            }        
+        } else {
+            echo "Today is not reset day";
+        }
+    }
+    private function fetch_members($sort){
+
         $today = Carbon::now()->format('Y-m-d');
         $list = positionRecord::where('deleted_flag', 0)
         ->with([
@@ -27,10 +70,6 @@ class MemberController extends Controller
                             $q->where('deleted_flag', 0);
                         },
                         'offices',
-                        // 'icons' => function ($q) {
-                        //     $q->where('deleted_flag', 0)
-                        //         ->select('id', 'profile_id', 'path', 'extension', 'mime_type', 'use_of');
-                        // },
                         'today_weather'
                     ])
                     ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
@@ -60,7 +99,7 @@ class MemberController extends Controller
         $responseContent = $response->body();
         $responseData = $response->json();
 
-        if(!$request->byShokkai){
+        if(!$sort){
             $departments = collect($list)->map(function ($department) use ($responseData) {
                 $department['employees'] = collect($department['employees'])->map(function ($employee) use ($responseData) {
                     $user_code = $employee['user_code'];
@@ -82,7 +121,7 @@ class MemberController extends Controller
                 })->toArray();
                 return $department;
             })->toArray();
-            return response()->json($departments);
+            return $departments;
         }else{
 
             $pre = [];
@@ -186,10 +225,15 @@ class MemberController extends Controller
             ->orderBy('sort_flag', 'asc')
             ->get()->values()->toArray(); 
             $merged = array_merge($officers, $s_list);
-            return response()->json($merged);
+            return $merged;
         }
-        
-        
+
+    }
+    public function get_members_list(Request $request){
+
+        $sort = $request->byShokkai;
+        $list = $this->fetch_members($sort);
+        return response()->json($list);      
     }
     public function get_kadai_list(Request $request){
 

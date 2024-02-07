@@ -24,7 +24,8 @@ class User extends Authenticatable
         'name', 'email', 'email_or_phone', 
         'phone', 'password','icon_id', 'login', 
         'phone_isVerified', 'phone_prefix', 'q_token', 
-        'is_public', 'color', 'language', 'work_email', 'footer_view', 'ical_key'
+        'is_public', 'color', 'language', 'work_email', 'footer_view', 'ical_key',
+        'award_charge'
     ];
 
     /**
