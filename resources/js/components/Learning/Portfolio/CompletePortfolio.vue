@@ -26,7 +26,7 @@
                 <p :style="{marginBottom: portfolio && portfolio.status == 2 ? '20px' : '0'}"><strong>{{portfolio && portfolio.status == 2 ? 'フィードバックによる発見と成長を反映し、ポートフォリオを完成させてください。' : 'ポートフォリオ'}}</strong></p>
                 <FormShortText
                     v-if="portfolio && portfolio.status == 2"
-                    :initialValue="portfolio ? portfolio.portfolio_title : portfolio_title"
+                    :initialValue="portfolio ? (portfolio.public_title ? portfolio.public_title : portfolio.portfolio_title) : portfolio_title"
                     ref="portfolioTitle"
                     placeHolder="ポートフォリオタイトル"
                     uId="portfolioTitle"
@@ -40,7 +40,7 @@
             <div class="si-box">
                 <FormLongText
                     v-if="portfolio && portfolio.status == 2"
-                    :initialValue="portfolio ? portfolio.content : portfolioContent"   
+                    :initialValue="portfolio ? (portfolio.public_content ? portfolio.public_content : portfolio.content) : portfolioContent"   
                     :placeHolder="`ポートフォリオの内容`"
                     ref="portfolioBody"
                     :key="portfolio ? portfolio.content : portfolioContent"
@@ -70,6 +70,7 @@
     import FormShortText from '../../Global/FormShortText.vue';
     import { ref, onBeforeMount, inject } from 'vue'
     const props = defineProps(['selectedTopic', 'available'])
+    const portfolio = inject('portfolio')
     const portfolioContent = ref(portfolio ? portfolio.content : '')
     const portfolioBody = ref(null)
     const portfolioTitle = ref(null)
@@ -77,7 +78,6 @@
     const router = useRouter()
     const processing_save = ref(false)
     const portfolio_title = ref(portfolio ? portfolio.portfolio_title : '')
-    const portfolio = inject('portfolio')
     const route = useRoute()
     onBeforeMount(() => {
         setTimeout(() => {
@@ -88,65 +88,66 @@
         
     })
     const savePortfolio = async(status) => {
+        let portfolioStatus = 2
+        if(status == 'next'){
+            processing.value = true
+            portfolioStatus = 3
+        }else{
+            processing_save.value = true
+        }
+        const params = {
+            portfolio_title: portfolio.value.portfolio_title,
+            content: portfolio.value.content,
+            theme_id: route.params.lessonThemeId,
+            public_title: portfolio_title.value ? portfolio_title.value : portfolio.value.portfolio_title,
+            public_content: portfolioContent.value ? portfolioContent.value : portfolio.value.content,
+            status: portfolioStatus,
+        }
+        axios.post('/save_lesson_portfolio', params).then(response => {
+            if(status == 'next'){
+
+            }else{
+                const data = {
+                    text: props.editTarget ? '編集しました。' :'保存しました。',
+                    channel: Math.random().toString(36).substring(5),
+                    icon: 0,
+                    view: true
+                }
+                emitter.emit('setInfo', data)
+                processing_save.value = false
+            }
+        }).catch(function (error) {
+            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) errorToast('エラーが発生しました。')
+            else errorToast('エラーが発生しました。 ' + error.message)                       
+        });
+    }
+    const nextStage = async() => {
         const result = await portfolioBody.value.$refs.recordBody.validate()
         const title_result = await portfolioTitle.value.$refs.portfolioTitle.validate()
         if(result.valid && title_result.valid){
-            if(status == 'next'){
-                processing.value = true
-            }else{
-                processing_save.value = true
-            }
-            const params = {
-                portfolio_title: portfolio.value.portfolio_title,
-                content: portfolio.value.content,
-                theme_id: route.params.lessonThemeId,
-                public_title: portfolio_title.value ? portfolio_title.value : portfolio.value.portfolio_title,
-                public_content: portfolioContent.value ? portfolioContent.value : portfolio.value.content,
-                status: 3,
-            }
-            axios.post('/save_lesson_portfolio', params).then(response => {
-                if(status == 'next'){
-
-                }else{
-                    const data = {
-                        text: props.editTarget ? '編集しました。' :'保存しました。',
-                        channel: Math.random().toString(36).substring(5),
-                        icon: 0,
-                        view: true
-                    }
-                    emitter.emit('setInfo', data)
-                    processing_save.value = false
+            const uniqueChannell = Math.random().toString(36).substring(5);
+            const answers = ['OK', 'キャンセル']
+            emitter.emit('setToast', {
+                active: true,  
+                type: 'info', 
+                content: 'ポートフォリオを完了にしますか。\n※完了後に、編集するができません。',
+                closeButton: false, 
+                autoClose: false,
+                touchClose: false,
+                answers: answers,
+                channel: uniqueChannell
+            })  
+            emitter.on(uniqueChannell, async (data) => {                            
+                if(data.answer === answers[0]){
+                    await savePortfolio('next')
+                    setTimeout(() => {                    
+                        processing.value = false
+                        router.push({name: 'form'})
+                    }, 1000);
                 }
-            }).catch(function (error) {
-                if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) errorToast('エラーが発生しました。')
-                else errorToast('エラーが発生しました。 ' + error.message)                       
-            });
+            }) 
         }
-        
-    }
-    const nextStage = () => {
-        const uniqueChannell = Math.random().toString(36).substring(5);
-        const answers = ['OK', 'キャンセル']
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: 'ポートフォリオを完了にしますか。\n※完了後に、編集するができません。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: answers,
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, async (data) => {                            
-            if(data.answer === answers[0]){
-                await savePortfolio('next')
-                setTimeout(() => {                    
-                    processing.value = false
-                    router.push({name: 'form'})
-                }, 1000);
-            }
-        }) 
         
     }
     const errorToast = (message) => {

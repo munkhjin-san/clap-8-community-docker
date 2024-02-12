@@ -81,6 +81,7 @@
     const props = defineProps([
         'selectedTopic',
     ]);
+    const portfolio = inject('portfolio')
     const route = useRoute()
     const p_feedBack = ref(portfolio ? portfolio.positive_feedback : "")
     const n_feedBack = ref(portfolio ? portfolio.negative_feedback : "")
@@ -100,7 +101,6 @@
             return false
         }
     })
-    const portfolio = inject('portfolio')
     const group_available = computed(() =>{
         if(props.selectedTopic && props.selectedTopic.lesson_portfolio){
             if(props.selectedTopic.lesson_portfolio.status < 1){
