@@ -204,6 +204,21 @@ class ContentController extends Controller
             }
         }
     }
+    public function cdnPostDocTransfer(Request $request){
+        if($request->user_id){
+            $user = User::findOrFail($request->user_id);
+            if($request->keyword == $user->file_key){
+                try {
+                    $filePath = '/post_files/' . $request->path;
+                    return response()->file(storage_path('app/' . $filePath ));
+                } catch (FileNotFoundException $exception) {
+                    abort(404);
+                }
+            }else{
+                abort(404);
+            }
+        }
+    }
     public function calendarDocTransfer(Request $request){
         if($request->user_id){
             $user = User::findOrFail($request->user_id);
@@ -404,6 +419,17 @@ class ContentController extends Controller
     }
     public function embedded_video(Request $request){
         return '<img src="/lesson_files/65a63399c6b75.webp"/>';
+    }
+    public function test_pdf(Request $request){     
+        
+        $fileContents = Storage::disk('local')->get('sample.pdf');
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $contentType = finfo_buffer($finfo, $fileContents);
+        finfo_close($finfo);
+        return response($fileContents)->header('Content-Type', $contentType);
+        return response()->file(storage_path('app/sample.pdf'));
+        
+
     }
 
 }

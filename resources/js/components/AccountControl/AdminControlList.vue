@@ -17,7 +17,7 @@
                 <div class="admin-button" @click="$router.push({name: 'learningcontrol'})" :class="{'is-active' : $route.name == 'learningcontrol'}">研修</div>
             </div> 
         </div>
-        <div v-if="$route.name == 'workcontrol' || $route.name == 'account'" class="searchBar-wrapper">
+        <div v-if="$route.name == 'workcontrol' || $route.name == 'account' || $route.name == 'plannedpaid'" class="searchBar-wrapper">
             <Transition name="searchHide">
                 <UserSearchBar @setKeyord="setKeyord"/>
             </Transition>

@@ -1,5 +1,5 @@
 <template>
-    <div style="height: calc(100% - 60px); overflow: hidden auto;">
+    <div style="height: calc(100% - 105px); overflow: hidden auto;">
         <div class="admin-work-header">
             <div style="display: flex;align-items: center;">
                 <YearPicker 
@@ -60,16 +60,16 @@
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="user in plannedShifts" :key="user.id">
+                <tr v-for="user in filteredData" :key="user.id">
                     <td>{{ user.name }}</td>
                     <td>{{ user.work_temps ? user.work_temps.date : null}}</td>
                     <td>{{ user.work_temps ? user.work_temps.planned_days : null }}</td>
                     <td>{{ user.shift_records ? user.shift_records.length : null }}</td>
                     <td>
-                        <tr v-for="shift in user.shift_records" :key="shift.id">
+                        <div v-for="shift in user.shift_records" :key="shift.id">
                             <td>{{ shift.shift_day }}</td>
                             <td v-if="shift.old_shift">{{ shift?.old_shift?.shift_day }}</td>
-                        </tr>
+                        </div>
                     </td>
                     <td><button class="workRecords-button" @click="changePlannedShifts(user)">変更</button></td>
                 </tr>
@@ -81,7 +81,8 @@
 <script setup>
     import YearPicker from '../Global/YearPicker.vue'
     import LoaderButton from '../Global/LoaderButton.vue';
-    import { onMounted, ref } from 'vue';
+    import { computed, onMounted, ref } from 'vue';
+    const props = defineProps(['searchUser'])
     const plannedShifts = ref([])
     const year = ref(new Date().getFullYear())
     const open = ref(false)
@@ -90,6 +91,14 @@
     const changedShifts = ref([])
     onMounted(() => {
         getPlannedShifts()
+    })
+    const filteredData = computed(() => {
+        let result = plannedShifts.value.filter(user1 => {
+            return props.searchUser.some(user2 => {
+                return user1.id === user2.id
+            })
+        })
+        return result
     })
     const getPlannedShifts = () => {
         axios.post('/get_planned_shifts', {year: year.value}).then(res => {

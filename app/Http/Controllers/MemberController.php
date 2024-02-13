@@ -462,7 +462,7 @@ $theme_details = [
             // }
         }else{
             $record = new SalaryIssue;
-            $check_exists = SalaryIssue::where('theme', $request->theme)->where('date', $request->date)->exists();
+            $check_exists = SalaryIssue::where('theme', $request->theme)->where('date', $request->date)->where('user_id', Auth::id())->exists();
             if($check_exists){
                 throw ValidationException::withMessages(['message' => 'このテーマで既に昇給課題が作られています。']);
             }

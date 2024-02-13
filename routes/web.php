@@ -78,10 +78,13 @@ Auth::routes();
 Route::get('/storage/app/private/{folder}/{folder_id}/{path}', [FileController::class, 'getFile']);
 Route::get('/shared_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentController::class, 'docTransfer']);
 Route::get('/managed_docs/{board_id}/{path}/{keyword}/{user_id}', [ContentController::class, 'docTransfer']);
-Route::get('/{sub_folder}/{path}/{keyword}/{user_id}', [ContentController::class, 'cdnExtractDocsPost'])->where('sub_folder', '!=', '(learning)');;
+Route::get('/{sub_folder}/{path}/{keyword}/{user_id}', [ContentController::class, 'cdnExtractDocsPost'])->where('sub_folder', '!=', '(learning)');
+Route::get('/post_files/{path}/{keyword}/{user_id}', [ContentController::class, 'cdnPostDocTransfer']);
 Route::get('/firstload', [NotificationController::class, "index"]);
 Route::get('/firebase_test', [BoardController::class, "firebase_test"]);
 Route::get('/calendar_files/{path}/{keyword}/{user_id}', [ContentController::class, 'calendarDocTransfer']);
+
+Route::get('/test_pdf', [ContentController::class, 'test_pdf']);
 // Route::view('/auth', 'auth.login')->name('auth')->middleware('guest');
 // Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
 
