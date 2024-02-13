@@ -45,10 +45,12 @@
                                 <source src="/lesson_files/program-explaination.mp4">
                             </video>
                         </div>
-                        <!-- <div class="video-item">
+                        <div class="video-item">
                             <p><strong>グループディスカッションの説明</strong></p>
-                            <video></video>
-                        </div> -->
+                            <video controls="controls" style="max-width: 100%;margin-top: 15px;">
+                                <source src="/lesson_files/discussion-explaination.mp4">
+                            </video>
+                        </div>
                         <div class="video-item">
                             <p><strong>ポートフォリオの説明</strong></p>
                             <video controls="controls" style="max-width: 100%;margin-top: 15px;">
