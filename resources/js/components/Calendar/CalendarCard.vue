@@ -101,7 +101,7 @@
 
     const updater = computed(() => { return props.record.updated_by ? props.record.updated_by.name : '' })
     
-    const listTruncate = computed(() => { return !truncate ? props.record.calendar_users : props.record.calendar_users.slice(0, 6)})
+    const listTruncate = computed(() => { return !truncate.value ? props.record.calendar_users : props.record.calendar_users.slice(0, 6)})
     
     const remove = inject('deleteRecordConfirm')
 
