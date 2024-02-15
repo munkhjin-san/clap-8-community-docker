@@ -26,7 +26,7 @@
                 <p :style="{marginBottom: portfolio && portfolio.status == 2 ? '20px' : '0'}"><strong>{{portfolio && portfolio.status == 2 ? 'フィードバックによる発見と成長を反映し、ポートフォリオを完成させてください。' : 'ポートフォリオ'}}</strong></p>
                 <FormShortText
                     v-if="portfolio && portfolio.status == 2"
-                    :initialValue="portfolio ? (portfolio.public_title ? portfolio.public_title : portfolio.portfolio_title) : portfolio_title"
+                    :initialValue="portfolio.public_title ? portfolio.public_title : ''"
                     ref="portfolioTitle"
                     placeHolder="ポートフォリオタイトル"
                     uId="portfolioTitle"
@@ -40,10 +40,10 @@
             <div class="si-box">
                 <FormLongText
                     v-if="portfolio && portfolio.status == 2"
-                    :initialValue="portfolio ? (portfolio.public_content ? portfolio.public_content : portfolio.content) : portfolioContent"   
+                    :initialValue="portfolio.public_content ? portfolio.public_content : ''"
                     :placeHolder="`ポートフォリオの内容`"
                     ref="portfolioBody"
-                    :key="portfolio ? portfolio.content : portfolioContent"
+                    :key="portfolio.public_content ? portfolio.public_content : 0"
                     rules="required"
                     uId="recordBody"
                     name="recordBody"
@@ -71,13 +71,13 @@
     import { ref, onBeforeMount, inject } from 'vue'
     const props = defineProps(['selectedTopic', 'available'])
     const portfolio = inject('portfolio')
-    const portfolioContent = ref(portfolio ? portfolio.content : '')
+    const portfolioContent = ref(portfolio ? portfolio.public_content : '')
     const portfolioBody = ref(null)
     const portfolioTitle = ref(null)
     const processing = ref(false)
     const router = useRouter()
     const processing_save = ref(false)
-    const portfolio_title = ref(portfolio ? portfolio.portfolio_title : '')
+    const portfolio_title = ref(portfolio ? portfolio.public_title : '')
     const route = useRoute()
     onBeforeMount(() => {
         setTimeout(() => {
@@ -99,8 +99,8 @@
             portfolio_title: portfolio.value.portfolio_title,
             content: portfolio.value.content,
             theme_id: route.params.lessonThemeId,
-            public_title: portfolio_title.value ? portfolio_title.value : portfolio.value.portfolio_title,
-            public_content: portfolioContent.value ? portfolioContent.value : portfolio.value.content,
+            public_title: portfolio_title.value,
+            public_content: portfolioContent.value,
             status: portfolioStatus,
         }
         axios.post('/save_lesson_portfolio', params).then(response => {
