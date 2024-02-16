@@ -155,7 +155,7 @@ class LessonController extends Controller
         return response()->json($lesson_portfolio);
     }
     public function get_portfolios_list(Request $request){
-        $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $request->theme_id)->with('user')->get();
+        $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $request->theme_id)->with('user')->with('lesson_sections')->get();
 
         return response()->json($lesson_portfolio);
     }

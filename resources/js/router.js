@@ -234,6 +234,26 @@ const routes = [
                 component: () => import('./components/Learning/LessonContainer.vue'),
                 children: [
                     {
+                        path: 'evaluate',
+                        name: 'evaluate',
+                        component: () => import('./components/Learning/Evaluation.vue'),
+                        beforeEnter: (to, from, next) => {
+                            const permitted = [608, 610]
+                            const rootElement = document.getElementById('app');
+                            const userId = parseInt(rootElement.getAttribute('data-user-id'));
+                            if(permitted.includes(userId)){
+                                axios.get(`/get_portfolios_list?theme_id=${to.params.lessonThemeId}`).then(
+                                response => {
+                                    to.meta.list = response.data
+                                    next();
+                                })
+                            }else{
+                                next({name:'learning'});
+                            }
+                            
+                        }
+                    },
+                    {
                         path: 'basic',
                         name: 'basic',
                         props: true,

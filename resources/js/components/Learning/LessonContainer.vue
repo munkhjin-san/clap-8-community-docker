@@ -33,6 +33,10 @@
                     background: var(--background-color);
                     margin: 0 20px 20px;"
                 >
+                    <div style="margin-bottom: 20px;" v-if="[610, 608].includes($store.state.user.id)">
+                        <router-link :to="{name: 'evaluate'}">職能研修機関確認用</router-link>
+                    </div>
+                    
                     <p style="font-size: 18px;margin-bottom: 15px;">研修プログラムについて<br></p>
                     <p style="line-height: 2.5;margin-bottom: 25px;">この研修プログラムは、社会活動で求められる9つの職能を学ぶためのものです。<br>まず、CLAPのラーニングアプリを使用して基礎学習を行い、内容を理解します。<br>理解が困難な場合は、補足資料の確認やフォローアップ面談を通じてサポートを受けることができます。<br>次に、基礎学習を理解した参加者は、グループディスカッションのためのポートフォリオを作成します。<br>このディスカッションでは、ポートフォリオを発表し、ポジティブフィードバックとネガティブフィードバックを受けて、ポートフォリオを完成させます。<br>完成したポートフォリオは、各参加者のマイページのプロフィール欄に自動的に掲載されます。<br>基礎学習を完了し、ポートフォリオが完成した参加者は、1つのテーマの履修が完了したとみなされます。</p>
                     <p style="font-size: 18px;margin: 15px 0;">ポートフォリオとは<br></p>

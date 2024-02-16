@@ -3112,11 +3112,11 @@ div.recordFormTitle > p{
     color: var(--primary-color) !important;
 }
 .vs__actions {
-    display: none !important;
-    align-items: center !important;
-    padding: 0 0 0 0 !important;
+    display: none; 
 }
-
+.vs__open-indicator{
+    display: none !important;
+}
 .vs__search {   
     font-size: 14px !important;
     margin: 0px !important;
@@ -5727,7 +5727,71 @@ input:autofill {
 .lessonShift-leave-to {
     transform: translateX(100vw);
 }
+.i-error{
+    font-size: 11px;
+    color: tomato;
+    margin-top: 3px;
+    position: absolute;
+}
+.lcontrol{
+    font-size: 14px;
+    background: var(--background-color);
+    width: 100%;
+    height: 100%;
+    overflow: hidden auto;
+}
+.lesson-preview{
+    background: var(--background-color);
+    border: solid thin var(--calendarBorder);
+    height: 80px;
+    white-space: nowrap;
+    margin-bottom: 20px;
+    line-height: 1.5;
+    position: relative;
+}
+.theme-item{
+    padding: 20px 20px;
+    cursor: pointer;
+    background: var(--background-color);
+    color: var(--primary-color);
+    border: solid thin var(--calendarBorder);
+    position: relative;
+    line-height: 2;
+}
+.portfolio-control-table {
+        border-collapse: collapse;
+        width: 100%;
 
+        th, td{
+            border: 1px solid var(--calendarBorder);
+            padding: 10px;
+            font-size: 13px;         
+            vertical-align: middle;
+            box-sizing: border-box;
+        }
+        thead{
+            white-space: nowrap;
+        }
+        .pt-content{
+            max-height: 40px;
+            line-height: 1.5;
+            position: relative;
+        }
+        .pt-popup{
+            position: absolute;
+            top: 0px;
+            left: 0;
+            white-space: break-spaces;
+            line-height: 1.5;
+            z-index: 5;
+            background: var(--background-color);
+            padding: 15px;
+            text-align: left;
+            width: max-content;
+            max-width: 40vw;
+            
+        }
+    }
 @media screen and (max-width: 959px) {
     .ls-video{
         max-width: 100%;
