@@ -101,6 +101,7 @@ const downloadCSV = () => {
 }
 .ev-u-box{
     margin: 15px 0;
+    white-space: break-spaces;
 }
 .admin-button{
     background: #4b4b4b;
