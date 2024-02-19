@@ -238,7 +238,7 @@ const routes = [
                         name: 'evaluate',
                         component: () => import('./components/Learning/Evaluation.vue'),
                         beforeEnter: (to, from, next) => {
-                            const permitted = [608, 610]
+                            const permitted = [608, 610, 799, 800, 829]
                             const rootElement = document.getElementById('app');
                             const userId = parseInt(rootElement.getAttribute('data-user-id'));
                             if(permitted.includes(userId)){
