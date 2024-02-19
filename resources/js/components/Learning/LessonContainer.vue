@@ -33,7 +33,7 @@
                     background: var(--background-color);
                     margin: 0 20px 20px;"
                 >
-                    <div style="margin-bottom: 20px;" v-if="[610, 608].includes($store.state.user.id)">
+                    <div style="margin-bottom: 20px;" v-if="[610, 608,799,800,829].includes($store.state.user.id)">
                         <router-link :to="{name: 'evaluate'}">職能研修機関確認用</router-link>
                     </div>
                     
