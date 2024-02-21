@@ -248,11 +248,12 @@ class AdminWorkController extends Controller{
         if(!empty((array)$changedShifts)){
             $updatedShifts = [];
             foreach($changedShifts as $shift){
-                $existingShift = shiftRecord::where('shift_day', $shift['shift_day'])->first();
+                $shiftRecord = shiftRecord::findOrFail($shift['id']);
+                $existingShift = shiftRecord::where('shift_day', $shift['shift_day'])->where('user_id', $shiftRecord->user_id)->first();
                 if($existingShift){
                     $existingShift->delete();
                 }
-                $shiftRecord = shiftRecord::findOrFail($shift['id']);
+                
                 $newShift = shiftRecord::create([
                     "user_id" => $shiftRecord->user_id,
                     "start_time" => $shiftRecord->start_time,
