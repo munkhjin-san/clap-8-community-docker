@@ -1134,7 +1134,7 @@ class WorkController extends Controller
         $numberOfDays = cal_days_in_month(CAL_GREGORIAN, $month, $year);
 
         if(count($shift_record) < $numberOfDays){
-            $shiftNotSubmittedList[] = array('year' => $year, 'month' => $month , 'value' => $today , 'month_flag' => 0 ,'notification_user' => $notificationUser);
+            $shiftNotSubmittedList[] = array('year' => $year, 'month' => (int) $month , 'value' => $today , 'month_flag' => 0 ,'notification_user' => $notificationUser);
         }else{
             if(empty($attendance_this_record)){
                 foreach($shift_record as $key => $value){
