@@ -199,8 +199,10 @@ class WorkController extends Controller
                 } elseif ($currentMonth == 1) {
                     $holidayNum = 12;
                 } else {
-                    if ($lastDay >= 29) {
+                    if ($lastDay > 29) {
                         $holidayNum = 9;
+                    } elseif ($lastDay == 29) {
+                        $holidayNum = 8.5;
                     } elseif ($lastDay <= 28) {
                         $holidayNum = 8;
                     }
