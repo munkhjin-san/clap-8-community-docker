@@ -362,6 +362,24 @@ class WorkController extends Controller
             $data
         );
     }
+    public function get_shift_types(){
+        $auth_user = Auth::user();
+        if($auth_user->position_id <= 11){
+            $shift_type = shiftType::where('deleted_flag', 0)->get();
+        }else{
+            $shift_type = shiftType::where('id','!=', 14)->where('id','!=', 15)->get();
+        }
+        $planned_record = shiftRecord::where('user_id', Auth::id())
+                            ->where('shift_type', 3)
+                            ->orderBy('created_at', 'desc')
+                            ->select('shift_day AS date', 'shift_type AS type', 'status_flag')
+                            ->get();
+        $data = [
+            'shift_type' => $shift_type,
+            'planned_record' => $planned_record
+        ];
+        return response()->json($data);
+    }
     public function shift_manipulation(Request $request){
         $users = User::where('deleted_flag', 0)->where('retire', 0)->where('partner_flag', 0)->select('id', 'user_code')->get();
         foreach($users as $user){
@@ -436,7 +454,7 @@ class WorkController extends Controller
     }
     public function shiftAdd(Request $request)
     {
-        $auth_user = Auth::user();
+        $auth_id = Auth::id();
         $user_id = $request->userId;
         $shift_array = $request->shift_array;
         $start_time_val = $request->shiftTimeStart;
@@ -463,8 +481,10 @@ class WorkController extends Controller
                 }
                 $shift_record->start_time = $start_time_val;
                 $shift_record->end_time = $end_time_val;
-                $shift_record->status_flag = $status_flag;
-                $shift_record->update();
+                if($shift_record->status_flag !== 1 || $auth_id == 610){
+                    $shift_record->status_flag = $status_flag;
+                    $shift_record->update();
+                }
             } else {
                 shiftRecord::create([
                     'user_id' => $user_id,
@@ -618,8 +638,30 @@ class WorkController extends Controller
         }
         return 'saved';
     }
+    private function breakTimeCheck($request){
+        $startTime = $request->start_time;
+        $endTime = $request->end_time;
+        $breakTime = $request->breakTime;
+
+        $startDateTime = new DateTime($startTime);
+        $endDateTime = new DateTime($endTime);
+
+        $workTimeMinutes = ($endDateTime->format('H') * 60 + $endDateTime->format('i')) - ($startDateTime->format('H') * 60 + $startDateTime->format('i')) - $breakTime;
+
+        if ($workTimeMinutes >= 360 && $breakTime < 60) {
+            http_response_code(400);
+            echo json_encode(['message' => '6時間以上の勤務の場合、最低でも60分間の休憩を取る必要があります。']);
+            exit;
+        } elseif ($workTimeMinutes >= 180 && $workTimeMinutes < 360 && $breakTime < 30) {
+            http_response_code(400);
+            echo json_encode(['message' => '30時間以上の勤務の場合、最低でも30分間の休憩を取る必要があります。']);
+            exit;
+        }
+    }
     public function saveTimeCard(Request $request){
         $today = Carbon::now()->isoFormat('YYYY-MM-DD');
+        $this->breakTimeCheck($request);
+
         $is_exist = timecardRecord::where('day', $request->day)->where('user_id', $request->userId)->first();
         $user = User::select('work_time_day', 'work_type', 'id', 'name')->findOrFail($request->userId);
         $fields = ['comment', 'incident', 'achievement', 'allowance'];
@@ -633,7 +675,6 @@ class WorkController extends Controller
         if($end->lt($start)){
             $start->subDay();
         }
-        
         $shift_time_difference_seconds = ($user->work_time_day * 60);
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
         
@@ -824,8 +865,6 @@ class WorkController extends Controller
             }
         ])->select('id','name','work_type', 'work_time_day', 'user_code', 'position_id')->findOrFail($user_list[0]);        
         $monthNum = (int)$currentMonth;
-
-        // Calculate the last day of the current month
         $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
         if($user->position_id == 12){
             $holidayNum = 9;
@@ -835,14 +874,15 @@ class WorkController extends Controller
             } elseif ($monthNum == 1) {
                 $holidayNum = 12;
             } else {
-                if ($lastDay >= 29) {
+                if ($lastDay > 29) {
                     $holidayNum = 9;
-                } elseif ($lastDay <= 28) {
+                } elseif ($lastDay == 29) {
+                    $holidayNum = 8.5;
+                } elseif ($lastDay <= 28){
                     $holidayNum = 8;
                 }
             }
         }
-        
         $workdayNum = $lastDay - $holidayNum;
         $userData = $user->makeHidden('attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records');
         $attendance = $user->attendance_records->first();
@@ -1058,7 +1098,7 @@ class WorkController extends Controller
         $year = date("Y");
         $month = date("m");
         $day = date("d");
-        if($auth_user_id == 610 || $auth_user_id == 608){
+        if($auth_user_id == 610 || $auth_user_id == 608 || $auth_user_id == 604){
             $resposnsArray = array(
                 'debug' => [],
                 'yesterday' => $yesterday,
@@ -1089,7 +1129,9 @@ class WorkController extends Controller
         $shiftNotSubmittedList = [];
         $shiftSubmittedList = [];
         $timecardNotSubmittedList = [];
-        if(count($shift_record) == 0){
+        $numberOfDays = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+
+        if(count($shift_record) < $numberOfDays){
             $shiftNotSubmittedList[] = array('year' => $year, 'month' => $month , 'value' => $today , 'month_flag' => 0 ,'notification_user' => $notificationUser);
         }else{
             if(empty($attendance_this_record)){
