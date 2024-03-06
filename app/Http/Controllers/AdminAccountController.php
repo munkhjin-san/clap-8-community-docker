@@ -392,7 +392,7 @@ class AdminAccountController extends Controller
 
             $merged = array_merge(array_diff($nice_from, $nice_to), array_diff($nice_to, $nice_from));
 
-            $knowledges = KnowledgeRecord::where('deleted_flag', 0)->where('user_id', $var_id)->pluck('id')->toArray();
+            $knowledges = KnowledgeRecord::where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->where('user_id', $var_id)->pluck('id')->toArray();
 
             $challenges = ChallengeRecord::where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->whereHas('to_users', function($q) use ($var_id){
                 $q->where('user_id', $var_id);
