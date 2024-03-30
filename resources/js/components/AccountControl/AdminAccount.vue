@@ -43,9 +43,13 @@
                         </div>
                     </div>
                     <div class="button-wrapper">
-                        <button type="submit" @click="openModal(item)" class="account-btn cursor-pointer">
+                        <CommandButton 
+                            :buttons="[{name: '編集'}]"
+                            @select="openModal(item)"
+                        />
+                        <!-- <button type="submit" @click="openModal(item)" class="account-btn cursor-pointer">
                             編集
-                        </button>
+                        </button> -->
                     </div>        
                 </div>
             </div>
@@ -69,6 +73,7 @@
    
 </template>
 <script setup>
+    import CommandButton from '../Global/CommandButton.vue';
     import UserCreate from './UserCreate.vue'
     import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
     import { computed, inject, onMounted, ref } from 'vue';

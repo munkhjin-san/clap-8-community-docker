@@ -50,9 +50,15 @@
                     <div :style="{fontSize: '12px', color: dateColor}">{{detailsDateText(item.end_at)}}</div>                         
                 </div>
                 <div v-if="completeButtonFilter" style="display:flex;align-items: center;margin-top: 15px;position:relative;white-space: nowrap;flex-wrap: wrap;gap: 10px 0;">
-                    <button v-if="isTask" class="shift-button" style="margin-right: 7px;" @dblclick.stop @click="emit('completeTaskBefore', item)" >{{ completeFlag ? '未完了' : '完了' }}</button>
+                    <CommandButton 
+                        v-if="buttonsCollection().length" 
+                        :buttons="buttonsCollection()" 
+                        @dblclick.stop 
+                        @select="(button) => button.value == 1 ? untilTomorrow() : emit(button.value, item)"
+                    />
+                    <!-- <button v-if="isTask" class="shift-button" style="margin-right: 7px;" @dblclick.stop @click="emit('completeTaskBefore', item)" >{{ completeFlag ? '未完了' : '完了' }}</button>
                     <button v-if="inTrash == 0" @dblclick.stop @click="emit('editTask', item)" class="shift-button" style="margin-right: 7px;">編集</button>
-                    <button v-if="isExpired && isTask" @dblclick.stop class="shift-button" @click="untilTomorrow">本日対応</button>
+                    <button v-if="isExpired && isTask" @dblclick.stop class="shift-button" @click="untilTomorrow">本日対応</button> -->
                 </div>
             </div>
         </div>
@@ -62,6 +68,7 @@
 
 <script setup>
 import moment from 'moment';
+import CommandButton from '../../../Global/CommandButton.vue';
 import Autolinker from 'autolinker';
 import { computed, inject, nextTick, onMounted } from 'vue'
 import colors from '../../../../../assets/colors.json'
@@ -120,7 +127,7 @@ import UserIcon from '../../Mixed/UserIcon.vue';
             return true
         }else{
             const me = props.item.to_users.find(ob => ob.id == auth.activeUser.id)
-            if(me && me.comp_flag == 1){
+            if(me && me.pivot.comp_flag == 1){
                 return true
             }else{
                 return false
@@ -175,7 +182,32 @@ import UserIcon from '../../Mixed/UserIcon.vue';
 
         return !taskIncomplete && !taskIncompleteforMe && expired
     })
+    const buttonsCollection = () => {
+        const buttons = []
+        if(isTask.value){
+            const temp = {
+                name: completeFlag.value ? '未完了' : '完了',
+                value : 'completeTaskBefore'
+            }
+            buttons.push(temp)
+        }
+        if(props.inTrash == 0){
+            const temp = {
+                name: '編集',
+                value: 'editTask'
+            }
+            buttons.push(temp)
+        }
+        if(isExpired.value && isTask.value){
+            const temp = {
+                name: '本日対応',
+                value: 1
+            }
+            buttons.push(temp)
+        }
 
+        return buttons
+    }
     const untilTomorrow = () => {
         const today = moment().startOf('day').add(1, 'days').format('YYYY-MM-DD HH:mm:ss');
         updateDate(props.item.id, today)

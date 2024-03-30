@@ -1,9 +1,9 @@
 <template>
     <div style="position: relative;background:inherit">
-        <div style="background:inherit">
+        <div style="background:inherit" class="grow-wrap" ref="growRef">
             <span v-if="placeHolder" class="form-plc smallPlc">{{placeHolder}}</span> 
             <textarea 
-                @input="validate(true)"
+                @input="validate(true, $event)"
                 v-model="value" 
                 :name="name" 
                 :class="['g-text-long', customClass, {'date-color' : theme.dark }]"                 
@@ -15,11 +15,12 @@
   
 <script setup>
     import { validator } from '@/validation/validator'
-    import { ref } from 'vue';
+    import { onMounted, ref } from 'vue';
     import { useTheme } from '@/store/theme';
     const theme = useTheme()
     const error = ref('')
     const trigger = ref(false)
+    const growRef = ref(null)
     const props = defineProps({
         name: String,
         placeHolder: String, 
@@ -28,7 +29,17 @@
         modelValue: String,
     })
     const value = defineModel()
-    const validate = async(passive) => {
+    onMounted(() => {
+        updateTarget()
+    })
+    const updateTarget = () => {
+        growRef.value.dataset.replicatedValue = value.value
+    }
+    const validate = async(passive, event) => {
+        if(event){
+            event.target.parentNode.dataset.replicatedValue = event.target.value
+        }
+
         if(passive && !trigger.value) return
         const { isValid, errorMessage }= await validator(props.rules, value.value)
         error.value = errorMessage
@@ -47,15 +58,40 @@
     color: inherit;
     width: -moz-available;
     font-size: 16px;
-    line-height: 1.6;
     transition: border 0.3s ease;
-    padding: 20px 10px 10px 15px;
     min-height: 150px;
     display: inline-block;
-    overflow: auto;
-    resize: vertical;
     border-radius: 0;
 }
+.grow-wrap {
+  /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
+  display: grid;
+  line-height: 1.6;
+}
+.grow-wrap::after {
+  /* Note the weird space! Needed to preventy jumpy behavior */
+  content: attr(data-replicated-value) " ";
+
+  /* This is how textarea text behaves */
+  white-space: pre-wrap;
+
+  /* Hidden from view, clicks, and screen readers */
+  visibility: hidden;
+}
+.grow-wrap > textarea {
+  /* You could leave this, but after a user resizes, then it ruins the auto sizing */
+  resize: none;
+
+  /* Firefox shows scrollbar on growth, you can hide like this. */
+  overflow: hidden;
+}
+.grow-wrap > textarea,
+.grow-wrap::after {
+  padding: 20px 10px 10px 15px;
+  font: inherit;
+  grid-area: 1 / 1 / 2 / 2;
+}
+
 
 @media screen and (max-width: 959px) {
     .g-text {

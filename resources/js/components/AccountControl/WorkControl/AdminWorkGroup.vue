@@ -24,7 +24,20 @@
                         </div>                        
                     </td>
                     <td>
-                        <button type="submit" @click="openModal(item)" class="account-btn">編集</button>
+                        <CommandButton 
+                            :buttons="[
+                                {
+                                    name: '編集',
+                                    value: 1
+                                },
+                                {
+                                    name: '削除',
+                                    value: 2
+                                }
+                            ]"
+                            @select="(button) => button.value == 1 ? openModal(item) : deleteWorkGroup(item)"
+                        />
+                        <!-- <button type="submit" @click="openModal(item)" class="account-btn">編集</button> -->
                     </td>
                 </tr>
             </table>
@@ -47,8 +60,9 @@
         </div>
 </template>
 <script setup>
+import CommandButton from '../../Global/CommandButton.vue';
 import WorkGroupCreate from './WorkGroupCreate.vue';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, inject } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { computed } from 'vue';
 import UserSearchBar from '../UserSearchBar.vue';
@@ -59,6 +73,7 @@ import UserSearchBar from '../UserSearchBar.vue';
     const workGroups = ref([])
     const fetch = ref(0)
     const users = ref([])
+    const { notify, confirm } = inject('dialog')
     onMounted(async() => {
         await getWorkGroups()
         fetch.value ++
@@ -90,6 +105,22 @@ import UserSearchBar from '../UserSearchBar.vue';
     const openModal = (val) => {
         editWorkGroupData.value = val;
         showModalContent.value = true;
+    }
+    const deleteWorkGroup = async(item) => {
+        const params = {
+            work_group_id : item.id
+        }
+        const answer = await confirm('ワークグループを削除しますか？')
+        if(!answer) return
+        try {
+            await axios.post('/work_group_delete', params)
+            getWorkGroups()
+        } catch (error) {
+            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。 ' + error.message)
+        }
+           
     }
 
 </script>

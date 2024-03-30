@@ -82,7 +82,14 @@
                                 <td v-if="shift.old_shift">{{ shift?.old_shift?.shift_day }}</td>
                             </div>
                         </td>
-                        <td><button class="workRecords-button" @click="changePlannedShifts(user)">変更</button></td>
+                        <td>
+                            <CommandButton 
+                                :buttons="[{
+                                    name: '変更'
+                                }]"
+                                @select="changePlannedShifts(user)"
+                            />
+                        </td>
                     </tr>
                 </tbody>
             </table>
@@ -91,6 +98,7 @@
 </template>
 
 <script setup>
+    import CommandButton from '../../Global/CommandButton.vue';
     import YearPicker from '../../Global/YearPicker.vue'
     import LoaderButton from '../../Global/LoaderButton.vue';
     import { computed, onMounted, ref } from 'vue';
