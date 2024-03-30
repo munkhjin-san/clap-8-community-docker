@@ -263,7 +263,6 @@
         if(usersCheckArray.value.length > 0){
             getWorkData()
             getUsersRecords()            
-            // getShiftData()
         }else{
             notify('メンバーを選択してください。')
         }       
@@ -296,25 +295,7 @@
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
     }
-    // const getShiftData = async() => {
-    //     let yearMonth = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
-    //     const params = {
-    //         current_date : yearMonth,
-    //         work_group : usersCheckArray.value
-    //     }
-    //     try{
-    //         const response = await axios.post('/get_shift_data', params)
-            
-    //             remainingDays.value = response.data.remaining_days
-    //             workTemp.value = response.data.workTemp
-    //             shiftTypes.value = response.data.shift_type
-    //             shiftRecords.value = response.data.shift_record
-    //             kintone_data.value = response.data.kintone_data
-            
-    //     }catch (e){
-    //         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    //     }
-    // }
+    
     const selectShift = async() => {
         if(usersCheckArray.value.length > 1){
             notify('メンバーが複数選択されています。勤怠予定はメンバーを1人のみ選択してください。') 
@@ -357,11 +338,16 @@
         
 
     }
-    const todayScroll = () => {
+    const todayScroll = async() => {
         let scrollPosition = document.querySelector('.today');
         if (scrollPosition) {
             scrollPosition.scrollIntoView({ behavior: 'instant', block: 'start' });
-        } 
+        } else {
+            selectedYear.value = moment().year()
+            selectedMonth.value = moment().month()
+            await getUsersRecords()
+            todayScroll()
+        }
     }
     const toBottomScroll = () => {
         let scrollInto = document.getElementById('bottomTotal');
