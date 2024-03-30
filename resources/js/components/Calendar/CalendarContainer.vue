@@ -250,7 +250,6 @@ import { useTempRecord } from '@/store/tempRecord';
         window.removeEventListener("keydown", onKeyDown);        
     })        
     onMounted(() => {
-        axios.get(`https://api.national-holidays.jp/${selectedYear.value}`)
         if(route.query && route.query.id && props.initial_date){
             
             const tempId = parseInt(route.query.id)
