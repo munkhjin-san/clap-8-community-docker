@@ -66,7 +66,7 @@
                 <div style="white-space: break-spaces;line-height: 1.4;" v-html="searchMessageBody(message.message_text)"></div>                
             </div>
         </div>
-        <div style="width:100%; height: -webkit-fill-available;overflow: hidden auto;font-size:13px;padding: 0 20px;" v-if="messageResult.data.length && !searchLoader && !searchMiniLoader && resultGroupBy == 'board'">
+        <div style="height: -webkit-fill-available;overflow: hidden auto;font-size:13px;padding: 0 20px;" v-if="messageResult.data.length && !searchLoader && !searchMiniLoader && resultGroupBy == 'board'">
             <div :key="board.id" class="srgByBoard" v-for="board in viewBoardList">
                 <div @click="searchInTarget(board)" style="display:flex;align-items:center;cursor:pointer;padding:10px">
                     
