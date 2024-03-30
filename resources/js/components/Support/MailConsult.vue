@@ -18,27 +18,25 @@
                     </div> 
                 </div>
                 <div :key="updateKey" class="si-box">
-                    <FormShortText
+                    <ShortInput
                         :initialValue="to"
                         ref="consultTo"
                         placeHolder="希望連絡先（必須）"
-                        uId="consultTo"
                         name="consultTo"
                         rules="required|max:48"
                         label="タイトル"
-                        @setValue="val => to = val"
+                        v-model="to"
                     />
                 </div>
                 <div :key="updateKey" class="si-box">
-                    <FormLongText
+                    <LongInput
                         :initialValue="content"  
                         ref="consultContent"
                         :placeHolder="`相談内容（必須）`"
-                        uId="consultContent"
                         name="consultContent"
                         rules="required|max:2000"
                         label="メモ"
-                        @setValue="val => content = val"
+                        v-model="content"
                     />   
                 </div>
                 <div class="si-box">
@@ -50,14 +48,12 @@
 
 
 </template>
-<script>
-import FormShortText from '../Global/FormShortText.vue'
-import FormLongText from '../Global/FormLongText.vue'
+<script setup>
+import LongInput from '../Form/LongInput.vue';
+import ShortInput from '../Form/ShortInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue'
-export default{
-    data(){
-        return{
-            list: [
+import { inject, ref } from 'vue';
+    const list = ref([
                { value: 0, content: ' 法務（コンプライアンス、情報管理、社内規定）'}, 
                { value: 1, content: ' 総務（社内施策、kintone）'},
                { value: 2, content: ' 会計（経費、生産関連、決算情報）'},
@@ -67,84 +63,54 @@ export default{
                { value: 6, content: ' 事業（企画開発、事業計画、事業実績）'},
                { value: 7, content: ' システム開発（CLAP）'},
                { value: 8, content: ' その他'}
-                
-            ],
-            selectedAnswer: null,
-            to: null,
-            content: null,
-            sending: false,
-            updateKey: 0
-        }
-    },
-    components:{
-        FormLongText,
-        FormShortText,
-        LoaderButton
-    },
-    methods:{
-        async validate(){
-            try {                    
-                let result = true
-                let checkRef = ['consultTo', 'consultContent']
-                for(const check of checkRef){
-                    const exec = await this.$refs[check].$refs[check].validate()
-                    result = result * exec.valid
-                }              
-                
-                return result
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                throw error; // Re-throw the error to handle it further if needed
-            }    
-        },
-        async send(){
-            const valid = await this.validate()
-            if(this.selectedAnswer == null || !valid) {
-                if(this.selectedAnswer == null){
-                    this.errorToast('相談種別を選択してください。')
-                }
-                return
-            }
-            this.sending = true
-            const params = {
-                kind_value: this.selectedAnswer,
-                contact_address: this.to,
-                consultation_content: this.content
-            }
-            axios.post('/support_add_consult',params)
-            .then(response =>  {
-                const data = {
-                    text: '送信しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
-                }   
-                emitter.emit('setInfo', data)
-                this.sending = false
-                this.selectedAnswer = this.to = this.content = null
-                this.updateKey++
-            })
-            .catch(function (error) {
-                if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) this.errorToast('エラーが発生しました。')
-                else this.errorToast('エラーが発生しました。 ' + error.message)      
-                this.sending = false     
-                          
-            }.bind(this));
-        },
-        errorToast(message){
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })  
-            this.processing = false
+            ])
+    const selectedAnswer = ref(null)
+    const { notify, info } = inject('dialog')
+    const to = ref(null)
+    const content = ref(null)
+    const sending = ref(false)
+    const updateKey = ref(0)
+    const consultTo = ref(null)
+    const consultContent = ref(null)
+    const validate = async() => {
+        try {                    
+            let result = true
+            let checkRef = [consultTo.value, consultContent.value]
+            for(const check of checkRef){
+                const exec = await check.validate()
+                result = result * exec.valid
+            }              
             
-        }, 
+            return result
+        } catch (error) {
+            notify('Error fetching data:', error)
+        }    
     }
-}
+    const send = async() => {
+        const valid = await validate()
+        if(selectedAnswer.value == null || !valid) {
+            if(selectedAnswer.value == null){
+                notify('相談種別を選択してください。')
+            }
+            return
+        }
+        sending.value = true
+        const params = {
+            kind_value: selectedAnswer.value,
+            contact_address: to.value,
+            consultation_content: content.value
+        }
+        try{
+            await axios.post('/support_add_consult',params) 
+            info('送信しました。')
+            selectedAnswer.value = to.value = content.value = null
+            updateKey.value++
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
+        } finally {
+            sending.value = false
+        }     
+    }
+        
+
 </script>

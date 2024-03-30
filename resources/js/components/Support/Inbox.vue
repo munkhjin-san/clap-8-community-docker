@@ -73,7 +73,7 @@
                                 <div @click="viewNewMemo" class="commentEditButton">メモ追加</div>                                
                             </div>
                             <div v-if="addMemoWindow" style="background: inherit;margin-top: 10px;padding: 10px;">
-                                <FormLongText
+                                <LongInput
                                     :initialValue="newMemo"  
                                     ref="consultMemo"
                                     placeHolder="新しいメモ"
@@ -81,7 +81,7 @@
                                     name="consultMemo"
                                     rules="max:2000"
                                     label="タイトル"
-                                    @setValue="val => newMemo = val"
+                                    v-model="newMemo"
                                 /> 
                                 <div style="margin-top: 15px;">
                                     <LoaderButton content="保存する" :loading="sending" @triggered="sendMemo"/>
@@ -110,144 +110,101 @@
     </div>
 
 </template>
-<script>
+<script setup>
 import moment from 'moment'
-import FormLongText from '../Global/FormLongText.vue'
+import LongInput from '../Form/LongInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue'
-export default{
-    data(){
-        return{
-            list: [],
-            selectedItem:null,
-            newStatus: 0,
-            addMemoWindow: false,
-            newMemo: '',
-            sending: false
-        }
-        
-    },
-    mounted(){
-        this.getRecievedConsults()
-    },
-    components:{
-        FormLongText,
-        LoaderButton
-    },
-    methods:{
-        viewNewMemo(){
-            this.addMemoWindow = !this.addMemoWindow
-            if(this.addMemoWindow){
-                setTimeout(() => {
-                    const el = document.getElementById('consultMemo')
-                    if(el){
-                        el.scrollIntoView({behavior: 'smooth', block: 'center'})
-                        el.focus()
-                    }
-                }, 0);
-                
-            }
-        },
-        setStatus(){
-            const value = event.target.value
-
-            axios.post('/update_consult_status', {
-                record_id: this.selectedItem.id,
-                value: value,                
-            })
-            .then(response => {                   
-                
-                const data = {
-                    text: '更新しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
+import { inject, onMounted, ref } from 'vue';
+    const { notify, info } = inject('dialog')
+    const list = ref([])
+    const selectedItem = ref(null)
+    const newStatus = ref(0)
+    const addMemoWindow = ref(false)
+    const newMemo = ref('')
+    const sending = ref(false)
+    
+    const viewNewMemo = () => {
+        addMemoWindow.value = !addMemoWindow.value
+        if(addMemoWindow.value){
+            setTimeout(() => {
+                const el = document.getElementById('consultMemo')
+                if(el){
+                    el.scrollIntoView({behavior: 'smooth', block: 'center'})
+                    el.focus()
                 }
-                emitter.emit('setInfo', data)
-                this.sending = false
-                this.newMemo = '';
-                this.addMemoWindow = false
-                this.getRecievedConsults(this.selectedItem.id)
-
-            })
-            .catch(error => {
-                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                else if (error.request) this.errorToast(this.$t('commonError'))
-                else this.errorToast(this.$t('commonError') + error.message)   
-                this.sending = false   
-            });
-        },
-        sendMemo(){
-            this.sending = true
-            axios.post('/add_memo_to_consult', {
-                record_id: this.selectedItem.id,
-                text: this.newMemo,                
-            })
-            .then(response => {                   
-                
-                const data = {
-                    text: '送信しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
-                }
-                emitter.emit('setInfo', data)
-                this.sending = false
-                this.newMemo = '';
-                this.addMemoWindow = false
-                this.getRecievedConsults(this.selectedItem.id)
-
-            })
-            .catch(error => {
-                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                else if (error.request) this.errorToast(this.$t('commonError'))
-                else this.errorToast(this.$t('commonError') + error.message)   
-                this.sending = false   
-            });
-        },
-        errorToast(message){
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: true, 
-                autoClose: true,
-                answers: [this.$t('confirmToAction')]
-
-            }) 
-        },
-        select(item){
-            this.selectedItem = item
-            this.newStatus = item.status_flag
-        },
-        reset(){
-            this.selectedItem = null
-        },
-        getRecievedConsults(id){
-            axios.get('/get_recieved_consults' ).then(response => {
-                this.list = response.data
-                if(id){
-                    const replaceData = this.list.find(ob => ob.id == id)
-                    if(replaceData){
-                        this.selectedItem = replaceData
-                    }
-                }
-            })
-        },
-        createdDate(date){
-            return moment(date).format('YYYY/M/D HH:mm')
-        },
-        type(value){
-            const items = [ '法務','総務','会計','人事','労務','広報','事業','システム開発','その他','よくある質問未解決' ]
-            const index = value == 99 ? 9 : value
-            return items[index]
-                    
-        },
-        status(val){
-            const list = ['未対応','対応中','対応済']
-            return list[val]
+            }, 0);
+            
         }
     }
-}
+    const setStatus = async() => {
+        const value = event.target.value
+        try{
+            await axios.post('/update_consult_status', {
+                record_id: selectedItem.value.id,
+                value: value,                
+            })
+            info('更新しました。')
+            newMemo.value = '';
+            addMemoWindow.value = false
+            getRecievedConsults(selectedItem.value.id)
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    const sendMemo = async() => {
+        sending.value = true
+        try{
+            await axios.post('/add_memo_to_consult', {
+                record_id: selectedItem.value.id,
+                text: newMemo.value,                
+            })
+            info('送信しました。')
+            newMemo.value = '';
+            addMemoWindow.value = false
+            getRecievedConsults(selectedItem.value.id)
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            sending.value = false
+        }
+        
+    }
+    const select = (item) => {
+        selectedItem.value = item
+        newStatus.value = item.status_flag
+    }
+    const reset = () => {
+        selectedItem.value = null
+    }
+    const getRecievedConsults = async(id) => {
+        try{
+            const response = await axios.get('/get_recieved_consults' )
+            list.value = response.data
+            if(id){
+                const replaceData = list.value.find(ob => ob.id == id)
+                if(replaceData){
+                    selectedItem.value = replaceData
+                }
+            }
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    const createdDate = (date) => {
+        return moment(date).format('YYYY/M/D HH:mm')
+    }
+    const type = (value) => {
+        const items = [ '法務','総務','会計','人事','労務','広報','事業','システム開発','その他','よくある質問未解決' ]
+        const index = value == 99 ? 9 : value
+        return items[index]
+                
+    }
+    const status = (val) => {
+        const list = ['未対応','対応中','対応済']
+        return list[val]
+    }
+    onMounted(getRecievedConsults)
+ 
 </script>
 <style>
 table.supportMailFormList-table{

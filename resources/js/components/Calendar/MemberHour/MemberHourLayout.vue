@@ -18,13 +18,13 @@
                 </div>
             </div>
         </Transition>
-        <div @mousedown="onMouseDown" @touchstart="handleTouchStart" @touchmove="handleTouchMove" class="calendar-container-outer-week" :style="{width: `calc((100% / ${store.state.mobile ? 4 : 13}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
+        <div @mousedown="onMouseDown" @touchstart="handleTouchStart" @touchmove="handleTouchMove" class="calendar-container-outer-week" :style="{width: `calc((100% / ${responsive.mobile ? 4 : 13}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
           
             <div class="calendar-header">  
                 <div id="listViewSpacer" ref="spacer" :style="{ width: hideName ? '45px' : `130px`}" class="left-member-tile"></div>
                 <div :style="{display: 'flex',position: 'relative', width: hideName ? 'calc(100% - 45px)' : `calc(100% - 130px)`}">
                     <div :id="`w_day_${index}`" ref="hourMemberItems" v-for="(hour, index) in hoursOfDay" class="w-day-item" style="border-right: solid thin transparent;background: unset;">
-                        <div :class="['top-list-tile']" ><div>{{ hour.hour }}</div></div> 
+                        <div :class="['top-list-tile']" ><div>{{ hour.hour == '0:00' ? '' : hour.hour }}</div></div> 
                     </div>
                     <div :style="{width: barWidth}" class="hour-bar"></div>
                 </div>
@@ -37,7 +37,7 @@
                     :hideName="hideName"
                     :key="userData.user.id"
                     :orderCreator="orderCreator"
-                    @create="(date, user) => $emit('create', date, user)"
+                    @create="(date, user) => emit('create', date, user)"
                     @viewFull="hideName = false"
                 />
             </div>
@@ -47,12 +47,13 @@
 <script setup>
 import moment from 'moment';
 import MemberTile from './MemberTile.vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useStore } from 'vuex';
-
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useResponsive } from '@/store/responsive';
+import { useFocused } from '@/store/focused';
+    const responsive = useResponsive()
+    const focused = useFocused()
     const props = defineProps(['records', 'activeMembers', 'selectedDate', 'initialLoader'])
     const emit = defineEmits(['create', 'resetFastCreate'])
-    const store = useStore()
     const hideName = ref(false)
     const lockScroll = ref(false)
     const startX = ref(0)
@@ -62,7 +63,8 @@ import { useStore } from 'vuex';
     const hourMemberItems = ref([])
     const cal_week_view = ref(null)
     const currentMinute = ref(null)
-    watch(() => store.state.focused, () => {
+    const draggingCalendar = inject('draggingCalendar')
+    watch(() => focused.active, () => {
         currentMinute.value = getCurrentMinute()
     })
     watch(() => lockScroll, (after) => {
@@ -170,7 +172,7 @@ import { useStore } from 'vuex';
         }
     }
     const scrollListen = (event) => {            
-        if(store.state.mobile && !lockScroll.value && isHorizontalScroll.value){
+        if(responsive.mobile && !lockScroll.value && isHorizontalScroll.value){
             hideName.value = true
             lockScroll.value = true
         }            
@@ -189,7 +191,7 @@ import { useStore } from 'vuex';
     /** @param {MouseEvent} ev */
     const onMouseHold = (ev) => {
         ev.preventDefault();
-        if(store.state.draggingCalendar) return
+        if(draggingCalendar.value) return
         requestAnimationFrame(() => {
             const delta = [
                 ev.pageX - cursorPos.value[0],

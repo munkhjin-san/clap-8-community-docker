@@ -11,7 +11,7 @@
                         :key="record.id"
                         :record="record"
                         :day="day"
-                        @setDayIndex="val => $emit('setDayIndex', val)"
+                        @setDayIndex="val => emit('setDayIndex', val)"
                     />
                 </div>              
             </div>            
@@ -25,8 +25,8 @@
         :key="hourIndex"
         :hourRecords="hourRecords(hourIndex)"
         :fullDayIndex="hourFulldayRecords.length"
-        @create="val => $emit('create', val)"
-        @setDayIndex="val => $emit('setDayIndex', val)"
+        @create="val => emit('create', val)"
+        @setDayIndex="val => emit('setDayIndex', val)"
     />
 </div>
 </template>

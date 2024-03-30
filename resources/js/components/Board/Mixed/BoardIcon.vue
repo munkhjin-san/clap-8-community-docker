@@ -1,59 +1,32 @@
 <template>
     <div >
-        <img v-if="item.private_flag == 0 && boardIcon" draggable="false" loading="lazy" :class="[imgClass, themeIcon]" :src="boardIcon" :style="imgStyle">
+        <img v-if="item.private_flag == 0 && boardIcon" draggable="false" loading="lazy" :class="[imgClass]" :src="boardIcon" :style="imgStyle">
         <UserIcon v-if="item.private_flag > 0 && correspondUser" :disableInstant="true" :user="correspondUser" :imgClass="imgClass" size="45"/>
         <svg v-if="!boardIcon && !correspondUser" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
             <circle cx="15" cy="15" r="15" fill="#ddd"/>
         </svg>
     </div>
 </template>
-
-<script>
+<script setup>
+import { computed } from 'vue';
 import UserIcon from './UserIcon.vue';
-    export default {
-        props: ['item', 'imgClass', 'imgStyle'],
-        components: {
-            UserIcon,
-        },
-        computed:{
-            themeIcon(){
-                 
-                if(this.item.a_version == 0){
-                    return this.$store.state.dark ? 'darkIcon' : 'lightIcon'
-                }
-              
-                
-            },
-            correspondUser(){
-                if(this.item.private_flag == 1){
-                    var user = this.item.board_to_users.filter(obj => obj.user_id !== this.$store.state.user.id);
-                    return user && user.length && user[0].user? user[0].user : null
-                    
-                }else if(this.item.private_flag == 3){
-                    var me = this.item.board_to_users.filter(obj => obj.user_id == this.$store.state.user.id);
-                    return me && me.length && me[0].user ? me[0].user : null
-                }
-                return null
-            },
-            boardIcon(){
-                var path = null
-                if(this.item.icons){
-                    var path = `${this.$store.state.baseLocation}/content/board_icon/board_${this.item.icon_id}.${this.item.icons.extension}`;
-                }
-                return path;
-            },
-            boardIconSrc(){
-                var path = this.$store.state.baseLocation + '/profile_icon/noimage.jpg';
-                if(this.item.icons){
-                    var path = `${this.$store.state.baseLocation}/content/board_icon/board_${this.item.icon_id}.${this.item.icons.extension}`;
-                }
-                return path;
-            },
+import { useAuthUserStore } from '@/store/auth'
+    const auth = useAuthUserStore()
+    const props = defineProps(['item', 'imgClass', 'imgStyle'])
+    const correspondUser = computed(() => {
+        if(props.item.private_flag == 1){
+            var user = props.item.board_to_users.filter(obj => obj.user_id !== auth.activeUser.id);
+            return user && user.length && user[0].user? user[0].user : null
+            
+        }else if(props.item.private_flag == 3){
+            var me = props.item.board_to_users.filter(obj => obj.user_id == auth.activeUser.id);
+            return me && me.length && me[0].user ? me[0].user : null
         }
-    }
+        return null
+    })
+    const boardIcon = computed(() => {
+        if(props.item.icons){
+           return `/cdn/board_icon/board_${props.item.icon_id}.${props.item.icons.extension}`;
+        }
+    })   
 </script>
-<style lang="scss" scoped>
-    .darkIcon{
-        filter: invert(0.8);
-    }
-</style>

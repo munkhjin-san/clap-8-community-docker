@@ -1,311 +1,367 @@
 <template>
     <div style="width: 100%;height: 100%;display: flex;flex-direction: column;">
+        <Transition name="modalFade">
+            <div class="overlay" style="z-index:100" v-if="switchLoader"></div>
+        </Transition>
+        <InstantProfile :key="instantUser.cY + instantUser.cX" :data="instantUser" v-if="instantUser.id"/>  
         <div style="width: 100%;height:calc(100% - 45px);display: flex; flex:1">
             <Transition name="modalFade">
-                <div @click="$store.commit('setSideMenuView', false)" v-if="$store.state.sideMenuView" class="overlay mobile" style="z-index: 26;"></div>
+                <div @click="sideMenuView.setSideMenuView(false)" v-if="sideMenuView.active" class="overlay mobile" style="z-index: 26;"></div>
             </Transition>
 
-            <SideMenu :board-badge="boardBadge" :total-badge="totalBadge" :auth_user="auth_user" :session="session" :remember="remember"/>
-
-            <!-- <router-view :key="$route.name" /> -->
-            <router-view :key="keyGen" :initial_date="initial_date"/>
+            <SideMenu  
+                :noticeBadge="noticeBadge" 
+                :auth_user="auth_user" 
+                :session="session" 
+                :setActiveUser="setActiveUser"
+                :switchLoader="switchLoader"
+            />
+            
+            <router-view v-slot="{ Component }">
+                <KeepAlive :include="['MembersRoot']">
+                    <component
+                        :is="Component"
+                        :key="keyGen" 
+                        :initial_date="initial_date"
+                        ref="mainRef"
+                    ></component>
+                </KeepAlive>
+            </router-view>
         </div>
         <Transition name="footerPop">
-            <Footer v-if="footerView" :boardBadge="boardBadge" :totalBadge="totalBadge"></Footer>
+            <Footer v-if="footerView"></Footer>
         </Transition>
+        <Transition :name="infoData ? 'slidePop' : 'modalFade'">
+            <Dialog 
+                v-if="confirmData || notifyData || infoData" 
+                :confirm="confirmData"  
+                :notify="notifyData"
+                :info="infoData"
+                :options="confirmOptions"
+                @close="confirmData = null, notifyData = null"
+                @handle="val => userResponse = val"
+            ></Dialog>
+        </Transition>
+        <OverRide/>
     </div>
 
 </template>
-<script>
+<script setup>
 import moment from 'moment';
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
 import * as PusherPushNotifications from "@pusher/push-notifications-web";
 import Pusher from 'pusher-js';
-export default{
-    props: ['session', 'auth_user', 'remember', 'initial_date'], 
-    data(){
-        return{
-            differenceList: [],
-            boardBadge: 0,
-            totalBadge: 0, 
-        }  
-    },
-    components: {
-        SideMenu,
-        Footer
-    },
-    created(){
-        if(this.auth_user){
-            this.$store.commit('setUser', this.auth_user);
-        }
-    },
-    unmounted() {
-        window.removeEventListener('resize', this.handleResize);
-    },
-    mounted(){
+import { computed, nextTick, onBeforeMount, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import Dialog from './Global/Dialog.vue';
+import OverRide from './Header/OverRide.vue'
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useResponsive } from '@/store/responsive';
+import { useBadgeStore } from '@/store/badge'
+import { useFocused } from '@/store/focused';
+import InstantProfile from './Board/InstantProfile.vue';
+import { useSideMenuView } from '@/store/sideMenuView';
+import { useSkeleton } from '@/store/skeleton'
+import { useTitle } from '@vueuse/core'
+    const props = defineProps(['session', 'auth_user', 'initial_date'])
+    const route = useRoute()
+    const router = useRouter()
+    const badge = useBadgeStore()
+    const mainRef = ref(null)
+    const auth = useAuthUserStore()
+    const menu = useMenuStore()
+    const responsive = useResponsive()
+    const focused = useFocused()
+    const sideMenuView = useSideMenuView()
+    const skeleton = useSkeleton()
+    const switchLoader = ref(false)
+    const instantUser = ref({
+        id: null,
+        cX: 0,
+        cY: 0
+    })
+    onBeforeMount(() => {
+        auth.setUser(props.auth_user)
+    })
 
-    // window.Pusher = Pusher;
-    // Pusher.logToConsole = true;
-    if(this.auth_user && this.auth_user.id){
-        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-        let pusher = new Pusher(process.env.MIX_PUSHER_APP_KEY, {
-            cluster: process.env.MIX_PUSHER_APP_CLUSTER,
-            forceTLS: true,
-            channelAuthorization: { endpoint: "/pusher_subscribe", headers: { "X-CSRF-Token": csrfToken }},
-            userAuthentication: {
-                endpoint: "/pusher_authorizition", headers: { "X-CSRF-Token": csrfToken }
-            }
-        });
-        var channel = pusher.subscribe('private-chat');
-        channel.bind("pusher:subscription_error", (error) => {console.log(error)});
-        channel.bind('my-event', (e) => { emitter.emit('pusher-event',e) });
-                
-        this.beamsInit()
+    onUnmounted(() => {
+        removeEventListener()
+    })
+    onMounted(() => {
+        if(props.auth_user && props.auth_user.id){
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            let pusher = new Pusher(import.meta.env.VITE_PUSHER_APP_KEY, {
+                cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
+                forceTLS: true,
+                channelAuthorization: { endpoint: "/pusher_subscribe", headers: { "X-CSRF-Token": csrfToken }},
+                userAuthentication: {
+                    endpoint: "/pusher_authorizition", headers: { "X-CSRF-Token": csrfToken }
+                }
+            });
+            var channel = pusher.subscribe('private-chat');
+            channel.bind("pusher:subscription_error", (error) => {console.log(error)});
+            channel.bind('my-event', (e) => { 
+                if(mainRef.value.onPusher){
+                    mainRef.value.onPusher(e)
+                }
+                if(auth.user && e.message.board_id && e.message.sender !== auth.id){                
+                    badge.getBoardBadge()
+                }
+                if(e.message.new_post_from && e.message.new_post_from !== auth.id){
+                    // getPostBadge()
+                    badge.getPostBadge()
+                }           
+
+            });                    
+            beamsInit()
+        }
+
+        addEventListener()
+        badge.getBoardBadge('mounted');
+        badge.getPostBadge()
+        badge.getNoticeBadge()
+    })
+    const docTitle = computed(() => {       
+        const name = route.meta && route.meta.title ? route.meta.title : 'CLAP'
+        const total = badge.sumOfAll
+        const badgeCount = total && total > 0 ?  `【${total}】` : ''
+        const space = badgeCount ? ' ' : ''
+        return badgeCount + space + name   
+    })
+    useTitle(docTitle)
+    const addEventListener = () => {
+        window.addEventListener('click', onClick);
+        window.addEventListener('touchstart', onClick);
+        window.addEventListener('resize', handleResize);
+        window.addEventListener("focus", handleFocus, false);
+        window.addEventListener("blur", handleBlur, false);
     }
-
-
-
-        window.addEventListener('resize', this.handleResize);
-        window.addEventListener("focus", () => { 
-            this.checkEctivity();           
-            this.$store.commit('setFocused', true);
-        }, false);
-        window.addEventListener("blur", () => { 
-            this.$store.commit('setFocused', false);            
-        }, false);
-        this.notifyGet('mounted');
-        this.getPostBadge('mounted');
-        this.getNoticeBadge()
-        if(this.remember){
-            this.$store.commit('setRemember',this.remember)
+    const removeEventListener = () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('focus', handleFocus, false)
+        window.removeEventListener('blur', handleBlur, false)
+        window.removeEventListener('click', onClick);
+        window.removeEventListener('touchstart', onClick);
+    }
+    const footerView = computed(() =>{
+        const block_list = ['account-settings', 'personal-info-settings', 'salary-issue']
+        const find = block_list.filter(ob => ob === route.name)
+        if(find && find.length) return false            
+        return responsive.mobile && auth.user && auth.user.footer_view
+    })
+    const keyGen = computed(() => {
+        const parts = route.fullPath.split('/');
+        if (parts.length > 1) {
+            return parts[1] + auth.activeUser.id;
+        } else {
+            return route.fullPath + auth.activeUser.id
         }
-        // if(!navigator.userAgent.match(/iPhone/)){
-        //     Notification.requestPermission()
-        // }
-        emitter.on('notifyUpdate', (data) => this.notifyUpdate(data));
-        emitter.on('notifyGet', (data) => this.notifyGet(data));
-        emitter.on('getNoticeBadge', (data) => this.getNoticeBadge());
-        
-        emitter.on('pusher-event', (e) => {
-            if(this.$store.state.user && !this.$route.path.includes('chat') && e.message.board_id && e.message.sender !== this.$store.state.user.id){                
-                this.notifyGet()
-            }
-            if(e.message.new_post_from && e.message.new_post_from !== this.$store.state.user.id){
-                this.getPostBadge()
-            }
-        });
-    },
-    computed:{
-        footerView(){
-            const block_list = ['account-settings', 'personal-info-settings', 'salary-issue']
-            const find = block_list.filter(ob => ob === this.$route.name)
-            if(find && find.length) {
-                return false
-            }
-            return this.$store.state.mobile && this.$store.state.user.footer_view
-        },
-        keyGen(){
-            const parts = this.$route.fullPath.split('/');
-            if (parts.length > 1) {
-                return parts[1];
-            } else {
-                return this.$route.fullPath
-            }
-        }
-    },
-    watch: {
+    })
 
-        totalBadge(after, before){
-            this.titleUpdate();
-            this.setTotalBadge()
-        },
-        '$store.state.postBadge' (after){
-            this.titleUpdate();
-            this.setTotalBadge()
-        },
-        '$route.fullPath' (after){
-            this.titleUpdate();
+    watch(() => [route.fullPath], () => {
+            resetInstantUser()
         }
-    },
-    methods: {
-        async beamsInit(){
-            const beamsClient = new PusherPushNotifications.Client({
-                instanceId: process.env.MIX_PUSHER_INSTANCE_ID,
-            });
-            const beamsTokenProvider = await this.beamsToken()
-            this.beamsUser(beamsClient, beamsTokenProvider)
-        },
-        async beamsToken(){
-            return new PusherPushNotifications.TokenProvider({
-                url: "/pusher/beams-auth",
-            });
-        },
-        beamsUser(beamsClient, beamsTokenProvider){
-            beamsClient
-            .getUserId()
-            .then((userId) => {
-                if (userId !== null && userId !== this.auth_user.id.toString()) {
-                    return beamsClient.stop();
-                }else{
-                    beamsClient.start()
-                    .then(() => console.log('Successfully registered and subscribed!'))
-                    .then(() => beamsClient.setUserId(this.auth_user.id.toString(), beamsTokenProvider))
-                    .catch(console.error);
-                }
-            })
-            .catch(console.error);
+    )
+    const setActiveUser = async(id) => {
+        if(id == auth.activeUser.id){
+            if(id == auth.id){
+                router.push(`/user/${auth.activeUser.id}`)
+            }
+            return            
+        }
+        switchLoader.value = true
+        if(route.name == 'room'){
+            router.push({name: 'board'})
+        }
+
+        await auth.setActiveUser(id)
+        skeleton.setSkeleton(0)
+        nextTick(() => {
+            setTimeout(() => {
+                switchLoader.value = false
+            }, 300);
             
-        },
-        checkEctivity(){            
-            const before = localStorage.getItem('notification_check')
-            if(!before || moment().diff(moment(before), 'minutes') > 1){
-                this.notifyGet('check_activity');
-                this.authCheck();
-                const time = moment().format('YYYY-MM-DD HH:mm:ss')
-                localStorage.setItem('notification_check', time)
-            }
-        },
-        setTotalBadge(){
-            const sum = this.$store.state.postBadge.reduce((accumulator, currentValue) => accumulator + currentValue, 0);        
-            const total = sum + this.boardBadge
-            this.$store.commit('setBadge', total)
-        },
-        handleResize(){
-            const w = window.innerWidth;
-            if(w > 959){
-                if(this.$store.state.mobile){
-                    this.$store.commit('setMobile', false)
-                }
+        })
+        
+
+    }
+    const handleFocus = () => {
+        
+        checkActivity()
+        focused.setFocused(true)
+    }
+    const handleBlur = () => {
+        focused.setFocused(false)
+    }
+    const beamsInit = async () =>{
+        const beamsClient = new PusherPushNotifications.Client({
+            instanceId: import.meta.env.VITE_PUSHER_INSTANCE_ID,
+        });
+        const beamsTokenProvider = await beamsToken()
+        beamsUser(beamsClient, beamsTokenProvider)
+    }
+    const beamsToken = async() => {
+        return new PusherPushNotifications.TokenProvider({
+            url: "/pusher/beams-auth",
+        });
+    }
+    const beamsUser = (beamsClient, beamsTokenProvider) => {
+        beamsClient.getUserId().then((userId) => {
+            if (userId !== null && userId !== props.auth_user.id.toString()) {
+                return beamsClient.stop();
             }else{
-                if(!this.$store.state.mobile){
-                    this.$store.commit('setMobile', true)
-                }
+                beamsClient.start()
+                .then(() => console.log('Successfully registered and subscribed!'))
+                .then(() => beamsClient.setUserId(props.auth_user.id.toString(), beamsTokenProvider))
+                .catch(console.error);
             }
-        },
-        getNoticeBadge(){
-            axios.get('/get_notice_badge').then( response => { this.$store.commit('setNoticeBadge', response.data) });
-        },
-        authCheck(){
-            axios.post('/auth_check', {id: this.$store.state.user.id}).catch(function (error) {
-                if (error.response) {
-                    const errorMessage = error.response.status === 419 ? this.$t('Unauthenticated') : this.$t(error.response.data.message)
-                    this.errorToast(errorMessage)
-                }
-                else if (error.request) {this.errorToast(this.$t('netWorkError'))}
-                else {this.errorToast(this.$t('netWorkError'))}                     
-            }.bind(this));                
-        },  
-        errorToast(message){
+        }).catch(console.error);
         
-            const uniqueChannell = Math.random().toString(36).substring(5);
-            const er = message.includes('Unauthenticated') ? this.$t('Unauthenticated') : message
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: er,
-                closeButton: false, 
-                autoClose: false,
-                touchClose: false,
-                answers: ['OK'],
-                channel: uniqueChannell
-
-            })
-            emitter.on(uniqueChannell, e => {
-                location.reload();
-            })
-            
-                    
-        },
-        getPostBadge(){
-            axios.get('/get_post_badge').then( response => { this.$store.commit('setPostBadge', response.data) });
-        },
-        titleUpdate(){   
-            const appNames = [
-                { jp: 'CLAP - ボード', title: 'board room'},
-                { jp: 'CLAP - ナレッジ', title: 'knowledge'},
-                { jp: 'CLAP - ナイス', title: 'nice'},
-                { jp: 'CLAP - チャレンジ', title: 'challenge'},
-                { jp: 'CLAP - カレンダー', title: 'calendar'},
-                { jp: 'CLAP - ワーク', title: 'work'},
-                { jp: 'CLAP - プロフィール', title: 'user'},
-                { jp: 'CLAP - メンバー', title: 'members'},
-                { jp: 'CLAP - サポート', title: 'support'},
-                { jp: 'CLAP - プロフィール編集', title: 'personal-info-settings'},
-                { jp: 'CLAP - アカウント設定', title: 'account-settings'},
-                { jp: 'CLAP - 昇給課題', title: 'salary-issue'},
-                { jp: 'CLAP - 管理者', title: 'admin_control'},
-                { jp: 'CLAP - ノート', title: 'memo'},
-                { jp: 'CLAP - タスク', title: 'task'},
-                { jp: 'CLAP - ファイル', title: 'file'},
-            ]
-
-            const name = appNames.find(ob => ob.title.includes(this.$route.name))
-            const p = name && name.jp ? name.jp : 'CLAP'
-            window.document.title = p
-            const sum = this.$store.state.user.partner_flag == 1 ? 0 : this.$store.state.postBadge.reduce((accumulator, currentValue) => accumulator + currentValue, 0);        
-            const total = sum + this.boardBadge
-            const badge = total && total > 0 ?  `【${total}】` : ''
-            const space = badge ? ' ' : ''
-            window.document.title = badge + space + p           
-        },
-        notifyUpdate(pattern){
-            console.log(pattern)
-            if(pattern == 'badge_update_first' && !document.hidden){
-                var tempId;
-                if(this.$store.state.activeBoard){
-                    var tempId = this.$store.state.activeBoard.id;
-                }
-                axios.post('/notification_update_api', {board_id: tempId}).then(               
-                    response => {
-                        this.notifyGet('rebound');
-                        // emitter.emit('boardNotifyUpdate', 1);
-                    });
-            }else if(pattern == 'pusher' && this.$store.state.activeBoard && !document.hidden){
-                    var tempId = this.$store.state.activeBoard.id;
-                axios.post('/notification_update_api', {board_id: tempId}).then(               
-                    response => {
-                    });
-            }
-        },
-        notifyGet(from){
-            axios.post('/notification_get_api').then(              
-
-                response => {                      
-                    this.differenceList = response.data;
-
-                    var badgeValue = 0;
-                    for(var i in this.differenceList) {
-
-                        badgeValue = badgeValue + this.differenceList[i];
-
-                    }
-                    this.$store.commit('setBoardBadge', response.data);
-                    this.boardBadge = badgeValue;                    
-                    
-                    this.totalBadge = this.boardBadge;
-                    this.titleUpdate();
-                    if(from == 'rebound'){
-                        // emitter.emit('notifyUpdateCompleted', 1);
-                    }
-                    if(from == 'pusher'){
-                        // emitter.emit('notifyFetched', 1);
-                    }
-                    if(from == 'check_activity'){
-                        emitter.emit('notifyFetched', 1);
-                    }
-                });
-            
-            
-        },  
-        setBadge(badgeCount) {
-            if ('setAppBadge' in navigator) {
-                navigator.setAppBadge(badgeCount);
-            } else {
-                // The browser does not support navigator.setAppBadge()
-            }
-        }  
     }
-}
+    const checkActivity = async() => {            
+        const before = localStorage.getItem('notification_check')
+        if(!before || moment().diff(moment(before), 'minutes') > 1){
+            authCheck();
+            await badge.getBoardBadge();
+            if(mainRef.value.getBoardList){
+                mainRef.value.getBoardList()
+                mainRef.value.unreadLineTrigger()
+            }            
+            const time = moment().format('YYYY-MM-DD HH:mm:ss')
+            localStorage.setItem('notification_check', time)
+        }
+    }
+    const handleResize = () => {
+        const w = window.innerWidth;
+        if(w > 959){
+            if(responsive.mobile){
+                responsive.setMobile(false)
+            }
+        }else{
+            if(!responsive.mobile){
+                responsive.setMobile(true)
+            }
+        }
+    }
+    const refreshMessage = () => {
+        if(mainRef.value.getMessageList){
+            mainRef.value.getMessageList()
+        }
+    }
+    const onClick = (event) => {
+        if(menu && menu.id){
+            const cont = document.getElementById(menu.name);               
+            if(cont && !cont.contains(event.target)){
+                menu.setMenu({name: null, id: null})
+            } 
+        }
+        const cont1 = document.getElementById('instantProfileWindow');    
+        if(cont1 && !cont1.contains(event.target)){
+            instantUser.value = {cX: 0, id: null, cY: 0}
+        } 
+
+        
+    }
+    const authCheck = async() => {
+        const options = {
+            answers: [{label: 'OK', value: true}]
+        }
+        let answer = ''
+        try {
+            await axios.post('/auth_check', {id: auth.id})
+        } catch (error) {
+            const { response } = error;
+            let errorMessage = '';
+            if (response) {
+                errorMessage =
+                    response.status === 419
+                        ? 'ユーザー アカウント認証に失敗しました。ブラウザを更新してください'
+                        : response.data.message;
+            } else if (error.request) {
+                errorMessage = 'ネットワークエラーが発生しました。ブラウザを更新してください';
+            }  
+            answer = await confirm(errorMessage, options);
+        }    
+        if(answer){
+            navigator.reload(true)
+        }             
+    }
+    
+
+
+    const confirmData = ref(null);
+    const notifyData = ref(null)
+    const userResponse = ref(null);
+    const infoData = ref(null)
+    const confirmOptions = ref(null)
+    const resetPopup = () => {
+        confirmData.value = null
+        notifyData.value = null
+        userResponse.value = null
+        infoData.value = null
+        confirmOptions.value = null
+    }
+    const confirm = async (question, options) => {
+        resetPopup()
+        if(options){
+            confirmOptions.value = options
+        }
+        userResponse.value = null
+        notifyData.value = null
+        confirmData.value = question;
+        
+        await new Promise((resolve) => {
+            const unsubscribe = watch(() => userResponse.value, (value) => {
+                if (value !== null) {
+                    unsubscribe();
+                    resolve(value);
+                }
+            });
+        });       
+        return userResponse.value;        
+    };
+    const notify = (message) => {
+        resetPopup()
+        notifyData.value = message
+    }
+    const info = (message) => {
+        resetPopup()
+        infoData.value = null
+        infoData.value = message
+        setTimeout(() => {
+            infoData.value = null
+        }, 4000);
+    }
+    const resetInstantUser = () => {
+        const data = {
+            id: null,
+            cX: 0,
+            cY: 0
+        }
+        instantUser.value = data    
+    }
+    const pushInstantUser = (e, id) => {
+        if(id == auth.id) return
+        const cX = e.clientX;
+        const cY = e.clientY;  
+        const data = {
+            id: id,
+            cX: cX,
+            cY: cY
+        }
+        instantUser.value = data               
+    }
+    
+    provide('dialog', {
+        confirm: (question, options) => confirm(question, options),
+        notify: (message) => notify(message),
+        info: (message) => info(message)
+    });
+    provide('pushInstantUser', pushInstantUser)
+
+    provide('refreshMessage', refreshMessage)
+    provide('resetInstantUser', resetInstantUser)
 </script>
 

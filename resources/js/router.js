@@ -1,14 +1,17 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
-import store from './store' 
-// import Board from './components/Board/Board.vue'
-
-import Task from './components/Mobile/Task.vue'
-import axios from 'axios'
+import { useMessageUsers } from '@/store/messageUsers'
+import { useFilePreview } from "@/store/filePreview"
+import { useResponsive } from '@/store/responsive'
+import { useSideMenuView } from '@/store/sideMenuView'
+import { useAuthUserStore } from './store/auth'
 const routes = [
     { 
         path: '/board', 
         name: 'board', 
+        meta: {
+            title: 'CLAP - ボード',
+        },        
         component: () => import('./components/Board/Board.vue'),
         children: [
             {
@@ -24,7 +27,6 @@ const routes = [
                         props: true
                     },
                     { path: 'file', name: 'file',  component: () => import('./components/Mobile/File.vue'), },
-                    { path: 'memo', name: 'memo',  component:  () => import('./components/Mobile/Memo.vue'), },
                 ]
             }
         ],
@@ -32,6 +34,9 @@ const routes = [
     { 
         path: '/members', 
         name: 'members',  
+        meta: {
+            title: 'CLAP - メンバー',
+        }, 
         component: () => import('./components/Members/MembersRoot.vue'),
         beforeEnter: (to, from, next) => {
             if(window.innerWidth < 959){
@@ -45,6 +50,9 @@ const routes = [
         name: 'user',  
         component: () => import('./components/Profile/UserComponent.vue'),
         props: true,
+        meta: {
+            title: 'CLAP - プロフィール',
+        }, 
         children: [
             
             {
@@ -52,6 +60,9 @@ const routes = [
                 component: () => import('./components/Profile/UserEditComps/UserInfoEdit.vue'),
                 name: 'personal-info-settings',
                 props: true,
+                meta: {
+                    title: 'CLAP - プロフィール編集',
+                },
                 beforeEnter: (to, from, next) => {
                     const rootElement = document.getElementById('app');
                     const userId = rootElement.getAttribute('data-user-id');
@@ -74,6 +85,9 @@ const routes = [
                 component: () => import('./components/Profile/Issue/Salary.vue'),
                 name: 'salary-issue',
                 props: true,
+                meta: {
+                    title: 'CLAP - 昇給課題',
+                },
                 beforeEnter: (to, from, next) => {
                     const rootElement = document.getElementById('app');
                     const userId = rootElement.getAttribute('data-user-id');
@@ -97,22 +111,12 @@ const routes = [
             resolveBeforeEnter(to, next, from);
         },
     },
-    { 
-        path: '/help', 
-        name: 'help',  
-        component:  () => import('./components/Help/Topics.vue'),
-        children: [
-            { path: 'account-management', name:'AccountManagement', component: () => import('./components/Help/AccountManagement.vue')},
-            { path: 'chat-guide', name:'ChatGuide', component: () => import('./components/Help/ChatGuide.vue')},
-            { path: 'task-guide', name: 'TaskGuide', component: () => import('./components/Help/TaskGuide.vue' )},
-            { path: 'member-guide', name:'MemberGuide', component: () => import('./components/Help/MemberGuide.vue')},
-            { path: 'report-problem', name:'ReportProblem', component: () => import('./components/Help/Report.vue')},
-            
-        ]
-    },
     {
         path: '/knowledge',
         name: 'knowledge',
+        meta: {
+            title: 'CLAP - ナレッジ',
+        }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
             fetchPosts(to, next, from, 'knowledge');
@@ -121,6 +125,9 @@ const routes = [
     {
         path: '/nice',
         name: 'nice',
+        meta: {
+            title: 'CLAP - ナイス',
+        }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
             fetchPosts(to, next, from, 'nice');
@@ -129,6 +136,9 @@ const routes = [
     {
         path: '/challenge',
         name: 'challenge',
+        meta: {
+            title: 'CLAP - チャレンジ',
+        }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
             fetchPosts(to, next, from, 'challenge');
@@ -137,6 +147,9 @@ const routes = [
     {
         path: '/calendar',
         name: 'calendar',
+        meta: {
+            title: 'CLAP - カレンダー',
+        }, 
         component: () => import('./components/Calendar/CalendarContainer.vue'),       
         
     },
@@ -144,38 +157,84 @@ const routes = [
         path: '/work',
         name: 'work',
         props: true,
+        meta: {
+            title: 'CLAP - ワーク',
+        }, 
         component: () => import('./components/Work/WorkContainer.vue'),
-        beforeEnter: (to, from, next) => {
-            fetchTimeCard(to, next, from)
-        }
-        
     },
     {
         path: '/admin_control',
         name: 'admin_control',
+        meta: {
+            title: 'CLAP - 管理画面',
+        }, 
         component: () => import('./components/AccountControl/AdminControlList.vue'),
         children: [
             { path: 'account',props: true, name: 'account', component: () => import('./components/AccountControl/AdminAccount.vue') },
-            { path: 'workgroup',props: true, name: 'workgroup', component: () => import('./components/AccountControl/AdminWorkGroup.vue') },
-            { path: 'workcontrol',props: true, name: 'workcontrol', component: () => import('./components/AccountControl/AdminWork.vue') },
             { path: 'clapcount',props: true, name: 'clapcount', component: () => import('./components/AccountControl/AdminClapCount.vue') },
-            { path: 'learningcontrol',props: true, name: 'learningcontrol', component: () => import('./components/AccountControl/LearningControl/LearningControl.vue') },
-            { path: 'plannedpaid',props:true, name: 'plannedpaid', component: () => import('./components/AccountControl/WorkPlannedPaid.vue')}
-        ],
-        beforeEnter: (to, from, next) => {
-            const rootElement = document.getElementById('app');
-            const userId = parseInt(rootElement.getAttribute('data-user-id'));
-            const viewTrayUsers = [608, 610]
-            if(!viewTrayUsers.includes(userId)){
-                next({name:'board'});
-            }else{
-                next();
+            { 
+                path: 'learningcontrol',
+                props: true, name: 'learningcontrol', 
+                component: () => import('./components/AccountControl/LearningControl/LearningControl.vue'), 
+                children: [
+                    {
+                        path: ':themeId',
+                        name: 'themeContainer',
+                        component: () => import('./components/AccountControl/LearningControl/ThemeContainer.vue'),
+                        props: true,
+                        children: [
+                            {
+                                props: true,
+                                path: 'content',
+                                name: 'content',
+                                component: () => import('./components/AccountControl/LearningControl/ContentControl.vue')
+                            },
+                            {
+                                props: true,
+                                path: 'trainee',
+                                name: 'trainee',
+                                component: () => import('./components/AccountControl/LearningControl/TraineeControl.vue')
+                            }
+                            
+                        ]
+                    },
+                    
+                ]
+            },
+            { 
+                path: 'workcontrol', 
+                props: true, 
+                name: 'workcontrol', 
+                component: () => import('./components/AccountControl/WorkControl/AdminWorkControl.vue'),
+                children: [
+                    {
+                        path: 'workgroup',
+                        name: 'workgroup',
+                        props: true,
+                        component: () => import('./components/AccountControl/WorkControl/AdminWorkGroup.vue')
+                    },
+                    {
+                        path: 'attendance',
+                        name: 'attendance',
+                        props: true,
+                        component: () => import('./components/AccountControl/WorkControl/AdminWork.vue')
+                    },
+                    {
+                        path: 'paidholdiay',
+                        name: 'paidholiday',
+                        props: true,
+                        component: () => import('./components/AccountControl/WorkControl/WorkPlannedPaid.vue')
+                    }
+                ]
             }
-        }, 
+        ],
     },
     {
         path: '/support',
         name: 'support',
+        meta: {
+            title: 'CLAP - サポート',
+        }, 
         component: () => import('./components/Support/Support.vue'),
         children: [
             { path: 'faq',props: true, name: 'faq', component: () => import('./components/Support/Faq.vue') },
@@ -183,9 +242,9 @@ const routes = [
             { path: 'phone_consult',props: true, name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
             { path: 'email_inbox',props: true, name: 'email_inbox', component: () => import('./components/Support/Inbox.vue'), 
                 beforeEnter: (to, from, next) => {
-                    const rootElement = document.getElementById('app');
-                    const userId = parseInt(rootElement.getAttribute('data-user-id'));
-                    const viewTrayUsers = [610, 516, 517, 519, 518, 526, 494, 604]
+                    const auth = useAuthUserStore()
+                    const userId = auth?.activeUser?.id
+                    const viewTrayUsers = [610, 516, 517, 519, 518, 526, 494, 604, 765]
                     if(!viewTrayUsers.includes(userId)){
                         next({name:'email_consult'});
                     }else{
@@ -199,6 +258,9 @@ const routes = [
     {
         path: '/notice',
         name: 'notice',
+        meta: {
+            title: 'CLAP - お知らせ',
+        }, 
         component: () => import('./components/Notice/Notice.vue'),
         children: [
             { 
@@ -220,12 +282,18 @@ const routes = [
         path: '/settings',
         component: () => import('./components/Settings/Settings.vue'),
         name: 'settings',
+        meta: {
+            title: 'CLAP - 設定',
+        }, 
         props: true,
         
     },
     {
         path: '/learning',
         name: 'learning',
+        meta: {
+            title: 'CLAP - ラーニング',
+        }, 
         component: () => import('./components/Learning/LearningRoot.vue'),
         children: [
             { 
@@ -238,9 +306,9 @@ const routes = [
                         name: 'evaluate',
                         component: () => import('./components/Learning/Evaluation.vue'),
                         beforeEnter: (to, from, next) => {
+                            const auth = useAuthUserStore()
                             const permitted = [608, 610, 799, 800, 829]
-                            const rootElement = document.getElementById('app');
-                            const userId = parseInt(rootElement.getAttribute('data-user-id'));
+                            const userId = auth?.activeUser?.id
                             if(permitted.includes(userId)){
                                 axios.get(`/get_portfolios_list?theme_id=${to.params.lessonThemeId}`).then(
                                 response => {
@@ -343,7 +411,6 @@ function fetchPosts(to, next, from, path) {
     if(window.innerWidth < 959){
         document.body.style.background = 'var(--background-color)'
     }
-    console.log(to)
     axios.post('/get_posts', {
         path: path,
         query: to.query
@@ -358,31 +425,38 @@ function fetchPosts(to, next, from, path) {
     });
 }
 
-function fetchTimeCard(to, next, from){
-    const params = {
-        current_date : null,
-        work_group : null
-    }
-    axios.post('/get_work_data', {
-        params
-    })
-    .then(response => {
-        to.meta.data = response.data
-        next()
-    })
-    .catch(error => {
-        
-    })
-}
-
 const router = createRouter({
     history: createWebHistory(),
     routes
 })
-router.beforeEach((to, from, next) => {
-    if(store.state.mobile){
-        store.commit('setSideMenuView', false);
+router.afterEach(() => {
+    const responsive = useResponsive()
+    const sideMenuView = useSideMenuView()
+    if(responsive.mobile){
+        sideMenuView.setSideMenuView(false)
     }    
-    next();
+    cleanUp()
   });
+  function cleanUp(){
+    const messageUsers = useMessageUsers()
+    const filePreview = useFilePreview()
+    messageUsers.setMessageUsers({
+        active: false,
+        userList: [],
+        title: ''
+    })
+    filePreview.setFilePreview({
+        active: false,
+        files: [],
+        source: null,
+        source_board_id: null,
+        index: 0,
+        message: null
+    })
+  }
+  router.onError((error, to) => {
+    if (error.message.includes('Failed to fetch dynamically imported module') || error.message.includes("Importing a module script failed")) {
+      window.location = to.fullPath
+    }
+  })
 export default router

@@ -1,9 +1,8 @@
 <template>
     <div class="post-root" @click="keyListView = false">
         <div class="post-header">
-            <HamBurger v-if="$store.state.mobile"/>
+            <HamBurger v-if="responsive.mobile"/>
             <div class="post-search-wrap" style="position: relative;" @click.stop>
-                <!-- <PostSearchBar className="newChatMemberSearch" customPlaceHolder="キーワードを入力" @searchStart="setKeyWord" @focus="keyListView = true" :initialValue="searchWord"/> -->
                 
                 <div style="width:100%;display:flex;">
                     <div class="searchBarInner" style="margin: 0;width: 100%;">   
@@ -33,16 +32,12 @@
             <div class="support-category">
                 <router-link :to="{name: 'faq'}" :class="['t-selector', { tSelected: selectedRoute == 'faq'}]">よくある質問</router-link>
                 <router-link :to="{name: 'email_consult'}" :class="['t-selector', { tSelected: selectedRoute == 'email_consult'}]">メール相談</router-link>
-                <router-link v-if="viewTrayUsers.includes($store.state.user.id)" :to="{name: 'email_inbox'}" :class="['t-selector', { tSelected: selectedRoute == 'email_inbox'}]">メール相談（受信BOX）</router-link>
+                <router-link v-if="hasPrivilage" :to="{name: 'email_inbox'}" :class="['t-selector', { tSelected: selectedRoute == 'email_inbox'}]">メール相談（受信BOX）</router-link>
                 <router-link :to="{name: 'phone_consult'}" :class="['t-selector', { tSelected: selectedRoute == 'phone_consult'}]">電話相談</router-link>
 
-                <!-- <div @click="selectedCategory = 1" :class="['t-selector', { 'tSelected' : selectedCategory == 1}]">メール相談</div>
-                <div @click="selectedCategory = 2" :class="['t-selector', { 'tSelected' : selectedCategory == 2}]">電話相談</div> -->
+               
             </div>
 
-                <!-- <Faq v-if="selectedCategory == 0" :qaList="qaList" :tagList="tagList" @setKeyWord="setKeyWord"/>
-
-                <Consult v-if="selectedCategory > 0"/> -->
                     <div class="post-container scrollable" style="height: 100%;">
                         <router-view v-slot="{ Component }">
                             <transition name="supportShift" mode="out-in">
@@ -57,72 +52,65 @@
     </div>
     
 </template>
-<script>
+<script setup>
+import { computed, inject, onMounted, ref } from 'vue';
 import HamBurger from '../Global/HamBurger.vue';
-import PostSearchBar from '../Post/PostSearchBar.vue';
-import { defineAsyncComponent } from 'vue';
-export default{
-    data(){
-        return{
-            qanda_info: [],
-            tag_list: [],
-            key_word_list: [],
-            selectedCategory: 0,
-            keyListView: false,
-            searchWord: '',
-            viewTrayUsers: [610, 516, 517, 519, 518, 526, 494, 604]
-        }
-    },
-    components:{
-        HamBurger,
-        PostSearchBar,
-        // Faq: defineAsyncComponent(() => import('./Faq.vue')),
-        // Consult: defineAsyncComponent(() => import('./Consult.vue'))
-    },
-    mounted(){
-        this.getSupportData()
-    },
-    computed:{
-        selectedRoute(){
-            return this.$route.name
-        },
-        tagList(){
-            if(this.tag_list && this.tag_list.length){
-                const all = {id: 0, text: '全て'}
-                let pre = this.tag_list
-                pre.unshift(all)
-                return pre
-            }
-            
-        },
-        qaList(){
-            if(!this.searchWord){
-                return this.qanda_info
-            }else{
-                const list = this.qanda_info.filter( ob => {
-                    const area = ob.question + ob.answer + ob.content + ob.tag_text
-                    return area.includes(this.searchWord)
-                })
-                return list
-            }
-            
-        }
-    },
-    methods: {
-        setKeyWord(text){
-            console.log(text)
-            this.searchWord = text
-            this.keyListView = false
-        },
-        getSupportData(){
-            axios.post('/support_record_list' ).then(response => {
-                this.qanda_info = response.data.record_list
-                this.tag_list = response.data.tag_list
-                this.key_word_list =  response.data.key_word_list
+import { useRoute } from 'vue-router';
+import { useResponsive } from '@/store/responsive';
+import { useAuthUserStore } from '@/store/auth';
+    const route = useRoute()
+    const responsive = useResponsive()
+    const auth = useAuthUserStore()
+    const { notify } = inject('dialog')
+    const qanda_info = ref([])
+    const tag_list = ref([])
+    const key_word_list = ref([])
+    const keyListView = ref(false)
+    const searchWord = ref('')
+    const viewTrayUsers = [610, 516, 517, 519, 518, 526, 494, 604, 765]
+    
+    const selectedRoute = computed(() => {
+        return route.name
+    })
+    const tagList = computed(() => {
+        if(tag_list.value && tag_list.value.length){
+            const all = {id: 0, text: '全て'}
+            let pre = tag_list.value
+            pre.unshift(all)
+            return pre
+        } 
+    })
+    const hasPrivilage = computed(() => {
+        return auth?.activeUser ? viewTrayUsers.includes(auth.activeUser.id) : false
+    })
+    const qaList = computed(() => {
+        if(!searchWord.value){
+            return qanda_info.value
+        }else{
+            const list = qanda_info.value.filter(ob => {
+                const area = ob.question + ob.answer + ob.content + ob.tag_text
+                return area.includes(searchWord.value)
             })
+            return list
+        }
+        
+    })
+    const setKeyWord = (text) => {
+        searchWord.value = text
+        keyListView.value = false
+    }
+    const getSupportData = async() => {
+        try{
+            const response = await axios.post('/support_record_list' )
+            qanda_info.value = response.data.record_list
+            tag_list.value = response.data.tag_list
+            key_word_list.value =  response.data.key_word_list
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
         }
     }
-}
+    onMounted(getSupportData)
+
 </script>
 <style lang="scss">
 .supportShift-enter-active,

@@ -3,7 +3,7 @@
         <div id="createModal" class="chatCreate scrollable" ref="createModal" @click.stop>
             <div class="recordFormTitle">
                 <h1>新しいボードを作成する</h1>
-                <div @click="$emit('close')" class="m-close-button" style="position: unset;margin-left: auto;">
+                <div @click="emit('close')" class="m-close-button" style="position: unset;margin-left: auto;">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
                         <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                     </svg>
@@ -11,57 +11,52 @@
             </div>
             <div class="si-box" style="margin:0">
                 <div style="display:flex;gap:15px;font-size: 14px;">
-                    <div :class="['ch-selector', {chSelected : chatType == 0}]" @click="chatType = 0">{{ $t('groupChat') }}</div>
-                    <div :class="['ch-selector', {chSelected : chatType == 1}]" @click="chatType = 1, board_users = []">{{ $t('privateChat') }}</div>                
+                    <div :class="['ch-selector', {chSelected : chatType == 0}]" @click="chatType = 0" style="font-size: 14px;">グループボード</div>
+                    <div :class="['ch-selector', {chSelected : chatType == 1}]" @click="chatType = 1, board_users = []" style="font-size: 14px;">個別ボード</div>                
                 </div>               
-
             </div>
-
             <div style="background: inherit;">
                 <div v-if="chatType == 0" class="si-box">
-                    <FormShortText
+                    <ShortInput 
+                        name="boardTitle" 
+                        placeHolder="タイトルを入力（必須）" 
+                        :rules="'required'"
                         :initialValue="title"
+                        customClass="full"
                         ref="boardTitle"
-                        placeHolder="タイトルを入力（必須）"
-                        uId="boardTitle"
-                        name="boardTitle"
-                        rules="required|max:48"
-                        label="タイトル"
-                        @setValue="val => title = val"
+                        type="text"
+                        v-model="title"
                     />
                 </div>
                 <div class="si-box" >
-                    <UserSelector 
-                        :key="chatType"
-                        :selfInclude="false" 
-                        :initialSelected="board_users"
+                    <MemberSelector 
                         placeHolder="メンバー選択（必須）"
                         rules="required"
-                        @setUser="val => board_users = val"
-                        uId="boardUsers"
-                        name="boardUsers"
-                        ref="boardUsers"
+                        name="boardMembers"
+                        ref="boardMembers"
                         path="board_possible_users"
+                        :closeOnSelect="chatType == 1 ? true : false"
                         :limit="chatType == 1 ? 1 : null"
+                        v-model="board_users"
                     />
                 </div>               
 
                 <div v-if="chatType == 0" class="si-box" style="padding: 10px;position:relative;border: solid thin var(--primary-color);">   
                     <span class="form-plc smallPlc">ボードアイコン</span>                  
                     <div v-if="tempImage" style="height: auto;max-height:calc(80vh / 2);background:#efefef;width: 100%;margin: auto;position:relative">
-                        <div @click="cancelCrop" style="position:absolute;right:10px;top:10px;background:#fff;border-radius:50px;min-width:30px;width:30px;height:30px;cursor:pointer;z-index: 5;display: flex;box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;"> 
+                        <div @click="destroyCropper" style="position:absolute;right:10px;top:10px;background:#fff;border-radius:50px;min-width:30px;width:30px;height:30px;cursor:pointer;z-index: 5;display: flex;box-shadow: rgba(100, 100, 111, 0.2) 0px 7px 29px 0px;"> 
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width:10px;height:10px;margin:auto;" fill="#000" viewBox="0 0 32 32">
                                 <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                             </svg>
                         </div>
-                        <img id="cropImage" :src="tempImage">                         
+                        <img ref="cropImage" :src="tempImage">                         
                     </div>
                     <div v-else>
                         <div style="width: fit-content;padding: 15px;margin: auto;">
                             <div id="boardIconPreview" class="iconPreview">
-                                <div v-show="!upFileArray.length" id="iconPreviewInnerText" :style="iconPreviewText.style" class="iconPreviewInner" v-html="iconPreviewText.text"></div>
+                                <div v-show="!upFileArray.length" id="iconPreviewInnerText" class="iconPreviewInner" v-html="previewText"></div>
                                 <div v-if="upFileArray.length" style="position:absolute;">
-                                    <img style="height:45px;width:45px;border-radius:50%" :src="$store.state.baseLocation + '/content/board_icon/' + upFileArray[0]"/>
+                                    <img style="height:45px;width:45px;border-radius:50%" :src="`content/board_icon/${upFileArray[0]}`"/>
                                     <div @click.stop="iconDelete()" style="position:absolute; top:-5px;right:-5px;border-radius:50%;background:rgb(181 181 181);">
                                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="padding:4px;fill:#fff;" width="10" height="10" viewBox="0 0 32 32">
                                             <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
@@ -73,320 +68,163 @@
                         
                         <div style="display: flex;width: fit-content;margin: auto;">
                             <button class="commentEditButton" style="margin:0">
-                                <label for="boardIcon" class="cursor-pointer" :class="{uploadPassive: upFileArray.length}">
-                                    {{ $t('uploadIcon') }}
-                                </label>
+                                <label for="boardIcon" class="cursor-pointer" :class="{uploadPassive: upFileArray.length}">アップロード</label>
                                 <input type="file" name="boardIcon" id="boardIcon" v-on:change="iconSelected" style="display: none;" accept="image/*">
                             </button>                                       
                         </div>
                     </div>
-                </div> 
-                   
+                </div>                    
             </div>
-
             <div style="text-align: center;margin-top: auto;padding-top: 20px;">
                 <LoaderButton @triggered="cropComplete" :loading="loader" content="作成する"/>
             </div>
-
-        </div>
-
-        
+        </div>        
     </div>
 </template>
 
-<script>
-import UserIcon from './Mixed/UserIcon.vue'
+<script setup>
 import Cropper from 'cropperjs';
 import LoaderButton from '../Global/LoaderButton.vue'
-import FormShortText from '../Global/FormShortText.vue';
-import UserSelector from '../Global/UserSelector.vue';
+import MemberSelector from '../Form/MemberSelector.vue'
 import 'cropperjs/dist/cropper.css';
+import ShortInput from '../Form/ShortInput.vue'
+import { computed, inject, ref } from 'vue';
 
 
-    export default {
-        emits:['close', 'openPrivateBoard'],
-        data(){
-            return{
-                chatType: 0,
-                searching: 0,
-                keyword: '',
-                possibleMemberList: [],
-                excludeList: [],
-                lock: false,
-                step: 0,
-                tempImage: null,
-                cropperInstance: null,
-                loader: false,
-                upFileArray: [],
-                iconFileInfo: [],
-                previewFontSize: null,
-                title: '',
-                iconId: null,
-                titleText: '',
-                messageFrom: 0,
-                ableJoin: 0,
-                board_users: []
-            }
-        },        
-        
-        components:{
-            LoaderButton,
-            UserIcon,
-            FormShortText,
-            UserSelector
-        },
-        computed:{
-            iconPreviewText(){
-                let no_space = this.title ? this.title.replace(/\s/g, '', '　') : ''  
-                let style = ''
-                switch(true) {
-                    case (no_space.length == 0):
-                        no_space = ''
-                        break;
-                    case (no_space.length == 1):
-                        style= 'font-size:22px;margin-bottom:13px;';
-                        no_space = no_space;
-                        break;
-                    case (no_space.length == 2):
-                        style = 'font-size:17px;';
-                        no_space = no_space;
-                        break;
-                    case (no_space.length == 3):
-                        style = 'font-size:13px;';
-                        no_space = no_space;
-                        break;
-                    case (no_space.length == 4):
-                        var upper = no_space.slice(0, 2);
-                        var lower = no_space.slice(2, 4);
-                        style = 'font-size:13px;';
-                        no_space = `${upper}<br>${lower}`;
-                        break;
-                    case (no_space.length == 5):
-                        var upper = no_space.slice(0, 3);
-                        var lower = no_space.slice(3, 5);
-                        style = 'font-size:12px;';
-                        no_space = `${upper}<br>${lower}`;
-                        break;
-                    case (no_space.length >= 6):
-                        var upper = no_space.slice(0, 3);
-                        var lower = no_space.slice(3, 6);
-                        style = 'font-size:12px;';
-                        no_space = `${upper}<br>${lower}`;
-                        break;
-                    default:                   
-                }   
-                return {
-                    text: no_space,
-                    style: style
-                }             
-            },   
-        },
-        methods:{
-            cancelCrop(){
-                if(this.cropperInstance){
-                    this.cropperInstance.destroy();
-                    this.cropperInstance = null;
-                }
-                this.tempImage = null 
-            },
-            iconDelete(){
-                this.iconDeleteFlag = 1;
-                this.upFileArray = [];
-                this.iconId = null;         
-            },
-            iconSelected() {          
-                this.tempImage = URL.createObjectURL(event.target.files[0]);
-                setTimeout(() => {
-                    var image = document.getElementById('cropImage');
-                    var width = 300;
-                    var height = 300;
-                    var container = document.getElementById('uploadContainer');          
-                    if(container){
-                        // width = container.offsetWidth * 0.8;
-                        // height = container.offsetHeight * 0.8;
-                        
-                    }       
-
-                    if(this.cropperInstance){
-                        this.cropperInstance.destroy();
-                        this.cropperInstance = null;
-                    }            
-                    this.cropperInstance = new Cropper(image, {              
-                        dragMode: 'move',
-                        preview: '.preview',
-                        aspectRatio: 1 / 1,
-                     
-                        viewMode: 1,
-                        responsive:true,
-                        autoCrop: true,
-                        background: false,
-                        guides: false,
-                        zoomable:false,
-                        crop(event) {
-                            
-                            
-                        },            
-                    });
-                },0)
-                
-               
-                
-            },
-            async validation(){               
-                
-                try {                    
-                    let result = true
-                    let checkRef = ['boardUsers']
-                    if(this.chatType == 0){
-                        checkRef.push('boardTitle')
-                    }  
-                    for(const check of checkRef){
-                        const exec = await this.$refs[check].$refs[check].validate()
-                        result = result * exec.valid
-                    }              
-                    
-                    return result
-                } catch (error) {
-                    console.error('Error fetching data:', error);
-                    throw error; // Re-throw the error to handle it further if needed
-                }               
-                
-            },
-            async cropComplete(flag){
-                const valid = await this.validation()
-                if(!valid){
-                    this.processing = false
-                    return
-                }
-                if(this.loader) return
-
-                if(this.cropperInstance){
-                    this.loader = true                    
-                    this.cropperInstance.getCroppedCanvas({
-
-                    }).toBlob((blob) => {                        
-                        const formData = new FormData()
-                        formData.append('file', blob)            
-                        axios.post('/icon_up_api', formData)
-                        .then(response => {
-                            if(response.data.icon_id && response.data.set_path){
-                                this.upFileArray = []
-                                this.upFileArray[0] = response.data.set_path;                        
-                                this.iconId = response.data.icon_id;                            
-                                this.boardAdd()
-                            }else{                                
-                                this.errorToast(this.$t('commonError'))
-                            }
-                           
-                        }).catch(function (error) { 
-                            if(error.response.status == 413){
-                                this.errorToast(this.$t('imageIsTooBig'))
-                                this.cancelCrop()
-                            }else{
-                                this.errorToast(this.$t('commonError'))  
-                            }
-                            this.loader = false                         
-                        }.bind(this));                      
-                    });
-                }else{
-                    this.boardAdd() 
-                }
-            },
-            async boardAdd(){                
-                const selectedUsers = this.board_users.map(ob => ob.id);
-                if(!selectedUsers.length){
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: this.$t('enterChatTitleOrSelectUser'),
-                        closeButton: true, 
-                        autoClose: true,
-                        answers: [this.$t('confirmToAction')]
-                    }) 
-                    return                
-                }         
-                
-                
-                const noSpace = this.title.replace(/\s/g, '', '　')  
-                const UpFileArray = this.upFileArray;               
-                
-                this.loader = true
-                const titleLen = this.title == null ? 4 : this.title.length              
-                axios.post('/chat_create', {
-                    private_flag: this.chatType,
-                    str_len : titleLen,
-                    icon_id: this.iconId,
-                    to_users: selectedUsers,
-                    title_no_space: noSpace,
-                    title: this.title,
-                    file: UpFileArray,
-                }).then(response => {    
-                    setTimeout(() => {
-                        if(response.data.message == 'success' || response.data.message == 'existAndAccessable'){
-                            this.$emit('reload', response.data.data.id) 
-                            this.loader = false   
-                            this.$emit('close')   
-                        }else if(response.data.message == 'empty' || response.data.message == 'titleNeeded'){
-                            emitter.emit('setToast', {
-                                active: true,  
-                                type: 'info', 
-                                content: this.$t('enterChatTitleOrSelectUser'),
-                                closeButton: true, 
-                                autoClose: true,
-                                answers: [this.$t('confirmToAction')]
-
-                            }) 
-                            this.loader = false   
-                            this.$emit('close')   
-                        }
-                        // else if(response.data.message == 'existAndAccessable'){                            
-                        //     if(response.data.restored){
-                        //         this.$emit('reload', response.data.data.id) 
-                        //     }else{
-                        //         const uniqueChannell = Math.random().toString(36).substring(5);
-                        //         emitter.emit('setToast', {
-                        //             active: true,   
-                        //             type: 'info', 
-                        //             content: this.$t('chatIsExistsOpenIt'),
-                        //             closeButton: false, 
-                        //             autoClose: false,
-                        //             answers: [this.$t('confirmToAction'), this.$t('cancelToAction')],
-                        //             channel: uniqueChannell
-
-                        //         })
-                                
-                        //         emitter.on(uniqueChannell, (data) => {                                        
-                        //             if(data.answer == this.$t('confirmToAction')){  
-                        //                 this.$emit('openPrivateBoard', response.data.data.id)
-                                        
-                        //             }     
-                        //             this.loader = false   
-                        //             this.$emit('close')      
-                                       
-                        //         });                               
-                        //     }                        
-                        // }  
-                        
-                    }, 500)                
-                                                      
-                }).catch(function (error) {
-                    if (error.response) this.errorToast(this.$t('commonError') + this.$t(error.response.data.message))
-                    else if (error.request) this.errorToast(this.$t('commonError'))
-                    else this.errorToast(this.$t('commonError') + error.message)   
-                    this.loader = false                         
-                }.bind(this));
-            },
-            errorToast(message){
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: message,
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: [this.$t('confirmToAction')]
-
-                }) 
-            },
+    const emit = defineEmits(['close'])
+    const chatType = ref(0)
+    const tempImage = ref(null)
+    const cropperInstance = ref(null)
+    const loader = ref(false)
+    const upFileArray = ref([])
+    const title = ref('')
+    const iconId = ref(null)
+    const board_users = ref([])
+    const cropImage = ref(null)
+    const { confirm, notify, info } = inject('dialog');
+    const boardTitle = ref(null)
+    const boardMembers = ref(null)
+    const reload = inject('reload')
+    const validateTargets = computed(() => {
+        return [
+            boardTitle.value,
+            boardMembers.value, 
+        ]
+    }) 
+    const previewText = computed(() => {
+        if (!title.value) {
+            return ''; 
         }
+        const fontSizes = [22, 17, 13, 13, 12, 12];
+        let index = Math.min(title.value.length, fontSizes.length) - 1;
+        let fontSize = fontSizes[index];
+        let text = title.value;
+        if (index === 3) {
+            text = `${title.value.slice(0, 2)}<br>${title.value.slice(2, 4)}`;
+        } else if (index >= 4) {
+            text = `${title.value.slice(0, 3)}<br>${title.value.slice(3, 6)}`;
+        }
+        return `<div style="font-size:${fontSize}px">${text}</div>`;
+    })
+
+    const destroyCropper = async() => {
+        return new Promise((resolve) => {
+            if(cropperInstance.value){
+                cropperInstance.value.destroy();
+                cropperInstance.value = null;
+            }
+            tempImage.value = null 
+            resolve()
+        });
+        
+    }
+    const iconDelete = () => {
+        upFileArray.value = [];
+        iconId.value = null;         
+    }
+    const iconSelected = async() => {          
+        await destroyCropper()
+        tempImage.value = URL.createObjectURL(event.target.files[0]);
+        setTimeout(() => {
+            var image = cropImage.value 
+            console.log(image)
+            cropperInstance.value = new Cropper(image, {              
+                dragMode: 'move',
+                preview: '.preview',
+                aspectRatio: 1 / 1,                     
+                viewMode: 1,
+                responsive:true,
+                autoCrop: true,
+                background: false,
+                guides: false,
+                zoomable:false,           
+            });
+        }, 0);
+        
+                     
+    }
+    const cropComplete = async() => {
+        if(loader.value) return
+        if(cropperInstance.value){                              
+            cropperInstance.value.getCroppedCanvas().toBlob((blob) => {                        
+                const formData = new FormData()
+                formData.append('file', blob)            
+                axios.post('/icon_up_api', formData)
+                .then(response => {
+                    if(response.data.icon_id && response.data.set_path){
+                        upFileArray.value = []
+                        upFileArray.value[0] = response.data.set_path;                        
+                        iconId.value = response.data.icon_id;                            
+                        boardAdd()
+                    }                   
+                }).catch(function (error) { 
+                    if(error.response.status == 413){
+                        notify('アップロードファイルのサイズが大きすぎます。1MB以下のファイルをアップロードしてください')
+                        destroyCropper()
+                    }else{
+                        notify('ファイルアップロード中にエラーが発生しました')  
+                    }
+                    loader.value = false                          
+                });                      
+            });
+        }else{
+            boardAdd() 
+        }
+    }
+    const boardAdd = async() => {     
+        const targets = validateTargets.value.filter(ob => ob !== null)
+        let result = true
+        for(const target of targets){            
+            const val = await target?.validate() || false
+            result = result * val.valid
+        }
+        if (!result) return
+        loader.value = true  
+        const noSpace = title.value.replace(/\s/g, '', '　')            
+        const titleLen = title.value == null ? 4 : title.value.length            
+        const params = {
+            private_flag: chatType.value,
+            str_len : titleLen,
+            icon_id: iconId.value,
+            to_users: board_users.value.map(ob => ob.id),
+            title_no_space: noSpace,
+            title: title.value,
+            file: upFileArray.value,
+        }
+        loader.value = true
+        try{
+            const data = await axios.post('/board_create', params).then(res => res.data)
+            if(data.message && data.data){
+                loader.value = false   
+                info(data.message)
+                emit('reload', data.data.id)  
+                emit('close')                   
+            }else if(response.data.message == 'empty' || response.data.message == 'titleNeeded'){
+                notify('メンバーを選択してください。')                   
+            }   
+            loader.value = false 
+        } catch (e) { 
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }  
     }
 </script>

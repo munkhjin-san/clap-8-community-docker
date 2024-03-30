@@ -23,10 +23,9 @@ class NativeController extends Controller
         }
     }
     public function logout(Request $request){
-        $clean_token = NativeUser::where('fcm_token', $request->fcm_token)->delete();
-        $clean_device = NativeUser::where('device_id', $request->device_id)->delete();
+        NativeUser::where('fcm_token', $request->fcm_token)->delete();
+        NativeUser::where('device_id', $request->device_id)->delete();
         $revoke = $request->user()->currentAccessToken()->delete();
         return $revoke;
-        return response()->json($revoke);
     }
 }

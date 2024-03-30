@@ -13,7 +13,7 @@
             </router-view>
         </div>
         <div class="post-header" >
-            <HamBurger v-if="$store.state.mobile"/>
+            <HamBurger v-if="responsive.mobile"/>
             <!-- <div class="post-search-wrap">
                 <PostSearchBar className="newChatMemberSearch" customPlaceHolder="検索"/>
             </div> -->
@@ -67,13 +67,13 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router';
 import HamBurger from '../Global/HamBurger.vue';
-import PostSearchBar from '../Post/PostSearchBar.vue';
-import { ref, computed, onMounted, provide } from 'vue'
-import axios from 'axios';
+import { ref, computed, onMounted, provide, inject } from 'vue'
+import { useResponsive } from '@/store/responsive';
     const route = useRoute()
     const router = useRouter()
+    const responsive = useResponsive()
     const themeRecords = ref([])
-    const processing = ref(false)
+    const { notify } = inject('dialog')
     const statusMap = ['基礎知識','グループディスカッション','ポートフォリオ']
     onMounted(() => {
         getThemes()
@@ -101,24 +101,10 @@ import axios from 'axios';
                     themeRecords.value = res.data                   
                 }
             }).catch(function (error) {
-                if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) errorToast('エラーが発生しました。')
-                else errorToast('エラーが発生しました。 ' + error.message)                       
+                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+                else if (error.request) notify('エラーが発生しました。')
+                else notify('エラーが発生しました。 ' + error.message)                       
             });
-        }
-    
-    const errorToast = (message) => {
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })  
-            processing.value = false
-            
         }
     provide('getThemes', getThemes)
 

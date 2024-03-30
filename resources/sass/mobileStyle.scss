@@ -7,11 +7,7 @@
     padding: 10px;
     color: #fff
 }
-.folder-icon-01-mobile {
-    width: 35px;
-    min-width: 35px;
-    height: 35px;
-}
+
 .list-image-mobile{
     max-width: 35px;
     max-height: 35px;
@@ -37,49 +33,13 @@
     color:var(--primary-color);
     width: -moz-available;
 }
-.footerCommandBar{
-    width: 100%;
-    background: rgb(0 0 0);
-    display: flex;
-    height: 40px;
-    font-size: 12px;
-    position:fixed;
-    left:0;
-    bottom:0;
-}
-.ftm-enter-active,
-.ftm-leave-active {
-    height: 40px;
-    transition: height 0.2s;
-}
 
-.ftm-enter,
-.ftm-leave-to {
-    height: 0;
-}
 
-.ftmOn{
-    height: calc(100% - 80px);
-}
 .fileNewButton{
     transition: all 0.2s;
-    // width: 30px; 
-    // height: 30px;
     background: #efefef;
 }
-.fileCheckBox-enter-active,
-.fileCheckBox-leave-active {
-    width:40px;
-    opacity: 1;
-    transition: all 0.2s;
-}
 
-.fileCheckBox-enter,
-.fileCheckBox-leave-to {
-    opacity: 0;
-    width: 0px;
-
-}
 .mbSearch-enter-active,
 .mbSearch-leave-active {
     width: calc(100% - 120px);
@@ -120,15 +80,4 @@
     transition: background-color 0.2s;
     fill: var(--primary-color);
 }
-.memoNewButton{
-    transition: all 0.2s;
-    width: 35px; 
-    height: 35px;
-    background: #efefef;
-}
-.taskNewButton{
-    transition: all 0.2s;
-    width: 35px;
-    height: 35px;
-    background: #efefef;
-}
+

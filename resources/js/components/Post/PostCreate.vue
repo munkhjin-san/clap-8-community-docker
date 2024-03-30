@@ -10,138 +10,114 @@
                 </div> 
             </div>
         
-            <!-- <div v-if="appName == 'challenge'" class="si-box" style="position:relative;">
-                <div>
-                    <p :class="['form-title-small', {'form-title-active' : switchEntrySelectModel}]">楽アワードエントリー</p>
-                </div>
-                <div v-if="!editTarget || (editTarget && editTarget.award_entry == 0)" class="selectSwitchArea" style="display: flex;width: 100%;">    
-                    <input type="checkbox" id="switchEntrySelect" v-model="switchEntrySelectModel">
-                    <label for="switchEntrySelect" style="min-width: 80px;" class="cursor-pointer"><span></span></label>
-                    <div class="switch-toggle">
-                    </div>
-                </div>
-                <div v-if="editTarget && editTarget.award_entry == 1" class="selectSwitchArea" style="display: flex;width: 100%;">
-                    <span style="padding: 5px; margin-right: 10px;">現在エントリー中です。</span>
-                </div>    
-            </div>         -->
-        
+            <div class="si-box" style="margin-top: 10px">
+                <TagSelector 
+                    placeHolder="タグ選択"
+                    :suggestion="tagSuggestionText"
+                    v-model="tags"
+                />
+            </div>
+
             <div class="si-box">
-                <FormShortText
-                    :initialValue="title"
+                <ShortInput 
+                    name="recordTitle" 
+                    placeHolder="タイトルを入力（必須）" 
+                    :rules="'required'"
+                    customClass="full"
                     ref="recordTitle"
-                    placeHolder="タイトルを入力（必須）"
-                    uId="recordTitle"
-                    name="recordTitle"
-                    rules="required|max:48"
-                    label="タイトル"
-                    @setValue="val => title = val"
+                    type="text"
+                    v-model="title"
                 />
             </div>
                     
 
             <div class="si-box" v-if="appName == 'challenge' || appName == 'nice'">
-                <UserSelector 
-                    :selfInclude="selfInclude" 
-                    :initialSelected="to_users"
+                <MemberSelector 
                     :placeHolder="appName == 'challenge' ?  'プレイヤー選択（必須）' : appName == 'nice' ? '宛先選択（必須）' : ''"
                     rules="required"
-                    @setUser="val => to_users = val"
-                    uId="recordUsers"
                     name="recordUsers"
                     ref="recordUsers"
                     :path="`post_get_${appName}_users`"
+                    :closeOnSelect="false"
+                    v-model="to_users"
                 />
             </div>
 
-            <div v-if="appName == 'challenge'" class="si-box">                
-                <FormLongText
-                    :initialValue="content_rule"   
-                    ref="recordBody"
+            <div v-if="appName == 'challenge'" class="si-box">   
+                <LongInput
+                    v-model="content_rule"  
+                    ref="contentRuleRef"
                     :placeHolder="`${appNameJp}内容を入力（必須）`"
-                    uId="recordBody"
-                    name="recordBody"
+                    name="contentRuleRef"
                     rules="required|max:2000"
-                    label="タイトル"
-                    @setValue="val => content_rule = val"
-                />
+                />  
             </div>
 
-            <div v-else class="si-box">                
-                <FormLongText
-                    :initialValue="content"   
-                    ref="recordBody"
+            <div v-else class="si-box">     
+                <LongInput
+                    v-model="content"  
+                    ref="contentRef"
                     :placeHolder="`${appNameJp}内容を入力（必須）`"
-                    uId="recordBody"
-                    name="recordBody"
+                    name="contentRef"
                     rules="required|max:2000"
-                    label="タイトル"
-                    @setValue="val => content = val"
-                />
+                />  
             </div>
         
         
-            <div class="si-box" v-if="appName == 'challenge'">                   
-                <FormLongText
-                    :initialValue="content_goal"  
-                    ref="recordRule"
-                    :placeHolder="`達成条件（必須）`"
-                    uId="recordRule"
+            <div class="si-box" v-if="appName == 'challenge'">    
+                <LongInput
+                    v-model="content_goal"  
+                    ref="contentGoalRef"
+                    placeHolder="達成条件（必須）"
                     name="recordRule"
                     rules="required|max:2000"
-                    label="タイトル"
-                    @setValue="val => content_goal = val"
-                />                    
+                /> 
             </div>
 
             <div class="si-box" v-if="appName == 'challenge'">
                 <p class="form-lbl" style="font-size: 14px;">実施期間（必須）</p>
                 <div style="display:flex;margin-top: 10px;position: relative;width:100%">
-                    <DatePicker
+                    <ShortInput 
+                        name="recordDateStart" 
+                        :rules="'required'"
                         :initialValue="date_start"
+                        customClass="date"
                         ref="recordDateStart"
-                        uId="recordDateStart"
-                        name="recordDateStart"
-                        rules="required"
-                        @setValue="val => date_start = val"
+                        type="date"
+                        v-model="date_start"
                     />
                     <div style="align-self: center;margin: 0 20px;font-size: 14px;color: gray;">ー</div>
-                    <DatePicker
+                    <ShortInput 
+                        name="recordDateEnd" 
+                        :rules="'required'"
                         :initialValue="date_end"
+                        customClass="date"
                         ref="recordDateEnd"
-                        uId="recordDateEnd"
-                        name="recordDateEnd"
-                        rules="required"
-                        @setValue="val => date_end = val"
-                    />                       
+                        type="date"
+                        v-model="date_end"
+                    />
                 </div>
                 <span v-if="dateComparsionError.hasError" class="form-error" style="font-size: 12px;color:tomato;position: absolute; bottom: -15px">{{ dateComparsionError.message }}</span>       
             </div>
                     
-            <div class="si-box">
-                <TagSelector 
-                    placeHolder="タグ選択"
-                    :initialValue="tags"
-                    @updated="val => tags = val"
-                />
-            </div>
+            
             
             <div class="si-box">
-                <FormFileUploader
-                    :initialValue="uploadedFiles"
-                    @updated="val => uploadedFiles = val"
+                <FileUploader
+                    v-model="uploadedFiles"
                     path="/post_files"
                 />
             </div>
         
             <div class="si-box">
-                <FormShortText
-                    :initialValue="referrer"  
-                    placeHolder="参照元URLを入力"
-                    uId="recordUrl"
-                    name="recordUrl"
-                    rules=""
-                    label="タイトル"
-                    @setValue="(val) => referrer = val"
+                <ShortInput 
+                    name="recordUrl" 
+                    placeHolder="参照元URLを入力" 
+                    :initialValue="referrer"
+                    customClass="full"
+                    ref="recordUrl"
+                    type="text"
+                    v-model="referrer"
                 />
             </div>        
                     
@@ -154,168 +130,151 @@
     </div>      
 </template>
 
-<script>      
-import FormShortText from '../Global/FormShortText.vue'
-import FormLongText from '../Global/FormLongText.vue'
-import UserSelector from '../Global/UserSelector.vue'
-import { Field  } from 'vee-validate'
-import TagSelector from '../Global/TagSelector.vue'
+<script setup>      
+import TagSelector from '../Form/TagSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
-import DatePicker from '../Global/DatePicker.vue'
-import FormFileUploader from '../Global/FormFileUploader.vue'
 import moment from 'moment'
-    export default {
-        props: ['formIs', 'currentStatus','sharedFrom', 'filesToShare', 'appNameJp', 'appName', 'editTarget'],
-        data (){
-            return {
-                title: this.editTarget && this.editTarget.title ? this.editTarget.title : "",
-                content: this.editTarget && this.editTarget.content ? this.editTarget.content : "",
-                content_rule: this.editTarget && this.editTarget.content_rule ? this.editTarget.content_rule : "",
-                content_goal: this.editTarget && this.editTarget.content_goal ? this.editTarget.content_goal : "",
-                to_users: this.editTarget && this.editTarget.to_users ? this.editTarget.to_users : this.appName == 'challenge' ? [this.$store.state.user] : [],
-                referrer: this.editTarget && this.editTarget.referrer ? this.editTarget.referrer : "",
-              
-                tags: this.editTarget && this.editTarget.tags ? this.editTarget.tags : [],    
-                date_start: this.editTarget && this.editTarget.date_start ? this.editTarget.date_start : "",
-                date_end: this.editTarget && this.editTarget.date_end ? this.editTarget.date_end : "",
-                processing: false,
-                switchEntrySelectModel: false,
-                uploadedFiles: this.editTarget && this.editTarget.files ? this.editTarget.files : [],
-                sharingFiles: []
-            }
-        },
-        components:{
-            FormShortText, 
-            FormLongText, 
-            UserSelector, 
-            Field, 
-            TagSelector, 
-            LoaderButton, 
-            DatePicker, 
-            FormFileUploader
-        },
-        computed: {  
-            selfInclude(){
-                return this.appName == 'challenge' ? true : false
-            },
-            dateComparsionError(){
-                if(this.date_start && this.date_end){
+import { computed, inject, onMounted, ref } from 'vue'
+import ShortInput from '../Form/ShortInput.vue'
+import LongInput from '../Form/LongInput.vue'
+import MemberSelector from '../Form/MemberSelector.vue'
+import { useAuthUserStore } from '@/store/auth'
+import { useSharingDataStore } from '@/store/sharingData'
+import FileUploader from '../Form/FileUploader.vue'
+    const sharingData = useSharingDataStore()
+    const auth = useAuthUserStore()
 
-                    const wrongDuration = moment(this.date_start).isAfter(this.date_end, 'day');                    
-                    return{
-                        hasError: wrongDuration,
-                        message: wrongDuration ? '終了日は開始日より前にすることはできません。' : ''
-                    }                       
-
-                }else{
-                    return {
-                        hasError: false,
-                        message: ''
-                    }
-                }
-            }
-
-        },
-        methods : {
-            async validation(){               
-                
-                try {                    
-                    
-                    let checkRef = ['recordTitle', 'recordBody'];
-                    if(this.appName == 'challenge'){
-                        checkRef.push('recordRule', 'recordDateStart', 'recordDateEnd')
-                    }
-                    if(this.appName == 'challenge' || this.appName == 'nice'){
-                        checkRef.push('recordUsers')
-                    }
-                    let result = true
-                    for(const check of checkRef){
-                        const exec = await this.$refs[check].$refs[check].validate()
-                        result = result * exec.valid
-                    }                   
-                    
-                    return result
-                } catch (error) {
-                    console.error('Error fetching data:', error);
-                    throw error; // Re-throw the error to handle it further if needed
-                }               
-                
-            },
-            async createSend(){
-                
-                this.processing = true
-                const valid = await this.validation()
-                if(!valid){
-                    this.processing = false
-                    return
-                }
-                try {
-                    
-                    const params = {
-                        edit_id: this.editTarget ? this.editTarget.id : null,
-                        to_users: this.to_users.length ? this.to_users.map(ob => ob.id) : [], 
-                        title: this.title, 
-                        content_rule: this.content_rule, 
-                        content_goal: this.content_goal, 
-                        date_start: this.date_start, 
-                        date_end: this.date_end,  
-                        tags: this.tags.length ? this.tags.map(ob => ob.text) : [], 
-                        file_ids : this.uploadedFiles.length ? this.uploadedFiles.map(ob => ob.id) : [], 
-                        referrer: this.referrer, 
-                        path: this.appName,
-                        content: this.content,
-                        award_entry: this.switchEntrySelectModel ? 1 : 0
-                    }
-            
-                    axios.post('post_add_record',params)
-                    .then(response => setTimeout(() => {
-                        this.closeModal(true, response.data.id)
-                        const data = {
-                            text: this.editTarget ? '編集しました。' :'投稿しました。',
-                            channel: Math.random().toString(36).substring(5),
-                            icon: 0,
-                            view: true
-                        }
-                        emitter.emit('setInfo', data)
-                    },0))
-                    .catch(function (error) {
-                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                        else if (error.request) this.errorToast('エラーが発生しました。')
-                        else this.errorToast('エラーが発生しました。 ' + error.message)      
-                        this.processing = false                    
-                    }.bind(this));
-                    
-                } catch (error) {
-                    console.error('Error fetching data:', error);
-                    this.processing = false
-                }
-            },
-            closeModal(flag, id){
-                this.processing = false
-                this.$store.commit('setSharingData', null)
-                this.$emit('postFinish',flag, id);              
-            },
-            errorToast(message){
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: message,
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: ['OK']
-
-                })  
-                this.processing = false
-                
-            },      
-        },
-    }
+    const props = defineProps(['appNameJp', 'appName', 'editTarget'])
+    const emit = defineEmits('postFinish')
+    const { notify, info } = inject('dialog')
+    const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
+    const content = ref(props.editTarget && props.editTarget.content ? props.editTarget.content : "")
+    const content_rule = ref(props.editTarget && props.editTarget.content_rule ? props.editTarget.content_rule : "")
+    const content_goal = ref(props.editTarget && props.editTarget.content_goal ? props.editTarget.content_goal : "")
+    const to_users = ref(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : props.appName == 'challenge' ? [auth.user] : [])
+    const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     
+    const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])    
+    const date_start = ref(props.editTarget && props.editTarget.date_start ? props.editTarget.date_start : "")
+    const date_end = ref(props.editTarget && props.editTarget.date_end ? props.editTarget.date_end : "")
+    const processing = ref(false)
+    const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
+
+    const recordTitle = ref(null)
+    const recordUsers = ref(null)
+    const contentRuleRef = ref(null)
+    const contentRef = ref(null)
+    const contentGoalRef = ref(null)
+    const recordDateEnd = ref(null)
+    const recordDateStart = ref(null)
+
+    const validateTargets = computed(() => {
+        return [
+            recordTitle.value,
+            recordUsers.value,
+            contentRuleRef.value,
+            contentRef.value,
+            contentGoalRef.value,
+            recordDateEnd.value,
+            recordDateStart.value,
+        ]
+    })
+
+    const dateComparsionError = computed(() =>{
+        if(date_start.value && date_end.value){
+            const wrongDuration = moment(date_start.value).isAfter(date_end.value, 'day');                    
+            return{
+                hasError: wrongDuration,
+                message: wrongDuration ? '終了日は開始日より前にすることはできません。' : ''
+            }                      
+
+        }else{
+            return {
+                hasError: false,
+                message: ''
+            }
+        }
+    })
+    onMounted(() => {
+        if(!props.editTarget && sharingData.active){
+            if(props.appName == 'challenge'){
+                content_rule.value = sharingData.text
+            }else{
+                content.value = sharingData.text
+            }
+            
+        }
+    })
+    const tagSuggestionText = computed(() => {
+        const gTitle = title.value ? `${title.value}` : ''
+        const gContent = content.value ? `${content.value}` : ''
+        const gContentRule = content_rule.value ? `${content_rule.value}` : ''
+        const gContentGoal = content_goal.value ? `${content_goal.value}` : ''
+        return `${gTitle}\n${gContent}\n${gContentRule}\n${gContentGoal}` 
+    })
+
+    const createSend = async() => {
+        const targets = validateTargets.value.filter(ob => ob !== null)
+        let result = true
+        for(const target of targets){
+            
+            const val = await target?.validate() || false
+            result = result * val.valid
+        }
+        if (!result || dateComparsionError.value.hasError) return
+        processing.value = true
+        
+        try {
+            
+            const params = {
+                edit_id: props.editTarget ? props.editTarget.id : null,
+                to_users: to_users.value.length ? to_users.value.map(ob => ob.id) : [], 
+                title: title.value, 
+                content_rule: content_rule.value, 
+                content_goal: content_goal.value, 
+                date_start: date_start.value, 
+                date_end: date_end.value,  
+                tags: tags.value.length ? tags.value.map(ob => ob.text) : [], 
+                file_ids : uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
+                referrer: referrer.value, 
+                path: props.appName,
+                content: content.value,
+                award_entry: 0
+            }
+    
+            axios.post('post_add_record',params)
+            .then(response => setTimeout(() => {
+                closeModal(true, response.data.id)
+                info(props.editTarget ? '編集しました。' :'投稿しました。')
+            },0))
+            .catch(function (error) {
+                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+                else if (error.request) notify('エラーが発生しました。')
+                else notify('エラーが発生しました。 ' + error.message)      
+                processing.value = false                    
+            });
+            
+        } catch (error) {
+            console.error('Error fetching data:', error);
+            processing.value = false
+        }
+    }
+    const closeModal = (flag, id) => {
+        processing.value = false
+        const shareData = {
+            active: false,
+            title: '',
+            text: '',
+            files: [],
+            from: '',
+            to: '',
+            drag: false,
+            instruction: ''
+        }
+        sharingData.setSharingData(shareData)
+        emit('postFinish',flag, id);          
+    }
 </script>
-<style>
-
-
-</style>
     
     
     

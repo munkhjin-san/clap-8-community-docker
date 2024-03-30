@@ -10,63 +10,56 @@
 <script setup>
 import { inject } from 'vue';
 import { ref, computed } from 'vue';
-import { useStore } from 'vuex';
+import { useAuthUserStore } from '@/store/auth'
+    const auth = useAuthUserStore()
 
-        const props = defineProps(['item', 'appName'])
-        const emit = defineEmits(['updateClap'])
-        const store = useStore()
-        const loading = ref(false)
-       
-        const iconFill = computed(() => {
-            return clapped.value || props.item.user_id == store.state.user.id ? 'var(--primary-color)' : 'rgb(169, 169, 169)'
-        })
-        const canClap = computed(() => {
-            if(props.appName == 'knowledge' || props.appName == 'nice'){
-                return props.item.user_id == store.state.user.id ? false : true                    
-            }else if(props.appName == 'challenge'){
-                if(props.item.award_entry == 1){
-                    const player = props.item.to_users.filter(ob => ob.id == store.state.user.id)
-                    return player.length ? false : true
-                }else{
-                    return true
-                }
+    const props = defineProps(['item', 'appName'])
+    const emit = defineEmits(['updateClap'])
+    const loading = ref(false)
+    const { notify, info } = inject('dialog')
+    const iconFill = computed(() => {
+        return clapped.value || props.item.user_id == auth.id ? 'var(--primary-color)' : 'rgb(169, 169, 169)'
+    })
+    const canClap = computed(() => {
+        if(props.appName == 'knowledge' || props.appName == 'nice'){
+            return props.item.user_id == auth.id ? false : true                    
+        }else if(props.appName == 'challenge'){
+            if(props.item.award_entry == 1){
+                const player = props.item.to_users.filter(ob => ob.id == auth.id)
+                return player.length ? false : true
+            }else{
+                return true
             }
-        })
-        const clapped = computed(() => {
-            const clapped = props.item.claps.filter(ob => ob.from_user == store.state.user.id)
-            return clapped.length ? true : false
-        })
-
-        const sendClap = () => {
-            if(!canClap.value){
-                return
-            }
-            loading.value = true
-            const action = clapped.value ? 1 : 0
-            axios.post('post_add_clap',{ 
-                record_id: props.item.id, 
-                app_name: props.appName,
-                action: action
-            }).then(response => {   
-                loading.value = false   
-                if(action == 0){
-                    const data = {
-                        text: 'CLAPしました。',
-                        channel: Math.random().toString(36).substring(5),
-                        icon: 0,
-                        view: true
-                    }
-                    emitter.emit('setInfo', data)
-                }
-                
-                emit('updateClap', response.data)
-            }).catch(function (error) {
-                if (error.response) errorToast(error.response.data.message)
-                else if (error.request) errorToast('エラーが発生しました。')
-                else errorToast('エラーが発生しました。')            
-                loading.value = false                  
-            });
         }
-        const errorToast = inject('errorToast')
+    })
+    const clapped = computed(() => {
+        const clapped = props.item.claps.filter(ob => ob.from_user == auth.id)
+        return clapped.length ? true : false
+    })
+
+    const sendClap = () => {
+        if(!canClap.value){
+            return
+        }
+        loading.value = true
+        const action = clapped.value ? 1 : 0
+        axios.post('post_add_clap',{ 
+            record_id: props.item.id, 
+            app_name: props.appName,
+            action: action
+        }).then(response => {   
+            loading.value = false   
+            if(action == 0){
+                info('CLAPしました。')
+            }
+            
+            emit('updateClap', response.data)
+        }).catch(function (error) {
+            if (error.response) notify(error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。')            
+            loading.value = false                  
+        });
+    }
 
 </script>

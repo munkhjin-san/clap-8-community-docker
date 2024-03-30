@@ -109,11 +109,9 @@ import { Color } from '@tiptap/extension-color'
 import TextStyle from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
 import Image from '@tiptap/extension-image'
-import { computed, onMounted, ref } from 'vue'
-import { useStore } from 'vuex'
+import { onMounted, ref } from 'vue'
 
 const props = defineProps(['initilaValue'])
-const store = useStore()
 const editor = useEditor({
   content: props.initilaValue,
   extensions: [
@@ -211,7 +209,6 @@ const uploadImage = (event) => {
       
         formData.append('file', files[0])
         formData.append('type', event.target.id)
-        // this.uploadStart(formData)
     
         axios.post('/upload_lesson_file', formData , { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) } )
         .then(response =>{    

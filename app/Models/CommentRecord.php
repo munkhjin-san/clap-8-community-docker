@@ -14,7 +14,7 @@ class CommentRecord extends Model
     }
 
     protected $fillable = [
-        'messages', 'deleted_flag'
+        'messages', 'deleted_flag', 'emoji_flag'
     ];
     protected $casts = [
         'user_id' => 'int',  

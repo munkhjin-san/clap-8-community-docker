@@ -10,17 +10,15 @@
     </div>
 </template>
 
-<script>
-    export default {
-        props: ['loading', 'content'],
-        emits: ['triggered'],
-        methods: {
-            clickHandler(){
-                if(this.loading) return
-                this.$emit('triggered')
-            }
-        }
+<script setup>
+    const props = defineProps(['loading', 'content'])
+    const emit = defineEmits(['triggered'])
+    const clickHandler = () => {
+        if(props.loading) return
+        emit('triggered')
     }
+   
+   
 </script>
 <style lang="scss">
     .l-button{
@@ -38,6 +36,7 @@
         justify-content: center;
         cursor: pointer;
         padding: 0 15px;
+        user-select: none;
     }
     .l-spinner{
         position: absolute;

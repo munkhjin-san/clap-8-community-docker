@@ -24,31 +24,29 @@
             </div>
             <div class="si-box">
                 <p :style="{marginBottom: portfolio && portfolio.status == 2 ? '20px' : '0'}"><strong>{{portfolio && portfolio.status == 2 ? 'フィードバックによる発見と成長を反映し、ポートフォリオを完成させてください。' : 'ポートフォリオ'}}</strong></p>
-                <FormShortText
+                <ShortInput
                     v-if="portfolio && portfolio.status == 2"
                     :initialValue="portfolio.public_title ? portfolio.public_title : ''"
                     ref="portfolioTitle"
                     placeHolder="ポートフォリオタイトル"
-                    uId="portfolioTitle"
                     name="portfolioTitle"
                     rules="required"
                     label="タイトル"
-                    @setValue="val => portfolio_title = val"
+                    v-model="portfolio_title"
                 />
                 <p v-else>{{ portfolio?.public_title }}</p>
             </div>
             <div class="si-box">
-                <FormLongText
+                <LongInput
                     v-if="portfolio && portfolio.status == 2"
                     :initialValue="portfolio.public_content ? portfolio.public_content : ''"
                     :placeHolder="`ポートフォリオの内容`"
                     ref="portfolioBody"
                     :key="portfolio.public_content ? portfolio.public_content : 0"
-                    rules="required"
-                    uId="recordBody"
+                    rules="required|max:1000|min:200"
                     name="recordBody"
                     label="タイトル"
-                    @setValue="val => portfolioContent = val"
+                    v-model="portfolioContent"
                 />
                 <p v-else>{{ portfolio?.public_content }}</p>
             </div>
@@ -65,10 +63,11 @@
 </template>
 <script setup>
     import { useRoute, useRouter } from 'vue-router';
-    import FormLongText from '../../Global/FormLongText.vue';
+    import LongInput from '../../Form/LongInput.vue';
+    import ShortInput from '../../Form/ShortInput.vue';
     import LoaderButton from '../../Global/LoaderButton.vue';
-    import FormShortText from '../../Global/FormShortText.vue';
     import { ref, onBeforeMount, inject } from 'vue'
+    const { confirm, info, notify } = inject('dialog')
     const props = defineProps(['selectedTopic', 'available'])
     const portfolio = inject('portfolio')
     const portfolioContent = ref(portfolio ? portfolio.public_content : '')
@@ -107,79 +106,38 @@
             if(status == 'next'){
 
             }else{
-                const data = {
-                    text: props.editTarget ? '編集しました。' :'保存しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
-                }
-                emitter.emit('setInfo', data)
+                info(props.editTarget ? '編集しました。' :'保存しました。')
                 processing_save.value = false
             }
         }).catch(function (error) {
-            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast('エラーが発生しました。 ' + error.message)                       
+            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。 ' + error.message)                       
         });
     }
     const nextStage = async() => {
-        const result = await portfolioBody.value.$refs.recordBody.validate()
-        const title_result = await portfolioTitle.value.$refs.portfolioTitle.validate()
+        const result = await portfolioBody.value.validate()
+        const title_result = await portfolioTitle.value.validate()
         if(result.valid && title_result.valid){
-            const uniqueChannell = Math.random().toString(36).substring(5);
-            const answers = ['OK', 'キャンセル']
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: 'ポートフォリオを完了にしますか。\n※完了後に、編集するができません。',
-                closeButton: false, 
-                autoClose: false,
-                touchClose: false,
-                answers: answers,
-                channel: uniqueChannell
-            })  
-            emitter.on(uniqueChannell, async (data) => {                            
-                if(data.answer === answers[0]){
-                    await savePortfolio('next')
-                    setTimeout(() => {                    
-                        processing.value = false
-                        router.push({name: 'form'})
-                    }, 1000);
-                }
-            }) 
+            const answer = await confirm('ポートフォリオを完了にしますか。\n※完了後に、編集するができません。')
+                                      
+            if(!answer) return
+            await savePortfolio('next')
+            setTimeout(() => {                    
+                processing.value = false
+                router.push({name: 'form'})
+            }, 1000);
+               
         }
         
     }
-    const errorToast = (message) => {
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })  
-            processing.value = false
-            
+    const backToast = async() => {
+        const options = {
+            answers: [{label: '戻る', value: true}]
         }
-    const backToast = () => {
-        const uniqueChannell = Math.random().toString(36).substring(5);
-
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: 'グループディスカッションを完了してください。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: ['戻る'],
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, (data) => {                            
-            if(data.answer === '戻る'){
-                router.go(-1)
-            }
-        })
+        const answer = await confirm('グループディスカッションを完了してください。', options)                       
+        if(answer){
+            router.go(-1)
+        }
     }
 </script>

@@ -1,6 +1,6 @@
 <template>
 <div style="height: calc(100% - 50px);overflow: auto;width: 100%;">
-    <div class="admin-button" style="width: fit-content;flex: 0;margin: 0 0 0 auto;position: fixed;right: 24px;top: 10px;" @click="downloadCSV">CSVダウンロード</div>
+    <div class="admin-button" style="width: fit-content;flex: 0;margin: 0 0 0 auto;position: fixed;right: 24px;top: 10px;" @click="downloadCSV">CSV出力</div>
     <div v-for="portfolio in portfolioList" class="ev-u-wrap">
         <div class="ev-u-box">
             <span><strong>氏名：</strong></span>
@@ -102,6 +102,8 @@ const downloadCSV = () => {
 .ev-u-box{
     margin: 15px 0;
     white-space: break-spaces;
+    overflow: hidden;
+    overflow-wrap: break-word;
 }
 .admin-button{
     background: #4b4b4b;

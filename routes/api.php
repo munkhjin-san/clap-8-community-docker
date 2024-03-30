@@ -50,12 +50,12 @@ Route::post('/sanctum/token', function (Request $request) {
 Route::middleware('auth:sanctum')->post('/logout', [NativeController::class, 'logout']);
 Route::middleware('auth:sanctum')->post('/chat_add_api', [BoardController::class, 'chatAdd']); 
 Route::group(["middleware"=>"auth:sanctum"],function(){
-    Route::post('/chat_delete_api', [BoardController::class, 'chatDelete']);
+    Route::post('/board_delete', [BoardController::class, 'board_delete']);
     Route::get('/profile_get_update_user', [UserController::class, 'profile_get_update_user']);
     Route::get('/board_possible_users', [BoardController::class, 'board_possible_users']);
     Route::post('/icon_up_api', [BoardController::class, 'getIconUp']); 
-    Route::post('/chat_create', [BoardController::class, 'create_new_board']);
-    Route::get('/chat_list', [BoardController::class, 'getAllMessage']); 
-    Route::get('/get_messages', [BoardController::class, 'getCommentList']);
+    Route::post('/board_create', [BoardController::class, 'board_create']);
+    Route::get('/board_list', [BoardController::class, 'board_list']); 
+    Route::get('/get_messages', [BoardController::class, 'get_messages']);
     Route::post('/set_fmc_token', [NativeController::class, 'set_fmc_token']);
 });

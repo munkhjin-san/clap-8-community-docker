@@ -2,17 +2,17 @@
 
     <div id="calendarOuterContainer" class="post-root">
         <div class="calendar-root-header">
-            <HamBurger v-if="store.state.mobile"/>
+            <HamBurger v-if="responsive.mobile"/>
             <div class="calendar-search-wrap" id="calendarSearchResultWindow" >
                 <PostSearchBar 
                     @searchStart="searchStart"  
-                    @focus="store.commit('setMenu', {name: 'calendarSearchResultWindow', id: 26})"
+                    @focus="menu.setMenu( {name: 'calendarSearchResultWindow', id: 26})"
                     :searching="searching"
                     className="newChatMemberSearch" 
                     :customPlaceHolder="`スケジュールを検索`"
                 />
                 <SearchResult 
-                    v-if="searchKey.length && store.state.menu.id == 26 && store.state.menu.name == 'calendarSearchResultWindow'" 
+                    v-if="searchKey.length && menu.id == 26 && menu.name == 'calendarSearchResultWindow'" 
                     :searchResult="searchResult" 
                     :searchFetch="searchFetch"
                     @jumpToRecord="jumpToRecord"                    
@@ -112,7 +112,7 @@
             ref="listView"
         />
         <Transition name="modalFade">
-            <div id="calendarViewMenu" class="boxMenu boardMenuIcon viewSwitchMenu" v-if="store.state.menu.name == 'calendarViewMenu' && store.state.menu.id == 79">
+            <div id="calendarViewMenu" class="boxMenu boardMenuIcon viewSwitchMenu" v-if="menu.name == 'calendarViewMenu' && menu.id == 79">
                 <ul>
                     <li class="boxMenuItems cursor-pointer" @click.stop="switchView(1)">
                         月（カレンダー）
@@ -149,7 +149,7 @@
                 </ul>              
             </div>
         </Transition>
-        <div title="" class="createBoardButton fileNewButton monthSiwtchButton" @click.stop="store.commit('setMenu', {name : 'calendarViewMenu', id: 79})" :style="{zIndex: initialLoader ? 41 : 7}">
+        <div title="" class="createBoardButton fileNewButton monthSiwtchButton" @click.stop="menu.setMenu( {name : 'calendarViewMenu', id: 79})" :style="{zIndex: initialLoader ? 41 : 7}">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 32" style="width: 18px; margin: auto; fill: rgb(0, 0, 0);">
                 <path d="M35.556 27.791v-1.812l-0.011-2.902-0.057-11.584-0.011-2.89-0.011-1.445v-0.195c0-0.080 0-0.172-0.011-0.252-0.011-0.172-0.034-0.333-0.069-0.493-0.069-0.333-0.184-0.642-0.333-0.941-0.298-0.596-0.757-1.101-1.296-1.48-0.551-0.367-1.193-0.596-1.858-0.654-0.161-0.011-0.344-0.011-0.447-0.011h-1.090l-1.239 0.011c-0.080 0-0.138-0.069-0.138-0.138v-0.631c0-0.080-0.011-0.161-0.023-0.241-0.046-0.31-0.161-0.619-0.321-0.895-0.321-0.539-0.849-0.963-1.457-1.135-0.149-0.046-0.31-0.080-0.47-0.092-0.080 0-0.161-0.011-0.241-0.011h-0.688c-0.642 0-1.273 0.252-1.732 0.688-0.459 0.424-0.746 1.055-0.78 1.686v0.539c0 0.115-0.103 0.218-0.218 0.206-0.814-0.057-9.715-0.057-10.586-0.023-0.046 0-0.080-0.034-0.080-0.069 0-0.172 0.011-0.585 0-0.642 0-0.080-0.011-0.161-0.023-0.241-0.046-0.31-0.161-0.619-0.321-0.895-0.321-0.539-0.849-0.963-1.457-1.135-0.149-0.046-0.31-0.080-0.47-0.092-0.057-0.011-0.138-0.023-0.218-0.023h-0.688c-0.642 0-1.273 0.252-1.732 0.688-0.459 0.424-0.746 1.055-0.78 1.686v0.642c0 0.103-0.080 0.183-0.183 0.183l-2.707-0.023c-0.654 0.023-1.308 0.218-1.87 0.562s-1.032 0.837-1.353 1.411c-0.161 0.287-0.287 0.596-0.367 0.918-0.046 0.161-0.069 0.321-0.092 0.493-0.011 0.080-0.011 0.161-0.023 0.252v1.675l-0.023 2.902c-0.023 3.865-0.057 7.719-0.069 11.584l-0.011 2.89v2.202c0.011 0.344 0.057 0.688 0.149 1.009 0.183 0.665 0.551 1.262 1.032 1.743s1.090 0.837 1.755 1.021c0.333 0.092 0.677 0.138 1.021 0.138h27.733c0.080 0 0.172-0.011 0.252-0.011 0.172-0.023 0.344-0.046 0.505-0.080 0.677-0.149 1.296-0.493 1.801-0.941 0.505-0.459 0.895-1.044 1.101-1.698 0.115-0.321 0.172-0.665 0.195-1.009 0-0.080 0-0.172 0.011-0.252v-0.195zM25.359 5.987v-0.275l0.023-1.090 0.034-2.122c0.011-0.092 0.057-0.172 0.126-0.241s0.161-0.103 0.252-0.103h0.723c0.023 0 0.046 0 0.069 0.011 0.092 0.023 0.172 0.092 0.229 0.172 0.023 0.046 0.046 0.080 0.046 0.126v0.378l0.023 1.090 0.046 2.122c0.023 0.229-0.183 0.493-0.459 0.493-0.195 0-0.551-0.011-0.551-0.011h-0.138c-0.011 0-0.034 0-0.046-0.011-0.034-0.011-0.057-0.011-0.092-0.023-0.115-0.046-0.206-0.138-0.252-0.241-0.023-0.057-0.034-0.103-0.046-0.161v-0.046c0.011-0.011 0.011-0.011 0.011-0.069zM8.786 5.987v-0.275l0.023-1.090 0.034-2.122c0.011-0.092 0.046-0.172 0.126-0.241 0.069-0.069 0.161-0.103 0.252-0.103h0.723c0.023 0 0.046 0 0.069 0.011 0.092 0.023 0.172 0.092 0.229 0.172 0.023 0.046 0.046 0.080 0.046 0.126v0.378l0.023 1.090 0.046 2.122c0.023 0.229-0.218 0.493-0.459 0.493s-0.551-0.011-0.551-0.011h-0.138c-0.011 0-0.034 0-0.046-0.011-0.034-0.011-0.057-0.011-0.092-0.023-0.115-0.046-0.206-0.138-0.252-0.241-0.023-0.057-0.034-0.103-0.046-0.161v-0.046c0.011-0.011 0-0.011 0.011-0.069zM33.308 7.157v1.445l-0.011 2.89-0.057 11.584-0.011 2.902v2.099c-0.011 0.138-0.034 0.275-0.080 0.413-0.092 0.264-0.252 0.505-0.459 0.7-0.218 0.183-0.47 0.321-0.734 0.378-0.057 0.011-0.115 0.023-0.183 0.034-0.034 0-0.092 0.011-0.138 0.011h-27.642c-0.138 0-0.275-0.011-0.413-0.057-0.264-0.069-0.516-0.218-0.723-0.413s-0.356-0.447-0.436-0.711c-0.046-0.138-0.057-0.275-0.069-0.413v-2.145l-0.011-2.89c-0.011-3.865-0.046-7.719-0.069-11.584l-0.034-2.913-0.011-1.445v-0.126c0-0.034 0-0.080 0.011-0.115 0.011-0.069 0.023-0.149 0.034-0.218 0.034-0.149 0.092-0.287 0.161-0.424 0.149-0.264 0.356-0.505 0.619-0.665 0.264-0.172 0.551-0.264 0.86-0.287l2.707-0.034c0.069 0 0.115 0.046 0.115 0.115l0.011 0.688c0 0.034 0 0.126 0.011 0.195 0 0.080 0.011 0.149 0.023 0.229 0.046 0.31 0.161 0.596 0.321 0.86 0.321 0.516 0.837 0.918 1.422 1.067 0.149 0.034 0.298 0.069 0.447 0.080h0.367s0.275-0.011 0.551-0.011c0.642 0 1.193-0.229 1.64-0.631s0.746-0.975 0.791-1.594c0.011-0.184 0.011-0.229 0.011-0.333l0.023-0.447c0-0.069 0.057-0.126 0.138-0.126 0.872 0.034 9.864 0.034 10.724-0.034 0.057 0 0.103 0.034 0.103 0.092 0 0.241 0.023 0.849 0.046 1.067 0.034 0.275 0.161 0.596 0.321 0.86 0.321 0.516 0.837 0.918 1.422 1.067 0.149 0.034 0.298 0.069 0.447 0.080h0.367s0.367 0 0.551-0.011c0.665-0.034 1.193-0.229 1.64-0.631s0.746-0.975 0.791-1.594c0.011-0.184 0.011-0.229 0.011-0.333l0.011-0.275 0.011-0.218c0-0.080 0.069-0.138 0.138-0.138l1.296 0.011h0.723c0.229 0 0.528 0 0.631 0.011 0.298 0.023 0.585 0.138 0.837 0.31s0.447 0.413 0.585 0.677c0.069 0.138 0.115 0.275 0.138 0.424 0.011 0.069 0.023 0.149 0.023 0.218v0.31z"></path> <path d="M30.509 10.598c-2.11-0.069-4.221-0.103-6.331-0.126-1.055-0.011-2.11-0.023-3.166-0.023l-3.166-0.011-3.166 0.011-3.166 0.023-4.748 0.069-1.583 0.034c-0.413 0.011-0.757 0.344-0.768 0.768-0.011 0.436 0.333 0.791 0.768 0.803l1.583 0.034 4.748 0.069 3.166 0.023 3.166 0.011 3.166-0.011c1.055 0 2.11-0.023 3.166-0.023 2.11-0.023 4.221-0.057 6.331-0.126 0.39-0.011 0.723-0.333 0.734-0.723 0.011-0.436-0.31-0.791-0.734-0.803zM15.771 15.61c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.447-0.046-0.952-0.505-1.135zM22.366 15.61c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.447-0.046-0.952-0.505-1.135zM29.075 15.61c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.172-0.447-0.057-0.952-0.505-1.135zM9.049 20.198c-0.195-0.080-0.39-0.103-0.585-0.138s-0.39-0.034-0.585-0.034c-0.195 0-0.39 0.011-0.585 0.034s-0.39 0.046-0.585 0.103c-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.046 0.195-0.023 0.39-0.057 0.585-0.138 0.218-0.092 0.413-0.264 0.505-0.505 0.172-0.436-0.046-0.952-0.505-1.124zM15.771 20.198c-0.195-0.080-0.39-0.103-0.585-0.138s-0.39-0.034-0.585-0.034c-0.195 0-0.39 0.011-0.585 0.034s-0.39 0.046-0.585 0.103c-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.046 0.195-0.023 0.39-0.057 0.585-0.138 0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.436-0.046-0.952-0.505-1.124zM22.366 20.198c-0.195-0.080-0.39-0.103-0.585-0.138s-0.39-0.034-0.585-0.034c-0.195 0-0.39 0.011-0.585 0.034s-0.39 0.046-0.585 0.103c-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.046 0.195-0.023 0.39-0.057 0.585-0.138 0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.436-0.046-0.952-0.505-1.124zM29.075 20.198c-0.195-0.080-0.39-0.103-0.585-0.138s-0.39-0.034-0.585-0.034c-0.195 0-0.39 0.011-0.585 0.034s-0.39 0.046-0.585 0.103c-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.046 0.195-0.023 0.39-0.057 0.585-0.138 0.218-0.092 0.413-0.264 0.505-0.505 0.172-0.436-0.057-0.952-0.505-1.124zM9.049 24.774c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.172-0.447-0.046-0.963-0.505-1.135zM15.771 24.774c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.447-0.046-0.963-0.505-1.135z"></path>
             </svg>
@@ -163,7 +163,7 @@
         <FastCreateButton 
             :data="fastCreate" 
             @close="resetFastCreate"
-            v-if="fastCreate.time && store.state.menu.name == 'scheduleCreateFast' && store.state.menu.id == 896"
+            v-if="fastCreate.time && menu.name == 'scheduleCreateFast' && menu.id == 896"
             @click="fastCreateOpen"
         />
         <Transition name="modalFade">                              
@@ -177,7 +177,7 @@
                 @close="closeCreate"      
             />            
         </Transition> 
-        <DragItem v-if="store.state.draggingCalendar"/>
+        <DragItem v-if="draggingCalendar"/>
     </div>        
 </template>
 <script setup>
@@ -186,7 +186,7 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
 import NormalHourLayout from './NormalHour/NormalHourLayout.vue';
 import moment from 'moment';
 import MonthPicker from '../Global/MonthPicker.vue'
-import { nextTick, ref, computed, onMounted, provide, onUnmounted } from 'vue'
+import { nextTick, ref, computed, onMounted, provide, onUnmounted, inject } from 'vue'
 import CalendarCreate from './CalendarCreate.vue';
 import TopBar from './TopBar.vue'
 import NormalMonthLayout from './NormalMonth/NormalMonthLayout.vue'
@@ -199,9 +199,17 @@ import ShiftButton from './ShiftButton.vue';
 import holiday_jp from '@holiday-jp/holiday_jp'
 import FastCreateButton from './FastCreateButton.vue'
 import { useRoute } from 'vue-router'
-import { useStore } from 'vuex'
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useResponsive } from '@/store/responsive';
+import { useSharingDataStore } from '@/store/sharingData'
+import { useTempRecord } from '@/store/tempRecord';
+    const sharingData = useSharingDataStore()
+    const menu = useMenuStore()
+    const auth = useAuthUserStore()
     const route = useRoute()
-    const store = useStore()
+    const responsive = useResponsive()
+    const tempRecord = useTempRecord()
     const props = defineProps(['initial_date'])
     
     const topOffset = ref(0)
@@ -235,13 +243,14 @@ import { useStore } from 'vuex'
     const edit_all_record = ref(true)
     const activeMembers = ref([])
     const preSelectedMembers = ref([])
-
+    const draggingCalendar = ref(null)
+    const { notify, info, confirm } = inject('dialog')
 
     onUnmounted(() => {
-        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("keydown", onKeyDown);        
     })        
     onMounted(() => {
-
+        axios.get(`https://api.national-holidays.jp/${selectedYear.value}`)
         if(route.query && route.query.id && props.initial_date){
             
             const tempId = parseInt(route.query.id)
@@ -252,7 +261,7 @@ import { useStore } from 'vuex'
             viewType.value = 0 
             const date = moment(props.initial_date).startOf('month').format('YYYY-MM-DD')
             getCalendar(date, 'mounted')
-            store.commit('setTempRecord', tempId)
+            tempRecord.setTempRecord(tempId)
         }else{
             const date = moment().format('YYYY-MM-DD')
             getCalendar(date, 'mounted')            
@@ -262,11 +271,11 @@ import { useStore } from 'vuex'
         }
         getFacilities()        
         window.addEventListener("keydown", onKeyDown);
-        if(store.state.sharingData){
+        if(sharingData.active){
             createWindow.value = true
         }
-        if(store.state.user){
-            preSelectedMembers.value.push(store.state.user)
+        if(auth.activeUser){
+            preSelectedMembers.value.push(auth.activeUser)
         }
     })
    
@@ -305,7 +314,6 @@ import { useStore } from 'vuex'
     
 
     })
-
     const setListView = (data) => {
         const day = moment(data).date()
         selectedDay.value = day
@@ -360,59 +368,27 @@ import { useStore } from 'vuex'
             createWindow.value = true            
         }
     }
-
-    const deleteRecordConfirm = (record) => {
-        
-        var uniqueChannell = Math.random().toString(36).substring(5);   
+    const deleteRecord = async(record) => {
         let question = record.repetition_type > 0 ? '繰り返しスケジュールすべて削除しますか。' : 'スケジュールを削除しますか。'
-        let answers = record.repetition_type > 0 ? ['すべて', 'このスケジュールのみ'] : ['はい', 'いいえ']
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: question,
-            closeButton: true, 
-            autoClose: false,
-            answers: answers,
-            channel: uniqueChannell
-
-        })            
-        emitter.on(uniqueChannell, (data) => { 
-            data.answer 
-            if(record.repetition_type > 0){
-                const val = data.answer == answers[0] ? true : false
-                deleteRecord(record, val)
-            }
-            else{
-                if(data.answer == answers[0]){
-                    deleteRecord(record, false)
-                }
-            }
-        });       
-    }
-
-    const deleteRecord = (record, all_delete) => {
-        axios.post('/calendar_delete_record',{id:record.id, all_delete: all_delete}).then(response => {  
-            if(response.data){
-                
-                const date = moment([selectedYear.value, selectedMonth.value, 1]).format('YYYY-MM-DD')
-                getCalendar(date, 'updated')
-                const data = {
-                    text: '削除しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
-                }
-                emitter.emit('setInfo', data)                
-            }                           
-        }).catch(function (error) {
-            if (error.response) errorToast(error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast(errorToast('エラーが発生しました。'))                          
-        });
+        let answers = [{label:'すべて', value:'all'}, {label:'このスケジュールのみ', value:'single'}, {label:'キャンセル', value:false}]
+        const options = {
+            answers: record.repetition_type > 0 ? answers : null
+        }
+        const answer = await confirm(question, options)
+        if(answer == false) return
+        const all_delete = answer == 'all'
+        try{
+            await axios.post('/calendar_delete_record',{id:record.id, all_delete: all_delete})
+            const date = moment([selectedYear.value, selectedMonth.value, 1]).format('YYYY-MM-DD')
+            getCalendar(date, 'updated')
+            info('削除しました。') 
+        } catch (e) { 
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } 
     }
     const onKeyDown = (e) => {
-        if(e.keyCode == 27 && store.state.draggingCalendar){
-            store.commit('setDraggingCalendar', null)
+        if(e.keyCode == 27 && draggingCalendar.value){
+            draggingCalendar.value = null
         }
     }
     const dropFinish = (record, date) => {
@@ -425,31 +401,29 @@ import { useStore } from 'vuex'
             }                           
     
         }).catch(function (error) {
-            if (error.response) errorToast(error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast(errorToast('エラーが発生しました。'))                           
+            if (error.response) notify(error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。')                           
         });
     }
-    const editRecord = (record) => {
+    const editRecord = async(record) => {
         if(record.repetition_type > 0){
-            var uniqueChannell = Math.random().toString(36).substring(5);   
-            const answers = ['すべて', 'このスケジュールのみ']
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: '繰り返しスケジュールのすべてのレコードが編集しますか。',
-                closeButton: true, 
-                autoClose: false,
-                answers: answers,
-                channel: uniqueChannell
-
-            })            
-            emitter.on(uniqueChannell, (data) => { 
-                const val = data.answer == answers[0] ? true : false
-                edit_all_record.value = val
-                editTarget.value = record
-                createWindow.value = true
-            });
+            const options = {
+                answers: [
+                    {
+                        label: 'すべて',
+                        value: true
+                    },
+                    {
+                        label: 'このスケジュールのみ',
+                        value: false
+                    }
+                ]
+            }
+            const answer = await confirm('繰り返しスケジュールのすべてのレコードが編集しますか。', options)
+            edit_all_record.value = answer
+            editTarget.value = record
+            createWindow.value = true
         }else{
             editTarget.value = record
             createWindow.value = true
@@ -465,7 +439,7 @@ import { useStore } from 'vuex'
         axios.post('/get_all_facilities').then(response => facilitiesList.value = response.data)
     }
     const searchStart = (val) => {
-        store.commit('setMenu', {id : 26, name: 'calendarSearchResultWindow'})
+        menu.setMenu( {id : 26, name: 'calendarSearchResultWindow'})
         searchKey.value = val            
         if(val && val.length){
             searching.value = true
@@ -481,7 +455,7 @@ import { useStore } from 'vuex'
         
     }
     const switchView = (val) => {
-        store.commit('setMenu', {name: '', id: null})
+        menu.setMenu( {name: '', id: null})
         initialLoader.value = true
         viewType.value = val
 
@@ -527,8 +501,7 @@ import { useStore } from 'vuex'
         }, 500);
     }
     const fromMonth = (data) => {
-        
-        store.commit('setTempRecord',data.id)
+        tempRecord.setTempRecord(data.id)
         appendLock.value = true
         const dataDate = moment(data.date_start)
         if(selectedMonth.value !== dataDate.month() || selectedYear.value !== dataDate.year()){
@@ -571,13 +544,14 @@ import { useStore } from 'vuex'
     const jumpToToday = () => {
         appendLock.value = true
         const val = moment().format('YYYY-MM-DD')           
-        if(moment().month() == selectedMonth.value){
+        if(moment([selectedYear.value, selectedMonth.value]).isSame(moment(), 'month')){
             jumpExecute(val)
             setTimeout(() => {
                 appendLock.value = false
             }, 100);
             selectedDay.value = moment().date()
         }else{
+            console.log('ttttttttttt')
             selectedMonth.value = activeMonth.value = moment().month()
             selectedYear.value = activeYear.value = moment().year()
             selectedDay.value = moment().date()
@@ -600,7 +574,7 @@ import { useStore } from 'vuex'
                     const r_el = weekView.value?.$refs.cal_week_view
                     const space = weekView.value?.$refs.spacer
                     if(r_el && space){
-                        const index = store.state.mobile ? 0 : 60
+                        const index = responsive.mobile ? 0 : 60
                         const l = rect.x - space.getBoundingClientRect().width - index
                         r_el.scrollBy(l, 0)
                     }
@@ -628,7 +602,7 @@ import { useStore } from 'vuex'
             const date = moment([selectedYear.value, selectedMonth.value, 1]).format('YYYY-MM-DD')
             getCalendar(date, 'updated')
         }
-        preSelectedMembers.value = [store.state.user]
+        preSelectedMembers.value = [auth.activeUser]
     }
     const setDate = (date) => {
         appendLock.value = true
@@ -654,16 +628,16 @@ import { useStore } from 'vuex'
         if(user){
             const index = preSelectedMembers.value.find(ob => ob.id == user.id)
             if(!index){
-                preSelectedMembers.value = [store.state.user] 
+                preSelectedMembers.value = [auth.activeUser] 
                 preSelectedMembers.value.push(user)
             }                    
         }  
-        if(store.state.menu.name && store.state.menu.name !== 'scheduleCreateFast'){
-            store.commit('setMenu', {id: null, name: ''})
+        if(menu.name && menu.name !== 'scheduleCreateFast'){
+            menu.setMenu( {id: null, name: ''})
             return
         }           
         fastCreate.value = data
-        store.commit('setMenu', {id: 896, name: 'scheduleCreateFast'})            
+        menu.setMenu( {id: 896, name: 'scheduleCreateFast'})            
     }
     const resetFastCreate = () => {
         fastCreate.value = { x: 0, y: 0, time: null, stamp: null}
@@ -688,7 +662,7 @@ import { useStore } from 'vuex'
     }
     const jumpToRecord = (record) => {
         appendLock.value = true
-        store.commit('setTempRecord',record.id)
+        tempRecord.setTempRecord(record.id)
         const dInstance = moment(record.date_start)
         const date = dInstance.startOf('month').format('YYYY-MM-DD')
         selectedMonth.value = activeMonth.value = moment(record.date_start).month()
@@ -711,7 +685,7 @@ import { useStore } from 'vuex'
 
             
         }
-        axios.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType}).then(response => {  
+        axios.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType.value}).then(response => {  
             
             if(method == 'updated'){
                 const valid_id = response.data.map(ob => ob.id)
@@ -753,26 +727,15 @@ import { useStore } from 'vuex'
             }, 200);               
     
         }).catch(function (error) {
-            if (error.response) errorToast(error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast(errorToast('エラーが発生しました。'))                         
+            if (error.response) notify(error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。')                        
         });
     }
-    const errorToast = (message) => {
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: message,
-            closeButton: false, 
-            autoClose: false,
-            answers: ['OK']
-
-        })   
-    }
-    provide('deleteRecordConfirm', deleteRecordConfirm)
+    provide('deleteCalendar', deleteRecord)
     provide('editRecord', editRecord)
     provide('facilities', facilitiesList)
     provide('dropFinish', dropFinish)
-    
+    provide('draggingCalendar', draggingCalendar)
 
 </script>

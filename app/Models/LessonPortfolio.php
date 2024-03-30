@@ -21,6 +21,10 @@ class LessonPortfolio extends Model
     {
         return $this->hasOne(LessonTheme::class, 'id', 'lesson_theme_id')->select('id', 'title');
     }
+    public function lesson_form()
+    {
+        return $this->hasOne(LessonForm::class, 'user_id', 'user_id')->latest();
+    }
     protected $fillable = [
         'lesson_theme_id',
         'user_id',

@@ -2,7 +2,7 @@
     <div @mousedown="closeFeedBack" class="overlay">
         <div class="incompleteWindow" @mousedown.stop>
             <div style="display:flex">
-                <p style="font-weight:600;margin-right:20px;">{{ $t('whyTaskExpired') }}</p>
+                <p style="font-weight:600;margin-right:20px;">期限内に完了しなかった理由選んでください</p>
                 <div style="margin-left:auto;display: flex;">                                          
                     <div class="cursor-pointer" @click="closeFeedBack" style="position:unset;">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
@@ -16,82 +16,65 @@
                     <input class="fish-eye" @change="selectedAnswer = answer.value" type="radio" :id="answer.id" name="answer" :value="answer.value">
                     <label style="margin-left:10px;cursor:pointer" :for="answer.id">{{answer.label}}</label>  
                 </div> 
-                <span v-if="this.validationFailed && !isValid.status" class="valid-error post-error" style="bottom:auto">{{$t('required')}}</span>
+                <span v-if="validationFailed && !isValid.status" class="valid-error post-error" style="bottom:auto">必須です</span>
                 <Transition name="feedbackAreaToggle">
                     <div v-if="selectedAnswer == 6" style="position:relative">
-                        <textarea class="feedbackArea" :placeholder="$t('writeOtherReason')" v-model="lateAnswerCustom" name="" id=""></textarea>
-                        <span v-if="validationFailed && isValid.inputRequired" class="valid-error post-error" style="bottom: -15px;">{{$t('required')}}</span>
+                        <textarea class="feedbackArea" placeholder="その他の理由を入力してください" v-model="lateAnswerCustom" name="" id=""></textarea>
+                        <span v-if="validationFailed && isValid.inputRequired" class="valid-error post-error" style="bottom: -15px;">必須です</span>
                     </div>    
                 </Transition>   
             </div>
             
             <div @click="completeTask" class="l-button cursor-pointer" style="margin:20px auto 0px auto">
-                <span>{{$t('save')}}</span>
+                <span>保存する</span>
             </div>
         </div>
     </div>
 </template>
 
-<script>
-    export default {
-        data(){
-            return{
-                answers:[
-                    { label: this.$t('tookTimeToComplete'), value: 1, id:"incomplete_ans1"},
-                    { label: this.$t('changeTaskPriority'), value: 2, id:"incomplete_ans2"},
-                    { label: this.$t('forgotToClickComplete'), value: 3, id:"incomplete_ans3"},
-                    { label: this.$t('dontKnowTheTask'), value: 4, id:"incomplete_ans4"},
-                    { label: this.$t('notResponsibleForTask'), value: 5, id:"incomplete_ans5"},
-                    { label: this.$t('otherReason'), value: 6, id:"incomplete_ans6"}
-                ],
-                selectedAnswer: 0,
-                validationFailed: false,
-                lateAnswerCustom: ''
-            }
-        },
-        mounted() {
-            
-        },
-        computed:{
-            isValid(){
-                return {
-                    status: this.selectedAnswer > 0,
-                    inputRequired : this.selectedAnswer == 6 && !this.lateAnswerCustom.length
-                }
-            }
-        },  
-        methods:{
-            completeTask() {
-                
-                this.validationFailed = !this.isValid.status || this.isValid.inputRequired
-                if(this.validationFailed) return
-                // return
-                // let button = document.getElementById("taskButton" + this.task.record.id);
-                
-                //     button.style.background = "#64bc44";
-                //     button.style.color = "#fff";
-                
-                // setTimeout(() => {this.taskKey ++},500) 
-                
-                const data = {
-                    task_id: this.$store.state.taskFeedBack.data.id, 
-                    comp_flag: 1, 
-                    late_answer:  this.selectedAnswer,
-                    late_answer_custom: this.lateAnswerCustom
-                }
-                axios.post("/complete_task_api", data).then(response => {
-                    this.closeFeedBack()
-                });
-            },
-            closeFeedBack(){
-                const data = {
-                    active: false,
-                    data: null
-                }
-                this.$store.commit('setTaskFeedback', data)
-            }
+<script setup>
+import { computed, ref } from 'vue';
+import { useTaskFeedback } from '@/store/taskFeedback'
+    const taskFeedback = useTaskFeedback()
+    const answers = [
+        { label: 'タスク対応に時間がかかった', value: 1, id:"incomplete_ans1"},
+        { label: 'タスクの優先順位を変更した', value: 2, id:"incomplete_ans2"},
+        { label: '完了ボタンを押し忘れていた', value: 3, id:"incomplete_ans3"},
+        { label: 'タスクを認識していなかった', value: 4, id:"incomplete_ans4"},
+        { label: 'このタスクの担当者ではない', value: 5, id:"incomplete_ans5"},
+        { label: 'その他', value: 6, id:"incomplete_ans6"}
+    ]
+    const selectedAnswer = ref(0)
+    const validationFailed = ref(false)
+    const lateAnswerCustom = ref('')
+
+    const isValid = computed(() => {
+        return {
+            status: selectedAnswer.value > 0,
+            inputRequired : selectedAnswer.value == 6 && !lateAnswerCustom.value.length
         }
+    })
+
+    const completeTask = async() => {        
+        validationFailed.value = !isValid.value.status || isValid.value.inputRequired
+        if(validationFailed.value) return        
+        const data = {
+            task_id: taskFeedback.data.id, 
+            comp_flag: 1, 
+            late_answer:  selectedAnswer.value,
+            late_answer_custom: lateAnswerCustom.value
+        }
+        await axios.post("/complete_task_api", data)
+        closeFeedBack()    
     }
+    const closeFeedBack = () => {
+        const data = {
+            active: false,
+            data: null
+        }
+        taskFeedback.setTaskFeedback(data)
+    }
+
 </script>
 <style scoped lang="scss">
     .feedbackArea{

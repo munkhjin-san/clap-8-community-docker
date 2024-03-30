@@ -24,18 +24,13 @@
     </div>
 </template>
 
-<script>
-    export default {
-        props: ['allHistoryData', 'selected'],
-        mounted() {
-            
-        },
-        methods:{
-            setkey(item){
-                this.$emit('setKeyWordFromHistory', item.content)
-            }
-        }
+<script setup>
+    const props = defineProps(['allHistoryData', 'selected'])
+    const emit = defineEmits(['setKeyWordFromHistory'])
+    const setkey = (item) => {
+        emit('setKeyWordFromHistory', item.content)
     }
+       
 </script>
 <style>
     .selectedHistoryItem{

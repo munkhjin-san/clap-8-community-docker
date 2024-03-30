@@ -33,121 +33,84 @@
         <LoaderButton style="margin-top:30px; margin-bottom:30px;" @triggered="imgData ? signChange() : signSave()" :loading="loader" :content="imgData ? '変更する' : 'サイン保存する'"/>
     </div>
 </template>
-<script>
+<script setup>
 import SignaturePad from 'signature_pad'
 import LoaderButton from '../../Global/LoaderButton.vue'
-    export default{
-        props: ['user'],
-        components: {
-            LoaderButton
-        },
-        data(){
-            return {
-                signaturePad: null,
-                imgData: null,
-                loader: false,
-                showOptions: false,
-                selectedLineWidth: 1
-            }
-        },
-        mounted(){
-            this.showSettingMySign()
-        },
-        methods: {
-            selectLineWidth(width) {
-                this.signaturePad.maxWidth = width;
-                this.showOptions = false; 
-            },
-            toggleOptions() {
-                this.showOptions = !this.showOptions;
-            },
-            showSettingMySign(){
-                console.log(this.user)
-                if(this.user.sign_path){
-                    this.imgData = this.$store.state.baseLocation + '/content/user_signatures/' + this.user.id + '_' + this.user.sign_path + '.png'
-                    console.log(this.imgData)
-                }else{
-                    this.canvasCreate()
-                }
-            },
-            canvasCreate(){
-                setTimeout(() =>{
-                    const canvas = this.$refs.signature;
-                    const w = this.$store.state.mobile ? window.innerWidth - 35 :  window.innerWidth * 0.5 
-                    this.signaturePad = new SignaturePad(canvas)
-                    this.signaturePad.maxWidth = 2
-                    // const penColor = this.$store.state.dark ? '#fff' : '#000'
-                    // this.signaturePad.penColor = penColor
-                    if(this.$store.state.mobile){
-                        canvas.width = w
-                        canvas.height = 300
-                    }else{
-                        canvas.width = w
-                        canvas.height = 400
-                        
-                    }
-                })
-                
-            },
-            signChange(){
-                this.imgData = null
-                this.canvasCreate()
-            },
-            signSave(){
-                if(!this.signaturePad.isEmpty()){
-                    // this.signaturePad.penColor = '#000'
-                    const signImage = this.signaturePad.toDataURL();
-                    const uniqueChannell = Math.random().toString(36).substring(5); 
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: 'このサインをマイサインとして保存しますか? \n保存するとマイサインを何度でも使用することができます。' ,
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['はい', 'いいえ'],
-                        channel: uniqueChannell
-
-                    })            
-                    emitter.on(uniqueChannell, (data) => { 
-                        if(data.answer === 'はい'){
-                            axios.post('/save_user_signature', {sign: signImage})
-                                .then(response => {
-                                    this.$emit('reload')
-                                }).catch((error) => {   
-                                    emitter.emit('setToast', {
-                                        active: true,  
-                                        type: 'info', 
-                                        content: 'ファイルアップロード中にエラーが発生しました。' ,
-                                        closeButton: false, 
-                                        autoClose: false,
-                                        answers: ['OK'],
-                                    }) 
-                                })
-                        }
-                    });
-
-                }else{
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: 'サインされていません。',
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK'],
-                    }) 
-                }
-            },
-            reset(){
-                this.signaturePad.clear()
-            },
-            clear(){
-                var data = this.signaturePad.toData();
-                if (data) {
-                    data.pop(); // remove the last dot or line
-                    this.signaturePad.fromData(data);
-                }            
-            },
+import { inject, onMounted, ref } from 'vue';
+import { useResponsive } from '@/store/responsive';
+    const { confirm, notify } = inject('dialog')
+    const responsive = useResponsive()
+    const props = defineProps(['user'])
+    const emit = defineEmits(['reload'])
+    const signature = ref(null)
+    const signaturePad = ref(null)
+    const imgData = ref(null)
+    const loader = ref(false)
+    const showOptions = ref(false)
+    const selectedLineWidth = ref(1)
+    onMounted(() => {
+        showSettingMySign()
+    })
+    
+    const selectLineWidth = (width) => {
+        signaturePad.value.maxWidth = width;
+        showOptions.value = false; 
+    }
+    const toggleOptions = () => {
+        showOptions.value = !showOptions.value;
+    }
+    const showSettingMySign = () => {
+        if(props.user.sign_path){
+            imgData.value = '/cdn/user_signatures/' + props.user.id + '_' + props.user.sign_path + '.png'
+        }else{
+            canvasCreate()
         }
+    }
+    const canvasCreate = () => {
+        setTimeout(() =>{
+            const canvas = signature.value;
+            const w = responsive.mobile ? window.innerWidth - 35 :  window.innerWidth * 0.5 
+            signaturePad.value = new SignaturePad(canvas)
+            signaturePad.value.maxWidth = 2
+            if(responsive.mobile){
+                canvas.width = w
+                canvas.height = 300
+            }else{
+                canvas.width = w
+                canvas.height = 400
+            }
+        })
+    }
+    const signChange = () => {
+        imgData.value = null
+        canvasCreate()
+    }
+    const signSave = async() => {
+        if(!signaturePad.value.isEmpty()){
+            const signImage = signaturePad.value.toDataURL();
+            const answer = await confirm('このサインをマイサインとして保存しますか? \n保存するとマイサインを何度でも使用することができます。')
+            if(!answer) return            
+            
+            try{
+                await axios.post('/save_user_signature', {sign: signImage})
+                emit('reload')
+            }catch (e){
+                notify('ファイルアップロード中にエラーが発生しました。')
+            }
+
+        }else{
+            notify('サインされていません。')
+        }
+    }
+    const reset = () => {
+        signaturePad.value.clear()
+    }
+    const clear = () => {
+        var data = signaturePad.value.toData();
+        if (data) {
+            data.pop(); // remove the last dot or line
+            signaturePad.value.fromData(data);
+        }            
     }
 </script>
 <style>

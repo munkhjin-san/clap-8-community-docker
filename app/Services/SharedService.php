@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Models\Icons;
 use App\Models\messageRecord;
 use App\Models\messageFile;
-use App\Models\memoRecord;
 use App\Models\appRememberRecord;
 use App\Models\searchHistoryRecord;
 use App\Models\taskRecord;
@@ -28,14 +27,15 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 class SharedService
 {
-    public function syncShiftToCalendar($userId, $year, $month, $shift_array){
+    public function syncShiftToCalendar($userId, $year, $month){
         $deleteAll = CalendarRecord::whereHas('calendar_users', function ($query) use ($userId) {
             $query->where('users.id', $userId);
         })->whereYear('date_start', $year)->whereMonth('date_start', $month)->where('shift', 1)->delete();
+        $shift_array = shiftRecord::whereMonth('shift_day', $month)->whereYear('shift_day', $year)->where('user_id', $userId)->get();
         foreach($shift_array as $shift){
-            if(in_array( $shift['type'], [0, 2, 3, 5, 14, 15])){
-                $shiftType = shiftType::find($shift['type']);
-                $instance = Carbon::parse($shift['date']); 
+            if(in_array( $shift['shift_type'], [0, 2, 3, 5, 14, 15])){
+                $shiftType = shiftType::find($shift['shift_type']);
+                $instance = Carbon::parse($shift['shift_day']); 
                 $start_instance = $instance->clone()->hour('00')->minute('00')->second('00');
                 $end_instance = $instance->clone()->hour('23')->minute('59')->second('00');
                 $start = Carbon::createFromFormat('Y-m-d H:i:s', $start_instance);
@@ -148,7 +148,6 @@ class SharedService
             $task->delete();
             $task->task_users()->delete();
         });
-        memoRecord::where('board_id', $board->id)->delete();
         $board->delete();
         messageRecord::where('record_id', $board->id)->delete();
         messageFile::where('board_id', $board->id)->delete();
@@ -192,7 +191,9 @@ class SharedService
         $icon->record_id = $board->id;                
         $icon->use_of = "board";
         $icon->save();
+        $board->timestamps = false;
         $board->update(['icon_id' => $icon->id]);
+        $board->timestamps = true;
         
       
         
@@ -206,10 +207,10 @@ class SharedService
         $img = Image::canvas(200, 200, $random);   
         $length = mb_strlen($boardname_no_space);
         $font_size = '20';
-        $pos_x;
-        $pos_y;   
-        $pos_x_lower;
-        $pos_y_lower;         
+        $pos_x = 0;
+        $pos_y = 0;   
+        $pos_x_lower = 0;
+        $pos_y_lower = 0;         
         $regex = '/[А-Яа-яЁёөү]/u';
         $is_mn = preg_match($regex, $firstChar);
         $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';

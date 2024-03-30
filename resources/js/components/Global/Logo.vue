@@ -1,5 +1,4 @@
 <template>
-    <!-- <img src="/logo.png" :style="{ filter: $store.state.dark ? 'invert(1)' : 'none'}"> -->
     
     <svg  xmlns="http://www.w3.org/2000/svg" viewBox="0 0 370.13 125.98" fill="var(--primary-color)">
 

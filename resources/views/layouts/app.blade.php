@@ -1,5 +1,5 @@
 <!doctype html >
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="notranslate" translate="no">
+<html lang="ja" class="notranslate" translate="no">
 <head>
     <meta name="title" content="{{ __('meta.og_title') }}"/>
     <meta name="description" content="{{ __('meta.description') }}"/>
@@ -33,7 +33,7 @@
     <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
 
     <!-- Styles -->
-    <link href="{{ mix('css/app.css') }}" rel="stylesheet">
+    {{-- <link href="{{ mix('css/app.css') }}" rel="stylesheet"> --}}
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <!-- <link href="https://fonts.googleapis.com/css2?family=Noto+Sans" rel="stylesheet"> -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
@@ -63,8 +63,6 @@
 </head>
 <body style="height:100%;position:fixed;overflow:hidden">
     <div id="app" style="height:100%;width:100%;" data-user-id="{{ Auth::id() }}">
-    <over-ride></over-ride>               
-        
         @yield('content')
     </div>
     @if(Auth::check())                
@@ -72,6 +70,7 @@
             @csrf
         </form>                    
     @endif
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </body>
 <style lang="scss">
 :root {
@@ -104,7 +103,8 @@
     --task-background: #dddddd;
     --past-calendar: #cccccc;
     --third-color: #878787;
-    --inactive-background: #efefef
+    --inactive-background: #efefef;
+    --complete: #9effb4
 }
 
 // If the app is in dark mode, update the variables
@@ -137,7 +137,8 @@
     --task-background: #3d3d3d;
     --past-calendar: #494949;
     --third-color: #e4e6eb;
-    --inactive-background: #292929
+    --inactive-background: #292929;
+    --complete: #004510;
 }
 .header {
     background-color: var(--background-color);
@@ -149,22 +150,4 @@
 .hd-hr{
     background-color: var(--background-color);
 }
-
-.errorWindow{
-    background: #fff;
-    border-radius: 8px;
-    padding:20px;
-    height: fit-content;
-    margin-top:20px;
-    font-size: 16px;
-    line-height: 1.5;
-}
-@media screen and (max-width: 959px) {
-    
-    .errorWindow{
-        width: 80%;
-    }
-}
-</style>
-<script src="{{ mix('js/app.js') }}" defer></script>
 </html>

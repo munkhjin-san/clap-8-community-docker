@@ -13,7 +13,7 @@
                     ref="monthScrollContainer" 
                     style="height:100%;overflow:hidden auto;" 
                     id="cal_month_view"
-                    @scroll="$emit('scroll', $event)"
+                    @scroll="emit('scroll', $event)"
                 >
                     <div id="weekdayhead" class="weekday-header" style="position: sticky;top: 0;">
                         <div class="weekday-header-item" v-for="num in 7">{{ weekDay(num) }}</div>
@@ -27,10 +27,10 @@
                                 :records="dayRecords(day)"
                                 :selectedMonth="selectedMonth"
                                 :selectedYear="selectedYear"                               
-                                @fromMonth="val => $emit('fromMonth', val)"
-                                @jumpToDate="val => $emit('jumpToDate', val)"
-                                @addRecord="(type, val) => $emit('addRecord' ,type ,val)"
-                                @create="(date, user) => $emit('create', date)"
+                                @fromMonth="val => emit('fromMonth', val)"
+                                @jumpToDate="val => emit('jumpToDate', val)"
+                                @addRecord="(type, val) => emit('addRecord' ,type ,val)"
+                                @create="(date, user) => emit('create', date)"
                             />
                         </div>
                     </div>
@@ -46,7 +46,7 @@
     import { computed, onMounted} from 'vue';
 
     const props = defineProps(["records", "selectedYear", "selectedMonth", 'initialLoader', 'activeMonth', 'activeYear', 'holidays'])
-    const emit = defineEmits(['fromMonth', 'slided', 'addRecord', 'jumpToDate', 'scroll', 'create'])      
+    const emit = defineEmits(['fromMonth', 'addRecord', 'jumpToDate', 'scroll', 'create'])      
 
     onMounted(() => {
         localStorage.setItem('viewType', 1)      

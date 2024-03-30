@@ -22,8 +22,8 @@ use Illuminate\Support\Facades\File;
 use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use App\Events\MessageSent;
-use DB;
-use Auth;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 
 class PostController extends Controller
@@ -114,7 +114,7 @@ class PostController extends Controller
             $query->with('to_users');
         })
         ->when($request->path == 'challenge', function ($query) {
-            $query->with('challenge_awards')->with('result_files');
+            $query->with('challenge_awards')->with('result_files')->orderBy('status_flag', 'asc');
         })
         ->orderBy('created_at', 'desc')
         ->when(!$has_id, function ($query) use($skip) {
@@ -127,6 +127,30 @@ class PostController extends Controller
         return response()->json($qr);
 
 
+    }
+    public function post_get_suggested_tags(Request $request){
+        $super = $request->super;
+        $key = $request->key;
+        $special = $request->special ? $request->special : [];
+        $tag_text = TagRecord::where('deleted_flag','=', 0)
+        ->where(function ($query) use ($key) {
+            $length = mb_strlen($key, 'UTF-8');
+    
+            for ($i = 0; $i < $length - 1; $i++) {
+                $substring = mb_substr($key, $i, 2, 'UTF-8');
+                $query->orWhere('text', 'LIKE', $substring);
+            }
+        })  
+        // ->where('text', 'LIKE', '%' . $key . '%')
+        ->orderBy('hits', 'desc')
+        ->orderBy('created_at', 'desc')
+        ->get([
+            'id',
+            'text'
+        ]);
+        return response()->json($tag_text);       
+    
+       
     }
     public function post_get_tags(Request $request){
         $super = $request->super;
@@ -175,7 +199,11 @@ class PostController extends Controller
         $path = $request['path'];
         $ids = [];
         foreach($request->list as $file){
-            $exists = Storage::disk('local')->exists($file['path']);
+            $source_file_path = $file['path'];
+            if(strpos($source_file_path, "/cdn") !== false) {
+                $source_file_path = str_replace("/cdn", "", $source_file_path);
+            }
+            $exists = Storage::disk('local')->exists($source_file_path);
             if($exists){
                 $file_path = date("YmdHis") . md5(uniqid());                 
                 $fileRecord = new fileRecord;
@@ -187,7 +215,7 @@ class PostController extends Controller
                 $fileRecord->user_id = Auth::id();
                 $fileRecord->save();
                 $set_path = $path . '/' . $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
-                Storage::disk('local')->copy( $file['path'], $set_path );
+                Storage::disk('local')->copy( $source_file_path, $set_path );
                 $ids[] = $fileRecord;  
             }
             
@@ -280,49 +308,13 @@ class PostController extends Controller
                 $tag = TagRecord::firstOrCreate(['text' => $text]);
 
                 $tagIds[] = $tag->id;
-                $increment = $tag->increment('hits');
+                $tag->increment('hits');
             }
             $record->tags()->sync($tagIds);
 
-
-            // return response()->json($record); 
-
-            // if(!empty($request->to_users)){
-
-            //     $to_users = $request->to_users;
-
-            //     foreach($to_users as $to_user){
-
-            //         $challengeToUser = new challengeToUser;
-            //         $challengeToUser->record_id = $challenge->id;
-            //         $challengeToUser->user_id = $to_user;
-            //         $challengeToUser->save();
-            //         #20201202_0013 Tumur　通知機能追加
-            //         $param01 = $challenge->id;
-            //         $param02 = null;
-            //         $param03 = null;
-            //         $param04 = null;
-            //         $subject_inner = null;
-            //         $title ='【チャレンジのプレイヤーに選ばれました】 ' . $challenge->title;  
-            //         $url = 'https://clap-glowd.com/app/public/challenge?id=' . $challenge->id;
-            //         $body = 'プレイヤーに選ばれたチャレンジがあります。'; 
-                    
-            //         if($to_user !== $auth_user_id){
-            //             $Address = User::where('id','=', $to_user)->select('email')->pluck('email')->first();
-            //             if(!empty($mailAddress)){
-            //                 Mail::to($mailAddress)->send(new multiMail($title, $subject_inner, $body, $url, $param01, $param02, $param03, $param04));
-            //             }
-            //         }                      
-            //     }
-
-            // }
-            // return response()->json($record);  
-
-
-                // return response()->json($request->file_ids);
                 $record->files()->sync($request->file_ids);
                 if(!$request->edit_id){
-                    $list = UserLastRecord::where('user_id', '=', Auth::id())->where('deleted_flag', '=', 0)->update([
+                    UserLastRecord::where('user_id', '=', Auth::id())->where('deleted_flag', '=', 0)->update([
                         'last_' . $request->path => $record->id
                     ]);
                 }
@@ -333,73 +325,14 @@ class PostController extends Controller
                 "app_name" => $request->path,
                 "record_id" => $record->id
             );
-            event(new MessageSent($rebound));
-            
+            event(new MessageSent($rebound));            
             return response()->json($record);
-
-            if($request->forwarded_files){
-                $root_path = base_path();
-                $replaced = Str::replaceLast('public_html/', '', Str::replaceLast('app', '', $root_path));
-                foreach($request->forwarded_files as $file){  
-                    $file_path = date("YmdHis") . md5(uniqid());  
-                    $path_managed_files = $replaced . 'managed_files/' . $file['source_board_id'] . '/';   
-                    $fileRecord = new fileRecord;
-                    $fileRecord->path =  $file_path;
-                    $fileRecord->name = $file['name'];
-                    $fileRecord->mime_type = $file['mime_type'];
-                    $fileRecord->extension = $file['extension'];
-                    $fileRecord->size = $file['size'];
-                    $fileRecord->user_id = $auth_user_id;
-                    $fileRecord->save();
-                    $challengeUseFile = new challengeUseFile;
-                    $challengeUseFile->record_id = $challenge->id;
-                    $challengeUseFile->file_id = $fileRecord->id;
-                    $challengeUseFile->save();                    
-                    $path = 'root/post_files/'; 
-                    $set_path = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
-
-                    File::copy($path_managed_files . $file['path'] . '.' . $file['extension'], $replaced . $path . $set_path);    
-
-                }
-            }
-            if($request->shared_temp_files){
-                $root_path = base_path();
-                $replaced = Str::replaceLast('public_html/', '', Str::replaceLast('app', '', $root_path));
-                
-                foreach($request->shared_temp_files as $file){  
-                    $file_path = date("YmdHis") . md5(uniqid());   
-                    $fileRecord = new fileRecord;
-                    $fileRecord->path =  $file_path;
-                    $fileRecord->name = $file['name'];
-                    $fileRecord->mime_type = $file['mime_type'];
-                    $fileRecord->extension = $file['extension'];
-                    $fileRecord->size = $file['size'];
-                    $fileRecord->user_id = $auth_user_id;
-                    $fileRecord->save();
-                    $challengeUseFile = new challengeUseFile;
-                    $challengeUseFile->record_id = $challenge->id;
-                    $challengeUseFile->file_id = $fileRecord->id;
-                    $challengeUseFile->save();
-                    $path = 'root/post_files/'; 
-                    $set_path = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
-                    File::copy($replaced . 'shared_files/' . $file['source_board_id'] . '/' . $file['id'] . '_' . $file['user_id'] . '_' . $file['message_id'] . '.' . $file['extension'], $replaced . $path .  $set_path);
-                    
-
-                }
-            }
-            Auth::user()->user_last_record->last_challenge = $challenge->id;
-            Auth::user()->user_last_record->save();
-            event(new Message("added_new_record"));
-            $add_record_id = $challenge->id;
-            return response()->json();
         }
     }
     public function challenge_charge_to(Request $request){
 
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
 
-        $validatedData = $request->validate([
+        $request->validate([
             'charge_bet' => 'required',
             'record_id' => 'required'
         ]);
@@ -408,40 +341,7 @@ class PostController extends Controller
         $record = ChallengeRecord::findOrFail($request->record_id);
         $record->challenge_awards()->attach(Auth::id(), ['award_bet' => $request->charge_bet, 'created_at' => now(), 'updated_at' => now()]);
         Auth::user()->update(['award_charge' => Auth::user()->award_charge - $request->charge_bet]);
-        return response()->json();
-
-        // $award = new challengeAward;
-        // $award->record_id = $request->record_id;
-        // $award->award_bet = $request->charge_bet;
-        // $award->user_id = $auth_user_id;
-        // $award->save();
-            
-        // $user = $auth_user;
-        // $user->award_charge = $user->award_charge - $request->charge_bet;
-        // $user->save();
-
-        // #20201202_0013 Tumur　通知機能追加
-        // $challenge = ChallengeRecord::find($request->record_id);
-        // $to_users = challengeToUser::where('record_id', '=', $request->record_id)->where('deleted_flag', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
-        // $param01 = $challenge->id;
-        // $param02 = null;
-        // $param03 = null;
-        // $param04 = null;
-        // $subject_inner = null;
-        // $title ='【チャレンジにチャージされました】 ' . $challenge->title;  
-        // $url = 'https://clap-glowd.com/app/public/challenge?id=' . $challenge->id;
-        // $body = $auth_user->name . 'さんが、あなたのチャレンジにチャージしました。'; 
-        
-        // foreach($to_users as $to_user){
-        //     $mailAddress = User::where('id','=', $to_user)->select('email')->pluck('email')->first();
-        //     if(!empty($mailAddress)){
-        //         Mail::to($mailAddress)->send(new multiMail($title, $subject_inner, $body, $url, $param01, $param02, $param03, $param04));
-        //     }
-        // }
-                
-            
-        return response()->json();  
-        
+        return response()->json();        
 
     }
     public function get_post_comments(Request $request){
@@ -463,7 +363,7 @@ class PostController extends Controller
         $comment->record_id = $request->record_id;
         $comment->messages = $request->message;
         $comment->user_id = Auth::id();
-        $comment->emoji_flag = $request->emoji_flag;
+        $comment->emoji_flag = $this->containsOnlyEmojis($request->message);
         $comment->save();
 
         $nameSpace = '\\App\\Models\\'; 
@@ -489,8 +389,7 @@ class PostController extends Controller
         
         if($owner_id !== Auth::id()){
             $current_commenters_id_unique[] = $owner_id;
-        }          
-
+        }    
         $app_name_list = [
             "nice" => 'ナイス',
             "knowledge" => 'ナレッジ',
@@ -537,13 +436,19 @@ class PostController extends Controller
         }
         return response()->json(); 
     }
+    private function containsOnlyEmojis($text)
+    {
+        $emojiPattern = '/^[\x{1F600}-\x{1F64F}\x{1F300}-\x{1F5FF}\x{1F680}-\x{1F6FF}\x{1F700}-\x{1F77F}\x{1F780}-\x{1F7FF}\x{1F800}-\x{1F8FF}\x{1F900}-\x{1F9FF}\x{1FA00}-\x{1FA6F}\x{2600}-\x{26FF}\x{2700}-\x{27BF}\x{2B50}\x{2B06}\x{2934}\x{2935}\x{2B05}\x{2194}\x{2195}\x{25AA}\x{25AB}\x{25B6}\x{25C0}\x{25FB}\x{25FE}\x{25FD}\x{25FC}\x{25AA}\x{25AB}\x{25B6}\x{25C0}\x{25FB}\x{25FE}\x{25FD}\x{25FC}\x{0023}\x{002A}\x{0030}-\x{0039}\x{20E3}\x{00A9}\x{00AE}\x{2122}\x{23F3}\x{24C2}\x{23E9}\x{23EA}\x{3030}\x{1F004}-\x{1F0CF}\x{1F170}-\x{1F251}]{1}$/u';
+        return preg_match($emojiPattern, $text);
+    }
     public function post_comment_edit(Request $request){
         $validatedData = $request->validate([
             'id' => 'required',
-            'message' => 'required'
+            'message' => 'required',
         ]);
         $comment = CommentRecord::findOrFail($request->id)->update([
-            "messages" => $request->message
+            "messages" => $request->message,
+            "emoji_flag" => $this->containsOnlyEmojis($request->message)
         ]);
         return response()->json();  
     }
@@ -659,6 +564,25 @@ class PostController extends Controller
             
         }
         
+    }
+    public function get_top_tags(Request $request){
+        $nameSpace = '\\App\\Models\\'; 
+        $model = $nameSpace . ucfirst($request->app_name) . 'UseTag';     
+        $occurence_type = $request->app_name . 'Occurence';
+        $sort_value = $request->app_name . '_occurence_count';
+        $use_tags = $model::where('deleted_flag', 0)
+        ->whereHas('app_record', function($q){
+            $q->where('deleted_flag', 0);
+        })
+        ->pluck('tag_id')->toArray();
+        $unique_list = array_unique($use_tags);
+        $tags = TagRecord::where('deleted_flag', 0)
+        ->whereIn('id', $unique_list)
+        ->withCount($occurence_type)
+        ->orderBy($sort_value, 'desc')
+        ->get();
+        return response()->json($tags);       
+
     }
     public function get_featured_tags(Request $request){
         $nameSpace = '\\App\\Models\\'; 

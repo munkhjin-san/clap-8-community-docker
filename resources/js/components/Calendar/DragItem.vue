@@ -2,7 +2,7 @@
     <div v-if="record">
         <div 
             v-if="!mobile"
-            ref="draggingCalendar" 
+            ref="draggingCalendarRef" 
             class="calendar-card dragging-calendar" 
             :style="{
                 width: `${record['width']}px`, 
@@ -35,12 +35,17 @@
 </template>
 <script setup>
 import moment from 'moment';
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { useStore } from 'vuex';
-    const store = useStore()
-
-            const mobile = ref(false)
-  
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
+import colors from '../../../assets/colors.json'
+import { useAuthUserStore } from '@/store/auth'
+import { useTheme } from '@/store/theme';
+import { useResponsive } from '@/store/responsive'
+import UserIcon from '../Board/Mixed/UserIcon.vue';
+    const auth = useAuthUserStore()
+    const responsive = useResponsive()
+    const theme = useTheme()
+    const mobile = ref(false)
+    const draggingCalendar = inject('draggingCalendar')
     onMounted(() => {
         console.log(record.value)
         if ('ontouchstart' in window || navigator.msMaxTouchPoints) {
@@ -57,31 +62,31 @@ import { useStore } from 'vuex';
     })
 
         const onReset = (e) => {            
-            store.commit('setDraggingCalendar', null)           
+            draggingCalendar.value = null          
         }
-        const draggingCalendar = ref(null)
+        const draggingCalendarRef = ref(null)
         const onMove = (e) => {
-            if(!store.state.draggingCalendar || store.state.mobile) return
-            let el = draggingCalendar.value              
+            if(!draggingCalendar.value || responsive.mobile) return
+            let el = draggingCalendarRef.value              
             el.style.top = e.clientY + 10 + 'px'
             el.style.left = e.clientX + 10 + 'px'
         }   
         const cancelMove = () => {
-            store.commit('setDraggingCalendar', null)
+            draggingCalendar.value = null
         }
     
 
         const record = computed(() => {
-            return store.state.draggingCalendar ? store.state.draggingCalendar : null
+            return draggingCalendar.value ? draggingCalendar.value : null
         })     
         const background = computed(() => {
             
-            const me = record.value.calendar_users.filter(ob => ob.id == store.state.user.id)
-            return me.length ? store.state.colors[store.state.user.color] : 'var(--task-background)'
+            const me = record.value.calendar_users.filter(ob => ob.id == auth.activeUser.id)
+            return me.length ? colors[auth.activeUser.color]?.light : 'var(--task-background)'
         })
         const color = computed(() => {
-            const me = record.value.calendar_users.filter(ob => ob.id == store.state.user.id)
-            return me.length && store.state.dark ? 'var(--background-color)' : 'var(--primary-color)'
+            const me = record.value.calendar_users.filter(ob => ob.id == auth.activeUser.id)
+            return me.length && theme.dark ? 'var(--background-color)' : 'var(--primary-color)'
         })     
                
         const time = computed(() => {

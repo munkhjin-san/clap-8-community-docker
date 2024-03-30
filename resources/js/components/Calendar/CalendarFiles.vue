@@ -8,14 +8,14 @@
                             style="max-width:100%;margin:auto;max-height:100%;" 
                             v-if="file.mime_type == 'image'"
                             class="list-image-mobile" 
-                            v-lazy="{src: `${$store.state.baseLocation}/calendar_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`}"                           
+                            v-lazy="{src: `/cdn/calendar_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`}"                           
                         />
                     </div>
                     <div v-if="file.mime_type !== 'image' && !file.removed_at" style="position:relative;">
                         <FileIcon :ext="file.extension"/>
                     </div>
                     <div style="line-height: 1.5;max-width: calc(100% - 35px);overflow: hidden;">
-                        <p style="font-size: 12px;" :title="file.name" class="shared-file-name">{{fileNameFilter(file)}}</p>
+                        <p style="font-size: 12px;margin-right: 0" :title="file.name" class="shared-file-name">{{fileNameFilter(file)}}</p>
                         <div style="display:flex;">
                             <p style="font-size: 10px !important;" class="shared-file-name">{{fileSizeView(file.size )}}</p>
                         </div>                            
@@ -25,33 +25,32 @@
         </div>
     </div>
 </template>
-
 <script setup>
 import {filesize} from "filesize";
 import FileIcon from "../Board/Mixed/FileIcon.vue";
-import { useStore } from "vuex";
-    const store = useStore()
+import { useFilePreview } from "@/store/filePreview";
+import { useSharingDataStore } from '@/store/sharingData'
+    const sharingData = useSharingDataStore()
     const props = defineProps(['list'])
-
+    const filePreview = useFilePreview()
     const previewFile = (file, index) => {
-        if(store.state.sharingData) return
+        if(sharingData.active) return
         let file_list = props.list
         const files = file_list.map(fileData => ({
             ...fileData,
-            file_path: `${store.state.baseLocation}/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
-            doc_path: `${store.state.baseLocation}/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`
+            file_path: `/cdn/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+            doc_path: `/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`
         }));
         let target_data = file       
         
         const data = {
             active: true,
             files,
-            target: target_data,
             source: 'calendar',
             index: index,
             message: null,
         }
-        store.commit('setFilePreview', data)
+        filePreview.setFilePreview(data)
         
     }
     const fileNameFilter = (file) => {

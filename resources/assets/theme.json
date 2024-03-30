@@ -27,5 +27,6 @@
 {"className": "--task-background", "dark" : "#3d3d3d", "light" : "#dddddd"},
 {"className": "--past-calendar", "dark" : "#494949", "light" : "#cccccc"},
 {"className": "--third-color", "dark" : "#e4e6eb", "light" : "#878787"},
-{"className": "--inactive-background", "dark" : "#292929", "light" : "#efefef"}
+{"className": "--inactive-background", "dark" : "#292929", "light" : "#efefef"},
+{"className": "--complete", "dark" : "#004510", "light" : "#9effb4"}
 ]

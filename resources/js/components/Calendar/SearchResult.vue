@@ -2,7 +2,7 @@
 <div class="calendar-search-result-window">
     <div style="position: relative;">   
         <div v-if="searchResult && searchFetch" class="cal-search-result-inner">
-            <div @click.stop.prevent="$emit('jumpToRecord', item)" v-for="item in searchResult" class="cal-search-item">
+            <div @click.stop.prevent="emit('jumpToRecord', item)" v-for="item in searchResult" class="cal-search-item">
                 <p style="font-size: 14px;margin-bottom: 10px;">{{ item.title }}</p>
                 <p>{{ time(item) }}</p>
                 <p v-html="urlCheck(item.remarks) "></p>

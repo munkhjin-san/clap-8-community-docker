@@ -667,7 +667,7 @@ $theme_details = [
             'X-Cybozu-Authorization' => $x_token
         ];
         $add_comment = Http::withHeaders($headers)->post($comment_url,$comment_data);
-        return;        
+        return $add_comment;        
     }
     public function get_applied_issues(Request $request){
         $queryParams = [
@@ -779,7 +779,6 @@ $theme_details = [
             } else {
                 throw ValidationException::withMessages(['message' => '昇給課題削除に失敗しました。']);
             }   
-            return response()->json($responseData );
         }
         throw ValidationException::withMessages(['message' => '人事考課レコードが見つかりませんでした。']);
 
@@ -832,7 +831,6 @@ $theme_details = [
             } else {
                 throw ValidationException::withMessages(['message' => '昇給課題削除に失敗しました。']);
             }   
-            return response()->json($responseData );
         }
         throw ValidationException::withMessages(['message' => '人事考課レコードが見つかりませんでした。']);
          

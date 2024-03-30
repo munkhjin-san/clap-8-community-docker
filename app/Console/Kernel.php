@@ -23,7 +23,7 @@ class Kernel extends ConsoleKernel
         // $schedule->call('\App\Http\Controllers\AutoJobController@removePasswordResets');
         $schedule->call('\App\Http\Controllers\AutoJobController@removeTemprorayFiles');
         // pause until March data revision
-        // $schedule->call('\App\Http\Controllers\MemberController@reset_charge'); 
+        $schedule->call('\App\Http\Controllers\MemberController@reset_charge'); 
     }
 
     /**

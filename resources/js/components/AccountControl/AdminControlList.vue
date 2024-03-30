@@ -1,110 +1,118 @@
 <template>
-    <div class="adminList-wrapper">
-        
+    <div class="adminList-wrapper">        
 
-        <div class="admin-header">
-            
-            <Hamburger v-if="$store.state.mobile"/>
-            
-            <div class="admin-button-wrapper">
-                <div class="admin-button" @click="$router.push({name: 'account'})" :class="{'is-active' : $route.name == 'account' }">アカウント管理</div>
-                <div class="admin-button" @click="$router.push({name: 'workgroup'})" :class="{'is-active' : $route.name == 'workgroup'}">ワークグループ管理</div>
-                <!-- <div class="admin-button" @click="$router.push({name: 'account'})2" :class="{'is-active' : $route.name == 2}">役職管理</div>
-                <div class="admin-button" @click="$router.push({name: 'account'})3" :class="{'is-active' : $route.name == 3}">事務所管理</div> -->
-                <div class="admin-button" @click="$router.push({name: 'workcontrol'})" :class="{'is-active' : $route.name == 'workcontrol'}">ワーク管理</div>
-                <div class="admin-button" @click="$router.push({name: 'plannedpaid'})" :class="{'is-active' : $route.name == 'plannedpaid'}">計画有給管理</div>
-                <div class="admin-button" @click="$router.push({name: 'clapcount'})" :class="{'is-active' : $route.name == 'clapcount'}">クラップ数集計</div>
-                <div class="admin-button" @click="$router.push({name: 'learningcontrol'})" :class="{'is-active' : $route.name == 'learningcontrol'}">研修</div>
-            </div> 
+        <div class="admin-header">            
+            <Hamburger v-if="responsive.mobile"/>
+            <div v-if="[608, 610].includes(auth.activeUser.id)" class="admin-tab-container">
+                <div class="pc" style="font-size: 16px;margin: 20px 0px 0px 15px;padding-bottom: 10px;"></div>
+                <div class="admin-tab-item" @click="router.push({name: 'account'})" :class="{'selected-tab' : route.name == 'account' }">アカウント管理</div>
+                <div class="admin-tab-item" @click="router.push({name: 'attendance'})" :class="{'selected-tab' : route.path.includes('workcontrol')}">ワーク管理</div>
+                <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div>
+                <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修管理</div>
+            </div>
         </div>
-        <div v-if="$route.name == 'workcontrol' || $route.name == 'account' || $route.name == 'plannedpaid'" class="searchBar-wrapper">
-            <Transition name="searchHide">
-                <UserSearchBar @setKeyord="setKeyord"/>
-            </Transition>
+        <div style="width: 100%;flex:1;overflow: hidden;background: var(--background-color);" v-if="[608, 610].includes(auth.activeUser.id)">
+            
+            <router-view
+            ></router-view>
         </div>
-        <router-view
-            :searchUser="searchUser"
-            @getUsers="getUsers"
-            :positionLabel="positionLabel"
-            :officeLabel="officeLabel"
-            :workGroup="workGroup"
-            :mainMenu="mainMenu" 
-            :userList="userList" 
-            :workgroupusers="workGroupUsers"
-            :positionList="positionList"
-            :officeList="officeList"
-        ></router-view>
+        <div v-else style="height: 100%;width: 100%;text-align: center;justify-content: center;display: flex;align-items: center;flex-direction: column;">
+            <p>アクセス権限ありません。</p>
+            <router-link class="l-button" style="margin: 30px 0 70px 0;" to="/board">ボードへ戻る</router-link>
+        </div>
+        
     </div>
+    
 </template>
 <script setup>
+import { useRoute, useRouter } from 'vue-router';
 import Hamburger from '../Global/HamBurger.vue'
-import UserSearchBar from './UserSearchBar.vue'
-import { computed, onMounted, ref } from 'vue'
-
-    const mainMenu = ref(0)
-    const keywords = ref(null)
-    const userList = ref([])
-    const positionList = ([])
-    const positionLabel = ref([])
-    const officeList = ref([])
-    const officeLabel = ref([])
-    const workGroup = ref([])
-    const workGroupUsers = ref([])
-
-    onMounted(() => {
-        getUsers()
-    })
-       
-    const searchUser = computed(() => {
-        if(keywords.value){
-            let lowSearch = keywords.value.toLowerCase()
-            return userList.value.filter(user => 
-                Object.values(user).some(val => 
-                    String(val).toLowerCase().includes(lowSearch)
-                )
-            )
-        }else{         
-            return userList.value
-        }
-    })
+import { useResponsive } from '@/store/responsive';
+import { useAuthUserStore } from '@/store/auth'
+    const router = useRouter()
+    const route = useRoute()
+    const responsive = useResponsive()
+    const auth = useAuthUserStore()
        
 
-    const getUsers = () => {
-        axios.get('/get_user_list').then(response => {  
-            userList.value = response.data.user_list
-            positionList.value = response.data.position_list    
-            positionLabel.value = response.data.position_list_label
-            officeList.value = response.data.office_list
-            officeLabel.value = response.data.office_list_label
-            workGroup.value = response.data.work_group  
-            workGroupUsers.value = response.data.work_group_users
-        }).catch(function (error) {
-            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast('エラーが発生しました。 ' + error.message)     
-        })
-    }
-
-    const errorToast = (message) => {
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: message,
-            closeButton: false, 
-            autoClose: false,
-            answers: ['OK']
-        })                
-    }
-
-    const setKeyord = (val) => {
-        keywords.value = val
-    }
-        
 
 
 
 </script>
 <style>
+.admin-sub-c-bar{
+    display: flex;
+    margin: 20px;
+    flex-wrap: wrap;
+    place-content: space-between;
+    gap: 15px;
+}
+.admin-window{
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg3);
+}
+.admin-command-bar{
+    width: fit-content;
+    min-width: 300px;      
+}
+.control-loader{
+    position: absolute;
+    background: var(--bg3);
+    z-index: 5;
+    width:100%;
+    height:100%;
+    left:0;
+    top:0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.sub-tab-item{
+    padding: 10px 15px;
+    font-size: 14px;
+    border-bottom: solid thin transparent;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+.selected-sub-tab{
+    border-bottom: solid thin var(--primary-color);
+}
+.sub-tab-container{
+    display: flex;
+}
+.admin-tab-item{
+    border: solid thin transparent;
+    padding: 15px;
+    font-size: 14px;
+    height: fit-content;
+    box-sizing: border-box;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: gray;
+}
+.admin-tab-container{
+    display: flex;
+    background: var(--background-color);
+    width: auto;
+    height: 100%;
+    flex-direction: column;
+    margin: 0 15px
+
+}
+.selected-tab{
+    background: var(--bg3);
+    border: solid thin gray;
+    color: var(--primary-color);
+}
+.absolute-searchBar{
+    position: absolute;
+    right: 5px;
+}
 .searchBar-wrapper{
     width: 30%;
 }
@@ -124,6 +132,7 @@ import { computed, onMounted, ref } from 'vue'
     width: 100%;
     height: 100%;
     overflow: hidden;
+    display: flex;
 }
 .admin-column-left{
     float: left;
@@ -136,10 +145,10 @@ import { computed, onMounted, ref } from 'vue'
 }
 .admin-header{
     display: flex;
-    height: 60px;
-    width: 100%;
+    height: 100%;
+    width: auto;
     align-items: center;
-    flex-wrap: wrap;
+    background: var(--background-color);
 }
 .admin-menu li.is-active{
     background: var(--background-color);
@@ -168,17 +177,47 @@ import { computed, onMounted, ref } from 'vue'
 }
 
 @media screen and (max-width: 959px) {
+    .admin-window{
+        background: var(--background-color);
+        padding: 0;
+        width: 100%;
+        height: 100%;
+    }
+    .admin-header{
+        width: 100%;
+        height: 60px;
+        background: var(--bg3);
+    }
+    .admin-tab-item{
+        font-size: 12px;
+        padding: 10px
+    }
+    .admin-tab-container{
+        margin: 0;
+        flex-direction: row;
+        align-items: end;
+        background: var(--bg3);
+        
+    }
     .searchBar-wrapper{
         width: calc(100% - 40px);
         margin: 0 20px;
-    }
-    .admin-header{
-        min-height: 140px;
     }
     .admin-button-wrapper{
         margin-bottom: 10px;
         margin-left: 15px;
         margin-right: 15px;
+    }
+    .admin-command-bar{
+        min-width: calc(100% - 30px);
+    }
+    .adminList-wrapper{
+        flex-direction: column;
+    }
+    .selected-tab{
+        border: solid thin var(--formBorder);
+        border-bottom: none;
+        background: var(--background-color);
     }
 }
 </style>

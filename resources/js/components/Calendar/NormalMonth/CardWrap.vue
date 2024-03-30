@@ -35,14 +35,18 @@
 </template>
 <script setup>
     import moment from 'moment';
-    import { nextTick, ref, computed } from 'vue';
+    import { nextTick, ref, computed, inject } from 'vue';
     import { OnLongPress } from '@vueuse/components'
     import CalendarCard from '../CalendarCard.vue';
-    import { useStore } from 'vuex';
-    const store = useStore()
+    import { useAuthUserStore } from '@/store/auth'
+    import { useMenuStore } from "@/store/menu";
+    import { useResponsive } from '@/store/responsive';
+    const responsive = useResponsive()
+    const menu = useMenuStore()
+    const auth = useAuthUserStore()
     const props = defineProps(['record'])
     const emit = defineEmits(['setParentDroppable'])
-
+    const draggingCalendar = inject('draggingCalendar')
     const shiftRight = ref(0)
     const shiftBottom = ref(0)
     const beforeLeft = ref(0)
@@ -54,17 +58,17 @@
         return props.record.release_flag == 0 || editable.value
     })
     const opacity = computed(() => {
-        return ( store.state.draggingCalendar && store.state.draggingCalendar.id == props.record.id ) ? '0.5' : '1'
+        return ( draggingCalendar.value && draggingCalendar.value.id == props.record.id ) ? '0.5' : '1'
     })
     const editable = computed(() => {
-        const me = props.record.calendar_users.filter(ob => ob.id == store.state.user.id)
+        const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
         return (me.length || props.record.edit_all) && props.record.shift == 0
     })
     const maxHeight = computed(() => {
         return expanded.value ? 'unset' : '60px'
     })
     const expanded = computed(() => {
-        return store.state.menu.id == props.record.id && (store.state.menu.name == `cal_${props.record.id}` || store.state.menu.name == `calendarRecordMenu`) 
+        return menu.id == props.record.id && (menu.name == `cal_${props.record.id}` || menu.name == `calendarRecordMenu`) 
     })
 
 
@@ -89,13 +93,13 @@
             record['x'] = event.x
             record['y'] = event.y
             record['from'] = 'day'
-            store.commit('setDraggingCalendar', record)
-            store.commit('setMenu', {id: null, name: ''})
+            draggingCalendar.value = record
+            menu.setMenu( {id: null, name: ''})
             emit('setParentDroppable')
         }            
     }
     const selectRecord = (record, from) => {
-        store.commit('setMenu', {id: props.record.id, name: `cal_${props.record.id}`})
+        menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`})
 
         
         nextTick(() => {
@@ -110,7 +114,7 @@
                     shiftRight.value = window.innerWidth - right_check - 5
                 }
                 const bottom_check = rect.y + rect.height
-                const value = store.state.mobile && store.state.user.footer_view ? 45 : 0
+                const value = responsive.mobile && auth.user.footer_view ? 45 : 0
                 if(bottom_check > window.innerHeight - value){
                     shiftBottom.value = window.innerHeight - value - bottom_check - 10
                 }

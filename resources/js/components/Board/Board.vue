@@ -1,32 +1,20 @@
 <template>
-    <!-- <Transition name="smLeave"> -->
         <div class="boardOuterContainer" style="width: 100%;height: 100%;display:flex;flex-grow: 1;overflow: hidden;">     
             <div class="boardInnerContainer">        
                 <Transition name="searchHide">
                 <BoardSearchBar 
                     v-if="searchView"
-                    :allBoardList="allBoardList" 
+                    :allBoardList="filteredAllBoard" 
                     @openBoard="openTargetBoard"
                     @openMessageSearch="openMessageSearch"
                 />
                 </Transition>
                 <BoardList 
-                    v-show="!$store.state.mobile || ($store.state.mobile && $route.name == 'board')"
+                    v-show="!responsive.mobile || (responsive.mobile && route.name == 'board')"
                     :list="filteredAllBoard"   
-                    :openedBoard="openedBoard" 
-                    :skeletonBoard="skeletonBoard"     
+                    :openedBoard="openedBoard"     
                     :failedMessagesList="failedMessagesList"  
                     :key="listKey"  
-                    @boardEdit="boardEdit" 
-                    @boardCreate="boardCreate" 
-                    @reload="getBoardList"
-                    @delete="boardDeleteConfirm"
-                    @openBoard="openBoard"
-                    @setDetailedBoard="setDetailedBoard"
-                    @setSearchView="setSearchView"
-                    @setInviteBoard="(item) => inviteTarget = item"
-                    @viewMembers="viewMembers"
-                    @leaveBoard="leaveBoard"
                 />
             </div>
             <Transition name="modalFade">
@@ -37,7 +25,7 @@
                 <SearchMessage 
                     v-if="searchMessageView"
                     :advancedSearchWord="advancedSearchWord"
-                    :filteredAllBoard="allBoardList"
+                    :filteredAllBoard="filteredAllBoard"
                     :privateSearch="privateSearch"
                     :key="searchWindowKey"
                     @closeMessageSearch="closeMessageSearch"
@@ -46,13 +34,9 @@
             </Transition>
             <Transition name="modalFade" mode="out-in">
                 <BoardEdit 
-                    v-if="createEditWindow"
-                    :privateFlag="privateFlag" 
-                    :editIndex="editIndex" 
-                    :item="activeEditBoard"
-                    @close="closeCreateModal"
-                    @reload="boardEditFinished"
-                    @openPrivateBoard="openPrivateBoard"
+                    v-if="activeEditBoard"
+                    :editTarget="activeEditBoard"
+                    @close="activeEditBoard = null"
                 />
             </Transition>
 
@@ -60,85 +44,57 @@
             <router-view v-slot="{ Component }">
                 <transition name="slideFromRight">
                     <component 
+                        ref="messageContainerRef"
                         :is="Component" 
                         :messageLoader="messageLoader"
                         :key="messageContainerKey"
                         :messageList="messageList"
                         :openedBoard="openedBoard"
                         :microLoader="microLoader"
-                        :zIndexTable="zIndexTable"
-                        :queuedMessages="queuedMessages"
-                        :failedMessagesList="failedMessagesList"   
-                        :messageListType="messageListType" 
+                        :queuedMessages="queuedMessages"  
+                        :messageListType="listType" 
                         :searchTargetId="searchTargetId"
                         :unreadMessages="unreadMessages"
-                        :hasAccessibleChat="hasAccessibleChat"
-                        from="pc"
-                        @reload="getMessageList"
-                        @addQueue="addQueue"
-                        @sendError="sendError"
-                        @sentMessage="sentMessage"      
-                        @checkRequest="checkRequest"
-                        @remindRequest="remindRequest"  
-                        @resetPageIndex="resetPageIndex" 
+                        @reload="getMessageList"    
                         @appendSearchResult="appendSearchResult"
                         @afterRequestHandled="afterRequestHandled"
-                        @resetReplyQuot="resetReplyQuot"
-                        @closeContainer="closeMessageContainer"    
-                        @removeError="removeError"  
-                        @reachedTop="reachedTop"     
-                        @copyText="copyTextStart"      
-                        @startPrivateSearch="startPrivateSearch"        
-                        @viewMembers="viewMembers"    
+                        @closeContainer="closeMessageContainer"      
+                        @reachedTop="reachedTop"                
                         @jumpToMessage="jumpMessageFromFile"
                     />
                 </transition>
             </router-view> 
             
             <TrayComponent
-                v-if="openedBoard && !$store.state.mobile" 
-                :selectAbleUsers="[]" 
-                :fullScreen="trayFullScreen" 
-                :board_record="openedBoard" 
+                v-if="openedBoard && !responsive.mobile"
                 :key="trayComponentKey" 
-                :myBoard="myBoard"
-                :filesFromBoard="filesFromBoard"
-                :importingFiles="importingFiles"
-                :zIndexTray="zIndexTray"
-                :mobileView="trayMobileView"
                 :trayItemWhich="trayItemWhich"
-                :hasAccessibleChat="hasAccessibleChat"
-                @setTrayZindex="setTrayZindex"
                 @setTrayItem="setTrayItem"
-                @viewTray="viewTray"
-                @updateTaskNotify="getTaskNotify"
                 @jumpToMessage="jumpMessageFromFile"
             />
             <Transition name="modalFade">
-                <CopyWindow v-if="copyTextToggle" :data="copyAreaData" @closeMe="copyTextToggle = false"/>
+                <CopyWindow v-if="copyData" :data="copyData" @close="copyData = null"/>
             </Transition>
             <Transition name="modalFade">
-                <ConfirmWindow @reload="getMessageList" v-if="confirmWindow" :requestType="requestType" :message="checkRequestData" @closeMe="confirmWindow = false"/>
+                <ConfirmWindow @reload="getMessageList" v-if="checkRequestData" :requestType="requestType" :message="checkRequestData" @close="checkRequestData = null"/>
             </Transition>  
             <Transition name="modalFade">
                 <InviteMember @close="inviteTarget = null" v-if="inviteTarget" :item="inviteTarget" @reload="boardEditFinished"/>
             </Transition>      
             <Transition name="modalFade">
                 <BoardCreateWindow 
-                    @close="boardCreateClose" 
+                    @close="newBoardWindow = false" 
                     v-if="newBoardWindow"
                     @reload="boardEditFinished"
-                    @openPrivateBoard="openPrivateBoard"
                 />
             </Transition> 
 
             <Transition name="modalFade">
                 <BoardMembers 
-                    :board="memberControllingRecord"
-                    @close="memberControlRecord = null" 
-                    v-if="memberControlRecord"
+                    :board="reactiveMemberList"
+                    @close="viewingMembersOf = null" 
+                    v-if="viewingMembersOf"
                     @reload="boardEditFinished"
-                    @setInvite="setInvite"
                     @afterRequestHandled="afterRequestHandled"
                 />
             </Transition> 
@@ -146,1022 +102,646 @@
     <!-- </Transition> -->
     </template>
     
-    <script>
-    import BoardList from './BoardList.vue'
-    import { defineAsyncComponent } from 'vue'
-    import MessageContainer from './Message/MessageContainer.vue'
-    import TrayComponent from './Tray.vue'
-    import BoardSearchBar from './Search/BoardSearchBar.vue'
-    import { nextTick } from 'vue'
-    import InviteMember from './InviteMember.vue'
-    import BoardCreateWindow from './BoardCreateWindow.vue'
-    import BoardMembers from './BoardMembers.vue'
-
-        export default {            
-            data(){
-                return{
-                    mainLoader: false,
-                    allBoardList: [],
-                    editIndex: 0,
-                    privateFlag: 0,
-                    createEditWindow: false,
-                    activeEditBoard: null,
-                    activeGroupButton: 0,
-                    activeGroupName: 'すべて',
-                    userGroupList: [],
-                    pageIndex: 1,
-                    pageIndexLimiter: false,
-                    messageList: [],
-                    openedBoardId: null,
-                    scrollFlag: false,
-                    copyTextToggle: false,
-                    copyAreaData: null,
-                    confirmWindow: false,
-                    checkRequestData: null,
-                    microLoader: false,
-                    currentLen: 0,
-                    infiniteLock: false,
-                    zIndexTable: 9,
-                    zIndexTray: 8,
-                    messageContainerKey: 0,
-                    queuedMessages: [],
-                    messageLoader: true,
-                    failedMessagesList: [],
-                    trayComponentKey: 1999,
-                    searchWindowKey: 27000,
-                    trayFullScreen: false,
-                    messageResult: {
-                        data: [],
-                    },
-                    advancedSearchWord: '',
-                    searchMiniLoader: false,
-                    searchLoader: false,
-                    searchMessageView: false,
-                    messageListType: 'normal',
-                    privateSearch: false,
-                    searchTargetId: null,
-                    scrllDir: 'up',
-                    appendLock: false,
-                    filesFromBoard: [],
-                    importingFiles:[],
-                    trayMobileView: false,
-                    trayItemWhich: -1,
-                    detailedBoard: null,
-                    unreadMessages: {
-                        active: false,
-                        id: null,
-                        count: 0
-                    },
-                    listKey: 986,
-                    searchPageIndex: 1,
-                    searchView: true,
-                    inviteTarget: null,
-                    newBoardWindow: false,
-                    memberControlRecord: null,
-                    requestType: '',
-                    routeWatchLock: false
-                }
-            },
-            components:{
-                BoardList,               
-                BoardDetails: defineAsyncComponent(() => import('./BoardDetails.vue')),
-                BoardSearchBar,
-                SearchMessage: defineAsyncComponent(() => import('./Search/SearchMessage.vue')),
-                BoardEdit: defineAsyncComponent(() => import('./BoardEdit.vue')),
-                CopyWindow: defineAsyncComponent(() => import('./Message/CopyWindow.vue')),
-                ConfirmWindow: defineAsyncComponent(() => import('./Message/ConfirmWindow.vue')),
-                MessageContainer,
-                TrayComponent,
-                InviteMember,
-                BoardCreateWindow,
-                BoardMembers
-                
-            },
-            watch: {
-                // unreadMessages(after, before){
-                //     if(after){
-                //         setTimeout(() => {
-                //             const element = document.getElementById('messageRoot_' + after);
-                            
-                //             const rect = element.getBoundingClientRect()
-                //             if(rect.y + rect.height < 0){
-                //                 const data = {
-                //                     status: true,
-                //                     count: this.$store.state.boardBadge[this.openedBoard.id],
-                //                     id: this.message.id
-                //                 }
-                //                 // this.$emit('unreadJumperOn', data)
-                                
-                //             }
-    
-    
-                //         },0)
-                //     }
-                // },
-                '$store.state.focused' (after, before) {
-                    if(after){
-                        if(this.openedBoard && this.$store.state.boardBadge && this.$store.state.boardBadge[this.openedBoard.id]){
-                            setTimeout(()=>{
-                                this.updateBadge(this.openedBoard)
-                            },3000)
-                        }
-                    }
-                },
-                '$store.state.boardBadge' (after, before) {
-                    
-                    if(this.$store.state.focused && this.openedBoard && after[this.openedBoard.id]){
-                        setTimeout(() =>{
-                            this.updateBadge(this.openedBoard)
-                        },3000)
-                    }
-                    
-                },
-                '$route.params.chatId'(chatId) {
-                    if(chatId){
-                        const targetBoard = this.allBoardList.filter(ob => ob.id == chatId)
-                        if(this.routeWatchLock){
-                            return
-                        }
-                        if(targetBoard.length){
-                            this.openBoard(targetBoard[0], 'watch')    
-                            
-                                                                        
-                        }
-                    }else{
-                        this.closeMessageContainer()
-                    }
-                }
-                // '$store.state.forwardToBoard' (after, before) {
-                    
-                //     if(after && after.active){
-                //         this.openBoard(after.target)
-                //     }
-                    
-                // }
-            },     
-            created(){
-                const trayIndex = localStorage.getItem('favorite_tray');
-                this.trayItemWhich = trayIndex ? parseInt(trayIndex) : 1
-                // const customLocale = localStorage.getItem('lang')
-                // if(customLocale){
-                //     this.$store.commit('setLocale', customLocale)
-                //     this.$i18n.locale = customLocale
-                // }else {
-                //     const browserLang = navigator.language.substring(0, 2)
-                //     if (browserLang === 'ja' || browserLang === 'mn') {
-                //         this.$store.commit('setLocale', browserLang)
-                //         this.$i18n.locale = browserLang
-                //     } else {
-                //         this.$store.commit('setLocale', 'en')
-                //         this.$i18n.locale = 'en'
-                //     }
-                // }
-            },    
-            unmounted() {
-                this.$store.commit('setMenu', {name: '', id: null})
-                if(navigator.virtualKeyboard){
-                    navigator.virtualKeyboard.removeEventListener('geometrychange', this.keyboardHeightListener);
-                }
-            },
-            mounted() {
-                if(navigator.virtualKeyboard){
-                    navigator.virtualKeyboard.addEventListener('geometrychange', this.keyboardHeightListener);
-                }
-
-                console.log('mntd')
-                this.closeMessageContainer()
-                
-                this.listKey ++
-                if(this.$route.params && this.$route.params.item){
-                    this.$store.commit('setUrlBoardId', this.$route.params.item.id)  
-                }
-                if(this.$route.params && this.$route.params.openForwardTargetBoard){
-                    this.openBoard(this.$route.params.openForwardTargetBoard)    
-                }
-                const url_string = window.location.href;
-                const url = new URL(url_string);
-                const b_id = url.searchParams.get("id");
-                
-                if(b_id){                
-                    this.$store.commit('setUrlBoardId', parseInt(b_id))                
-                    console.log(b_id)
-                }
-                const m_id = url.searchParams.get("m");
-                if(m_id){                
-                    this.$store.commit('setUrlMessageId', parseInt(m_id))                
-                }
-                const t_id = url.searchParams.get("t");
-                if(t_id){                
-                    this.$store.commit('setUrlTaskId', parseInt(t_id)) 
-                    const data = {status : true, val: 1}
-                    const t_edit = url.searchParams.get("task_edit");
-                    console.log(t_edit)
-                    if(t_edit){     
-                        if(t_edit === 'true'){
-                            this.$store.commit('setUrlTaskEditFlag', true)   
-                        }                              
-                    }
-                    this.viewTray(data)
-                               
-                }
-                const c_id = url.searchParams.get("correspond_target");
-                emitter.on('messageShareTo', (data) => {  
-                    if(this.trayItemWhich !== data){
-                        this.setTrayItem(data);
-                    }                            
-                })
-                emitter.on('openPrivateBoardIntant', (id) => {  
-                    this.openPrivateBoardIntant(id)                         
-                })
-                emitter.on('openMessageSearch', () => this.openMessageSearch(''))
-                emitter.on('openForwardTargetBoard', (data) => {  
-    
-                    this.openBoard(data)          
-                })
-    
-                emitter.on('notifyUpdateCompleted', (data) => {  
-                    this.getBoardList('ntfyup')  
-                })
-                emitter.on('updateMessages', (data) => {
-                    console.log('boardgetMessage')
-                    this.getMessageList()
-                })       
-                emitter.on('notifyFetched', (data) => {  
-    
-                    this.unreadLineTrigger()    
-                    this.getBoardList()      
-                })
-                // document.body.style.height = '100%';
-                // document.body.style.position = 'fixed';
-                // document.body.style.overflow = 'hidden';
-                // if(this.$store.state.mobile){
-                //     document.body.style.background = 'var(--background-color)'
-                // }
-                this.getBoardList('mounted')
-                this.getUnsentMessages();
-                this.getTaskNotify();
-                
-
-                // Echo.channel('my-channel').listen('Message', (e) => {  
-                emitter.on('pusher-event', (e) => {
-                    if(e.message.board_id && e.message.sender !== this.$store.state.user.id){
-                        const index = this.allBoardList.map( ob => ob.id).indexOf(e.message.board_id);                  
-                        if(index > -1){
-                            this.getBoardList('pusher');
-                            emitter.emit('notifyGet','pusher')
-                        }
-                        if(this.openedBoard && this.openedBoard.id == e.message.board_id && this.messageListType == 'normal' && e.message.sender !== this.$store.state.user.id){
-                            this.getMessageList('pusher'); 
-                        }
-                    }
-                    if(e.message.new_board_members){
-                        const index = e.message.new_board_members.indexOf(this.$store.state.user.id);                  
-                        if(index > -1){
-                            this.getBoardList('pusher');
-                            emitter.emit('notifyGet','pusher')
-                        }
-                        
-                    }
-                    if(e.message.board_updated){                    
-                        this.getBoardList('pusher');
-                        emitter.emit('notifyGet','pusher')                    
-                        
-                    }
-                    if(e.message && e.message.updateId){  
-                        
-                    }
-                });
-            },        
-            computed: {
-                openedBoard(){
-                    if(this.allBoardList && this.allBoardList.length && this.openedBoardId){
-                        const active = this.allBoardList.filter(ob => ob.id == this.openedBoardId)
-                        return active && active.length ? active[0] : null
-                    }
-                    return null
-                },
-                skeletonBoard(){
-                    return this.$store.state.skeleton
-                },
-                hasAccessibleChat(){
-                    if(this.openedBoard){
-                        return this.openedBoard.board_to_users.filter(ob => ob.user_id == this.$store.state.user.id).length
-                    }
-                    return false
-                },
-                memberControllingRecord(){
-                    return this.allBoardList ? this.allBoardList.filter(ob => ob.id == this.memberControlRecord)[0] : null
-                    
-                },
-                myBoard(){
-                    if(this.allBoardList){                 
-                        var res = this.allBoardList.filter(obj=>obj.private_flag == 3)[0];
-                        return res                 
-                    }
-                },
-                filteredAllBoard(){
-                    return this.allBoardList
-                    // if(this.allBoardList){
-                    //     if(this.activeGroupButton == 0){
-                    //     return this.allBoardList;
-                    //     }else if(this.activeGroupButton == -1){
-                    //         var res = this.allBoardList.filter(obj=>obj.private_flag == 0);
-                    //         return res;
-                    //     }
-                    //     else if(this.activeGroupButton == -2){
-                    //         var res = this.allBoardList.filter(obj=>obj.private_flag !== 0);
-                    //         return res;
-                    //     }
-                    //     else{
-                    //         var raw = this.userGroupList.filter(obj => obj.id == this.activeGroupButton);
-                    //         if(raw && raw.length){    
-                    //             var rawNew = raw[0].board_list;          
-                    //             var group = JSON.parse("[" + rawNew + "]");                   
-                    //             var list = [];
-                    //             if(this.allBoardList){
-                    //                 this.allBoardList.forEach((board) => {
-                    //                     if(group.indexOf(board.id) > -1){
-                    //                         list.push(board);
-                    //                     }                   
-                    //                 });                
-                    //             return list;
-                    //             }
-                    //         }
-                    //     } 
-                    // }else{
-                    //     return []
-                    // }
-                }
-            },
-            methods: {
-                keyboardHeightListener(event){
-                    const { x, y, width, height } = event.target.boundingRect;
-                    console.log('Virtual keyboard geometry changed:', x, y, width, height);
-                    this.$store.commit('setKeyboardOffset', height)
-                },
-                boardDeleteConfirm(id){    
-                    var uniqueChannell = Math.random().toString(36).substring(5);   
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: this.$t('confirmToDeleteChat') ,
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: [this.$t('confirmToAction'),this.$t('cancelToAction')],
-                        channel: uniqueChannell
-
-                    })            
-                    emitter.on(uniqueChannell, (data) => { data.answer === this.$t('confirmToAction') ? this.boardDelete(id): false});
-                    
-                },
-                boardDelete(id) {          
-                    axios.post('/messages_delete_api', {
-                        id: id
-                    }).then(response => {
-                        if(response.status == 200){
-                            if(this.openedBoard && this.openedBoard.id == id){                                
-                                this.closeMessageContainer()
-                            }
-                            this.getBoardList()
-                            const data = {
-                                text: '削除しました。',
-                                channel: Math.random().toString(36).substring(5),
-                                icon: 0,
-                                view: true
-                            }
-                            emitter.emit('setInfo', data)
-                        }
-                                    
-                    });
-                }, 
-                leaveBoard(board){
-                    const uniqueChannell = Math.random().toString(36).substring(5);
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: this.$t('confirmToLeaveBoard', {title: board.title}),
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: [this.$t('confirmToAction'), this.$t('cancelToAction')],
-                        channel: uniqueChannell
-
-                    })            
-                    emitter.on(uniqueChannell, (data) => { data.answer === this.$t('confirmToAction') ? this.leaveBoardSend(board): false});
-                },
-                leaveBoardSend(board){
-
-                    axios.post('/leave_board', {id: board.id}).then(response => {  
-                        if(response.status == 200){
-                            if(this.openedBoard && this.openedBoard.id == board.id){
-                                this.closeMessageContainer()
-                            }
-                            this.getBoardList()
-                            const data = {
-                                text: '退出しました。',
-                                channel: Math.random().toString(36).substring(5),
-                                icon: 0,
-                                view: true
-                            }
-                            emitter.emit('setInfo', data)
-                        }
-                                   
-                
-                    }).catch(function (error) {
-                        if (error.response) this.errorToast(this.$t(error.response.data.message))
-                        else if (error.request) this.errorToast(this.$t('commonError'))
-                        else this.errorToast(this.$t('commonError'))                           
-                    }.bind(this));
-                },
-                setInvite(board){
-                    this.memberControlRecord = null,
-                    setTimeout(() => {
-                        this.inviteTarget = board
-                    }, 200);
-                    
-                },
-                viewMembers(board){
-                    this.memberControlRecord = board.id
-                },
-                afterRequestHandled(response, id){
-                    console.log(response)
-                    if(response === 'respondDeleted'){
-                        this.closeMessageContainer()
-                        this.getBoardList()
-                    }else if(response === 'respondConfirmed'){
-                        this.getBoardList(null, id)
-                    }
-                },
-                setSearchView(flag){
-                    this.searchView = flag
-                },
-                openPrivateBoardIntant(id){
-                    this.getBoardList(null, id)
-                },
-                openPrivateBoard(id){
-                    console.log('999999')
-                    const target = this.filteredAllBoard.filter(ob => ob.id == id)
-                    if(target.length){
-                        console.log('opentargetBoard')
-                        this.closeCreateModal()
-                        this.openTargetBoard(target[0])
-                    }else{
-                        this.errorToast(this.$t('commonError'))
-                    }
-    
-                },
-                setDetailedBoard(val){
-                    this.detailedBoard = val
-                },
-                setTrayItem(val){
-                    this.trayItemWhich = val
-                    localStorage.setItem('favorite_tray', val)
-                },
-                setTrayZindex(index){
-                    this.zIndexTray = index
-                },
-                viewTray(val){
-                    this.trayMobileView = val.status
-                    this.setTrayItem(val.val)
-                },
-                appendSearchResult(dir){
-                    if(this.scrllDir !== dir){
-                        this.scrllDir = dir
-                        this.appendLock = false 
-                    }
-                    if(this.appendLock || !this.messageList.length) return
-                    this.appendLock = true
-                    let lastMessage = null
-                    if(this.scrllDir == 'up'){
-                        lastMessage = this.messageList[this.messageList.length - 1].id
-                    }else if(this.scrllDir == 'down'){
-                        lastMessage = this.messageList[0].id
-                    }
-                    
-                    const currentLength = this.messageList.length
-                    let data = {
-                        direction: this.scrllDir,
-                        last_message_id: lastMessage
-                    }
-                    var container1 = document.getElementById('boardListInner')
-                    var currentPos = container1.scrollHeight; 
-                    this.microLoader = true
-                    axios.post('/get_bottom_messages', data).then(response => {  
-                        if(this.scrllDir == 'up'){
-                            this.messageList = this.messageList.concat(response.data)
-                            if(this.messageList.length !== currentLength){
-                                this.appendLock = false 
-                            }
-                        }else if(this.scrllDir == 'down'){
-                            this.messageList = response.data.concat(this.messageList)
-                            if(this.messageList.length !== currentLength){
-                                this.appendLock = false 
-                            }
-                            nextTick(() => {                   
-                                var cont = document.getElementById('boardListInner')            
-                                cont.scrollTop = currentPos - cont.scrollHeight               
-                            });  
-                            
-                        }
-                        
-                        
-                        setTimeout(() => {this.microLoader = false}, 200)
-                
-                    }).catch(function (error) {                
-                        setTimeout(() => {this.microLoader = false}, 200)                    
-                    }.bind(this));
-                },
-                jumpMessageFromFile(file){                  
-                    const target = {
-                        id: file.message_id,
-                        record_id: file.board_id
-                    }                  
-                    this.jumpToMessage(target)                
-                },
-                jumpToMessage(message){
-                    
-                    this.messageLoader = true
-                    axios.post('/get_target_message', message).then(response => {  
-                        
-                        let board = this.allBoardList.filter( obj => obj.id == message.record_id);
-                        if(board.length){
-                            this.openBoard(board[0], 'search')
-                            setTimeout(() => {
-                                document.getElementById('board_item_' + board[0].id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) 
-                            },100)                         
-                            this.messageList = response.data;
-                            this.messageContainerKey ++;
-                            this.messageLoader = false
-                            this.searchMessageView = false
-                            this.searchTargetId = message.id                        
-                            this.messageListType = 'search'                        
-                        }
-                        this.appendLock = false              
-                
-                    }).catch(function (error) {
-                        if (error.response) this.errorToast(this.$t(error.response.data.message))
-                        else if (error.request) this.errorToast(this.$t('commonError'))
-                        else this.errorToast(this.$t('commonError'))       
-                        this.$store.commit('setUrlMessageId', null)   
-                        this.messageLoader = false                        
-                    }.bind(this));
-                },
-                errorToast(message){
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: message,
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK']
-
-                    })   
-                },
-                startPrivateSearch(){
-                    this.privateSearch = true
-                    this.searchMessageView = true
-                },
-                openMessageSearch(keyword){
-                    this.privateSearch = false
-                    this.advancedSearchWord = keyword
-                    // document.getElementById('boardSearchArea').blur();
-                    this.searchMessageView = true
-                },
-                closeMessageSearch(){
-                    this.searchMessageView = false
-                    // const data = {
-                    //     data: [],
-                    //     fetched: false
-                    // }
-                    // this.messageResult = data
-                },
-    
-                openTargetBoard(item, hasPush){
-                    this.openBoard(item)
-                    setTimeout(() =>{document.getElementById('board_item_' + item.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })  },0)
-                    
-                    
-                },
-                removeQueue(item){
-                    const index = this.queuedMessages.map(e => e.id).indexOf(item.id);
-                    if(index > -1){
-                        this.queuedMessages = this.queuedMessages.filter(ob => ob.id !== item.id)
-                    }
-                },
-                removeError(id){
-                    const index = this.queuedMessages.map(e => e.id).indexOf(id);
-                    
-                    if(index > -1){
-                        this.queuedMessages = this.queuedMessages.filter(ob => ob.id !== id)
-                    }
-                    var failedList = localStorage.getItem('failed_messages');
-                    if(failedList){
-                        let data = JSON.parse(failedList)
-                        const index = data.map(e => e.id).indexOf(id);
-                        if(index > -1){
-                            data = data.filter( ob => ob.id !== id)
-                            localStorage.setItem('failed_messages', JSON.stringify(data));
-                            
-                            this.getUnsentMessages(this.openedBoard.id);
-                        }
-                        
-                    }
-                },
-                sendError(item){
-                    // let index = this.queuedMessages.indexOf(ob => ob.id == item.id)
-                    // const index = this.queuedMessages.map(e => e.id).indexOf(item.id);
-                    // if(index > -1){
-                    //     this.queuedMessages[index].error = true
-                    // }
-                    let err = item
-                    err.error = true
-                    var failedList = localStorage.getItem('failed_messages');
-                    if(failedList){
-                        let data = JSON.parse(failedList)
-                        const index = data.map(e => e.id).indexOf(item.id);
-                        if(index == -1){
-                            data.push(err)
-                            localStorage.setItem('failed_messages', JSON.stringify(data));
-                        }
-                        
-                    }else{
-                        let data = []
-                        data.push(err)
-                        localStorage.setItem('failed_messages', JSON.stringify(data));
-                    }
-                    this.getUnsentMessages(this.openedBoard.id);
-                    
-                },
-                addQueue(item){
-                    console.log('qeqeqeqe')
-                    
-                    this.queuedMessages.push(item)
-                    // localStorage.setItem('failed_', 'Tom');
-                    // setTimeout(() => {
-                    //     const el = document.getElementById(item.id)
-                    //     // const el = document.getElementById('boardListInner')
-                    //     // el ? el.scrollTo({ top: 0, left: 0, behavior: 'smooth' }) : false
-                    // }, 500)
-                    
-                },
-                sentMessage(item){
-                    this.getMessageList('queue', item);
-                    this.getBoardList()
-                    if(item && item.attached_temp_files && item.attached_temp_files.length){
-                        this.trayComponentKey ++;
-                    }
-                    
-                },
-                openMenu(data){
-                    this.$store.commit('setMenu', data);
-                },
-                
-                closeMessageContainer(){
-                    this.openedBoardId = null;
-                    this.messageList = [];
-                    this.zIndexTable = 9;
-                    this.zIndexTray = 8;
-                    this.messageContainerKey ++
-                    this.$store.commit('setActiveBoard', null);
-    
-                },
-                reachedTop(){
-                    this.currentLen = this.messageList.length
-                    if(!this.pageIndexLimiter && !this.infiniteLock){
-                        this.pageIndexLimiter = true
-                        this.pageIndex ++ 
-                        this.getMessageList('infiniteLoader')
-                        this.microLoader = true
-                    }
-                    
-    
-                },
-                remindRequest(data){
-                    axios.post('/remind_add', {
-                            id: data.id
-                    }).then(response => {
-                        if(response.data == true){
-                            emitter.emit('setToast', {
-                                active: true,  
-                                type: 'info', 
-                                content: 'リマインドしました。',
-                                closeButton: false, 
-                                autoClose: false,
-                                answers: ['OK']
-                            })
-                        }else{
-                            emitter.emit('setToast', {
-                                active: true,  
-                                type: 'info', 
-                                content: 'リマインドを取り消しました。',
-                                closeButton: false, 
-                                autoClose: false,
-                                answers: ['OK']
-                            })
-                        }
-                        this.getMessageList()
-                    });
-                },
-                checkRequest(data, request){
-                    this.checkRequestData = data
-                    this.confirmWindow = true
-                    this.requestType = request
-                },
-                copyTextStart(ob){
-                    this.copyAreaData = ob
-                    this.copyTextToggle = true
-                },
-                resetReplyQuot(){
-                    const quot_reply = {
-                        active: false,
-                        message: null,
-                        which: null,
-                        text: null,
-                        file: false,
-                        height: 100,
-                        width: 100
-                    }
-                    this.$store.commit('setQuoteReply', quot_reply);
-                },
-                getUnsentMessages(id){
-                    var failedList = localStorage.getItem('failed_messages');
-                    if(failedList){
-                        let data = JSON.parse(failedList)
-                        this.failedMessagesList = data.filter(ob => ob.user_id == this.$store.state.user.id)
-                        const failed = data.filter(ob => ob.record_id == id && ob.user_id == this.$store.state.user.id)
-                        if(failed.length){
-                            this.queuedMessages = failed
-                        }
-                        
-                        
-                    }
-                },
-                updateBadge(item){
-                    if(this.$store.state.boardBadge && this.$store.state.boardBadge[item.id]){
-                        emitter.emit('notifyUpdate', 'badge_update_first');
-                    }
-                },
-                openBoard(item, second_atr, message){
-                    console.log('open')
-                        this.messageLoader = true
-                        this.openedBoardId = item.id           
-                        this.pageIndex = 1;
-                        this.currentLen = 0;
-                        this.unreadMessages = {
-                            active: false,
-                            id: null,
-                            count: 0
-                        }
-                        if(this.$store.state.boardBadge){
-                            if(this.$store.state.boardBadge[item.id]){
-                                const count = this.$store.state.boardBadge[item.id]                    
-                                const index = Math.ceil(count / 30)
-                                this.pageIndex = index
-                                const self = item.board_to_users.filter( ob => ob.user_id == this.$store.state.user.id)
-                                if(self.length){
-                                    const data = {
-                                        active: true,
-                                        id: self[0].last_message,
-                                        count: this.$store.state.boardBadge[item.id]
-                                    }
-                                    this.unreadMessages = data
-                                }  
-                            }else{
-                                const data = {
-                                    active: false,
-                                    id: null,
-                                    count: 0
-                                }
-                                this.unreadMessages = data
-                            }
-                                            
-                        }
-                        this.infiniteLock = false
-                        this.queuedMessages = []
-                        // this.$store.commit('setActiveBoard', item);
-                        this.getUnsentMessages(item.id)
-                        this.resetReplyQuot()
-                        if(second_atr !== 'search'){
-                            if(this.$store.state.urlMessageId){
-                                const atr = {
-                                    id: this.$store.state.urlMessageId,
-                                    record_id: item.id
-                                }
-                                this.jumpToMessage(atr)
-                            }else{
-                                
-                                this.getMessageList('first_load');
-
-                            }
-                            
-                        }
-                        
-                        
-                        if(this.$store.state.mobile){
-                            this.zIndexTable = 20
-                        }
-                        this.trayComponentKey ++;
-                        this.searchWindowKey ++;
-                        this.routeWatchLock = true
-                        this.$router.push(`/board/${item.id}`);
-                        setTimeout(() => {
-                            this.routeWatchLock = false
-                        }, 100);
-
-                    const mentionable = item.board_to_users.filter(ob => ob.user_id !== this.$store.state.user.id && ob.user)
-                    this.$store.commit('setMentionAbleUsers',mentionable)
-                    this.$store.commit('setMyBoard',this.myBoard)
-                    this.$store.commit('setSignAbleUsers',item.board_to_users)
-                    this.$store.commit('setActiveBoard', item);
-                    this.$store.commit('setBoardList',this.allBoardList)
-                    
-                    
-                    
-                },
-                boardTitle(item){            
-                    if(item.private_flag == 1 && item.board_to_users.length == 2){
-                        var coresspondId = item.board_to_users.filter(obj => obj.user_id !== this.$store.state.user.id);
-                        if(coresspondId && coresspondId.length && coresspondId[0].user){
-                            return coresspondId[0].user.name;
-                        }else{
-                            return this.$t('unAvailableUserName')
-                        }
-                    }else{
-                        return item.title;
-                    }           
-                }, 
-                resetPageIndex(){
-                    this.pageIndex = 1;
-                    this.pageIndexLimiter = false
-                },
-                getMessageList(source, queue){
-                    if(this.openedBoard){
-                        const recordId = this.openedBoard.id        
-                        axios.post('/get_messages', {
-                            record_id: recordId,
-                            page_index: this.pageIndex,
-                        }).then(
-                        response => {  
-                            if(queue){
-                                this.removeError(queue.id)
-                                // this.removeQueue(queue.id)
-                            
-                                let box = document.getElementById('queueMessage_' + queue.u_id);                       
-                                if(box){                            
-                                    box.style.display = 'none'
-                                }
-                                this.getUnsentMessages(this.openedBoard.id)
-                                const data = {
-                                    active: false,
-                                    id: null,
-                                    count: 0
-                                }
-                                this.unreadMessages = data
-                            }
-                            this.messageListType = 'normal' 
-                            this.messageList = response.data;                    
-                            if(source == 'infiniteLoader'){                        
-                                setTimeout(() => { 
-                                    this.pageIndexLimiter = false
-                                    this.microLoader = false
-                                },500)
-                            }
-                            this.infiniteLock = this.currentLen == this.messageList.length
-                            if(source == 'first_load'){                    
-                                this.updateBadge(this.openedBoard)
-                            }
-                            
-                            this.messageLoader = false
-                    
-                            
-                            
-                            
-                        });
-                    }
-                },
-                unreadLineTrigger(){
-                    if(this.openedBoard){
-                        const board = this.allBoardList.filter(ob => ob.id == this.openedBoard.id)
-                        if(board.length && this.$store.state.boardBadge[this.openedBoard.id]){
-                            const self = board[0].board_to_users.filter( ob => ob.user_id == this.$store.state.user.id)
-                            if(self.length){
-                                const data = {
-                                    active: true,
-                                    id: self[0].last_message,
-                                    count: this.$store.state.boardBadge[this.openedBoard.id]
-                                }
-                                this.unreadMessages = data
-                            }   
-                        }
-                        
-                    }
-                },
-                selectDefaultGroup(flag){
-                    const name = flag == 0 ? 'すべて' : flag == -1 ? 'グループ' : '個別'
-                    this.activeGroupName = name
-                    this.activeGroupButton = flag
-                },
-                selectCustomGroup(group){
-                    this.activeGroupName = group.name
-                    this.activeGroupButton = group.id 
-                },
-                boardCreateClose(){
-                    this.newBoardWindow = false
-                },
-                boardCreate(flag){
-                    
-
-                    this.newBoardWindow = true
-
-                    
-                    // this.editIndex = 0;
-                    // this.privateFlag = flag;
-                    // this.createEditWindow = true;
-                    
-                },
-                closeCreateModal(){
-                    this.createEditWindow = false;
-                    
-                },
-                boardEdit(item){
-                    this.activeEditBoard = item
-                    this.editIndex = 1
-                    this.createEditWindow = true
-    
-                },
-                boardEditFinished(id){
-                    console.log('777')
-                    this.getBoardList('', id)
-                    this.activeEditBoard = null
-                    this.editIndex = 0
-                    this.createEditWindow = false
-                    if(this.openedBoard){
-                        this.getMessageList()
-                    }
-                },
-                getBoardList(atr, second_atr){
-                   
-                    if (!this.mainLoader) {
-                        if(this.$store.state.boardList && this.$store.state.boardList.length && atr == 'mounted'){
-                            this.allBoardList = this.$store.state.boardList
-                            this.$store.commit('setBoardList', [])
-                            
-                        }
-                        this.mainLoader = true
-                        try {                  
-                            axios.post('/chat_list').then(
-                                response => {
-                                    this.allBoardList = response.data;
-                                    if(second_atr){
-                                        const target = this.allBoardList.filter(ob => ob.id == second_atr)
-                                        if(target.length){
-                                            this.openTargetBoard(target[0])
-                                        }
-                                          
-                                    }
-                                    if(atr == 'mounted'){
-                                        if (this.$route.params.hasOwnProperty('chatId')) {
-                                            const targetBoard = this.allBoardList.filter(ob => ob.id == this.$route.params.chatId)
-                                            if(targetBoard.length){
-                                                this.openTargetBoard(targetBoard[0], false)                                                
-                                            }else{                                                    
-                                                emitter.emit('setToast', {
-                                                    active: true,  
-                                                    type: 'info', 
-                                                    content: this.$t('canNotAccessChat'),                                                        
-                                                    closeButton: true, 
-                                                    autoClose: true,
-                                                    answers: ['OK']
-
-                                                })  
-                                            }  
-
-                                        }
-
-                                    }
-                                    setTimeout(() => {
-                                        this.$store.commit('setSkeleton', this.$store.state.skeleton + 1)    
-                                    }, 0);
-                                    
-
-                            }).catch(function (error) {
-                                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                                else if (error.request) this.errorToast(this.$t('commonError'))
-                                else this.errorToast(this.$t('commonError'))                       
-                            }.bind(this));                      
-                        
-                        } catch (e) {
-                            this.mainLoader = false
-                        } finally {
-                            this.mainLoader = false
-                        }
-                    }
-                },
-                getTaskNotify(){
-                    axios.post('/task_notify_api').then( response => this.$store.commit('setTaskBadge', response.data));
-                },
-                
+<script setup>
+import BoardList from './BoardList.vue'
+import { defineAsyncComponent, onMounted, onUnmounted, watch, computed, nextTick, ref, provide, inject, onBeforeUnmount } from 'vue'
+import TrayComponent from './Tray.vue'
+import BoardSearchBar from './Search/BoardSearchBar.vue'
+import InviteMember from './InviteMember.vue'
+import BoardCreateWindow from './BoardCreateWindow.vue'
+import BoardMembers from './BoardMembers.vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthUserStore } from '@/store/auth'
+import { useResponsive } from '@/store/responsive'
+import { useMenuStore } from "@/store/menu";
+import { useQuoteReply } from '@/store/quoteReply'
+import { useFocused } from '@/store/focused'
+import { useUrlTask } from '@/store/urlTask'
+import { useUrlMessage } from '@/store/urlMessage'
+import { useUrlTaskEdit } from '@/store/urlTaskEdit'
+import { useSkeleton } from '@/store/skeleton'
+import { useBadgeStore } from '@/store/badge'
+    const badge = useBadgeStore()
+    const menu = useMenuStore()
+    const auth = useAuthUserStore()
+    const responsive = useResponsive()
+    const quoteReply = useQuoteReply()
+    const focused = useFocused()
+    const urlTask = useUrlTask()
+    const urlMessage = useUrlMessage()
+    const urlTaskEdit = useUrlTaskEdit()
+    const skeleton = useSkeleton()
+    const BoardDetails = defineAsyncComponent(() => import('./BoardDetails.vue'))
+    const SearchMessage = defineAsyncComponent(() => import('./Search/SearchMessage.vue'))
+    const BoardEdit = defineAsyncComponent(() => import('./BoardEdit.vue'))
+    const CopyWindow = defineAsyncComponent(() => import('./Message/CopyWindow.vue'))
+    const ConfirmWindow = defineAsyncComponent(() => import('./Message/ConfirmWindow.vue'))
+    const route = useRoute()
+    const router = useRouter()
+    const mainLoader = ref(false)
+    const allBoardList = ref([])
+    const activeEditBoard = ref(null)
+    const pageIndex = ref(1)
+    const pageLimiter = ref(false)
+    const messageList = ref([])
+    const openedBoardId = ref(null)
+    const copyData = ref(null)
+    const checkRequestData = ref(null)
+    const microLoader = ref(false)
+    const currentLen = ref(0)
+    const infiniteLock = ref(false)
+    const messageContainerKey = ref(0)
+    const queuedMessages = ref([])
+    const messageLoader = ref(true)
+    const failedMessagesList = ref([])
+    const trayComponentKey = ref(1999)
+    const searchWindowKey = ref(27000)
+    const advancedSearchWord = ref('')
+    const searchMessageView = ref(false)
+    const listType = ref('normal')
+    const privateSearch = ref(false)
+    const searchTargetId = ref(null)
+    const scrllDir = ref('up')
+    const appendLock = ref(false)
+    const trayItemWhich = ref(-1)
+    const detailedBoard = ref(null)
+    const unreadMessages = ref({
+        active: false,
+        id: null,
+        count: 0
+    })
+    const listKey = ref(986)
+    const searchView = ref(true)
+    const inviteTarget = ref(null)
+    const newBoardWindow = ref(false)
+    const viewingMembersOf = ref(null)
+    const requestType = ref('')
+    const routeWatchLock = ref(false)
+    const messageContainerRef = ref(null)
+    const { confirm, notify, info } = inject('dialog');
+    const keyboardHeight = ref(0)
+    watch(() => focused.active, (after) => {
+        if(after){
+            if(openedBoard.value && badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[openedBoard.value.id]){
+                setTimeout(()=>{
+                    badge.updateBoardBadge(openedBoard.value.id)
+                },3000)
             }
         }
-    </script>
+    })
+    watch(() => badge.activeUsersBoardBadge, (after) => {   
+        if(focused.active && openedBoard.value && after[openedBoard.value.id]){
+            setTimeout(() =>{
+                badge.updateBoardBadge(openedBoard.value.id)
+            },3000)
+        }                    
+    })
+    watch(() => route.params.chatId, (chatId) => {
+        if(messageContainerRef.value.resetUnread){
+            messageContainerRef.value.resetUnread()
+        } 
+        if(chatId){
+            const targetBoard = filteredAllBoard.value.filter(ob => ob.id == chatId)             
+            if(routeWatchLock.value){
+                return
+            }
+            if(targetBoard.length){
+                openBoard(targetBoard[0], 'watch')   
+            }
+        }else{
+            closeMessageContainer()
+        }
+         
+        
+    })
+    onBeforeUnmount(() => {
+        menu.setMenu( {name: '', id: null})
+    })        
+    onUnmounted(() => {        
+        if(navigator.virtualKeyboard){
+            navigator.virtualKeyboard.removeEventListener('geometrychange', keyboardHeightListener);
+        }        
+    })
+    onMounted(() => {
+        const trayIndex = localStorage.getItem('favorite_tray');
+        trayItemWhich.value = trayIndex ? parseInt(trayIndex) : 1
+        if(navigator.virtualKeyboard){
+            navigator.virtualKeyboard.addEventListener('geometrychange', keyboardHeightListener);
+        }
+        closeMessageContainer()        
+        listKey.value ++
+        const url_string = window.location.href;
+        const url = new URL(url_string);
+        const m_id = url.searchParams.get("m");
+        if(m_id){
+            urlMessage.setUrlMessageId(parseInt(m_id))                
+        }
+        const t_id = url.searchParams.get("t");
+        if(t_id){    
+            urlTask.setUrlTaskId(parseInt(t_id))            
+            const data = {status : true, val: 1}
+            const t_edit = url.searchParams.get("task_edit");
+            console.log(t_edit)
+            if(t_edit){     
+                if(t_edit === 'true'){
+                    urlTaskEdit.setUrlTaskEdit(true)
+                }                              
+            }
+            setTrayItem(data.val)
+                        
+        }
+
+        getBoardList('mounted')
+        getUnsentMessages();
+        badge.getTaskBadge();      
+    })        
+
+    const onPusher = (e) => {
+        if(e.message.board_id && e.message.sender !== auth.activeUser.id){
+            const index = filteredAllBoard.value.map( ob => ob.id).indexOf(e.message.board_id);                  
+            if(index > -1){
+                getBoardList('pusher');
+                badge.getBoardBadge('pusher')
+            }
+            if(openedBoard.value && openedBoard.value.id == e.message.board_id && listType.value == 'normal' && e.message.sender !== auth.activeUser.id){
+                getMessageList('pusher'); 
+            }
+        }
+        if(e.message.new_board_members){
+            const index = e.message.new_board_members.indexOf(auth.activeUser.id);                  
+            if(index > -1){
+                getBoardList('pusher');
+                badge.getBoardBadge('pusher')
+            }
+            
+        }
+        if(e.message.board_updated){                    
+            getBoardList('pusher');
+            badge.getBoardBadge('pusher')                
+            
+        }
+        if(e.message && e.message.updateId){  
+            
+        }
+    }
+    const openedBoard = computed(() =>{
+        if(filteredAllBoard.value && filteredAllBoard.value.length && openedBoardId.value){
+            const active = filteredAllBoard.value.filter(ob => ob.id == openedBoardId.value)
+            return active && active.length ? active[0] : null
+        }
+        return null
+    })
+    const reactiveMemberList = computed(() =>{
+        return filteredAllBoard.value ? filteredAllBoard.value.filter(ob => ob.id == viewingMembersOf.value)[0] : null
+        
+    })
+    const myBoard = computed(() =>{
+        if(filteredAllBoard.value){                 
+            var res = filteredAllBoard.value.filter(obj=>obj.private_flag == 3)[0];
+            return res                 
+        }
+    })
+    const filteredAllBoard = computed(() =>{
+        
+        return allBoardList.value
+    })
+
+    const keyboardHeightListener = (event) => {
+        const { height } = event.target.boundingRect;
+        keyboardHeight.value = height
+    }
+    const boardDelete = async(item) => {       
+        const confirmed = await confirm(`ボードを削除しますか。`);
+        if(!confirmed) return 
+        try{
+            await axios.post('/board_delete', { id: item.id })
+            if(openedBoard.value && openedBoard.value.id == item.id){                                
+                closeMessageContainer()
+            }
+            getBoardList()
+            info('削除しました。')
+        } catch (e) { 
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } 
+    }
+
+    const afterRequestHandled = (response, id) => {
+        console.log(response)
+        if(response === 'respondDeleted'){
+            closeMessageContainer()
+            getBoardList()
+        }else if(response === 'respondConfirmed'){
+            getBoardList(null, id)
+        }
+    }
+    const setTrayItem = (val) => {
+        trayItemWhich.value = val
+        localStorage.setItem('favorite_tray', val)
+    }
+    
+    const appendSearchResult = (dir) => {
+        if(scrllDir.value !== dir){
+            scrllDir.value = dir
+            appendLock.value = false 
+        }
+        if(appendLock.value || !messageList.value.length) return
+        appendLock.value = true
+        let lastMessage = null
+        if(scrllDir.value == 'up'){
+            lastMessage = messageList.value[messageList.value.length - 1].id
+        }else if(scrllDir.value == 'down'){
+            lastMessage = messageList.value[0].id
+        }
+        
+        const currentLength = messageList.value.length
+        let data = {
+            direction: scrllDir.value,
+            last_message_id: lastMessage
+        }
+        var container1 = document.getElementById('boardListInner')
+        var currentPos = container1.scrollHeight; 
+        microLoader.value = true
+        axios.post('/get_bottom_messages', data).then(response => {  
+            if(scrllDir.value == 'up'){
+                messageList.value = messageList.value.concat(response.data)
+                if(messageList.value.length !== currentLength){
+                    appendLock.value = false 
+                }
+            }else if(scrllDir.value == 'down'){
+                messageList.value = response.data.concat(messageList.value)
+                if(messageList.value.length !== currentLength){
+                    appendLock.value = false 
+                }
+                nextTick(() => {                   
+                    var cont = document.getElementById('boardListInner')            
+                    cont.scrollTop = currentPos - cont.scrollHeight               
+                });                  
+            }           
+            
+            setTimeout(() => {microLoader.value = false}, 200)
+    
+        }).catch(function (error) {                
+            setTimeout(() => {microLoader.value = false}, 200)                    
+        });
+    }
+    const jumpMessageFromFile = (file) => {                  
+        const target = {
+            id: file.message_id,
+            record_id: file.board_id
+        }                  
+        jumpToMessage(target)                
+    }
+    const jumpToMessage = (message) => {
+        
+        messageLoader.value = true
+        axios.post('/get_target_message', message).then(response => {  
+            
+            let board = filteredAllBoard.value.filter( obj => obj.id == message.record_id);
+            if(board.length){
+                openBoard(board[0], 'search')
+                setTimeout(() => {
+                    document.getElementById('board_item_' + board[0].id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) 
+                },100)                         
+                messageList.value = response.data;
+                messageContainerKey.value ++;
+                messageLoader.value = false
+                searchMessageView.value = false
+                searchTargetId.value = message.id                        
+                listType.value = 'search'                        
+            }
+            appendLock.value = false              
+    
+        }).catch(function (error) {
+            if (error.response) notify(error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。')   
+            urlMessage.setUrlMessageId(null) 
+            messageLoader.value = false                        
+        });
+    }
+    const startPrivateSearch = () => {
+        privateSearch.value = true
+        searchMessageView.value = true
+    }
+    const openMessageSearch = (keyword) => {
+        privateSearch.value = false
+        advancedSearchWord.value = keyword
+        // document.getElementById('boardSearchArea').blur();
+        searchMessageView.value = true
+    }
+    const closeMessageSearch = () => {
+        searchMessageView.value = false
+    }
+
+    const openTargetBoard = (item, hasPush) => {
+        openBoard(item)
+        setTimeout(() =>{document.getElementById('board_item_' + item.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })  },0)       
+    }
+    const removeError = (id) => {
+        const index = queuedMessages.value.map(e => e.id).indexOf(id);        
+        if(index > -1){
+            queuedMessages.value = queuedMessages.value.filter(ob => ob.id !== id)
+        }
+        var failedList = localStorage.getItem('failed_messages');
+        if(failedList){
+            let data = JSON.parse(failedList)
+            const index = data.map(e => e.id).indexOf(id);
+            if(index > -1){
+                data = data.filter( ob => ob.id !== id)
+                localStorage.setItem('failed_messages', JSON.stringify(data))                
+                getUnsentMessages(openedBoard.value.id);
+            }            
+        }
+    }
+    const sendError = (item) => {
+        let err = item
+        err.error = true
+        var failedList = localStorage.getItem('failed_messages');
+        if(failedList){
+            let data = JSON.parse(failedList)
+            const index = data.map(e => e.id).indexOf(item.id);
+            if(index == -1){
+                data.push(err)
+                localStorage.setItem('failed_messages', JSON.stringify(data));
+            }            
+        }else{
+            let data = []
+            data.push(err)
+            localStorage.setItem('failed_messages', JSON.stringify(data));
+        }
+        getUnsentMessages(openedBoard.value.id)        
+    }
+    const sentMessage = (item) => {
+        pageIndex.value = 1;
+        pageLimiter.value = false
+        getMessageList('queue', item);
+        getBoardList()
+        if(item && item.attached_temp_files && item.attached_temp_files.length){
+            trayComponentKey.value ++;
+        }        
+    }
+    const closeMessageContainer = () => {
+        openedBoardId.value = null;
+        messageList.value = [];
+        messageContainerKey.value ++
+    }
+    const reachedTop = () => {
+        currentLen.value = messageList.value.length
+        if(!pageLimiter.value && !infiniteLock.value){
+            pageLimiter.value = true
+            pageIndex.value ++ 
+            getMessageList('infiniteLoader')
+            microLoader.value = true
+        }       
+    }
+    const remindRequest = async (data) => {
+        try {
+            const response = await axios.post('/remind_add', { id: data.id }).then(res => res.data)
+            const message = response ? 'リマインドしました。' : 'リマインドを取り消しました。'
+            info(message)
+        } catch (e) { 
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            getMessageList()
+        }     
+    }
+    const checkRequest = (data, request) => {
+        checkRequestData.value = data
+        requestType.value = request
+    }
+    
+    const getUnsentMessages = (id) => {
+        var failedList = localStorage.getItem('failed_messages');
+        if(failedList){
+            let data = JSON.parse(failedList)
+            failedMessagesList.value = data.filter(ob => ob.user_id == auth.activeUser.id)
+            const failed = data.filter(ob => ob.record_id == id && ob.user_id == auth.activeUser.id)
+            if(failed.length){
+                queuedMessages.value = failed
+            }          
+        }
+    }
+    const openBoard = (item, second_atr) => {
+        messageLoader.value = true
+        openedBoardId.value = item.id           
+        pageIndex.value = 1;
+        currentLen.value = 0;
+        unreadMessages.value = {
+            active: false,
+            id: null,
+            count: 0
+        }
+        if(badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[item.id]){            
+            const count = badge.activeUsersBoardBadge[item.id]                    
+            const index = Math.ceil(count / 30)
+            pageIndex.value = index
+            const self = item.board_to_users.filter( ob => ob.user_id == auth.activeUser.id)
+            if(self.length){
+                const data = {
+                    active: true,
+                    id: self[0].last_message,
+                    count: badge.activeUsersBoardBadge[item.id]
+                }
+                unreadMessages.value = data
+            }                                      
+        }
+        infiniteLock.value = false
+        queuedMessages.value = []
+        getUnsentMessages(item.id)
+        resetReplyQuot()
+        if(second_atr !== 'search'){
+            if(urlMessage.id){
+                const atr = {
+                    id: urlMessage.id,
+                    record_id: item.id
+                }
+                jumpToMessage(atr)
+            }else{                
+                getMessageList('first_load');
+            }            
+        }           
+           
+        trayComponentKey.value ++;
+        searchWindowKey.value ++;
+        routeWatchLock.value = true
+        router.push(`/board/${item.id}`);
+        setTimeout(() => {
+            routeWatchLock.value = false
+        }, 100);
+
+        const mentionable = item.board_to_users.filter(ob => ob.user_id !== auth.activeUser.id && ob.user)
+    }
+
+    const getMessageList = async(source, queue) => {
+        if(!openedBoard.value) return
+        try {
+
+            const response = await axios.post('/get_messages', { record_id: openedBoard.value.id, page_index: pageIndex.value })
+            if(queue){
+                removeError(queue.id)
+                let box = document.getElementById('queueMessage_' + queue.u_id);                       
+                if(box){                            
+                    box.style.display = 'none'
+                }
+                getUnsentMessages(openedBoard.value.id)
+                const data = {
+                    active: false,
+                    id: null,
+                    count: 0
+                }
+                unreadMessages.value = data
+            }
+            listType.value = 'normal' 
+            messageList.value = response.data;                    
+            if(source == 'infiniteLoader'){                        
+                setTimeout(() => { 
+                    pageLimiter.value = false
+                    microLoader.value = false
+                },500)
+            }
+            infiniteLock.value = currentLen.value == messageList.value.length
+            if(source == 'first_load'){                    
+                badge.updateBoardBadge(openedBoard.value.id)
+            }                    
+
+        }catch (e) {
+            messageLoader.value = false
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            messageLoader.value = false
+        }
+    }
+    const unreadLineTrigger = () => {
+        if(openedBoard.value){
+            const board = filteredAllBoard.value.filter(ob => ob.id == openedBoard.value.id)
+            if(board.length && badge.activeUsersBoardBadge[openedBoard.value.id]){
+                const self = board[0].board_to_users.filter( ob => ob.user_id == auth.activeUser.id)
+                if(self.length){
+                    const data = {
+                        active: true,
+                        id: self[0].last_message,
+                        count: badge.activeUsersBoardBadge[openedBoard.value.id]
+                    }
+                    unreadMessages.value = data
+                }   
+            }
+            
+        }
+    }
+    const boardEditFinished = (id) => {
+        getBoardList('', id)
+        activeEditBoard.value = null
+        if(openedBoard.value){
+            getMessageList()
+        }
+    }
+    const getBoardList = async(atr, second_atr) => {        
+        if (mainLoader.value) return
+        
+        mainLoader.value = true
+        try {                  
+            allBoardList.value = await axios.post('/board_list').then(res => res.data)
+            if(second_atr){
+                const target = allBoardList.value.filter(ob => ob.id == second_atr)
+                if(target.length){
+                    openTargetBoard(target[0])
+                }                            
+            }
+            if(atr == 'mounted'){
+                if (route.params.hasOwnProperty('chatId')) {
+                    const targetBoard = allBoardList.value.filter(ob => ob.id == route.params.chatId)
+                    if(targetBoard.length){
+                        openTargetBoard(targetBoard[0], false)                                                
+                    }else{     
+                        await confirm('ボードが削除されているか、権限がないためアクセスできません。', {answers: [{label: 'OK', value: true}]})
+                        router.push({name: 'board'})
+                    }
+                }
+            }
+            skeleton.setSkeleton(skeleton.active + 1)
+        
+        } catch (e) {
+            mainLoader.value = false
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            mainLoader.value = false
+        }        
+    }
+    const pinBoard = async(id) => {           
+        await axios.post('/pin_board_api', {group_id: id})
+        getBoardList()
+    }
+    const leaveBoard = async(board) => {
+        try {
+            const confirmed = await confirm(`<strong>${board.title}</strong> ボードを退出します。よろしいですか?`)
+            if(!confirmed) return
+            await axios.post('/leave_board', {id: board.id})
+            if(openedBoard.value && openedBoard.value.id == board.id){
+                closeMessageContainer()
+            }
+            info('退出しました。')
+            getBoardList()
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    const setInvite = (item) => {
+        viewingMembersOf.value = null
+        setTimeout(() => {
+            inviteTarget.value = item
+        }, 200);
+    }
+    const resetReplyQuot = () => {
+        const quot_reply = {
+            active: false,
+            message: null,
+            which: null,
+            text: null,
+            file: false,
+            height: 100,
+            width: 100
+        }
+        quoteReply.setQuoteReply(quot_reply)
+    }
+    const shareToTask = () =>{
+        setTrayItem(1)
+        trayComponentKey.value ++
+    }
+    provide('boardItem', {
+        remove: (item) => boardDelete(item),
+        edit: (item) => activeEditBoard.value = item,
+        create: () => newBoardWindow.value = true,
+        reload: () => getBoardList(),
+        close: () => closeMessageContainer(),
+        open: (item, second_atr) => openBoard(item, second_atr),
+        detail: (item) => detailedBoard.value = item,
+        invite: (item) => setInvite(item),
+        members: (item) => viewingMembersOf.value = item.id,
+        pin: (item) => pinBoard(item.id),
+        leave: (item) => leaveBoard(item),
+        refreshMessages: () => getMessageList(),
+        privateSearch: () => startPrivateSearch()
+    })
+
+    provide('messageItem', {
+        addQueue: (item) => queuedMessages.value.push(item),  
+        copy: (item) => copyData.value = item,
+        remind: (item) => remindRequest(item),
+        check: (item, request) => checkRequest(item, request),
+        sent: (item) => sentMessage(item),
+        sendError: (item) => sendError(item),
+        removeError: (id) => removeError(id),
+        resetReplyQuot: () => resetReplyQuot()
+    })
+
+    provide('taskItem', {
+        shareToTask: (data) => shareToTask()
+    })
+    provide('closeMessageContainer', closeMessageContainer)   
+    provide('openedBoard', openedBoard)
+    provide('reload', getBoardList)      
+    provide('keyboardHeight', keyboardHeight)
+    defineExpose({getBoardList, unreadLineTrigger, getMessageList, onPusher})
+</script>
     
     

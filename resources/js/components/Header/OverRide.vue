@@ -1,235 +1,132 @@
 <template>
-    <div style="position:fixed;left:0;top:0;width:0px;height:0px;background:red;z-index:1999">
+    <div id="override">
             
-        <IncompleteWindow v-if="$store.state.user && viewIncompleteWindow" 
-        :viewIncompleteWindow="viewIncompleteWindow"
+        <IncompleteWindow ref="incompleteRef" v-if="auth.user && viewIncompleteWindow" 
         @closePopup="closePopup"/> 
         <Transition name="modalFade">
-            <IncompleteFeedBack v-if="$store.state.taskFeedBack.active"/>
+            <IncompleteFeedBack v-if="taskFeedBack.active"/>
         </Transition>
         <Transition name="modalFade">
-            <MessageUsers v-if="$store.state.messageUsers.active"/>
+            <MessageUsers v-if="messageUsers.active"/>
         </Transition>
-        <!-- <Transition name="modalFade">
-            <MonthTaskBox v-if="$store.state.taskModal.active"/>
-        </Transition>  -->
         <Transition name="modalFade">
-            <FilePreview v-if="$store.state.filePreview.active"/>
+            <FilePreview v-if="filePreview.active"/>
         </Transition> 
-        <InstantProfile :key="$store.state.instantUser.cY + $store.state.instantUser.cX" v-if="$store.state.instantUser.id && $store.state.menu.name=='instantProfileWindow' && $store.state.menu.id==5000"/>  
         <Transition name="modalFade">
-            <Toast v-if="toast.active" :data="toast" @close="resetToast"/>
-        </Transition>
-        <Transition name="slidePop">
-            <Info v-if="$store.state.info.view"/>
-        </Transition>
-        <Transition name="modalFade">
-            <WeatherComponent v-if="$store.state.user"/>
+            <WeatherComponent v-if="auth.user"/>
         </Transition> 
-        <SharingData v-if="$store.state.sharingData && ($route.name == 'board' || $route.name == 'room')"/>
-
+        <SharingData v-if="sharingData.active && (route.name == 'board' || route.name == 'room')"/>
+        <Transition name="modalFade">
+            <CheckWork v-if="auth.user" />
+        </Transition>
     </div>
 </template>
 
-<script>
+<script setup>
     import IncompleteWindow from '../Board/IncompleteWindow.vue'
     import IncompleteFeedBack from '../Board/IncompleteFeedBack.vue'
-    import Toast from './Toast/Toast.vue'
     import theme from '../../../assets/theme.json'
     import MessageUsers from '../Board/Message/MessageUsers.vue'
-    import Info from './Toast/Info.vue'
     import WeatherComponent from '../Global/WeatherComponent.vue'
     import SharingData from '../Global/SharingData.vue'
     import FilePreview from '../Board/Tray/File/FilePreview.vue'
-    export default {
-        data() {
-            return {
-                toast: {
-                    active: false,
-                    type: '',
-                    content: '',
-                    answers: [],
-                    channel: '',
-                    closeButton: true,
-                    autoClose: true,
-                    touchClose: true,                    
-                },
-                scannerOn: false,
-                isDarkMode: false,
-                viewIncompleteWindow: false
+    import CheckWork from '../Global/CheckWork.vue'
+    import { inject, onBeforeMount, onMounted, provide, ref, watch } from 'vue'
+    import { useRoute } from 'vue-router'
+    import { useFilePreview } from "@/store/filePreview"
+    import { useAuthUserStore } from '@/store/auth'
+    import { useTheme } from '@/store/theme'
+    import { useMessageUsers } from '@/store/messageUsers'
+    import { useSharingDataStore } from '@/store/sharingData'
+    import { useTaskFeedback } from '@/store/taskFeedback'
+    const sharingData = useSharingDataStore()
+    const messageUsers = useMessageUsers()
+    const taskFeedBack = useTaskFeedback()
+    const route = useRoute()
+    const themeStore = useTheme()
+    const viewIncompleteWindow = ref(false)
+    const incompleteRef = ref(null)
+    const refresh = inject('refreshMessage')
+    const filePreview = useFilePreview()
+    const auth = useAuthUserStore()
+    onBeforeMount(() => {
+        const customTheme = localStorage.getItem('dark')
+        if(customTheme == 0 || customTheme == '0' || !customTheme){
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeStore.setDark(true)
+            } else {
+                themeStore.setDark(false)
             }
-        },
-        created() {
-
-
-            const customTheme = localStorage.getItem('dark')
-            if(customTheme == 0 || customTheme == '0' || !customTheme){
-                if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                    this.$store.commit('setDark', true)
-                } else {
-                    this.$store.commit('setDark', false)
-                }
-            }else if(parseInt(customTheme) == 1 ){
-                this.$store.commit('setDark', true)
-            }else if(parseInt(customTheme) == 2 ){
-                this.$store.commit('setDark', false)
+        }else if(parseInt(customTheme) == 1 ){
+            themeStore.setDark(true)
+        }else if(parseInt(customTheme) == 2 ){
+            themeStore.setDark(false)
+        }
+    })
+    watch(() => themeStore.dark, (newVal) => {
+        if(theme){
+            theme.forEach(pallete => {
+                document.documentElement.style.setProperty(pallete.className, newVal ? pallete.dark : pallete.light);
+            });
+        } 
+    })
+    watch(() => route.fullPath, (newVal, oldVal) => {
+        if(!newVal.includes(oldVal) && !oldVal.includes(newVal)){
+            incompleteCall()
+        }        
+    }) 
+    onMounted(() => {
+        incompleteCall()
+    })
+    const incompleteCall = () => {
+        if(auth.id){
+            const string = '/user/' + auth.id
+            // const currentUrl = window.location.href;
+            // console.log(window.location)
+            if(window.location.pathname == string){
+                viewIncompleteWindow.value = true
+            }else{
+                viewIncompleteWindow.value = false
             }
-
-        },
-        watch:{
-            '$store.state.dark' (newVal) {                
-                if(theme){
-                    theme.forEach(pallete => {
-                        document.documentElement.style.setProperty(pallete.className, newVal ? pallete.dark : pallete.light);
-                    });
-                }                
-            },
-            '$route.fullPath' (newVal, oldVal){
-                if(!newVal.includes(oldVal) && !oldVal.includes(newVal)){
-                    this.incompleteCall()
-                }
-                this.$store.commit('setMessageUsers', {
-                    active: false,
-                    userList: [],
-                    title: ''
-                })
-                this.$store.commit('setFilePreview', {
-                    active: false,
-                    files: [],
-                    source: null,
-                    source_board_id: null,
-                    index: 0,
-                    message: null
-                })
+            if (hasOneHourPassed(auth.id)) {
+                viewIncompleteWindow.value = true
             }
-        },
-        unmounted(){
-            window.removeEventListener('click', this.onClick);
-            window.removeEventListener('touchstart', this.onClick);
-        },
-        mounted() {
-            this.incompleteCall()
-            window.addEventListener('click', this.onClick);
-            window.addEventListener('touchstart', this.onClick);
-            emitter.on('setToast', e => {
-                this.resetToast()
-                e.active ? this.toast.active = e.active : false
-                e.type ? this.toast.type = e.type : false
-                e.content ? this.toast.content = e.content : false
-                e.answers ? this.toast.answers = e.answers : false
-                e.channel ? this.toast.channel = e.channel : false
-                e.hasOwnProperty('closeButton') ? this.toast.closeButton = e.closeButton : false
-                e.hasOwnProperty('autoClose') ? this.toast.autoClose = e.autoClose : false
-                e.hasOwnProperty('touchClose') ? this.toast.touchClose = e.touchClose : false
-            })
-            emitter.on('setInfo', e => {
-                this.resetInfo()
-                this.$store.commit('setInfo', e)
-                setTimeout(() => {
-                    if(e.channel == this.$store.state.info.channel){
-                        this.resetInfo()
-                    }
-                }, 4000);
-            })
-            emitter.on('resetToast', e => this.resetToast())
-            
-        },
-        methods:{
-            incompleteCall(){
-                if(this.$store.state.user){
-                    const string = '/user/' + this.$store.state.user.id
-                    // const currentUrl = window.location.href;
-                    // console.log(window.location)
-                    if(window.location.pathname == string){
-                        this.viewIncompleteWindow = true
-                    }else{
-                        this.viewIncompleteWindow = false
-                    }
-                    if (this.hasOneHourPassed(this.$store.state.user.id)) {
-                        this.viewIncompleteWindow = true
-                    }
-                }
-                
-            },
-            hasOneHourPassed(user_id) {
-                const lastCloseTime = localStorage.getItem('popupCloseTime_' + user_id);
-                if (!lastCloseTime) {
-                    return true; // If no timestamp found, treat it as an hour has passed
-                }
-
-                const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
-                const currentTime = new Date().getTime();
-                const elapsedTime = currentTime - parseInt(lastCloseTime, 10);
-
-                return elapsedTime >= oneHour;
-            },
-            closePopup() {
-                if(this.$store.state.user){
-                    const user_id = this.$store.state.user.id
-                    const string = '/user/' + user_id
-                    const currentUrl = window.location.href;
-                    if(currentUrl.includes(string)){
-                        this.viewIncompleteWindow = false
-                    }else{
-                        const currentTime = new Date().getTime();
-                        localStorage.setItem('popupCloseTime_' + user_id, currentTime);
-                        this.viewIncompleteWindow = false
-                    }
-                }
-                
-                
-            },
-            closeModal(){
-            },
-            onClick(){
-                if(this.$store.state.menu.name && this.$store.state.menu.id){
-                    const cont = document.getElementById(this.$store.state.menu.name);    
-                    if(cont && !cont.contains(event.target)){
-                        const menu = {name: null, id: null}
-                        this.$store.commit('setMenu', menu);
-                    } 
-                }
-            },
-            resetInfo(){
-                const data = {
-                    view: false,
-                    text: '',
-                    icon: 0,
-                    channel: ''
-                }
-                this.$store.commit('setInfo', data)
-            },
-            resetToast(){
-                
-                const res = {
-                    active: false,
-                    type: '',
-                    content: '',
-                    answers: [],
-                    channel: '',
-                    closeButton: true,
-                    autoClose: true,
-                    touchClose: true
-                }
-                this.toast = res
-            }
-        },  
-        components:{
-            IncompleteWindow,
-            IncompleteFeedBack,
-            MessageUsers,
-            Toast,
-            Info,
-            WeatherComponent,
-            SharingData,
-            FilePreview
-        },
-        computed:{
-            
-            theme() {
-                return this.isDarkMode ? 'dark' : 'light';
-            },
-        },
+        }
+        
     }
+    const hasOneHourPassed = (user_id) => {
+        const lastCloseTime = localStorage.getItem('popupCloseTime_' + user_id);
+        if (!lastCloseTime) {
+            return true; // If no timestamp found, treat it as an hour has passed
+        }
+
+        const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+        const currentTime = new Date().getTime();
+        const elapsedTime = currentTime - parseInt(lastCloseTime, 10);
+
+        return elapsedTime >= oneHour;
+    }
+    const closePopup = () => {
+        if(auth.id){
+            const user_id = auth.id
+            const string = '/user/' + user_id
+            const currentUrl = window.location.href;
+            if(currentUrl.includes(string)){
+                viewIncompleteWindow.value = false
+            }else{
+                const currentTime = new Date().getTime();
+                localStorage.setItem('popupCloseTime_' + user_id, currentTime);
+                viewIncompleteWindow.value = false
+            }
+        } 
+    }
+    const getIncompleteMessage = () => {
+        if(incompleteRef.value && incompleteRef.value.getUnsignedMessages){
+            incompleteRef.value.getUnsignedMessages()
+        }else{
+            refresh()
+        }
+    }
+    provide('getIncompleteMessage', getIncompleteMessage)
 </script>
 

@@ -23,6 +23,9 @@ use App\Models\shiftRecord;
 use App\Models\shiftType;
 use App\Models\FileRecord;
 use App\Models\UserAlbum;
+use App\Models\LessonPortfolio;
+use App\Models\LessonSection;
+use App\Models\LessonMaterial;
 use App\Mail\Warning;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -39,6 +42,8 @@ use Faker\Factory as Faker;
 use Illuminate\Support\Facades\DB;
 use App\Jobs\GenerateThumbnailJob;
 use App\Jobs\GeneratePostThumbnail;
+use League\Csv\Reader;
+use League\Csv\Statement;
 class AutoJobController extends Controller
 
 {
@@ -48,6 +53,44 @@ class AutoJobController extends Controller
     {
         $this->sharedService = $sharedService;
         // $this->middleware('throttle:3,1');
+    }
+    public function process_csv(){
+
+        $csvFilePath = storage_path('app/self.csv');
+
+        $csv = Reader::createFromPath($csvFilePath, 'r');
+        $csv->setHeaderOffset(0);
+
+        $records = (new Statement())->process($csv);
+        
+        $json = iterator_to_array($records);
+
+        $materials_ids = LessonMaterial::where('lesson_theme_id', 1)->where('priority', 1)->pluck('id')->toArray();
+        foreach($json as $row){
+            $user_code = (int) $row['社員コード'];
+            $user = User::where('user_code', $user_code)->select('id', 'name', 'awareness')->first();
+            $content = $row['ポートフォリオ'] == '提出済' ? $user->awareness : $row['ポートフォリオ'];
+            $portfolio = LessonPortfolio::firstOrCreate(['lesson_theme_id' => 1, 'user_id' => $user->id]);
+
+            
+            
+            $portfolio->update([
+                "status" => 3,
+                "public_content" => $content,
+                "positive_feedback" => $row['グループディスカッションでどのようなフィードバックをもらいましたか。']
+
+            ]);
+            foreach($materials_ids as $materials_id){
+                LessonSection::firstOrCreate([
+                    "material_id" => $materials_id,
+                    "user_id" => $user->id,
+                    "portfolio_id" => $portfolio->id
+                ])->update([
+                    "status" => 2
+                ]);
+            }
+
+        }
     }
     public function update_last_act(){
 
@@ -127,30 +170,6 @@ class AutoJobController extends Controller
         
 
         return 'success';
-    }
-    public function sync_first_month_calendar_shift(){
-       
-        $users = User::where('deleted_flag', 0)->where('retire', 0)->where('hide_flag', 0)->pluck('id')->toArray();
-        foreach($users as $id){
-            $shift_records = shiftRecord::where('user_id', $id)
-            ->where('shift_day', '>', '2023-12-31')
-            ->whereIn('shift_type', [0, 2, 3, 5, 14, 15])
-            ->select('shift_type AS type', 'shift_day AS date')
-            // ->groupBy('shift_day')
-            ->get()->groupBy(function($date) {
-                return Carbon::parse($date->date)->format('Y-m');
-            });
-            
-            foreach ($shift_records as $key => $value) {
-                $date = Carbon::parse($key);
-
-                $year = $date->year; 
-                $month = $date->month; 
-                $createSchedule = $this->sharedService->syncShiftToCalendar($id, $year, $month, $value);   
-                echo($createSchedule);
-            }
-           
-        }
     }
     public function move_note_to_task(){
         $all_memos = memoRecord::where('deleted_flag', 0)->get();
@@ -362,53 +381,32 @@ class AutoJobController extends Controller
         // echo($notices);
         return;
     }
-    public function migrate_app_files_to_message_files(){
-        $files = AppFileRecord::where('recycle_flag', 0)->get();
 
-        foreach($files as $file){
-            $filePath = $file->record_id . '/' . $file->path . '.' . $file->extension;
-            if (Storage::disk('local')->exists('managed_files/' . $filePath)) {
-                $rec = messageFile::create([
-                    'board_id' => $file['record_id'], 
-                    'user_id' => $file['user_id'], 
-                    'name' => $file['name'], 
-                    'mime_type' => $file['mime_type'], 
-                    'extension' => $file['extension'], 
-                    'size' => $file['size'], 
-                    'message_id' => 0
-                ]);
-                $copy = Storage::disk('local')->copy('managed_files/' . $filePath,'shared_files/' . $file->record_id . '/'. $rec->id . '_' . $file['user_id'] . '_0.' . $file['extension']);
-                echo($copy);
+    public function removeTemprorayFiles(){ //Cron Job
+        $directory = 'temp_upload';
+
+        $maxAgeInDays = 7;
+
+        $thresholdTimestamp = now()->subDays($maxAgeInDays);
+
+        $files = Storage::disk('local')->files($directory);
+
+        foreach ($files as $file) {
+            $fileTimestamp = Storage::disk('local')->lastModified($file);
+
+            if ($fileTimestamp <= $thresholdTimestamp->timestamp) {
+                Storage::disk('local')->delete($file);
+                // $this->info("Deleted: $file");
             }
         }
-        
-        return;
-    }
-    public function removeTemprorayFiles(){ //Cron Job
-        // $directory = 'temp_upload';
-
-        // $maxAgeInDays = 7;
-
-        // $thresholdTimestamp = now()->subDays($maxAgeInDays);
-
-        // $files = Storage::disk('local')->files($directory);
-
-        // foreach ($files as $file) {
-        //     $fileTimestamp = Storage::disk('local')->lastModified($file);
-
-        //     if ($fileTimestamp <= $thresholdTimestamp->timestamp) {
-        //         Storage::disk('local')->delete($file);
-        //         $this->info("Deleted: $file");
-        //     }
+        // $line = Carbon::now()->subDays(7)->format('Y:m:d H:i:s');
+        // $unused_files = messageFile::where('message_id', null)
+        //     ->where('created_at', '<', $line)   
+        //     ->get();
+        // foreach($unused_files as $file){           
+        //     $del = Storage::disk('local')->delete('temp_upload/' . $file->id . '.' . $file->extension);        
+        //     $file->delete();            
         // }
-        $line = Carbon::now()->subDays(7)->format('Y:m:d H:i:s');
-        $unused_files = messageFile::where('message_id', null)
-            ->where('created_at', '<', $line)   
-            ->get();
-        foreach($unused_files as $file){           
-            $del = Storage::disk('local')->delete('temp_upload/' . $file->id . '.' . $file->extension);        
-            $file->delete();            
-        }
         return;
     }
 }

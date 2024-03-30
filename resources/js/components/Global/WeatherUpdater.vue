@@ -76,49 +76,28 @@
         </div>
     </div>
 </template>
-<script>
+<script setup>
     
-    import moment from 'moment';
-    export default {
-        emits: ['reload'],
-        data(){
-            return{
-                weatherSelect: null,
-                viewWeatherComponent: false,
-            }
-        },
-        mounted(){
-        },
-        methods: {
-          
-        saveWeather(){
-            let today = moment().local().format('YYYY-MM-DD') 
-            axios.post('/save_weather', {today, value: this.weatherSelect} ).then(
-                response => {
-                    const user_id = this.$store.state.user.id
-                    localStorage.setItem('weather_' + user_id, today)
-                    this.$emit('reload')
-                    this.$store.commit('setMenu', {id: null, name: ''})
-                }
-            ).catch(function (error) {
-                if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) this.errorToast('エラーが発生しました。')
-                else this.errorToast('エラーが発生しました。 ' + error.message)     
-            }.bind(this));
-              
-        },
-        errorToast(message){
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })                
-        },
-        }
+import moment from 'moment';
+import { inject, ref } from 'vue';
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from '@/store/menu'
+    const auth = useAuthUserStore()
+    const {notify} = inject('dialog')
+    const emit = defineEmits(['reload'])
+    const weatherSelect = ref(null)
+    const menu = useMenuStore()
+    const saveWeather = async() => {
+        let today = moment().local().format('YYYY-MM-DD') 
+        try{
+          await axios.post('/save_weather', {today, value: weatherSelect.value} )
+          const user_id = auth.id
+          localStorage.setItem('weather_' + user_id, today)
+          emit('reload')
+          menu.setMenu( {id: null, name: ''})
+        }catch (e){
+          notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
+        } 
     }
 </script>
 <style scoped lang="scss">

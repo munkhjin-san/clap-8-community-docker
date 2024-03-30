@@ -1,10 +1,10 @@
 <template>
     <div class="monthPicker">
-        <div @click.stop="openYearPicker" style="width: 100%;height: 100%;flex;align-items: center;cursor:pointer;place-content: center;display:flex">
+        <div @click.stop="openYearPicker" style="width: 100%;height: 100%;align-items: center;cursor:pointer;place-content: center;display:flex">
             {{ year }}年
         </div>
         <Transition name="slidePop">
-            <div id="cYearPicker" v-if="$store.state.menu.name=='cYearPicker' && $store.state.menu.id==87" class="month-grid" style="right:0;">
+            <div id="cYearPicker" v-if="menu.name=='cYearPicker' && menu.id==87" class="month-grid" style="right:0;">
                 <div v-if="pickerIs == 'year'" class="grid-container year-picker">
                     <div @click.stop="setYear(y)" :id="`y_${y}`" :class="{thisYear : y == year}" v-for="y in yearList" class="grid-item">{{ y }}年</div>
                 </div>
@@ -16,29 +16,29 @@
 
 <script setup>
 import { computed, nextTick, ref } from 'vue'
-import { useStore } from 'vuex';
-        const props = defineProps(['selectedYear'])
-        const emit = defineEmits(['setDate'])
-        const pickerIs = ref('year')
-        const year = ref(props.selectedYear)
-        const store = useStore()
-        const yearList = computed(() => {
-            return Array.from({ length: 12 }, (_, i) => year.value - 5 + i);
-        })
-        
-        const openYearPicker = () => {
-            if(store.state.menu.name == 'cYearPicker'){
-                store.commit('setMenu',{ name: '', id: null})
-                return
-            }
-            store.commit('setMenu', {name: 'cYearPicker', id:87})   
+import { useMenuStore } from "@/store/menu";
+    const menu = useMenuStore()
+    const props = defineProps(['selectedYear'])
+    const emit = defineEmits(['setDate'])
+    const pickerIs = ref('year')
+    const year = ref(props.selectedYear)
+    const yearList = computed(() => {
+        return Array.from({ length: 12 }, (_, i) => year.value - 5 + i);
+    })
+    
+    const openYearPicker = () => {
+        if(menu.name == 'cYearPicker'){
+            menu.setMenu({ name: '', id: null})
+            return
         }
-            
-        const setYear = (y) => {
-            year.value = y
-            emit('setDate', {year: y})
-            store.commit('setMenu',{ name: '', id: null})
-        }          
+        menu.setMenu( {name: 'cYearPicker', id:87})   
+    }
+        
+    const setYear = (y) => {
+        year.value = y
+        emit('setDate', {year: y})
+        menu.setMenu({ name: '', id: null})
+    }          
         
 </script>
 

@@ -2,17 +2,17 @@
     <div class="post-item-outer" v-if="record">
         <div class="post-item-header-wrap">
             <div v-html="title" class="post-title"></div>            
-            <div @click.stop="$store.commit('setMenu', {name: 'recordBoxMenu', id: record.id})" v-if="isOwner" class="boardMenuContainer cursor-pointer" style="align-self: normal;">
+            <div @click.stop="menu.setMenu( {name: 'recordBoxMenu', id: record.id})" v-if="isOwner" class="boardMenuContainer cursor-pointer" style="align-self: normal;">
                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="dot-menu" height="13" viewBox="0 0 7 32" style="margin: auto;">
                     <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path><path d="M3.405 12.33c-0.447 0.013-0.881 0.115-1.272 0.278-0.1 0.038-0.195 0.085-0.287 0.135-0.093 0.047-0.185 0.097-0.27 0.154l-0.129 0.083-0.064 0.042-0.124 0.088c-0.050 0.039-0.132 0.104-0.181 0.145l-0.040 0.035c-0.111 0.096-0.214 0.202-0.302 0.319-0.001 0-0.001 0.001-0.001 0.001l-0.058 0.081-0.040 0.064-0.082 0.134c-0.056 0.086-0.104 0.179-0.15 0.271-0.049 0.095-0.095 0.189-0.132 0.289-0.164 0.394-0.262 0.832-0.27 1.277-0.025 0.899 0.324 1.82 0.967 2.467 0.636 0.651 1.549 1.038 2.465 1.037 0.456 0.003 0.906-0.086 1.315-0.239 0.41-0.156 0.781-0.374 1.112-0.619l0.188-0.188c0.246-0.331 0.463-0.701 0.619-1.112 0.157-0.408 0.245-0.858 0.245-1.315 0.003-0.918-0.392-1.832-1.043-2.465-0.648-0.639-1.567-0.991-2.464-0.961z"></path><path d="M6.162 5.606c0.282-0.359 0.493-0.767 0.622-1.187 0.129-0.417 0.186-0.842 0.196-1.255l-0.035-0.263c-0.107-0.399-0.264-0.799-0.493-1.174-0.224-0.376-0.526-0.721-0.888-1-0.721-0.569-1.682-0.821-2.582-0.694-0.903 0.117-1.746 0.622-2.276 1.347-0.267 0.36-0.451 0.767-0.563 1.174-0.033 0.103-0.054 0.206-0.071 0.307-0.021 0.103-0.038 0.207-0.043 0.309l-0.015 0.152-0.007 0.078-0.003 0.096c-0.003 0.132-0.001 0.262 0.004 0.39l0.008 0.16c0.018 0.077 0.033 0.152 0.056 0.227l0.028 0.092 0.028 0.075 0.053 0.145c0.032 0.096 0.077 0.191 0.122 0.287 0.043 0.096 0.089 0.189 0.145 0.282 0.21 0.371 0.494 0.717 0.84 1.002 0.691 0.57 1.633 0.863 2.538 0.754 0.904-0.099 1.771-0.58 2.336-1.302z"></path>
                 </svg>            
             </div>
             <Transition name="modalFade">
-            <div id="recordBoxMenu" class="boxMenu boardMenuIcon" v-if="$store.state.menu.name == 'recordBoxMenu' && $store.state.menu.id == record.id" style="top: 25px;right: 25px;z-index:6;">
+            <div id="recordBoxMenu" class="boxMenu boardMenuIcon" v-if="menu.name == 'recordBoxMenu' && menu.id == record.id" style="top: 25px;right: 25px;z-index:6;">
                 <ul>
-                    <li @click="$emit('editRecord', record), closeMenu()" class="boxMenuItems cursor-pointer">{{`${appNameJp}を編集する`}}</li>
+                    <li @click="emit('editRecord', record), closeMenu()" class="boxMenuItems cursor-pointer">{{`${appNameJp}を編集する`}}</li>
                     <li v-if="appName == 'challenge'" @click="updateStatus(), closeMenu()" class="boxMenuItems cursor-pointer">{{`ステータスを変更する`}}</li>
-                    <li @click="$emit('deleteRecord', record), closeMenu()" class="boxMenuItems cursor-pointer">{{`${appNameJp}を削除する`}}</li>                  
+                    <li @click="emit('deleteRecord', record), closeMenu()" class="boxMenuItems cursor-pointer">{{`${appNameJp}を削除する`}}</li>                  
                 </ul>                                            
             </div>
             </Transition>
@@ -29,7 +29,7 @@
                         <svg v-if="record.app_type == 3" version="1.1" xmlns="http://www.w3.org/2000/svg" class="nice-arrow" viewBox="0 0 47 32" style="margin-right: 15px;">
                             <path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path>
                         </svg>
-                        <div :ref="`to_users_${record.id}`" :class="['toUserListContainer', {expandToUserListContainer : expand}]">
+                        <div ref="toUsersRef" :class="['toUserListContainer', {expandToUserListContainer : expand}]">
                             <div :key="user.id" v-for="user in record.to_users" style="display: flex;align-items: center;cursor: pointer;">                                                             
                                 <UserIcon size="30" :user="user" :imgClass="isMultipleUsers ? 'toUsersIconSmall' : 'toUsersIcon'"/>                               
                                 <p @click.stop="pushInstantUser($event, user)" style="width: max-content;" class="userName">{{ user.name }}</p>                                                                
@@ -81,7 +81,7 @@
                 />
             </div>
             <div v-if="challengeButtonView">                                    
-                <button @click="$emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
+                <button @click="emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
                 <button v-else class="chargeFormeAddButton" disabled="">{{canNotCharge}}</button>
             </div>  
         </div>
@@ -107,14 +107,13 @@
                 :key="isExpanded"
                 :record="record"
                 :app_name="appName"
-                @updateCommentCount="setCommentCount"                
             />
         </transition>
         
         
     </div>
 </template>
-<script>
+<script setup>
 import UserIcon from '../Board/Mixed/UserIcon.vue'
 import PostDate from './PostDate.vue'
 import Autolinker from 'autolinker';
@@ -123,210 +122,187 @@ import moment from 'moment';
 import ClapButton from './ClapButton.vue';
 import PostComment from './PostComment.vue'
 import PostFiles from './PostFiles.vue';
-export default{
-    props: ['record', 'appNameJp', 'appName'],
-    emits: ['setChargeTarget', 'setCommentCount', 'setClap', 'editRecord', 'updateStatus', 'deleteRecord'],
-    data(){
-        return{
-            maxLength: 200,
-            truncated: false,
-            showAll: false,
-            expand: false,
-            viewExpand: false,
-            isExpanded: false
-        }
-    },
-    mounted(){
-        const to_user = this.$refs[`to_users_${this.record?.id}`]
+import { computed, inject, onMounted, ref } from 'vue';
+import { useRoute } from 'vue-router';
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useResponsive } from '@/store/responsive';
+import { useMessageUsers } from '@/store/messageUsers'
+    const messageUsers = useMessageUsers()
+    const menu = useMenuStore()
+    const auth = useAuthUserStore()
+    const responsive = useResponsive()
+    const props = defineProps(['record', 'appNameJp', 'appName'])
+    const emit = defineEmits(['setChargeTarget', 'setCommentCount', 'setClap', 'editRecord', 'updateStatus', 'deleteRecord'])
+    const route = useRoute()
+    const maxLength = ref(200)
+    const truncated = ref(false)
+    const showAll = ref(false)
+    const expand = ref(false)
+    const viewExpand = ref(false)
+    const isExpanded = ref(false)
+    const toUsersRef = ref(null);
+    onMounted(() => {
+        const to_user = toUsersRef.value
         if(to_user && to_user.scrollHeight > to_user.clientHeight){
-            this.viewExpand = true
+            viewExpand.value = true
         }
-        let id = this.$route.query.id
+        let id = route.query.id
         if(id){
             id = parseInt(id)
-            if(id == this.record.id){
-                this.isExpanded = true
+            if(id == props.record.id){
+                isExpanded.value = true
             }           
-        }        
-    },
-    components: { 
-        UserIcon, 
-        PostDate, 
-        PostTag, 
-        ClapButton, 
-        PostComment,
-        PostFiles 
-    },
-    computed:{
-        isMultipleUsers(){
-            return this.$store.state.mobile && this.record && this.record.to_users && this.record.to_users.length > 1
-        },
-        status(){
-            if(this.record.app_type == 4){
-                var todayDate = (moment().format("YYYY-MM-DD"));
-                                    
-                if(todayDate <= this.record.date_end && this.record.status_flag == 0){
-                    var statusText = '実施中';
-                    return statusText;
-                }                
-                else if(this.record.status_flag == 1)
-                {
-                    var statusText = '達成';
-                    return statusText;
-                }
-                else if(this.record.status_flag == 2)
-                {
-                    var statusText = '未達成';
-                    return statusText;
-                } else if(this.record.status_flag == 3)
-                {
-                    var statusText = '中止';
-                    return statusText;
-                }
-                else if(todayDate > this.record.date_end){
-                    var statusText = '結果待ち';
-                    return statusText;
-                }
-            }
-        },
-        supporters(){
-            if(this.record.app_type == 4){
-                const amounts = this.record.challenge_awards
-                return amounts
-            }
-            return []
-        },
-        totalChargeAmmount(){
-            if(this.record.app_type == 4){
-                const amounts = this.record.challenge_awards.map(ob => {
-                    return ob.pivot ? ob.pivot.award_bet : 0
-                })
-                const sum = amounts.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
-                return sum
-            }
-            return ''
-        },
-        challengeButtonSwitch(){
-            var todayDate = (moment().format("YYYY-MM-DD"));                
-            var charged_user = this.record.challenge_awards.filter(obj => obj.id == this.$store.state.user.id);
-            if(todayDate <= this.record.date_end && this.record.status_flag == 0 && charged_user.length == 0){
-                return true
+        }  
+    })  
+    const isMultipleUsers = computed(() => {
+        return responsive.mobile && props.record && props.record.to_users && props.record.to_users.length > 1
+    })
+    const status = computed(() => {
+        if(props.record.app_type == 4){
+            var todayDate = (moment().format("YYYY-MM-DD"));
+                                
+            if(todayDate <= props.record.date_end && props.record.status_flag == 0){
+                var statusText = '実施中';
+                return statusText;
             }                
-        },
-        canNotCharge(){
-            const todayDate = (moment().format("YYYY-MM-DD"));
-            if(this.record.status_flag > 0){
-                return 'チャレンジの結果が確定しました'
-            }else{
-                const charged_user = this.record.challenge_awards.filter(obj => obj.id == this.$store.state.user.id);
-                if(charged_user.length){
-                    return '既にチャージしています'
-                }else if(todayDate > this.record.date_end){
-                    return 'チャージ期間を終了しました'
-                }
+            else if(props.record.status_flag == 1)
+            {
+                var statusText = '達成';
+                return statusText;
             }
-        },
-        challengeButtonView(){
-            if(this.record.app_type == 4){
-                let flag = this.record.to_users.filter(obj => obj.id == this.$store.state.user.id);  
-                return !flag.length ? true : false   
+            else if(props.record.status_flag == 2)
+            {
+                var statusText = '未達成';
+                return statusText;
+            } else if(props.record.status_flag == 3)
+            {
+                var statusText = '中止';
+                return statusText;
             }
-            return false
-            
-        },
-        isOwner(){
-            if(this.record && this.$store.state.user){
-                if(this.record.app_type == 4){
-                    const player = this.record.to_users.filter(ob => ob.id == this.$store.state.user.id)
-                    return player && player.length ? true : false
-                }else {
-                    return this.record.user_id == this.$store.state.user.id
-                }
+            else if(todayDate > props.record.date_end){
+                var statusText = '結果待ち';
+                return statusText;
             }
-            
-        },
-        tags(){
-            return this.record.tags ? this.record.tags : []
-        },
-        title(){
-            return this.record && this.record.title ? this.record.title : ''
-        },
-        body(){           
-            
-            const text = this.record.app_type == 4 ? this.record.content_rule : this.record.content
-            const truncate = this.cutter(text, this.maxLength)
-            const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
-            return urlParse          
-            
-        },
-        goal(){
-            const text = this.record.app_type == 4 ? this.record.content_goal : ''
-            const truncate = this.cutter(text, this.maxLength)
-            const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
-            return urlParse    
-        },
-        result(){
-            const text = this.record.app_type == 4 ? this.record.result : this.record.result
-            const truncate = this.cutter(text, this.maxLength)
-            const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
-            return urlParse    
         }
-    },
-    methods:{
-        pushInstantUser(event, id){
-            if(this.$store.state.user && id == this.$store.state.user.id) return
-            const cX = event.clientX;
-            const cY = event.clientY;  
-            const data = {
-                id: id,
-                cX: cX,
-                cY: cY
+    })
+    const supporters = computed(() => {
+        if(props.record.app_type == 4){
+            const amounts = props.record.challenge_awards
+            return amounts
+        }
+        return []
+    })
+    const totalChargeAmmount = computed(() => {
+        if(props.record.app_type == 4){
+            const amounts = props.record.challenge_awards.map(ob => {
+                return ob.pivot ? ob.pivot.award_bet : 0
+            })
+            const sum = amounts.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
+            return sum
+        }
+        return ''
+    })
+    const challengeButtonSwitch = computed(() => {
+        var todayDate = (moment().format("YYYY-MM-DD"));                
+        var charged_user = props.record.challenge_awards.filter(obj => obj.id == auth.id);
+        if(todayDate <= props.record.date_end && props.record.status_flag == 0 && charged_user.length == 0){
+            return true
+        }                
+    })
+    const canNotCharge = computed(() => {
+        const todayDate = (moment().format("YYYY-MM-DD"));
+        if(props.record.status_flag > 0){
+            return 'チャレンジの結果が確定しました'
+        }else{
+            const charged_user = props.record.challenge_awards.filter(obj => obj.id == auth.id);
+            if(charged_user.length){
+                return '既にチャージしています'
+            }else if(todayDate > props.record.date_end){
+                return 'チャージ期間を終了しました'
             }
-            this.$store.commit('setInstantUser', data)   
-            this.$store.commit('setMenu', {name: 'instantProfileWindow', id: 5000})                 
-        },
-        updateStatus(){
-            if(this.isOwner){
-                this.$emit('updateStatus', this.record)
+        }
+    })
+    const challengeButtonView = computed(() => {
+        if(props.record.app_type == 4){
+            let flag = props.record.to_users.filter(obj => obj.id == auth.id);  
+            return !flag.length ? true : false   
+        }
+        return false  
+    })
+    const isOwner = computed(() => {
+        if(props.record && auth.user){
+            if(props.record.app_type == 4){
+                const player = props.record.to_users.filter(ob => ob.id == auth.id)
+                return player && player.length ? true : false
+            }else {
+                return props.record.user_id == auth.id
             }
-        },
-        closeMenu(){
-            this.$store.commit('setMenu', { name: '', id : null})
-        },
-        viewSupporters(){
-            const data = {
-                active: true,
-                userList: this.supporters,
-                title: 'サポーター'
-            }
-            this.$store.commit('setMessageUsers', data)
-        },
-        setCommentCount(num, id){
-            this.$emit('setCommentCount', num, id)
-        },
-        setClap(val){
-            this.$emit('setClap', val, this.record.id)
-        },
-        cutter(string, len){
-            if(!string){
-                return ''
-            }
-            if(this.showAll || string.length <= len || string.length <= len + 50){
-                return string
-            }
-            const last = string.substring(len - 5, len + 5)
-            const check_emoji = last.match(/[\p{Emoji}\u200d]+/gu)
-            if(!check_emoji){
-                this.truncated = true
-                return string.substring(0, len) + '...'
-            
-            }else{
-                return this.cutter(string, len + 5)
-            }
-            
+        }
+    })
+    const tags = computed(() => {
+        return props.record.tags ? props.record.tags : []
+    })
+    const title = computed(() => {
+        return props.record && props.record.title ? props.record.title : ''
+    })
+    const body = computed(() => {           
+        const text = props.record.app_type == 4 ? props.record.content_rule : props.record.content
+        const truncate = cutter(text, maxLength.value)
+        const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
+        return urlParse          
+        
+    })
+    const goal = computed(() => {
+        const text = props.record.app_type == 4 ? props.record.content_goal : ''
+        const truncate = cutter(text, maxLength.value)
+        const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
+        return urlParse    
+    })
+    const result = computed(() => {
+        const text = props.record.app_type == 4 ? props.record.result : props.record.result
+        const truncate = cutter(text, maxLength.value)
+        const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
+        return urlParse    
+    })
+    const pushInstantUser = inject('pushInstantUser')
+    const updateStatus = () => {
+        if(isOwner.value){
+            emit('updateStatus', props.record)
         }
     }
-}
+    const closeMenu = () => {
+        menu.setMenu( { name: '', id : null})
+    }
+    const viewSupporters = () => {
+        const data = {
+            active: true,
+            userList: supporters.value,
+            title: 'サポーター'
+        }
+        messageUsers.setMessageUsers(data)
+    }
+    const setClap = (val) => {
+        emit('setClap', val, props.record.id)
+    }
+    const cutter = (string, len) => {
+        if(!string){
+            return ''
+        }
+        if(showAll.value || string.length <= len || string.length <= len + 50){
+            return string
+        }
+        const last = string.substring(len - 5, len + 5)
+        const check_emoji = last.match(/[\p{Emoji}\u200d]+/gu)
+        if(!check_emoji){
+            truncated.value = true
+            return string.substring(0, len) + '...'
+        
+        }else{
+            return cutter(string, len + 5)
+        }
+        
+    }
 </script>
 <style>
 

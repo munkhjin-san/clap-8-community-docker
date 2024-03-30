@@ -7,7 +7,7 @@
         </div>
         <div style="height: 100%;width: 100%;overflow: auto;">
             <div class="post-header" style="position: sticky;top: 0;background: var(--bg2);z-index: 5;">
-                <HamBurger v-if="$store.state.mobile"/>
+                <HamBurger v-if="responsive.mobile"/>
                 <div class="post-search-wrap">
                     <PostSearchBar :searching="searching" @searchStart="searchStart" className="newChatMemberSearch" :customPlaceHolder="`お知らせを検索`" />
                 </div>                
@@ -36,9 +36,6 @@
                     style="margin: auto 0px 15px;padding-top: 15px;"
                 />
             </div>
-            <!-- <Transition name="modalFade">
-                <NoticeDetail v-if="selectedItem" :item="selectedItem" @close="selectedItem = null"/>
-            </Transition> -->
             
         </div>
         <router-view v-slot="{ Component }">
@@ -46,6 +43,7 @@
                 <component 
                     :is="Component" 
                     :hasPrivilage="hasPrivilage"
+                    :getNotices="getNotices"
                     @edit="editNotice"
                     @delete="deleteNoticeConfirm"
                 />
@@ -56,141 +54,118 @@
         </Transition>
     </div>
 </template>
-<script>
-import axios from 'axios';
+<script setup>
 import HamBurger from '../Global/HamBurger.vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import moment from 'moment';
-import NoticeDetail from './NoticeDetail.vue';
 import PostSearchPager from '../Post/PostSearchPager.vue';
 import NoticeCreate from './NoticeCreate.vue'
-export default{
-    data(){
-        return{
-            noticeData: null,
-            selectedItem: null,
-            pagerKey: 0,
-            page: 1,
-            searching: 0,
-            keyword: '',
-            createWindow: false,
-            editTarget: null
+import { computed, onMounted, ref, inject } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthUserStore } from '@/store/auth'
+import { useResponsive } from '@/store/responsive';
+    const auth = useAuthUserStore()
+    const responsive = useResponsive()
+    const router = useRouter()
+    const noticeData = ref(null)
+    const pagerKey = ref(0)
+    const page = ref(1)
+    const searching = ref(0)
+    const keyword = ref('')
+    const createWindow = ref(false)
+    const editTarget = ref(null)
+    const { confirm } = inject('dialog')
+    onMounted(() => {
+        getNotices()
+    })
+    const activePath = computed(() => {
+        return noticeData.value && noticeData.value.current_page ? noticeData.value.current_page : 0
+    })
+    const hasPrivilage = computed(() => {
+        return auth.activeUser ? [540,690,610, 516, 519, 517, 518, 526, 494, 604, 765].includes(auth.activeUser.id) : false
+    })
+    const possiblePage = computed(() => {
+        return noticeData.value && noticeData.value.last_page ? noticeData.value.last_page : 0
+    })
+    const noticeListInbox = computed(() => {
+        return noticeData.value && noticeData.value.data ? noticeData.value.data : []
+    })
+    
+    const editNotice = (val) => {
+        editTarget.value = val
+        createWindow.value = true
+        router.push({name: 'notice'})
+    }
+    const deleteNoticeConfirm = async(val) => {
+        const answer = await confirm('お知らせを削除しますか。')
+        if(!answer) return
+        deleteNotice(val)
+    }
+    const deleteNotice = async(val) => {
+        router.push({name: 'notice'})
+        await axios.delete(`/notice_delete?id=${val.id}`)
+        getNotices(page.value)
+    }
+    const closeModal = (val) => {
+        createWindow.value = false;
+        if(val){
+            page.value = 1
+            getNotices(page.value)
         }
-    },
-    mounted(){
-        this.getNotices()
-        emitter.on('getNoticeBadge', (data) => this.getNotices());
-    },
-    computed:{
-        activePath(){
-            return this.noticeData && this.noticeData.current_page ? this.noticeData.current_page : 0
-        },
-        hasPrivilage(){
-            return [540,690,610, 516, 519, 517, 518, 526, 494, 604].includes(this.$store.state.user.id)
-        },
-        possiblePage(){
-            return this.noticeData && this.noticeData.last_page ? this.noticeData.last_page : 0
-        },
-        noticeListInbox(){
-            return this.noticeData && this.noticeData.data ? this.noticeData.data : []
-        }
-    },
-    methods:{
-        editNotice(val){
-            this.editTarget = val
-            this.createWindow = true
-            this.$router.push({name: 'notice'})
-        },
-        deleteNoticeConfirm(val){
-            var uniqueChannell = Math.random().toString(36).substring(5);   
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: 'お知らせを削除しますか。' ,
-                closeButton: false, 
-                autoClose: false,
-                answers: [this.$t('confirmToAction'),this.$t('cancelToAction')],
-                channel: uniqueChannell
 
-            })            
-            emitter.on(uniqueChannell, (data) => { data.answer === this.$t('confirmToAction') ? this.deleteNotice(val): false});
-        },
-        deleteNotice(val){
-            console.log('delete', val)
-            this.$router.push({name: 'notice'})
-            axios.delete(`/notice_delete?id=${val.id}`).then(res => {
-                this.getNotices(this.page)
-            })
-        },
-        closeModal(val){
-            this.createWindow = false;
-            if(val){
-                this.page = 1
-                this.getNotices(this.page)
-            }
+    }
+    const searchStart = (val) => {
+        keyword.value = val
+        getNotices(val)
+    }
+    const setActivePage = (pagenum) => {
+        page.value = pagenum
+        getNotices(pagenum)
+    } 
+    const setNavi = (val) => {
+        page.value = page.value + val
+        getNotices()
+    }
+    const isUnread = (notice) => {
+        // const line = moment('2023-10-01')
 
-        },
-        searchStart(val){
-            console.log(val)
-            this.keyword = val
-            this.getNotices(val)
-        },
-        setActivePage(page){
-            this.page = page
-            this.getNotices(this.page)
-        }, 
-        setNavi(val){
-            this.page = this.page + val
-            this.getNotices()
-        },
-        isUnread(notice){
-            // const line = moment('2023-10-01')
-
-            // if()
-            const list = notice.readers.map(ob => ob.id)
-            const read = list.includes(this.$store.state.user.id)
-            return read ? '400' : '600'
-        },
-        momentMessage(date){
-            moment.locale('ja')
-            return moment(date).isSame(moment(), 'day') ? 
-            moment(date).format('HH:mm') : 
-            moment(date).isSame(moment(), 'year') ? 
-            moment(date).format('M月D日') : 
-            moment(date).format('YYYY年M月D日')       
-        },
-        unreadNoticeTitle(list){
+        // if()
+        const list = notice.readers.map(ob => ob.id)
+        const read = list.includes(auth.activeUser.id)
+        return read ? '400' : '600'
+    }
+    const momentMessage = (date) => {
+        moment.locale('ja')
+        return moment(date).isSame(moment(), 'day') ? 
+        moment(date).format('HH:mm') : 
+        moment(date).isSame(moment(), 'year') ? 
+        moment(date).format('M月D日') : 
+        moment(date).format('YYYY年M月D日')       
+    }
+    const unreadNoticeTitle = (list) => {
                 
          
-            var userCheck = JSON.parse("[" + list + "]"); 
-            if(!list || list == null || userCheck.indexOf(this.$store.state.user.id) == -1){
-                return 'font-weight: 600;'
-            }  
-            
-            
-        },
-        openNotice(){
-
-        },
-        getNotices(){
-            const key = this.keyword ? `&keyword=${this.keyword}` : ''
-            if(key){
-                this.searching = 1
-            }
-            axios.get(`/get_notices?page=${this.page}${key}`).then(response => {
-                this.noticeData = response.data
-                this.searching = 0
-            })
-        }
-    },
-    components:{
-        HamBurger,
-        PostSearchBar,
-        NoticeDetail,
-        PostSearchPager,
-        NoticeCreate
+        var userCheck = JSON.parse("[" + list + "]"); 
+        if(!list || list == null || userCheck.indexOf(auth.activeUser.id) == -1){
+            return 'font-weight: 600;'
+        }  
+        
+        
     }
-}
+       
+    const getNotices = () => {
+        const key = keyword.value ? `&keyword=${keyword.value}` : ''
+        if(key){
+            searching.value = 1
+        }
+        axios.get(`/get_notices?page=${page.value}${key}`).then(response => {
+            noticeData.value = response.data
+            searching.value = 0
+        })
+    }
+
+  
+
 </script>
 <style>
 .oshirase-root{

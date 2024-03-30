@@ -17,32 +17,30 @@
             </div>
             <div class="si-box">
                 <p v-if="portfolio?.status < 1" :style="{marginBottom: portfolio?.status < 1 ? '20px' : '0'}"><strong>ディスカッション用のポートフォリオを作成してください</strong></p>
-                <FormShortText
+                <ShortInput
                     v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.portfolio_title : portfolio_title"
                     :key="`p_key_${portfolio && portfolio.portfolio_title ? portfolio.portfolio_title : 0}`"
                     ref="portfolioTitle"
                     placeHolder="ディスカッション用ポートフォリオタイトル"
-                    uId="portfolioTitle"
                     name="portfolioTitle"
                     rules="required"
                     label="タイトル"
-                    @setValue="val => portfolio_title = val"
+                    v-model="portfolio_title"
                 />
                 <p v-else><strong>ディスカッション用ポートフォリオタイトル<br></strong>{{ portfolio?.portfolio_title }}</p>
             </div>
             <div class="si-box">
-                <FormLongText
+                <LongInput
                     v-if="portfolio?.status < 1"
                     :initialValue="portfolio ? portfolio.content : content"   
                     :placeHolder="`ディスカッション用ポートフォリオ内容`"
-                    :key="`${portfolio ? portfolio.content : 0}_${$route.fullPath}_${portfolio.updated_at}`"
+                    :key="`${portfolio ? portfolio.content : 0}_${route.fullPath}_${portfolio.updated_at}`"
                     ref="portfolioBody"
                     rules="required|max:2000"
-                    uId="recordBody"
                     name="recordBody"
                     label="タイトル"
-                    @setValue="val => content = val"
+                    v-model="content"
                 />
                 <p v-else><strong>ディスカッション用ポートフォリオ内容<br></strong>{{ portfolio?.content }}</p>
             </div>
@@ -61,9 +59,9 @@
 </template>
 <script setup>
     import { useRoute, useRouter } from 'vue-router';
-    import FormLongText from '../../Global/FormLongText.vue';
     import LoaderButton from '../../Global/LoaderButton.vue';
-    import FormShortText from '../../Global/FormShortText.vue';
+    import LongInput from '../../Form/LongInput.vue';
+    import ShortInput from '../../Form/ShortInput.vue';
     import { ref, inject } from 'vue'
     const props = defineProps(['selectedTopic'])
     const content = ref('')
@@ -75,8 +73,9 @@
     const lesson = inject('getLessonPortfolios')
     const portfolio = inject('portfolio')
     const portfolio_title = ref('')
+    const { notify, info, confirm } = inject('dialog')
     const tempSavePort = async(status) => {
-        const result = await portfolioBody.value.$refs.recordBody.validate()
+        const result = await portfolioBody.value.validate()
         if(result.valid){
             let portfolioStatus = 0
             if(status == 'next'){
@@ -91,84 +90,40 @@
                 theme_id: route.params.lessonThemeId,
                 portfolio_title: portfolio_title.value ? portfolio_title.value : portfolio?.portfolio_title
             }
-            axios.post('/save_lesson_portfolio', params).then(response => {
-                
-                
+            try{
+                await axios.post('/save_lesson_portfolio', params)
                 if(status == 'next'){
 
                 }else{
-                    const data = {
-                        text: props.editTarget ? '編集しました。' :'保存しました。',
-                        channel: Math.random().toString(36).substring(5),
-                        icon: 0,
-                        view: true
-                    }
-                    emitter.emit('setInfo', data)
+                    info(props.editTarget ? '編集しました。' :'保存しました。')
                     processing_save.value = false
                 }
                 lesson()
-            }).catch(function (error) {
-                if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) errorToast('エラーが発生しました。')
-                else errorToast('エラーが発生しました。 ' + error.message)                       
-            });
+            }catch (error){
+                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+                else if (error.request) notify('エラーが発生しました。')
+                else notify('エラーが発生しました。 ' + error.message)   
+            }
         }
     }
     const nextStage = async() => {
-        
-        const uniqueChannell = Math.random().toString(36).substring(5);
-        const answers = ['OK', 'キャンセル']
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: '基礎知識研修を完了にしますか。\n※完了後に、編集するができません。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: answers,
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, async (data) => {                            
-            if(data.answer === answers[0]){
-                await tempSavePort('next')
-                setTimeout(() => {                    
-                    finishBasic()
-                }, 1000);
-            }
-        })  
-
-        
+        const answer = await confirm('基礎知識研修を完了にしますか。\n※完了後に、編集するができません。')
+        if(!answer) return  
+        await tempSavePort('next')
+        setTimeout(() => {                    
+            finishBasic()
+        }, 1000); 
     }
 
-    const finishBasic = () => {
-        const uniqueChannell = Math.random().toString(36).substring(5);
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content:'基礎知識研修完了しました。\n\nお疲れ様でした。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: ['OK'],
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, () => {    
+    const finishBasic = async() => {
+        const options = {
+            answers: [{label: 'OK', value: true}]
+        }
+        const answer = await confirm('基礎知識研修完了しました。\n\nお疲れ様でした。', options)
+        if(answer){
             processing.value = false   
-            lesson()                     
+            await lesson()                     
             router.push({name: 'top'})
-        })
+        }        
     } 
-    const errorToast = (message) => {
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: message,
-            closeButton: false, 
-            autoClose: false,
-            answers: ['OK']
-
-        })  
-        processing.value = false
-        
-    }
 </script>

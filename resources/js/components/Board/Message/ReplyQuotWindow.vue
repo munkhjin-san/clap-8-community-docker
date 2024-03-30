@@ -5,11 +5,11 @@
     display: flex;
     align-items: center;">
         <QuoteSelectionWindow 
-            v-if="$store.state.quot_reply.which == 'quot'&& !$store.state.quot_reply.file && $store.state.quot_reply.text && selectionView" 
+            v-if="quoteReply.which == 'quot'&& !quoteReply.file && quoteReply.text && selectionView" 
             @closeMe="clearQuotReply"
             @completed="completed"
         />
-        <p style="margin-left:15px;white-space: nowrap;line-height: 50px;">{{$store.state.quot_reply.which == 'quot' ? $t('quot') : $store.state.quot_reply.which == 'reply' ? $t('reply') : ''}}: </p>
+        <p style="margin-left:15px;white-space: nowrap;line-height: 50px;">{{quoteReply.which == 'quot' ? '引用' : quoteReply.which == 'reply' ? '返信' : ''}}: </p>
         <div style="height:50px;display:flex;max-width: calc(100% - 100px);"> 
             
             <p style="margin-left:15px;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;line-height: 50px;">{{quoteText}}</p>
@@ -22,62 +22,50 @@
         
     </div>
 </template>
-<script>
+<script setup>
+import { computed, ref } from 'vue';
 import QuoteSelectionWindow from '../Message/QuoteSelectionWindow.vue'
-    export default {
-        data(){
-            return{               
-                selectionView: true
-            }
-        },
-        mounted() {
-           
-            
-        },
-        components: {
-            QuoteSelectionWindow
-        },
-        computed: {
-            hasMessage(){
-                return this.$store.state.quot_reply.message.message && this.$store.state.quot_reply.message.message.length
-            },
-            quoteText(){
-                let text = '';
-                if(this.hasMessage){
-                    text = this.$store.state.quot_reply.text
-                }else if(this.$store.state.quot_reply.file){
-                    text = this.$t('fileMessage')
-                }
-                const userName = this.$store.state.quot_reply.message && this.$store.state.quot_reply.message.user ? this.$store.state.quot_reply.message.user.name : this.$t('unAvailableUserName')
-                return `“${userName} : ${text}”`
-            }
-        },
-        methods: {
-            clearQuotReply(){
-                const quot_reply = {
-                    active: false,
-                    message: null,
-                    which: null,
-                    text: null,
-                    file: false,
-                    height: 100,
-                    width: 100
-                }
-                this.$store.commit('setQuoteReply', quot_reply);
-                setTimeout(() => {
-                    this.$store.commit('setQoutWindowActive', false)
-                }, 300);
-                
-            },
-            replyBoxFilter (message) {
-                return message.replace(/<\/?[^>]+(>|$)/g, "");                
-            },
-            completed(text){
-                this.selectionView = false;
-                setTimeout(() => {
-                    this.$store.commit('setQoutWindowActive', false)
-                }, 300);
-            },
+import { useQuoteReply } from '@/store/quoteReply';
+import { useQuoteWindow } from '@/store/quoteWindow';
+    const quoteReply = useQuoteReply()   
+    const quoteWindow = useQuoteWindow()
+    const selectionView = ref(true)
+
+    const hasMessage = computed(() => {
+        return quoteReply.message.message && quoteReply.message.message.length
+    })
+    const quoteText = computed(() => {
+        let text = '';
+        if(hasMessage.value){
+            text = quoteReply.text
+        }else if(quoteReply.file){
+            text = 'ファイルメッセージ'
         }
+        const userName = quoteReply.message && quoteReply.message.user ? quoteReply.message.user.name : '非アクティブユーザー'
+        return `“${userName} : ${text}”`
+    })
+
+    const clearQuotReply = () => {
+        const quot_reply = {
+            active: false,
+            message: null,
+            which: null,
+            text: null,
+            file: false,
+            height: 100,
+            width: 100
+        }
+        quoteReply.setQuoteReply(quot_reply)
+        setTimeout(() => {
+            quoteWindow.setQuoteWindow(false)
+        }, 300);
+        
     }
+    const completed = (text) => {
+        selectionView.value = false;
+        setTimeout(() => {
+            quoteWindow.setQuoteWindow(false)
+        }, 300);
+    }
+   
 </script>

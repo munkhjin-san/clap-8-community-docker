@@ -3,13 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Carbon\Carbon;
-use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use App\Models\questionAndAnswerRecord;
 use App\Models\qandaTagRecord;
 use App\Models\qandaKeyWordRecord;
-use App\Models\qandaUseTag;
 use App\Models\SupportMailFormRecord;
 use App\Models\SupportMailRespondingLog;
 use Illuminate\Support\Facades\Auth;
@@ -17,9 +13,6 @@ use Illuminate\Support\Facades\Auth;
 class SupportController extends Controller
 {
     public function support_record_list(Request $request){
-
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
         $record_list = questionAndAnswerRecord::where('deleted_flag','=', 0)->with(['qanda_use_tags' => function($q){
             $q->where('deleted_flag','=', 0)->with(['qanda_tag_records' => function($q){
                 $q->where('deleted_flag','=', 0);

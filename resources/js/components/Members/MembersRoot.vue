@@ -8,7 +8,7 @@
             </div>
         </Transition>
         <div class="calendar-root-header" style="min-height: 60px;">
-            <HamBurger v-if="$store.state.mobile"/>
+            <HamBurger v-if="responsive.mobile"/>
             <div class="calendar-search-wrap" id="memberSearchResultWindow" >
                 <PostSearchBar 
                     @searchStart="val => keyword = val"  
@@ -31,7 +31,7 @@
                 </div>
             </div>
         </div>   
-        <div title="" class="createBoardButton" @click.stop="$store.commit('setMenu', {name: 'memberSortMenu', id: 79})">
+        <div title="" class="createBoardButton" @click.stop="menu.setMenu( {name: 'memberSortMenu', id: 79})">
             <div style="width: 100%;height: 100%;display: flex;align-items: center;justify-content: center;">       
                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="12" viewBox="0 0 47 32" style="transform: rotate(90deg); margin-right: -5px;">
                     <path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path>
@@ -42,7 +42,7 @@
             </div>
         </div>      
         <Transition name="modalFade">
-            <div id="memberSortMenu" class="boxMenu boardMenuIcon" v-if="$store.state.menu.name == 'memberSortMenu' && $store.state.menu.id == 79" style="top: auto;right: 50px;z-index:6;bottom: 50px;min-width: 100px;">
+            <div id="memberSortMenu" class="boxMenu boardMenuIcon" v-if="menu.name == 'memberSortMenu' && menu.id == 79" style="top: auto;right: 50px;z-index:6;bottom: 50px;min-width: 100px;">
                 <ul>
                     <li class="boxMenuItems cursor-pointer" @click.stop="switchView(false)">
                         役職別
@@ -65,18 +65,19 @@
         </Transition>
     </div>        
 </template>
-<script>
+<script setup>
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import HamBurger from '../Global/HamBurger.vue';
 import MemberItem from './MemberItem.vue';
-
-export default{
-    data(){
-        return{
-            memberList: [],
-            searching: false,
-            keyword: '',
-            levels: [
+import { computed, inject, onMounted, ref } from 'vue';
+import { useMenuStore } from "@/store/menu";
+import { useResponsive } from '@/store/responsive';
+    const menu = useMenuStore()
+    const responsive = useResponsive()
+    const memberList = ref([])
+    const searching = ref(false)
+    const keyword = ref('')
+    const levels = [
                 {active: false, label: "一般職"}, 
                 {active: false, label: "A"}, 
                 {active: false, label: "B"}, 
@@ -85,87 +86,78 @@ export default{
                 {active: false, label: "E"}, 
                 {active: false, label: "F"},
                 {active: false, label: "G"}
-            ],
-            searchFocus: true,
-            sortByShokkai: false,
-            initialLoader: true
+            ]
+    const searchFocus = ref(true)
+    const sortByShokkai = ref(false)
+    const initialLoader = ref(true)
+    const { notify } = inject('dialog')
+    const shokkaiSelector = computed(() => {
+        return searchFocus.value
+    })
+    const selectedShokkai = computed(() => {
+        return levels.filter(ob => ob.active == true).map(s => s.label)
+    })
+    const sortableList = computed(() => {
+        if (!keyword.value.trim()) {
+            return memberList.value.map(position => ({
+                ...position,
+                employees: [...position.employees]
+            }));
         }
-    },
-    computed: {
-        shokkaiSelector(){
-            return this.searchFocus
-        },
-        selectedShokkai(){
-            return this.levels.filter(ob => ob.active == true).map(s => s.label)
-        },
-        sortableList(){
-            const keyword = this.keyword; 
-            if (!keyword.trim()) {
-                return this.memberList.map(position => ({
-                    ...position,
-                    employees: [...position.employees]
-                }));
-            }
-            return this.memberList.map(position => {
-                const filteredEmployees = position.employees.filter(employee => {
-                    const name = employee.name || '';
-                    const email = employee.work_email || '';
-                    const phone = employee.phone_number || '';
-                    const name_kana = employee.name_kana || '';
+        return memberList.value.map(position => {
+            const filteredEmployees = position.employees.filter(employee => {
+                const name = employee.name || '';
+                const email = employee.work_email || '';
+                const phone = employee.phone_number || '';
+                const name_kana = employee.name_kana || '';
 
-                    return (
-                        name.toLowerCase().includes(keyword.toLowerCase()) ||
-                        email.toLowerCase().includes(keyword.toLowerCase()) ||
-                        name_kana.toLowerCase().includes(keyword.toLowerCase()) ||
-                        phone.includes(keyword)
-                    );
-                });
-                return {
-                    ...position,
-                    employees: filteredEmployees
-                };
+                return (
+                    name.toLowerCase().includes(keyword.value.toLowerCase()) ||
+                    email.toLowerCase().includes(keyword.value.toLowerCase()) ||
+                    name_kana.toLowerCase().includes(keyword.value.toLowerCase()) ||
+                    phone.includes(keyword.value)
+                );
             });
-        
-        },
-        positions(){
-            const hasMembers = this.sortableList.filter( pos => pos.employees && pos.employees.length)
-            return hasMembers.length ? hasMembers : []
-        },
-    },
-    components: {
-        PostSearchBar,
-        HamBurger,
-        MemberItem
-    },
-    mounted(){
-
+            return {
+                ...position,
+                employees: filteredEmployees
+            };
+        });
+    
+    })
+    const positions = computed(() => {
+        const hasMembers = sortableList.value.filter( pos => pos.employees && pos.employees.length)
+        return hasMembers.length ? hasMembers : []
+    })
+    onMounted(() => {
         const val = JSON.parse(localStorage.getItem('memberViewType'))
         const flag = val == null ? false : val
-        this.getMembers(flag)
-    },
-    methods:{
-        switchView(val){
-            this.$store.commit('setMenu', {name: '', id: null})
-            localStorage.setItem('memberViewType', val)
-            if(this.sortByShokkai == val) {               
-                return
-            }
-            this.getMembers(val)            
-        },
-        getMembers(sort){
-            this.sortByShokkai = sort
-            this.initialLoader = true
-            axios.post('/get_members_list', {byShokkai: sort}).then(response => {  
-                this.memberList = response.data        
-                setTimeout(() => {
-                    this.initialLoader = false
-                }, 200);         
-            }).catch(function (error) {   
-
-            }.bind(this));
+        getMembers(flag)
+    })
+ 
+    const switchView = (val) => {
+        menu.setMenu( {name: '', id: null})
+        localStorage.setItem('memberViewType', val)
+        if(sortByShokkai.value == val) {               
+            return
+        }
+        getMembers(val)            
+    }
+    const getMembers = async(sort) => {
+        try{
+            sortByShokkai.value = sort
+            initialLoader.value = true
+            const response = await axios.post('/get_members_list', {byShokkai: sort})
+            memberList.value = response.data      
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            setTimeout(() => {
+                initialLoader.value = false
+            }, 200); 
         }
     }
-}
+
 </script>
 <style>
 .member-loader{

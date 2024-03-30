@@ -16,7 +16,7 @@ class shiftRecord extends Model
         return $this->belongsTo(User::class);
     }
     public function shiftType(){
-        return $this->belongsTo(shiftType::class, 'shift_type');
+        return $this->belongsTo(shiftType::class, 'shift_type')->select('id', 'name', 'abbreviation', 'value');
     }
     public function time_card_records(){
         return $this->belongsTo(timecardRecord::class, 'day', 'shift_day');
@@ -24,6 +24,9 @@ class shiftRecord extends Model
     public function old_shift(){
         return $this->hasOne(shiftRecord::class, 'id', 'descendant_of')->select('id', 'shift_day')->withTrashed();
     }
-    protected $fillable = ['user_id', 'shift_month', 'shift_day', 'shift_type', 'start_time', 'end_time', 'status_flag', 'planned_year', 'descendant_of'];
+    public function overtime_request(){
+        return $this->hasOne(ShiftOvertimeRequest::class, 'record_id', 'id');
+    }
+    protected $fillable = ['user_id', 'shift_day', 'shift_type', 'start_time', 'end_time', 'status_flag', 'planned_year', 'descendant_of'];
 
 }

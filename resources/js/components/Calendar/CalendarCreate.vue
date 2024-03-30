@@ -9,52 +9,52 @@
                     </svg>                        
                 </div> 
             </div>
- 
             <div class="si-box">
-                <FormShortText
-                    :initialValue="title"
+                <ShortInput 
+                    name="calendarTitle" 
+                    placeHolder="タイトルを入力（必須）" 
+                    :rules="'required|max:50'"
+                    :initialValue="editTarget ? editTarget.title : ''"
+                    customClass="full"
                     ref="calendarTitle"
-                    placeHolder="タイトルを入力（必須）"
-                    uId="calendarTitle"
-                    name="calendarTitle"
-                    rules="required|max:48"
-                    label="タイトル"
-                    @setValue="val => title = val"
+                    type="text"
+                    v-model="title"
                 />
             </div>
+            <GroupSelector v-model="calendar_users"/>
             <div class="si-box">
-                <UserSelector 
-                    :hasBoardSelect="!editTarget"
-                    :key="userSelectorKey"
-                    :selfInclude="true" 
-                    :initialSelected="calendar_users"
+                <MemberSelector 
                     placeHolder="メンバー選択"
                     rules="required"
-                    @setUser="val => calendar_users = val"
-                    uId="calendarUsers"
                     name="calendarUsers"
                     ref="calendarUsers"
                     path="calendar_more_users"
+                    :closeOnSelect="false"
+                    v-model="calendar_users"
                 />
             </div>
-            <div v-if="!release_flag" class="si-box" style="position:relative;">
+            <div class="si-box" style="position:relative;">
                 <div>
                     <p :class="['form-title-small', 'form-title-active']">編集許可</p>
                 </div>
-                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
-                    <input @change="setEditAllDefault" type="checkbox" id="edit_all" v-model="edit_all">
-                    <label for="edit_all" style="min-width: 80px;" class="cursor-pointer"><span></span></label>
-                    <div class="switch-toggle"></div>
+                <div class="selectSwitchArea" style="width: fit-content;">    
+                    <input @change="setEditAllDefault" type="checkbox" id="edit_all" v-model="edit_all" :disabled="release_flag ? true : false">
+                    <label for="edit_all" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer', {'disabled-toggle' : release_flag}]"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    <span v-if="release_flag" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">非公開設定ONのため設定できません</span>
                 </div>  
             </div> 
-            <div v-if="!edit_all" class="si-box" style="position:relative;">
+            <div class="si-box" style="position:relative;">
                 <div>
                     <p :class="['form-title-small', 'form-title-active']">非公開設定</p>
                 </div>
-                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
-                    <input type="checkbox" id="release_flag" v-model="release_flag">
-                    <label for="release_flag" style="min-width: 80px;" class="cursor-pointer"><span></span></label>
-                    <div class="switch-toggle"></div>
+                <div class="selectSwitchArea" style="width: fit-content;">    
+                    <input type="checkbox" id="release_flag" v-model="release_flag" :disabled="edit_all ? true : false">
+                    <label for="release_flag" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer', {'disabled-toggle' : edit_all}]"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    <span v-if="edit_all" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">編集許可ONのため設定できません</span>
                 </div>  
             </div>  
 
@@ -74,36 +74,35 @@
             <div class="si-box">
                 <div style="display: flex; gap: 15px;font-size: 14px;flex-wrap: wrap;min-height: 40px;align-items: center;">
                     <div v-if="repetition_type == 0">
-                        <DatePicker
+                        <ShortInput 
+                            name="calendarNormalDate" 
+                            :rules="'required'"
                             :initialValue="once_date"
+                            customClass="date"
                             ref="calendarNormalDate"
-                            uId="calendarNormalDate"
-                            name="calendarNormalDate"
-                            :rules="repetition_type == 0 ? 'required' : ''"
-                            @setValue="val => once_date = val"
+                            type="date"
+                            v-model="once_date"
                         />
                     </div>
                     <div v-if="repetition_type == 3">
                         <div style="display: flex;gap: 10px;margin-right: 15px;">
-                            <FormOptionSelector
+                            <OptionSelector 
                                 :initialValue="repeat_span.yearly.selected_month"
                                 :options="12"
                                 unit="月"
                                 ref="yearSelectorSelectedMonth"
-                                uId="yearSelectorSelectedMonth"
                                 name="yearSelectorSelectedMonth"
                                 rules="required"
-                                @setValue="val => repeat_span.yearly.selected_month = parseInt(val)"
+                                v-model="repeat_span.yearly.selected_month"
                             />
-                            <FormOptionSelector
+                            <OptionSelector 
                                 :initialValue="repeat_span.yearly.selected_day"
                                 :options="avialableDay"
                                 unit="日"
                                 ref="yearSelectorSelectedDay"
-                                uId="yearSelectorSelectedDay"
                                 name="yearSelectorSelectedDay"
                                 rules="required"
-                                @setValue="val => repeat_span.yearly.selected_day = parseInt(val)"
+                                v-model="repeat_span.yearly.selected_day"
                             />
                         </div>
 
@@ -121,15 +120,15 @@
                         </div>
                     </div>
                     <div v-if="repetition_type == 2">
-                        <FormOptionSelector
+                        
+                        <OptionSelector 
                             :initialValue="repeat_span.monthly.selected_day"
                             :options="31"
                             unit="日"
                             ref="monthlyDaySelector"
-                            uId="monthlyDaySelector"
                             name="monthlyDaySelector"
                             rules="required"
-                            @setValue="val => repeat_span.monthly.selected_day = parseInt(val)"
+                            v-model="repeat_span.monthly.selected_day"
                         />
 
                     </div>
@@ -141,23 +140,25 @@
                                 終日
                             </label>  
                         </div>
-                        <TimePicker
+                        <ShortInput 
                             v-if="!all_day"
+                            name="calendarNormalTimeStart" 
+                            :rules="'required'"
                             :initialValue="time_start"
+                            customClass="date"
                             ref="calendarNormalTimeStart"
-                            uId="calendarNormalTimeStart"
-                            name="calendarNormalTimeStart"
-                            rules="required"
-                            @setValue="val => time_start = val"
+                            type="time"
+                            v-model="time_start"
                         />
-                        <TimePicker
+                        <ShortInput 
                             v-if="!all_day"
+                            name="calendarNormalTimeEnd" 
+                            :rules="'required'"
                             :initialValue="time_end"
+                            customClass="date"
                             ref="calendarNormalTimeEnd"
-                            uId="calendarNormalTimeEnd"
-                            name="calendarNormalTimeEnd"
-                            rules="required"
-                            @setValue="val => time_end = val"
+                            type="time"
+                            v-model="time_end"
                         />
                     </div>
                 </div>
@@ -167,21 +168,23 @@
                             <p :class="['form-title-small']">有効期限設定</p>
                         </div>
                         <div style="display: flex;gap: 10px;margin-top: 20px;">
-                            <DatePicker
+                            <ShortInput 
+                                name="calendarRepeatSpanStart" 
+                                :rules="'required'"
                                 :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_from"
+                                customClass="date"
                                 ref="calendarRepeatSpanStart"
-                                uId="calendarRepeatSpanStart"
-                                name="calendarRepeatSpanStart"
-                                :rules="'required'"
-                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_from = val"
+                                type="date"
+                                v-model="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_from"
                             />
-                            <DatePicker
-                                :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_to"
-                                ref="calendarRepeatSpanEnd"
-                                uId="calendarRepeatSpanEnd"
-                                name="calendarRepeatSpanEnd"
+                            <ShortInput 
+                                name="calendarRepeatSpanEnd" 
                                 :rules="'required'"
-                                @setValue="val => repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_to = val"
+                                :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_to"
+                                customClass="date"
+                                ref="calendarRepeatSpanEnd"
+                                type="date"
+                                v-model="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_to"
                             />
                         </div>
                     </div>
@@ -190,63 +193,55 @@
                             <p :class="['form-title-small']">有効期限設定</p>
                         </div>
                         <div style="display: flex;gap: 10px;margin-top: 20px;">
-                            <FormOptionSelector
+                            <OptionSelector 
                                 :initialValue="repeat_span.yearly.year_from"
                                 :options="avialabeStartYear"
                                 unit="年"
                                 ref="yearSelectorStart"
-                                uId="yearSelectorStart"
                                 name="yearSelectorStart"
                                 rules="required"
-                                @setValue="val => repeat_span.yearly.year_from = parseInt(val)"
+                                v-model="repeat_span.yearly.year_from"
                             />
-                            <FormOptionSelector
+                            <OptionSelector
                                 :initialValue="repeat_span.yearly.year_to"
                                 :options="avialabeEndYear"
                                 unit="年"
                                 ref="yearSelectorEnd"
-                                uId="yearSelectorEnd"
                                 name="yearSelectorEnd"
                                 rules="required"
-                                @setValue="val => repeat_span.yearly.year_to = parseInt(val)"
+                                v-model="repeat_span.yearly.year_to"
                             />
                         </div>
                     </div>
 
                 </div>
                 <div class="si-box">
-                    <ItemSelector 
-                        :initialSelected="facility.qualified_institution"
+                    <FacilitySelector 
+                        v-model="facility.qualified_institution"
                         :repeatSpan="repeat_span"
                         :repetitionFlag="repetition_type"
                         :time_end="time_end"
                         :time_start="time_start"
                         :once_date="once_date"
                         :facility="facilitiesList"
+                        :editId="editTarget ? editTarget.id : null"
                         target="qualified_institution"
                         placeHolder="施設選択"
-                        rules=""
-                        @setItems="val => facility.qualified_institution = val ? val.value : null"
-                        uId="calendarFacility"
-                        name="calendarFacility"
                         ref="calendarFacility"
                     />
                 </div>
                 <div class="si-box">
-                    <ItemSelector 
-                        :initialSelected="facility.zoom_value"
+                    <FacilitySelector 
+                        v-model="facility.zoom_value"
                         :repeatSpan="repeat_span"
                         :repetitionFlag="repetition_type"
                         :time_end="time_end"
                         :time_start="time_start"
                         :once_date="once_date"
                         :facility="facilitiesList"
+                        :editId="editTarget ? editTarget.id : null"
                         target="zoom_value"
-                        placeHolder="WEB会議選択"
-                        rules=""
-                        @setItems="val => facility.zoom_value = val ? val.value : null"
-                        uId="calendarZoom"
-                        name="calendarZoom"
+                        placeHolder="WEB会議選択"   
                         ref="calendarZoom"
                     />
                 </div>
@@ -261,52 +256,49 @@
                     </div>  
                 </div>  
                 <div class="si-box">
-                    <ItemSelector 
-                        :initialSelected="facility.qualified_car"
+                    <FacilitySelector 
+                        v-model="facility.qualified_car"
                         :repeatSpan="repeat_span"
                         :repetitionFlag="repetition_type"
                         :time_end="time_end"
                         :time_start="time_start"
                         :once_date="once_date"
                         :facility="facilitiesList"
+                        :editId="editTarget ? editTarget.id : null"
                         target="qualified_car"
                         placeHolder="車両選択"
-                        rules=""
-                        @setItems="val => facility.qualified_car = val ?  val.value : null"
-                        uId="calendarCars"
-                        name="calendarCars"
                         ref="calendarCars"
                     />
                 </div>
 
-                <div class="si-box">                   
-                    <FormLongText
-                        :initialValue="remarks"  
+                <div class="si-box">                  
+                    <LongInput
+                        :initialValue="remarks"
+                        v-model="remarks"  
                         ref="calendarRemark"
                         :placeHolder="`メモ`"
                         uId="calendarRemark"
                         name="calendarRemark"
                         rules="max:2000"
                         label="メモ"
-                        @setValue="val => remarks = val"
-                    />                    
+                    />              
                 </div>
                 <div class="si-box">
-                    <FormShortText
-                        :initialValue="referrer"  
-                        placeHolder="参照元URLを入力"
-                        uId="calendarUrl"
-                        name="calendarUrl"
+                    <ShortInput 
+                        name="calendarUrl" 
+                        placeHolder="参照元URLを入力" 
                         rules=""
-                        label="タイトル"
-                        @setValue="(val) => referrer = val"
+                        :initialValue="editTarget ? editTarget.referrer : ''"
+                        customClass="full"
+                        ref="calendarUrl"
+                        type="text"
+                        v-model="referrer"
                     />
                 </div>  
 
                 <div class="si-box">
-                    <FormFileUploader
-                        :initialValue="uploadedFiles"
-                        @updated="val => uploadedFiles = val"
+                    <FileUploader
+                        v-model="uploadedFiles"
                         path="/calendar_files"
                     />
                 </div>
@@ -319,19 +311,18 @@
     
 </template>
 <script setup>
-import FormShortText from '../Global/FormShortText.vue';
-import FormLongText from '../Global/FormLongText.vue'
-import UserSelector from '../Global/UserSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
-import DatePicker from '../Global/DatePicker.vue'
-import FormFileUploader from '../Global/FormFileUploader.vue'
-import TimePicker from '../Global/TimePicker.vue'
-import ItemSelector from '../Global/ItemSelector.vue';
-import FormOptionSelector from '../Global/FormOptionSelector.vue';
+import FacilitySelector from '../Form/FacilitySelector.vue';
 import moment from 'moment';
-import { computed, onMounted, ref } from 'vue';
-import { useStore } from 'vuex';
-    const store = useStore()
+import { computed, onMounted, ref, inject } from 'vue';
+import ShortInput from '../Form/ShortInput.vue';
+import OptionSelector from '../Form/OptionSelector.vue';
+import MemberSelector from '../Form/MemberSelector.vue';
+import GroupSelector from '../Form/GroupSelector.vue';
+import LongInput from '../Form/LongInput.vue';
+import FileUploader from '../Form/FileUploader.vue';
+import { useSharingDataStore } from '@/store/sharingData'
+    const sharingData = useSharingDataStore()
 
     const props = defineProps(['editTarget', 'facilitiesList', 'preSelected', 'edit_all_record', 'preSelectedMembers'])
     const emit = defineEmits(['close'])
@@ -374,7 +365,7 @@ import { useStore } from 'vuex';
     })
     const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
     const processing = ref(false)
-    const userSelectorKey = ref(0)
+    const calendarRemark = ref(null)
  
     onMounted(() => {
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
@@ -406,7 +397,17 @@ import { useStore } from 'vuex';
         }
     }
     const closeModal = (val) => {
-        store.commit('setSharingData', null)
+        const shareData = {
+            active: false,
+            title: '',
+            text: '',
+            files: [],
+            from: '',
+            to: '',
+            drag: false,
+            instruction: ''
+        }
+        sharingData.setSharingData(shareData)
         emit('close', val)
     }
     const calendarUsers = ref(null)
@@ -421,45 +422,23 @@ import { useStore } from 'vuex';
     const yearSelectorSelectedMonth = ref(null)
     const yearSelectorEnd = ref(null)
     const yearSelectorStart = ref(null)
-    
-    const validation = async () => {               
-        
-        try {       
-            const checkRef = []            
-            let result = true
-            checkRef.push(calendarUsers, calendarTitle)
-
-            
-            if(!all_day.value){
-                checkRef.push(calendarNormalTimeStart, calendarNormalTimeEnd)
-            }   
-            if(repetition_type.value == 0){
-                checkRef.push(calendarNormalDate)
-            }else if(repetition_type.value == 1){
-                checkRef.push(calendarRepeatSpanEnd, calendarRepeatSpanStart)
-            }
-            else if(repetition_type.value == 2){
-                checkRef.push(monthlyDaySelector, calendarRepeatSpanEnd, calendarRepeatSpanStart)
-            }
-            else if(repetition_type.value == 3){
-                checkRef.push(yearSelectorSelectedDay,yearSelectorSelectedMonth, yearSelectorEnd, yearSelectorStart)
-            }
-            
-            for(const check of checkRef){
-                const exec = await check.value.$refs[check.value['uId']].validate()
-                result = result * exec.valid
-            }        
-            if(repetition_type.value == 1){
-                result = result * selectedDaysValid.value
-            }             
-            
-            return result
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            throw error; // Re-throw the error to handle it further if needed
-        }               
-        
-    }
+    const { notify, info } = inject('dialog')
+    const validateTargets = computed(() => {
+        return [
+            calendarUsers.value,
+            calendarTitle.value, 
+            calendarNormalTimeStart.value, 
+            calendarNormalTimeEnd.value, 
+            calendarNormalDate.value, 
+            calendarRepeatSpanEnd.value,
+            calendarRepeatSpanStart.value,
+            monthlyDaySelector.value, 
+            yearSelectorSelectedDay.value,
+            yearSelectorSelectedMonth.value, 
+            yearSelectorEnd.value, 
+            yearSelectorStart.value,
+        ]
+    })  
     const second_validation = async () => {
         if(time_start.value == time_end.value){
             return {
@@ -483,24 +462,28 @@ import { useStore } from 'vuex';
             error: ''
         }
     }
-    const checkConfirm = () => {
+    const checkConfirm = async () => {
         createSend()        
     }
     const createSend = async () => {
-        processing.value = true
-        const valid = await validation()
-        if(!valid){
-            processing.value = false
-            return
+        
+        
+        const targets = validateTargets.value.filter(ob => ob !== null)
+        let result = true
+        for(const target of targets){
+            
+            const val = await target?.validate() || false
+            result = result * val.valid
         }
+        if (!result) return
         const second_validate = await second_validation()
         console.log(second_validate)
         if(!second_validate.valid){
-            errorToast(second_validate.error)
+            notify(second_validate.error)
             processing.value = false
             return
         }
-        
+        processing.value = true
         const params = {
             editId: props.editTarget ? props.editTarget.id : null,
             edit_repeat: props.edit_all_record,
@@ -521,37 +504,29 @@ import { useStore } from 'vuex';
         }
         axios.post('/calendar_add_record',params)
         .then(response =>  {
-            const data = {
-                text: props.editTarget ? '編集しました。' : '作成しました。',
-                channel: Math.random().toString(36).substring(5),
-                icon: 0,
-                view: true
-            }
-            emitter.emit('setInfo', data)
+            info(props.editTarget ? '編集しました。' : '作成しました。')
             processing.value = false
-            store.commit('setSharingData', null)
+            const shareData = {
+                active: false,
+                title: '',
+                text: '',
+                files: [],
+                from: '',
+                to: '',
+                drag: false,
+                instruction: ''
+            }
+            sharingData.setSharingData(shareData)
             emit('close', true)     
         })
         .catch(function (error) {
-            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast('エラーが発生しました。 ' + error.message)      
+            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。 ' + error.message)      
             processing.value = false     
                         
         });
     }
-    const errorToast = (message) => {
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: message,
-            closeButton: false, 
-            autoClose: false,
-            answers: ['OK']
-
-        })  
-        processing.value = false        
-    } 
 
     const selectedDaysValid = computed(() => {
         if(repetition_type.value == 1){

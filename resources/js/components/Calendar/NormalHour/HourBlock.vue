@@ -5,10 +5,10 @@
         :record="record"
         :key="record.id"
         :fullDayIndex="fullDayIndex"
-        @setDayIndex="val => $emit('setDayIndex', val)"
+        @setDayIndex="val => emit('setDayIndex', val)"
         @setParentDroppable="dragActive = true"
     />
-    <div v-if="dragActive && $store.state.draggingCalendar" style="position: absolute;left: 0;top:0;z-index: 9;height: 100%;width: 100%;display: flex;">
+    <div v-if="dragActive && draggingCalendar" style="position: absolute;left: 0;top:0;z-index: 9;height: 100%;width: 100%;display: flex;">
         <div @mouseup="gotMove(val)" v-for="val in hours" class="min-separete">
             <div class="min-popup">{{ fullDate(val) }}</div>
         </div>
@@ -21,11 +21,9 @@
     import moment  from 'moment';
     import CardWrap from './CardWrap.vue';
     import { computed, inject, ref } from 'vue';
-    import { useStore } from 'vuex';
-    const store = useStore()
     const dragActive = ref(false)
     const beforeState = ref(0)
-
+    const draggingCalendar = inject('draggingCalendar')
     const props = defineProps(['hourRecords', 'hour', 'day', 'fullDayIndex'])
     const emit = defineEmits(['create', 'setDayIndex'])
 
@@ -61,7 +59,7 @@
     }
 
     const enter = () => {
-        if(store.state.draggingCalendar){
+        if(draggingCalendar.value){
             dragActive.value = true
         }
         
@@ -73,9 +71,9 @@
     const dropFinish = inject('dropFinish')
 
     const gotMove = (val) => {
-        if(store.state.draggingCalendar){
-            const record = store.state.draggingCalendar
-            store.commit('setDraggingCalendar', null)
+        if(draggingCalendar.value){
+            const record = draggingCalendar.value
+            draggingCalendar.value = null
             const date = props.day.full
             const time = props.hour.split(":");
             const min = val.val
