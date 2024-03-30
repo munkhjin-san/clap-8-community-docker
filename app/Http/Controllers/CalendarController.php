@@ -255,7 +255,7 @@ class CalendarController extends Controller
             $newMyGroup->users()->syncWithPivotValues([$this->active_user()->id], ['selected_as_calendar_member' => 1, "created_at" => now()]); 
         }        
         $gr = MyGroup::where('user_id', $this->active_user()->id)->where('selected', true)->latest()->first();
-        $myWorkGroups = MyWorkGroup::where('user_id', $this->active_user()->id)->pluck('work_group_id')->toArray();
+        // $myWorkGroups = MyWorkGroup::where('user_id', $this->active_user()->id)->pluck('work_group_id')->toArray();
 
         $work_group_users_id = [];
         
@@ -276,22 +276,23 @@ class CalendarController extends Controller
         $facilities = $request->facilities;
         
         $records = CalendarRecord::query();
-        $filter = $records->when($facility_check, function ($query) use ($facilities, $list) {
+        $filter = $records
+        ->when($facility_check, function ($query) use ($facilities, $list) {
             $query->where(function ($query) use ($facilities, $list) {
                 foreach ($facilities as $index => $value) {
                     $query->orWhereIn($index, $value)
                         ->orWhereHas('calendar_users', function ($query) use ($list) {
-                            $query->whereIn('users.id', $list);
+                            $query->whereIn('user_id', $list);
                         });
                 }
             });
         })
         ->when(!$facility_check, function ($query) use ($list) {           
             $query->whereHas('calendar_users', function ($query) use ($list) {
-                $query->whereIn('users.id', $list);
-            });
-            
-        })->whereBetween('date_start', [$previousMonday, $nextSunday])    
+                $query->whereIn('user_id', $list);
+            });            
+        })
+        ->whereBetween('date_start', [$previousMonday, $nextSunday])    
         ->with('calendar_users')
         ->with('updated_by')
         ->with('created_by')
