@@ -10,21 +10,20 @@
                     :albumImages="albumImages"
                     @close="closeModal"
                     @reload="updateUser"
-                    :errorToast="errorToast"
                     @getUserInfo="getUserInfo"
                 />
             </transition>
         </router-view>        
         <div style="position:relative;height: 100%;">
             
-            <div style="height: 60px;display: flex;align-items: center;position: absolute;z-index:2;left: 0;top: 0;" v-if="$store.state.mobile">
+            <div style="height: 60px;display: flex;align-items: center;position: absolute;z-index:2;left: 0;top: 0;" v-if="responsive.mobile">
                 <HamBurger/>
             </div>
             
             <div>
-                <div v-if="UserAllData && $store.state.user && UserAllData !== null" class="row justify-content-center user-icon-content">  
+                <div v-if="UserAllData && auth.user && UserAllData !== null" class="row justify-content-center user-icon-content">  
                     <div class="user-three-menu">
-                        <div @click.stop="$store.commit('setMenu', {name:'userMenuList', id: 52})" v-if="UserAllData.id == $store.state.user.id">
+                        <div @click.stop="menu.setMenu( {name:'userMenuList', id: 52})" v-if="UserAllData.id == auth.id">
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="dot-menu" width="7" height="15" viewBox="0 0 7 32" style="margin:auto;">
                                 <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path>
                                 <path d="M3.405 12.33c-0.447 0.013-0.881 0.115-1.272 0.278-0.1 0.038-0.195 0.085-0.287 0.135-0.093 0.047-0.185 0.097-0.27 0.154l-0.129 0.083-0.064 0.042-0.124 0.088c-0.050 0.039-0.132 0.104-0.181 0.145l-0.040 0.035c-0.111 0.096-0.214 0.202-0.302 0.319-0.001 0-0.001 0.001-0.001 0.001l-0.058 0.081-0.040 0.064-0.082 0.134c-0.056 0.086-0.104 0.179-0.15 0.271-0.049 0.095-0.095 0.189-0.132 0.289-0.164 0.394-0.262 0.832-0.27 1.277-0.025 0.899 0.324 1.82 0.967 2.467 0.636 0.651 1.549 1.038 2.465 1.037 0.456 0.003 0.906-0.086 1.315-0.239 0.41-0.156 0.781-0.374 1.112-0.619l0.188-0.188c0.246-0.331 0.463-0.701 0.619-1.112 0.157-0.408 0.245-0.858 0.245-1.315 0.003-0.918-0.392-1.832-1.043-2.465-0.648-0.639-1.567-0.991-2.464-0.961z"></path>
@@ -32,12 +31,10 @@
                             </svg>
                         </div>
                     </div>
-                    <div id="userMenuList" class="boxMenu" v-if="UserAllData.id == $store.state.user.id && $store.state.menu.id == 52 && $store.state.menu.name == 'userMenuList'" style="z-index: 9;right: 40px;top: 32px;display: flex;flex-direction: column;">
+                    <div id="userMenuList" class="boxMenu" v-if="UserAllData.id == auth.id && menu.id == 52 && menu.name == 'userMenuList'" style="z-index: 9;right: 40px;top: 32px;display: flex;flex-direction: column;">
 
                         <router-link class=" boxMenuItems menuLink" :to="{name: 'personal-info-settings'}">プロフィール編集</router-link>
-                        <!-- <router-link class=" boxMenuItems menuLink" :to="{name: 'account-settings'}">個人設定</router-link> -->
-                        <router-link v-if="$store.state.user.partner_flag !== 1 && $store.state.user.user_code" class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link>
-                        <!-- <router-link class=" boxMenuItems menuLink" to="/support">サポートデスク</router-link> -->
+                        <router-link v-if="!auth.isPartner && auth.user.user_code" class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link>
                         
                     </div>
     
@@ -103,33 +100,12 @@
                             <div v-if="UserAllData.recommend !== null" class="record">    
                                 <p class="record-inner" v-html="urlCheck(UserAllData.recommend)"></p>
                             </div>
-                            <!-- <div v-if="albumImages && albumImages.length" class="record">    
-                                <div class="recordFile">                                                
-                                    <div class="recordFile-inner">                                        
-                                        <div class="swiper-user" style="border:none;" >
-                                            <div class="swiper-wrapper">
-                                                <div class="swiper-slide" v-for="(image, index) in images" :key="index">
-                                                    <img @click="previewImage(image, index)" class="cursor-pointer" :src="`${$store.state.baseLocation}/user_album/${UserAllData.id}/${image.id}_${image.user_id}_${image.path}.${image.extension}`" style="width: auto;max-width: 100%;max-height: 130px;padding:10px;">
-                                                </div>  
-                                            </div>                                                     
-                                        </div>        
-                                        <div class="file-area-content hasMessage" style="gap: 10px;">
-                                            <div @click="previewFile(file, index)" :key="index" class="file-wrap-rec" v-for="(file, index) in files">
-                                                <div class="file-area-container" style="flex-direction: row;">
-                                                    <FileIcon :ext="file.extension"/>
-                                                    <p class="shared-file-name">{{fileNameFilter(file.name, file.extension)}}</p>  
-                                                </div>   
-                                            </div> 
-                                        </div>                                                      
-                                    </div>
-                                </div>
-                            </div> -->
-                            <div v-if="UserAllData.awareness!== null" class="title">
+                            <!-- <div v-if="UserAllData.awareness!== null" class="title">
                                 <p class="record-inner">自己認識</p>
                             </div>
                             <div v-if="UserAllData.awareness !== null" class="record">
                                 <p class="record-inner">{{UserAllData.awareness}}</p>
-                            </div>          
+                            </div>           -->
                             <div v-if="userPortfolio && userPortfolio.length" class="title" style="margin-bottom: 10px;">
                                 <p class="record-inner">ポートフォリオ</p>
                             </div>
@@ -147,329 +123,167 @@
             </div>
         </div>
     </div>
-    <div v-else style="display:flex;width: 100%;height: 100%;display flex;align-items: center;justify-content: center;color: var(--primary-color);">
+    <div v-else style="display:flex;width: 100%;height: 100%;display: flex;align-items: center;justify-content: center;color: var(--primary-color);">
         <p>メンバーが見つかりませんでした。</p>
     </div>
     </template>
     
-<script>
+<script setup>
 
-import UserInfoEdit from './UserEditComps/UserInfoEdit.vue';
 import UserIconEdit from './UserEditComps/UserIconEdit.vue';
 import HamBurger from '../Global/HamBurger.vue'
-import Salary from './Issue/Salary.vue'
 import Swiper from 'swiper';
 import 'swiper/css'
 import Autolinker from 'autolinker';
-import FileIcon from '../Board/Mixed/FileIcon.vue';
-export default {
-    data() {
-        return {
-            
-            userMenuToggle: false,
-            showModalContent: false,
-            showSettingModalContent: false,
-            qrExplainView: false,            
-            deviceWidth: 0,
-            UserAllData: null,
-            qrLock: false,
-            introduceWindow: false,
-            clapData: null,
-            introUpload: false,
-        }
-    },
-    components:{
-        UserInfoEdit,
-        UserIconEdit,
-        HamBurger,
-        Salary,
-        FileIcon
-    },
-    created(){
-        const data = {
-            active: false,
-            userList: [],
-            title: ''
-        }
-        this.$store.commit('setMessageUsers', data)
-    },
-    mounted() {
-         
-        this.UserAllData = this.$route.meta.data && Object.hasOwn(this.$route.meta.data, 'id') ? this.$route.meta.data : null;
-        document.body.style.height = '100%';
-        document.body.style.position = 'fixed';
-        document.body.style.overflow = 'hidden';
-        if(this.$store.state.mobile){
-            document.body.style.background = 'var(--background-color)'
-        }
-        
-        this.deviceWidth = window.innerWidth
-        window.addEventListener('resize', this.handleResize)
-        setTimeout(() => {
-            this.swiperCreate()
-        },);
-        
-        // this.getTags()
-    },   
-    unmounted(){
-        window.removeEventListener('resize', this.handleResize)
-    },    
-    computed:{
-        userPortfolio(){
-            return this.UserAllData.portfolio.filter(data => data.status == 3)
-        },
-        hasSalaryIncrease(){
-            return this.$store.state.user && this.UserAllData && this.$store.state.user.user_code && this.UserAllData.id == this.$store.state.user.id
-        },
-        isAccessible(){
-            if(this.UserAllData){
-                if(this.UserAllData.id == this.$store.state.user.id){
-                    return true
-                }else if(this.UserAllData.is_public){
-                    return !this.UserAllData.is_blocked_by
-                }else{
-                    return !this.UserAllData.is_blocked_by && this.UserAllData.is_friend
-                }
-            }
-            return false
-        },
-        albumImages(){
-            if(this.UserAllData && this.UserAllData.user_album){
-                let album = []
-                if(this.UserAllData && this.UserAllData.user_album.length){
-                    for(let img of this.UserAllData.user_album){
-                        if(img.intro_flag == 2){
-                            album.push(img)
-                        }
-                    }
-                    return album
-                }
-            }
-            return []
-            
-        },
-        movExist(){
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRoute } from 'vue-router'
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useResponsive } from '@/store/responsive';
+    const menu = useMenuStore()
+    const responsive = useResponsive()
+    const auth = useAuthUserStore()
+    const { notify } = inject('dialog')
+    const route = useRoute()
+    const showModalContent = ref(false)
+    const showSettingModalContent = ref(false)
+    const deviceWidth = ref(0)
+    const UserAllData = ref(null)
+    const clapData = ref(null)
+    const introUpload = ref(false)
+    
+    const userPortfolio = computed(() => {
+        return UserAllData.value.portfolio.filter(data => data.status == 3)
+    })
+    const isAccessible = computed(() => {
+        return UserAllData.value.id == auth.id
+    })
+    const albumImages = computed(() => {
+        if(UserAllData.value && UserAllData.value.user_album){
             let album = []
-            if(this.UserAllData && this.UserAllData.user_album && this.UserAllData.user_album.length){
-                for(let mov of this.UserAllData.user_album){
-                    album.push(mov)
+            if(UserAllData.value && UserAllData.value.user_album.length){
+                for(let img of UserAllData.value.user_album){
+                    if(img.intro_flag == 2){
+                        album.push(img)
+                    }
                 }
                 return album
             }
-            return album
-        },
-        images(){
-            return this.albumImages.filter(ob => ob.mime_type == 'image')
-        },
-        files(){
-            return this.albumImages.filter(ob => ob.mime_type !== 'image')
-        },
-    },
-    watch: {
-        '$route.params.userId': {
-            immediate: true,
-            handler(newUserId, oldUserId) {
-                if (newUserId !== oldUserId) {
-                    this.updateUser(newUserId, 1)
-                    this.getClaps(newUserId)
-                }
-            }
         }
-    },
-    methods: { 
-        editIntro(){
-            this.introUpload = true
-        },
-        addIntroFile(){
-            this.introUpload = true
-        },
-        swiperCreate(){
-            if(this.images && this.images.length){
-                new Swiper('.swiper-user', {
-                    slidesPerView: 2,
-                    spaceBetween: 10,
-                    breakpoints: {
-                        640: {
-                            slidesPerView: 5,
-                            spaceBetween: 20,
-                        },
-                    }
-                })
+        return []
+        
+    })
+    const movExist = computed(() => {
+        let album = []
+        if(UserAllData.value && UserAllData.value.user_album && UserAllData.value.user_album.length){
+            for(let mov of UserAllData.value.user_album){
+                album.push(mov)
             }
-        },
-        iconColorFilter(ext) {
-            var extensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
-                "doc", "docm", "docx", "dot", "dotx",
-                "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx",
-                "pdf",
-            ]
-            var format = extensions.indexOf(ext);
-            var result;
-            switch (true) {
-                case (format >= 0 && format <= 9):
-                    result = "fill: #1D6F42";
-                    break;
-                case (format >= 10 && format <= 14):
-                    result = "fill: #0078d7";
-                    break;
-                case (format >= 15 && format <= 23):
-                    result = "fill: #d04423";
-                    break;
-                case (format == 24):
-                    result = "fill: #ff0000";
-                    break;
-                default:
-                    result = null;
-            }
-            return result;
-        },    
-        urlCheck (text) {
-            if(text){                
-                var linkedText = Autolinker.link(text, {stripPrefix: false});       
-                const catch_tag = '<a href=/app/public/user?id=' 
-                const rep_tag = '<a class="mntuser" style="cursor:pointer" id=' 
-                linkedText = linkedText.replaceAll(catch_tag, rep_tag);
-                return linkedText;                
-            }            
-        },
-        fileNameFilter(name, ext) {
-            if(name){
-                var str_lenght = name.length;
-                if (str_lenght > 20) {
-                    var sliced = name.slice(0, 20) + " ..." + ext;
-                    return sliced;
+            return album
+        }
+        return album
+    })
+    const images = computed(() => {
+        return albumImages.value.filter(ob => ob.mime_type == 'image')
+    })
+    
+    
+    const editIntro = () => {
+        introUpload.value = true
+    }
+    const addIntroFile = () => {
+        introUpload.value = true
+    }
+    const swiperCreate = () => {
+        if(images.value && images.value.length){
+            new Swiper('.swiper-user', {
+                slidesPerView: 2,
+                spaceBetween: 10,
+                breakpoints: {
+                    640: {
+                        slidesPerView: 5,
+                        spaceBetween: 20,
+                    },
                 }
-                return name;
-            }
-            
-            return ''
-        },   
-        previewFile(file, index){
-            const files = this.files.map(fileData => ({
-                ...fileData,
-                file_path: `${this.$store.state.baseLocation}/user_album/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
-            }));     
-            const data = {
-                active: true,
-                files,
-                target: file,
-                source: 'user',
-                source_board_id: null,
-                index: index,
-                message: null,
-            }
-            this.$store.commit('setFilePreview', data)
-        },
-        previewImage(file, index){
-            const files = this.images.map(fileData => ({
-                ...fileData,
-                file_path: `${this.$store.state.baseLocation}/user_album/${fileData.user_id}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
-            }));   
-            const data = {
-                active: true,
-                files,
-                target: file,
-                source: 'user',
-                source_board_id: null,
-                index: index,
-                message: null,
-            }
-            this.$store.commit('setFilePreview', data)
-        },
-        errorToast(message){
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })   
-        },
+            })
+        }
+    }  
+    const urlCheck = (text) => {
+        if(text){                
+            var linkedText = Autolinker.link(text, {stripPrefix: false});       
+            const catch_tag = '<a href=/app/public/user?id=' 
+            const rep_tag = '<a class="mntuser" style="cursor:pointer" id=' 
+            linkedText = linkedText.replaceAll(catch_tag, rep_tag);
+            return linkedText;                
+        }            
+    }
         
-        getUserInfo(){
-            this.updateUser();
-            // this.getTags();
-        },
-        updateUser(targetId, shouldUpdateTags){
-                const id = targetId ? targetId : this.UserAllData ? this.UserAllData.id : null
-                if(!id) return
-                axios.post('/profile_get_update_user', {id: id}).then(               
-                response => {
-                    if(response.data && Object.hasOwn(response.data, 'id')){
-                        this.UserAllData = response.data
-                        if(this.UserAllData.id == this.$store.state.user.id){
-                            this.$store.commit('setUser', response.data);
-                            if(shouldUpdateTags){
-                                // this.getTags();
-                            }
-                            
-                        }
-                        
-                    }                    
-
-                }).catch(function (error) {
-                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) this.errorToast('エラーが発生しました。')
-                    else this.errorToast('エラーが発生しました。 ' + error.message)     
-                }.bind(this))
-        },
-        getClaps(targetId){
-            const id = targetId ? targetId : this.UserAllData ? this.UserAllData.id : null
-            if(!id) return
-            axios.post('/get_user_claps', {id: id}).then(
-                response => {
-                    if(response.data){
-                        this.clapData = response.data
-                    }
+    const getUserInfo = () => {
+        updateUser()
+    }
+    const updateUser = async(targetId) => {
+        const id = targetId ? targetId : UserAllData.value ? UserAllData.value.id : null
+        if(!id) return
+        try{
+            const response = await axios.post('/profile_get_update_user', {id: id})
+            if(response.data && Object.hasOwn(response.data, 'id')){
+                UserAllData.value = response.data
+                if(UserAllData.value.id == auth.id){
+                    auth.setUser(response.data)
                 }
-            ).catch(function (error) {
-                if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) this.errorToast('エラーが発生しました。')
-                else this.errorToast('エラーが発生しました。 ' + error.message)     
-            }.bind(this));
-        },
-        errorToast(message){
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-            })                
-        },
-        profileEdit(){
-            // this.userMenuToggle = false;
-            // this.userMenuToggle;
-            // this.showModalContent = true;
-            this.$router.push({name: 'personal-info-settings'})
-            this.$store.commit('setMenu', {name:'', id: null})
-        },
-        settingEdit(){
-            this.$router.push({name: 'account-settings'})
-            this.$store.commit('setMenu', {name:'', id: null})
-            // this.userMenuToggle;
-            // this.showSettingModalContent = true;
-        },
-        salaryEdit(){
-            this.$router.push({name: 'salary-issue'})
-            this.$store.commit('setMenu', {name:'', id: null})
-            // this.userMenuToggle;
-            // this.showSettingModalContent = true;
-        },
-        closeModal () {
-            this.showModalContent = false;
-            this.showSettingModalContent = false;
-        },
+            }  
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    const getClaps = async(targetId) => {
+        const id = targetId ? targetId : UserAllData.value ? UserAllData.value.id : null
+        if(!id) return
+        try{
+            const response = await axios.post('/get_user_claps', {id: id})
+            if(response.data){
+                    clapData.value = response.data
+                }
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    const closeModal = () => {
+        showModalContent.value = false;
+        showSettingModalContent.value = false;
+    }
         
-        handleResize(){
-            this.deviceWidth = window.innerWidth
-        },      
+    const handleResize = () => {
+        deviceWidth.value = window.innerWidth
+    }   
         
-    },
-}
+    watch(() => route.params.userId, (newUserId, oldUserId) => {
+        if (newUserId !== oldUserId) {
+          updateUser(newUserId);
+          getClaps(newUserId);
+        }
+      },
+      { immediate: true } 
+    )
+
+    onMounted(() => {
+        UserAllData.value = route.meta.data && Object.hasOwn(route.meta.data, 'id') ? route.meta.data : null;
+        document.body.style.height = '100%';
+        document.body.style.position = 'fixed';
+        document.body.style.overflow = 'hidden';
+        if(responsive.mobile){
+            document.body.style.background = 'var(--background-color)'
+        }
+        
+        deviceWidth.value = window.innerWidth
+        window.addEventListener('resize', handleResize())
+        setTimeout(() => {
+            swiperCreate()
+        },);
+    })  
+    onUnmounted(() => {
+        window.removeEventListener('resize', handleResize())
+    })
 </script>
 <style lang="scss" scoped>
 .menuLink{

@@ -11,15 +11,15 @@
             </div>      
 
             <div class="si-box">
-                <FormShortText
-                    :initialValue="title"
+                <ShortInput 
+                    name="lessonTitle" 
+                    placeHolder="タイトルを入力（必須）" 
+                    :rules="'required'"
+                    :initialValue="editTarget ? editTarget.title : ''"
+                    customClass="full"
                     ref="lessonTitle"
-                    placeHolder="タイトルを入力（必須）"
-                    uId="lessonTitle"
-                    name="lessonTitle"
-                    rules="required"
-                    label="タイトル"
-                    @setValue="val => title = val"
+                    type="text"
+                    v-model="title"
                 />
             </div>
             <div class="si-box" style="height: 70%;">
@@ -61,15 +61,15 @@
 </template>
 
 <script setup>      
-import FormShortText from '../../Global/FormShortText.vue';
+import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
 import RichEditor from '../../Global/RichEditor.vue';
-import { computed, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
     const priorities = [
         {value: 0, content: 'ヘッダー'},
         {value: 1, content: 'セクション'},
     ]
-    
+    const { notify, info } = inject('dialog')
     const props = defineProps(['editTarget', 'lessonThemeId'])
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
@@ -107,18 +107,12 @@ import { computed, ref } from 'vue';
                 axios.post('/lesson_add_record',params)
                 .then(response => setTimeout(() => {
                     closeModal(true, response.data.id)
-                    const data = {
-                        text: props.editTarget ? '編集しました。' :'保存しました。',
-                        channel: Math.random().toString(36).substring(5),
-                        icon: 0,
-                        view: true
-                    }
-                    emitter.emit('setInfo', data)
+                    info(props.editTarget ? '編集しました。' :'保存しました。')
                 },0))
                 .catch(function (error) {
-                    if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) errorToast('エラーが発生しました。')
-                    else errorToast('エラーが発生しました。 ' + error.message)      
+                    if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+                    else if (error.request) notify('エラーが発生しました。')
+                    else notify('エラーが発生しました。 ' + error.message)      
                     processing.value = false                    
                 });
                 
@@ -130,20 +124,7 @@ import { computed, ref } from 'vue';
     const closeModal = (flag, id) => {
             processing.value = false
             emit('createFinish',flag, id);              
-        }
-    const errorToast = (message) => {
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })  
-            processing.value = false
-            
-        }      
+        }     
     
 </script>
 

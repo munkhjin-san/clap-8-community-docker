@@ -17,7 +17,7 @@
                 </div>
             </div>
         </Transition>
-        <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${$store.state.mobile ? 4 : 8}) * ${days.length + 1})`}">
+        <div class="calendar-container-outer-week" :style="{width: `calc((100% / ${responsive.mobile ? 4 : 8}) * ${days.length + 1})`}">
             
             <div class="calendar-header">  
                 <div ref="spacer" id="weekSpacer" :style="{ width: hideName ? '45px' : `130px`}" class="left-member-tile"></div>
@@ -54,8 +54,8 @@
                         :user="user" 
                         :day="day"
                         :beforeState="beforeState"                       
-                        @addRecord="(type, day, user) => $emit('addRecord',type, day, user)"
-                        @create="(date, user) => $emit('create', date, user)"
+                        @addRecord="(type, day, user) => emit('addRecord',type, day, user)"
+                        @create="(date, user) => emit('create', date, user)"
                         />
                 </div>
             </div>
@@ -66,12 +66,11 @@
 import moment from 'moment';
 import DayBlock from './DayBlock.vue';
 import UserIcon from '../../Board/Mixed/UserIcon.vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useStore } from 'vuex';
-
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useResponsive } from '@/store/responsive';
     const props = defineProps(["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'activeMembers', 'appendLock'])
     const emit = defineEmits(['addRecord', 'create', 'resetFastCreate', 'setListView'])
-    const store = useStore()
+    const responsive = useResponsive()
     const cursorPos = ref([0, 0])
     const beforeState = ref(0)
     const hideName = ref(false)
@@ -80,7 +79,7 @@ import { useStore } from 'vuex';
     const startX = ref(0)
     const startY = ref(0)
     const isHorizontalScroll = ref(null)
-
+    const draggingCalendar = inject('draggingCalendar')
     const listMembers = computed(() => {
         const uniqueUserIds = new Set();
         const memberList = [];
@@ -134,18 +133,7 @@ import { useStore } from 'vuex';
         }
     })
 
-    const pushInstantUser = (event, id) => {
-        if(store.state.user && id == store.state.user.id) return
-        const cX = event.clientX;
-        const cY = event.clientY;  
-        const data = {
-            id: id,
-            cX: cX,
-            cY: cY
-        }
-        store.commit('setInstantUser', data)   
-        store.commit('setMenu', {name: 'instantProfileWindow', id: 5000})                 
-    }
+    const pushInstantUser = inject('pushInstantUser')
     const handleTouchStart = (event) => {
         startX.value = event.touches[0].clientX;
         startY.value = event.touches[0].clientY;
@@ -170,7 +158,7 @@ import { useStore } from 'vuex';
         }
     }
     const scrollListen = () => {
-        if(store.state.mobile && !lockScroll.value && !props.appendLock && scrollCount.value > 0 && isHorizontalScroll.value){
+        if(responsive.mobile && !lockScroll.value && !props.appendLock && scrollCount.value > 0 && isHorizontalScroll.value){
             hideName.value = true
             lockScroll.value = true                    
         }        
@@ -215,7 +203,7 @@ import { useStore } from 'vuex';
     /** @param {MouseEvent} ev */
     const onMouseHold = (ev) => {
         ev.preventDefault();
-        if(store.state.draggingCalendar) return
+        if(draggingCalendar.value) return
 
         requestAnimationFrame(() => {
             const delta = [

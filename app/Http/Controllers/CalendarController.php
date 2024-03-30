@@ -7,24 +7,26 @@ use App\Models\CalendarRecord;
 use App\Models\CalendarGroup;
 use App\Models\User;
 use App\Models\MyGroup;
-use App\Models\workGroup;
-use App\Models\workGroupUser;
 use App\Models\MyWorkGroup;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
+use App\Models\boardRecord;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use App\Mail\Calendar;
-use Illuminate\Support\Facades\Storage;
 use Auth;
 use DB;
 class CalendarController extends Controller
 {
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
     public function urlsafe_base64_encode($str){
         return str_replace(array('+', '/', '='), array('-', '_', ''), base64_encode($str));
     }
@@ -124,12 +126,25 @@ class CalendarController extends Controller
     private function update_zoom_meeting($params){
         $account = $this->zoom_account($params['zoom_id']); 
         $meetings_url = 'https://api.zoom.us/v2/meetings' . '/' . $params['meetingId'];
-        
+        $settings = array(
+            'use_pmi' => 'false'
+        );
+        if($params['waiting_room']){
+            $settings['waiting_room'] = true;
+            $settings['join_before_host'] = false;
+        }else{
+            $settings['waiting_room'] = false;
+            $settings['join_before_host'] = true;
+            $settings['jbh_time'] = 0;
+        }
         $data_to_zoom_api = array(
             'meetingId' => $params['meetingId'],
             'duration' => $params['duration'],
             'start_time' => $params['start_time'],
             'timezone' => 'Asia/Tokyo',
+            'type' => $params['type'] ? $params['type'] : 2,
+            'topic' => $params['title'],
+            'settings' => $settings
         );        
 
         $create = Http::withHeaders([
@@ -228,29 +243,21 @@ class CalendarController extends Controller
             'day' => 'required',
         ]);
 
-        $myGroupCheck = MyGroup::where('user_id', Auth::id())->exists();
+        $myGroupCheck = MyGroup::where('user_id', $this->active_user()->id)->exists();
         
         if(!$myGroupCheck){
             
             $newMyGroup = MyGroup::create([
-                'user_id' => Auth::id(),
+                'user_id' => $this->active_user()->id,
                 'name' =>  'マイグループ',
                 'selected' => true
             ]);
-            $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
+            $newMyGroup->users()->syncWithPivotValues([$this->active_user()->id], ['selected_as_calendar_member' => 1, "created_at" => now()]); 
         }        
-        $gr = MyGroup::where('user_id', Auth::id())->where('selected', true)->latest()->first();
-        $myWorkGroups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
+        $gr = MyGroup::where('user_id', $this->active_user()->id)->where('selected', true)->latest()->first();
+        $myWorkGroups = MyWorkGroup::where('user_id', $this->active_user()->id)->pluck('work_group_id')->toArray();
 
         $work_group_users_id = [];
-        
-        // $work_group_with_user = workGroup::whereHas('work_group_user', function($q){
-        //     $q->where('user_id', Auth::id());
-        // })->with(['work_group_user' => function ($q){
-        //     $q->whereHas('user', function ($q){
-        //         $q->where('retire', 0)->where('hide_flag', 0);
-        //     });
-        // }])->get();
         
         $my_group_ids = $gr ? $gr->selected_users()->pluck('id')->toArray() : [];
 
@@ -309,15 +316,15 @@ class CalendarController extends Controller
             if($request->edit_repeat){
                 
                 $all_recs = CalendarRecord::whereNotNull('r_group_id')->where('r_group_id', $target->r_group_id)->delete();
-                if($target['zoom_value'] && $target['zoom_id']){
-                    $token = $this->zoomToken($target['zoom_value']);
-                    $params = [
-                        "zoom_id" => $target['zoom_value'],
-                        "meetingId" => $target['zoom_id'],
-                        "token" => $token
-                    ];
-                    $delete_zoom = $this->delete_zoom_meeting($params);
-                }
+                // if($target['zoom_value'] && $target['zoom_id']){
+                //     $token = $this->zoomToken($target['zoom_value']);
+                //     $params = [
+                //         "zoom_id" => $target['zoom_value'],
+                //         "meetingId" => $target['zoom_id'],
+                //         "token" => $token
+                //     ];
+                //     $delete_zoom = $this->delete_zoom_meeting($params);
+                // }
                 $target->delete();
                 $data['editId'] = null;
             }else{
@@ -340,21 +347,21 @@ class CalendarController extends Controller
         // WEEKLY_REPEAT
         if($request->repetition_type == 1){
             $record_ids = $this->execute_weekly_record($data, [], true);
-            $r_group_id = $request['repeat_span']['weekly']['repeat_date_from'] . Auth::id() . uniqid();
+            $r_group_id = $request['repeat_span']['weekly']['repeat_date_from'] . $this->active_user()->id . uniqid();
             $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
             return response()->json($record_ids);
         }
         // MONTHLY_REPEAT
         if($request->repetition_type == 2){
             $record_ids = $this->execute_monthly_record($data, [], true);
-            $r_group_id = $request['repeat_span']['monthly']['repeat_date_from'] . Auth::id() . uniqid();
+            $r_group_id = $request['repeat_span']['monthly']['repeat_date_from'] . $this->active_user()->id . uniqid();
             $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
             return response()->json($record_ids);
         }
         // YEARLY_REPEAT
         if($request->repetition_type == 3){
             $record_ids = $this->execute_yearly_record($data, [], true);
-            $r_group_id = $request['repeat_span']['yearly']['year_from'] . $request['repeat_span']['yearly']['selected_month'] . Auth::id() . uniqid();
+            $r_group_id = $request['repeat_span']['yearly']['year_from'] . $request['repeat_span']['yearly']['selected_month'] . $this->active_user()->id . uniqid();
             $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
             return response()->json($record_ids);
         }
@@ -421,7 +428,7 @@ class CalendarController extends Controller
             "referrer" => $request['referrer'],
             "release_flag" => $request['release_flag'],
             "edit_all" => $request['edit_all'],
-            "updated_user" => Auth::id(),
+            "updated_user" => $this->active_user()->id,
             "date_start" => $date_start_ready,
             "date_end" => $date_end_ready
         ]);
@@ -444,13 +451,13 @@ class CalendarController extends Controller
             ]);
         }
         if($record['zoom_value'] && $record['zoom_id']){
-            $token = $this->zoomToken($target['zoom_value']);
+            $token = $this->zoomToken($record['zoom_value']);
             $params = [
-                "zoom_id" => $target['zoom_value'],
-                "meetingId" => $target['zoom_id'],
+                "zoom_id" => $record['zoom_value'],
+                "meetingId" => $record['zoom_id'],
                 "token" => $token
             ];
-            $delete_zoom = $this->delete_zoom_meeting($params);
+            $this->delete_zoom_meeting($params);
         }
         $record->delete();
         return $new_record;
@@ -544,7 +551,6 @@ class CalendarController extends Controller
                 "repeat_days" => $selectedDay,                
                 "expiration_start" => $request['repeat_span']['monthly']['repeat_date_from'] . ' 00:00:00',
                 "expiration_end" => $request['repeat_span']['monthly']['repeat_date_to'] . ' 00:00:00',
-                "repeat_days" => $selectedDay
             ]);
         }
         else if($request['repetition_type'] == 3){
@@ -555,8 +561,8 @@ class CalendarController extends Controller
                 "repeat_month" => $selectedMonth
             ]);
         }
-        $record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now(),"created_at" => now()]);
-        $record->files()->syncWithPivotValues($request['file_ids'], ["created_at" => now(),"created_at" => now()]);
+        $record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now(), "updated_at" => now()]);
+        $record->files()->syncWithPivotValues($request['file_ids'], ["created_at" => now(), "updated_at" => now()]);
         if($request['facility']['qualified_institution'] !== null){
             
             $record->update([
@@ -576,6 +582,7 @@ class CalendarController extends Controller
         return $record;
     }
     private function execute_main_data($ids, $request, $r_group_id, $has_prev_date){
+
         
         $zoom_values = array(
             "zoom_url" => null,
@@ -603,6 +610,7 @@ class CalendarController extends Controller
             // $check_overlap = $request['repetition_type'] == 0 ? $this->check_meeting_overlap($meetings, $s1, $s2, $has_prev_date['zoom_id']) : 'ok';
             // if($check_overlap == 'ok'){
 
+
                 $start = Carbon::parse($s1);
                 $end = Carbon::parse($s2);
                 $record_duration = $start->diff($end);
@@ -620,23 +628,32 @@ class CalendarController extends Controller
                     "type" => $request['repetition_type'] == 0 ? 2 : 3            
                     
                 ];
-                $json_result = $this->create_zoom_meeting($params);
                 $z_index = (int) $request['facility']['zoom_value'] + 1; 
+                if($has_prev_date && $has_prev_date['zoom_id']){
+                    $params['meetingId'] = $has_prev_date['zoom_id'];
+                    $json_result = $this->update_zoom_meeting($params);
+                    
+                    $zoom_values = array(
+                        "zoom_url" => $has_prev_date['zoom_url'],
+                        "zoom_id" => $has_prev_date['zoom_id'],
+                        "zoom_pass" => $has_prev_date['zoom_id'],
+                        "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
+                        "zoom_account_pass" => 'Glowd0802'
+                    );
+                }else{
+                    $json_result = $this->create_zoom_meeting($params);
+                    $zoom_values = array(
+                        "zoom_url" => $json_result['join_url'],
+                        "zoom_id" => $json_result['id'],
+                        "zoom_pass" => $json_result['password'],
+                        "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
+                        "zoom_account_pass" => 'Glowd0802'
+                    );
+                }                
 
-                $zoom_values = array(
-                    "zoom_url" => $json_result['join_url'],
-                    "zoom_id" => $json_result['id'],
-                    "zoom_pass" => $json_result['password'],
-                    "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
-                    "zoom_account_pass" => 'Glowd0802'
-                );
-                // $record->update([
-                //     "zoom_url" => $json_result['join_url'],
-                //     "zoom_id" => $json_result['id'],
-                //     "zoom_pass" => $json_result['password'],
-                //     "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
-                //     "zoom_account_pass" => 'Glowd0802'
-                // ]);
+               
+                
+                
                 
                 
 
@@ -649,8 +666,8 @@ class CalendarController extends Controller
             "release_flag" => $request['release_flag'],
             "edit_all" => $request['edit_all'],
             "repetition_type" => $request['repetition_type'],
-            "updated_user" => Auth::id(),
-            "user_id" => Auth::id(),
+            "updated_user" => $this->active_user()->id,
+            "user_id" => $this->active_user()->id,
             "r_group_id" => $r_group_id,
             "zoom_url" => $zoom_values['zoom_url'],
             "zoom_id" => $zoom_values['zoom_id'],
@@ -658,7 +675,7 @@ class CalendarController extends Controller
             "zoom_account" => $zoom_values['zoom_account'],
             "zoom_account_pass" => $zoom_values['zoom_account_pass'],
             "created_at" => $has_prev_date ? $has_prev_date['created_at'] : now(),
-            "created_user" => $has_prev_date ? $has_prev_date['created_user'] : Auth::id(),
+            "created_user" => $has_prev_date ? $has_prev_date['created_user'] : $this->active_user()->id,
             "descendant_of" => $has_prev_date ? $has_prev_date['id'] : null,
             "real_created_at" => now()
         ]);
@@ -668,7 +685,7 @@ class CalendarController extends Controller
         }
 
         $targetIds = $request['users'];
-        $targetUsersMail = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $targetIds)->where('id', '!=', Auth::id())->pluck('email')->toArray();
+        $targetUsersMail = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $targetIds)->where('id', '!=', $this->active_user()->id)->pluck('email')->toArray();
         $type = $has_prev_date ? '更新' : '作成';
         $c_records = CalendarRecord::whereIn('id', $ids)->get();
         $title = $c_records[0]['title'];
@@ -785,8 +802,8 @@ class CalendarController extends Controller
 
         $daysWithinRange = array_filter($selected_days_indexes, function ($dayOfWeek) use ($from, $to) {
             
-            $startOfWeek = $to->copy()->startOfWeek()->addDay($dayOfWeek);
-            $endOfWeek = $from->copy()->startOfWeek()->addDay($dayOfWeek);
+            $startOfWeek = $to->copy()->startOfWeek()->addDays($dayOfWeek);
+            $endOfWeek = $from->copy()->startOfWeek()->addDays($dayOfWeek);
             return $startOfWeek->between($to, $from) || $endOfWeek->between($from, $to);
         });
         
@@ -861,7 +878,7 @@ class CalendarController extends Controller
         $items = [];
         foreach($id_list as $id){
             $rec = [
-                "editId" => null,
+                "editId" => $request->editId,
                 "time_start" => $request->time_start,
                 "time_end" => $request->time_end,
                 "once_date" => $request->once_date,
@@ -873,7 +890,7 @@ class CalendarController extends Controller
             // $unavialable_items[] = $facility_check;
             $item = [
                 "label" => !$facility_check ? $list[$id]['label'] : $list[$id]['label'] . '（選択不可）' ,
-                "value" => $list[$id]['value'],
+                "id" => $list[$id]['value'],
                 "availablity" => !$facility_check
             ];
             $items[] = $item;
@@ -883,30 +900,9 @@ class CalendarController extends Controller
         return response()->json($items);       
     }
     public function get_my_groups(Request $request){
-        // $myGroupCheck = MyGroup::where('user_id', Auth::id())->where('deleted_flag', 0)->exists();        
-        // if(!$myGroupCheck){            
-        //     $newMyGroup = MyGroup::create([
-        //         'user_id' => Auth::id(),
-        //         'name' =>  Auth::user()->name . 'カレンダーグループ'
-        //     ]);
-        //     $newMyGroup->users()->syncWithPivotValues(Auth::id(), ['selected_as_calendar_member' => 1, "created_at" => now()]); 
-        // }
 
-        // $user = MyGroup::where('user_id', Auth::id())->latest()->first();
-        // $user_list = $user->users()->get();
-        
-        // return response()->json($user_list); 
 
-        // $work_group_with_user = workGroup::whereHas('work_group_user', function($q){
-        //     $q->where('user_id', Auth::id());
-        // })->with(['work_group_user' => function ($q){
-        //     $q->whereHas('user', function ($q){
-        //         $q->where('retire', 0)->where('hide_flag', 0);
-        //     });
-        // }])->get();
-
-        $groups = MyGroup::where('user_id', Auth::id())->where('deleted_flag', 0)->with('users')->get();
-        // $my_work_groups = MyWorkGroup::where('user_id', Auth::id())->pluck('work_group_id')->toArray();
+        $groups = MyGroup::where('user_id', $this->active_user()->id)->where('deleted_flag', 0)->with('users')->get();
         $res = [
             "my_groups" => $groups,
             "work_groups" => [],
@@ -916,12 +912,12 @@ class CalendarController extends Controller
         return response()->json($res); 
     }
     public function select_work_group(Request $request){
-        $my_work_groups = MyWorkGroup::where('user_id', Auth::id())->delete();
+        $my_work_groups = MyWorkGroup::where('user_id', $this->active_user()->id)->delete();
         $create = MyWorkGroup::create([
-            'user_id' => Auth::id(),
+            'user_id' => $this->active_user()->id,
             'work_group_id' => $request->work_group_id
         ]);
-        $groups = MyGroup::where('user_id', Auth::id())->update(['selected' => false]);
+        $groups = MyGroup::where('user_id', $this->active_user()->id)->update(['selected' => false]);
         return response()->json($create); 
     }
     public function update_selected_calendar_members(Request $request){
@@ -934,10 +930,9 @@ class CalendarController extends Controller
            
             if($request->by == 'byGroup'){
                 $user->update(['selected' => $request->value]);
-                $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $request->group_id)->update(['selected' => false]);
+                $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
             }
             
-            // $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
             return response()->json($user);
         }else{
             $user = MyGroup::findOrFail($request->group_id);
@@ -945,8 +940,7 @@ class CalendarController extends Controller
                 'updated_at' => now(),
                 'selected_as_calendar_member' => $request->value
             ]);
-            $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $request->group_id)->update(['selected' => false]);
-            // $remove = MyWorkGroup::where('user_id', Auth::id())->delete();
+            $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
             return response()->json($rec); 
         }
         
@@ -958,7 +952,7 @@ class CalendarController extends Controller
         return response()->json($groups); 
     }
     public function calendar_more_users(Request $request){
-        $user = MyGroup::where('user_id', Auth::id())->latest()->first();
+        $user = MyGroup::where('user_id', $this->active_user()->id)->latest()->first();
         $rec = $user->users()->pluck('id')->toArray();        
         $close_users = User::whereIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
         $other_users = User::whereNotIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
@@ -971,18 +965,18 @@ class CalendarController extends Controller
           
         }else{
             $group = new MyGroup;
-            $group->user_id = Auth::id();
+            $group->user_id = $this->active_user()->id;
             
         }
         $group->selected = true;
         $group->name = $request->title;
         $group->save();
         $group->users()->syncWithPivotValues($request->users, ['selected_as_calendar_member' => 1, "created_at" => now()]);  
-        $unselect = MyGroup::where('user_id', Auth::id())->whereNot('id', $group->id)->update(['selected' => false]);
+        $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $group->id)->update(['selected' => false]);
         return response()->json($request->users); 
     }
     public function get_calendar_search(Request $request){
-        $gr_list = MyGroup::where('user_id', Auth::id())->where('selected', 1)->with('selected_users')->get();
+        $gr_list = MyGroup::where('user_id', $this->active_user()->id)->where('selected', 1)->with('selected_users')->get();
         $all_ids = $gr_list->pluck('selected_users')->flatten()->pluck('id')->toArray();
         $list = array_unique($all_ids);
         $key = $request->key;
@@ -993,7 +987,7 @@ class CalendarController extends Controller
         ->where(function ($query) {
             $query->where('release_flag', 0)
             ->orWhereHas('calendar_users', function ($query) {
-                $query->whereIn('users.id', [Auth::id()]);
+                $query->whereIn('users.id', [$this->active_user()->id]);
             });
         })
         ->select('id', 'title', 'remarks', 'referrer', 'date_start', 'date_end', 'zoom_value', 'qualified_institution', 'qualified_car')
@@ -1054,7 +1048,9 @@ class CalendarController extends Controller
                     "token" => $token,
                     "duration" => $record_duration_minute,
                     "start_time" => $formattedDate,    
-                    "zoom_id" => $record->zoom_value      
+                    "zoom_id" => $record->zoom_value,
+                    "title" => $record['title'],
+                    "waiting_room" => $record['zoom_waiting_room'],      
                     
                 ];
                 $json_result = $this->update_zoom_meeting($params);
@@ -1078,7 +1074,7 @@ class CalendarController extends Controller
         $record->update([
             "date_start" => $new_start_time,
             "date_end" => $new_end_time,
-            "updated_user" => Auth::id()
+            "updated_user" => $this->active_user()->id
         ]);
         $res = CalendarRecord::where('id', $record->id)
         ->with('calendar_users')
@@ -1166,12 +1162,32 @@ class CalendarController extends Controller
         $res = [
             "success" => $update,
             "key" => $key,
-            "url" => url('/export_ical?id='.Auth::id().'&token='.$key)
+            "url" => url('/export_ical?id='.$this->active_user()->id.'&token='.$key)
         ];
 
         return response()->json($res); 
 
         
+    }
+    public function get_possible_groups(Request $request){
+        $list = boardRecord::where('private_flag', 0)->whereHas('board_to_users', function($q){
+            $q->where('user_id', $this->active_user()->id);
+        })->with(['board_to_users' => function($q){
+            $q->whereHas('user')
+            ->with('user')
+            ->select('user_id', 'record_id');
+        }])
+        ->with(['icons' => function($q){
+            $q->select('id','extension');
+        }])
+        ->orderBy('updated_at', 'desc')
+        ->get();
+        $groups = MyGroup::where('user_id', $this->active_user()->id)->where('deleted_flag', 0)->with('users')->get();
+        return response()->json([
+            "board" => $list,
+            "group" => $groups
+        ]); 
+
     }
 
     

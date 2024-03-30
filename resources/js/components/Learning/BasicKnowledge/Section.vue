@@ -19,17 +19,16 @@
                 
                 <div v-if="selectedAnswer == 1 || sectionStatus == 2" class="si-box" style="margin:0">
                     <p :style="{marginBottom: sectionStatus != 2 ? '20px' : '0'}"><strong>{{ sectionStatus != 2 ? '基礎知識の内容で特に重要だと理解した点を入力してください' : '基礎知識の内容で特に重要だと理解した点'}}</strong></p>
-                    <FormLongText
+                    <LongInput
                         v-if="sectionStatus != 2"
                         :initialValue="sectionContent ? sectionContent : comment"   
                         :placeHolder="`理解した点`"
                         :key="sectionContent ? sectionContent : 0"
                         ref="understandComment"
                         rules="required|max:2000"
-                        uId="recordBody"
                         name="recordBody"
                         label="タイトル"
-                        @setValue="val => comment = val"
+                        v-model="comment"
                     />
                     <div v-else>
                         <p >{{ sectionContent ? sectionContent : "" }}</p>
@@ -60,11 +59,12 @@
 </template>
 <script setup>
     import { useRoute, useRouter } from 'vue-router';
-    import FormLongText from '../../Global/FormLongText.vue';
+    import LongInput from '../../Form/LongInput.vue';
     import LoaderButton from '../../Global/LoaderButton.vue'
     import { ref, computed, inject } from 'vue'
     const router = useRouter()
     const route = useRoute()
+    const { notify, info } = inject('dialog')
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
 
     const getLessonPortfolios = inject('getLessonPortfolios')
@@ -88,17 +88,17 @@
     
     const comment = ref("")
     const processing = ref(false)
-    const list = ref([
+    const list = [
         { value: 1, content: '理解しました'},
         { value: 0, content: 'もっと詳しく知りたい'}        
-    ])
+    ]
     const selectedAnswer = ref('')
  
     const radioError = ref("")
     const processing_save = ref(false) 
 
     const validate = async(status) => {
-        const valid = await understandComment.value.$refs.recordBody.validate()
+        const valid = await understandComment.value.validate()
         if(valid.valid){
             const content = comment.value ? comment.value : sectionContent.value
             return await sectionUpdate(status, content)
@@ -125,13 +125,7 @@
         try{
             const response = await axios.post('/section_update', params)
             if(status == 'save'){
-                const data = {
-                    text: props.editTarget ? '編集しました。' :'保存しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
-                }
-                emitter.emit('setInfo', data)
+                info(props.editTarget ? '編集しました。' :'保存しました。')
                 processing_save.value = false
             }
             await getLessonPortfolios() 
@@ -139,25 +133,12 @@
             processing.value = false
             return response.status
         }catch(error){
-            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast('エラーが発生しました。 ' + error.message)        
+            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。 ' + error.message)        
         }
                 
     }
-    const errorToast = (message) => {
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })  
-            processing.value = false
-            
-        }
     const nextStage = async() => {
         if(selectedAnswer.value == 1){
             const checkValidate = await validate('next')

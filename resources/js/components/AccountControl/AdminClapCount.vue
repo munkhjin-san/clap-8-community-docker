@@ -1,51 +1,32 @@
 <template>
-    <div class="container" style="height: calc(100% - 60px);">
-        <!--<div class="appTitle">
-            <div class="appTitle-inner">
-                <h2>社員一覧</h2>
-                
-                <div class="clear-both"></div>
-            </div>            
-        </div>-->
-      
+    <div style="height: 100%;background: var(--bg3);position: relative">     
+        <Transition name="modalFade">
+            <div v-if="fetch == 0" class="control-loader">
+                <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+            </div> 
+        </Transition> 
         <div class="record-container-inner" style="height: 100%;">    
             <div style="display: flex;align-items: center;flex-wrap: wrap;">
                 <p style="padding:20px;width: fit-content;">クラップ数集計</p>
-                <div style="display: flex;margin-left: auto;align-items: center;padding: 15px;">                          
-                        <DatePicker
-                            :initialValue="startDate"
-                            ref="startDate"
-                            uId="startDate"
-                            name="startDate"
-                            rules=""
-                            @setValue="setStart"
-                        />
-                        <div style="font-size: 30px;margin: 0 15px;"> ~ </div>
-                        <DatePicker
-                            :initialValue="endDate"
-                            ref="endDate"
-                            uId="endDate"
-                            name="endDate"
-                            rules=""
-                            @setValue="setEnd"
-                        />
-                <!-- <div class="datepicker-task" style="display:inline-block;">
-                    <vuejs-datepicker placeholder="終了日を選択してください" class="datePickerFormatArea" v-model="startDate" name="date_end" :value="startDate" format="yyyy-MM-dd" :language="ja"></vuejs-datepicker>
-                </div>
-                <div class="datepicker-task" style="display:inline-block;">
-                    <vuejs-datepicker placeholder="終了日を選択してください" class="datePickerFormatArea" v-model="endDate" name="date_end" :value="startDate" format="yyyy-MM-dd" :language="ja"></vuejs-datepicker>
-                </div> -->
+                <div style="display: flex;margin-left: auto;align-items: center;padding: 15px;gap:15px">    
+                    <ShortInput 
+                        name="startDate" 
+                        customClass="date"
+                        type="date"
+                        v-model="startDate"
+                    /> 
+                    <ShortInput 
+                        name="endDate" 
+                        customClass="date"
+                        type="date"
+                        v-model="endDate"
+                    />   
+                    <div class="admin-button" @click="downloadCSV">CSV出力</div>
                 </div>
             </div>
             
-            <div class="employee" style="height: 100%;overflow: auto;position: relative;">
-                <Transition name="modalFade">
-                    <div class="cal-day-loader" v-if="initialLoader" style="top: 0;">
-                        <div id="loaderMini">
-                            <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
-                        </div>
-                    </div>
-                </Transition>
+            <div class="employee" style="height: calc(100% - 70px);overflow: auto;position: relative;">
+                
                 <div class="row justify-content-center">
                    
                     <table id="customers">
@@ -56,7 +37,7 @@
                             <th>チャレンジ</th>
                             <th>合計</th>
                         </tr>
-                        <tr v-for="data in clapList">
+                        <tr v-for="data in clapData">
                             <td>{{data.name}}</td>
                             <td>{{data.knowledge}}</td>
                             <td>{{data.nice}}</td>
@@ -70,49 +51,47 @@
     </div>
    
 </template>
-<script>
+<script setup>
 
 import moment from 'moment'
-import DatePicker from '../Global/DatePicker.vue';
-export default {
-    props: ['searchUser'],
-    components:{
-        DatePicker
-    },
-    data() {
-        return {
-            clapData: [],
-            startDate: '2020-12-01',
-            endDate: moment().format('YYYY-MM-DD'),
-            initialLoader: true
-        }
-    },
-    mounted() {
-        this.allClapData()
-    },
-    
-    computed: {
-        clapList(){
-            return this.clapData
-        }
-    }, 
-    methods: {
-        setStart(val){
-            this.startDate = val
-            this.allClapData()
-        },
-        setEnd(val){
-            this.endDate = val
-            this.allClapData()
-        },
-        allClapData(){
-            axios.post('/clap_statistics',{start:this.startDate, end: this.endDate}).then( response => { 
-                this.clapData = response.data 
-                this.initialLoader = false
-            });   
-        }
+import ShortInput from '../Form/ShortInput.vue';
+import { onMounted, ref, watch } from 'vue';
+import { mkConfig, generateCsv, download } from "export-to-csv";
+
+    const clapData = ref([])
+    const startDate = ref('2020-12-01')
+    const endDate = ref(moment().format('YYYY-MM-DD'))
+    const fetch = ref(0)
+
+    onMounted(async() => {
+        await allClapData()
+        fetch.value ++
+    })
+    watch(() => [startDate.value, endDate.value], () => {
+        allClapData()
+    })
+
+    const allClapData = async() => {
+        clapData.value = await axios.post('/clap_statistics',{start:startDate.value, end: endDate.value}).then( response => response.data);   
     }
-}
+    const downloadCSV = () => {
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `【${startDate.value} - ${endDate.value}】クラップ数集計`});
+        const dataSet = []
+        clapData.value.forEach(data => {
+            const v = {
+                "氏名" : data.name,
+                "ナレッジ" : data.knowledge,
+                "ナイス" : data.nice,
+                "チャレンジ" : data.challenge,
+                "合計" : data.sum
+            }
+            dataSet.push(v)
+        });
+        const csv = generateCsv(csvConfig)(dataSet);
+        
+        download(csvConfig)(csv);
+    }
+
 </script>
 <style scoped>
 #customers {

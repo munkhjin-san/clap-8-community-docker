@@ -23,12 +23,10 @@
             <div style="position:relative;background:inherit">
 
             
-                <span style="z-index: 5;" :class="{smallPlc : $store.state.activeInput == 'chargeSelector'|| (value.length) || charge_bet}" class="form-plc">チャージ金額を選択</span> 
-                <v-select
-                    @search:focus="$store.commit('setActiveInput', 'chargeSelector')"
-                    @search:blur="$store.commit('setActiveInput', '')"
+                <span style="z-index: 5;" :class="{smallPlc : (value.length) || charge_bet}" class="form-plc">チャージ金額を選択</span> 
+                <drop-selector
                     @input="value = $event.target.value"
-                    :class="['taskUserSelecArea', {selectorFocus : $store.state.activeInput == 'chargeSelector'}]"   
+                    :class="['taskUserSelecArea']"   
                     style="background-image: unset; margin:0px;" 
                     v-model="charge_bet" 
                     name="charge" 
@@ -38,7 +36,7 @@
                     <template v-slot:no-options="{ search, searching }">                    
                         <div style="font-size: 13px;opacity: 0.5;padding: 10px 0">お探しのチャージ額は見つかりません。</div>
                     </template>
-                </v-select> 
+                </drop-selector> 
             </div>
             <div style="margin-top:20px">
                 <LoaderButton 
@@ -57,7 +55,6 @@ import { ref } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue'
 import { onMounted } from 'vue';
 import { inject } from 'vue';
-
     const props = defineProps(['chargeTarget'])
     const emit = defineEmits(['close'])
     const possibleAmount = ref(null)
@@ -66,7 +63,7 @@ import { inject } from 'vue';
     const chargeLock = ref(false)
     const value = ref('')
     const fetched = ref(false)
-            
+    const { notify } = inject('dialog')
     onMounted(() => {
         getMyCharge()
     })
@@ -97,29 +94,19 @@ import { inject } from 'vue';
         if(chargeLock.value|| !props.chargeTarget || !charge_bet.value || charge_bet.value.value == 0 || charge_bet.value.value == '0') return
         chargeLock.value= true
         axios.post('challenge_charge_to',{ charge_bet: charge_bet.value.value, record_id: props.chargeTarget } ).then(response => { 
-            setTimeout(() => {     
-                var uniqueChannell = Math.random().toString(36).substring(5);
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: 'チャージしました。',
-                    closeButton: false, 
-                    autoClose: true,
-                    answers: ['OK'],
-                    channel: uniqueChannell
-                })  
+            setTimeout(async() => {  
+                notify('チャージしました。')   
                 closeChargeModal(props.chargeTarget)                    
                 chargeLock.value= false                   
             }, 1000);
 
         }).catch(function (error) {
-            if (error.response) errorToast(error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast('エラーが発生しました。')                          
+            if (error.response) notify(error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。')                          
         });
         
     }
-    const errorToast = inject('errorToast')
         
     
 </script>

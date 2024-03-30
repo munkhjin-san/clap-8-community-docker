@@ -442,7 +442,7 @@ progress {
     line-height: 36px !important;
     border: 1px solid var(--primary-color);
     cursor: pointer;
-    padding: 0 15px;
+    padding: 0 15px !important;
     color: var(--primary-color);
     max-width: 120px;
     min-height: 40px;
@@ -2377,21 +2377,6 @@ textarea{
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
-.userSelectArea {
-  height: auto ;
-  margin-top: 20px;
-
-  
-  background-repeat: no-repeat;
-  background-position: top 5px right 5px;
-
-}
-// .userSelectArea .vs__search{
-//     padding-top: 20px;
-// }
-// .userSelectArea .vs__search:focus{
-//     padding-top: 20px;
-// }
 .taskUserSelecArea {
     // padding-bottom: 10px;
     border: solid 1px var(--formBorder);
@@ -2437,6 +2422,12 @@ div.recordFormTitle > p{
 
   border: 1px solid #cccccc;
 
+}
+.month-drop-area{
+    min-width: 40px;
+    flex:1;
+    border-right:1px solid var(--calendarBorder);
+    border-bottom: 1px solid var(--calendarBorder);
 }
 .swiper-slide {
   text-align: center;
@@ -3949,14 +3940,12 @@ display: none !important;
 }
 
 /* === 丸部分のSTYLE（ONのとき） =========================== */
-.selectSwitchArea input[type="checkbox"]:checked ~ .switch-toggle{
+.selectSwitchArea input[type="checkbox"]:checked ~ label .switch-toggle{
     transform      : translateX(46px);    /* 丸も右へ移動       */
     background     : #fff;             /* カーソルタブの背景 */
     border: 1px solid #ccc;
 }
-.switchElement{
-    width: 100%;
-}
+
 .switchLabel{
     width: calc(100% / 5 - 30px);
     text-align: left;
@@ -4923,6 +4912,7 @@ font-size: 13px;
 .zoom-info-box{
     line-height: 1.5;
     white-space: break-spaces;
+    width: fit-content;
 }
 .zoom-info-item{
     cursor: auto;
@@ -5108,6 +5098,7 @@ font-size: 13px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    width: fit-content;
 }
 .cal-userlist-full > div{
     display: flex;
@@ -5134,6 +5125,7 @@ font-size: 13px;
 }
 .cal-card-item{
     overflow: hidden;
+    width: fit-content;
 }
 .cal-selectable{
     user-select: text;
@@ -5203,6 +5195,7 @@ font-size: 13px;
     // margin-top: 10px;
     user-select: text;
     cursor: text;
+    width: fit-content;
 }
 .card-repet-info{
     margin: -5px 0px 0px;
@@ -5636,15 +5629,6 @@ input:autofill {
     font-weight: 600;
     cursor: pointer;
 }
-.m-day-add{
-    width:40px;
-    height: 40px;
-    display: flex;
-    place-content: center;
-    align-items: center;
-    margin-left: auto;
-    cursor: pointer;
-}
 .cal-m-day-title{
     height: 100%;
     display: flex;
@@ -5735,7 +5719,7 @@ input:autofill {
 }
 .lcontrol{
     font-size: 14px;
-    background: var(--background-color);
+    background: var(--bg3);
     width: 100%;
     height: 100%;
     overflow: hidden auto;
@@ -5772,25 +5756,31 @@ input:autofill {
         thead{
             white-space: nowrap;
         }
-        .pt-content{
-            max-height: 40px;
-            line-height: 1.5;
-            position: relative;
-        }
-        .pt-popup{
-            position: absolute;
-            top: 0px;
-            left: 0;
-            white-space: break-spaces;
-            line-height: 1.5;
-            z-index: 5;
-            background: var(--background-color);
-            padding: 15px;
-            text-align: left;
-            width: max-content;
-            max-width: 40vw;
-            
-        }
+        
+    }
+    .p-tag-wrap{
+        max-height: 65px;
+        display: flex;
+        white-space: nowrap;
+        flex-wrap: wrap; 
+        gap: 15px;
+        min-height: 65px;
+        padding: 20px;    
+        overflow: hidden;    
+        justify-content: space-between;
+        transition: max-height 0.3s ease;
+    }
+    .p-tag-expand{
+        max-height: 2000px;
+    }
+    .p-tag-container{        
+        font-size: 14px;           
+        background: var(--background-color);
+        margin: 0 20px;
+    }
+    .disabled-toggle{
+        cursor: not-allowed;
+        opacity: 0.4;
     }
 @media screen and (max-width: 959px) {
     .ls-video{

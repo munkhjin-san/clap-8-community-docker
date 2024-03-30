@@ -1,6 +1,6 @@
 <template>
 <div style="display: flex;">
-    <div @mousedown.stop @click="$emit('viewFull', true)" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`, overflowX: 'unset'}">
+    <div @mousedown.stop @click="emit('viewFull', true)" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`, overflowX: 'unset'}">
         <div style="cursor: pointer;position: relative;width: -webkit-fill-available;overflow: hidden;">
               
             <UserIcon :disableInstant="hideName" :user="userData.user" imgClass="userMidIcon" size="25"/>
@@ -25,7 +25,7 @@
         v-for="hour in hoursOfDay"
         :data="hour"
         :fullDayIndex="fullDayRecords.length"
-        @create="(date, user) => $emit('create', date, user)"
+        @create="(date, user) => emit('create', date, user)"
     /> 
 </div>
 </template>
@@ -34,10 +34,10 @@
     import moment from 'moment';
     import UserIcon from '../../Board/Mixed/UserIcon.vue';
     import AllDayRecord from '../AllDayRecord.vue';
-    import { computed } from 'vue';
-    import { useStore } from 'vuex';
+    import { computed, inject } from 'vue';
+    import { useAuthUserStore } from '@/store/auth'
+    const auth = useAuthUserStore()
 
-    const store = useStore()
     const props = defineProps (['userData', 'hideName', 'orderCreator'])
     const emit = defineEmits(['create', 'viewFull'])
     
@@ -65,18 +65,7 @@
         return ordered
     })
 
-    const pushInstantUser = (event, id) => {
-        if(store.state.user && id == store.state.user.id) return
-        const cX = event.clientX;
-        const cY = event.clientY;  
-        const data = {
-            id: id,
-            cX: cX,
-            cY: cY
-        }
-        store.commit('setInstantUser', data)   
-        store.commit('setMenu', {name: 'instantProfileWindow', id: 5000})                 
-    }
+    const pushInstantUser = inject('pushInstantUser')
     
 
 

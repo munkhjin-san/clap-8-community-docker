@@ -4,7 +4,7 @@
     top: -1px;
     width: 100%;
     height: 100%;
-    z-index: 80;">                    
+    z-index: 10;">                    
     <div class="left-panel-inner cursor-pointer">                  
         <div class="left-panel-wrap" style="height:65px;" v-for="num in 50">       
             <div class="left-panel-items skeleton-items">
@@ -18,23 +18,21 @@
     </div>                
 </div> 
 </template>
-<script>
-    export default {
-        methods:{
-            randomWidth(){
-                const x = window.innerWidth || document.clientWidth || body.clientWidth
-                return x > 959 ? 
-                Math.floor(Math.random() * (90 - 70 + 1)) + 70 + '%' : 
-                Math.floor(Math.random() * (60 - 40 + 1)) + 40 + '%'
-            },
-            randomWidthLs(){
-                const x = window.innerWidth || document.clientWidth || body.clientWidth
-                return x > 959 ? 
-                Math.floor(Math.random() * (100 - 90 + 1)) + 90 + '%' : 
-                Math.floor(Math.random() * (80 - 60 + 1)) + 60 + '%'
-            },
-        }
+<script setup>
+
+    const randomWidth = () => {
+        const x = window.innerWidth || document.clientWidth || body.clientWidth
+        return x > 959 ? 
+        Math.floor(Math.random() * (90 - 70 + 1)) + 70 + '%' : 
+        Math.floor(Math.random() * (60 - 40 + 1)) + 40 + '%'
     }
+    const randomWidthLs = () => {
+        const x = window.innerWidth || document.clientWidth || body.clientWidth
+        return x > 959 ? 
+        Math.floor(Math.random() * (100 - 90 + 1)) + 90 + '%' : 
+        Math.floor(Math.random() * (80 - 60 + 1)) + 60 + '%'
+    }
+
 </script>
 <style lang="scss">
     

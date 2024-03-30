@@ -1,33 +1,29 @@
 <template>
     <div class="work-root">
         
-        <div class="work-header">
-            <WorkButtons
-                :usersData="usersData"
+        <div class="work-header" ref="headerEl">
+            <WorkHeader
                 :workGroups="workGroups"
                 :usersCheckArray="usersCheckArray"
-                :auth_user="auth_user"
+                v-model="usersCheckArray"
                 @selectShift="selectShift"
                 @confirmAttendance="confirmAttendance"
                 @todayScroll="todayScroll"
                 @toBottomScroll="toBottomScroll"
-                @selectMember="selectMember"
-                @selectedUsers="selectedUsers"
             />
             <div class="work-monthpicker">
-                <div @click="prevMonth" class="work-prevmonth">
+                <div @click="shiftMonth(-1)" class="work-prevmonth">
                     <svg version="1.1" width="13" height="13" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
                         <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
                     </svg>
                 </div>
                 <MonthPicker
-                    v-if="!shiftModal"
                     :selectedMonth="selectedMonth"
                     :selectedYear="selectedYear"
                     :right="windowWidth < 425 ? 'auto' : '0'" 
                     @setDate="setDate"
                 />
-                <div @click="nextMonth" class="work-nextmonth">
+                <div @click="shiftMonth(1)" class="work-nextmonth">
                     <svg version="1.1" width="13" height="13" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg" style="transform: rotate(180deg);">
                         <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
                     </svg>
@@ -35,647 +31,342 @@
             </div>
         </div>
             <WorkRecords 
-                :calendars="calendars"
                 :currentDay="currentDay"
                 :usersData="relocateUsers"
-                :auth_user="auth_user"
                 :monthAverage="monthAverage"
-                :shiftStartTime="shiftStartTime"
-                :shiftEndTime="shiftEndTime"
-                :attendanceFlag="attendanceFlag"
-                :weathers="weathers"
                 :selectedMonth="selectedMonth"
+                :selectedYear="selectedYear"
+                :records="recordsArray"
+                :loading="loading"
+                :headerHeight="headerHeight"
                 @timeStampStart="timeStampStart"
                 @timeStampEnd="timeStampEnd"
                 @timeStampEdit="timeStampEdit"
-                @todayScroll="todayScroll"
+                @timeStampDelete="timeStampDelete"
                 @reload="reload"
             />
         
-        
-            <div v-if="shiftModal">
+            <Transition name="modalFade"> 
                 <WorkShifts 
+                    v-if="shiftModal"
                     :selectedMonth="selectedMonth"
                     :selectedYear="selectedYear"
-                    :shiftTypes="shiftTypes"
-                    :shiftRecords="shiftRecords"
-                    :calendarData="calendarData"
-                    :currentDay="currentDay"
-                    :attendanceFlag="attendanceFlag"
+                    :usersCheckArray="usersCheckArray"
                     :usersData="usersData"
-                    :kintone_data="kintone_data"
-                    :shiftModal="shiftModal"
-                    :planned_record="planned_record"
-                    :workTemp="workTemp"
-                    :remainingDays="remainingDays"
                     :startDate="startDate"
-                    @changeDate="changeDate"
-                    @canChangePlanned="canChangePlanned"
                     @closeModal="shiftModal = false"
                     @reload="reload"
                 />
-            </div>
-
-        
-            <div v-if="shiftAttendance">
+            </Transition>
+            <Transition name="modalFade"> 
                 <WorkAttendance
-                    :auth_user="auth_user"
-                    :attendanceData="attendanceData"
+                    v-if="shiftAttendance"
                     :selectedYear="selectedYear"
                     :selectedMonth="selectedMonth"
                     :usersCheckArray="usersCheckArray"
                     @closeModal="shiftAttendance = false"
+                />
+            </Transition>
+            <Transition name="modalFade"> 
+                <WorkReport
+                    v-if="reportModal"
                     @reload="reload"
+                    @closeModal="closeModal"
+                    :item="editData"
                 />
-            </div>
-            <div v-if="showMembers">
-                <WorkMembers 
-                    :workGroups="workGroups"
-                    :usersCheckArray="usersCheckArray"
-                    @closeModal="closeMembers"
-                    @selectedUsers="selectedUsers"
-                />
-            </div>
-            <WorkReport
-                v-if="reportModal"
-                @reload="reload"
-                @closeModal="closeModal"
-                :chosenDate="chosenDate"
-                :todayStartTime="formatTime(todayStartTime, 'start')"
-                :todayEndTime="formatTime(todayEndTime, 'end')"
-                :todayBreakTime="todayBreakTime"
-                :customFieldData="customFieldData"
-                :info="info"
-                :createReport="createReport"
-                :chosenUserId="chosenUserId"
-                :shiftStartTime="shiftStartTime"
-                :shiftEndTime="shiftEndTime"
-            />
+            </Transition>
     </div>
 </template>
 
-<script>
-    import WorkButtons from './WorkButtons.vue'
+<script setup>
+    import WorkHeader from './WorkHeader.vue'
     import MonthPicker from '../Global/MonthPicker.vue'
     import WorkRecords from './WorkRecords.vue'
-    import workStyle from './workStyle.scss'
-    import moment from 'moment'
     import WorkShifts from './WorkShifts.vue'
     import WorkAttendance from './WorkAttendance.vue'
-    import holiday_jp from '@holiday-jp/holiday_jp'
-    import WorkMembers from './WorkMembers.vue'
     import WorkReport from './WorkReport.vue'
+    import moment from 'moment'
+    import { computed, onMounted, ref, provide, inject, watch } from 'vue'
+    import { useRoute } from 'vue-router'
+    import { useAuthUserStore } from '@/store/auth'
+    import { useElementSize } from '@vueuse/core'
+    const auth = useAuthUserStore()
+    const { confirm, notify } = inject('dialog')
+    const route = useRoute()
+    const selectedYear = ref(moment().year())
+    const selectedMonth = ref(moment().month())
+    const currentDay = ref(moment().format('YYYY-MM-DD'))
+    const usersCheckArray =  ref([Number(auth.id)])
+    const shiftModal = ref(false)
+    const shiftAttendance = ref(false)
+    const workGroups = ref([])
+    const usersData = ref([])
+    const monthAverage = ref([])
+    const windowWidth = ref(window.innerWidth)
+    const startDate = ref('')
+    const reportModal = ref(false)
+    const todayStartTime = ref(null)
+    const todayEndTime = ref(null)
+    const customFieldData = ref([])
+    const customInfo = ref([])
+    const recordsArray = ref([])
+    const headerEl = ref(null)
+    const editData = ref(null)
+    onMounted(async() => {
+        const query = route.query
+        if(query.user_id){
+            usersCheckArray.value = [Number(query.user_id)]
+        }
+        
+        getWorkData()
+        // await getShiftData()
+        getWorkGroup()
+        getCustomFields()
+        getUsersRecords(0)
+        if(query.startDate){
+            startDate.value = query.startDate
+            selectShift()
+        }
+    })
 
-    export default {
-        data(){
-            return {
-                selectedYear: moment().year(),
-                selectedMonth: moment().month(),
-                currentDay: moment().format('YYYY-MM-DD'),
-                usersCheckArray: [Number(this.$store.state.user.id)],
-                shiftTypes: [],
-                shiftModal: false,
-                shiftAttendance: false,
-                shiftRecords: [],
-                timeCardRecords: [],
-                showMembers: false,
-                workGroups: [],
-                usersData: [],
-                calendars: [],
-                shiftArray: [],
-                attendanceData: [],
-                auth_user: this.$store.state.user,
-                monthAverage: [],
-                shiftStartTime: '',
-                shiftEndTime: '',
-                attendanceFlag: false,
-                weathers: [],
-                windowWidth: window.innerWidth,
-                kintone_data: [],
-                startDate: '',
-                workTemp: [],
-                remainingDays: 0,
-                reportModal: false,
-                chosenDate: null,
-                todayStartTime: null,
-                todayEndTime: null,
-                todayBreakTime: 0,
-                customFieldData: [],
-                chosenUserId: '',
-                info: [],
-                createReport: false,
-                planned_record: [],
-            }
-        },
-        created(){
-            setTimeout(() => {
-                this.todayScroll()
-            });
-                
-           
-        },  
-        mounted(){
-            if(this.$route.meta.data){
-                this.timeCardRecords = this.$route.meta.data.record_array,
-                this.usersData = this.$route.meta.data.user_data,
-                this.shiftArray = this.$route.meta.data.shift_array,
-                this.monthAverage = this.$route.meta.data.month_average,
-                this.weathers = this.$route.meta.data.weather,
-                this.calendars = this.calendarData
+    watch(() => usersCheckArray.value,  () => {
+        getUsersRecords()
+        getWorkData()
+    })
+    const headerHeight = computed(() => {
+        const { height } = useElementSize(headerEl)
+        return height
+    })
+    const relocateUsers = computed(() => {
+        const authUserId = auth.id;
+        const checkedUserArray = usersCheckArray.value;
+        const slicedUsersData = usersData.value.slice(); 
+        if (checkedUserArray.includes(authUserId)) {
+            checkedUserArray.unshift(checkedUserArray.splice(checkedUserArray.indexOf(authUserId), 1)[0]);
+        }
+        slicedUsersData.sort((a, b) => checkedUserArray.indexOf(a.id) - checkedUserArray.indexOf(b.id));
+
+        return slicedUsersData;
+    })
+    
+    const closeModal = () =>{
+        reportModal.value = false
+        customFieldData.value = []
+    }
+    
+    const getCustomFields = async() => {
+        const params = {
+            app_name : 'work'
+        };
+
+        try{
+            const response = await axios.post('/custom_field_data', params)
+            customInfo.value = response.data
+        }catch (e){
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
+        }
+    }
+    const timeStampStart = async(data) => {
+        const month = selectedMonth.value + 1
+        if(data){
+            if(data?.shift?.shift_type.id == 3){
+                notify('計画有給設定しているため日報作成ができません。')
             }else{
-                this.getWorkData()
-            }
-            this.getShiftData()
-            this.getWorkGroup()
-            this.getAttendanceData()
-            this.getCustomFields()
-            const query = this.$route.query
-            if(query.startDate){
-                this.startDate = query.startDate
-                this.selectShift()
-            }
-
-            if (query.action) {
-                if(query.action == 1){
-                    const formData = {
-                        end_time: query.shiftEndTime,
-                        day: query.date,
-                        start_time: query.shiftStartTime,
-                        shift_type: query.shiftType
-                    };
-                    const thisMonth = this.selectedMonth + 1
-                    const valueMonth = Number(query.date.split('-')[1])
-                    
-                    if (thisMonth !== valueMonth) {
-                        this.selectedMonth = this.selectedMonth - 1;
-                        this.reload()
-                    }
-                    this.timeStampEdit(formData, true, this.auth_user.id)
-                }else if (query.action == 2){
-                    this.selectShift();
-                }
-            } 
-        },
-        computed: {
-            relocateUsers(){
-                const authUserId = this.auth_user.id;
-                const usersCheckArray = this.usersCheckArray;
-                const usersData = this.usersData.slice(); 
-                if (usersCheckArray.includes(authUserId)) {
-                    usersCheckArray.unshift(usersCheckArray.splice(usersCheckArray.indexOf(authUserId), 1)[0]);
-                }
-                usersData.sort((a, b) => usersCheckArray.indexOf(a.id) - usersCheckArray.indexOf(b.id));
-
-                return usersData;
-            },
-            calendarData() {
-                const thisMonth = moment([this.selectedYear, this.selectedMonth]);
-                const firstDay = thisMonth.clone().startOf("isoWeek")
-                const lastDay = thisMonth.clone().endOf("month").endOf("isoWeek");
-                const holidays = holiday_jp.between(new Date(this.selectedYear + '-01-01'), new Date(this.selectedYear + '-12-31'));
-                
-                const calendar = [];
-                for (let i = firstDay; i.isBefore(lastDay); i.add(1, "day")) {
-                    const weekIndex = calendar.length - 1;
-                    if (weekIndex < 0 || calendar[weekIndex].length === 7) {
-                        calendar.push([]);
-                    }
-                    if (i.month() !== thisMonth.month()) {
-                        // Push an empty object
-                        calendar[calendar.length - 1].push({});
-                    } else {
-                        const holiday = holidays.find(h => moment(h.date).isSame(i, 'day'));
-                        calendar[calendar.length - 1].push({ 
-                            "day_short" : i.locale("ja").format("D"),
-                            "day_full" : i.locale("ja").format("YYYY-MM-DD"),
-                            "day_holiday" : holiday ? holiday.name : null,
-                            "weekday" : (i.day() + 6) % 7 + 1,
-                            "formated_date" : `${i.format('M')} / ${i.format('D')} ${i.locale('ja').format('(ddd)')}`,
-                            "shift_records" : this.shiftArray,
-                            "time_card_records" : this.timeCardRecords,
-                            "users" : this.relocateUsers
-                        });
-                    }
-                }
-                return calendar
-            }
-        },
-        methods: {
-            closeModal(){
-                this.reportModal = false
-                this.customFieldData = []
-                // if(navigator.userAgent.match(/iPhone/)){
-                //     const recordWrapper = document.querySelector('.records-wrapper')
-                //     const style = recordWrapper.style;
-                //     style.height = 'calc(100% - 90px)'
-                //     this.todayScroll()
-                // }
-               
-            },
-            formatTime(time, val){
-                if(!time) return '--'
-                
-                if(/^([01]\d|2[0-3]):[0-5]\d:[0-5]\d$/.test(time)){
-                    var date = new Date("2000-01-01T" + time); // get current date
-                    var minutes = date.getMinutes();
-                    if(val == 'start'){
-                        var rounded = Math.ceil(minutes / 15) * 15;
-                    }else if(val == 'end'){
-                        var rounded = Math.floor(minutes / 15) * 15;
-                    }
-                    date.setMinutes(rounded);
-                    date.setSeconds(0);
-                    var hours = date.getHours();
-                    var minutes = date.getMinutes();
-
-                    // pad with zero if needed
-                    hours = hours < 10 ? '0' + hours : hours;
-                    minutes = minutes < 10 ? '0' + minutes : minutes;
-                    let roundedTime = hours + ':' + minutes
-                    return roundedTime
-
-                }else if(time === '打刻なし'){
-                    return time
-                }
-            },
-            getCustomFields(){
-                const params = {
-                    app_name : 'work'
-                };
-
-                axios.post('/custom_field_data', params ).then(
-                    response => {
-                            this.info = response.data
-                        }
-                    ).catch(function (error) {
-                        if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                        else if (error.request) this.errorToast('エラーが発生しました。')
-                        else this.errorToast('エラーが発生しました。 ' + error.message)     
-                    }.bind(this))
-
-            },
-            timeStampStart(data){
-                console.log(data)
-                const month = this.selectedMonth + 1
-                if(data){
-                    if(data.shift_type == 3){
-                        emitter.emit('setToast', {
-                            active: true,  
-                            type: 'info', 
-                            content: '計画有給設定しているため日報作成ができません。',
-                            closeButton: false, 
-                            autoClose: false,
-                            answers: ['OK'],
-                        })
-                    }else{
-                        var date = new Date(); // get current date
-                        var minutes = date.getMinutes();
-                        var quarterHours = Math.ceil(minutes / 15);
-                        date.setMinutes(quarterHours * 15);
-                        date.setSeconds(0);
-                        var hours = date.getHours();
-                        var minutes = date.getMinutes();
-
-                        // pad with zero if needed
-                        hours = hours < 10 ? '0' + hours : hours;
-                        minutes = minutes < 10 ? '0' + minutes : minutes;
-                        let time = hours + ':' + minutes + ':00'
-                        this.todayStartTime = time
-                        this.stampEnd = true
-                        this.stampStart = false
-                        const params = {
-                            start_time : time,
-                            day : this.currentDay
-                        }
-                        axios.post('/daily_report_add', params).then(
-                            response => {
-                                this.reload()
-                            }
-                        ).catch(function (error) {
-                            if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                            else if (error.request) this.errorToast('エラーが発生しました。')
-                            else this.errorToast('エラーが発生しました。 ' + error.message)     
-                        }.bind(this))
-                    }
-                }else{
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: month + '月の勤怠予定を入力してください。',
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK'],
-                    }) 
-                }
-            },
-            timeStampEnd(){
-                var date = new Date(); // get current date
+                var date = new Date(); 
                 var minutes = date.getMinutes();
-                var rounded = Math.floor(minutes / 15) * 15;
-                date.setMinutes(rounded);
+                var quarterHours = Math.ceil(minutes / 15);
+                date.setMinutes(quarterHours * 15);
                 date.setSeconds(0);
                 var hours = date.getHours();
                 var minutes = date.getMinutes();
-
-                // pad with zero if needed
                 hours = hours < 10 ? '0' + hours : hours;
                 minutes = minutes < 10 ? '0' + minutes : minutes;
                 let time = hours + ':' + minutes + ':00'
-                this.todayEndTime = time
-                this.stampEnd = false
+                todayStartTime.value = time
                 const params = {
-                    end_time : time,
-                    day : this.currentDay
+                    start_time : time,
+                    day : currentDay.value,
                 }
-                const uniqueChannell = Math.random().toString(36).substring(5);
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: '本日の勤務を終業しますか。',
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: [this.$t('confirmToAction'),this.$t('cancelToAction')],
-                    channel: uniqueChannell
-
-                })            
-                emitter.on(uniqueChannell, (data) => { 
-                    if(data.answer === this.$t('confirmToAction')){
-                        axios.post('/daily_report_add', params).then(
-                            response => {
-                                this.reload()
-                                this.timeStampEdit(response.data, false, response.data.user_id)
-                            }
-                        ).catch(function (error) {
-                            if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                            else if (error.request) this.errorToast('エラーが発生しました。')
-                            else this.errorToast('エラーが発生しました。 ' + error.message)     
-                        }.bind(this))
-                    }else{
-                        this.stampEnd = true
-                    } 
-                });
-                
-                
-            },
-            timeStampEdit(data, val, userId, date){
-                const month = this.selectedMonth + 1
-                console.log(data)
-                if(data){
-                    if(data.shift_type == 3){
-                        emitter.emit('setToast', {
-                            active: true,  
-                            type: 'info', 
-                            content: '計画有給設定しているため日報作成ができません。',
-                            closeButton: false, 
-                            autoClose: false,
-                            answers: ['OK'],
-                        })
-                    }else{
-                        this.todayStartTime = data.start_time ? data.start_time : (data.shift_start_time ? data.shift_start_time : '09:00:00')
-                        this.todayEndTime = data.end_time ? data.end_time : (data.shift_end_time ? data.shift_end_time : '18:00:00')
-                        this.todayBreakTime = data.break_time ? data.break_time : 0
-                        this.chosenDate = data.day ? data.day : data.shift_day
-                        const fields = ['allowance', 'incident', 'achievement', 'comment'];
-                        fields.forEach(field => {
-                            if (data[field]) {
-                                this.customFieldData.push(data[field]);
-                            }else{
-                                this.customFieldData = []
-                            }
-                        });
-                        this.chosenUserId = userId
-                        this.reportModal = true
-                        this.createReport = val
-                    }
-                    
-                    // if(navigator.userAgent.match(/iPhone/)){
-                    //     const recordWrapper = document.querySelector('.records-wrapper')
-                    //     const style = recordWrapper.style;
-                    //     style.height = 'auto'
-                    // }
-                }else{
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: month + '月の勤怠予定を入力してください。',
-                        closeButton: false, 
-                        autoClose: false,
-                        answers: ['OK'],
-                    }) 
+                try{
+                    await axios.post('/daily_report_add', params)
+                    reload()
+                }catch (e){
+                    notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
                 }
-                
-            },
-            changeDate(month, year, fromShift){
-                this.selectedYear = year
-                this.selectedMonth = month
-                this.reloadFromShift(fromShift)
-            },
-            closeMembers(users){
-                if(users.length > 0){
-                    this.showMembers = false
-                }else{
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: 'メンバーを選択してください。',
-                        closeButton: true, 
-                        autoClose: true,
-                    }) 
-                }     
-            },
-            selectedUsers(users){
-                if(users.length > 0){
-                    this.usersCheckArray = users
-                    this.reload()
-                }
-            },
-            reload(){
-                if(this.reportModal){
-                    this.closeModal()
-                }
-                if(this.usersCheckArray.length > 0){
-                    this.getWorkData()
-                    this.getShiftData()
-                    this.getAttendanceData()
-                }else{
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: 'メンバーを選択してください。',
-                        closeButton: true, 
-                        autoClose: true,
-                    }) 
-                }   
-                 
-            },
-            reloadFromShift(val){
-                this.getShiftData(val)
-            },
-            setDate(date){
-                this.selectedYear = date.year
-                this.selectedMonth = date.month - 1
-                this.reload()
-            },
-            getWorkGroup(){
-                axios.post('/get_work_group').then(
-                    response => {
-                        this.workGroups = response.data
-                    }
-                )
-            },
-            canChangePlanned(date){
-                this.planned_record = this.planned_record.filter(shift => shift.date !== date.day_full);   
-                console.log(this.planned_record)
-            },
-            getWorkData(){
-                let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
-                const params = {
-                    current_date : yearMonth,
-                    work_group : this.usersCheckArray
-                };
-                axios.post('/get_work_data', params).then(
-                    response => {
-                        this.timeCardRecords = response.data.record_array,
-                        this.usersData = response.data.user_data,
-                        this.shiftArray = response.data.shift_array,
-                        this.monthAverage = response.data.month_average,
-                        this.weathers = response.data.weather
-                        this.calendars = this.calendarData
-                    }
-                ).catch(function (error) {
-                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) this.errorToast('エラーが発生しました。')
-                    else this.errorToast('エラーが発生しました。 ' + error.message)     
-                }.bind(this))
-            },
-            getShiftData(val){
-                let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
-                const params = {
-                    current_date : yearMonth,
-                    work_group : this.usersCheckArray
-                }
-                axios.post('/get_shift_data', params).then(
-                    response => {
-                        if(val){
-                            this.remainingDays = response.data.remaining_days
-                            this.planned_record = response.data.planned_record
-                            this.workTemp = response.data.workTemp
-                        }else{
-                            this.remainingDays = response.data.remaining_days
-                            this.planned_record = response.data.planned_record
-                            this.workTemp = response.data.workTemp
-                            this.shiftTypes = response.data.shift_type
-                            this.shiftRecords = response.data.shift_record
-                            this.kintone_data = response.data.kintone_data
-                            this.shiftStartTime = this.shiftRecords[0] ? this.shiftRecords[0].start_time : ''
-                            this.shiftEndTime = this.shiftRecords[0] ? this.shiftRecords[0].end_time : ''
-                        }
-                        
-                        
-                    }
-                ).catch(function (error) {
-                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) this.errorToast('エラーが発生しました。')
-                    else this.errorToast('エラーが発生しました。 ' + error.message)     
-                }.bind(this))
-            },
-            selectMember(){
-                this.showMembers = true
-            },
-            getAttendanceData(){
-                let yearMonth = moment([this.selectedYear, this.selectedMonth]).format('YYYY-MM')
-                const params = {
-                    current_date : yearMonth,
-                    work_group : this.usersCheckArray
-                }
-                axios.post('/get_attendance_data', params).then(
-                    response => {
-                        this.attendanceData = response.data
-                        this.attendanceFlag = this.attendanceData.attendance_flag
-                    }
-                ).catch(function (error) {
-                    if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) this.errorToast('エラーが発生しました。')
-                    else this.errorToast('エラーが発生しました。 ' + error.message)     
-                }.bind(this))
-            },
-            selectShift(){
-                if(this.usersCheckArray.length > 1){
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: 'メンバーが複数選択されています。勤怠予定はメンバーを1人のみ選択してください。',
-                        closeButton: true, 
-                        autoClose: true,
-                    }) 
-                }else if(this.usersCheckArray[0] == this.auth_user.id || this.auth_user.id == 608 || this.auth_user.id == 610){
-                    this.shiftModal = true
-                }
-            },
-            confirmAttendance(){
-                if(this.usersCheckArray.length > 1){
-                    emitter.emit('setToast', {
-                        active: true,  
-                        type: 'info', 
-                        content: 'メンバーが複数選択されています。勤怠確定はメンバーを1人のみ選択してください。',
-                        closeButton: true, 
-                        autoClose: true,
-                    }) 
-                }else if(this.usersCheckArray[0] == this.auth_user.id || this.auth_user.id == 608 || this.auth_user.id == 610){
-                    this.shiftAttendance = true
-                }
-            },
-            prevMonth(){
-                this.selectedMonth = this.selectedMonth - 1
-                if(this.selectedMonth < 0){
-                    this.selectedYear = this.selectedYear - 1
-                    this.selectedMonth = 11
-                }
-                this.reload()
-            },
-            nextMonth(){
-                this.selectedMonth = this.selectedMonth + 1;
-                if(this.selectedMonth > 11){
-                    this.selectedYear = this.selectedYear + 1
-                    this.selectedMonth = 0
-                }
-                this.reload()
-            },
-            todayScroll(){
-
-                
-                let scrollPosition = document.getElementsByClassName('today')[0];
-                if (scrollPosition) {
-
-                    scrollPosition.scrollIntoView({ behavior: 'instant', block: 'start' });
-                }   
-
-              
-
-            },
-            toBottomScroll(){
-                let scrollInto = document.getElementsByClassName('records-footer')[0];
-                scrollInto.scrollIntoView({ behavior: 'instant', block: 'start' });
-            },
-            errorToast(message){
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: message,
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: ['OK']
-                })                
-            },
-        },
-        components: {
-            MonthPicker,
-            WorkButtons,
-            WorkRecords,
-            WorkShifts,
-            WorkAttendance,
-            WorkMembers,
-            WorkReport
+            }
+        }else{
+            notify(month + '月の勤怠予定を入力してください。') 
         }
     }
+    const timeStampEnd = async() => {
+        var date = new Date();
+        var minutes = date.getMinutes();
+        var rounded = Math.floor(minutes / 15) * 15;
+        date.setMinutes(rounded);
+        date.setSeconds(0);
+        var hours = date.getHours();
+        var minutes = date.getMinutes();
+
+        hours = hours < 10 ? '0' + hours : hours;
+        minutes = minutes < 10 ? '0' + minutes : minutes;
+        let time = hours + ':' + minutes + ':00'
+        todayEndTime.value = time
+        const params = {
+            end_time : time,
+            day : currentDay.value,
+        }
+        const answer = await confirm('本日の勤務を終業しますか。')
+        if(!answer) return
+        try{
+            const response = await axios.post('/daily_report_add', params)
+            await getUsersRecords()
+            const record = recordsArray.value.find(ob => ob.user_id == response.data.user_id && ob.day_full == response.data.day)
+            if(record){
+                timeStampEdit(record)
+            }
+        }catch (e){
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
+        } 
+    }
+    const timeStampEdit = (data) => {
+        const month = selectedMonth.value + 1
+        if(data?.shift){
+            if(data?.shift?.shift_type?.id == 3){
+                notify('計画有給設定しているため日報作成ができません。')
+            }else{
+                editData.value = data
+                reportModal.value = true
+            }
+        }else{
+            notify(month + '月の勤怠予定を入力してください。') 
+        }
+        
+    }
+    const timeStampDelete = async(data) => {
+        const answer = await confirm(`${data.day_full}の日報を削除しますか。`)
+        if(!answer) return
+        const params = {
+            date : data.day_full,
+            userId: data.user_id,
+        }
+        try{
+            await axios.post('/delete_time_card', params)
+            reload()
+        }catch (e){
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')     
+        } 
+    }
+    const reload = () => {
+        if(reportModal.value){
+            closeModal()
+        }
+        if(usersCheckArray.value.length > 0){
+            getWorkData()
+            getUsersRecords()            
+            // getShiftData()
+        }else{
+            notify('メンバーを選択してください。')
+        }       
+    }
+    const setDate = (date) => {
+        selectedYear.value = date.year
+        selectedMonth.value = date.month - 1
+        reload()
+    }
+    const getWorkGroup = async() => {
+        try{
+            const response = await axios.post('/get_work_group', {id: auth.activeUser.id})
+            workGroups.value = response.data
+        }catch (e){
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+        
+    }
+    const getWorkData = async() => {
+        let yearMonth = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const params = {
+            current_date : yearMonth,
+            work_group : usersCheckArray.value,
+        }
+        try{
+            const response = await axios.post('/get_work_data', params)
+            usersData.value = response.data.user_data
+            monthAverage.value = response.data.month_average
+        }catch (e){
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    // const getShiftData = async() => {
+    //     let yearMonth = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+    //     const params = {
+    //         current_date : yearMonth,
+    //         work_group : usersCheckArray.value
+    //     }
+    //     try{
+    //         const response = await axios.post('/get_shift_data', params)
+            
+    //             remainingDays.value = response.data.remaining_days
+    //             workTemp.value = response.data.workTemp
+    //             shiftTypes.value = response.data.shift_type
+    //             shiftRecords.value = response.data.shift_record
+    //             kintone_data.value = response.data.kintone_data
+            
+    //     }catch (e){
+    //         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    //     }
+    // }
+    const selectShift = async() => {
+        if(usersCheckArray.value.length > 1){
+            notify('メンバーが複数選択されています。勤怠予定はメンバーを1人のみ選択してください。') 
+        }else if(usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610){
+            shiftModal.value = true
+        }
+    }
+    const confirmAttendance = async() => {
+        
+        if(usersCheckArray.value.length > 1){
+            notify('メンバーが複数選択されています。勤怠確定はメンバーを1人のみ選択してください。')
+        }else if(usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610){
+            shiftAttendance.value = true
+        }
+    }    
+    const shiftMonth = (val) => {
+        const current = moment([selectedYear.value, selectedMonth.value])
+        current.add(val, 'month')
+        selectedMonth.value = current.month()
+        selectedYear.value = current.year()
+        reload()
+    }
+    const loading = ref(0)
+    const getUsersRecords = async(init) => {
+        let yearMonth = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const params = {
+            current_date : yearMonth,
+            work_group : usersCheckArray.value
+        }
+        recordsArray.value = await axios.post('get_shift_data_table', params).then(res => res.data)      
+        
+        if(init == 0){
+            loading.value ++
+            setTimeout(() => {
+                todayScroll()
+            }, 50);
+        }else{
+            loading.value ++
+        }       
+        
+
+    }
+    const todayScroll = () => {
+        let scrollPosition = document.querySelector('.today');
+        if (scrollPosition) {
+            scrollPosition.scrollIntoView({ behavior: 'instant', block: 'start' });
+        } 
+    }
+    const toBottomScroll = () => {
+        let scrollInto = document.getElementById('bottomTotal');
+        scrollInto.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
+    provide('customInfo', customInfo)
+    provide('getUsersRecords', getUsersRecords)
 </script>

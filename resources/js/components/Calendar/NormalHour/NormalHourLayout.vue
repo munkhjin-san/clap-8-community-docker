@@ -7,7 +7,7 @@
         }" 
         ref="dayViewRoot" 
         class="calendar-day-root" 
-        @scroll="$emit('scroll', $event)"
+        @scroll="emit('scroll', $event)"
         @mousedown="onMouseDown" 
         @mouseup="onMouseUp"
     >
@@ -38,10 +38,10 @@
                     :orderCreator="orderCreator"
                     :records="records"
                     :activeDay="activeDay"
-                    @releaseScroll="$emit('releaseScroll')"
-                    @load="val => $emit('load', val)"
-                    @create="val => $emit('create', val)"
-                    @setListView="(val) => $emit('setListView', val)"
+                    @releaseScroll="emit('releaseScroll')"
+                    @load="val => emit('load', val)"
+                    @create="val => emit('create', val)"
+                    @setListView="(val) => emit('setListView', val)"
                     @setDayIndex="setActiveDay"
                 />
             </div>            
@@ -53,12 +53,14 @@
 import moment from 'moment';
 import DayTile from './DayTile.vue'
 import HourTitle from './HourTitle.vue';
-import { computed, onMounted, onUnmounted, watch, ref } from 'vue';
-import { useStore } from 'vuex'
-    const store = useStore()
+import { computed, onMounted, onUnmounted, watch, ref, inject } from 'vue';
+import { useFocused } from '@/store/focused';
+import { useTempRecord } from '@/store/tempRecord';
+    const focused = useFocused()
+    const tempRecord = useTempRecord()
     const props = defineProps(['daysOfMonth', 'records', 'initialLoader'])
     const emit = defineEmits(['scroll', 'load', 'releaseScroll', 'create', 'setListView'])
-
+    const draggingCalendar = inject('draggingCalendar')
     const isDragging = ref(false)
     const cursorPos = ref([0, 0])
     const currentMinute = ref(null)
@@ -70,14 +72,14 @@ import { useStore } from 'vuex'
     onUnmounted(() => {
         window.removeEventListener("mouseup", onMouseUp);
     })
-    watch(() => store.state.focused, () => {
+    watch(() => focused.active, () => {
         currentMinute.value = getCurrentMinute()
     })
     onMounted(() => {
         localStorage.setItem('viewType', 0)
         window.addEventListener("mouseup", onMouseUp);
         localStorage.setItem('viewType', 0)
-        if(store.state.tempRecord){
+        if(tempRecord.id){
             
         }else{
             const index = moment().subtract(1, 'hour').startOf('hour').hour()  
@@ -135,7 +137,7 @@ import { useStore } from 'vuex'
     /** @param {MouseEvent} ev */
     const onMouseHold = (ev) => {
         ev.preventDefault();
-        if(store.state.draggingCalendar) return
+        if(draggingCalendar.value) return
         requestAnimationFrame(() => {
             const delta = [
                 ev.pageX - cursorPos.value[0],

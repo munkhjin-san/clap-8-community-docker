@@ -5,8 +5,6 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\VerifyEmail;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Carbon\Carbon;
@@ -87,18 +85,14 @@ class User extends Authenticatable
         return $this->hasOne(userDetail::class, 'user_id', 'id');
     }
 
-    public function rules(){
-        return $this->hasOne(appRule::class, 'id', 'rule_id');
-    }
-
     public function tags()
     {
         return $this->belongsToMany(Tag::class);
     }
     public function boards()
     {
-        return $this->belongsToMany(Board::class)
-                    ->using(BoardUser::class)
+        return $this->belongsToMany(boardRecord::class)
+                    ->using(boardToUser::class)
                     ->withPivot([
                         'admin_flag',
                         'last_message',
@@ -167,17 +161,16 @@ class User extends Authenticatable
         return $this->belongsToMany(UserAlbum::class, 'user_albums', 'user_id', 'id');
     }
     public function portfolio(){
-        return $this->hasMany(LessonPortfolio::class, 'user_id')->with('lesson_theme');
+        return $this->hasMany(LessonPortfolio::class, 'user_id')->with('lesson_theme')->orderBy('lesson_theme_id');
     }
     public function workTemps(){
         return $this->hasOne(workTemp::class, 'user_code', 'user_code');
     }
-    // public function sendEmailVerificationNotification()
-    // {
-    //     if($this->phone){
-    //         return redirect('/');
-    //     }else if($this->email){
-    //         Mail::to($this->email)->send(new VerifyEmail($this));
-    //     }
-    // }
+    public function work_groups(){
+        return $this->belongsToMany(workGroup::class, 'work_group_users', 'user_id', 'record_id')->whereNull('work_group_users.deleted_at');
+    }
+    public function linked(){
+        return $this->belongsToMany(User::class, 'user_linked_accounts', 'main_id', 'link_id')->withPivot(['active']);
+    }
+    
 }

@@ -37,9 +37,9 @@
                         <div @click="feedBack(false)" class="commentEditButton">いいえ</div>
                     </div>
                 </div>
-                <div ref="advancedFeedBack" class="si-box" v-if="advancedFeedBack"> 
+                <div ref="advancedFeedBackRef" class="si-box" v-if="advancedFeedBack"> 
                     <p style="margin-bottom: 30px;">解決しなかった理由をお聞かせください。</p>
-                    <FormLongText
+                    <LongInput
                         :initialValue="feedBackContent"   
                         ref="feedBackBody"
                         :placeHolder="`解決しなかった理由`"
@@ -47,7 +47,7 @@
                         name="feedBackBody"
                         rules="required|max:2000"
                         label="タイトル"
-                        @setValue="val => feedBackContent = val"
+                        v-model="feedBackContent"
                     />
                     <div class="si-box">
                         <LoaderButton content="送信する" @triggered="sendFeedBack" :loading="sending"/>
@@ -63,104 +63,59 @@
         
 
 </template>
-<script>
-import FormLongText from '../Global/FormLongText.vue'
+<script setup>
+import { inject, ref } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue'
-export default{
-    props: ['qaList', 'tagList'],
-    emits: ['setKeyWord'],
-    components:{
-        FormLongText,
-        LoaderButton
-    },
-    data(){
-        return{
-            
-            selectedTag: 0,
-            selectedItem: null,
-            advancedFeedBack: false,
-            sending: false,
-            feedBackContent: ''
-        }
-    },
-    methods:{
-        reset(){
-            this.selectedItem = null
-            this.advancedFeedBack = false
-            this.sending = false
-            this.feedBackContent = ''
-        },
-        setText(item){
-            this.selectedTag = item.id
-            const text = item.id == 0 ? '' : item.text
-            this.$emit('setKeyWord', text)
-        },
-        feedBack(value){
-            if(value == false){
-                this.advancedFeedBack = true
-                setTimeout(() => {
-                    this.$refs.advancedFeedBack?.scrollIntoView({ behavior: "smooth", block: "center"})
-                }, 0);
-            }else{
-                axios.post('/support_resolve_decision', {
-                    id: this.selectedItem.id,
-                })
-                .then(response => {                   
-                    
-                    const data = {
-                        text: '送信しました。',
-                        channel: Math.random().toString(36).substring(5),
-                        icon: 0,
-                        view: true
-                    }
-                    emitter.emit('setInfo', data)
-                    this.reset()
-
-                })
-                .catch(error => {
-                    if (error.response) this.errorToast(this.$t(error.response.data.message))
-                    else if (error.request) this.errorToast(this.$t('commonError'))
-                    else this.errorToast(this.$t('commonError') + error.message)      
-                });
+import LongInput from '../Form/LongInput.vue';
+    const props = defineProps(['qaList', 'tagList'])
+    const { notify, info } = inject('dialog')
+    const emit = defineEmits(['setKeyWord'])
+    const selectedTag = ref(0)
+    const selectedItem = ref(null)
+    const advancedFeedBack = ref(false)
+    const advancedFeedBackRef = ref(null)
+    const sending = ref(false)
+    const feedBackContent = ref('')
+  
+    const reset = () => {
+        selectedItem.value = null
+        advancedFeedBack.value = false
+        sending.value = false
+        feedBackContent.value = ''
+    }
+    const setText = (item) => {
+        selectedTag.value = item.id
+        const text = item.id == 0 ? '' : item.text
+        emit('setKeyWord', text)
+    }
+    const feedBack = async(value) => {
+        if(value == false){
+            advancedFeedBack.value = true
+            setTimeout(() => {
+                advancedFeedBackRef.value?.scrollIntoView({ behavior: "smooth", block: "center"})
+            }, 0);
+        }else{
+            try{
+                await axios.post('/support_resolve_decision', {id: selectedItem.value.id,})
+                info('送信しました。')
+                reset()
+            } catch (e) {
+                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
             }
-        },
-        sendFeedBack(){
-            axios.post('/support_feedback', {
-                consultation_content: this.feedBackContent,
+        }
+    }
+    const sendFeedBack = async() => {
+        try{
+            await axios.post('/support_feedback', {
+                consultation_content: feedBackContent.value,
                 contact_address: null,
                 kind_value: 99,
-                id: this.selectedItem.id
+                id: selectedItem.value.id
             })
-            .then(response => {               
-                
-                const data = {
-                    text: '送信しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
-                }
-                emitter.emit('setInfo', data)
-                this.reset()
-
-
-            })
-            .catch(error => {
-                if (error.response) this.errorToast(this.$t(error.response.data.message))
-                else if (error.request) this.errorToast(this.$t('commonError'))
-                else this.errorToast(this.$t('commonError') + error.message)      
-            });
-        },
-        errorToast(message){
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: true, 
-                autoClose: true,
-                answers: [this.$t('confirmToAction')]
-
-            }) 
-        },
+            info('送信しました。')
+            reset()
+        } catch(e){
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
     }
-}
 </script>

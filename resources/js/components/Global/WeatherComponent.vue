@@ -1,5 +1,6 @@
 <template>
-    <div v-if="viewWeatherComponent" id="weatherID" class="weather-wrapper">
+    <div v-if="viewWeatherComponent" class="overlay">
+      <div id="weatherID" class="weather-wrapper">
         <div class="list-wrapper">
             <p>おはようございます。今日のコンディションを選択してください。</p>
             <ul>
@@ -75,70 +76,52 @@
                 </li>
               </ul>
               <!-- <button @click="saveWeather">保存する</button> -->
-        </div>
+          </div>
+      </div>
     </div>
+    
 </template>
-<script>
+<script setup>
     
     import moment from 'moment';
-    export default {
-        data(){
-          return{
-            weatherSelect: null,
-            viewWeatherComponent: false,
-          }
-        },
-        mounted(){
-            this.getTodayWeather()
-        },
-        methods: {
-          getTodayWeather(){
-              let today = moment().local().format('YYYY-MM-DD')
-              const user_id = this.$store.state.user.id
-              const yesterday = localStorage.getItem('weather_' + user_id)
-              if(today != yesterday){
-                axios.post('/today_weather', {today} ).then(
-                  response => {
-                      if(_.isEmpty(response.data)){
-                          this.viewWeatherComponent = true
-                      }else if(response.data == 'weekend'){
-                          this.viewWeatherComponent = false
-                      }else{
-                          this.viewWeatherComponent = false
-                      }
-                    }
-                  );
-              }
-              
-            },
-          saveWeather(){
-            let today = moment().local().format('YYYY-MM-DD') 
-              axios.post('/save_weather', {today, value: this.weatherSelect} ).then(
-              response => {
-                  this.getTodayWeather()
-                  const user_id = this.$store.state.user.id
-                  localStorage.setItem('weather_' + user_id, today)
-                }
-              ).catch(function (error) {
-                if (error.response) this.errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) this.errorToast('エラーが発生しました。')
-                else this.errorToast('エラーが発生しました。 ' + error.message)     
-              }.bind(this));
-              
-          },
-            errorToast(message){
-              emitter.emit('setToast', {
-                  active: true,  
-                  type: 'info', 
-                  content: message,
-                  closeButton: false, 
-                  autoClose: false,
-                  answers: ['OK']
-
-              })                
-            },
+    import { inject, onMounted, ref } from 'vue';
+    import { useAuthUserStore } from '@/store/auth';
+    const auth = useAuthUserStore()
+    const { notify } = inject('dialog')
+    const weatherSelect = ref(null)
+    const viewWeatherComponent = ref(false)
+         
+    onMounted(() => {
+      getTodayWeather()
+    })
+    const getTodayWeather = async() => {
+      let today = moment().local().format('YYYY-MM-DD')
+      const user_id = auth.id
+      const yesterday = localStorage.getItem('weather_' + user_id)
+      if(today != yesterday){
+        const response = await axios.post('/today_weather', {today} )
+        if(_.isEmpty(response.data)){
+            viewWeatherComponent.value = true
+        }else if(response.data == 'weekend'){
+            viewWeatherComponent.value = false
+        }else{
+            viewWeatherComponent.value = false
         }
+      }
+    }    
+    const saveWeather = async() => {
+      let today = moment().local().format('YYYY-MM-DD')
+      try{
+        await axios.post('/save_weather', {today, value: weatherSelect.value} )
+        getTodayWeather()
+        const user_id = auth.id
+        localStorage.setItem('weather_' + user_id, today)
+      }catch (e){
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
+      }
+        
     }
+
 </script>
 <style scoped lang="scss">
     .weather-wrapper{

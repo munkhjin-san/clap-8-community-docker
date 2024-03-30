@@ -40,6 +40,7 @@ class boardRecord extends Model
     ];
     protected $fillable = [
         'q_token',
-        'icon_id'
+        'icon_id',
+        'title'
     ];
 }

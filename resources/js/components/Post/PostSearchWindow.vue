@@ -62,23 +62,19 @@
                         <p style="font-size: 14px;">期間</p>
                     </div>
                     <div style="display: flex;gap: 10px;margin-top: 20px;align-items: center;">
-                        <DatePicker
-                            :initialValue="fromDate"
-                            ref="calendarRepeatSpanStart"
-                            uId="calendarRepeatSpanStart"
-                            name="calendarRepeatSpanStart"
-                            :rules="''"
-                            @setValue="setFromDate"
-                        />
+                        <ShortInput 
+                            name="fromDate" 
+                            customClass="date"
+                            type="date"
+                            v-model="fromDate"
+                        /> 
                         <span>～</span>
-                        <DatePicker
-                            :initialValue="toDate"
-                            ref="calendarRepeatSpanEnd"
-                            uId="calendarRepeatSpanEnd"
-                            name="calendarRepeatSpanEnd"
-                            :rules="''"
-                            @setValue="setToDate"
-                        />
+                        <ShortInput 
+                            name="toDate" 
+                            customClass="date"
+                            type="date"
+                            v-model="toDate"
+                        /> 
                     </div>
                 </div>
                 
@@ -86,16 +82,14 @@
                     <div style="margin-top: 20px;margin-bottom: 20px;">
                         <p style="font-size: 14px;">メンバーを含む</p>
                     </div>
-                    <UserSelector 
-                        :selfInclude="true" 
-                        :initialSelected="targetUsers"
+                    <MemberSelector 
                         :placeHolder="appName == 'challenge' ?  'プレイヤー名' : appName == 'nice' ? '投稿者名または宛先名' : '投稿者名'"
                         rules=""
-                        @setUser="selectUser"
-                        uId="recordUsers"
                         name="recordUsers"
                         ref="recordUsers"
                         :path="'post_get_all_possible_users'"
+                        v-model="targetUsers"
+                        :closeOnSelect="false"
                     />
                 </div>
                 <div style="margin-top: 20px;margin-bottom: 10px;">
@@ -155,14 +149,14 @@
                         <div @click="updateStatus" v-if="appName == 'challenge'" style="font-size: 14px;margin-left: 10px;cursor:pointer">{{ status(item) }}</div>
                     </div>                     
 
-                    <div v-if="appName == 'knowledge' || appName == 'nice'" class="recordContents" style="line-heigth:1.5;margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
+                    <div v-if="appName == 'knowledge' || appName == 'nice'" class="recordContents" style="margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                         <div class="recordContents-inner">        
                             <p v-html="searchMessageBody(item.content)"></p>
 
                         </div>                                           
                     </div>
                     <div v-if="appName == 'challenge'">
-                        <div class="recordContents" style="line-heigth:1.5;margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
+                        <div class="recordContents" style="margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                             <div class="recordContents-inner">        
                                 <p v-html="searchMessageBody(item.content_rule)"></p>
                             </div>                                           
@@ -170,7 +164,7 @@
                         <div style="border-bottom: 1px dashed rgb(89, 86, 86); display: flex; width: 100%;">
                             <p style="margin: 0px auto -13px; font-size: 13px; padding: 5px 10px; background: rgb(255, 255, 255); height: fit-content; line-height: 1.2; border-radius: 5px;">達 成 条 件</p>
                         </div>
-                        <div class="recordContents" style="line-heigth:1.5;margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
+                        <div class="recordContents" style="margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                             <div class="recordContents-inner">        
                                 <p v-html="searchMessageBody(item.content_goal)"></p>
                             </div>                                           
@@ -214,12 +208,10 @@ import UserIcon from '../Board/Mixed/UserIcon.vue'
 import PostSearchPager from './PostSearchPager.vue'
 import SearchHistory from './SearchHistory.vue'
 import PostDate from './PostDate.vue';
-// import LoaderButton from '../Global/LoaderButton.vue'
-import UserSelector from '../Global/UserSelector.vue';
-import DatePicker from '../Global/DatePicker.vue';
+import MemberSelector from '../Form/MemberSelector.vue';
+import ShortInput from '../Form/ShortInput.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useStore } from 'vuex';
-
+import { useResponsive } from '@/store/responsive';
     const props = defineProps(['appName', 'appTitle'])
     const emit = defineEmits(['closePostSearch'])
     const keyword = ref('')
@@ -246,8 +238,7 @@ import { useStore } from 'vuex';
     const toDate = ref(null)
     const targetUsers = ref([])
     const postAdvancedSearch = ref(null)
-    const store = useStore()
-
+    const responsive = useResponsive()
     const result = computed(() => {
         return searchResult.value        
     })
@@ -267,15 +258,9 @@ import { useStore } from 'vuex';
             resetSearch()
         }; 
     })
-
-    const setFromDate = (val) => {
-        fromDate.value = val
+    watch(() => [toDate.value, fromDate.value], () => {
         getPostSearch(1)
-    }
-    const setToDate = (val) => {
-        toDate.value = val
-        getPostSearch(1)
-    }
+    })
     const detailedSearch = () => {
         detailedSearchToggle.value = !detailedSearchToggle.value
         if(!detailedSearchToggle.value){
@@ -297,7 +282,7 @@ import { useStore } from 'vuex';
         return sanitizedString;
     }
     const isMultipleUsers = (item) => {
-        return store.state.mobile && item && item.to_users && item.to_users.length > 1
+        return responsive.mobile && item && item.to_users && item.to_users.length > 1
     }
     const status = (item) => {
         if(item.app_type == 4){

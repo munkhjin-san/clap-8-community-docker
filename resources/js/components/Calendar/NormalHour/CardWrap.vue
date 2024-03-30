@@ -34,22 +34,28 @@
 </template>
 <script setup>
 import moment from 'moment';
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, inject, nextTick, onMounted, ref } from 'vue';
 import { OnLongPress } from '@vueuse/components'
 import CalendarCard from '../CalendarCard.vue';
-import { useStore } from 'vuex';
-    const store = useStore()
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useResponsive } from '@/store/responsive';
+import { useTempRecord } from '@/store/tempRecord';
+    const menu = useMenuStore()
+    const auth = useAuthUserStore()
+    const responsive = useResponsive()
+    const tempRecord = useTempRecord()
     const props = defineProps(['record', 'fullDayIndex'])
     const emit = defineEmits(['setParentDroppable', 'setDayIndex'])
-
+    const draggingCalendar = inject('draggingCalendar')
     const shiftRight = ref(0)
     const shiftBottom = ref(0)
     const beforeState = ref(0)
     const beforeLeft = ref(0)
     const dayRecord = ref(null)
     onMounted(() => {
-        if(store.state.tempRecord && store.state.tempRecord == props.record.id){   
-            store.commit('setMenu', {id: props.record.id, name: `cal_${props.record.id}`})
+        if(tempRecord.id && tempRecord.id == props.record.id){   
+            menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`})
             nextTick(() => {
                 document.getElementById(`dayRecord_${props.record.id}`)?.scrollIntoView({block: 'center', inline: 'center'})
                 console.log('jumpfromday')
@@ -61,17 +67,17 @@ import { useStore } from 'vuex';
         return props.record.release_flag == 0 || editable.value
     })
     const opacity = computed(() => {
-        return store.state.draggingCalendar && store.state.draggingCalendar.id == props.record.id ? '0.5' : '1'
+        return draggingCalendar.value && draggingCalendar.value.id == props.record.id ? '0.5' : '1'
     })
     const editable = computed(() => {
-        const me = props.record.calendar_users.filter(ob => ob.id == store.state.user.id)
+        const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
         return (me.length || props.record.edit_all) && props.record.shift == 0
     })
     const maxHeight = computed(() => {
         return expanded.value ? '100vh' : '60px'
     })
     const expanded = computed(() => {
-        return store.state.menu.id == props.record.id && (store.state.menu.name == `cal_${props.record.id}` || store.state.menu.name == `calendarRecordMenu`) 
+        return menu.id == props.record.id && (menu.name == `cal_${props.record.id}` || menu.name == `calendarRecordMenu`) 
     })
     const recordWidth = computed(() => {
         if(expanded.value){
@@ -83,14 +89,14 @@ import { useStore } from 'vuex';
             const before_limiter = Math.ceil(until_start / 15) 
             const max_block = 96 - before_limiter
             const computed_width = steps > max_block ? max_block : steps
-            const unit = store.state.mobile ? '500vw' : '120vw'
+            const unit = responsive.mobile ? '500vw' : '120vw'
             return `calc(((${unit} - 30px) / 96 * ${computed_width}) - 3px)`
         }        
     })
     const recordLeft = computed(() => {
         const diff = Math.abs(moment(props.record.date_start).diff(moment(props.record.date_start).startOf('hour'), 'minutes'))
         const steps = Math.floor(diff / 15) 
-        const unit = store.state.mobile ? '500vw' : '120vw'
+        const unit = responsive.mobile ? '500vw' : '120vw'
         return `calc(((${unit} - 30px) / 96 * ${steps}) + 1px)`
     })
 
@@ -112,8 +118,8 @@ import { useStore } from 'vuex';
             record['x'] = event.x
             record['y'] = event.y
             record['from'] = 'month'
-            store.commit('setDraggingCalendar', record)
-            store.commit('setMenu', {id: null, name: ''})
+            draggingCalendar.value = record
+            menu.setMenu( {id: null, name: ''})
             emit('setParentDroppable')
         }            
     }
@@ -121,12 +127,12 @@ import { useStore } from 'vuex';
         if(Math.abs( event.x - beforeState.value) > 15) {
             return
         }
-        store.commit('setMenu', {id: props.record.id, name: `cal_${props.record.id}`})
+        menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`})
         nextTick(() => {
             const el = document.getElementById(`dayRecord_${props.record.id}`)
             if(el){
                 const rect = el.getBoundingClientRect();
-                const compare_value = store.state.mobile ? 30 : 80
+                const compare_value = responsive.mobile ? 30 : 80
                 if(rect.x < compare_value){
                     const val = moment(record.date_start).isAfter(moment(record.date_start).startOf('day').add(1, 'hour')) ? 1 : 0
                     const time = moment(record.date_start).subtract(val, 'hour').startOf('hour').hour()
@@ -144,7 +150,7 @@ import { useStore } from 'vuex';
                     }
                 }
                 const bottom_check = rect.y + rect.height
-                const value = store.state.mobile && store.state.user.footer_view ? 45 : 0
+                const value = responsive.mobile && auth.user.footer_view ? 45 : 0
                 if(bottom_check > window.innerHeight - value){
                     shiftBottom.value = window.innerHeight - value - bottom_check - 10
                 }

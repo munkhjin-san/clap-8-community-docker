@@ -25,25 +25,23 @@
                     <div v-if="tempGroup || createWindow" style="background: inherit;">    
 
                         <div class="si-box">
-                            <FormShortText
-                                :initialValue="tempGroup ? tempGroup.name : ''"
+                            <ShortInput 
+                                name="groupTitle" 
+                                placeHolder="タイトルを入力（必須）" 
+                                :rules="'required'"
+                                :initialValue="editTarget ? editTarget.title : ''"
+                                customClass="full"
                                 ref="groupTitle"
-                                placeHolder="タイトルを入力（必須）"
-                                uId="groupTitle"
-                                name="groupTitle"
-                                rules="required|max:48"
-                                label="タイトル"
-                                @setValue="val => title = val"
+                                type="text"
+                                v-model="title"
                             />
                         </div>
                         <div class="si-box">
-                            <UserSelector 
-                                :selfInclude="true" 
-                                :initialSelected="tempGroup ? tempGroup.users : []"
+                            <MemberSelector 
+                                :closeOnSelect="false" 
                                 placeHolder="メンバー選択"
                                 rules="required"
-                                @setUser="val => editingUserList = val"
-                                uId="groupUsers"
+                                v-model="editingUserList"
                                 name="groupUsers"
                                 ref="groupUsers"
                                 path="calendar_more_users"
@@ -62,11 +60,11 @@
             </div>
         </Transition>
 
-        <div @click.stop="$store.commit('setMenu', { id: 6, name: 'calendarMemberSelector'})" class="c-bar-button" style="margin-left: 15px;">メンバー</div>
-        <div @click.stop="$store.commit('setMenu', { id: 7, name: 'calendarFacilitySelector'})" class="c-bar-button">施設</div>
-        <div @click="$emit('jumpToday')" class="c-bar-button">本日</div>
+        <div @click.stop="menu.setMenu( { id: 6, name: 'calendarMemberSelector'})" class="c-bar-button" style="margin-left: 15px;">メンバー</div>
+        <div @click.stop="menu.setMenu( { id: 7, name: 'calendarFacilitySelector'})" class="c-bar-button">施設</div>
+        <div @click="emit('jumpToday')" class="c-bar-button">本日</div>
         <Transition name="modalFade">
-            <div v-if="$store.state.menu.id == 6 && $store.state.menu.name == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menuId = null">
+            <div v-if="menu.id == 6 && menu.name == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menuId = null">
                 <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);min-height: 150px;">       
                     <div v-if="myGroups.length">
                         <div v-for="group in myGroups">  
@@ -93,8 +91,8 @@
                                 <Transition name="modalFade"> 
                                     <div id="groupMenu" class="boxMenuComment cursor-pointer" v-if="menuId == group.id" style="z-index:2;top: 25px;right: 40px;box-shadow:none;background-color: unset;">                  
                                         <ul class="messageMenuList">
-                                            <li @click.stop="editGroupStart(group)" class="boxMenuItems cursor-pointer">{{$t('editTask')}}</li>
-                                            <li @click.stop="deleteConfirm(group), $store.commit('setMenu', {name: '', id: null})" class="boxMenuItems cursor-pointer">{{$t('deleteTask')}}</li>                          
+                                            <li @click.stop="editGroupStart(group)" class="boxMenuItems cursor-pointer">編集</li>
+                                            <li @click.stop="deleteConfirm(group), menu.setMenu( {name: '', id: null})" class="boxMenuItems cursor-pointer">削除</li>                          
                                         </ul>                                                 
                                     </div>
                                 </Transition>
@@ -142,14 +140,14 @@
             </div>
         </Transition>
         <Transition name="modalFade">
-            <div v-if="$store.state.menu.id == 7 && $store.state.menu.name == 'calendarFacilitySelector'" id="calendarFacilitySelector" class="calendarMemberSelector">
+            <div v-if="menu.id == 7 && menu.name == 'calendarFacilitySelector'" id="calendarFacilitySelector" class="calendarMemberSelector">
                 <div id="calendarFacilitySelector" style=" max-height: 50vh; overflow-y: auto;">                
                     <div>    
                         <div :key="index" v-for="(facilities, index) in facilitiesList" style="padding:0 15px">     
                             <div style="margin: 10px 0;font-weight: 600;color: var(--primary-color);">{{ facilityTitle(index) }}</div>   
                             <div>                                                
                                 <label v-for="(facility, sub_index) in facilities" class="cal-member-check" style="align-self: center;padding-left: 20px;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
-                                    <input :checked="facility.selected" @input="$emit('setFacility', index, sub_index, $event.target.checked)" :value="facility.value" name="memberCheckBox" type="checkbox">
+                                    <input :checked="facility.selected" @input="emit('setFacility', index, sub_index, $event.target.checked)" :value="facility.value" name="memberCheckBox" type="checkbox">
                                     <span class="cal-check-mark" style="top: 5px;"></span>
                                     <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">                    
                                         <p class="userName">{{facility.label}}</p>                                    
@@ -166,15 +164,15 @@
 </template>
 <script setup>
 import UserIcon from '../Board/Mixed/UserIcon.vue'
-import UserSelector from '../Global/UserSelector.vue'
+import MemberSelector from '../Form/MemberSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
-import FormShortText from '../Global/FormShortText.vue'
-import { computed, onMounted, ref } from 'vue'
-import { useStore } from 'vuex'
+import ShortInput from '../Form/ShortInput.vue'
+import { computed, onMounted, ref, inject } from 'vue'
+import { useMenuStore } from "@/store/menu";
+    const menu = useMenuStore()
 
     const props = defineProps(['facilitiesList', 'selectedYear', 'selectedMonth'])
     const emit = defineEmits(['jumpToday', 'updated', 'setFacility', 'setActiveMembers'])
-    const store = useStore()
     const list = ref([])
     const addUsersWindow = ref(false)
     const selectedUsers = ref([])
@@ -191,11 +189,7 @@ import { useStore } from 'vuex'
     const myGroups = computed(() => {
         return list.value ? list.value : []
     })        
-    const formRefs = {
-        groupTitle, 
-        groupUsers
-    }
-    
+    const { notify, confirm, info } = inject('dialog')
     onMounted(() => {
         getMyGroup()        
     })
@@ -223,8 +217,9 @@ import { useStore } from 'vuex'
     const validation = async () => {              
         try {          
             let result = true
-            for(let index in formRefs){
-                const validate = await formRefs[index].value.$refs[index].validate()    
+            let checkRef = [groupTitle.value, groupUsers.value]
+            for(const check of checkRef){
+                const validate = await check.validate()    
                 result = result * validate.valid            
             }
             return result
@@ -233,24 +228,11 @@ import { useStore } from 'vuex'
             throw error; 
         }               
     }
-    const deleteConfirm = (group) => {
-        var uniqueChannell = Math.random().toString(36).substring(5);  
-        const answers = ['はい', 'いいえ']
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: 'グループを削除しますか。',
-            closeButton: true, 
-            autoClose: false,
-            answers: answers,
-            channel: uniqueChannell
-
-        })            
-        emitter.on(uniqueChannell, (data) => {                 
-            if(data.answer == answers[0]){
-                deleteExecute(group)
-            }                
-        });
+    const deleteConfirm = async(group) => {
+        const answer = await confirm('グループを削除しますか。')
+        if(!answer) return
+        deleteExecute(group)
+         
     }
     const deleteExecute = (group) => {
         if(!group) return
@@ -258,7 +240,7 @@ import { useStore } from 'vuex'
             completed('削除した。')     
     
         }).catch(function (error) {
-            if (error.response) errorToast(error.response.data.message)                    
+            if (error.response) notify(error.response.data.message)                    
         });
     }
     const submit = async () => {
@@ -277,7 +259,7 @@ import { useStore } from 'vuex'
             completed('保存しました。')                
     
         }).catch(function (error) {
-            if (error.response) errorToast(error.response.data.message)                      
+            if (error.response) notify(error.response.data.message)                      
         });
     }
     const completed = (message) => {
@@ -288,21 +270,15 @@ import { useStore } from 'vuex'
         editingUserList.value = []
         createWindow.value = false
         addUsersWindow.value = false
-        const data = {
-            text: message,
-            channel: Math.random().toString(36).substring(5),
-            icon: 0,
-            view: true
-        }
-        emitter.emit('setInfo', data)
-        store.commit('setMenu', {name: 'calendarMemberSelector', id: 6})
+        info(message)
+        menu.setMenu( {name: 'calendarMemberSelector', id: 6})
         menuId.value = null
     }
     const closeModal = () => {
         addUsersWindow.value = false
         createWindow.value = false
         tempGroup.value = null
-        store.commit('setMenu', {name: 'calendarMemberSelector', id: 6})
+        menu.setMenu( {name: 'calendarMemberSelector', id: 6})
     }
     
     const getMyGroup = (flag) => {
@@ -334,19 +310,8 @@ import { useStore } from 'vuex'
             }
     
         }).catch(function (error) {
-            if (error.response) errorToast(error.response.data.message)                        
+            if (error.response) notify(error.response.data.message)                        
         });
-    }
-    const errorToast = (message) => {
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: message,
-            closeButton: false, 
-            autoClose: false,
-            answers: ['OK']
-
-        })   
     }
     const update = (event, group) => {
         
@@ -367,7 +332,7 @@ import { useStore } from 'vuex'
             emit('updated')
             getMyGroup()        
         }).catch(function (error) {
-            if (error.response) errorToast(error.response.data.message)                 
+            if (error.response) notify(error.response.data.message)                 
         });
     }
 </script>

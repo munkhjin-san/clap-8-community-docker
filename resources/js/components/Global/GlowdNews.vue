@@ -15,21 +15,18 @@
         </div>
     </div>
 </template>
-<script>
+<script setup>
 import Swiper from 'swiper';
 import { Autoplay } from 'swiper';
 import 'swiper/css'
 import 'swiper/css/autoplay'
-export default{
-    props:['newsItems'],
-    data(){
-        return{
-            visibility: 'none'
-        }
-    },
-    mounted(){
+import { onMounted, ref } from 'vue';
+    const props = defineProps(['newsItems'])
+    const visibility = ref('none')
+    onMounted(() => {
+        console.log(props.newsItems)
         setTimeout(() => {
-            this.visibility = 'block'
+            visibility.value = 'block'
             new Swiper('.swiper-news', {
                 modules: [Autoplay],
                 centeredSlides: true,
@@ -42,8 +39,5 @@ export default{
                 slidesPerView: 1,
             })
         }, 300);  
-    },
-    
-  
-}
+    })
 </script>

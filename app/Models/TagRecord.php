@@ -21,6 +21,18 @@ class TagRecord extends Model
     {
         return $this->belongsToMany(NiceRecord::class, 'nice_use_tags', 'tag_id', 'record_id');
     }
+    public function challengeOccurence()
+    {
+        return $this->belongsToMany(ChallengeRecord::class, 'challenge_use_tags', 'tag_id', 'record_id');
+    }
+    public function niceOccurence()
+    {
+        return $this->belongsToMany(NiceRecord::class, 'nice_use_tags', 'tag_id', 'record_id');
+    }
+    public function knowledgeOccurence()
+    {
+        return $this->belongsToMany(KnowledgeRecord::class, 'knowledge_use_tags', 'tag_id', 'record_id');
+    }
     protected $casts = [
         'hits' => 'int', 
     ];

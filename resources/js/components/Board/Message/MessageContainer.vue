@@ -1,5 +1,5 @@
 <template>
-    <div id="boardAreaBoxInner" :class="['messageAreaContainer', {quotActive: $store.state.qoutWindowActive}]" :style="{height: `calc(100% - ${$store.state.keyboardOffset}px)`}">
+    <div id="boardAreaBoxInner" :class="['messageAreaContainer', {quotActive: quoteWindow.active}]" :style="{height: `calc(100% - ${keyboardHeight}px)`}">
         <router-view v-slot="{ Component }">
                 <transition name="slideFromRight">
                     <component 
@@ -10,8 +10,7 @@
         </router-view> 
         <Transition name="inputSlide" appear>
             <MessageInput 
-                v-if="!messageLoader && openedBoard"
-                :openedBoard="openedBoard" 
+                v-if="!messageLoader && board"
                 :replyKey="replyKey"
                 :unread="unread"
                 :messageListType="messageListType"
@@ -20,13 +19,13 @@
             />
         </Transition> 
         <Transition name="modalFade">         
-        <div v-if="openedBoard && messageLoader" id="loaderMini" style="position: absolute;">
+        <div v-if="board && messageLoader" id="loaderMini" style="position: absolute;">
             <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
         </div> 
         </Transition>
         
             <div id="boardListInner" 
-                v-if="openedBoard && !messageLoader" 
+                v-if="board && !messageLoader" 
                 @scroll="scrollEvent"
                 class="messageListInnerContainer"
             >
@@ -36,8 +35,7 @@
                         v-for="(message , index) in queuedMessagesList"
                         :qIndex="index"
                         :key="'queue' + message.id"
-                        :message="message"
-                        :openedBoard="openedBoard"    
+                        :message="message" 
                         :messageListType="messageListType"         
                     />
                 </transition-group>
@@ -47,7 +45,6 @@
                     :mIndex="index"
                     :mLength="messageList.length"
                     :message="message"
-                    :openedBoard="openedBoard"  
                     :lastReadMessage="lastReadMessage"
                     :searchTargetId="searchTargetId"
                     :messageListType="messageListType"  
@@ -57,12 +54,7 @@
                 />
                 </div>
             </div>
-            <MessageHeader 
-                v-if="$store.state.mobile && openedBoard"
-                :openedBoard="openedBoard" 
-                @closeMe="$router.push({name: 'board'})" 
-                @startPrivateSearch="$emit('startPrivateSearch')"       
-            />
+            <MessageHeader v-if="responsive.mobile && board"/>
         <Transition name="modalFade"> 
         <div v-if="microLoader" id="infiniteLoader">
             <div class="spinner-micro color-change" style=""></div>
@@ -76,174 +68,118 @@
     </div>
 </template>
 
-<script>
+<script setup>
 import MessageItem from "./MessageItem.vue";
 import MessageItemQueue from "./MessageItemQueue.vue";
 import MessageInput from './MessageInput.vue';
-import UserIcon from '../Mixed/UserIcon.vue';
 import MessageHeader from '../../Mobile/MessageHeader.vue';
-import moment from "moment";
-    export default {
-        beforeRouteLeave(to, from, next) {
-            if (from.params.roomId) {
-                next(false)
-            } else {
-                if(to.name == 'board'){
-                    this.$emit('closeContainer')
-                }else if(to.name == 'user'){
-                    const data = {
-                        active: false,
-                        userList: [],
-                        title: ''
-                    }
-                    this.$store.commit('setMessageUsers', data)
-                }
-                
-                this.unread = {
-                    status: false,
-                    count: 0,
-                    id: null
-                }
-                console.log('resetunred', this.unread)
-                next()
+import { computed, inject, ref } from "vue";
+import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useResponsive } from "@/store/responsive";
+import { useQuoteWindow } from "@/store/quoteWindow";
+    const menu = useMenuStore()
+    const auth = useAuthUserStore()
+    const responsive = useResponsive()
+    const quoteWindow = useQuoteWindow()
+    const props = defineProps([
+        'messageList',  
+        'microLoader', 
+        'queuedMessages', 
+        'messageLoader', 
+        'searchTargetId',
+        'messageListType',
+        'unreadMessages',
+    ])
+    const resetInstantUser = inject('resetInstantUser')
+    const emit = defineEmits(['closeContainer', 'reachedTop', 'appendSearchResult', 'jumpToMessage'])
+    const replyKey = ref(0)
+    const unread = ref({
+        status: false,
+        count: 0,
+        id: null
+    })
+    const route = useRoute()
+    const router = useRouter()
+    const board = inject('openedBoard')
+    const keyboardHeight = inject('keyboardHeight')
+    onBeforeRouteLeave((to, from, next) => {
+        if (from.params.roomId) {
+            next(false)
+        } else {
+            if(to.name == 'board'){
+                emit('closeContainer')
             }
-        },
-        props: [
-            'messageList', 
-            'openedBoard', 
-            'microLoader', 
-            'zIndexTable', 
-            'queuedMessages', 
-            'messageLoader', 
-            'failedMessagesList',
-            'searchTargetId',
-            'messageListType',
-            'totalKey',
-            'unreadMessages',
-            'slideLeft',
-            'from',
-        ],
-        data(){
-            return{
-                activeMenu: null,
-                scrollCounter: 0,
-                currentLen: 0,
-                replyKey: 0,
-                unread: {
-                    status: false,
-                    count: 0,
-                    id: null
-                },
-                traySelectorToggle: false,
-                respondLock: false,
-                transitionCounter: 1
-            }
-        },
-        watch:{
-            '$route.params.chatId'(chatId) {
-                console.log('watcherincontainer')
-                this.unread = {
-                    status: false,
-                    count: 0,
-                    id: null
-                }
-            }
-        },
-        components:{
-            MessageItem,
-            MessageItemQueue,
-            MessageInput,
-            UserIcon,
-            MessageHeader
-        },
-        computed:{
-            roomId() {
-                return this.$route.params.chatId;
-            },
-            queuedMessagesList(){
-                var width = window.innerWidth
-                || document.documentElement.clientWidth
-                || document.body.clientWidth;
-                if(width > 959){
-                    return this.queuedMessages
-                }else{
-                    return this.queuedMessages.reverse()
-                }
-                
-            },
-            lastReadMessage(){
-                if(this.openedBoard){
-                    const me = this.openedBoard.board_to_users.filter( ob => ob.user_id == this.$store.state.user.id)
-                    return me && me.length ? me[0].last_message : null
-                }else{
-                    return null
-                }
-            },
-        },
-        methods: {
-            errorToast(message){
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: message,
-                    closeButton: true, 
-                    autoClose: true,
-
-                })   
-            },
-            scrollEvent(){
-                var container = event.target             
-                var percent = 100 * container.scrollTop / (container.scrollHeight - container.clientHeight);                  
-                if(percent < -99 && this.messageListType == 'normal') this.$emit('reachedTop')
-                if(this.unread.status ){
-                    const line = document.getElementById('messageRoot_' + this.unread.id)
-                    if(line){
-                        const rect = line.getBoundingClientRect()
-                        if(rect.y + rect.height > 0){                            
-                            this.unread = {
-                                status: false,
-                                count: 0,
-                                id: null
-                            }
-                        }
-                    }
-                }
-                if(percent < -99 && this.messageListType == 'search'){
-                    this.$emit('appendSearchResult', 'up')
-                }
-                if(percent > -1 && this.messageListType == 'search'){
-                    this.$emit('appendSearchResult', 'down')
-                }
-                if(this.$store.state.instantUser.id){ 
-                    const data = {
-                        id: null,
-                        cX: null,
-                        cY: null
-                    }
-                    this.$store.commit('setInstantUser', data)   
-                }
-                if(this.$store.state.menu.name == 'boardMessageMenu'){
-                    this.$store.commit('setMenu', {name: '', id: null})
-                }
-            },
-            unreadJumperOn(data){
-                console.log('unread_junper-tiri')
-                this.unread = data
-            },
-            unreadJumped(){
-                // this.unread.id?.scrollIntoView({ behavior: 'smooth', block: 'center' })  
-                document.getElementById('unread_line_' + this.unread.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })    
-            },
-            jumpToMessage(file){
-                console.log('passMessage')
-                this.$emit('jumpToMessage', file)
-            }
-               
-                
-            
+            resetUnread()
+            next()
+        }
+    })
+    const resetUnread = () => {
+        unread.value = {
+            status: false,
+            count: 0,
+            id: null
         }
     }
-</script>
-<style lang="scss">
 
-</style>
+    const queuedMessagesList = computed(() => {
+        var width = window.innerWidth
+        || document.documentElement.clientWidth
+        || document.body.clientWidth;
+        if(width > 959){
+            return props.queuedMessages
+        }else{
+            return props.queuedMessages.reverse()
+        }
+        
+    })
+    const lastReadMessage = computed(() => {
+        if(board.value){
+            const me = board.value.board_to_users.filter( ob => ob.user_id == auth.activeUser.id)
+            return me && me.length ? me[0].last_message : null
+        }else{
+            return null
+        }
+    })
+
+
+    const scrollEvent = () => {
+        var container = event.target             
+        var percent = 100 * container.scrollTop / (container.scrollHeight - container.clientHeight);                  
+        if(percent < -99 && props.messageListType == 'normal') emit('reachedTop')
+        if(unread.value.status ){
+            const line = document.getElementById('messageRoot_' + unread.value.id)
+            if(line){
+                const rect = line.getBoundingClientRect()
+                if(rect.y + rect.height > 0){                            
+                    unread.value = {
+                        status: false,
+                        count: 0,
+                        id: null
+                    }
+                }
+            }
+        }
+        resetInstantUser()
+        if(percent < -99 && props.messageListType == 'search'){
+            emit('appendSearchResult', 'up')
+        }
+        if(percent > -1 && props.messageListType == 'search'){
+            emit('appendSearchResult', 'down')
+        }
+        if(menu.name == 'boardMessageMenu'){
+            menu.setMenu( {name: '', id: null})
+        }
+    }
+    const unreadJumperOn = (data) => {
+        unread.value = data
+    }
+    const unreadJumped = () => {
+        document.getElementById('unread_line_' + unread.value.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })    
+    }
+    const jumpToMessage = (file) => {
+        emit('jumpToMessage', file)
+    }     
+    defineExpose({resetUnread})
+</script>

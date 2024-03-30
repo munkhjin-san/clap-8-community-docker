@@ -6,52 +6,40 @@
         @drop.prevent 
         @mouseenter="footerDropEnterFromFile"
         class="footAreaContainer" 
-        v-show="openedBoard">
-                <div v-if="charLength >= 5000" style="position: absolute;right: 10px;top: -20px;font-size: 12px;color: tomato;">{{ $t('messageLimitAlert') }}</div>
-                <div @click="$emit('unreadJumped')" v-if="unread.status" class="unread" style="position:absolute;top: -40px;bottom:auto;user-select:none;">
-                    <p class="unread-inner cursor-pointer">{{ $tc('newMessagesWithCount', { num: unread.count}) }}</p>
+        v-show="board">
+                <div v-if="charLength >= 5000" style="position: absolute;right: 10px;top: -20px;font-size: 12px;color: tomato;">メッセージは5000文字以内で入力してください</div>
+                <div @click="emit('unreadJumped')" v-if="unread.status" class="unread" style="position:absolute;top: -40px;bottom:auto;user-select:none;">
+                    <p class="unread-inner cursor-pointer">{{ `${unread.count} 件の新しいメッセージ` }}</p>
                 </div> 
                 <Transition name="replyQuotBox">
                     <ReplyQuotWindow 
-                        v-if="$store.state.quot_reply.active"
+                        v-if="quoteReply.active"
                         :key="replyKey"/>
                 </Transition>
                 <Transition name="replyQuotBox">
                     <ForwardWindowMessage 
                         v-if="forwardItem"
                         :item="forwardItem"
-                        @cancel="forwardItem = null"
+                        @close="forwardItem = null"
                     />
                 </Transition>
 
                 <span 
                     @dragleave="footerDropLeave" 
-                    @mouseleave="footerDropLeaveFromFile" 
+                    @mouseleave="footerDropLeave" 
                     @mouseup.stop="dropSharingItems" 
                     @dragover.prevent 
                     @drop.prevent="footerDropDropped"
                     :style="{color: '#fff', height: dropActive ? '100%' : '0'}" 
                     id="footerDropArea" 
-                    class="download-area">{{$t('fileDrop')}}
+                    class="download-area">ファイルドロップ
                 </span>
 
                
-                <!-- <Transition name="modalFade">
-                <ul id="mentionedPc" ref="mentionBox" v-if="keyCharacters.length || mentionBoxToggle" class="mentionBox" :style="mentionBoxPosition()">
-                    <li :id="'mentionAble_' + index" :key="index" @keyup.enter="mentionUser(user, index)" @click.stop.prevent="mentionUser(user, index)" v-for="(user, index) in mentionAbleList" class="mentionBox-inner" :class="{mUsrSlctdPc: highlighted == index}">                                    
-                        <div class="column-01">  
-                            <BoardIcon v-if="user.id == -1" imgClass="userMidIcon" :item="openedBoard"/> 
-                            <UserIcon v-else size="30" :user="user" imgClass="userMidIcon"/>  
-                        </div>
-                        <p  class="cursor-pointer" style="padding:5px;font-size:13px;">{{user.name}}</p>                                   
-                    </li>                    
-                </ul>
-                </Transition> -->
                 <Transition name="modalFade">
                     <MentionBox 
                         v-if="keyCharacters.length || mentionBoxToggle" 
                         :mentionAbleList="mentionAbleList"
-                        :openedBoard="openedBoard"
                         @mentionUser="mentionUser"
                         ref="mentionBox"
                     />
@@ -85,7 +73,7 @@
                         <div class="preUploadImage">    
                             <div :key="image.id" class="cursor-pointer" v-for="image in successUploadedFiles" style="margin: auto 10px 10px 0;min-height: 40px;user-select:none">
                                 <div class="preImgWrapper" @click="previewFile(image)">
-                                    <img draggable="false" v-if="image.mime_type == 'image'" :src="$store.state.baseLocation + '/temp_upload/' + image.id + '.' + image.extension">                                
+                                    <img draggable="false" v-if="image.mime_type == 'image'" :src="'/cdn/temp_upload/' + image.id + '.' + image.extension">                                
                                     <FileIcon v-if="image.mime_type !== 'image'" :ext="image.extension"/>
                                     <p class="shared-file-name">{{image.name}}</p>
                                 </div>
@@ -131,11 +119,11 @@
                         @input="setInput"
                         @compositionupdate="composeUpdate"
                         id="typeArea" 
-                        contenteditable="true" 
+                        contenteditable="plaintext-only" 
                         :class="['typeBoxArea',  'boardTypeArea', {maxLengthAlert: charLength >= 5000}]">
                     </div>
                     
-                    <div class="pc" style="position:absolute;right: 60px;bottom: 18px;cursor: pointer;" @click.stop="$store.commit('setMenu', {name: 'EmojiPicker', id: 1002})">                                            
+                    <div class="pc" style="position:absolute;right: 60px;bottom: 18px;cursor: pointer;" @click.stop="menu.setMenu( {name: 'EmojiPicker', id: 1002})">                                            
                        
                         <svg style="fill: var(--third-color);" version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 30">
                             <path d="M14.977,0C6.735-0.056-0.127,6.93,0.002,15.153c-0.028,8.165,6.816,14.938,14.975,14.811v-0.04c0.967,0.013,1.936-0.067,2.889-0.242c4.817-0.863,9.055-4.275,10.937-8.8C32.985,11.039,25.688-0.021,14.977,0 M14.977,27.902C6.08,27.658-0.075,18.755,3.433,10.373C7.814,0.291,22.13,0.293,26.49,10.386C30.002,18.61,23.886,27.788,14.977,27.902"/>
@@ -152,7 +140,7 @@
                    </div>  
 
                         <Transition name="modalFade">
-                            <div id="EmojiPicker" v-if="$store.state.menu.name == 'EmojiPicker' && $store.state.menu.id == 1002">
+                            <div id="EmojiPicker" v-if="menu.name == 'EmojiPicker' && menu.id == 1002">
                                 <EmojiPicker                                     
                                     :native="true" 
                                     @select="selectEmoji" 
@@ -166,17 +154,22 @@
                             </div>
                            
                         </Transition>
-                    <div @mousedown.prevent.stop @click="commentSendConfirm(openedBoard.id)" id="sendArea" class="sendAreaBox" style="display:flex;bottom:6px;">                                    
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="33" viewBox="0 0 43 32" style="margin:auto;fill: var(--third-color);">
-                            <path d="M40.638 0.087c-1.842 0.361-6.097 1.292-9.435 2.047l-30.046 6.891c-0.419 0.096-0.793 0.374-1.003 0.793-0.364 0.728-0.058 1.585 0.663 2.007 2.578 1.521 10.077 5.56 10.077 5.56 0.287 0.157 0.487 0.439 0.542 0.762 0 0 0.711 4.473 0.921 5.891 0.21 1.417 0.714 4.465 1.184 6.482 0.168 0.726 0.631 1.335 1.215 1.512 0.495 0.152 1.030 0.037 1.43-0.285 1.394-1.128 5.787-5.445 7.388-7.272 0.133-0.152 0.355-0.19 0.531-0.085l6.184 3.646c0 0 0.439 0.294 0.919 0.519 1.283 0.601 2.479 0.625 3.062-0.829 0.325-0.813 4.316-12.627 4.316-12.627l4.466-13.209c0.053-0.152 0.082-0.321 0.082-0.492 0-0.844-0.654-1.675-2.496-1.312zM20.045 24.741c-0.475 0.477-1.473 1.473-2.284 2.197-0.155 0.137-0.385-0.002-0.313-0.195l1.796-4.842c0.051-0.157 0.236-0.226 0.378-0.142l1.796 1.054c0.157 0.091 0.161 0.294 0.041 0.432-0.401 0.458-0.975 1.058-1.413 1.495zM32.151 25.117c-0.106 0.325-0.482 0.47-0.777 0.301l-1.447-0.824-3.554-2.014-7.121-4.024c-0.067-0.037-0.138-0.068-0.214-0.094-0.677-0.232-1.411 0.13-1.64 0.808l-1.944 7.086c-0.053 0.166-0.229 0.143-0.251-0.046-0.13-1.23-0.328-3.178-0.467-4.759-0.13-1.459-0.366-3.357-0.494-4.434-0.111-0.931-0.427-1.423-1.131-1.837-0.704-0.415-6.489-3.354-7.668-4.049-0.241-0.142-0.166-0.415 0.065-0.463 0 0 13.334-2.689 16.022-3.304 2.689-0.617 10.513-2.447 10.513-2.447 0.103-0.025 0.152 0.118 0.056 0.161l-5.127 2.281-2.961 1.459c-0.987 0.487-7.32 3.516-9.259 4.562-0.477 0.258-0.665 0.871-0.373 1.36 0.255 0.429 0.808 0.574 1.265 0.374 2.004-0.882 16.208-7.766 17.651-8.441 0.345-0.162 0.376-0.012 0.287 0.049-0.89 0.615-9.43 6.896-10.25 7.528l-2.448 1.905c-0.432 0.342-0.519 0.976-0.173 1.42 0.335 0.432 0.965 0.497 1.413 0.183 0 0 3.766-2.665 4.603-3.274l5.008-3.66c0 0 5.775-4.365 6.187-4.682 0.166-0.128 0.397 0.033 0.331 0.234l-2.517 7.675-3.585 10.965z"></path>
-                        </svg>                                          
+                    <div @mousedown.prevent.stop @click="commentSendConfirm(board.id)" id="sendArea" class="sendAreaBox" style="display:flex;bottom:6px;"> 
+                        <div style="display: flex;position: relative;">
+                            <div style="position: absolute;bottom: 8px;right: 0;" v-if="auth.linked.length">
+                                <UserIcon :user="auth.activeUser" :disableInstant="true" imgClass="userSmallIcon"/>
+                            </div>
+                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="33" viewBox="0 0 43 32" style="margin:auto;fill: var(--third-color);">
+                                <path d="M40.638 0.087c-1.842 0.361-6.097 1.292-9.435 2.047l-30.046 6.891c-0.419 0.096-0.793 0.374-1.003 0.793-0.364 0.728-0.058 1.585 0.663 2.007 2.578 1.521 10.077 5.56 10.077 5.56 0.287 0.157 0.487 0.439 0.542 0.762 0 0 0.711 4.473 0.921 5.891 0.21 1.417 0.714 4.465 1.184 6.482 0.168 0.726 0.631 1.335 1.215 1.512 0.495 0.152 1.030 0.037 1.43-0.285 1.394-1.128 5.787-5.445 7.388-7.272 0.133-0.152 0.355-0.19 0.531-0.085l6.184 3.646c0 0 0.439 0.294 0.919 0.519 1.283 0.601 2.479 0.625 3.062-0.829 0.325-0.813 4.316-12.627 4.316-12.627l4.466-13.209c0.053-0.152 0.082-0.321 0.082-0.492 0-0.844-0.654-1.675-2.496-1.312zM20.045 24.741c-0.475 0.477-1.473 1.473-2.284 2.197-0.155 0.137-0.385-0.002-0.313-0.195l1.796-4.842c0.051-0.157 0.236-0.226 0.378-0.142l1.796 1.054c0.157 0.091 0.161 0.294 0.041 0.432-0.401 0.458-0.975 1.058-1.413 1.495zM32.151 25.117c-0.106 0.325-0.482 0.47-0.777 0.301l-1.447-0.824-3.554-2.014-7.121-4.024c-0.067-0.037-0.138-0.068-0.214-0.094-0.677-0.232-1.411 0.13-1.64 0.808l-1.944 7.086c-0.053 0.166-0.229 0.143-0.251-0.046-0.13-1.23-0.328-3.178-0.467-4.759-0.13-1.459-0.366-3.357-0.494-4.434-0.111-0.931-0.427-1.423-1.131-1.837-0.704-0.415-6.489-3.354-7.668-4.049-0.241-0.142-0.166-0.415 0.065-0.463 0 0 13.334-2.689 16.022-3.304 2.689-0.617 10.513-2.447 10.513-2.447 0.103-0.025 0.152 0.118 0.056 0.161l-5.127 2.281-2.961 1.459c-0.987 0.487-7.32 3.516-9.259 4.562-0.477 0.258-0.665 0.871-0.373 1.36 0.255 0.429 0.808 0.574 1.265 0.374 2.004-0.882 16.208-7.766 17.651-8.441 0.345-0.162 0.376-0.012 0.287 0.049-0.89 0.615-9.43 6.896-10.25 7.528l-2.448 1.905c-0.432 0.342-0.519 0.976-0.173 1.42 0.335 0.432 0.965 0.497 1.413 0.183 0 0 3.766-2.665 4.603-3.274l5.008-3.66c0 0 5.775-4.365 6.187-4.682 0.166-0.128 0.397 0.033 0.331 0.234l-2.517 7.675-3.585 10.965z"></path>
+                            </svg> 
+                        </div>                                   
                     </div>                                     
                 </div>
                 
     </div>  
 </template>
 
-<script>
+<script setup>
 import ReplyQuotWindow from './ReplyQuotWindow.vue'
 import ForwardWindowMessage from './ForwardWindowMessage.vue'
 import moment from 'moment'
@@ -185,808 +178,636 @@ import FileIcon from '../Mixed/FileIcon.vue'
 import OpenAI from "openai";
 import MentionBox from './MentionBox.vue'
 import 'vue3-emoji-picker/css'
-    export default {
-        props: ['openedBoard', 'replyKey', 'unread', 'messageListType'],
-        data(){
-            return{
-                
-                caretPosition: 0,
-                mentionBoxToggle: false,
-                emojiBox: false,
-                sendLoader: false,
-                highlighted: 0,
-                tempChar: '',
-                attachedFiles: [],
-                importedFiles: [],
-                attachForwardFiles: [],
-                messageReady: '',
-                emojiFlag: 0,
-                mentionRecursive: false,
-                mentionCounter: 0,
-                draggingFiles: [],
-                exportingFiles: [],
-                mentionedUsers: [],
-                successUploadedFiles: [],
-                progressPercentage: 0,
-                keyCharacters: '',
-                startPosition: 0,
-                forwardItem: null,
-                charLength: 0,
-                editing: false,
-                aiResponse: '',
-                aiResponseCustomize: false,
-                dropActive: false,
-                sharingFiles: []
-                
-                
-            }   
-        },
-        components: {
-            // VEmojiPicker,
-            ReplyQuotWindow,
-            ForwardWindowMessage,
-            EmojiPicker,
-            FileIcon,
-            MentionBox
-        },
-        watch:{
-            keyCharacters(after, before){
-                if(!after){
-                    this.resetMention()
-                }
+import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useFilePreview } from '@/store/filePreview'
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useQuoteReply } from '@/store/quoteReply'
+import { useSharingDataStore } from '@/store/sharingData'
+import UserIcon from '../Mixed/UserIcon.vue'
+    const sharingData = useSharingDataStore()
+    const menu = useMenuStore()
+    const auth = useAuthUserStore()
+    const quoteReply = useQuoteReply()
+    const props = defineProps([ 'replyKey', 'unread', 'messageListType'])
+    const emit = defineEmits(['unreadJumped'])
+    const caretPosition = ref(0)
+    const mentionBoxToggle = ref(false)
+    const highlighted = ref(0)
+    const attachedFiles = ref([])
+    const messageReady = ref('')
+    const draggingFiles = ref([])
+    const mentionedUsers = ref([])
+    const successUploadedFiles = ref([])
+    const progressPercentage = ref(0)
+    const keyCharacters = ref('')
+    const startPosition = ref(0)
+    const forwardItem = ref(null)
+    const charLength = ref(0)
+    const editing = ref(false)
+    const aiResponse = ref('')
+    const aiResponseCustomize = ref(false)
+    const dropActive = ref(false)
+    const sharingFiles = ref([])
+    const messageInputArea = ref(null)
+    const aiResponseText = ref(null)
+    const mentionBox = ref(null)
+    const board = inject('openedBoard')
+    const {addQueue} = inject('messageItem')
+    const {notify, info, confirm} = inject('dialog')
+    const filePreview = useFilePreview()
+    const keyboardHeight = inject('keyboardHeight')
+    
+    watch(() => keyCharacters.value, (after) => {
+        if(!after){
+            resetMention()
+        }
+    })
+    onUnmounted(() => {
+        messageInputArea.value?.removeEventListener('keyup', inputKeyEventfirst);  
+        messageInputArea.value?.removeEventListener('keyup',inputKeyEventSecond);
+    })
+    onMounted(() => {
+        
+        if(sharingData.active && sharingData.drag == false){
+            if(sharingData.message){
+                forwardItem.value = sharingData.message
+            }else{
+                sharingData.files.forEach((file) => {
+                    const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
+                    if(!isFolder && !sharingFiles.value.includes(item => item.path == file.path)){                            
+                        sharingFiles.value.push(file)
+                    }
+                });
             }
-        },
-        unmounted() {
-            this.$refs.messageInputArea?.removeEventListener('keyup', this.inputKeyEventfirst);  
-            this.$refs.messageInputArea?.removeEventListener('keyup',this.inputKeyEventSecond);
-        },
-        mounted() {
-            emitter.on('aiEditFinish', (data) => {  
-                this.$refs.messageInputArea.textContent = data.text                           
+            
+
+            resetSharingData()
+            footerDropLeave();
+            
+        }
+        if(board.value){
+            const temp = localStorage.getItem('temp_message_' + board.value.id); 
+            if(temp){                
+                messageInputArea.value.textContent = temp;
+            }
+        }
+
+        messageInputArea.value.addEventListener('keyup', inputKeyEventfirst);              
+        messageInputArea.value.addEventListener('keyup',inputKeyEventSecond)
+        
+    })
+    const resetSharingData = () => {
+        const shareData = {
+            active: false,
+            title: '',
+            text: '',
+            files: [],
+            from: '',
+            to: '',
+            drag: false 
+        }
+        sharingData.setSharingData(shareData)
+    }
+    const filteredUsers = computed(() => {
+        const list = board.value.board_to_users.map(ob => ob.user)
+        if(board.value.private_flag == 0){
+            list.unshift({name: '全員', id: -1})
+        }
+        return list
+    })
+    const mentionAbleList = computed(() => {
+        if (keyCharacters.value) {
+            const keyCharactersLowerCase = keyCharacters.value.replace(/[@＠]/g, '').toLowerCase()
+            return filteredUsers.value.filter(member => {
+                const memberNameLowerCase = member.name.toLowerCase()
+                return memberNameLowerCase.includes(keyCharactersLowerCase) && member.id !== auth.activeUser.id
             })
+        } else {
+            return filteredUsers.value.filter(ob => ob.id !== auth.activeUser.id)
+        }
+    })          
+
+    const previewFile = (file) => {
+        let target_data = file
+        target_data['file_path'] = '/cdn/temp_upload/' + file.id + '.' + file.extension
+        target_data['doc_path'] = '/temp_upload/' + file.id + '.' + file.extension
+        const data = {
+            active: true,
+            files: [target_data],
+            source: 'message',
+            index: 0,
+            message: null,
+            reminder: 'board',
+        }
+        filePreview.setFilePreview(data)
+    }
+    const resetAi = () => {
+        aiResponse.value = ''
+        aiResponseCustomize.value = false
+    }
+    const replaceText = () => {
+        try{
+            messageInputArea.value.textContent = aiResponseText.value.textContent
+            resetAi()
+        }
+        catch{
+            notify('適用するに失敗しました。');
+        }                
+    }
+    const editWithAi = async() => {
+        if(editing.value) return
+        const text = messageInputArea.value.textContent
+        if(text && text.length){
+            aiResponseCustomize.value = false
             
-            if(this.$store.state.sharingData && this.$store.state.sharingData.drag == false){
-                if(this.$store.state.sharingData.message){
-                    this.forwardItem = this.$store.state.sharingData.message
-                }else{
-                    this.$store.state.sharingData.files.forEach((file) => {
-                        const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
-                        if(!isFolder && !this.sharingFiles.includes(item => item.path == file.path)){                            
-                            this.sharingFiles.push(file)
-                        }
-                    });
-                }
+            const full = '文章を修正してください。' + text
+            const openai = new OpenAI({
+                apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+                dangerouslyAllowBrowser: true 
                 
-
-                this.$store.commit('setSharingData', null)
-                this.footerDropLeave();
-                
-            }
-            if(this.openedBoard){
-                const temp = localStorage.getItem('temp_message_' + this.openedBoard.id); 
-                if(temp){
-                    var el = document.getElementById("typeArea");
-                    el.textContent = temp;
-                }
-            }
-
-            this.$refs.messageInputArea.addEventListener('keyup', this.inputKeyEventfirst);              
-            this.$refs.messageInputArea.addEventListener('keyup',this.inputKeyEventSecond)
-            
-        },
-        computed:{
-            filteredUsers(){
-                const list = this.$store.state.mentionAbleUsers.map(ob => ob.user)
-                if(this.openedBoard.private_flag == 0){
-                    list.unshift({name: '全員', id: -1})
-                }
-                return list
-            },  
-            mentionAbleList(){
-                    if (this.keyCharacters) {
-                    const keyCharactersLowerCase = this.keyCharacters.replace(/[@＠]/g, '').toLowerCase()
-                    return this.filteredUsers.filter(member => {
-                        const memberNameLowerCase = member.name.toLowerCase()
-                        return memberNameLowerCase.includes(keyCharactersLowerCase)
-                    })
-                    } else {
-                    return this.filteredUsers
-                    }
-            }          
-        },
-        methods:{
-            previewFile(file){
-                let target_data = file
-                target_data['file_path'] = this.$store.state.baseLocation + '/temp_upload/' + file.id + '.' + file.extension
-                target_data['doc_path'] = this.$store.state.baseLocation + '/temp_upload/' + file.id + '.' + file.extension
-                const data = {
-                    active: true,
-                    files: [target_data],
-                    target: target_data,
-                    source: 'message',
-                    index: 0,
-                    message: null,
-                    reminder: 'board',
-                }
-                this.$store.commit('setFilePreview', data)
-            },
-            resetAi(){
-                this.aiResponse = ''
-                this.aiResponseCustomize = false
-            },
-            replaceText(){
-                try{
-                    this.$refs.messageInputArea.textContent = this.$refs.aiResponseText.textContent
-                    this.resetAi()
-                }
-                catch{
-                    this.$toast('適用するに失敗しました。',{
-                        toastClassName: "toastConfirm",
-                        timeout: 3000, 
-                        draggable: false,
-                        closeButton: false,
-                    });
-                }
-                
-            },
-            async editWithAi(){
-                if(this.editing) return
-                const text = this.$refs.messageInputArea.textContent
-                if(text && text.length){
-                    this.aiResponseCustomize = false
-                    
-                    const full = '文章を修正してください。' + text
-                    const openai = new OpenAI({
-                        apiKey: process.env.MIX_OPENAI_API_KEY,
-                        dangerouslyAllowBrowser: true 
-                    });
-                    this.editing = true
-                    this.aiResponse = ''
-                    const stream = await openai.chat.completions.create({
-                        // model: 'gpt-4',
-                        model: 'gpt-3.5-turbo-16k',
-                        messages: [{ role: 'assistant', content: full }],
-                        stream: true,
-                        temperature: 0.8
-                    })
-                    .catch((err) => {
-                        if (err instanceof OpenAI.APIError) {
-                            console.log(err.status); 
-                            console.log(err); 
-                            if(err.status == 500){
-                                this.errorToast('ChatGPT修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-                            }else{
-                                this.errorToast('ChatGPT修正に失敗しました。<br>' + err.message)
-                            }
-                            
-                        } else {
-                            this.errorToast('ChatGPT修正に失敗しました。<br>' + err)
-                        }
-                        this.editing = false
-                        this.aiResponseCustomize = true
-                    });
-                    // try {
-                        for await (const part of stream) {
-                            const content = part.choices[0]?.delta?.content || ''
-                            this.aiResponse = this.aiResponse + content
-                        }
-                    // } catch (error) {
-                    //     this.errorToast('ChatGPT修正に失敗しました。<br>' + error)
-                    // } finally {
-                        this.editing = false
-                        this.aiResponseCustomize = true
-                    // }
-                    
-                    
-                }
-
-
-                // return
-                
-                // if(text && text.length){
-                //     this.editing = true
-                //     axios.post('/get_review_text', {text : text})
-                //     .then(response => {    
-                //         this.editing = false
-                //         const data = {
-                //             user_text: text,
-                //             edited_text: response.data,
-                //             view: true
-                //         }
-                //         this.$store.commit('setAiData', data)
-                //     }).catch((error) => {
-                //         this.$toast('Open AIレビューに失敗しました。',{
-                //             toastClassName: "toastConfirm",
-                //             timeout: 3000, 
-                //             draggable: false,
-                //             closeButton: false,
-                //         });
-                //         this.editing = false
-                //     })
-                // }
-            },
-            setInput(){
-                this.charLength = event.target.innerText.length
-            },            
-            inputKeyEventSecond(){
-                if(this.openedBoard){
-                    var editableEl = document.getElementById("typeArea");
-                        if(editableEl){
-                            this.getCharacterPrecedingCaret(editableEl);
-                        }
-                }  
-            },
-            inputKeyEventfirst(){
-                this.startPosition = this.getCaretPosition();
-                if(this.openedBoard && this.mentionBoxToggle){            
-                    var editableEl = document.getElementById("typeArea");
-                    var singleChar = this.getCharacterPrecedingCaret(editableEl, 3);
-                    if(editableEl.textContent.lastIndexOf('@') > -1){
-                        this.charSet = editableEl.textContent.split('@').pop();
-                    }
-                    if(editableEl.textContent.lastIndexOf('＠') > -1){
-                        this.charSet = editableEl.textContent.split('＠').pop();   
-                    }
-                    if (event.key === 'Backspace' || event.key === 'Delete') {
-                        // Reset mention when @ is deleted
-                        const textBeforeCursor = this.$refs.messageInputArea.textContent.substring(0, this.getCaretPosition());
-                        console.log(textBeforeCursor)
-                        const lastAtSign = textBeforeCursor.lastIndexOf('@');
-                        if (lastAtSign === -1 || lastAtSign < this.startPosition - 1) {
-                            this.resetMention();
-                        }  
-                    } 
-                } 
-            },
-            getCaretPosition() {
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                return range.endOffset;
-                }
-                return 0;
-            },
-            resetMention(){
-                this.mentionBoxToggle = false
-                this.highlighted = 0
-            },
-            selectEmoji(emoji) {     
-                var a = document.getElementById('typeArea').textContent;    
-                var b = emoji.i;
-                var position = this.caretPosition;
-                var output = [a.slice(0, position), b, a.slice(position)].join('');
-                document.getElementById('typeArea').textContent = output
-                this.caretPosition = this.caretPosition + 2;
-                this.msgSave();
-            },
-            createMention(text){ 
-                if(!text || text == null || text == undefined){
-                    return ''
-                }     
-                const mentioned = text.replace(/\[To:(.*?)\]/g, (match, content) => {                    
-                    const strippedContent = content.replace(/^\s*\[To:|\]\s*$/g, '');                    
-                    if(strippedContent === '全員'){
-                        var list = this.$store.state.mentionAbleUsers.map(obj => obj.user_id);                        
-                        this.mentionedUsers = list;
-                        return '<a class="toAll">@全員</a>'
+            });
+            editing.value = true
+            aiResponse.value = ''
+            const stream = await openai.chat.completions.create({
+                // model: 'gpt-4',
+                model: 'gpt-3.5-turbo-16k',
+                messages: [{ role: 'assistant', content: full }],
+                stream: true,
+                temperature: 0.8
+            })
+            .catch((err) => {
+                if (err instanceof OpenAI.APIError) {
+                    console.log(err.status); 
+                    console.log(err); 
+                    if(err.status == 500){
+                        notify('ChatGPT修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
                     }else{
-                        var filtered = this.filteredUsers.filter(obj=>obj.name === strippedContent)
-                        
-                        if(filtered.length){
-
-                            var user = filtered[0]      
-                            
-                            var check = this.mentionedUsers.indexOf(user.id);
-                            if(check == -1){
-                                console.log('enter, ', user)
-                                this.mentionedUsers.push(user.id); 
-                                console.log(strippedContent)                                      
-                            }
-                            return `<a href=/app/public/user?id=${user.id}>@${strippedContent}</a>`     
-                        }
-                        return match
+                        notify('ChatGPT修正に失敗しました。<br>' + err.message)
                     }
-                });    
-                return mentioned
-            }, 
-            async commentSendConfirm(recordId){
-                var textCheck = document.getElementById('typeArea').textContent;     
-                var nospace = textCheck.replace(/\s/g, "")       
-                this.charLength = textCheck.length
-                if(!nospace && (!this.attachedFiles || !this.attachedFiles.length) && !this.sharingFiles.length){            
-                    return;
-                }
-                if(this.charLength >= 5000){
-                    return;
-                }
-                this.messageReady = textCheck 
-                var nospace = textCheck.replace(/\s/g, "")            
-                if(nospace.length && nospace.length == 2){      
-                    var ranges = [
-                        '(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|[\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|[\ud83c[\ude32-\ude3a]|[\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])' // U+1F680 to U+1F6FF
-                    ];
-                    if (textCheck.match(ranges.join('|'))) {
-                        this.emojiFlag = 1; 
-                    } 
-                }         
-                const mentioned = await this.createMention(textCheck)
-                if(this.mentionRecursive){
-                    this.commentSendConfirm(recordId)
-                }else{    
-                    const a = Date.now().toString();
-                    const b = Math.random().toString(36).substring(5);
-                    const m_uid = a + '_' + b
-                    const replyFlag = this.$store.state.quot_reply.active && this.$store.state.quot_reply.which == 'reply'
-                    const replyId = replyFlag ? this.$store.state.quot_reply.message.id : null
-                    const quotFlag = this.$store.state.quot_reply.active && this.$store.state.quot_reply.which == 'quot'
-                    const quotId = quotFlag ? this.$store.state.quot_reply.message.id : null 
-                    const selected_quot_text = quotFlag && quotId ? this.$store.state.quot_reply.text : null
-                    const files = this.attachedFiles && this.attachedFiles.length ? this.attachedFiles : []
-                    const message_quot = quotFlag ? this.$store.state.quot_reply.message : null
-                    const message_reply = replyFlag ? this.$store.state.quot_reply.message : null
-                    const forward_message_id = this.forwardItem ? this.forwardItem.id : null
-                    const message_forward = this.forwardItem ? this.forwardItem : null
-                    const queueMessage = {
-                        deleted_at: null,
-                        emoji_flag: this.emojiFlag,
-                        message: mentioned,
-                        user: this.$store.state.user,
-                        reply_flag: replyFlag,
-                        reply_id: replyId,
-                        quot_flag: quotFlag,
-                        quot_id: quotId,
-                        quot_message: selected_quot_text,
-                        forward_message_id: forward_message_id,
-                        record_id: this.openedBoard.id,
-                        mentioned_users: this.mentionedUsers,
-                        user_id: this.$store.state.user.id,
-                        id: Math.random().toString(36).substring(5),
-                        attached_temp_files: this.successUploadedFiles,
-                        message_quot: message_quot,
-                        message_reply: message_reply,
-                        message_forward: message_forward,
-                        message_attachments: files,
-                        created_at: moment().format(),
-                        error: false,
-                        u_id: m_uid,
-                        sharing_files: this.sharingFiles 
-                    }
-                    this.$refs.messageInputArea.textContent = ''
-                    if(this.messageListType == 'search'){
-                        
-                    }
-                    this.$parent.$parent.$emit('addQueue',queueMessage )
-
-                    localStorage.setItem(this.openedBoard.id, '');
-                    this.mentionedUsers = [];
-                    this.mentionBoxToggle = false;
-                    this.successUploadedFiles = [];
-                    this.messageReady = null;
-                    this.emojiFlag = 0;
-                    this.msgSave();   
-                    this.attachedFiles = []; 
-                              
-                    this.$store.commit('setSharingData', null);
-                    this.forwardItem = null;
-                    this.sharingFiles = []             
-                }
-            },
-             
-            allMemberMentionMobile(){
-                var all = {
-                    name: '全員'
                     
+                } else {
+                    notify('ChatGPT修正に失敗しました。<br>' + err)
                 }
-                    
-                this.mentionUser(all)
-                
-            },
-            mentionUser(user, index){             
-                if(user){
-                    const mentionSyntax = `[To:${user.name}]`
-                    console.log(mentionSyntax)
-                    if(this.mentionBoxToggle){
-                    
-                        const inputEl = this.$refs.messageInputArea
-                        const textBeforeCursor = inputEl.textContent.slice(0, this.caretPosition)
-                        const match = textBeforeCursor.match(/[＠@]([^＠@^\s]*)$/);
-                        if (match) {
-                            const mentionTarget = match[1]
-                            const position = this.caretPosition - mentionTarget.length - 1
-                            const outputBeforeMention = inputEl.textContent.slice(0, position)
-                            const outputAfterMention = inputEl.textContent.slice(this.caretPosition)
-                            const output = outputBeforeMention + mentionSyntax + outputAfterMention
-                            inputEl.textContent = output
-                            const newPosition = position + mentionSyntax.length
-                            this.setEndOfContenteditable(newPosition)
-                        }
-                        this.mentionBoxToggle = false;
-                    }
-                    else if(this.keyCharacters.length){                       
-                        let inputString = this.$refs.messageInputArea.textContent
-                        let searchText = this.keyCharacters
-                        let replacement = mentionSyntax
-                        const lastIndex = inputString.lastIndexOf(searchText);
-                        const hasAt = inputString[lastIndex - 1] && (inputString[lastIndex - 1] == '@' || inputString[lastIndex - 1] == '＠') ? 1 : 0
-                        console.log(hasAt)
-                        if (lastIndex === -1) {
-                            return inputString;
-                        }
-                        const beforeLastIndex = inputString.slice(0, (lastIndex - hasAt));
-                        const position = this.caretPosition
-                        const afterLastIndex = inputString.slice(lastIndex + searchText.length);
-                        const result = beforeLastIndex + replacement.replace(/[@＠]/g, '') + afterLastIndex;
-                        this.$refs.messageInputArea.textContent = result
-                        this.setEndOfContenteditable(beforeLastIndex.length + mentionSyntax.length)
-                        this.keyCharacters = '';
-
-                    }
-                    this.msgSave()
-                }    
-            }, 
-            composeUpdate(){
-                if(event.data == '@' || event.data == '＠'){                
-                    this.mentionBoxToggle = true
-                    this.keyCharacters = ''
-                }else{
-                    this.keyCharacters = event.data
-                    if(!this.keyCharacters.length){
-                        this.resetMention()
-                    }
-                }                
-            },
-            setEndOfContenteditable(pos){    
-                var node = document.querySelector("#typeArea");
-                node.focus();
-                var textNode = node.firstChild;
-                var range = document.createRange();
-                const nPos = pos <= textNode.length ? pos : textNode.length
-                range.setStart(textNode, nPos);
-                range.setEnd(textNode, nPos);
-                var sel = window.getSelection();
-                sel.removeAllRanges();
-                sel.addRange(range);
-            },
-            getCharacterPrecedingCaret(containerEl, pattern) {
-                var precedingChar = "", sel, range, precedingRange;
-                if (window.getSelection) {
-                    sel = window.getSelection();
-                    if (sel.rangeCount > 0) {
-                        range = sel.getRangeAt(0).cloneRange();
-                        range.collapse(true);
-                        range.setStart(containerEl, 0);
-                        precedingChar = range.toString().slice(-1);
-                    }
-                } else if ( (sel = document.selection) && sel.type != "Control") {
-                    range = sel.createRange();
-                    precedingRange = range.duplicate();
-                    precedingRange.moveToElementText(containerEl);
-                    precedingRange.setEndPoint("EndToStart", range);
-                    precedingChar = precedingRange.text.slice(-1);
-                }
-                if(!this.jpInput && (precedingChar === '＠' || precedingChar === '@')){
-                    this.keyCharacters = ''
-                    this.highlighted = 0
-                    this.mentionBoxToggle = true;
-                }else{
-                    this.mentionBoxToggle = false;                   
-                    
-                }
-                if(pattern == 3){
-                    return precedingChar;
-                }
-            },
-            pasteListener(e){                    
-                e.preventDefault();    
-                var text = e.clipboardData.getData("text/plain");            
-                if(!text || text == ''){            
-                    // var uniqueId = Math.random().toString(36).substring(5);
-                    
-                    // var source = 'nonimagefile'
-                    // // if(e.clipboardData.files[0].type.indexOf('image') > -1){
-                    //     var source = URL.createObjectURL(e.clipboardData.files[0]);
-                    // // }               
-                    // const name = e.clipboardData.files[0].name;
-                    // const lastDot = name.lastIndexOf('.');
-                    // const fileName = name.substring(0, lastDot);
-                    // const extension = name.substring(lastDot + 1);
-                    // this.attachedFiles.push({
-                    //     src: source,
-                    //     name: e.clipboardData.files[0].name,
-                    //     uId: uniqueId,
-                    //     ext: extension,
-                    //     file: e.clipboardData.files[0]
-                    // });    
-                    if(!e.clipboardData.files.length) return
-                    const formData = new FormData()                    
-                    for(var i in e.clipboardData.files) {                
-                        if(e.clipboardData.files[i].type !== undefined){
-                            var uniqueId = Math.random().toString(36).substring(5);
-                            
-                            var source = 'nonimagefile'
-                            if(e.clipboardData.files[i].type.indexOf('image') > -1){
-                                var source = URL.createObjectURL(e.clipboardData.files[i]);
-                            }               
-                            const name = e.clipboardData.files[i].name;
-                            const lastDot = name.lastIndexOf('.');
-                            const fileName = name.substring(0, lastDot);
-                            const extension = name.substring(lastDot + 1);
-                            this.attachedFiles.push({
-                                src: source,
-                                name: e.clipboardData.files[i].name,
-                                uId: uniqueId,
-                                ext: extension,
-                                file: e.clipboardData.files[i]
-                            });  
-                            formData.append(i, e.clipboardData.files[i])
-                        }               
-                    } 
-                    this.uploadStart(formData)
-                    this.msgSave();
-                }else{
-                    var text = e.clipboardData.getData("text/plain");
-                    document.execCommand("insertText", false, text);
-                }     
-                this.msgSave()
-            },
-            caretPos(){
-
-                const cursorIndex = window.getSelection().getRangeAt(0).startOffset
-                const textBeforeCursor = event.target.innerText.slice(0, cursorIndex)
-                const match = textBeforeCursor.match(/@(\p{L}+)$/u)
-
-                // if (match) {
-                //     // this.showMembers = true
-                //     this.keyCharacters = match[1]
-                // } else {
-                //     // this.showMembers = false
-                //     this.keyCharacters = ''
-                // }
-                // console.log(this.keyCharacters)
-
-
-
-                var element = event.target;
-                var caretOffset = 0;
-                if (window.getSelection) {
-                    var range = window.getSelection().getRangeAt(0);
-                    var preCaretRange = range.cloneRange();
-                    preCaretRange.selectNodeContents(element);
-                    preCaretRange.setEnd(range.endContainer, range.endOffset);
-                    caretOffset = preCaretRange.toString().length;
-                } 
-                else if (document.selection && document.selection.type != "Control") {
-                    var textRange = document.selection.createRange();
-                    var preCaretTextRange = document.body.createTextRange();
-                    preCaretTextRange.moveToElementText(element);
-                    preCaretTextRange.setEndPoint("EndToEnd", textRange);
-                    caretOffset = preCaretTextRange.text.length;
-                }            
-                this.caretPosition = caretOffset
-            },
-            msgSave(){                        
-                setTimeout(() => { 
-                    var text = document.getElementById('typeArea').textContent     
-                    localStorage.setItem('temp_message_' + this.openedBoard.id, text); 
-                     
-                     
-                }, 100);
-            },
-            addAttachment(){
-                if(event.target.files && event.target.files.length){
-                    const formData = new FormData()                    
-                    // formData.append('board_id', this.openedBoard.id)
-                    for(var i in event.target.files) {                
-                        if(event.target.files[i].type !== undefined){
-                            var uniqueId = Math.random().toString(36).substring(5);
-                            
-                            var source = 'nonimagefile'
-                            if(event.target.files[i].type.indexOf('image') > -1){
-                                var source = URL.createObjectURL(event.target.files[i]);
-                            }               
-                            const name = event.target.files[i].name;
-                            const lastDot = name.lastIndexOf('.');
-                            const fileName = name.substring(0, lastDot);
-                            const extension = name.substring(lastDot + 1);
-                            this.attachedFiles.push({
-                                src: source,
-                                name: event.target.files[i].name,
-                                uId: uniqueId,
-                                ext: extension,
-                                file: event.target.files[i]
-                            });  
-                            formData.append(i, event.target.files[i])
-                        }               
-                    } 
-                    this.uploadStart(formData)
-                    event.target.value = '';
-                    this.msgSave();
-                }
-                
-            },   
-            progressload: function(e){              
-                this.progressPercentage = Math.floor((e.loaded * 100) / e.total);                          
-            },
-            uploadStart(formData){
-                axios.post('/attach_upload_api', formData, {
-                    onUploadProgress: this.progressload
-                })
-                .then(response => {    
-                    if(response.data && response.data.length){
-                        for( let i in response.data){
-                            this.successUploadedFiles.push(response.data[i])
-                        }
-                    }            
-                    this.progressPercentage = 0
-                }).catch((error) => {
-                    this.$toast('ファイルアップロードに失敗しました。',{
-                            toastClassName: "toastConfirm",
-                            timeout: 3000, 
-                            draggable: false,
-                            closeButton: false,
-                        });
-                    this.progressPercentage = 0
-                })
-                .then(() => {});
-            },        
-            footerDropEnter(event){
-                if (event.dataTransfer.types) {
-                    for (var i = 0; i < event.dataTransfer.types.length; i++) {
-                        if (event.dataTransfer.types[i] == "Files") {
-                            this.dropActive = true
-                        }
-                    }
-                }                
-                return false;          
-            },
-            footerDropLeave(){
-                setTimeout(() => {
-                    this.dropActive = false
-                }, 0);            
-            }, 
-            footerDropEnterFromFile(){
-                if(this.$store.state.sharingData && this.$store.state.sharingData){
-                    this.dropActive = true
-                }
-            },
-            footerDropLeaveFromFile(){
-                    this.footerDropLeave();
-            },
-            errorToast(message){
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: message,
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: ['OK']
-
-                })   
-            },
-            dropSharingItems(){
-                if(this.$store.state.sharingData && this.$store.state.sharingData.drag){
-                    
-                    this.$store.state.sharingData.files.forEach((file) => {
-                        const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
-                        if(!isFolder && !this.sharingFiles.includes(item => item.path == file.path)){                            
-                            this.sharingFiles.push(file)
-                        }
-                    });
-                    let folders = this.draggingFiles.filter( obj => obj.record.folder == 1);
-                    if(folders.length){
-                         
-                        this.errorToast('フォルダを送ることができません。')
-                    }
-                    if(this.$store.state.sharingData.text){
-                        var el = this.$refs.messageInputArea
-                        const nl = el.textContent && el.textContent.length ? '\n' : '';
-                        el.textContent = el.textContent + nl + this.$store.state.sharingData.text      
-                        this.msgSave()
-                    }
-                    this.$store.commit('setSharingData', null)
-                    this.footerDropLeave();
-                }
-            },
-            footerDropDropped(){  
-                this.footerDropLeave();
-                
-                if(event.dataTransfer.files){
-                    const formData = new FormData()  
-                    for(var i in event.dataTransfer.files) {                
-                        if(event.dataTransfer.files[i].type !== undefined){
-                            var uniqueId = Math.random().toString(36).substring(5);
-                            
-                            var source = 'nonimagefile'
-                            if(event.dataTransfer.files[i].type.indexOf('image') > -1){
-                                var source = URL.createObjectURL(event.dataTransfer.files[i]);
-                            }               
-                            const name = event.dataTransfer.files[i].name;
-                            const lastDot = name.lastIndexOf('.');
-                            const fileName = name.substring(0, lastDot);
-                            const extension = name.substring(lastDot + 1);
-                            this.attachedFiles.push({
-                                src: source,
-                                name: event.dataTransfer.files[i].name,
-                                uId: uniqueId,
-                                ext: extension,
-                                file: event.dataTransfer.files[i]
-                            });  
-                            formData.append(i, event.dataTransfer.files[i])
-                        }               
-                    } 
-                    this.uploadStart(formData)
-                    // event.target.value = '';
-                    this.msgSave();           
-                     
-                }   
-                this.msgSave();        
-                           
-            },
-            iconColorFilter: function (ext) {
-                var extensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
-                    "doc", "docm", "docx", "dot", "dotx",
-                    "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx",
-                    "pdf",
-                ]
-                const format = extensions.indexOf(ext);                
-                let w = 'min-width:35px;'
-                let f = ''
-                switch (true) {
-                    case (format >= 0 && format <= 9):
-                        f = "fill: #1D6F42";
-                        break;
-                    case (format >= 10 && format <= 14):
-                        f = "fill: #0078d7";
-                        break;
-                    case (format >= 15 && format <= 23):
-                        f = "fill: #d04423";
-                        break;
-                    case (format == 24):
-                        f = "fill: #ff0000";
-                        break;
-                    default:
-                        f = '';
-                }
-                return w + f;
-            },
-            removeAttachment(image){  
-                // this.attachedFiles = $.grep(this.attachedFiles, function(e){ 
-                //     return e.uId != image.uId; 
-                // });
-                this.successUploadedFiles = this.successUploadedFiles.filter( ob => ob !== image )
-                axios.post('/remove_temp_file', {id: image.id})
-
-                this.msgSave();          
-            },
-            removeSharingFile(event, image){
-                this.sharingFiles = this.sharingFiles.filter( obj => obj !== image)
-                this.msgSave();   
-            },
-            enterSend(){
-                if(this.$refs.mentionBox && this.$refs.mentionBox.highlighted > -1){
-                    console.log(this.$refs.mentionBox)
-                    const user = this.mentionAbleList[this.$refs.mentionBox.highlighted]
-                    this.$refs.mentionBox.mentionUser(user, this.$refs.mentionBox.highlighted)
-                    event.preventDefault()
-                }
-                if(event.altKey){
-                    this.commentSendConfirm(this.openedBoard.id)
-                }
-            },
-            focused(){
-                if ("virtualKeyboard" in navigator) {
-                    navigator.virtualKeyboard.overlaysContent = true;                    
-                }
-            },
-            blured(){
-                if ("virtualKeyboard" in navigator) {                  
-                    navigator.virtualKeyboard.overlaysContent = false;
-                    setTimeout(() => {
-                        this.$store.commit('setKeyboardOffset', 0)
-                    }, 0);                    
-                }
+                editing.value = false
+                aiResponseCustomize.value = true
+            });
+            for await (const part of stream) {
+                const content = part.choices[0]?.delta?.content || ''
+                aiResponse.value = aiResponse.value + content
             }
+            editing.value = false
+            aiResponseCustomize.value = true                
+            
+            
+        }
+
+
+    }
+    const setInput = () => {
+        charLength.value = event.target.innerText.length
+    }            
+    const inputKeyEventSecond = () => {
+        if(board.value){
+            getCharacterPrecedingCaret();
+                
+        }  
+    }
+    const inputKeyEventfirst = () => {
+        startPosition.value = getCaretPosition();
+        if(board.value && mentionBoxToggle.value){      
+            if (event.key === 'Backspace' || event.key === 'Delete') {
+                const textBeforeCursor = messageInputArea.value.textContent.substring(0, getCaretPosition());
+                const lastAtSign = textBeforeCursor.lastIndexOf('@');
+                if (lastAtSign === -1 || lastAtSign < startPosition.value - 1) {
+                    resetMention();
+                }  
+            } 
+        } 
+    }
+    const getCaretPosition = () => {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        return range.endOffset;
+        }
+        return 0;
+    }
+    const resetMention = () => {
+        mentionBoxToggle.value = false
+        highlighted.value = 0
+    }
+    const selectEmoji = (emoji) => {     
+        var a = messageInputArea.value.textContent;    
+        var b = emoji.i;
+        var position = caretPosition.value;
+        var output = [a.slice(0, position), b, a.slice(position)].join('');
+        messageInputArea.value.textContent = output
+        caretPosition.value = caretPosition.value + 2;
+        msgSave();
+    }
+    const createMention = (text) => { 
+        if(!text || text == null || text == undefined){
+            return ''
+        }     
+        const mentioned = text.replace(/\[To:(.*?)\]/g, (match, content) => {                    
+            const strippedContent = content.replace(/^\s*\[To:|\]\s*$/g, '');                    
+            if(strippedContent === '全員'){
+                var list = filteredUsers.value.filter(ob => ob.id !== -1 && ob.id !== auth.activeUser.id).map(obj => obj.id);
+                console.log(list)                        
+                mentionedUsers.value = list;
+                return '<a class="toAll">@全員</a>'
+            }else{
+                var filtered = filteredUsers.value.filter(obj=>obj.name === strippedContent)
+                
+                if(filtered.length){
+
+                    var user = filtered[0]      
+                    
+                    var check = mentionedUsers.value.indexOf(user.id);
+                    if(check == -1){
+                        mentionedUsers.value.push(user.id);                                     
+                    }
+                    return `<a href=/app/public/user?id=${user.id}>@${strippedContent}</a>`     
+                }
+                return match
+            }
+        });    
+        return mentioned
+    }
+    const commentSendConfirm = async() => {
+        var textCheck = messageInputArea.value.textContent;     
+        var nospace = textCheck.replace(/\s/g, "")       
+        charLength.value = textCheck.length
+        if(!nospace && (!attachedFiles.value || !attachedFiles.value.length) && !sharingFiles.value.length){            
+            return;
+        }
+        if(charLength.value >= 5000){
+            return;
+        }
+        messageReady.value = textCheck 
+        var nospace = textCheck.replace(/\s/g, "")            
+        const mentioned = await createMention(textCheck)
+        const a = Date.now().toString();
+        const b = Math.random().toString(36).substring(5);
+        const m_uid = a + '_' + b
+        const replyFlag = quoteReply.active && quoteReply.which == 'reply'
+        const replyId = replyFlag ? quoteReply.message.id : null
+        const quotFlag = quoteReply.active && quoteReply.which == 'quot'
+        const quotId = quotFlag ? quoteReply.message.id : null 
+        const selected_quot_text = quotFlag && quotId ? quoteReply.text : null
+        const files = attachedFiles.value && attachedFiles.value.length ? attachedFiles.value : []
+        const message_quot = quotFlag ? quoteReply.message : null
+        const message_reply = replyFlag ? quoteReply.message : null
+        const forward_message_id = forwardItem.value ? forwardItem.value.id : null
+        const message_forward = forwardItem.value ? forwardItem.value : null
+        const queueMessage = {
+            deleted_at: null,
+            message: mentioned,
+            user: auth.activeUser,
+            reply_flag: replyFlag,
+            reply_id: replyId,
+            quot_flag: quotFlag,
+            quot_id: quotId,
+            quot_message: selected_quot_text,
+            forward_message_id: forward_message_id,
+            record_id: board.value.id,
+            mentioned_users: mentionedUsers.value,
+            user_id: auth.activeUser.id,
+            id: Math.random().toString(36).substring(5),
+            attached_temp_files: successUploadedFiles.value,
+            message_quot: message_quot,
+            message_reply: message_reply,
+            message_forward: message_forward,
+            message_attachments: files,
+            created_at: moment().format(),
+            error: false,
+            u_id: m_uid,
+            sharing_files: sharingFiles.value 
+        }
+        messageInputArea.value.textContent = ''
+        if(props.messageListType == 'search'){
+            
+        }
+        addQueue(queueMessage)
+        localStorage.setItem(board.value.id, '');
+        mentionedUsers.value = [];
+        mentionBoxToggle.value = false;
+        successUploadedFiles.value = [];
+        messageReady.value = null;
+        msgSave();   
+        attachedFiles.value = []; 
+                    
+        resetSharingData();
+        forwardItem.value = null;
+        sharingFiles.value = []             
+        
+    }       
+    const mentionUser = (user, index) => {             
+        if(user){
+            const mentionSyntax = `[To:${user.name}]`
+            if(mentionBoxToggle.value){
+            
+                const inputEl = messageInputArea.value
+                const textBeforeCursor = inputEl.textContent.slice(0, caretPosition.value)
+                const match = textBeforeCursor.match(/[＠@]([^＠@^\s]*)$/);
+                if (match) {
+                    const mentionTarget = match[1]
+                    const position = caretPosition.value - mentionTarget.length - 1
+                    const outputBeforeMention = inputEl.textContent.slice(0, position)
+                    const outputAfterMention = inputEl.textContent.slice(caretPosition.value)
+                    const output = outputBeforeMention + mentionSyntax + outputAfterMention
+                    inputEl.textContent = output
+                    const newPosition = position + mentionSyntax.length
+                    setEndOfContenteditable(newPosition)
+                }
+                mentionBoxToggle.value = false;
+            }
+            else if(keyCharacters.value.length){                       
+                let inputString = messageInputArea.value.textContent
+                let searchText = keyCharacters.value
+                let replacement = mentionSyntax
+                const lastIndex = inputString.lastIndexOf(searchText);
+                const hasAt = inputString[lastIndex - 1] && (inputString[lastIndex - 1] == '@' || inputString[lastIndex - 1] == '＠') ? 1 : 0
+                if (lastIndex === -1) {
+                    return inputString;
+                }
+                const beforeLastIndex = inputString.slice(0, (lastIndex - hasAt));
+                const position = caretPosition.value
+                const afterLastIndex = inputString.slice(lastIndex + searchText.length);
+                const result = beforeLastIndex + replacement.replace(/[@＠]/g, '') + afterLastIndex;
+                messageInputArea.value.textContent = result
+                setEndOfContenteditable(beforeLastIndex.length + mentionSyntax.length)
+                keyCharacters.value = '';
+
+            }
+            msgSave()
+        }    
+    }, 
+    composeUpdate = (event) => {
+        if(event.data == '@' || event.data == '＠'){     
+            getCharacterPrecedingCaret()
+        }else{
+            keyCharacters.value = event.data
+            if(!keyCharacters.value.length){
+                resetMention()
+            }
+        }                
+    }
+    const setEndOfContenteditable = (pos) => {    
+        var node = messageInputArea.value
+        node.focus();
+        var textNode = node.firstChild;
+        var range = document.createRange();
+        const nPos = pos <= textNode.length ? pos : textNode.length
+        range.setStart(textNode, nPos);
+        range.setEnd(textNode, nPos);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+    const getCharacterPrecedingCaret = () => {
+        var precedingChar = "", sel, range, precedingRange;
+        if (window.getSelection) {
+            sel = window.getSelection();
+            if (sel.rangeCount > 0) {
+                range = sel.getRangeAt(0).cloneRange();
+                range.collapse(true);
+                range.setStart(messageInputArea.value, 0);
+                precedingChar = range.toString().slice(-1);
+            }
+        } else if ( (sel = document.selection) && sel.type != "Control") {
+            range = sel.createRange();
+            precedingRange = range.duplicate();
+            precedingRange.moveToElementText(messageInputArea.value);
+            precedingRange.setEndPoint("EndToStart", range);
+            precedingChar = precedingRange.text.slice(-1);
+        }
+        if((precedingChar === '＠' || precedingChar === '@')){
+            keyCharacters.value = ''
+            highlighted.value = 0
+            mentionBoxToggle.value = true;
+        }else{
+            mentionBoxToggle.value = false;                   
             
         }
     }
+    const pasteListener = (e) => {                    
+        
+        var text = e.clipboardData.getData("text/plain");            
+        if(!text || text == ''){           
+            if(!e.clipboardData.files.length) return
+            e.preventDefault();    
+            const formData = new FormData()                    
+            for(var i in e.clipboardData.files) {                
+                if(e.clipboardData.files[i].type !== undefined){
+                    var uniqueId = Math.random().toString(36).substring(5);
+                    
+                    var source = 'nonimagefile'
+                    if(e.clipboardData.files[i].type.indexOf('image') > -1){
+                        var source = URL.createObjectURL(e.clipboardData.files[i]);
+                    }               
+                    const name = e.clipboardData.files[i].name;
+                    const lastDot = name.lastIndexOf('.');
+                    const fileName = name.substring(0, lastDot);
+                    const extension = name.substring(lastDot + 1);
+                    attachedFiles.value.push({
+                        src: source,
+                        name: e.clipboardData.files[i].name,
+                        uId: uniqueId,
+                        ext: extension,
+                        file: e.clipboardData.files[i]
+                    });  
+                    formData.append(i, e.clipboardData.files[i])
+                }               
+            } 
+            uploadStart(formData)
+            msgSave();
+        }    
+        msgSave()
+    }
+    const caretPos = (event) => {
+
+        const cursorIndex = window.getSelection().getRangeAt(0).startOffset
+        const textBeforeCursor = event.target.innerText.slice(0, cursorIndex)
+        var element = event.target;
+        var caretOffset = 0;
+        if (window.getSelection) {
+            var range = window.getSelection().getRangeAt(0);
+            var preCaretRange = range.cloneRange();
+            preCaretRange.selectNodeContents(element);
+            preCaretRange.setEnd(range.endContainer, range.endOffset);
+            caretOffset = preCaretRange.toString().length;
+        } 
+        else if (document.selection && document.selection.type != "Control") {
+            var textRange = document.selection.createRange();
+            var preCaretTextRange = document.body.createTextRange();
+            preCaretTextRange.moveToElementText(element);
+            preCaretTextRange.setEndPoint("EndToEnd", textRange);
+            caretOffset = preCaretTextRange.text.length;
+        }            
+        caretPosition.value = caretOffset
+    }
+    const msgSave = () => {                        
+        setTimeout(() => { 
+            var text = messageInputArea.value.textContent     
+            localStorage.setItem('temp_message_' + board.value.id, text);               
+        }, 100);
+    }
+    const addAttachment = (event) => {
+        if(event.target.files && event.target.files.length){
+            const formData = new FormData()                  
+            for(var i in event.target.files) {                
+                if(event.target.files[i].type !== undefined){
+                    var uniqueId = Math.random().toString(36).substring(5);
+                    
+                    var source = 'nonimagefile'
+                    if(event.target.files[i].type.indexOf('image') > -1){
+                        var source = URL.createObjectURL(event.target.files[i]);
+                    }               
+                    const name = event.target.files[i].name;
+                    const lastDot = name.lastIndexOf('.');
+                    const fileName = name.substring(0, lastDot);
+                    const extension = name.substring(lastDot + 1);
+                    attachedFiles.value.push({
+                        src: source,
+                        name: event.target.files[i].name,
+                        uId: uniqueId,
+                        ext: extension,
+                        file: event.target.files[i]
+                    });  
+                    formData.append(i, event.target.files[i])
+                }               
+            } 
+            uploadStart(formData)
+            event.target.value = '';
+            msgSave();
+        }
+        
+    }   
+    const progressload = (e) => {              
+        progressPercentage.value = Math.floor((e.loaded * 100) / e.total);                          
+    }
+    const uploadStart = (formData) => {
+        axios.post('/attach_upload_api', formData, {
+            onUploadProgress: progressload
+        })
+        .then(response => {    
+            if(response.data && response.data.length){
+                for( let i in response.data){
+                    successUploadedFiles.value.push(response.data[i])
+                }
+            }            
+            progressPercentage.value = 0
+        }).catch((error) => {
+            notify('ファイルアップロードに失敗しました。');
+            progressPercentage.value = 0
+        })
+    }      
+    const footerDropEnter = (event) => {
+        if (event.dataTransfer.types) {
+            for (var i = 0; i < event.dataTransfer.types.length; i++) {
+                if (event.dataTransfer.types[i] == "Files") {
+                    dropActive.value = true
+                }
+            }
+        }                
+        return false;          
+    }
+    const footerDropLeave = () => {
+        setTimeout(() => {
+            dropActive.value = false
+        }, 0);            
+    }
+    const footerDropEnterFromFile = () => {
+        if(sharingData.active){
+            dropActive.value = true
+        }
+    }
+    const dropSharingItems = () => {
+        if(sharingData.active && sharingData.drag){
+            
+            sharingData.files.forEach((file) => {
+                const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
+                if(!isFolder && !sharingFiles.value.includes(item => item.path == file.path)){                            
+                    sharingFiles.value.push(file)
+                }
+            });
+            let folders = draggingFiles.value.filter( obj => obj.record.folder == 1);
+            if(folders.length){
+                    
+                notify('フォルダを送ることができません。')
+            }
+            if(sharingData.text){
+                var el = messageInputArea.value
+                const nl = el.textContent && el.textContent.length ? '\n' : '';
+                el.textContent = el.textContent + nl + sharingData.text      
+                msgSave()
+            }
+            resetSharingData()
+            footerDropLeave();
+        }
+    }
+    const footerDropDropped = (event) => {  
+        footerDropLeave();                
+        if(event.dataTransfer.files){
+            const formData = new FormData()  
+            for(var i in event.dataTransfer.files) {                
+                if(event.dataTransfer.files[i].type !== undefined){
+                    var uniqueId = Math.random().toString(36).substring(5);                            
+                    var source = 'nonimagefile'
+                    if(event.dataTransfer.files[i].type.indexOf('image') > -1){
+                        var source = URL.createObjectURL(event.dataTransfer.files[i]);
+                    }               
+                    const name = event.dataTransfer.files[i].name;
+                    const lastDot = name.lastIndexOf('.');
+                    const fileName = name.substring(0, lastDot);
+                    const extension = name.substring(lastDot + 1);
+                    attachedFiles.value.push({
+                        src: source,
+                        name: event.dataTransfer.files[i].name,
+                        uId: uniqueId,
+                        ext: extension,
+                        file: event.dataTransfer.files[i]
+                    });  
+                    formData.append(i, event.dataTransfer.files[i])
+                }               
+            } 
+            uploadStart(formData)        
+        }   
+        msgSave();       
+    }
+    const removeAttachment = (image) => {  
+        successUploadedFiles.value = successUploadedFiles.value.filter( ob => ob !== image )
+        axios.post('/remove_temp_file', {id: image.id})
+        msgSave();          
+    }
+    const removeSharingFile = (event, image) => {
+        sharingFiles.value = sharingFiles.value.filter( obj => obj !== image)
+        msgSave();   
+    }
+    const enterSend = () => {
+        if(mentionBox.value && mentionBox.value.highlighted > -1){
+            const user = mentionAbleList.value[mentionBox.value.highlighted]
+            mentionBox.value.mentionUser(user, mentionBox.value.highlighted)
+            event.preventDefault()
+        }
+        if(event.altKey){
+            commentSendConfirm(board.value.id)
+        }
+    }
+    const focused = () => {
+        if ("virtualKeyboard" in navigator) {
+            navigator.virtualKeyboard.overlaysContent = true;                    
+        }
+    }
+    const blured = () => {
+        if ("virtualKeyboard" in navigator) {                  
+            navigator.virtualKeyboard.overlaysContent = false;
+            setTimeout(() => {
+                keyboardHeight.value = 0
+            }, 0);                    
+        }
+    }
+
 </script>

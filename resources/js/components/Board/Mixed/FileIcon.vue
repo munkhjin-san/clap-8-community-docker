@@ -39,69 +39,65 @@
     </div>
 </template>
 
-<script>
-    export default {
-        props: ['ext'],
-        data(){
-            return{
-                validExtensions: ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
-                    "doc", "docm", "docx", "dot", "dotx",
-                    "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx",
-                    "pdf",
-                ]
-            }
-        },
-        computed:{
-            polygonFill(){
-                return this.$store.state.dark ? "#dbdbdb" : "none";
-            },
-            squareFill(){
-                return this.$store.state.dark ? this.iconColorFilter : "inherit";
-            },
-            iconColorFilter () {
-                
-                var format = this.validExtensions.indexOf(this.ext);
-                var result;
-                switch (true) {
-                    case (format >= 0 && format <= 9):
-                        result = this.$store.state.dark ? "#263b31" : "none";
-                        break;
-                    case (format >= 10 && format <= 14):
-                        result = this.$store.state.dark ? "#1f445c" : "none";
-                        break;
-                    case (format >= 15 && format <= 23):
-                        result = this.$store.state.dark ? "#582e1f" : "none";
-                        break;
-                    case (format == 24):
-                        result = this.$store.state.dark ? "#701f1f" : "none";
-                        break;
-                    default:
-                        result = '#686868';
-                }
-                return result;
-            },
-            iconColorFilterBorder () {
-                
-                var format = this.validExtensions.indexOf(this.ext);
-                var result;
-                switch (true) {
-                    case (format >= 0 && format <= 9):
-                        result = this.$store.state.dark ? "#686868" : "#1D6F42";
-                        break;
-                    case (format >= 10 && format <= 14):
-                        result = this.$store.state.dark ? "#686868" : "#0078d7";
-                        break;
-                    case (format >= 15 && format <= 23):
-                        result = this.$store.state.dark ? "#686868" : "#d04423";
-                        break;
-                    case (format == 24):
-                        result = this.$store.state.dark ? "#686868" : "#ff0000";
-                        break;
-                    default:
-                        result = this.$store.state.dark ? "#00000065" : "#000000";
-                }
-                return result;
-            },
+<script setup>
+import { computed } from 'vue';
+import { useTheme } from '@/store/theme';
+    const props = defineProps(['ext'])
+    const validExtensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
+        "doc", "docm", "docx", "dot", "dotx",
+        "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx",
+        "pdf",
+    ]
+    const theme = useTheme()
+    const polygonFill = computed(() => {
+        return theme.dark ? "#dbdbdb" : "none";
+    })
+    const squareFill = computed(() => {
+        return theme.dark ? iconColorFilter.value : "inherit";
+    })
+    const iconColorFilter = computed(() => {
+        
+        var format = validExtensions.indexOf(props.ext);
+        var result;
+        switch (true) {
+            case (format >= 0 && format <= 9):
+                result = theme.dark ? "#263b31" : "none";
+                break;
+            case (format >= 10 && format <= 14):
+                result = theme.dark ? "#1f445c" : "none";
+                break;
+            case (format >= 15 && format <= 23):
+                result = theme.dark ? "#582e1f" : "none";
+                break;
+            case (format == 24):
+                result = theme.dark ? "#701f1f" : "none";
+                break;
+            default:
+                result = '#686868';
         }
-    }
+        return result;
+    })
+    const iconColorFilterBorder = computed(() => {
+        
+        var format = validExtensions.indexOf(props.ext);
+        var result;
+        switch (true) {
+            case (format >= 0 && format <= 9):
+                result = theme.dark ? "#686868" : "#1D6F42";
+                break;
+            case (format >= 10 && format <= 14):
+                result = theme.dark ? "#686868" : "#0078d7";
+                break;
+            case (format >= 15 && format <= 23):
+                result = theme.dark ? "#686868" : "#d04423";
+                break;
+            case (format == 24):
+                result = theme.dark ? "#686868" : "#ff0000";
+                break;
+            default:
+                result = theme.dark ? "#00000065" : "#000000";
+        }
+        return result;
+    })
+
 </script>

@@ -8,16 +8,15 @@
             </div>
             <div class="si-box">
                 <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>どのようなフィードバックをもらいましたか。</strong></p>
-                <FormLongText
+                <LongInput
                     v-if="portfolio && portfolio.status == 1"
                     :initialValue="portfolio ? portfolio.positive_feedback : p_feedBack"   
                     :placeHolder="`ポジティブフィードバックの内容`"
                     :key="portfolio ? portfolio.positive_feedback : 0"
                     ref="p_feedbackBody"
-                    uId="recordBody"
                     name="recordBody"
                     label="タイトル"
-                    @setValue="val => p_feedBack = val"
+                    v-model="p_feedBack"
                 />
                 <div v-else>
                     <p>ポジティブフィードバック</p>
@@ -25,16 +24,15 @@
                 </div>
             </div>
             <div class="si-box">
-                <FormLongText
+                <LongInput
                     v-if="portfolio && portfolio.status == 1 "
                     :initialValue="portfolio ? portfolio.negative_feedback : n_feedBack"   
                     :placeHolder="`ネガティブフィードバックの内容`"
                     :key="portfolio.negative_feedback"
                     ref="n_feedbackBody"
-                    uId="recordBody"
                     name="recordBody"
                     label="タイトル"
-                    @setValue="val => n_feedBack = val"
+                    v-model="n_feedBack"
                 />
                 <div v-else>
                     <p>ネガティブフィードバック</p>
@@ -43,16 +41,15 @@
             </div>
             <div class="si-box">
                 <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>フィードバックから得た発見と成長</strong></p>
-                <FormLongText
+                <LongInput
                     v-if="portfolio && portfolio.status == 1 "
                     :initialValue="portfolio ? portfolio.noticed : noticed"   
                     :placeHolder="`発見と成長の内容`"
                     :key="portfolio.noticed"
                     ref="noticedBody"
-                    uId="recordBody"
                     name="recordBody"
                     label="タイトル"
-                    @setValue="val => noticed = val"
+                    v-model="noticed"
                 />
                 <div v-else>
                     <p>{{ portfolio?.noticed }}</p>
@@ -73,8 +70,7 @@
     
 </template>
 <script setup>
-    import axios from 'axios';
-    import FormLongText from '../../Global/FormLongText.vue';
+    import LongInput from '../../Form/LongInput.vue';
     import LoaderButton from '../../Global/LoaderButton.vue';
     import { ref, inject, computed, onBeforeMount, onMounted } from 'vue'
     import { useRoute, useRouter } from 'vue-router';
@@ -92,33 +88,8 @@
     const router = useRouter()
     const lesson = inject('getLessonPortfolios')
     const processing_save = ref(false)
-    const discussionDay = computed(() => {
-        if(props.selectedTopic && props.selectedTopic.discussion_date){
-            const currentDate = new Date();
-            const discussionDate = new Date(props.selectedTopic.discussion_date)
-            return currentDate >= discussionDate
-        }else{
-            return false
-        }
-    })
-    const group_available = computed(() =>{
-        if(props.selectedTopic && props.selectedTopic.lesson_portfolio){
-            if(props.selectedTopic.lesson_portfolio.status < 1){
-                return true
-            }
-            return false
-        }
-        return true
-    })
-    onMounted(() => {
-        // setTimeout(() => {
-        //     console.log(discussionDay.value, group_available.value)
-        //     if(!discussionDay.value || group_available.value){
-        //         errorToast()
-        //     }
-        // }, 500);
-        
-    })
+    const { confirm, notify, info } = inject('dialog')
+   
     const saveContent = async(status) => {
         let portfolioStatus = 1
         if(status == 'next'){
@@ -137,13 +108,7 @@
         }
         axios.post('/save_lesson_portfolio', params).then(response => {
             if(status == 'save'){
-                const data = {
-                    text: props.editTarget ? '編集しました。' :'保存しました。',
-                    channel: Math.random().toString(36).substring(5),
-                    icon: 0,
-                    view: true
-                }
-                emitter.emit('setInfo', data)
+                info(props.editTarget ? '編集しました。' :'保存しました。')
                 setTimeout(() => {
                     processing_save.value = false
                 }, 500);
@@ -151,70 +116,34 @@
             }
             
         }).catch(function (error) {
-            if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast('エラーが発生しました。 ' + error.message)                       
+            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。 ' + error.message)                       
         });
         
     }
     
-    const nextStage = () => {
-
-        const uniqueChannell = Math.random().toString(36).substring(5);
-        const answers = ['OK', 'キャンセル']
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: 'グループディスカッションを完了にしますか。\n※完了後に、編集するができません。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: answers,
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, async (data) => {                            
-            if(data.answer === answers[0]){
-                await saveContent('next')
-                setTimeout(() => {                    
-                    finishDiscussion()
-                    processing_save.value = false
-                }, 1000);
-                // router.go(-1)
-            }
-        })       
+    const nextStage = async() => {
+        const answer = await confirm('グループディスカッションを完了にしますか。\n※完了後に、編集するができません。')
+        if(!answer) return
+        await saveContent('next')
+        setTimeout(() => {                    
+            finishDiscussion()
+            processing_save.value = false
+        }, 1000);      
     }
-    const finishDiscussion = () => {
-        const uniqueChannell = Math.random().toString(36).substring(5);
-        const answers = ['OK']
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: 'グループディスカッションを完了にしまた。\n\nお疲れ様でした。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: answers,
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, () => {    
+    const finishDiscussion = async() => {
+        const options = {
+            answers: [{label: 'OK', value: true}]
+        }
+        const answer = await confirm('グループディスカッションを完了にしまた。\n\nお疲れ様でした。', options)
+        if(answer){
             lesson()                        
             router.push({name: 'top'})
-        })   
-    }
-    const errorToast = (message) => {
-            const uniqueChannell = Math.random().toString(36).substring(5);
-
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                touchClose: false,
-                answers: ['OK'],
-                channel: uniqueChannell
-            })  
         }
+            
+         
+    }
     
 </script>
 <style>

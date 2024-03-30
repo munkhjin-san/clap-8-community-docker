@@ -1,12 +1,11 @@
 <template>
     <div v-if="user" class="post-root" style="background: var(--background-color);color: var(--primary-color);">
         <div v-if="step == 0" style="height: 60px;display: flex; align-items: center;">
-            <HamBurger v-if="$store.state.mobile"/>
-            <div :style="{marginLeft: $store.state.mobile ? '0' : '30px'}">設定</div>
+            <HamBurger v-if="responsive.mobile"/>
+            <div :style="{marginLeft: responsive.mobile ? '0' : '30px'}">設定</div>
         </div>
-        <Form ref="form" v-slot="{ errors }" style="padding: 0 15px;">  
+        <div style="padding: 0 15px;">
             <div id="editModal01" ref="editModal01" @mousedown.stop style="overflow: hidden auto;">
-                
                 <div v-if="step > 0" class="recordFormTitle">    
                     <div @click="step = 0" style="margin: 2px 10px 0 0;cursor: pointer;">
                         <svg class="dot-menu" version="1.1" width="15" height="15" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
@@ -17,43 +16,52 @@
                 </div>  
                 <div v-if="step == 0">  
                     <div >
-                        <div @click="step = 1" class="suggested-wrap p-setting-item" v-html="$t('updatePassword')"></div>
+                        <div @click="step = 1" class="suggested-wrap p-setting-item" v-html="'パスワードの変更'"></div>
                         <div @click="step = 2" class="suggested-wrap p-setting-item" v-html="'カラー設定'"></div>
                         <div @click="step = 3" class="suggested-wrap p-setting-item" v-html="'マイサイン'"></div>
-                        <div v-if="[540, 608 ,516, 604].includes($store.state.user.id)" @click="step = 4" class="suggested-wrap p-setting-item" v-html="'カレンダー設定'"></div>
+                        <div v-if="[540, 608 ,516, 604].includes(auth.activeUser.id)" @click="step = 4" class="suggested-wrap p-setting-item" v-html="'カレンダー設定'"></div>
                         <div @click="step = 5" class="suggested-wrap p-setting-item" v-html="'テーマ設定'"></div>
-                        <div v-if="$store.state.mobile" @click="step = 6" class="suggested-wrap p-setting-item" v-html="'フッターメニュー表示'"></div>
+                        <div v-if="responsive.mobile" @click="step = 6" class="suggested-wrap p-setting-item" v-html="'フッターメニュー表示'"></div>
                         <div @click="logoutConfirm" class="suggested-wrap p-setting-item" v-html="'ログアウト'"></div>
                     </div>
                     
                 </div>
                 <div v-else-if="step==1" class="height100-div">
-                    <div class="pw-reset" style="margin-top: 20px;">
-                        
-                        <div style="position:relative">    
-                            <span class="form-plc smallPlc" style="background-color:var(--background-color);">{{ $t('currentPassword') }}</span>                            
-                            <Field rules="required" @focus="$store.commit('setActiveInput', 'currentPassword')" @blur="$store.commit('setActiveInput', '')" id="currentPassword" autocomplete="off" class="recordText slide-plc" v-model="currentPassword" type="password" name="currentPassword" />   
-                            <span class="form-error">{{ errors.currentPassword }}</span>
-                        </div>  
+                    <div class="pw-reset" style="margin-top: 20px;position: relative;background: var(--background-color);">                                           
+                        <ShortInput 
+                            name="currentPassword" 
+                            placeHolder="現在のパスワード" 
+                            :rules="'required'"
+                            customClass="full"
+                            ref="currentPasswordRef"
+                            type="text"
+                            v-model="currentPassword"
+                        />                    
                     </div> 
-                    <div class="pw-reset">
-                        
-                        <div style="position:relative">      
-                            <span class="form-plc smallPlc" style="background-color:var(--background-color);">{{ $t('newPassword') }}</span>                          
-                            <Field id="newPassword" @focus="$store.commit('setActiveInput', 'newPassword')" @blur="$store.commit('setActiveInput', '')" rules="required|passwordCase|min:8" autocomplete="off" class="recordText slide-plc" v-model="newPassword" type="password" name="newPassword" />   
-                            <span class="form-error">{{ errors.newPassword }}</span>
-                        </div>  
+                    <div class="pw-reset" style="position: relative;background: var(--background-color);">                                           
+                        <ShortInput 
+                            name="newPassword" 
+                            placeHolder="新しいパスワード" 
+                            :rules="'required|min:8'"
+                            customClass="full"
+                            ref="newPasswordRef"
+                            type="password"
+                            v-model="newPassword"
+                        />                    
                     </div> 
-                    <div class="pw-reset">
-                        
-                        <div style="position:relative">       
-                            <span class="form-plc smallPlc" style="background-color:var(--background-color);">{{ $t('newPasswordConfirm') }}</span>                         
-                            <Field id="newPasswordConfirm" @focus="$store.commit('setActiveInput', 'newPasswordConfirm')" @blur="$store.commit('setActiveInput', '')" rules="confirmed:@newPassword" autocomplete="off" class="recordText slide-plc" v-model="newPasswordConfirm" type="password" name="newPasswordConfirm" />   
-                            <span class="form-error">{{ errors.newPasswordConfirm }}</span>
-                        </div>  
+                    <div class="pw-reset" style="position: relative;background: var(--background-color);">                                           
+                        <ShortInput 
+                            name="newPasswordConfirm" 
+                            placeHolder="新しいパスワードの確認" 
+                            :rules="'required|min:8'"
+                            customClass="full"
+                            ref="newPasswordConfirmRef"
+                            type="password"
+                            v-model="newPasswordConfirm"
+                        />                    
                     </div> 
                     <div style="text-align: center;margin-top: auto;margin-bottom: 30px;">
-                        <LoaderButton @triggered="reset" :loading="loader" :content="$t('save')"/>
+                        <LoaderButton @triggered="reset" :loading="loader" :content="'保存'"/>
                     </div>
 
 
@@ -68,7 +76,7 @@
                         
                     </div>
                     <div style="text-align: center;margin-top: 30px;margin-bottom: 30px;">
-                        <LoaderButton @triggered="setSelectedColor" :loading="loader" :content="$t('save')"/>
+                        <LoaderButton @triggered="setSelectedColor" :loading="loader" :content="'保存'"/>
                     </div>
                 </div>
                 <div v-else-if="step==3" style="height:100%;">
@@ -80,7 +88,7 @@
                 <div v-else-if="step==4" style="height:100%;">
                     <div>iCalendar出力</div>
                     <div style="padding: 15px;line-height: 1.5;font-size: 14px;background: var(--bg3);margin: 20px 0;display: flex;flex-wrap: wrap;" v-if="icalUrl.status">
-                        <div ref="icalUrl" style="user-select: all;">{{ icalUrl.url }}</div>
+                        <div ref="icalRef" style="user-select: all;">{{ icalUrl.url }}</div>
                         <button @click.prevent="copyUrl" style="height: fit-content;margin-left: auto;user-select: none;" class="commentEditButton">コピー</button>
                     </div>
                     <LoaderButton content="URL生成" :loading="urlCreating" @triggered="createUrl"/>
@@ -101,271 +109,195 @@
                 </div>
                 <div v-else-if="step == 6">
                     <div style="padding: 10px 0px;display: flex">
-                        <input :checked="$store.state.user.footer_view == 1" @change="footerMenuToggle" class="fish-eye" type="radio" id="theme_0" name="theme" :value="1">
+                        <input :checked="auth.user.footer_view == 1" @change="footerMenuToggle" class="fish-eye" type="radio" id="theme_0" name="theme" :value="1">
                         <label style="margin-left:10px;cursor:pointer" for="theme_0">ON</label>  
                     </div> 
                     <div style="padding: 10px 0px;display: flex;">
-                        <input :checked="$store.state.user.footer_view == 0" @change="footerMenuToggle" class="fish-eye" type="radio" id="theme_1" name="theme" :value="2">
+                        <input :checked="auth.user.footer_view == 0" @change="footerMenuToggle" class="fish-eye" type="radio" id="theme_1" name="theme" :value="2">
                         <label style="margin-left:10px;cursor:pointer" for="theme_1">OFF</label>  
                     </div> 
                 </div>
                 <!-- </Transition>                     -->
             </div>
-        </Form>
+        </div>
+        
     </div>
 </template>
 
-<script>
+<script setup>
 import colors from '../../../assets/colors.json'
 import LoaderButton from '../Global/LoaderButton.vue'
-import { Field, Form  } from 'vee-validate'
+import ShortInput from '../Form/ShortInput.vue'
 import UserSignature from '../Profile/UserEditComps/UserSignature.vue'
 import HamBurger from '../Global/HamBurger.vue'
-    export default {
-        emits: ['close', 'reload'],
-        data(){
-            return{
-                privacySetting:[
-                    { label: this.$t('userPublic'), value: 1, id:"public", info: this.$t('userPublicInfo')},
-                    { label: this.$t('userPrivate'), value: 0, id:"private", info: this.$t('userPrivateInfo')},
-                ],
-                toggleDisabled: false,                
-                privateSetting: this.user && this.user.is_public ? 1 : 0,
-                step: 0,
-                currentPassword: '',
-                newPassword: '',
-                newPasswordConfirm: '',
-                loader: false,
-                avialableColors: colors,
-                qrLock: false,
-                phone_login: '',
-                email_login: '',
-                login_token: '',
-                country_code: '+81',
-                emailMessage: '',
-                phoneMessage: '',
-                verification_code: '',
-                verifyError: '',
-                newCode: '',
-                mailChange: false,
-                chosenColor: 0,
-                urlCreating: false,
-                icalUrl: {
-                    status: false,
-                    url: ''
-                },
-                themeChange: 0,
-                
+import { computed, inject, onMounted, ref } from 'vue'
+import { useAuthUserStore } from '@/store/auth'
+import { useTheme } from '@/store/theme'
+import { useResponsive } from '@/store/responsive'
+    const auth = useAuthUserStore()
+    const responsive = useResponsive()
+    const theme = useTheme()
+    const emit = defineEmits(['close', 'reload'])
+    const { confirm, info, notify } = inject('dialog')
+    const step = ref(0)
+    const currentPassword = ref('')
+    const newPassword = ref('')
+    const newPasswordConfirm = ref('')
+    const loader = ref(false)
+    const avialableColors = colors
+    const chosenColor = ref(0)
+    const urlCreating = ref(false)
+    const icalUrl = ref({
+        status: false,
+        url: ''
+    })
+    const icalRef = ref(null)
+    const form = ref(null)
+    const themeChange = ref(0)
+    const editModal01 = ref(null)
+    const currentPasswordRef = ref(null)
+    const newPasswordConfirmRef = ref(null)
+    const newPasswordRef = ref(null)
+    onMounted(() => {
+        if(auth.user && auth.user.ical_key){
+            icalUrl.value = {
+                status: true,
+                url: `${window.location.origin}/export_ical?id=${auth.id}&token=${auth.user.ical_key}`
             }
-        },
-       
-        mounted(){
-            if(this.$store.state.user && this.$store.state.user.ical_key){
-                this.icalUrl = {
-                    status: true,
-                    url: `${this.$store.state.baseLocation}/export_ical?id=${this.$store.state.user.id}&token=${this.$store.state.user.ical_key}`
-                }
-            }
-            this.chosenColor = this.user ? this.user.color : (this.avialableColors ? this.avialableColors[0].id : '')
-        },
-        computed:{
-            dark: {
-                get () {
-                    this.themeChange
-                    const customTheme = localStorage.getItem('dark')
-                    if(customTheme == 0 || customTheme == '0' || !customTheme){
-                        return 0
-                    }else {
-                        return parseInt(customTheme)                    
-                    }
-                },
-                set (value) {
-                    
-                    if(value == 0){
-                        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                            this.$store.commit('setDark', true)
-                        } else {
-                            this.$store.commit('setDark', false)
-                        }
-                    }else{
-                        const newVal = value == 1 ? true : false
-                        this.$store.commit('setDark', newVal)
-                    }
-                    localStorage.setItem('dark', value)
-                    this.themeChange ++
-                }
-            },
-            user(){
-                return this.$store.state.user
-            },
-            isColor(){
-                return this.avialableColors ? this.avialableColors.find(ob => ob.id == this.chosenColor) : ''
-            },
-            settingTitle(){
-                const titles = ['パスワードの変更', 'カラー設定', 'マイサイン', 'カレンダー設定', 'テーマ設定', 'フッターメニュー表示']
-                return titles[this.step - 1]
-                
-            },
-        },
-        components:{
-            LoaderButton,
-            Field,
-            Form,
-            UserSignature,
-            HamBurger
-        },
-        methods:{
-            updateSignature(){
-                const data = {
-                        text: '保存しました。',
-                        channel: Math.random().toString(36).substring(5),
-                        icon: 0,
-                        view: true
-                    }
-                    emitter.emit('setInfo', data)
-                    this.updateUser()
-                    this.step = 0
-            },
-            updateUser(){
-                axios.post('/profile_get_update_user', {id: this.$store.state.user.id}).then(               
-                response => {
-                    if(response.data && Object.hasOwn(response.data, 'id')){                        
-                        this.$store.commit('setUser', response.data);                          
-                    }                    
-
-                })
-            },
-            logoutConfirm(){
-                var uniqueChannell = Math.random().toString(36).substring(5);   
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: 'ログアウトしますか。',
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: [this.$t('confirmToAction'),this.$t('cancelToAction')],
-                    channel: uniqueChannell
-
-                })            
-                emitter.on(uniqueChannell, (data) => { data.answer === this.$t('confirmToAction') ? this.logout(): false});
-            },
-            logout(){
-                document.getElementById('logout-form').submit();
-            },
-            footerMenuToggle(){                
-                const v = event.target.value == 1 ? true : false
-                this.$store.commit('setFooterView', v)
-                axios.patch('set_footer_view', {value:v})
-            },
-            errorToast(message){
-                emitter.emit('setToast', {
-                    active: true,  
-                    type: 'info', 
-                    content: message,
-                    closeButton: false, 
-                    autoClose: false,
-                    answers: ['OK']
-
-                })   
-            },
-            copyUrl(){
-                const selectedText = this.$refs.icalUrl ? this.$refs.icalUrl.textContent : ''
-                if(!selectedText){
-                    this.errorToast('コピーに失敗しました。')
-                }
-                navigator.clipboard.writeText(selectedText)
-                
-                .then(() => {
-                    const data = {
-                        text: 'コピーしました。',
-                        channel: Math.random().toString(36).substring(5),
-                        icon: 0,
-                        view: true
-                    }
-                    emitter.emit('setInfo', data)
-                })
-                .catch((error) => {
-                    console.error('Unable to copy text to clipboard:', error);
-                    
-                });
-            },
-            createUrl(){
-                axios.get('/ical_url_generate').then(response => {
-                    if(response.data.success){
-                        this.icalUrl.url = response.data.url
-                    }
-                                
-                }).catch(function (error) { 
-                    console.log(error)               
-                    if (error.response) this.errorToast(this.$t(error.response.data.message))
-                    else if (error.request) this.errorToast(this.$t('commonError'))
-                    else this.errorToast(this.$t(error.message))   
-                }.bind(this));
-            },
-            chooseColor(color){
-                this.chosenColor = color.id
-            },
+        }
+        chosenColor.value = user.value ? user.value.color : (avialableColors ? avialableColors[0].id : '')
+    })
             
-            async reset(){
-                const result = await this.$refs.form.validate();
-                if(!result.valid) {
-                    return
-                }
-                const d = {
-                    current: this.currentPassword,
-                    password: this.newPassword,
-                    password_confirmation: this.newPasswordConfirm
-                }
-                axios.post('/user_pass_change_api', d).then(response => {
-                    // this.errorToast(this.$t(response.data.message))   
-                    console.log(response.status)
-                    if(response.status == 200){
-                        this.step = 0
-                        this.currentPassword = this.newPassword = this.newPasswordConfirm =  ''
-                        const data = {
-                            text: '変更しました。',
-                            channel: Math.random().toString(36).substring(5),
-                            icon: 0,
-                            view: true
-                        }
-                        emitter.emit('setInfo', data) 
-                        
-                    }
-                                
-                }).catch(function (error) { 
-                    console.log(error)               
-                    if (error.response) this.errorToast(this.$t(error.response.data.message))
-                    else if (error.request) this.errorToast(this.$t('commonError'))
-                    else this.errorToast(this.$t(error.message))   
-                }.bind(this));
-            },
-            closeModal(){
-                if (!this.$refs.editModal01.contains(event.target)) {
-                    this.$emit('close')
-                }
-            },
-            setSelectedColor(){
-                if(this.loader) return
-                this.loader = true
-                axios.post('/profile_set_color', {value: this.chosenColor}).then(response => { 
-                    this.loader = false
-                    this.step = 0     
-                    this.$emit('reload')   
-                    const data = {
-                        text: '保存しました。',
-                        channel: Math.random().toString(36).substring(5),
-                        icon: 0,
-                        view: true
-                    }
-                    emitter.emit('setInfo', data) 
-                    this.updateUser()
-                }).catch(function (error) {                
-                    if (error.response) this.errorToast(this.$t('commonError') + error.response.data.message)
-                    else if (error.request) this.errorToast(this.$t('commonError'))
-                    else this.errorToast(this.$t('commonError') + error.message)   
-                    this.loader = false
-                }.bind(this));
+    
+    const dark = computed({
+      get() {
+        themeChange.value; 
+        const customTheme = localStorage.getItem('dark');
+        if (customTheme == 0 || customTheme == '0' || !customTheme) {
+          return 0;
+        } else {
+          return parseInt(customTheme);
+        }
+      },
+      set(value) {
+        if (value == 0) {
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            theme.setDark(true)
+          } else {
+            theme.setDark(false)
+          }
+        } else {
+          const newVal = value == 1 ? true : false;
+          theme.setDark(newVal)
+        }
+        localStorage.setItem('dark', value);
+        themeChange.value++;
+      },
+    })
+    const user = computed(() => {
+        return auth.user
+    })
+    const isColor = computed(() => {
+        return avialableColors ? avialableColors.find(ob => ob.id == chosenColor.value) : ''
+    })
+    const settingTitle = computed(() => {
+        const titles = ['パスワードの変更', 'カラー設定', 'マイサイン', 'カレンダー設定', 'テーマ設定', 'フッターメニュー表示']
+        return titles[step.value - 1]
+        
+    })
+        
+    const updateSignature = () => {
+        info('保存しました。')
+        updateUser()
+        step.value = 0
+    }
+    const updateUser = async() => {
+        try{
+            const response = await axios.post('/profile_get_update_user', {id: auth.id})
+            if(response.data && Object.hasOwn(response.data, 'id')){  
+                auth.setUser(response.data)                       
             }
+        }catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    const logoutConfirm = async() => {
+        const answer = await confirm('ログアウトしますか。')
+        if(!answer) return
+        logout()
+    }
+    const logout = () => {
+        document.getElementById('logout-form').submit();
+    }
+    const footerMenuToggle = () => {                
+        const v = event.target.value == 1 ? true : false
+        auth.setFooterView(v)
+        axios.patch('set_footer_view', {value:v})
+    }
+    const copyUrl = () => {
+        const selectedText = icalRef.value ? icalRef.value.textContent : ''
+        if(!selectedText){
+            notify('コピーに失敗しました。')
+        }
+        navigator.clipboard.writeText(selectedText)
+        
+        .then(() => {
+            info('コピーしました。')
+        })
+        .catch((error) => {
+            notify('テキストをクリップボードにコピーできません:', error)
+        });
+    }
+    const createUrl = async() => {
+        try{
+            const response = await axios.get('/ical_url_generate')
+            if(response.data.success){
+                icalUrl.value.url = response.data.url
+            }
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    const chooseColor = (color) => {
+        chosenColor.value = color.id
+    }
+            
+    const reset = async() => {
+        const targets = [newPasswordRef.value, newPasswordConfirmRef.value, currentPasswordRef.value]
+        let result = true
+        for(const target of targets){            
+            const val = await target?.validate() || false
+            result = result * val.valid
+        }
+        if (!result) return
+        const params = {
+            current: currentPassword.value,
+            password: newPassword.value,
+            password_confirmation: newPasswordConfirm.value
+        }
+        try{
+            const response = await axios.post('/user_pass_change_api', params)
+            if(response.status == 200){
+                step.value = 0
+                currentPassword.value = newPassword.value = newPasswordConfirm.value =  ''
+                info('変更しました。') 
+            }
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
+    const setSelectedColor = async() => {
+        if(loader.value) return
+        loader.value = true
+        try{
+            await axios.post('/profile_set_color', {value: chosenColor.value})
+            loader.value = false
+            step.value = 0     
+            emit('reload')
+            info('保存しました。')   
+            updateUser()
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
     }
 </script> 

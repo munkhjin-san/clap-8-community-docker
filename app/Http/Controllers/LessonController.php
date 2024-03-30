@@ -6,7 +6,6 @@ use Illuminate\Http\Request;
 use App\Models\LessonMaterial;
 use App\Models\LessonPortfolio;
 use App\Models\LessonTheme;
-use App\Models\User;
 use App\Models\LessonForm;
 use App\Models\LessonSection;
 use Illuminate\Support\Facades\Auth;
@@ -155,7 +154,14 @@ class LessonController extends Controller
         return response()->json($lesson_portfolio);
     }
     public function get_portfolios_list(Request $request){
-        $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $request->theme_id)->with('user')->with('lesson_sections')->get();
+        $theme_id = $request->theme_id;
+        $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $theme_id)
+        ->with('user')
+        ->with('lesson_sections')
+        ->with(['lesson_form' => function($q) use($theme_id){
+            $q->where('lesson_theme_id', $theme_id);
+        }])
+        ->get();
 
         return response()->json($lesson_portfolio);
     }

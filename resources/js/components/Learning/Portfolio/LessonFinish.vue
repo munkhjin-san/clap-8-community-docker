@@ -12,7 +12,7 @@
                 <strong>【{{ selectedTopic ? selectedTopic.title : ''}}】</strong>研修は完了しました。<br>
                     お疲れ様でした。</p>
                 <div class="si-box">
-                    <LoaderButton @triggered="$router.push({name: 'learning'})" content="ホーム画面へ戻る"/>
+                    <LoaderButton @triggered="router.push({name: 'learning'})" content="ホーム画面へ戻る"/>
                 </div>
             </div>
             
@@ -27,6 +27,7 @@
     import { inject, onBeforeMount } from 'vue';
     const router = useRouter()
     const portfolio = inject('portfolio')
+    const { confirm } = inject('dialog')
     onBeforeMount(() => {
         setTimeout(() => {
             if(portfolio && portfolio.status < 2){
@@ -34,23 +35,13 @@
             }
         }, 500)
     })
-    const backToast = () => {
-        const uniqueChannell = Math.random().toString(36).substring(5);
-
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: 'グループディスカッションを完了してください。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: ['戻る'],
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, (data) => {                            
-            if(data.answer === '戻る'){
-                router.go(-1)
-            }
-        })
+    const backToast = async() => {
+        const options = {
+            answers: [{label: '戻る', value: true}]
+        }
+        const answer = await confirm('グループディスカッションを完了してください。', options)
+        if(answer){
+            router.go(-1)
+        }
     }
 </script>

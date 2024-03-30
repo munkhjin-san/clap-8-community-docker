@@ -21,12 +21,8 @@
         </div>
     </div>
 </template>
-<script>
+<script setup>
 import UserIcon from '../Board/Mixed/UserIcon.vue';
-export default{
-    props: ['member'],
-    components: {
-        UserIcon
-    }
-}
+const props = defineProps(['member'])
+    
 </script>

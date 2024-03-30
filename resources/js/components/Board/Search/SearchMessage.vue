@@ -22,31 +22,14 @@
                 autocomplete="off" 
                 autocorrect="off" 
                 autocapitalize="off" 
-                :placeholder="$t('searchWordForMessage')" 
+                placeholder="キーワードを入力してください" 
                 type="search"
             />
-            <!-- <button @click="getMessageSearch(keyword, -1)" class="l-button" style="position:relative;width:100px;min-width:100px;height:33px;white-space: nowrap;">
-                <span v-if="!searchMiniLoader">{{$t('search')}}</span>
-                <div v-if="searchMiniLoader" id="loaderMicro" style="margin-top:0;">
-                    <div class="spinner-micro" style="width: 15px;height: 15px;border: 4px #ffffff solid;border-top: 4px #000 solid;"></div>
-                </div>
-            </button> -->
-            <LoaderButton :loading="searchMiniLoader" :content="$t('search')" @triggered="getMessageSearch(keyword, -1)"/>
-<!-- 
-            <Transition name="searchWindowToggle">
-            <div id="historyWrapWindow" v-if="isFocusing" style="position: absolute;top: 32px;width: calc(100% - 140px);z-index: 5;">
-                <SearchHistory 
-                    @setKeyWordFromHistory="setKeyWordFromHistory"
-                    v-if="searchHistory.length" 
-                    :allHistoryData="searchHistory"
-                    :selected="selectedHistory"
-                />
-            </div>
-            </Transition> -->
+            <LoaderButton :loading="searchMiniLoader" content="検索" @triggered="getMessageSearch(keyword, -1)"/>
         </div>
         <div v-if="!targetedSearch && allResult.length" style="display:flex;margin-bottom:15px;font-size:14px;padding: 0 20px;gap:15px">
-            <button :class="{editActive : resultGroupBy == 'all'}" @click="resultGroupBy = 'all'" class="s-button">{{$t('byMessage')}} <span style="margin-left:5px" v-if="messageResult && messageResult.total "> ({{messageResult.total }})</span></button>
-            <button :class="{editActive : resultGroupBy == 'board'}" @click="groupByBoard" class="s-button">{{$t('byChat')}} <span style="margin-left:5px" v-if="viewBoardList && viewBoardList.length"> ({{viewBoardList.length}})</span></button>
+            <button :class="{editActive : resultGroupBy == 'all'}" @click="resultGroupBy = 'all'" class="s-button">メッセージ別 <span style="margin-left:5px" v-if="messageResult && messageResult.total "> ({{messageResult.total }})</span></button>
+            <button :class="{editActive : resultGroupBy == 'board'}" @click="groupByBoard" class="s-button">ボード別 <span style="margin-left:5px" v-if="viewBoardList && viewBoardList.length"> ({{viewBoardList.length}})</span></button>
             
         </div>
         <div v-if="targetedSearch" style="padding: 0 20px;margin-bottom: 15px;">
@@ -63,10 +46,9 @@
         </div>
   
         <div style="height: -webkit-fill-available;overflow: hidden auto;font-size:13px;padding: 0 20px;" v-if="allResult.length && !searchLoader && !searchMiniLoader && resultGroupBy == 'all'">
-            <div @click="$emit('jumpToMessage', message)"  style="padding:10px;margin-bottom:10px; border:solid thin var(--normalBorder);position:relative;cursor:pointer" :key="message.id" v-for="message in allResult">
+            <div @click="emit('jumpToMessage', message)"  style="padding:10px;margin-bottom:10px; border:solid thin var(--normalBorder);position:relative;cursor:pointer" :key="message.id" v-for="message in allResult">
                 <div v-if="message.user" style="display:flex;align-items:center;margin-bottom:10px;">
                     <div style="display:flex;align-items:center">
-                        <!-- <UserIconPreLoad size="25" :user="message.user" imgClass="userMidIcon"/>  -->
                         <div v-if="message.user.deleted_at == null" class="column-01 cursor-pointer">                        
                             <UserIconPreLoad size="30" :user="message.user" imgClass="userNormalIcon"/>                       
                         </div>   
@@ -81,10 +63,10 @@
                         <p class="dateText" style="font-size:12px;color:grey">{{ momentMessage(message.created_at) }}</p>
                     </div>
                 </div>
-                <div style="white-space: break-spaces;line-height: 1.4;word-break" v-html="searchMessageBody(message.message_text)"></div>                
+                <div style="white-space: break-spaces;line-height: 1.4;" v-html="searchMessageBody(message.message_text)"></div>                
             </div>
         </div>
-        <div style="width:100%height: -webkit-fill-available;overflow: hidden auto;font-size:13px;padding: 0 20px;" v-if="messageResult.data.length && !searchLoader && !searchMiniLoader && resultGroupBy == 'board'">
+        <div style="width:100%; height: -webkit-fill-available;overflow: hidden auto;font-size:13px;padding: 0 20px;" v-if="messageResult.data.length && !searchLoader && !searchMiniLoader && resultGroupBy == 'board'">
             <div :key="board.id" class="srgByBoard" v-for="board in viewBoardList">
                 <div @click="searchInTarget(board)" style="display:flex;align-items:center;cursor:pointer;padding:10px">
                     
@@ -98,7 +80,7 @@
                    
             </div>
         </div>
-        <div style="margin: auto;font-size: 13px;" v-if="!allResult.length && !searchLoader && !searchMiniLoader && fetched">{{ $t('noMessagesFound') }}</div>
+        <div style="margin: auto;font-size: 13px;" v-if="!allResult.length && !searchLoader && !searchMiniLoader && fetched">メッセージが見つかりませんでした</div>
         <div style="margin-top: auto;padding-top: 15px;">
             <PostSearchPager 
                 v-if="messageResult.totalPage && resultGroupBy == 'all'" 
@@ -112,353 +94,282 @@
 </div>
 </template>
 
-<script>
+<script setup>
 import moment from 'moment'
 import Autolinker from 'autolinker';
 import UserIconPreLoad from '../Mixed/UserIcon.vue'
 import BoardTitlePreLoad from '../Mixed/BoardTitle.vue'
 import BoardIconPreLoad from '../Mixed/BoardIcon.vue'
-// import SearchHistory from '../../Post/SearchHistory.vue'
 import PostSearchPager from '../../Post/PostSearchPager.vue'
 
 import LoaderButton from '../../Global/LoaderButton.vue';
-    export default {
-        props: [
-            // 'messageResult',
-            'advancedSearchWord',
-            // 'searchMiniLoader',
-            // 'searchLoader',
-            'filteredAllBoard',
-            'privateSearch'
-        ],
-        data(){
-            return{
-                keyword: '',
-                resultGroupBy: 'all',
-                searchResultGroupBy: [],
-                resultSortDateReverse: false,
-                accordianBoardId: [],
-                searchHistory: [],
-                isFocusing: false,
-                selectedHistory: -1,
-                searchLoader: false,
-                searchMiniLoader: false,
-                messageResult: {
-                    data: [],
-                    total: 0,
-                    currentPage: 1,
-                    totalPage: 0,
-                    board_list: []
-                },
-                targetedSearch: false,
-                targetBoards: [],
-                fetched: false
+import { computed, inject, onMounted, watch, ref } from 'vue';
+import { useAuthUserStore } from '@/store/auth'
+    const auth = useAuthUserStore()
+
+    const props = defineProps([
+        'advancedSearchWord',
+        'filteredAllBoard',
+        'privateSearch'
+    ])
+    const emit = defineEmits(['closeMessageSearch', 'jumpToMessage'])
+
+    const keyword = ref('')
+    const resultGroupBy = ref('all')
+    const searchResultGroupBy = ref([])
+    const resultSortDateReverse = ref(false)
+    const searchHistory = ref([])
+    const isFocusing = ref(false)
+    const selectedHistory = ref(-1)
+    const searchLoader = ref(false)
+    const searchMiniLoader = ref(false)
+    const messageResult = ref({
+        data: [],
+        total: 0,
+        currentPage: 1,
+        totalPage: 0,
+        board_list: []
+    })
+    const targetedSearch = ref(false)
+    const targetBoards = ref([])
+    const fetched = ref(false)
+    const board = inject('openedBoard')
+
+  
+    const searchTitle = computed(() => {       
+        return board.value ? `<strong style="text-overflow: ellipsis;overflow: hidden;white-space: nowrap;">${boardTitle.value}</strong>ボード内で検索`: 'すべてのボードで検索'                
+    })
+    const boardTitle = computed(() => {       
+        if(!board.value) return ''     
+        if(board.value.private_flag == 1 && board.value.board_to_users.length == 2){
+            var coresspondId = board.value.board_to_users.filter(obj => obj.user_id !== auth.activeUser.id);
+            if(coresspondId && coresspondId.length && coresspondId[0].user){
+                return coresspondId[0].user.name;
+            }else{
+                return '非アクティブユーザー'
             }
-        },
-        components:{
-            UserIconPreLoad,
-            // SearchHistory,
-            PostSearchPager,
-            BoardIconPreLoad,
-            BoardTitlePreLoad,
-            LoaderButton
-        },
-        computed: {       
-            searchTitle(){       
-                return this.$store.state.activeBoard ? `<strong style="text-overflow: ellipsis;overflow: hidden;white-space: nowrap;">${this.boardTitle}</strong>ボード内で検索`: 'すべてのボードで検索'                
-            },  
-            boardTitle(){       
-                if(!this.$store.state.activeBoard) return ''     
-                if(this.$store.state.activeBoard.private_flag == 1 && this.$store.state.activeBoard.board_to_users.length == 2){
-                    var coresspondId = this.$store.state.activeBoard.board_to_users.filter(obj => obj.user_id !== this.$store.state.user.id);
-                    if(coresspondId && coresspondId.length && coresspondId[0].user){
-                        return coresspondId[0].user.name;
-                    }else{
-                        return this.$t('unAvailableUserName')
-                    }
-                }else{
-                    return this.$store.state.activeBoard.title;
-                }           
-            },    
-            viewBoardList(){
-                return this.messageResult.board_list
-                
-            },
-            possiblePage(){
-                return this.messageResult.totalPage
-            },
-            allResult(){                
-                let list = [];
-                const fetched_list = this.messageResult && this.messageResult.data ? this.messageResult.data : []
-                fetched_list.forEach( (item) => {
-                    list.push(item)
-                });
-                return list
-                // if(this.resultSortDateReverse){
-                //     return fetched_listh.sort((a,b) => (a.created_at > b.created_at) ? 1 : ((b.created_at > a.created_at) ? -1 : 0))                    
-                // }else{
-                //     return  fetched_listh.sort((a,b) => (a.created_at < b.created_at) ? 1 : ((b.created_at < a.created_at) ? -1 : 0))                    
-                // }
-            },
-            
+        }else{
+            return board.value.title;
+        }           
+    })    
+    const viewBoardList = computed(() =>{
+        return messageResult.value.board_list
+        
+    })
+    const possiblePage = computed(() =>{
+        return messageResult.value.totalPage
+    })
+    const allResult = computed(() => {                
+        let list = [];
+        const fetched_list = messageResult.value && messageResult.value.data ? messageResult.value.data : []
+        fetched_list.forEach( (item) => {
+            list.push(item)
+        });
+        return list
+    })
+    
 
-        },
-        watch: {
-            resultSortDateReverse(after, before){
-                if(after){                    
-                    this.searchResultGroupBy.forEach((board, index) => {
-                        board.messages.sort((a,b) => (a.created_at > b.created_at) ? 1 : ((b.created_at > a.created_at) ? -1 : 0))
-                    });                    
-                }else{                    
-                    this.searchResultGroupBy.forEach((board, index) => {
-                        board.messages.sort((a,b) => (a.created_at < b.created_at) ? 1 : ((b.created_at < a.created_at) ? -1 : 0))
-                    });
-                }
-            },
-        },
-        mounted() {
-            if(!this.privateSearch){
-                this.keyword = this.advancedSearchWord
+        
+    watch(() => resultSortDateReverse, (after) => {
+        if(after){                    
+            searchResultGroupBy.value.forEach((board, index) => {
+                board.messages.sort((a,b) => (a.created_at > b.created_at) ? 1 : ((b.created_at > a.created_at) ? -1 : 0))
+            });                    
+        }else{                    
+            searchResultGroupBy.value.forEach((board, index) => {
+                board.messages.sort((a,b) => (a.created_at < b.created_at) ? 1 : ((b.created_at < a.created_at) ? -1 : 0))
+            });
+        }
+    })
+    
+    onMounted(() => {
+        if(!props.privateSearch){
+            keyword.value = props.advancedSearchWord
+        }
+        // targetedSearch.value = props.privateSearch
+        targetedSearch.value = board.value ? true : false
+        setTimeout(() =>{
+            document.getElementById('advancedSearchInput').value = props.advancedSearchWord;
+        },0)
+        getMessageSearch(keyword.value)
+        window.addEventListener('click', onClickSearch);
+        window.addEventListener('touchstart', onClickSearch);
+        
+    })
+ 
+    const messageUserName = (message) => {                
+        return message.user.deleted_at == null ? message.user.name : '非アクティブユーザー'
+    }
+    const boardItem = (id) => {
+        return props.filteredAllBoard && props.filteredAllBoard.filter(ob => ob.id == id).length ? props.filteredAllBoard.filter(ob => ob.id == id)[0] : null
+    }
+    const getMessageSearch = (key, val, val2) => {
+        if(searchLoader.value || searchMiniLoader.value || !key) return
+        
+            searchLoader.value = true
+        
+            searchMiniLoader.value = true
+            const record_id = targetBoards.value.length ? targetBoards.value[0].id : board.value ? board.value.id : null
+        if(val == -1){
+            const reset = {
+                data: [],
+                total: 0,
+                currentPage: 1,
+                totalPage: 0
             }
-            // this.targetedSearch = this.privateSearch
-            this.targetedSearch = this.$store.state.activeBoard ? true : false
-            setTimeout(() =>{
-                document.getElementById('advancedSearchInput').value = this.advancedSearchWord;
-            },0)
-            this.getMessageSearch(this.keyword)
-            window.addEventListener('click', this.onClickSearch);
-            window.addEventListener('touchstart', this.onClickSearch);
-            
-        },
-        methods:{    
-            messageUserName(message){                
-                return message.user.deleted_at == null
-                ? message.user.name
-                : this.$t('unAvailableUserName');
-            },
-            boardItem(id){
-                return this.filteredAllBoard && this.filteredAllBoard.filter(ob => ob.id == id).length ? this.filteredAllBoard.filter(ob => ob.id == id)[0] : null
-            },
-            getMessageSearch(key, val, val2){
-                if(this.searchLoader || this.searchMiniLoader || !key) return
-                
-                    this.searchLoader = true
-                
-                    this.searchMiniLoader = true
-                    const record_id = this.targetBoards.length ? this.targetBoards[0].id : this.$store.state.activeBoard ? this.$store.state.activeBoard.id : null
-                this.$store.commit('setKeyword', key)
-                if(val == -1){
-                    const reset = {
-                        data: [],
-                        total: 0,
-                        currentPage: 1,
-                        totalPage: 0
-                    }
-                    this.messageResult = reset
-                }
-                axios.post('/message_search',{
-                    keyword: key,
-                    private_flag: this.targetedSearch,
-                    record_id: record_id,
-                    index: this.messageResult.currentPage
-                }).then(response => {  
-                    setTimeout(() => {
-                        
-                        // if(this.resultSortDateReverse){
-                        //     response.data.sort((a,b) => (a.created_at > b.created_at) ? 1 : ((b.created_at > a.created_at) ? -1 : 0))
-                        // }else{
-                        //     response.data.sort((a,b) => (a.created_at < b.created_at) ? 1 : ((b.created_at < a.created_at) ? -1 : 0))                        
-                        // }
-                        this.messageResult = response.data
-                        this.searchLoader = false;
-                        this.searchMiniLoader = false;  
-                        this.selectedHistory = -1;
-                        if(val2){
-                            this.groupByBoard()
-                        } 
-                        this.fetched = true
-                    }, 0)              
-            
-                }).catch(function (error) {                
-                                            
-                }.bind(this));
-            },
-            setActivePage(page){
-                this.messageResult.currentPage = page
-                this.getMessageSearch(this.keyword)
-            }, 
-            // closeMessageSearch(){
-                
-            //     this.messageResult = data
-            // },
-
-            setNavi(val){
-                this.messageResult.currentPage = this.messageResult.currentPage + val
-                this.getMessageSearch(this.keyword)
-            },
-            searchFocus(){
-                this.isFocusing = true
-                // this.getSearchHistory()
-            },
-            triggerSearch(){
-                event.preventDefault()
-                if(this.isFocusing && this.selectedHistory !== -1){
-                    let input = document.getElementById('advancedSearchInput')
-                    input.value = this.searchHistory[this.selectedHistory].content
-                    this.keyword = this.searchHistory[this.selectedHistory].content
-                    input.blur()
-                    this.getMessageSearch(this.keyword, -1)
-                    this.isFocusing = false
-                }else{
-                    
-                    let input = document.getElementById('advancedSearchInput')
-                    this.keyword = input.value
-                    input.blur()
-                    this.getMessageSearch(this.keyword, -1)
-                    this.isFocusing = false
-
-                }
-            },
-            onClickSearch(){
-                const el = document.getElementById('historyWrapWindow')
-                const input = document.getElementById('advancedSearchInput')
-                if(el && input && !el.contains(event.target) && !input.contains(event.target) && this.isFocusing){
-                    this.isFocusing = false
-                }
-
-            }, 
-            setSelected(){
-                if(event.which === 27){
-                    this.isFocusing = false;
-                    this.selectedHistory = -1;
-                    document.getElementById('advancedSearchInput').value = '';
-                    document.getElementById('advancedSearchInput').blur();
-                    this.keyword = '',
-                    this.searchHistory = []
-                    return
+            messageResult.value = reset
+        }
+        axios.post('/message_search',{
+            keyword: key,
+            private_flag: targetedSearch.value,
+            record_id: record_id,
+            index: messageResult.value.currentPage
+        }).then(response => {  
+            setTimeout(() => {
+                messageResult.value = response.data
+                searchLoader.value = false;
+                searchMiniLoader.value = false;  
+                selectedHistory.value = -1;
+                if(val2){
+                    groupByBoard()
                 } 
-                if(event.which === 38 || event.which === 40){
-                    event.preventDefault()
-                    
-                    if(this.isFocusing && this.searchHistory.length){
-                        if(event.which === 38){
-                            this.selectedHistory = this.selectedHistory <= 0 ? this.searchHistory.length - 1 : this.selectedHistory - 1                     
-                        }
-                        if(event.which === 40){//dooshoo                        
-                            this.selectedHistory = this.selectedHistory == this.searchHistory.length - 1 ? 0 : this.selectedHistory + 1                                                     
-                        } 
-                    }
-                    
-                }
-            },
-            setKeyWord(){
-                
-                if(event.which === 38 || event.which === 40 || event.which === 13){
-                    event.preventDefault()
-                    
-                    return
-                    
-                }
-                else{
-                    this.keyword = event.currentTarget.value
-                    this.autoFillDebounce()
-                }
-                
-            },
-            autoFillDebounce(val) {
-                // if (this.timeout) clearTimeout(this.timeout)
-                // this.timeout = setTimeout(() => {
-                //     this.getSearchHistory()
-                // }, 300)
-            },
-            setKeyWordFromHistory(val){
-                const input = document.getElementById('advancedSearchInput')
-                input.value = val
-                input.blur()
-                this.keyword = val
-                this.isFocusing = false
-                this.getMessageSearch(this.keyword, -1)
-            },
-            // getSearchHistory(){
-            //     const inputSearch = document.getElementById('advancedSearchInput')
-            //     const text = inputSearch.value
-            //     axios.post('post/get_history', {key: text}).then(response => {       
-            //         this.searchHistory = response.data
-            //         this.selectedHistory = -1
-            //     }).catch(function (error) {
+                fetched.value = true
+            }, 0)              
+    
+        })
+    }
+    const setActivePage = (page) => {
+        messageResult.value.currentPage = page
+        getMessageSearch(keyword.value)
+    }
+    const setNavi = (val) => {
+        messageResult.value.currentPage = messageResult.value.currentPage + val
+        getMessageSearch(keyword.value)
+    }
+    const searchFocus = () => {
+        isFocusing.value = true
+    }
+    const triggerSearch = () =>{
+        event.preventDefault()
+        if(isFocusing.value && selectedHistory.value !== -1){
+            let input = document.getElementById('advancedSearchInput')
+            input.value = searchHistory.value[selectedHistory.value].content
+            keyword.value = searchHistory.value[selectedHistory.value].content
+            input.blur()
+            getMessageSearch(keyword.value, -1)
+            isFocusing.value = false
+        }else{
+            
+            let input = document.getElementById('advancedSearchInput')
+            keyword.value = input.value
+            input.blur()
+            getMessageSearch(keyword.value, -1)
+            isFocusing.value = false
 
-            //     }.bind(this)).then(() => {
-                    
-            //     });
-            // },     
-            resetTargetSearch(){
-                this.targetBoards = [];
-                this.targetedSearch = false
-                this.resultGroupBy = 'all'
-                this.getMessageSearch(this.keyword, -1, true)
-
-            },   
-            searchInTarget(board){
-                this.targetBoards = [];
-                this.targetBoards.push(board)
-                this.targetedSearch = true
-                this.getMessageSearch(this.keyword, -1)
-                this.resultGroupBy = 'all'
-                // if(!this.accordianBoardId.includes(id)) {
-                //     this.accordianBoardId.push(id);  
-                //     let inner = event.currentTarget.nextElementSibling.clientHeight  
-                //     event.currentTarget.parentNode.style.maxHeight = inner + 70 + 'px'
-                // }           
-                // else{
-                //     this.accordianBoardId.splice(this.accordianBoardId.indexOf(id), 1); 
-                //     event.currentTarget.parentNode.style.maxHeight = '50px'
-                // } 
-            },
-            momentMessage (date) {
-                moment.locale('ja');  
-                
-                return moment(date).isSame(moment(), 'day') ? 
-                moment(date).format('HH:mm') : 
-                moment(date).isSame(moment(), 'year') ? 
-                moment(date).format('M / D (dd) HH:mm') : 
-                moment(date).format('YYYY / M / D (dd) HH:mm')                       
-            },
-            closeMessageSearch(){
-                window.removeEventListener('touchstart', this.onClickSearch);
-                window.removeEventListener('click', this.onClickSearch);
-                this.$emit('closeMessageSearch')
-            },
-            groupByBoard(){
-                let list = this.messageResult.board_list
-                // let rec_ids = list.map(obj => obj.record_id);
-                // let dup = [...new Set(rec_ids)];
-                // let boards = this.filteredAllBoard.filter(function(board){
-                //     return dup.indexOf(board.id) > -1;
-                // });
-                // boards.forEach((board) => {
-                //     board.messages = list.filter(obj => obj.record_id == board.id)
-                // });
-                let boards = [];
-                for(const id in this.messageResult.board_list){
-                    const item = this.filteredAllBoard.filter(ob => ob.id == id)
-                    if(item.length){
-                        boards.push(item[0])
-                    }
-                }
-                this.searchResultGroupBy = boards
-                this.resultGroupBy = 'board'
-            },
-            searchMessageBody(text){                
-                const a = text.replace(this.keyword, "<span style='background: yellow;color:#000'>" + this.keyword + "</span>");           
-                let r = this.urlCheck(a);                
-                return r
-            },
-            urlCheck: function (text) {
-                if(text){                
-                    var linkedText = Autolinker.link(text, {stripPrefix: false});              
-                    return linkedText;                
-                }            
-            },
         }
     }
+    const onClickSearch = () => {
+        const el = document.getElementById('historyWrapWindow')
+        const input = document.getElementById('advancedSearchInput')
+        if(el && input && !el.contains(event.target) && !input.contains(event.target) && isFocusing.value){
+            isFocusing.value = false
+        }
+
+    }
+    const setSelected = () => {
+        if(event.which === 27){
+            isFocusing.value = false;
+            selectedHistory.value = -1;
+            document.getElementById('advancedSearchInput').value = '';
+            document.getElementById('advancedSearchInput').blur();
+            keyword.value = '',
+            searchHistory.value = []
+            return
+        } 
+        if(event.which === 38 || event.which === 40){
+            event.preventDefault()
+            
+            if(isFocusing.value && searchHistory.value.length){
+                if(event.which === 38){
+                    selectedHistory.value = selectedHistory.value <= 0 ? searchHistory.value.length - 1 : selectedHistory.value - 1                     
+                }
+                if(event.which === 40){//dooshoo                        
+                    selectedHistory.value = selectedHistory.value == searchHistory.value.length - 1 ? 0 : selectedHistory.value + 1                                                     
+                } 
+            }
+            
+        }
+    }
+    const setKeyWord = () => {
+        
+        if(event.which === 38 || event.which === 40 || event.which === 13){
+            event.preventDefault()
+            
+            return
+            
+        }
+        else{
+            keyword.value = event.currentTarget.value
+        }
+        
+    }
+    const setKeyWordFromHistory = (val) => {
+        const input = document.getElementById('advancedSearchInput')
+        input.value = val
+        input.blur()
+        keyword.value = val
+        isFocusing.value = false
+        getMessageSearch(keyword.value, -1)
+    }
+    const resetTargetSearch = () => {
+        targetBoards.value = [];
+        targetedSearch.value = false
+        resultGroupBy.value = 'all'
+        getMessageSearch(keyword.value, -1, true)
+
+    }
+    const searchInTarget = (board) => {
+        targetBoards.value = [];
+        targetBoards.value.push(board)
+        targetedSearch.value = true
+        getMessageSearch(keyword.value, -1)
+        resultGroupBy.value = 'all'
+    }
+    const momentMessage = (date) => {
+        moment.locale('ja');  
+        
+        return moment(date).isSame(moment(), 'day') ? 
+        moment(date).format('HH:mm') : 
+        moment(date).isSame(moment(), 'year') ? 
+        moment(date).format('M / D (dd) HH:mm') : 
+        moment(date).format('YYYY / M / D (dd) HH:mm')                       
+    }
+    const closeMessageSearch = () => {
+        window.removeEventListener('touchstart', onClickSearch);
+        window.removeEventListener('click', onClickSearch);
+        emit('closeMessageSearch')
+    }
+    const groupByBoard = () => {
+        let boards = [];
+        for(const id in messageResult.value.board_list){
+            const item = props.filteredAllBoard.filter(ob => ob.id == id)
+            if(item.length){
+                boards.push(item[0])
+            }
+        }
+        searchResultGroupBy.value = boards
+        resultGroupBy.value = 'board'
+    }
+    const searchMessageBody = (text) => {                
+        const a = text.replace(keyword.value, "<span style='background: yellow;color:#000'>" + keyword.value + "</span>");           
+        let r = urlCheck(a);                
+        return r
+    }
+    const urlCheck = (text) => {
+        if(text){                
+            var linkedText = Autolinker.link(text, {stripPrefix: false});              
+            return linkedText;                
+        }            
+    }
+
 </script>

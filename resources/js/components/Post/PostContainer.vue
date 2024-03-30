@@ -1,11 +1,12 @@
 <template>
-    <div class="post-root">
+    <div class="post-root" v-if="auth.id == auth.activeUser.id">
         <div class="post-header">
-            <HamBurger v-if="$store.state.mobile"/>
+            <HamBurger v-if="responsive.mobile"/>
             <div class="post-search-wrap">
-                <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="`${appNameJp}検索`" @focus="searchWindow = true"/>
+                <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="`${appNameJp}検索`" @focus="searchWindow = true"/>                
             </div>            
         </div>
+       
         <Transition name="modalFade">
             <PostSearchWindow 
                 v-if="searchWindow"
@@ -27,23 +28,40 @@
                 :appName="appName"
                 :appNameJp="appNameJp"                
             />            
-        </Transition>         
-       
-        <transition-group name="slidePop" tag="div" class="post-container scrollable" @scroll="scrollListen">
-            <PostRecord 
-                v-for="(record, index) in records"
-                :key="`${record?.id}_${index}`"
-                :record="record"
-                :appName="appName"
-                :appNameJp="appNameJp"  
-                @setChargeTarget=" val => chargeTarget = val"
-                @setCommentCount="setCommentCount"
-                @setClap="setClap"
-                @editRecord="editRecord"
-                @updateStatus="val => updateTarget = val"
-                @deleteRecord="deleteRecordConfirm"
-            />                
-        </transition-group>
+        </Transition>  
+        <div class="post-container scrollable" @scroll="scrollListen">
+            <div class="p-tag-container">
+                <div style="padding: 20px 20px 0 20px;display: flex;justify-content: center;gap: 10px;align-items: center;">
+                    <span>
+                        <strong>タグランキング</strong>
+                    </span>
+                </div>
+                <div :class="['p-tag-wrap', {'p-tag-expand' : viewAccordian}]">
+                    <router-link :to="`/${appName}?search_tags=${tag.text}`" class="jump-link" v-for="tag in tagsList">#{{ sanitized(tag.text) }} ({{ tag[`${appName}_occurence_count`] }})</router-link>
+                </div>    
+                <div style="padding: 0 20px 20px 20px;display: flex;justify-content: center;gap: 10px;align-items: center;" @click="viewAccordian = !viewAccordian">                                      
+                    <div style="cursor: pointer;"><strong>すべて表示</strong></div>
+                </div>          
+            </div>
+            <transition-group name="slidePop" tag="div" style="display: flex;flex-direction: column;gap: 20px;">
+                <PostRecord 
+                    v-for="(record, index) in records"
+                    :key="`${record?.id}_${index}`"
+                    :record="record"
+                    :appName="appName"
+                    :appNameJp="appNameJp"  
+                    @setChargeTarget=" val => chargeTarget = val"
+                    @setCommentCount="setCommentCount"
+                    @setClap="setClap"
+                    @editRecord="editRecord"
+                    @updateStatus="val => updateTarget = val"
+                    @deleteRecord="deleteRecordConfirm"
+                />                
+            </transition-group>
+        </div>  
+            
+
+        
       
         <div title="新規作成" id="boardCreate" class="createBoardButton fileNewButton" @click="newRecord">
             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="fill:#000;margin:auto;">
@@ -72,6 +90,15 @@
             />
         </Transition>
     </div>
+    <div v-else style="height: 100%;width: 100%;">
+        <div v-if="responsive.mobile" style="min-height: 60px;display: flex;align-items: center">
+            <HamBurger/>
+        </div>        
+        <div style="height: 100%;width: 100%;text-align: center;justify-content: center;display: flex;align-items: center;flex-direction: column;">
+            <p>アクセス権限ありません。</p>
+            <router-link class="l-button" style="margin: 30px 0 70px 0;" to="/board">ボードへ戻る</router-link>
+        </div>        
+    </div>
 </template>
 <script setup>
 import HamBurger from '../Global/HamBurger.vue';
@@ -81,11 +108,18 @@ import PostSearchBar from './PostSearchBar.vue'
 import Charge from './Charge.vue';
 import Status from './Status.vue';
 import PostSearchWindow from './PostSearchWindow.vue'
-import { computed, onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router'
-import { useStore } from 'vuex'
 import { provide } from 'vue';
-
+import { useAuthUserStore } from '@/store/auth'
+import { useResponsive } from '@/store/responsive';
+import { useSharingDataStore } from '@/store/sharingData'
+import { useBadgeStore } from '@/store/badge'
+    const badge = useBadgeStore()
+    const sharingData = useSharingDataStore()
+    const auth = useAuthUserStore()
+    const responsive = useResponsive()
+    const { confirm, notify, info } = inject('dialog')
     const postList = ref([])
     const create = ref(false)
     const componentKey = ref(0)
@@ -98,9 +132,8 @@ import { provide } from 'vue';
     const updateTarget = ref(null)
     const searchWindow = ref(false)
     const route = useRoute()    
-    const store = useStore()
     const infiniteLoader = ref(false)
-
+    const tagsList = ref([])
     const records = computed(() =>{
         return postList.value && postList.value.length ? postList.value : []
     })
@@ -110,7 +143,7 @@ import { provide } from 'vue';
     const appNameJp = computed(() => {
         return appName.value == 'challenge' ? 'チャレンジ' : appName.value == 'knowledge' ? 'ナレッジ' : appName.value == 'nice' ? 'ナイス' : ''
     })
-
+    const viewAccordian = ref(false)
     onMounted(() => {
         if(route.meta.data && route.meta.data.length){
             postList.value = route.meta.data;
@@ -126,37 +159,34 @@ import { provide } from 'vue';
 
         setTimeout(() => {
             if(route.name.includes('challenge') || route.name.includes('knowledge') || route.name.includes('nice')){
-                updatePostBadge()
+                badge.updatePostBadge(appName.value)
             }            
         }, 2000);
-        emitter.on('pusher-event', (e) => {
-            const data = e && e.message && e.message.new_post_from ? e.message : null
-            if(data && data.new_post_from !== store.state.user.id && data.app_name == appName.value && data.record_id && !defaultListShow.value){
-                const query = {
-                    id: data.record_id,
-                    search_tags: null
-                }
-                fetchPosts(query, data.record_id)
-            }
-        });
-        if(store.state.sharingData){
+        if(sharingData.active){
             newRecord()
         }
+        getTopTags()
     })
-
-    const deleteRecordConfirm = (record) => {
-        var uniqueChannell = Math.random().toString(36).substring(5);   
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: `${appName.valueJp}を削除しますか。`,
-            closeButton: false, 
-            autoClose: false,
-            answers: ['はい','いいえ'],
-            channel: uniqueChannell
-
-        })            
-        emitter.on(uniqueChannell, (data) => { data.answer === 'はい' ? postDelete(record): false});
+    const onPusher = (e) =>{
+        console.log('yeee')
+        const data = e && e.message && e.message.new_post_from ? e.message : null
+        if(data && data.new_post_from !== auth.id && data.app_name == appName.value && data.record_id && !defaultListShow.value){
+            const query = {
+                id: data.record_id,
+                search_tags: null
+            }
+            fetchPosts(query, data.record_id)
+        }
+    }
+    const getTopTags = () => {
+        axios.get(`/get_top_tags?app_name=${appName.value}`).then( response => {
+            tagsList.value = response.data
+        })
+    }
+    const deleteRecordConfirm = async(record) => {
+        const answer = await confirm(`${appNameJp.value}を削除しますか。`)
+        if(!answer) return
+        postDelete(record)
     }
     const postDelete = (record) => {
         axios.post('/delete_post', {
@@ -165,36 +195,13 @@ import { provide } from 'vue';
         })
         .then(response => {
             postList.value = postList.value.filter(ob => ob.id !== response.data)
-            
-            const data = {
-                text: '削除しました。',
-                channel: Math.random().toString(36).substring(5),
-                icon: 0,
-                view: true
-            }
-            emitter.emit('setInfo', data)
-
+            info('削除しました。')
         })
         .catch(error => {
-            if (error.response) errorToast(error.response.data.message)
-            else if (error.request) errorToast('エラーが発生しました。')
-            else errorToast('エラーが発生しました。' + error.message)      
+            if (error.response) notify(error.response.data.message)
+            else if (error.request) notify('エラーが発生しました。')
+            else notify('エラーが発生しました。' + error.message)      
         });
-    }
-    const errorToast = (message) => {
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: message,
-            closeButton: true, 
-            autoClose: true,
-            answers: ['はい']
-
-        }) 
-    }
-    provide('errorToast', errorToast)
-    const updatePostBadge = () => {
-        axios.patch('/update_post_badge', {which: appName.value}).then( response => { store.commit('setPostBadge', response.data) });
     }
     const scrollListen = () => {
         var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);  
@@ -304,5 +311,12 @@ import { provide } from 'vue';
             fetchPosts(query, id)
         }
     }    
+    const sanitized = (text) => {
+        return text ? text.replace(/#|♯|＃/g, '') : '';
+    }
+    provide('postComment', {
+        commentCount: (num, id) => setCommentCount(num, id)
+    })
 
+    defineExpose({onPusher})
 </script>

@@ -34,15 +34,14 @@
             />
             <div class="si-box">
                 <p style="margin-bottom: 20px;"><strong>その他ご意見をお聞かせください。</strong></p>
-                <FormLongText 
+                <LongInput 
                     :initialValue="content"   
                     :placeHolder="`ご意見`"
                     ref="portfolioBody"
                     rules="required"
-                    uId="recordBody"
                     name="recordBody"
                     label="タイトル"
-                    @setValue="val => content = val"
+                    v-model="content"
                 />
             </div>
             
@@ -57,8 +56,9 @@
     import LoaderButton from '../../Global/LoaderButton.vue';
     import QuestionRadio from './QuestionRadio.vue';
     import { ref, inject, onBeforeMount } from 'vue';
-    import FormLongText from '../../Global/FormLongText.vue';
+    import LongInput from '../../Form/LongInput.vue';
     const router = useRouter()
+    const { confirm, notify } = inject('dialog')
     const route = useRoute()
     const props = defineProps(['selectedTopic', 'available'])
     const question1 = ref(null)
@@ -107,45 +107,22 @@
                 return response.status
             }
             catch(error){
-                if (error.response) errorToast('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) errorToast('エラーが発生しました。')
-                else errorToast('エラーが発生しました。 ' + error.message)     
+                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
+                else if (error.request) notify('エラーが発生しました。')
+                else notify('エラーが発生しました。 ' + error.message)     
             }
             
         }else{
             errorMessage.value = '必須です'
         }
     }
-    const errorToast = (message) => {
-            emitter.emit('setToast', {
-                active: true,  
-                type: 'info', 
-                content: message,
-                closeButton: false, 
-                autoClose: false,
-                answers: ['OK']
-
-            })  
-            processing.value = false
-            
+    const backToast = async() => {
+        const options = {
+            answers : [{label: '戻る', value: true}]
         }
-    const backToast = () => {
-        const uniqueChannell = Math.random().toString(36).substring(5);
-
-        emitter.emit('setToast', {
-            active: true,  
-            type: 'info', 
-            content: 'グループディスカッションを完了してください。',
-            closeButton: false, 
-            autoClose: false,
-            touchClose: false,
-            answers: ['戻る'],
-            channel: uniqueChannell
-        })  
-        emitter.on(uniqueChannell, (data) => {                            
-            if(data.answer === '戻る'){
-                router.go(-1)
-            }
-        })
+        const answer = await confirm('グループディスカッションを完了してください。', options)
+        if(answer){
+            router.go(-1)
+        }
     }
 </script>

@@ -15,114 +15,71 @@
             <div v-if="which == 'forward'" style="margin: auto 5px auto 0;font-size:14px;font-weight:600">
                 <svg class="dot-menu" version="1.1" style="transform: scaley(-1);" viewBox="0 0 91 91" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24">
                     <g><path class="st0" d="M53.3,3.9c1.9-0.2,2-2.8,0-3C30-1.4,4.7,23.9,11.9,47.5C17.6,65.8,37.4,71.8,55.1,69   c-5.9,3.8-11.6,7.8-16.6,12.7c-4.5,4.4,2.4,11.3,6.9,6.9c9.5-9.4,20.1-17,31.2-24.3c2.7-1.7,2.2-5.7-0.9-6.7   C63,53.6,53,46.6,41.8,39.6c-2.8-1.7-5.3,2.1-3.4,4.4c5.3,6.2,12.3,10.9,19.8,14.6c-12.7,3.2-29.8,1.9-36.4-9.9   C11.1,29.2,34.5,6.1,53.3,3.9z"/></g>
-                </svg>
-                
+                </svg>                
             </div>
-            <div v-if="message.user" @click.stop="$emit('pushInstantUser', $event, message.user_id)" class="column-01 cursor-pointer">                        
+            <div v-if="message.user" @click.stop="pushInstantUser($event, message.user_id)" class="column-01 cursor-pointer">                        
                 <UserIcon imgStyle="width:25px;height:25px;border-radius:50%" size="25" :user="message.user"/>                       
             </div> 
             <div v-else class="column-01 cursor-pointer">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
                     <circle cx="15" cy="15" r="15" fill="#ddd"/>
                 </svg>
-
             </div>
-            <div @click.stop="$emit('pushInstantUser', $event, message.user_id)" class="quotUserName cursor-pointer">
+            <div @click.stop="pushInstantUser( $event, message.user_id)" class="quotUserName cursor-pointer">
                 <p class="userName" style="margin-left:5px;font-size:13px">{{ messageUserName }}</p>               
             </div>
         </div>
         <div class="clearBoth"></div>                                                    
         <div v-if="message.deleted_at" class="quotBody">
-            <p style="color: darkgray;font-size: 15px;">{{ $t('messageDeleted') }}</p>
-        </div>
-      
+            <p style="color: darkgray;font-size: 15px;">このメッセージは削除されました</p>
+        </div>      
         <div v-else class="quotBody">
-            <p v-if="which == 'reply'" style="line-height: 1.5;white-space: pre-line;" v-html="truncatedMessageBody"></p>
-            <span @click="showAll = !showAll" class="jump-link" v-if="truncated && which == 'reply'">{{ showAll ? '閉じる' : '続きを表示する' }}</span>
+            <div v-if="which == 'reply'" :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease'}">
+                <p ref="replyBody" style="line-height: 1.5;white-space: pre-line;" v-html="messageBody"></p>
+            </div>            
+            <div @click="toggleFull" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto' && which == 'reply'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
             <p v-if="which == 'forward'" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
             <p v-if="which == 'quot' && quotMessage" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
             <MessageFiles 
                 v-if="message.message_files && message.message_files.length"
                 :list="message.message_files"
                 :message="message"
-            /> 
-            <!--<MessageFilesOld
-                v-if="message.message_attachments && message.message_attachments.length" 
-                :message="message" 
-                :list="message.message_attachments"
-            />-->           
-            
+            />        
         </div>
-
         <div style="width:100%;height:0.5px;background:gray;margin: 10px 0 5px 0;"></div>
-
     </div>
 </div>
 </template>
-<script>
+<script setup>
+import { computed, inject, onMounted, ref } from "vue";
 import MessageFiles from "./MessageFiles.vue";
-    export default {
-        props: ['which', 
-            'message', 
-            'openedBoard', 
-            'activeMenu', 
-            'urlCheck', 
-            'iconColorFilter', 
-            'fileNameFilter', 
-            'fileSizeView', 
-            'sharedFileDownload', 
-            'iconColorFilter', 
-            'openImageView', 
-            'quotMessage'
-        ],
-        data(){
-            return{
-                truncated: false,
-                showAll: false
+import UserIcon from "../Mixed/UserIcon.vue";
+    const props = defineProps(['which', 'message', 'urlCheck', 'quotMessage'])
+    const pushInstantUser = inject('pushInstantUser')
+    const replyBody = ref(null)
+    const dynamicHeight = ref('auto')
+
+    onMounted(() => {
+        if(props.which == 'reply' && replyBody.value){
+            if(replyBody.value?.clientHeight > 42){
+                dynamicHeight.value = '42px'
             }
-        },
-        computed:{
-            messageBody(){
-                const t_text = this.which == 'quot' ? this.quotMessage : this.message.message
-                const text = t_text ? t_text : ''
-                const to_all = text.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
-                const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
-                const br_remove = converterd.replace(/&lt;br&gt;/g," ");
-                return this.urlCheck(br_remove)
-            },
-            messageUserName(){                
-                return this.message.user && this.message.user.deleted_at == null
-                ? this.message.user.name
-                : this.$t('unAvailableUserName');
-            },
-            truncatedMessageBody(){
-                const text = this.messageBody
-                const truncate = this.cutter(text, 20)
-                return truncate
-            }
-        },
-        components:{
-            MessageFiles
-        },
-        methods:{
-            cutter(string, len){
-                if(!string){
-                    return ''
-                }
-                if(this.showAll || string.length <= len || string.length <= len + 50){
-                    return string
-                }
-                const last = string.substring(len - 5, len + 5)
-                const check_emoji = last.match(/[\p{Emoji}\u200d]+/gu)
-                if(!check_emoji){
-                    this.truncated = true
-                    return string.substring(0, len) + '...'
-                
-                }else{
-                    return this.cutter(string, len + 5)
-                }
-                
-            }
-        }
+        }        
+    })
+    const messageBody = computed(() => {
+        const t_text = props.which == 'quot' ? props.quotMessage : props.message.message
+        const text = t_text ? t_text : ''
+        const to_all = text.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
+        const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
+        const br_remove = converterd.replace(/&lt;br&gt;/g," ");
+        return props.urlCheck(br_remove)
+    })
+    const messageUserName = computed(() => {                
+        return props.message.user && props.message.user.deleted_at == null
+        ? props.message.user.name
+        : '非アクティブユーザー';
+    })
+    const toggleFull = () => {
+        dynamicHeight.value = dynamicHeight.value == '42px' ? `${replyBody.value?.clientHeight}px` : '42px'
     }
 </script>

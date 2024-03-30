@@ -1,5 +1,5 @@
 @extends('layouts.app')
 
 @section('content')
-    <login-component :intended="'{{url()->previous()}}'" />
+    <login :intended="'{{url()->previous()}}'" />
 @endsection

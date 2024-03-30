@@ -16,6 +16,14 @@ use DB;
 
 class NoticeController extends Controller
 {
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
     public function get_notices(Request $request){
         $key = $request->keyword;
         $notices = NoticeRecord::where('deleted_flag', 0)
@@ -51,18 +59,35 @@ class NoticeController extends Controller
         }
         return;
     }
+    public function notice_delete_file(Request $request){
+        $validatedData = $request->validate([
+            'list' => 'required',
+        ]);
+        $result = $this->delete_file_execute($request->list, $request->path);
+        return $result;
+
+    }
+    private function delete_file_execute($list, $path){
+        $files = NoticeFile::whereIn('id', $list)->get();
+        foreach($files as $file){
+            Storage::disk('local')->delete($path . '/' . $file->id . '_' . $file->user_id . '_' . $file->path . '.' . $file->extension);
+            $file->update(["deleted_flag" => 1]);
+        }
+        return $files;
+    }
     public function read_notice(Request $request){
         $record = NoticeRecord::findOrFail($request->record_id);
-        if (!$record->readers->contains(Auth::id())) {
-            $record->readers()->attach(Auth::id());
+        if (!$record->readers->contains($this->active_user()->id)) {
+            $record->readers()->attach($this->active_user()->id);
+
             return response()->json('success');
         }
-        return response()->json($data);
+        return response()->json($record);
     }
     public function get_notice_badge(Request $request){
-        $notice = NoticeRecord::where('deleted_flag', 0)->where('created_at', '>', '2023-10-01')->where('user_id', '!=', Auth::id())
+        $notice = NoticeRecord::where('deleted_flag', 0)->where('created_at', '>', '2023-10-01')->where('user_id', '!=', $this->active_user()->id)
         ->whereDoesntHave('readers', function ($query) {
-            $query->where('users.id', Auth::id());
+            $query->where('users.id', $this->active_user()->id);
         })->count();
         return response()->json($notice);
     }
@@ -84,7 +109,7 @@ class NoticeController extends Controller
             $fileRecord->mime_type = $file_type;
             $fileRecord->extension = $file_extension;
             
-            $fileRecord->user_id = Auth::id();
+            $fileRecord->user_id = $this->active_user()->id;
             $fileRecord->save();
             $set_path = $fileRecord->id . '.' . $fileRecord->extension;
 
@@ -124,7 +149,7 @@ class NoticeController extends Controller
         }else{
             $record = new NoticeRecord;
         }
-        $record->user_id = Auth::id();
+        $record->user_id = $this->active_user()->id;
         $record->title = $request->title;
         $record->body = $request->body;
         $record->save();

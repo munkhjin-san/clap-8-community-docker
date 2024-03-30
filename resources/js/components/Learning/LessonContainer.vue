@@ -14,7 +14,7 @@
                 </div>
                 <!-- <div>{{ title ? title : '' }}</div>         -->
                 <div class="lesson-nav-bar">
-                    <div class="lesson-breadcumb" v-for="(navi, index) in $route.matched" @click="$router.push(naviItem(navi, index).route)">
+                    <div class="lesson-breadcumb" v-for="(navi, index) in route.matched" @click="router.push(naviItem(navi, index).route)">
                         {{ naviItem(navi, index).label }}
                     </div>
                 </div>
@@ -24,7 +24,7 @@
             <div v-if="noData" style="line-height: 1.8;height:calc(100% - 50px);display: flex;justify-content: center;align-items: center;">
                 <p>現在データはありません。</p>
             </div>
-            <div v-else-if="$route.name == 'top' && selectedTopic && selectedTopic.active == 1" style="height: calc(100% - 50px);overflow: hidden auto;">
+            <div v-else-if="route.name == 'top' && selectedTopic && selectedTopic.active == 1" style="height: calc(100% - 50px);overflow: hidden auto;">
                 <div style="padding:20px;
                     white-space: break-spaces;
                     font-size: 14px;
@@ -33,7 +33,7 @@
                     background: var(--background-color);
                     margin: 0 20px 20px;"
                 >
-                    <div style="margin-bottom: 20px;" v-if="[610, 608,799,800,829].includes($store.state.user.id)">
+                    <div style="margin-bottom: 20px;" v-if="[610, 608,799,800,829].includes(auth.activeUser.id)">
                         <router-link :to="{name: 'evaluate'}">職能研修機関確認用</router-link>
                     </div>
                     
@@ -46,19 +46,19 @@
                         <div class="video-item">
                             <p><strong>研修プログラムの説明</strong></p>
                             <video controls="controls" style="max-width: 100%;margin-top: 15px;">
-                                <source src="/lesson_files/program-explaination.mp4">
+                                <source src="/cdn/lesson_files/program-explaination.mp4">
                             </video>
                         </div>
                         <div class="video-item">
                             <p><strong>グループディスカッションの説明</strong></p>
                             <video controls="controls" style="max-width: 100%;margin-top: 15px;">
-                                <source src="/lesson_files/discussion-explaination.mp4">
+                                <source src="/cdn/lesson_files/discussion-explaination.mp4">
                             </video>
                         </div>
                         <div class="video-item">
                             <p><strong>ポートフォリオの説明</strong></p>
                             <video controls="controls" style="max-width: 100%;margin-top: 15px;">
-                                <source src="/lesson_files/portfolio-explaination.mp4">
+                                <source src="/cdn/lesson_files/portfolio-explaination.mp4">
                             </video>
                         </div>
                         <div class="video-item"></div>
@@ -104,13 +104,6 @@
                 </div>
                 </TransitionGroup>
             </div>
-            <!-- <router-view 
-                :content="content"
-                :selectedTopic="selectedTopic"
-                :currentStatus="currentStatus"
-                :materials="materials"
-                >
-            </router-view> -->
             <RouterView
                 :selectedTopic="selectedTopic"
                 :materials="materials"
@@ -123,15 +116,15 @@
 </template>
 <script setup>
     import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
-    import { computed, onMounted, ref, inject, provide, onBeforeMount, defineAsyncComponent  } from 'vue';
+    import { computed, onMounted, ref, inject, provide, defineAsyncComponent  } from 'vue';
+    import { useAuthUserStore } from '@/store/auth'
+    const auth = useAuthUserStore()
     const subtopics = [{val: 0, title:'基礎知識'},{val: 1, title: 'グループディスカッション'},{val: 2, title: 'ポートフォリオ'}]
     const props = defineProps(['selectedTopic'])
     const router = useRouter()
     const route = useRoute()
-    const content = ref("")
     const theme = inject('getThemes')
     const materials = ref([])
-    
 
     const portfolio = ref(null)
     const Explain = defineAsyncComponent(() =>
@@ -147,15 +140,6 @@
             router.push({name: 'portfolio'})
         }
     }
-    // const discussionDay = computed(() => {
-    //     if(props.selectedTopic && props.selectedTopic.discussion_date){
-    //         const currentDate = new Date();
-    //         const discussionDate = new Date(props.selectedTopic.discussion_date)
-    //         return currentDate >= discussionDate
-    //     }else{
-    //         return false
-    //     }
-    // })
     const filteredMaterials = computed(() => {
         return materials.value && materials.value.length ? materials.value.filter(ob => ob.priority == 1) : [] 
     })

@@ -7,7 +7,7 @@
             <div></div>
             
         </div>
-        <div id="taskYearPicker" class="month-grid" v-if="$store.state.menu.id == 42 && $store.state.menu.name == 'taskYearPicker'" :style="{right : right ? right : 'auto'}">
+        <div id="taskYearPicker" class="month-grid" v-if="menu.id == 42 && menu.name == 'taskYearPicker'" :style="{right : right ? right : 'auto'}">
             <div class="grid-container-with-day">
                 <div @click.stop="dayNavigation(-1)" class="">
                     <svg version="1.1" width="13" height="13" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
@@ -38,10 +38,10 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import moment from 'moment'
-import { useStore } from 'vuex';
-    const store = useStore()
+import { useMenuStore } from "@/store/menu";
+    const menu = useMenuStore()
     const props = defineProps(['selectedMonth', 'selectedYear','selectedDay', 'right'])
     const emit = defineEmits(['setDate'])
 
@@ -101,11 +101,11 @@ import { useStore } from 'vuex';
     
     const openMonthPicker = () => {
         pickerIs.value = 'day';
-        if(store.state.menu.name == 'taskYearPicker'){
-            store.commit('setMenu', { name: '', id: null})
+        if(menu.name == 'taskYearPicker'){
+            menu.setMenu( { name: '', id: null})
             return
         }
-        store.commit('setMenu', { name: 'taskYearPicker', id: 42})
+        menu.setMenu( { name: 'taskYearPicker', id: 42})
     }
     const setYear = (y) => {
         year.value = y
@@ -123,7 +123,7 @@ import { useStore } from 'vuex';
         month.value = parseInt(selected[1])
         emit('setDate', {year: year.value, month: month.value, day: day.value, select: true})
         if(!passive){
-            store.commit('setMenu',{ name: '', id: null})
+            menu.setMenu({ name: '', id: null})
         }        
     }
         
