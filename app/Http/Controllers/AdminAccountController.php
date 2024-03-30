@@ -50,7 +50,11 @@ class AdminAccountController extends Controller
         $linkable_accounts = User::where('linkable', 1)->select('id', 'name', 'icon_id')->get();
         $work_groups = workGroup::select('name', 'id')
         ->when($with_users, function ($q) {
-            $q->with('members');
+            $q->with(['members' => function($q) {
+                $q->where('users.partner_flag', 0)
+                    ->where('users.hide_flag',0)
+                    ->where('users.retire', 0);
+            }]);
         })
         ->get();
         $data = array(
