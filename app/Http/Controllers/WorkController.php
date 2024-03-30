@@ -384,7 +384,10 @@ class WorkController extends Controller
             $work_group_list = workGroup::whereHas('members', function($q) use($auth_user_id) {
                                 $q->whereIn('users.id', [$auth_user_id]);
                             })->with(['members' => function($q) use($ids) {
-                                $q->whereNotIn('users.id', $ids);
+                                $q->whereNotIn('users.id', $ids)
+                                    ->where('users.partner_flag', 0)
+                                    ->where('users.hide_flag',0)
+                                    ->where('users.retire', 0);
                             }])
                             ->get();
             $work_group_users = $work_group_list->flatMap(function ($work_group_list_value) {
