@@ -526,7 +526,7 @@ import CommandButton from '../Global/CommandButton.vue'
         if(!shift) return false
         const futureOrToday = moment(shift.shift_day).isSameOrAfter(moment(), 'day')
         const possibleTypes = [1,6,7,8,9,10,11,12,13]
-        return futureOrToday && possibleTypes.includes(shift.shift_type.id) && item.user_id == auth.activeUser.id && (!item.time_card || item.time_card?.status_flag == 10)
+        return futureOrToday && possibleTypes.includes(shift.shift_type.id) && item.user_id == auth.activeUser.id && (!item.time_card || item.time_card?.status_flag == 10 || item.time_card?.status_flag == 0)
     }
     const overTimeRequestDisplay = (item) => {
         const overtime = item?.shift?.overtime_request

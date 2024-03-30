@@ -318,8 +318,11 @@ class WorkController extends Controller
             ->whereIn('shift_day', $holidays)
             ->whereHas('overtime_request')
             ->exists();
+        $holidays1 = collect($shift_array)->filter(function ($shift) use($types) {
+            return $shift['type'] !== 0;
+        })->pluck('date')->toArray();
         $waitingAllowanceCheck = timecardRecord::where('user_id', $user_id)
-            ->whereIn('day', $shift_days)
+            ->whereIn('day', $holidays1)
             ->whereHas('custom_field_data_records', function($q) {
                 $q->where('type_id', 37)->where('value_int', 2);
             })
