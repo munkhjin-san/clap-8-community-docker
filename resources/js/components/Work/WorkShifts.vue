@@ -120,7 +120,8 @@
             'startDate',
             'notSubmitted',
             'filteredRecord',
-            'usersCheckArray'
+            'usersCheckArray',
+            'chosenId'
             ])
     const shiftTime = ref(null)
     const selectedShiftType = ref(0)
@@ -177,7 +178,7 @@
         let yearMonth = moment([shiftYear.value, shiftMonth.value]).format('YYYY-MM')
         const params = {
             current_date : yearMonth,
-            work_group : props.usersCheckArray
+            work_group : props.chosenId ? [props.chosenId] : props.usersCheckArray
         }
         try{
             const response = await axios.post('/get_shift_data', params)            

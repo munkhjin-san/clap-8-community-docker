@@ -28,6 +28,7 @@
             :usersData="[auth.user]"
             :filteredRecord="filteredRecord"
             :notSubmitted="true"
+            :chosenId="auth.id"
             @closeModal="shiftModal = false"
             @reload="reload"
         />
