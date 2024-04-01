@@ -525,8 +525,6 @@ class WorkController extends Controller
         if($today != $request->day){
             $is_exist->work_time_edit_flag = 1;
         }
-        $is_exist->save();
-        
         foreach ($request->customValues as $key => $field) {
             
             $customFieldData = customFieldDataRecord::where('table_record_id', $is_exist->id)
@@ -548,7 +546,7 @@ class WorkController extends Controller
             }
             
         }
-       
+        $is_exist->save();
         if($request->overTimeMinute){
             $this->overTimeCheck($request, $overtimeMinutes);
         }
@@ -556,6 +554,18 @@ class WorkController extends Controller
         response()->json(['success' => 'success'], 200); 
     }
     private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id){
+        if($type_id == 37 && $value == 2){
+            [$currentYear, $currentMonth] = explode('-', $date);
+            $count = customFieldDataRecord::where('type_id', $type_id)
+                                        ->where('user_id', $user_id)
+                                        ->where('value_int', $value)
+                                        ->whereYear('date', $currentYear)
+                                        ->whereMonth('date', $currentMonth)
+                                        ->count();
+            if($count >= 3){
+                throw ValidationException::withMessages(['message' => '待機手当は1か月に3回以上の利用はできません。']);
+            }
+        }
         $new_custom_data = new customFieldDataRecord;
         $new_custom_data->date = $date;
         $new_custom_data->table_record_id = $table_record_id;

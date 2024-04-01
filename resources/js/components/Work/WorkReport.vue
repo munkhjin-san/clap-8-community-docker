@@ -61,7 +61,7 @@
                     </div>
                 </div>
                
-                <CustomField v-for="field in fields" :data="field" v-model="customValues[field.id]"/>
+                <CustomField v-for="field in fields" :shift_type="shift?.shift_type" :data="field" v-model="customValues[field.id]"/>
                 
                 <div class="si-box">
                     <LoaderButton :loading="loading" content="申請する" @triggered="saveTimeCard(1)" />

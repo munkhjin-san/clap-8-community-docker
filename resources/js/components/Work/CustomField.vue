@@ -33,7 +33,7 @@
                 <p class="report-header">{{ data.title }}を選択</p>
                 <div class="report-input">
                     <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records">
-                        <div v-if="customPart.parts_value != 2 || chosenDateShiftType?.id == 0">
+                        <div v-if="customPart.parts_value != 2 || shift_type?.id == 0">
                             <input :id="'workAllowance' + index" type="checkbox" name="allowance" v-model="value" :value="customPart.parts_value">
                             <label :for="'workAllowance' + index">{{ customPart.parts_lavel }}</label> 
                         </div>
@@ -46,6 +46,6 @@
 </template>
 <script setup>
     import LongInput from '../Form/LongInput.vue';    
-    const props = defineProps(['data'])
+    const props = defineProps(['data', 'shift_type'])
     const value = defineModel() 
 </script>
