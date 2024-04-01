@@ -110,11 +110,15 @@
                                 <p class="record-inner">ポートフォリオ</p>
                             </div>
                             <div v-if="userPortfolio && userPortfolio.length" class="record">
-                                <div v-for="portfolio in userPortfolio" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
-                                    <p class="record-inner" style="font-size: 13px;">{{ portfolio.lesson_theme.title }}</p>
-                                    <p class="record-inner"><strong>{{ portfolio.public_title }}</strong></p>
-                                    <p class="record-inner">{{ portfolio.public_content }}</p>
-                                </div>
+                                <UserPortfolio v-for="portfolio in userPortfolio" :portfolio="portfolio"/>
+                                <!-- <div v-for="portfolio in userPortfolio"  :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease'}" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc;">
+                                    <div>
+                                        <p class="record-inner" style="font-size: 13px;">{{ portfolio.lesson_theme.title }}</p>
+                                        <p class="record-inner"><strong>{{ portfolio.public_title }}</strong></p>
+                                        <p class="record-inner">{{ portfolio.public_content }}</p>
+                                        <div @click="toggleFull" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto' && which == 'reply'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
+                                    </div>                                    
+                                </div> -->
                             </div>
                         </div>
                     </div>
@@ -140,6 +144,7 @@ import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
+import UserPortfolio from './UserPortfolio.vue';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
