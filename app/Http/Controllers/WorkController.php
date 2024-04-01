@@ -491,6 +491,7 @@ class WorkController extends Controller
         if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
             $night_difference_seconds -= $request->breakTime * 60;
         }
+        $this->checkWaitingAllowance($request);
         $is_exist = timecardRecord::firstOrCreate([
             'day' => $request->day,
             'user_id' => $request->userId
@@ -553,19 +554,19 @@ class WorkController extends Controller
 
         response()->json(['success' => 'success'], 200); 
     }
-    private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id){
-        if($type_id == 37 && $value == 2){
-            [$currentYear, $currentMonth] = explode('-', $date);
-            $count = customFieldDataRecord::where('type_id', $type_id)
-                                        ->where('user_id', $user_id)
-                                        ->where('value_int', $value)
+    private function checkWaitingAllowance($request){
+        [$currentYear, $currentMonth] = explode('-', $request->day);
+            $count = customFieldDataRecord::where('type_id', 37)
+                                        ->where('user_id', $request->userId)
+                                        ->where('value_int', 2)
                                         ->whereYear('date', $currentYear)
                                         ->whereMonth('date', $currentMonth)
-                                        ->count();
-            if($count >= 3){
-                throw ValidationException::withMessages(['message' => '待機手当は1か月に3回以上の利用はできません。']);
-            }
+                                    ->count();
+        if($count >= 3){
+            throw ValidationException::withMessages(['message' => '待機手当は1か月に3回以上の利用はできません。']);
         }
+    }
+    private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id){
         $new_custom_data = new customFieldDataRecord;
         $new_custom_data->date = $date;
         $new_custom_data->table_record_id = $table_record_id;
