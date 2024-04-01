@@ -221,11 +221,11 @@
                 let date = {
                     day_full : shift.shift_day,
                 }
-                // selectedShiftType.value = shift.shift_type.id,
+                selectedShiftType.value = shift.shift_type.id,
                 selectShift(date, shift, shift.shift_type.id)
             } 
         }else{
-            // selectedShiftType.value = props.startDate ? 3 : 0
+            selectedShiftType.value = props.startDate ? 3 : 0
             selectedShifts.value = []
             holidayCount.value = 0
             startTime.value = '09:00'
@@ -235,7 +235,8 @@
     const weekDay = (num) => {
         return moment().weekday(num).locale('ja').format("dd")
     }
-    const selectShift = (date, record, type_id, val) => {
+    const selectShift = (date, record, val) => {
+        const status_flag = record ? record?.status_flag : 0
         let existingShift = selectedShifts.value.find(shift => shift.date === date.day_full)
         if (existingShift) {
             if(existingShift.type == 3 && existingShift.status_flag == 1){
@@ -243,15 +244,15 @@
                 return
             }
             selectedShifts.value = selectedShifts.value.filter(shift => shift.date !== date.day_full);
-            if(val && type_id == 3 && existingShift.type == 3){
+            if(val && selectedShiftType.value == 3 && existingShift.type == 3){
                 remainingDays.value++
             }
         } else {
-            selectedShifts.value.push({date: date.day_full, type: type_id, status_flag: record.status_flag});
-            if(val && type_id == 3){
+            selectedShifts.value.push({date: date.day_full, type: selectedShiftType.value, status_flag: status_flag});
+            if(val && selectedShiftType.value == 3){
                 remainingDays.value--
             }
-            if(type_id == 3){
+            if(selectedShiftType.value == 3){
                 if(record.planned_year != 2023 && (moment(date.day_full).isBefore(moment(tempStartDate.value)) || moment(date.day_full).isAfter(moment(tempStartEnd.value)))){
                     selectedShifts.value.pop()
                     remainingDays.value++
