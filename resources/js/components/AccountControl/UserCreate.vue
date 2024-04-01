@@ -160,17 +160,6 @@
                         </div>                    
                     </div>
                 </div>
-                <div class="si-box" v-if="editUserData" style="flex-direction:column">
-                    <span class="user form-label" style="color:red;">退職</span>
-                    <div class="input-inner-wrapper" style="margin-top:10px">
-                        
-                        <label class="check-container user" style="align-self: center;">
-                            <input id="retire" type="checkbox" :true-value="1" :false-value="0" v-model="userParams.retire" name="user_retire">
-                            <span class="checkmark-mini" style="width: 18px; height:18px"></span>
-                            <label for="retire">退職者</label>
-                        </label>
-                    </div>
-                </div>        
                 <div class="si-box">
                     <MemberSelector 
                         placeHolder="サブアカウント"
@@ -180,8 +169,20 @@
                         name="workgroup_users"
                         :closeOnSelect="false"
                     />
-
                 </div>
+                
+                <div class="si-box" v-if="editUserData" style="flex-direction:column">
+                    <span class="user form-label" style="color:red;">退職</span>
+                    <div class="input-inner-wrapper" style="margin-top:10px">
+                        
+                        <label class="check-container user" style="align-self: center;width: fit-content">
+                            <input id="retire" type="checkbox" :true-value="1" :false-value="0" v-model="userParams.retire" name="user_retire">
+                            <span class="checkmark-mini" style="width: 18px; height:18px"></span>
+                            <label for="retire">退職者</label>
+                        </label>
+                    </div>
+                </div>        
+                
                 
                 
             

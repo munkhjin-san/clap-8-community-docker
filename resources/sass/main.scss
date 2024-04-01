@@ -5783,6 +5783,19 @@ input:autofill {
         cursor: not-allowed;
         opacity: 0.4;
     }
+    .confused-alert{
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        right: 0px;
+        width: fit-content;
+        background: tomato;
+        margin: auto;
+        color: white;
+        font-size: 14px;
+        padding: 15px;
+        z-index: 106;
+    }
 @media screen and (max-width: 959px) {
     .ls-video{
         max-width: 100%;

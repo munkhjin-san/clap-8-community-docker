@@ -1,5 +1,6 @@
 <template>
     <div style="width: 100%;height: 100%;display: flex;flex-direction: column;">
+        <div class="confused-alert" v-if="confused">ページを更新してください</div>
         <Transition name="modalFade">
             <div class="overlay" style="z-index:100" v-if="switchLoader"></div>
         </Transition>
@@ -82,6 +83,7 @@ import { useTitle } from '@vueuse/core'
         cX: 0,
         cY: 0
     })
+    const confused = ref(false)
     onBeforeMount(() => {
         auth.setUser(props.auth_user)
     })
@@ -103,6 +105,11 @@ import { useTitle } from '@vueuse/core'
             var channel = pusher.subscribe('private-chat');
             channel.bind("pusher:subscription_error", (error) => {console.log(error)});
             channel.bind('my-event', (e) => { 
+                console.log(focused.active)
+                if(e.message && e.message.active_user_changed && e.message.active_user_changed.owner == auth.id && e.message.active_user_changed.target !== auth.activeUser.id && !focused.active){
+                    setAlert()
+                }
+                
                 if(mainRef.value.onPusher){
                     mainRef.value.onPusher(e)
                 }
@@ -285,7 +292,7 @@ import { useTitle } from '@vueuse/core'
             answer = await confirm(errorMessage, options);
         }    
         if(answer){
-            navigator.reload(true)
+            window.location.reload(true);
         }             
     }
     
@@ -353,7 +360,17 @@ import { useTitle } from '@vueuse/core'
         }
         instantUser.value = data               
     }
-    
+    const setAlert = async() => {
+        const options = {
+            answers: [{label: 'OK', value: true}, {label: 'あとで', value: false}]
+        }
+        const answer = await confirm('アクティブアカウントが変更されています。ページを更新してください。', options)
+        if(answer){
+            window.location.reload(true);
+        }else{
+            confused.value = true
+        }
+    }
     provide('dialog', {
         confirm: (question, options) => confirm(question, options),
         notify: (message) => notify(message),

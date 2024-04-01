@@ -20,6 +20,7 @@ use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
+use App\Events\MessageSent;
 use App\Services\SharedService;
 class UserController extends Controller{
     protected $sharedService;
@@ -388,6 +389,10 @@ class UserController extends Controller{
         }
         
         $updated = $this->profile_get_update_user(new Request (["id" =>  Auth::id()]));
+        $rebound = array(
+            "active_user_changed" => [ "owner" => Auth::id(), "target" => $request->id]
+        );
+        event(new MessageSent($rebound));
         return $updated;
 
         
