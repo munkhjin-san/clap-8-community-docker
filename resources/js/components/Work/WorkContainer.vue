@@ -346,11 +346,6 @@
         let scrollPosition = document.querySelector('.today');
         if (scrollPosition) {
             scrollPosition.scrollIntoView({ behavior: 'instant', block: 'start' });
-        } else {
-            selectedYear.value = moment().year()
-            selectedMonth.value = moment().month()
-            await getUsersRecords()
-            todayScroll()
         }
     }
     const toBottomScroll = () => {
