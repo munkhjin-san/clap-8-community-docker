@@ -42,7 +42,7 @@
                     <div class="shift-inner">
                         <div class="shift-month" v-for="(week, index) in calendarData" :key="index">                
                             <div class="shift-week" v-for="(day, index) in week" :key="index">
-                                <div @click="selectShift(day, [], selectedShiftType, index + 1)" :class="{ 'hidden-date': !day.day_short, 'showed-date': day.day_short, 'planned-date': selectedShift(day) && selectedShift(day).id == 3}">
+                                <div @click="selectShift(day, [], index + 1)" :class="{ 'hidden-date': !day.day_short, 'showed-date': day.day_short, 'planned-date': selectedShift(day) && selectedShift(day).id == 3}">
                                     <div>
                                         <div class="shift-day" :class="{'shift-saturday' : index == 5, 'shift-sunday' : index == 6, 'shift-everyholiday' : day.day_holiday}">
                                         {{ day.day_short }}
@@ -222,7 +222,7 @@
                     day_full : shift.shift_day,
                 }
                 selectedShiftType.value = shift.shift_type.id,
-                selectShift(date, shift, shift.shift_type.id)
+                selectShift(date, shift)
             } 
         }else{
             selectedShiftType.value = props.startDate ? 3 : 0
