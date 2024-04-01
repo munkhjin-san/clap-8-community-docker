@@ -958,7 +958,7 @@ class WorkController extends Controller
         }
         $resposnsArray = [
             'yesterday' => $yesterday,
-            'shiftNotSubmittedList' => $shiftNotSubmittedList,
+            'shiftNotSubmittedList' => [],
             'timecardNotSubmittedList' => $timecardNotSubmittedList
         ];
         return response()->json($resposnsArray);
