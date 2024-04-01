@@ -254,7 +254,7 @@
                 remainingDays.value--
             }
             if(type_id == 3){
-                if(record.planned_year != 2023 && (moment(date.day_full).isBefore(moment(tempStartDate.value)) || moment(date.day_full).isAfter(moment(tempStartEnd.value)))){
+                if(record?.planned_year != 2023 && (moment(date.day_full).isBefore(moment(tempStartDate.value)) || moment(date.day_full).isAfter(moment(tempStartEnd.value)))){
                     selectedShifts.value.pop()
                     remainingDays.value++
                     const content = moment(date.day_full).format('YYYY/MM/DD') + 'は計画期間外です。<br>設定可能な期間は' + '<strong>' + moment(tempStartDate.value).format('YYYY/MM/DD') + '</strong>' + '-' + '<strong>' + tempStartEnd.value.format('YYYY/MM/DD') + '</strong>'
@@ -356,12 +356,12 @@
         for(let date of selectedDays){
             let existingShift = selectedShifts.value.find(shift => shift.date === date.day_full);
             if (!existingShift) {
-                selectShift(date);
+                selectShift(date, [], 1);
             }else{
                 count++
                 if(count === selectedDays.length){
                     for(let date of selectedDays){
-                        selectShift(date)
+                        selectShift(date, [], 1)
                     }
                 }
             }
