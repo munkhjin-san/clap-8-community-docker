@@ -85,9 +85,10 @@ class NoticeController extends Controller
         return response()->json($record);
     }
     public function get_notice_badge(Request $request){
-        $notice = NoticeRecord::where('deleted_flag', 0)->where('created_at', '>', '2023-10-01')->where('user_id', '!=', $this->active_user()->id)
-        ->whereDoesntHave('readers', function ($query) {
-            $query->where('users.id', $this->active_user()->id);
+        $user_id = $this->active_user()->id;
+        $notice = NoticeRecord::where('deleted_flag', 0)->where('created_at', '>', '2023-10-01')->where('user_id', '!=', $user_id)
+        ->whereDoesntHave('readers', function ($query) use($user_id) {
+            $query->where('users.id',$user_id);
         })->count();
         return response()->json($notice);
     }

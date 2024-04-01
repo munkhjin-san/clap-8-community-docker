@@ -105,7 +105,7 @@
                 <GlowdNews :newsItems="newsItems"/>
                      
                 <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 10px 20px 20px 20px;">   
-                    <router-link v-if="!auth.isPartner" class="login-link jump-link" style="cursor: pointer;font-size: 15px;display: flex;align-items: center;" to="/notice">お知らせ<span v-if="noticeBadge" style="position: unset;width: fit-content;margin-left: 5px;" class="side-notification">{{ badgeFilter(noticeBadge)}}</span> </router-link>             
+                    <router-link v-if="!auth.isPartner" class="login-link jump-link" style="cursor: pointer;font-size: 15px;display: flex;align-items: center;" to="/notice">お知らせ<span v-if="badge.notice" style="position: unset;width: fit-content;margin-left: 5px;" class="side-notification">{{ badgeFilter(badge.notice)}}</span> </router-link>             
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" to="/support/faq">サポートデスク</router-link>
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'settings'}">設定</router-link>
                 </div>         
@@ -129,7 +129,7 @@ import { useBadgeStore } from '@/store/badge'
     const route = useRoute()
     const auth = useAuthUserStore()
     const sideMenuView = useSideMenuView()
-    const props = defineProps(['session', 'auth_user', 'noticeBadge', 'setActiveUser', 'switchLoader'])
+    const props = defineProps(['session', 'auth_user', 'setActiveUser', 'switchLoader'])
             
     const newsList = ref([])
 

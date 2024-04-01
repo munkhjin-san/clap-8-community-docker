@@ -11,7 +11,6 @@
             </Transition>
 
             <SideMenu  
-                :noticeBadge="noticeBadge" 
                 :auth_user="auth_user" 
                 :session="session" 
                 :setActiveUser="setActiveUser"
@@ -105,11 +104,9 @@ import { useTitle } from '@vueuse/core'
             var channel = pusher.subscribe('private-chat');
             channel.bind("pusher:subscription_error", (error) => {console.log(error)});
             channel.bind('my-event', (e) => { 
-                console.log(focused.active)
                 if(e.message && e.message.active_user_changed && e.message.active_user_changed.owner == auth.id && e.message.active_user_changed.target !== auth.activeUser.id && !focused.active){
                     setAlert()
-                }
-                
+                }                
                 if(mainRef.value.onPusher){
                     mainRef.value.onPusher(e)
                 }
@@ -117,7 +114,6 @@ import { useTitle } from '@vueuse/core'
                     badge.getBoardBadge()
                 }
                 if(e.message.new_post_from && e.message.new_post_from !== auth.id){
-                    // getPostBadge()
                     badge.getPostBadge()
                 }           
 
