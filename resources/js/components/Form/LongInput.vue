@@ -27,12 +27,16 @@
         rules: String,
         customClass: String,
         modelValue: String,
+        initialValue: String
     })
     const value = defineModel()
     onMounted(() => {
         updateTarget()
     })
     const updateTarget = () => {
+        if(props.initialValue){
+            value.value = props.initialValue
+        }
         growRef.value.dataset.replicatedValue = value.value
     }
     const validate = async(passive, event) => {
