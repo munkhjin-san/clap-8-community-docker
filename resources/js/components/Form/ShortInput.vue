@@ -17,7 +17,7 @@
   
 <script setup>
     import { validator } from '@/validation/validator'
-    import { ref } from 'vue';
+    import { onMounted, ref } from 'vue';
     import { useTheme } from '@/store/theme';
     const error = ref('')
     const trigger = ref(false)
@@ -28,7 +28,13 @@
         modelValue: String,
         type: String,
         customClass: String,
-        customStyle: String
+        customStyle: String,
+        initialValue: String
+    })
+    onMounted(() => {
+        if(props.initialValue){
+            value.value = props.initialValue
+        }
     })
     const theme = useTheme()
     const value = defineModel()
