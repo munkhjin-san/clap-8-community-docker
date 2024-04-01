@@ -8,6 +8,9 @@
                 :statuses="statuses"
             />
         </Teleport>
+        <div v-if="!records.length" class="absolute-div">
+            メンバーを選択してください。
+        </div>  
         <v-data-table-virtual
             :headers="headers"
             :items="records"
@@ -100,7 +103,7 @@
                     <td style="border-bottom: thin solid transparent;">
                         <div v-if="index == 0">
                             <span>集計</span>
-                            <div class="cursor-pointer" @click="exportCSV()" v-if="auth.activeUser.id == 610 || auth.user.position_id == 6">CSV</div>
+                            <div class="cursor-pointer" @click="exportCSV()" v-if="auth.activeUser.id == 610 || auth.user.position_id == 6 || auth.activeUser.id == 608">CSV</div>
                         </div>
                     </td>
                     <td>{{ user.name }}</td>
@@ -126,7 +129,8 @@
             </template>            
                 
             
-        </v-data-table-virtual>       
+        </v-data-table-virtual>
+             
     </div>
 </template>
 <script setup>
@@ -562,6 +566,15 @@ import CommandButton from '../Global/CommandButton.vue'
     }
 </script>
 <style lang="scss">
+.absolute-div{
+    position:absolute; 
+    color: var(--primary-color); 
+    display: flex; 
+    justify-content: center; 
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
 .workButton-wrapper{
     display: flex;
     justify-content: center;

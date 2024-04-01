@@ -90,13 +90,16 @@
     import { useRoute } from 'vue-router'
     import { useAuthUserStore } from '@/store/auth'
     import { useElementSize } from '@vueuse/core'
+    const firstUser = computed(() => {
+        return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
+    })
     const auth = useAuthUserStore()
     const { confirm, notify } = inject('dialog')
     const route = useRoute()
     const selectedYear = ref(moment().year())
     const selectedMonth = ref(moment().month())
     const currentDay = ref(moment().format('YYYY-MM-DD'))
-    const usersCheckArray =  ref([Number(auth.id)])
+    const usersCheckArray =  ref(firstUser.value)
     const shiftModal = ref(false)
     const shiftAttendance = ref(false)
     const workGroups = ref([])
@@ -133,6 +136,7 @@
         getUsersRecords()
         getWorkData()
     })
+    
     const headerHeight = computed(() => {
         const { height } = useElementSize(headerEl)
         return height
