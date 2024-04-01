@@ -78,10 +78,7 @@ Route::group(["middleware"=>"auth"],function(){
     Route::get('/pusher/beams-auth', [BoardController::class, "pusher_beamToken"]);
     // pusher authorize
 
-    Route::get('/home', function () {
-        $id = Auth::id();
-        return redirect("/board");
-    });
+
     Route::get('/user', function () {
         $id = Auth::id();
         return redirect("/user/{$id}");
@@ -102,7 +99,7 @@ Route::group(["middleware"=>"auth"],function(){
             $url = "/notice/{$query}";    
             return redirect($url);  
         }else{
-            return Redirect::route('board');
+            return redirect("/board");
         }
         
         

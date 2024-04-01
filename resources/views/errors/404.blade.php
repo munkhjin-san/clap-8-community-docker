@@ -10,7 +10,7 @@
         <div style="background-color: #fff; padding: 30px; text-align: center;">
             <h1 style="font-size: 3em; margin-bottom: 20px;">ページは見つかりませんでした</h1>
             <p style="font-size: 1.5em; margin-bottom: 20px;"></p>
-            <a href="{{ route('board') }}" style="background-color: #000000; color: #fff; padding: 10px 20px; text-decoration: none; font-size: 1.2em;">
+            <a href="/board" style="background-color: #000000; color: #fff; padding: 10px 20px; text-decoration: none; font-size: 1.2em;">
                 ホーム画面へ戻る
             </a>
         </div>
