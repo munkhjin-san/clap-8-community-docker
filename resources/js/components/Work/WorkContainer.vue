@@ -307,7 +307,7 @@
             notify('メンバーが複数選択されています。勤怠予定はメンバーを1人のみ選択してください。') 
         } else if (modalSelect.value){
             shiftModal.value = true
-        } else {
+        } else if (usersCheckArray.value.length == 0) {
             notify('メンバーを選択してください。')
         }
     }
@@ -317,7 +317,7 @@
             notify('メンバーが複数選択されています。勤怠確定はメンバーを1人のみ選択してください。')
         } else if (modalSelect.value){
             shiftAttendance.value = true
-        } else {
+        } else if (usersCheckArray.value.length == 0) {
             notify('メンバーを選択してください。')
         }
     }    
