@@ -114,7 +114,9 @@ import { useTitle } from '@vueuse/core'
                     badge.getBoardBadge()
                 }
                 if(e.message.new_post_from && e.message.new_post_from !== auth.id){
-                    badge.getPostBadge()
+                    if(!auth.isPartner){
+                        badge.getPostBadge()
+                    }
                 }           
 
             });                    
@@ -123,8 +125,12 @@ import { useTitle } from '@vueuse/core'
 
         addEventListener()
         badge.getBoardBadge('mounted');
-        badge.getPostBadge()
-        badge.getNoticeBadge()
+        
+        if(!auth.isPartner){
+            badge.getNoticeBadge()
+            badge.getPostBadge()
+        }
+        
     })
     const docTitle = computed(() => {       
         const name = route.meta && route.meta.title ? route.meta.title : 'CLAP'

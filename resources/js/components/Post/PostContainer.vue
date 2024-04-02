@@ -158,7 +158,7 @@ import { useBadgeStore } from '@/store/badge'
     
 
         setTimeout(() => {
-            if(route.name.includes('challenge') || route.name.includes('knowledge') || route.name.includes('nice')){
+            if(route.name.includes('challenge') || route.name.includes('knowledge') || route.name.includes('nice') && !auth.isPartner){
                 badge.updatePostBadge(appName.value)
             }            
         }, 2000);
