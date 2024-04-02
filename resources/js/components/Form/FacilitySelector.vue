@@ -27,7 +27,7 @@
 </template>
 <script setup>
 import { markRaw, ref, watchEffect } from 'vue';
-    const props = defineProps(['placeHolder', 'repeatSpan', 'repetitionFlag', 'target', 'time_start', 'time_end', 'once_date', 'facility', 'editId'])
+    const props = defineProps(['placeHolder', 'repeatSpan', 'repetitionFlag', 'target', 'time_start', 'time_end', 'once_date', 'facility', 'editId', 'edit_all_record'])
     const emit = defineEmits(['setItems'])
 
     const selected_items = defineModel()
@@ -52,7 +52,8 @@ import { markRaw, ref, watchEffect } from 'vue';
             repeat_span: props.repeatSpan,
             time_start: props.time_start,
             time_end: props.time_end,
-            once_date: props.once_date 
+            once_date: props.once_date,
+            edit_repeat: props.edit_all_record 
         }
         axios.post('/get_possible_facilities', params)
         .then(response => {

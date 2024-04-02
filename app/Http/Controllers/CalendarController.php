@@ -518,7 +518,15 @@ class CalendarController extends Controller
     }
     private function execute_second_data_or_validate($request, $instance, $validate_index, $throw){
         if($validate_index){
-            $exclude = $request['editId'] ? [$request['editId']] : [];
+            $exclude = [];
+            if($request['editId']){
+                $check = CalendarRecord::findOrFail($request['editId']);                
+                if($check && $check->r_group_id && $request['edit_repeat']){
+                    $repeats = CalendarRecord::where('r_group_id', $check->r_group_id)->pluck('id')->toArray();
+                    $exclude = $repeats;
+                }
+                array_push($exclude, $check->id);
+            }
             $date_start_ready = $this->time_parser($instance, $request['time_start']);
             $date_end_ready = $this->time_parser($instance, $request['time_end']);
             $inst = $this->check_duplicate_facility($validate_index, $request['facility'][$validate_index], $date_start_ready, $date_end_ready, $throw, $exclude);
@@ -880,6 +888,7 @@ class CalendarController extends Controller
         foreach($id_list as $id){
             $rec = [
                 "editId" => $request->editId,
+                "edit_repeat" => $request->edit_repeat,
                 "time_start" => $request->time_start,
                 "time_end" => $request->time_end,
                 "once_date" => $request->once_date,
