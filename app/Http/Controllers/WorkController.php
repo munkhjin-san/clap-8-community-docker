@@ -16,6 +16,7 @@ use App\Models\workGroup;
 use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Models\ShiftOvertimeRequest;
+use App\Models\shiftApplyRequest;
 use App\Services\SharedService;
 
 use Illuminate\Http\Request;
@@ -102,6 +103,9 @@ class WorkController extends Controller
                 return $record->shiftType->value;
             });
         });
+        $attendance_flag = attendanceRecord::where('date_year_month', $request->current_date)
+                            ->whereIn('user_id', $users_list)
+                            ->exists();
         $month_average_data = [];
         $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
         foreach($user_record as $user){
@@ -149,7 +153,8 @@ class WorkController extends Controller
         }
         $responseArray = [
             'user_data' => $user_record,
-            'month_average' => $month_average_data
+            'month_average' => $month_average_data,
+            "attendance_flag" => $attendance_flag
         ];
 
         return response()->json($responseArray);
@@ -182,40 +187,26 @@ class WorkController extends Controller
         $requestDateString = $request->current_date;
         $users_list = $request->work_group;
         list($year, $month) = explode("-", $requestDateString);
-        
-        // Fetch shift records, time card records, and custom weather data in one go
-        $shift_records = shiftRecord::whereYear('shift_day', $year)
-            ->whereMonth('shift_day', $month)
-            ->whereIn('user_id', $users_list)
-            ->with(['shiftType', 'overtime_request'])
-            ->orderBy('created_at', 'desc')
-            ->select('id', 'shift_day', 'shift_type', 'user_id', 'start_time', 'end_time')
-            ->get();
-        
-        $time_card_records = timecardRecord::whereYear('day', $year)
-            ->whereMonth('day', $month)
-            ->whereIn('user_id', $users_list)
-            ->where('deleted_flag', 0)
-            ->with(['custom_field_data_records' => function ($q) {
-                $q->whereIn('type_id', [37, 40, 39, 41])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
-            }])
-            ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id')
-            ->orderBy('created_at', 'desc')
-            ->get();
-        
-        $custom_weather_data = customFieldDataRecord::whereIn('user_id', $users_list)
-            ->whereYear('date', $year)
-            ->whereMonth('date', $month)
-            ->where('type_id', 43)
-            ->get();
-        
+        $users = User::whereIn('id', $users_list)->with(['time_card_records' => function($q) use($year, $month) {
+            $q->whereYear('day', $year)->whereMonth('day', $month)
+                ->with(['custom_field_data_records' => function ($q) {
+                    $q->whereIn('type_id', [37, 40, 39, 41])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
+                }])
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
+        }])->with(['shift_records' => function ($q) use($year, $month) {
+            $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
+                ->with(['shiftType', 'overtime_request'])
+                ->select('id', 'shift_day', 'shift_type', 'user_id', 'start_time', 'end_time');
+        }])->with(['custom_field_data_records' => function ($q) use($year, $month) {
+            $q->whereYear('date', $year)->whereMonth('date', $month)
+                ->where('type_id', 43);
+        }])->get();        
         $recordList = [];
         
         for ($day = 1; $day <= Carbon::createFromDate($year, $month)->daysInMonth; $day++) {
             $date = Carbon::create($year, $month, $day);
         
-            foreach ($users_list as $index => $user_id) {
-                $user = User::find($user_id);
+            foreach ($users as $index => $user) {
                 $data['day_full'] = $date->format('Y-m-d');
                 $data['day_show'] = $index == 0 ? $date->format('Y-m-d') : '';
                 $data['user_name'] = $user->name;
@@ -226,21 +217,9 @@ class WorkController extends Controller
                 $data['last'] = count($users_list) - 1 == $index;
                 $targetShiftDay = $date->format('Y-m-d');
         
-                // Find matching shift record for the user and day
-                $data['shift'] = $shift_records->first(function ($record) use ($targetShiftDay, $user_id) {
-                    return $record->shift_day == $targetShiftDay && $record->user_id == $user_id;
-                });
-        
-                // Find matching time card record for the user and day
-                $data['time_card'] = $time_card_records->first(function ($record) use ($targetShiftDay, $user_id) {
-                    return $record->day == $targetShiftDay && $record->user_id == $user_id;
-                });
-        
-                // Find matching weather record for the user and day
-                $weather =  $custom_weather_data->first(function ($record) use ($targetShiftDay, $user_id) {
-                    return $record->date == $targetShiftDay && $record->user_id == $user_id;
-                });
-                $data['weather'] = $weather ? $weather->value_int : null;
+                $data['shift'] = $user->shift_records->where('shift_day', $targetShiftDay)->first();
+                $data['time_card'] = $user->time_card_records->where('day', $targetShiftDay)->first();
+                $data['weather'] = $user->custom_field_data_records->where('date', $targetShiftDay)->first()?->value_int;
                 $recordList[] = $data;
             }
         }
@@ -256,10 +235,13 @@ class WorkController extends Controller
        
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
-                        ->whereIn('user_id', $request->work_group)
+                        ->where('user_id', $request->work_group[0])
                         ->with(['shiftType'])
                         ->orderBy('created_at', 'desc')
                         ->get();
+        $shift_apply = shiftApplyRequest::where('shift_month', $request->current_date)
+                        ->where('user_id', $request->work_group[0])
+                        ->first();
         $between_records = 0;
         $remaining_days = 0;
         $work_temp = workTemp::where('user_code', $user_code)->first();
@@ -279,6 +261,7 @@ class WorkController extends Controller
             "workTemp" => $work_temp ? $work_temp : null,
             "consumed_days" => $remaining_days > 0 ? $between_records : 0,
             "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
+            "shift_apply" => $shift_apply,
         ];
         
 
@@ -302,6 +285,27 @@ class WorkController extends Controller
         ];
         return response()->json($data);
     }
+    public function shift_approve(Request $request){
+        $user = $this->active_user();
+        $request->validate([
+            'id' => 'required',
+        ]);
+        $shiftApproved = shiftApplyRequest::findOrFail($request->id)->update([
+            "status" => $request->status,
+            "approved_by" => $user->id
+        ]);
+        return response()->json([
+            'data' => $shiftApproved ?? null
+        ]);
+    }
+    public function shift_remand(Request $request){
+        $request->validate([
+            'id' => 'required',
+        ]);
+        $shiftApproved = shiftApplyRequest::findOrFail($request->id)->delete();
+
+        return response()->json($shiftApproved);
+    }
     public function shiftAdd(Request $request)
     {
         $auth_id = $request->id;
@@ -310,6 +314,7 @@ class WorkController extends Controller
         $start_time_val = $request->shiftTimeStart;
         $end_time_val = $request->shiftEndStart;
         $types = [0, 2, 3, 5, 14, 15];
+        [$year, $month] = explode('-', $request->yearMonth);
         $shift_days = collect($shift_array)->pluck('date')->toArray();
         $holidays = collect($shift_array)->filter(function ($shift) use($types) {
             return in_array($shift['type'], $types);
@@ -352,7 +357,7 @@ class WorkController extends Controller
                     $shift_record->update();
                 }
             } else {
-                shiftRecord::create([
+                $shift_record = shiftRecord::create([
                     'user_id' => $user_id,
                     'shift_day' => $shift['date'],
                     'shift_type' => $shift['type'],
@@ -360,10 +365,18 @@ class WorkController extends Controller
                     'end_time' => $end_time_val,
                     'status_flag' => $status_flag,
                     'planned_year' => $planned_year,
+                    'shift_month' => $request->yearMonth
                 ]);
             }
+            $applyRequest = shiftApplyRequest::firstOrCreate([
+                'shift_month' => $request->yearMonth,
+                'user_id' => $user_id
+            ]);
+
+            $shift_record->apply_request()->associate($applyRequest);
+            $shift_record->save();
         }
-        $this->sharedService->syncShiftToCalendar($user_id, $request->year, $request->month);
+        $this->sharedService->syncShiftToCalendar($user_id, $year, $month);
 
         return response()->json($request);
     }
@@ -379,7 +392,7 @@ class WorkController extends Controller
                         ->where('retire', 0)
                         ->whereNotIn('id', $ids)
                         ->whereNotIn('name', $ng_list)
-                        ->select('id', 'name', 'icon_id')
+                        ->select('id', 'name', 'icon_id', 'name_kana')
                         ->orderByRaw("id = $authenticatedUserId desc") // Sorting by whether the ID matches the authenticated user's ID
                         ->orderBy('id', 'asc')
                         ->get();
