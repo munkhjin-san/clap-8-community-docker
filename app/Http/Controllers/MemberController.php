@@ -677,15 +677,23 @@ $theme_details = [
         
         $queryString = http_build_query($queryParams);
         $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
-
+        $user_name = env('KINTONE_USER_NAME');
+        $password = env('KINTONE_PASSWORD');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
         $headers = [
             'Authorization' => 'Basic', 
-            'X-Cybozu-API-Token' => 'CZu7ui76ORFwrIwcjomN7yTwx7Y3mzusxG7lyroS'
+            'X-Cybozu-Authorization' => $x_token
         ];
+
+        // $headers = [
+        //     'Authorization' => 'Basic', 
+        //     'X-Cybozu-API-Token' => 'CZu7ui76ORFwrIwcjomN7yTwx7Y3mzusxG7lyroS'
+        // ];
 
         $response = Http::withHeaders($headers)->get($url);
         $responseData = $response->json();
-
+        return response()->json($responseData );
         if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])){
             $record = $responseData['records'][0];
             $ready_texts = [];
