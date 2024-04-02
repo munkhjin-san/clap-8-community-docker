@@ -43,7 +43,7 @@
                     :placeHolder="`ポートフォリオの内容`"
                     ref="portfolioBody"
                     :key="portfolio.public_content ? portfolio.public_content : 0"
-                    rules="required|max:1000|min:200"
+                    rules="required"
                     name="recordBody"
                     label="タイトル"
                     v-model="portfolioContent"
