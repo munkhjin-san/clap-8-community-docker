@@ -185,7 +185,7 @@ class WorkController extends Controller
     }
     public function get_shift_data_table(Request $request){
         $requestDateString = $request->current_date;
-        $users_list = $request->work_group;
+        $users_list = $request->work_group ?? [Auth::id()];
         list($year, $month) = explode("-", $requestDateString);
         $users = User::whereIn('id', $users_list)->with(['time_card_records' => function($q) use($year, $month) {
             $q->whereYear('day', $year)->whereMonth('day', $month)
@@ -227,15 +227,16 @@ class WorkController extends Controller
         return response()->json($recordList);
     }
     public function getShiftData(Request $request){
+        $users_list = $request->work_group ?? [Auth::id()];
         [$currentYear, $currentMonth] = explode('-', $request->current_date);
-        $user = User::select('user_code')->findOrFail($request->work_group[0]);
+        $user = User::select('user_code')->findOrFail($users_list[0]);
         $user_code = $user->user_code;
         
         $auth_user = Auth::user();
        
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
-                        ->where('user_id', $request->work_group[0])
+                        ->where('user_id', $users_list[0])
                         ->with(['shiftType'])
                         ->orderBy('created_at', 'desc')
                         ->get();
@@ -248,7 +249,7 @@ class WorkController extends Controller
         if($work_temp){
             $planned_date = $work_temp->date;
             $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
-            $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $request->work_group[0])->count();
+            $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $users_list[0])->count();
             $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $planned_date);
             $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $work_temp->planned_days - $between_records;
         }
@@ -618,7 +619,7 @@ class WorkController extends Controller
         response()->json(['not found' => 'not found'], 404);
     }
     public function getAttendanceData(Request $request){
-        $user_list = $request->work_group;
+        $user_list = $request->work_group ?? [Auth::id()];
         [$currentYear, $currentMonth] = explode('-', $request->current_date);
         $formattedDate = date('Y-m', strtotime($request->current_date));
         $user = User::with([
