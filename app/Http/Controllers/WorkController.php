@@ -16,7 +16,7 @@ use App\Models\workGroup;
 use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Models\ShiftOvertimeRequest;
-use App\Models\shiftApplyRequest;
+// use App\Models\shiftApplyRequest;
 use App\Services\SharedService;
 
 use Illuminate\Http\Request;
@@ -239,9 +239,9 @@ class WorkController extends Controller
                         ->with(['shiftType'])
                         ->orderBy('created_at', 'desc')
                         ->get();
-        $shift_apply = shiftApplyRequest::where('shift_month', $request->current_date)
-                        ->where('user_id', $request->work_group[0])
-                        ->first();
+        // $shift_apply = shiftApplyRequest::where('shift_month', $request->current_date)
+        //                 ->where('user_id', $request->work_group[0])
+        //                 ->first();
         $between_records = 0;
         $remaining_days = 0;
         $work_temp = workTemp::where('user_code', $user_code)->first();
@@ -261,7 +261,7 @@ class WorkController extends Controller
             "workTemp" => $work_temp ? $work_temp : null,
             "consumed_days" => $remaining_days > 0 ? $between_records : 0,
             "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
-            "shift_apply" => $shift_apply,
+            // "shift_apply" => $shift_apply,
         ];
         
 
@@ -285,27 +285,27 @@ class WorkController extends Controller
         ];
         return response()->json($data);
     }
-    public function shift_approve(Request $request){
-        $user = $this->active_user();
-        $request->validate([
-            'id' => 'required',
-        ]);
-        $shiftApproved = shiftApplyRequest::findOrFail($request->id)->update([
-            "status" => $request->status,
-            "approved_by" => $user->id
-        ]);
-        return response()->json([
-            'data' => $shiftApproved ?? null
-        ]);
-    }
-    public function shift_remand(Request $request){
-        $request->validate([
-            'id' => 'required',
-        ]);
-        $shiftApproved = shiftApplyRequest::findOrFail($request->id)->delete();
+    // public function shift_approve(Request $request){
+    //     $user = $this->active_user();
+    //     $request->validate([
+    //         'id' => 'required',
+    //     ]);
+    //     $shiftApproved = shiftApplyRequest::findOrFail($request->id)->update([
+    //         "status" => $request->status,
+    //         "approved_by" => $user->id
+    //     ]);
+    //     return response()->json([
+    //         'data' => $shiftApproved ?? null
+    //     ]);
+    // }
+    // public function shift_remand(Request $request){
+    //     $request->validate([
+    //         'id' => 'required',
+    //     ]);
+    //     $shiftApproved = shiftApplyRequest::findOrFail($request->id)->delete();
 
-        return response()->json($shiftApproved);
-    }
+    //     return response()->json($shiftApproved);
+    // }
     public function shiftAdd(Request $request)
     {
         $auth_id = $request->id;
@@ -365,16 +365,16 @@ class WorkController extends Controller
                     'end_time' => $end_time_val,
                     'status_flag' => $status_flag,
                     'planned_year' => $planned_year,
-                    'shift_month' => $request->yearMonth
+                    // 'shift_month' => $request->yearMonth
                 ]);
             }
-            $applyRequest = shiftApplyRequest::firstOrCreate([
-                'shift_month' => $request->yearMonth,
-                'user_id' => $user_id
-            ]);
+            // $applyRequest = shiftApplyRequest::firstOrCreate([
+            //     'shift_month' => $request->yearMonth,
+            //     'user_id' => $user_id
+            // ]);
 
-            $shift_record->apply_request()->associate($applyRequest);
-            $shift_record->save();
+            // $shift_record->apply_request()->associate($applyRequest);
+            // $shift_record->save();
         }
         $this->sharedService->syncShiftToCalendar($user_id, $year, $month);
 
