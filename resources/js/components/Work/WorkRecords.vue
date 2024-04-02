@@ -155,8 +155,7 @@ import CommandButton from '../Global/CommandButton.vue'
         'records',
         'loading',
         'selectedYear',
-        'headerHeight',
-        'attendanceFlag'
+        'headerHeight'
     ]) 
     const { confirm, notify, info } = inject('dialog')
     const emit = defineEmits(['reload', 'timeStampDelete'])
@@ -233,27 +232,24 @@ import CommandButton from '../Global/CommandButton.vue'
             }
             buttons.push(temp)
         }
-        if(!props.attendanceFlag){
-            if((auth.activeUser.id == 608 || auth.activeUser.id == 610) && item?.time_card?.work_time == null && item?.time_card?.start_time == null){
-                const temp = {
-                    name: '作成',
-                    value: 'timeStampEdit'
-                }
-                buttons.push(temp)
-            } else if (auth.activeUser.id == 608 || auth.activeUser.id == 610){
-                const temp = {
-                    name : '編集',
-                    value: 'timeStampEdit',
-                }
-                buttons.push(temp)
-                const tempDelete = {
-                    name: '削除',
-                    value: 'timeStampDelete',
-                }
-                buttons.push(tempDelete)
+        if((auth.activeUser.id == 608 || auth.activeUser.id == 610) && item?.time_card?.work_time == null && item?.time_card?.start_time == null){
+            const temp = {
+                name: '作成',
+                value: 'timeStampEdit'
             }
+            buttons.push(temp)
+        } else if (auth.activeUser.id == 608 || auth.activeUser.id == 610){
+            const temp = {
+                name : '編集',
+                value: 'timeStampEdit',
+            }
+            buttons.push(temp)
+            const tempDelete = {
+                name: '削除',
+                value: 'timeStampDelete',
+            }
+            buttons.push(tempDelete)
         }
-        
         return buttons
 
     }
@@ -285,7 +281,7 @@ import CommandButton from '../Global/CommandButton.vue'
             buttons.push(tempDelete)
         }
         
-        if(item.time_card?.work_time == null && item.time_card?.start_time == null && !props.attendanceFlag){
+        if(item.time_card?.work_time == null && item.time_card?.start_time == null){
             const temp = {
                 name: '作成',
                 value: 'timeStampEdit'
