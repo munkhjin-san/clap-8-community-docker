@@ -197,6 +197,7 @@ import { useMenuStore } from "@/store/menu";
     const editGroupStart = (group) => {
         tempGroup.value = group
         title.value = group.name
+        editingUserList.value = group.users
         addUsersWindow.value = true
     }
     const allSelected = (group) => {
