@@ -34,7 +34,7 @@
                 <tr :class="['w-row', {'last-row': item.last}]" >
                     <td :class="[getDayClass(item.day_full), {'working' : item.time_card?.stamp_flag == 0}]">{{ dayFormatter(item.day_show) }}</td>
                     <td style="white-space: nowrap;">{{  item.user_name }}</td>
-                    <td :class="getShiftClass(item.shift?.shift_type)">{{  item.shift?.shift_type?.abbreviation }}</td>
+                    <td :class="getShiftClass(item.shift)">{{  item.shift?.apply_request?.status == 1 ? item.shift?.shift_type?.abbreviation : item.shift?.apply_request?.status == 0 ? '申請中' : ''}}</td>
                     <td :class="earlyOrLateClass(item, 'start_time')">{{  timeFormatter(item?.time_card?.start_time, item?.time_card?.end_time, 'start') }}</td>
                     <td :class="earlyOrLateClass(item, 'end_time')">{{ timeFormatter(item?.time_card?.start_time, item?.time_card?.end_time, 'end') }}</td>
                     <td>{{ workTimeDisplay(item?.time_card) }}</td>
@@ -155,7 +155,8 @@ import CommandButton from '../Global/CommandButton.vue'
         'records',
         'loading',
         'selectedYear',
-        'headerHeight'
+        'headerHeight',
+        'attendanceFlag'
     ]) 
     const { confirm, notify, info } = inject('dialog')
     const emit = defineEmits(['reload', 'timeStampDelete'])
@@ -232,24 +233,27 @@ import CommandButton from '../Global/CommandButton.vue'
             }
             buttons.push(temp)
         }
-        if((auth.activeUser.id == 608 || auth.activeUser.id == 610) && item?.time_card?.work_time == null && item?.time_card?.start_time == null){
-            const temp = {
-                name: '作成',
-                value: 'timeStampEdit'
+        if(!props.attendanceFlag){
+            if((auth.activeUser.id == 608 || auth.activeUser.id == 610) && item?.time_card?.work_time == null && item?.time_card?.start_time == null){
+                const temp = {
+                    name: '作成',
+                    value: 'timeStampEdit'
+                }
+                buttons.push(temp)
+            } else if (auth.activeUser.id == 608 || auth.activeUser.id == 610){
+                const temp = {
+                    name : '編集',
+                    value: 'timeStampEdit',
+                }
+                buttons.push(temp)
+                const tempDelete = {
+                    name: '削除',
+                    value: 'timeStampDelete',
+                }
+                buttons.push(tempDelete)
             }
-            buttons.push(temp)
-        } else if (auth.activeUser.id == 608 || auth.activeUser.id == 610){
-            const temp = {
-                name : '編集',
-                value: 'timeStampEdit',
-            }
-            buttons.push(temp)
-            const tempDelete = {
-                name: '削除',
-                value: 'timeStampDelete',
-            }
-            buttons.push(tempDelete)
         }
+        
         return buttons
 
     }
@@ -281,7 +285,7 @@ import CommandButton from '../Global/CommandButton.vue'
             buttons.push(tempDelete)
         }
         
-        if(item.time_card?.work_time == null && item.time_card?.start_time == null){
+        if(item.time_card?.work_time == null && item.time_card?.start_time == null && !props.attendanceFlag){
             const temp = {
                 name: '作成',
                 value: 'timeStampEdit'
@@ -443,7 +447,7 @@ import CommandButton from '../Global/CommandButton.vue'
         }
     }
     const getShiftClass = (shift) => {
-        return shift && [0,5,14,15,16,3].includes(shift.id) ? 'shift-sunday' : ''
+        return shift?.apply_request?.status == 1 && shift?.shift_type && [0,5,14,15,16,3].includes(shift?.shift_type.id) ? 'shift-sunday' : ''
     }
     const commentTextLength = (value) => {
         return value && value.length > 10 ? value.slice(0, 6) + "..." : value;
