@@ -693,7 +693,6 @@ $theme_details = [
 
         $response = Http::withHeaders($headers)->get($url);
         $responseData = $response->json();
-        return response()->json($responseData );
         if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])){
             $record = $responseData['records'][0];
             $ready_texts = [];
