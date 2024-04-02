@@ -309,7 +309,8 @@
             if(!result) return
             if (loading.value) return
 
-            
+            let yearMonth = moment([shiftYear.value, shiftMonth.value]).format('YYYY-MM')
+
             loading.value = true
             const params = {
                 shiftTimeStart : startTime.value,
@@ -319,6 +320,7 @@
                 month: shiftMonth.value + 1,
                 planned_year: tempStartDate.value ? tempStartDate.value.substring(0, 4) : props.selectedYear,
                 userId: props.usersData[0].id,
+                yearMonth: yearMonth
                 // deleted: deletedShifts.value,
             }
             try {
