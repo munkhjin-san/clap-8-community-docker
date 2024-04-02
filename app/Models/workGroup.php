@@ -21,6 +21,6 @@ class workGroup extends Model
         return $this->hasMany(workGroupUser::class, 'record_id')->with('user');
     }
     public function members(){
-        return $this->belongsToMany(User::class, 'work_group_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_id'])->distinct();
+        return $this->belongsToMany(User::class, 'work_group_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_id', 'users.name_kana'])->distinct();
     }
 }

@@ -309,7 +309,8 @@ class WorkController extends Controller
     // }
     public function shiftAdd(Request $request)
     {
-        $auth_id = $request->id;
+        $user = $this->active_user();
+        $auth_id = $user->id;
         $user_id = $request->userId;
         $shift_array = $request->shift_array;
         $start_time_val = $request->shiftTimeStart;
@@ -382,7 +383,8 @@ class WorkController extends Controller
         return response()->json($request);
     }
     public function getWorkGroup(Request $request){
-        $auth_user_id = $request->id;
+        $user = $this->active_user();
+        $auth_user_id = $user->id;
         $ids = [608, 610];
         $authenticatedUserId = Auth::id();
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];

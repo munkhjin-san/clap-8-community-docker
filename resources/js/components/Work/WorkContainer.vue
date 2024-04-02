@@ -299,20 +299,26 @@
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
     }
-    
+    const modalSelect = computed(() => {
+        return (usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610) && usersCheckArray.value.length == 1
+    })
     const selectShift = async() => {
         if(usersCheckArray.value.length > 1){
             notify('メンバーが複数選択されています。勤怠予定はメンバーを1人のみ選択してください。') 
-        }else if(usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610){
+        } else if (modalSelect.value){
             shiftModal.value = true
+        } else {
+            notify('メンバーを選択してください。')
         }
     }
     const confirmAttendance = async() => {
         
         if(usersCheckArray.value.length > 1){
             notify('メンバーが複数選択されています。勤怠確定はメンバーを1人のみ選択してください。')
-        }else if(usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610){
+        } else if (modalSelect.value){
             shiftAttendance.value = true
+        } else {
+            notify('メンバーを選択してください。')
         }
     }    
     const shiftMonth = (val) => {
