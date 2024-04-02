@@ -115,6 +115,6 @@
     //     keywords.value = event.target.value
     // }
     const selectAll = (event: any) => {        
-        selectedUsersList.value = event.target.checked ? searchUsers.value.map(ob => ob.id) : [auth.id]        
+        selectedUsersList.value = event.target.checked ? searchUsers.value.map(ob => ob.id) : []        
     }
 </script>
