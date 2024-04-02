@@ -34,7 +34,7 @@
                 <tr :class="['w-row', {'last-row': item.last}]" >
                     <td :class="[getDayClass(item.day_full), {'working' : item.time_card?.stamp_flag == 0}]">{{ dayFormatter(item.day_show) }}</td>
                     <td style="white-space: nowrap;">{{  item.user_name }}</td>
-                    <td :class="getShiftClass(item.shift)">{{ item.shift?.shift_type?.abbreviation }}</td>
+                    <td :class="getShiftClass(item.shift?.shift_type)">{{ item.shift?.shift_type?.abbreviation }}</td>
                     <td :class="earlyOrLateClass(item, 'start_time')">{{  timeFormatter(item?.time_card?.start_time, item?.time_card?.end_time, 'start') }}</td>
                     <td :class="earlyOrLateClass(item, 'end_time')">{{ timeFormatter(item?.time_card?.start_time, item?.time_card?.end_time, 'end') }}</td>
                     <td>{{ workTimeDisplay(item?.time_card) }}</td>
@@ -443,7 +443,7 @@ import CommandButton from '../Global/CommandButton.vue'
         }
     }
     const getShiftClass = (shift) => {
-        return shift?.apply_request?.status == 1 && shift?.shift_type && [0,5,14,15,16,3].includes(shift?.shift_type.id) ? 'shift-sunday' : ''
+        return shift && [0,5,14,15,16,3].includes(shift?.id) ? 'shift-sunday' : ''
     }
     const commentTextLength = (value) => {
         return value && value.length > 10 ? value.slice(0, 6) + "..." : value;
