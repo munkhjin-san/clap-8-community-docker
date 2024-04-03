@@ -391,7 +391,6 @@ class WorkController extends Controller
         if($auth_user_id == 608 || $auth_user_id == 610){
             $work_group_users = User::where('deleted_flag', 0)
                         ->where('partner_flag', 0)
-                        ->where('hide_flag',0)
                         ->where('retire', 0)
                         ->whereNotIn('id', $ids)
                         ->whereNotIn('name', $ng_list)
@@ -405,7 +404,6 @@ class WorkController extends Controller
                             })->with(['members' => function($q) use($ids) {
                                 $q->whereNotIn('users.id', $ids)
                                     ->where('users.partner_flag', 0)
-                                    ->where('users.hide_flag',0)
                                     ->where('users.retire', 0);
                             }])
                             ->get();

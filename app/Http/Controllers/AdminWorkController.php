@@ -60,8 +60,8 @@ class AdminWorkController extends Controller{
 
         }
         $attendance_record = attendanceRecord::where('date_year_month', $month)->get();
-        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
-        $all_users = User::where('partner_flag', '=', 0)->where('hide_flag', '=', 0)->where('retire', 0)->whereNotIn('name', $ng_list)
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント', '経営管理本部'];
+        $all_users = User::where('partner_flag', '=', 0)->where('retire', 0)->whereNotIn('name', $ng_list)
         ->with(['shift_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('shift_day', $currentYear)
               ->whereMonth('shift_day', $currentMonth)
@@ -209,9 +209,9 @@ class AdminWorkController extends Controller{
 
     public function get_planned_shifts(Request $request){
         $year = $request->year;
-        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント', '経営管理本部'];
         $pos_list = [1, 2, 3, 4, 5];    
-        $all_users = User::where('partner_flag', 0)->where('hide_flag', 0)
+        $all_users = User::where('partner_flag', 0)
             ->where('retire', 0)
             ->whereNotIn('name', $ng_list)
             ->whereNotIn('position_id', $pos_list)
