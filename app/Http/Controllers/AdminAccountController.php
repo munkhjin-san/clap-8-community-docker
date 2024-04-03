@@ -100,10 +100,10 @@ class AdminAccountController extends Controller
             $user->email = $user_params['login'] . date("Ymd") . $this->generateRandomString();
             $user->password = bcrypt('glowd0802');
             $user->hide_flag = 1;
-            $board_to_users = boardToUser::where('user_id', $user->id)->get();
-            if($board_to_users){
-                $board_to_users->each->delete();
-            }
+            // $board_to_users = boardToUser::where('user_id', $user->id)->get();
+            // if($board_to_users){
+            //     $board_to_users->each->delete();
+            // }
         }
         if(!$request->id || $request->password_reset){
             $user->password = bcrypt($user_params['password']);
