@@ -12,7 +12,7 @@
                 <UserIcon :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
                 <p @click.stop="pushInstantUser($event, user.id)" class="userName" style="white-space: break-spaces;font-size: 12px;margin-right: 25px;">{{ user.name }}</p>
             </div>
-            <div style="cursor: pointer;" @click="truncate = false" v-if="truncate && record.calendar_users.length > 6">...({{ record.calendar_users.length }})</div>
+            <div style="cursor: pointer;" @click.stop="truncate = false" v-if="truncate && record.calendar_users.length > 6">...({{ record.calendar_users.length }})</div>
         </div>
         <div v-else style="display: flex;">
             <UserIcon :disableInstant="true" v-for="user in record.calendar_users.slice(0, 3)" :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
