@@ -121,6 +121,12 @@ import { useUrlMessage } from '@/store/urlMessage'
 import { useUrlTaskEdit } from '@/store/urlTaskEdit'
 import { useSkeleton } from '@/store/skeleton'
 import { useBadgeStore } from '@/store/badge'
+
+import BoardDetails from './BoardDetails.vue'
+import SearchMessage from './Search/SearchMessage.vue'
+import BoardEdit from './BoardEdit.vue'
+import CopyWindow from './Message/CopyWindow.vue'
+import ConfirmWindow from './Message/ConfirmWindow.vue'
     const badge = useBadgeStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -131,11 +137,11 @@ import { useBadgeStore } from '@/store/badge'
     const urlMessage = useUrlMessage()
     const urlTaskEdit = useUrlTaskEdit()
     const skeleton = useSkeleton()
-    const BoardDetails = defineAsyncComponent(() => import('./BoardDetails.vue'))
-    const SearchMessage = defineAsyncComponent(() => import('./Search/SearchMessage.vue'))
-    const BoardEdit = defineAsyncComponent(() => import('./BoardEdit.vue'))
-    const CopyWindow = defineAsyncComponent(() => import('./Message/CopyWindow.vue'))
-    const ConfirmWindow = defineAsyncComponent(() => import('./Message/ConfirmWindow.vue'))
+    // const BoardDetails = defineAsyncComponent(() => import('./BoardDetails.vue'))
+    // const SearchMessage = defineAsyncComponent(() => import('./Search/SearchMessage.vue'))
+    // const BoardEdit = defineAsyncComponent(() => import('./BoardEdit.vue'))
+    // const CopyWindow = defineAsyncComponent(() => import('./Message/CopyWindow.vue'))
+    // const ConfirmWindow = defineAsyncComponent(() => import('./Message/ConfirmWindow.vue'))
     const route = useRoute()
     const router = useRouter()
     const mainLoader = ref(false)
