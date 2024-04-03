@@ -54,13 +54,9 @@ import { useTempRecord } from '@/store/tempRecord';
     const beforeLeft = ref(0)
     const dayRecord = ref(null)
     onMounted(() => {
-        if(tempRecord.id && tempRecord.id == props.record.id){   
-            menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`})
-            nextTick(() => {
-                document.getElementById(`dayRecord_${props.record.id}`)?.scrollIntoView({block: 'center', inline: 'center'})
-                console.log('jumpfromday')
-            })           
-        }
+        // if(tempRecord.id && tempRecord.id == props.record.id){   
+        //     menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`})  
+        // }
     })
 
     const viewable = computed(() => {
@@ -123,8 +119,8 @@ import { useTempRecord } from '@/store/tempRecord';
             emit('setParentDroppable')
         }            
     }
-    const selectRecord =(record) => {
-        if(Math.abs( event.x - beforeState.value) > 15) {
+    const selectRecord =(event, record) => {
+        if(event && Math.abs( event.x - beforeState.value) > 15) {
             return
         }
         menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`})

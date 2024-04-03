@@ -5,7 +5,7 @@
             scrollSnapType: '',
             cursor: 'grab'
         }" 
-        ref="cal_week_view" 
+        ref="monthLayout" 
         id="cal_week_view"
         class="calendar-day-root"
         @scroll="scrollListen"
@@ -24,8 +24,9 @@
                 <div 
                     :id="`day_val_w_${day.day_full}`"
                     @click="shiftToListView($event,day.day_full)" 
-                    @mousedown="onMouseDown" :ref="`w_day_${day.day_full}`" 
+                    @mousedown="onMouseDown"
                     v-for="day in days" 
+                    ref="dayHeader"
                     class="w-day-item" 
                     style="cursor: pointer;"
                 >
@@ -91,6 +92,8 @@ import { useResponsive } from '@/store/responsive';
         });
         return memberList;
     })
+    const spacer = ref(null)
+    const dayHeader = ref([])
     const days = computed(() => {
 
         const thisMonth = moment([props.activeYear, props.activeMonth]);
@@ -121,9 +124,11 @@ import { useResponsive } from '@/store/responsive';
     onUnmounted(() => {
         window.removeEventListener("mouseup", onMouseUp);
     })
-    onMounted(() => {
+    onMounted(() => {        
         localStorage.setItem('viewType', 2)
         window.addEventListener("mouseup", onMouseUp);
+        const today = moment().format('YYYY-MM-DD')
+        // containerScroll(today)
     })
     watch(() => lockScroll, (after) => {
         if(after){
@@ -188,7 +193,7 @@ import { useResponsive } from '@/store/responsive';
         const format = moment([props.selectedYear, props.selectedMonth]).isSame(moment(day.day_full), 'month') ? 'D(ddd)' : moment().isSame(moment(day.day_full), 'year') ? 'M/D(ddd)' : 'YYYY/M/D(ddd)'
         return moment(day.day_full).format(format)
     }
-    const cal_week_view = ref(null)
+    const monthLayout = ref(null)
     const onMouseDown = (ev) => {
         cursorPos.value = [ev.pageX, ev.pageY];
         beforeState.value = ev.pageX
@@ -213,14 +218,24 @@ import { useResponsive } from '@/store/responsive';
             
             cursorPos.value = [ev.pageX, ev.pageY];
 
-            if (!cal_week_view) return;
-            cal_week_view.value.scrollBy({
+            if (!monthLayout.value) return;
+            monthLayout.value.scrollBy({
                 left: -delta[0],
                 // top: -delta[1],
             });
             
         });
     }
+    const containerScroll = async(day) => {
+        const block = dayHeader.value.find(ob => ob.id ==`day_val_w_${day}`)
+        const index = dayHeader.value.findIndex(ob => ob.id ==`day_val_w_${day}`)      
+        if(block && monthLayout.value){
+            const rect = block.getBoundingClientRect()
+            const offsetX = (rect.width * index)
+            monthLayout.value.scrollTo(offsetX + 2,monthLayout.value.scrollTop)
+        }
+    }
+    defineExpose({containerScroll})
 
 
 </script>

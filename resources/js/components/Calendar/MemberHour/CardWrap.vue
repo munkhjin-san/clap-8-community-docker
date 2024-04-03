@@ -112,8 +112,8 @@ import { useResponsive } from '@/store/responsive';
                 emit('setParentDroppable')
             }            
         }
-        const selectRecord = (record) => {
-            if(Math.abs(event.x - beforeState.value) > 15) {
+        const selectRecord = (event, record) => {
+            if(event && Math.abs(event.x - beforeState.value) > 15) {
                 return
             }
             menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`, user_id: props.user.id})
@@ -133,7 +133,6 @@ import { useResponsive } from '@/store/responsive';
                             // document.getElementById(`w_day_${time}`)?.scrollIntoView({behavior: 'smooth'})
                             const realTime =  moment(record.date_start).hour()
                             const index = el.parentElement.clientWidth * realTime
-                            console.log(index)
                             document.getElementById(`cal_list_view`)?.scrollTo({ left: index, behavior: 'smooth'})
                         }                       
 

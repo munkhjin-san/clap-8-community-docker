@@ -55,9 +55,7 @@ import DayTile from './DayTile.vue'
 import HourTitle from './HourTitle.vue';
 import { computed, onMounted, onUnmounted, watch, ref, inject } from 'vue';
 import { useFocused } from '@/store/focused';
-import { useTempRecord } from '@/store/tempRecord';
     const focused = useFocused()
-    const tempRecord = useTempRecord()
     const props = defineProps(['daysOfMonth', 'records', 'initialLoader'])
     const emit = defineEmits(['scroll', 'load', 'releaseScroll', 'create', 'setListView'])
     const draggingCalendar = inject('draggingCalendar')
@@ -68,6 +66,7 @@ import { useTempRecord } from '@/store/tempRecord';
     const dayItems = ref([])
     const hourItem = ref([])
     const dayViewRoot = ref(null)
+    const dayParent = ref(null)
 
     onUnmounted(() => {
         window.removeEventListener("mouseup", onMouseUp);
@@ -79,15 +78,6 @@ import { useTempRecord } from '@/store/tempRecord';
         localStorage.setItem('viewType', 0)
         window.addEventListener("mouseup", onMouseUp);
         localStorage.setItem('viewType', 0)
-        if(tempRecord.id){
-            
-        }else{
-            const index = moment().subtract(1, 'hour').startOf('hour').hour()  
-            const el = hourItem.value[index]
-            if(el){
-                el.$el.scrollIntoView({block : 'start', inline: "start" })
-            }
-        }
         currentMinute.value = getCurrentMinute()
         setInterval(() => {
             currentMinute.value = getCurrentMinute();
@@ -182,6 +172,23 @@ import { useTempRecord } from '@/store/tempRecord';
         
 
     }
-    
+    const containerScroll = async(day) => {
+        const dayIndex = moment(day).date()
+        const index = moment().subtract(1, 'hour').startOf('hour').hour()  
+        const el = hourItem.value[index]
+        if(el){
+            el.$el.scrollIntoView({block : 'start', inline: "start" })
+        }
+        const block = dayItems.value.find(item => {
+            return item.$el.id == `day_val_${day}`
+        })
+        if(block){
+            block.$el.scrollIntoView({block : 'start'})
+            dayViewRoot.value.scrollBy({
+                top: -31,
+            });
+        }        
+    }
+    defineExpose({containerScroll})
 
 </script>

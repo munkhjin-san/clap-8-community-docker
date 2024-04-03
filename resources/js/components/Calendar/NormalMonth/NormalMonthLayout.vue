@@ -19,8 +19,8 @@
                         <div class="weekday-header-item" v-for="num in 7">{{ weekDay(num) }}</div>
                     </div>
                     <div style="height:calc(100% - 40px);color: var(--primary-color);">
-                        <div v-for="(week, index) in calendarData" :key="index" class="calendar-week-wrapper">                
-                            <DayBlock
+                        <div v-for="(week, index) in calendarData" :key="index" class="calendar-week-wrapper" ref="weekHeader">                
+                            <DayBlock                                
                                 v-for="(day, index) in week"
                                 :key="day.day_full"
                                 :day="day"
@@ -43,7 +43,7 @@
 <script setup>
     import moment from 'moment'
     import DayBlock from './DayBlock.vue';
-    import { computed, onMounted} from 'vue';
+    import { computed, onMounted, ref} from 'vue';
 
     const props = defineProps(["records", "selectedYear", "selectedMonth", 'initialLoader', 'activeMonth', 'activeYear', 'holidays'])
     const emit = defineEmits(['fromMonth', 'addRecord', 'jumpToDate', 'scroll', 'create'])      
@@ -51,7 +51,8 @@
     onMounted(() => {
         localStorage.setItem('viewType', 1)      
     })
-
+    const weekHeader = ref([])
+    const monthScrollContainer = ref(null)
     const calendarData = computed(() => {
             
         const thisMonth = moment([props.activeYear, props.activeMonth]);
@@ -94,6 +95,17 @@
             return new Date(a.date_start) - new Date(b.date_start);
         }); 
     }
+    const containerScroll = async(day) => {
+        const index = calendarData.value.findIndex(ob => {
+            return ob.find(ob => ob.day_full == day)
+        })
+        if(index !== null && index !== undefined){
+            const block = weekHeader.value[index]
+            block.scrollIntoView({block: 'start', behavior: 'instant'})
+            monthScrollContainer.value.scrollBy(0, -40)  
+        }
+    }
+    defineExpose({containerScroll})
 
 </script>
 <style lang="scss" scoped>    

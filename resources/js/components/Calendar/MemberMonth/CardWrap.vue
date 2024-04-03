@@ -18,7 +18,7 @@
                     :editable="editable"
                     :expanded="expanded"
                     ref="weekRecord"
-                    @selectRecord="(val, from) => selectRecord(val, from, user)"
+                    @selectRecord="(event, val, from) => selectRecord(event, val, from, user)"
                 />
             </OnLongPress>
            
@@ -88,10 +88,10 @@ import { useResponsive } from '@/store/responsive';
             }            
         }
 
-        const selectRecord = (record, from, user) => {
+        const selectRecord = (event, record, from, user) => {
             
             menu.setMenu( {id: record.id, name: `cal_${record.id}`, user_id: user.id})
-            console.log('ppppppp', menu)
+            
             nextTick(() => {
                 const el = document.getElementById(`w_rec_${record.id}_${user.id}`)
                 if(el){

@@ -97,7 +97,10 @@
     const emit = defineEmits(['selectRecord'])
     onMounted(() => {
         if(tempRecord.id && tempRecord.id == props.record.id){  
-            emit('selectRecord', props.record, 'auto')                   
+            setTimeout(() => {
+                emit('selectRecord', null, props.record, 'auto')  
+            });
+                             
         }
     })
     const createdDate = computed(() => { return props.record.created_at ? moment(props.record.created_at).format('YYYY/M/D HH:mm:ss') : ''})
@@ -210,11 +213,11 @@
             return  
         }
     })
-    const openOrClose = () => {
+    const openOrClose = (event) => {
         if(menu.id == props.record.id){
             menu.setMenu({name: '', id: null})
         }else{
-            emit('selectRecord', props.record, null)
+            emit('selectRecord',event, props.record, null)
         }
         
     }

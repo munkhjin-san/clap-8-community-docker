@@ -134,14 +134,7 @@ import { useFocused } from '@/store/focused';
     onMounted(() => {
         localStorage.setItem('viewType', 3)
         window.addEventListener("mouseup", onMouseUp);
-        const index = moment().subtract(1, 'hour').startOf('hour').hour()       
-        const el = hourMemberItems.value[index]
-        if(el){
-            el.scrollIntoView({block : 'start', inline: "start" })
-            setTimeout(() => {
-                hideName.value = false
-            }, 0);                
-        }
+        
         currentMinute.value = getCurrentMinute()
         setInterval(() => {
             currentMinute.value = getCurrentMinute();
@@ -219,4 +212,15 @@ import { useFocused } from '@/store/focused';
     const getCurrentMinute = () => {
         return moment().format('HH:mm');
     }
+    const containerScroll = async() => {
+        const index = moment().subtract(1, 'hour').startOf('hour').hour()       
+        const el = hourMemberItems.value[index]
+        if(el){
+            el.scrollIntoView({block : 'start', inline: "start" })
+            setTimeout(() => {
+                hideName.value = false
+            }, 0);                
+        }    
+    }
+    defineExpose({containerScroll})
 </script>

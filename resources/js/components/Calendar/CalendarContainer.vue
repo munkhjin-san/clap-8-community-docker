@@ -54,7 +54,7 @@
         </Transition>
         <NormalHourLayout
             v-if="viewType == 0"
-            ref="dayView"
+            ref="normalHourLayoutRef"
             :daysOfMonth="daysOfMonth"
             :records="recordList"
             :initialLoader="initialLoader"
@@ -66,7 +66,7 @@
         />
         <NormalMonthLayout 
             v-if="viewType == 1"
-            ref="monthView"
+            ref="normalMonthLayoutRef"
             :records="recordList"
             :selected-year="selectedYear"
             :selected-month="selectedMonth"
@@ -83,7 +83,7 @@
         />
         <MemberMonth 
             v-if="viewType == 2"
-            ref="weekView"
+            ref="memberMonthLayoutRef"
             :records="recordList"
             :selected-year="selectedYear"
             :selected-month="selectedMonth"
@@ -109,7 +109,7 @@
             :initialLoader="initialLoader"
             @create="createAtTime"
             @resetFastCreate="resetFastCreate"
-            ref="listView"
+            ref="memberHourLayoutRef"
         />
         <Transition name="modalFade">
             <div id="calendarViewMenu" class="boxMenu boardMenuIcon viewSwitchMenu" v-if="menu.name == 'calendarViewMenu' && menu.id == 79">
@@ -245,27 +245,36 @@ import { useTempRecord } from '@/store/tempRecord';
     const preSelectedMembers = ref([])
     const draggingCalendar = ref(null)
     const { notify, info, confirm } = inject('dialog')
-
+    const normalHourLayoutRef = ref(null)
+    const memberHourLayoutRef = ref(null)
+    const memberMonthLayoutRef = ref(null)
+    const normalMonthLayoutRef = ref(null)
+    const layouts = computed(() => {
+        return [normalHourLayoutRef.value, normalMonthLayoutRef.value, memberMonthLayoutRef.value, memberHourLayoutRef.value]
+    })
     onUnmounted(() => {
         window.removeEventListener("keydown", onKeyDown);        
     })        
     onMounted(() => {
+        const type = parseInt(localStorage.getItem('viewType'))   
+        viewType.value = type > -1 ? type : 1  
         if(route.query && route.query.id && props.initial_date){
             
             const tempId = parseInt(route.query.id)
             const m = moment(props.initial_date).month();
             const y = moment(props.initial_date).year();
+            const d = moment(props.initial_date).date();
             activeMonth.value = selectedMonth.value = m;
             activeYear.value = selectedYear.value = y;
-            viewType.value = 0 
+            selectedDay.value = d
             const date = moment(props.initial_date).startOf('month').format('YYYY-MM-DD')
             getCalendar(date, 'mounted')
             tempRecord.setTempRecord(tempId)
         }else{
             const date = moment().format('YYYY-MM-DD')
             getCalendar(date, 'mounted')            
-            const type = parseInt(localStorage.getItem('viewType'))    
-            viewType.value = type > -1 ? type : 1           
+             
+                     
             
         }
         getFacilities()        
@@ -462,8 +471,7 @@ import { useTempRecord } from '@/store/tempRecord';
         const thisMonth = moment().isSame(selected, 'month')
         if(thisMonth){
             nextTick(() => {
-                jumpExecute(moment().format('YYYY-MM-DD'))
-                
+                jumpExecute(moment().format('YYYY-MM-DD'))                
             })
             
         }
@@ -560,38 +568,14 @@ import { useTempRecord } from '@/store/tempRecord';
         }
                     
     }
-    const weekView = ref(null)
-    const monthView = ref(null)
-    const jumpExecute = (day) => {
-        const id = viewType.value == 0 ? 'day_val_' : viewType.value == 1 ? 'day_val_m_' : viewType.value == 2 ? 'day_val_w_' : '_'
-        const el = document.getElementById(id + day)   
-        if(el){
-            if(viewType.value == 2){
-                const el = weekView.value?.$refs[`w_day_${day}`]
-                if(el && el.length){
-                    const rect = el[0].getBoundingClientRect()
-                    const r_el = weekView.value?.$refs.cal_week_view
-                    const space = weekView.value?.$refs.spacer
-                    if(r_el && space){
-                        const index = responsive.mobile ? 0 : 60
-                        const l = rect.x - space.getBoundingClientRect().width - index
-                        r_el.scrollBy(l, 0)
-                    }
-                }
-            }else{
-                el.scrollIntoView({block: 'start', behavior: 'instant'})
-            }                
-            if(viewType.value == 1){
-                monthView.value?.$refs.monthScrollContainer?.scrollBy(0, -40)
-                
-            }   
-            nextTick(() => {
-                initialLoader.value = false
-            })
-        }     
-                                
-        initialLoader.value = false
-                
+
+    const jumpExecute = async(day) => {
+        console.log('yyyy', day)
+        const layout = layouts.value[viewType.value]
+        if(layout){
+            await layout.containerScroll(day)
+        } 
+        initialLoader.value = false                
     }
     const closeCreate = (val) => {
         createWindow.value = false
@@ -670,7 +654,7 @@ import { useTempRecord } from '@/store/tempRecord';
             selectedDay.value = moment(record.date_start).date()
         }                
         records.value = []
-        getCalendar(date)
+        getCalendar(date, 'search')
         
     }
     const getCalendar = (day, method) => {
@@ -696,13 +680,22 @@ import { useTempRecord } from '@/store/tempRecord';
                     records.value.push(item);
                 }
                 
-            });                                
-            if(method == 'mounted'){
-                setTimeout(() => {     
-                    const date = moment().format('YYYY-MM-DD')                   
+            });     
+            
+                
+                                      
+            if(method == 'mounted' || method == 'search'){
+                setTimeout(() => {
+                    let date = moment().format('YYYY-MM-DD')      
+                    if(tempRecord.id){
+                        const target = response.data.find(ob => ob.id == tempRecord.id)
+                        if(target){
+                            date = moment(target.date_start).format('YYYY-MM-DD')
+                        }
+                    }             
                     jumpExecute(date)                       
                     initialLoader.value = false                        
-                })                    
+                });              
             }                
             if(method == 'shift'){
                 nextTick(() => {     
