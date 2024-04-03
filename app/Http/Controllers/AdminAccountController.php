@@ -43,7 +43,7 @@ class AdminAccountController extends Controller
     }
     public function get_controllable_users(Request $request){
         $with_users = (int) $request->with_users;
-        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント', '経営管理本部'];
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
         $user_list = User::with('user_detail')->with('positions')->whereNotIn('name', $ng_list)->with('offices')->with('work_groups')->with('linked')->get();
         $position_list_label = positionRecord::select('id AS value', 'name AS label')->get();
         $office_list_label = officeRecord::select('id AS value', 'name AS label')->get();
@@ -52,6 +52,7 @@ class AdminAccountController extends Controller
         ->when($with_users, function ($q) {
             $q->with(['members' => function($q) {
                 $q->where('users.partner_flag', 0)
+                    ->where('users.hide_flag',0)
                     ->where('users.retire', 0);
             }]);
         })
@@ -180,8 +181,9 @@ class AdminAccountController extends Controller
         return response()->json('success');
     }
     public function clap_statistics(Request $request) {      
-        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント', '経営管理本部'];  
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];  
         $all_users = User::where('deleted_flag', '=', 0)
+        ->where('hide_flag', '=', 0)
         ->where('partner_flag', '=', 0)
         ->whereNotIn('name',  $ng_list)
         ->select('id', 'name')
