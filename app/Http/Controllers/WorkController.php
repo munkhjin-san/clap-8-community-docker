@@ -387,7 +387,7 @@ class WorkController extends Controller
         $auth_user_id = $user->id;
         $ids = [608, 610];
         $authenticatedUserId = Auth::id();
-        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント', '研修サポート'];
         if($auth_user_id == 608 || $auth_user_id == 610){
             $work_group_users = User::where('deleted_flag', 0)
                         ->where('partner_flag', 0)
