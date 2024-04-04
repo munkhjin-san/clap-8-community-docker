@@ -101,7 +101,7 @@
     import CommandButton from '../../Global/CommandButton.vue';
     import YearPicker from '../../Global/YearPicker.vue'
     import LoaderButton from '../../Global/LoaderButton.vue';
-    import { computed, onMounted, ref } from 'vue';
+    import { computed, inject, onMounted, ref } from 'vue';
     import { useTheme } from '@/store/theme';
     import UserSearchBar from '../UserSearchBar.vue';
     const keywords = ref('')
@@ -113,6 +113,7 @@
     const changedShifts = ref([])
     const theme = useTheme()
     const fetch = ref(0)
+    const { notify } = inject('dialog')
     onMounted(async () => {
         await getPlannedShifts()
         fetch.value++
@@ -144,16 +145,19 @@
         } else {
             changedShifts.value.push({ id: id, shift_day: val });
         }
-
-        console.log(changedShifts.value);
     }
-    const saveShift = () => {
+    const saveShift = async() => {
         processing.value = true
-        axios.post('/change_planned_shifts', {shifts: changedShifts.value}).then(res => {
+        try {
+            await axios.post('/change_planned_shifts', {shifts: changedShifts.value, userId: editUser.value.id})
             getPlannedShifts()
-            processing.value = false
             open.value = false
-        })
+            changedShifts.value = []
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+        processing.value = false
+        
     }
 </script>
 <style scoped>

@@ -13,6 +13,7 @@ use App\Models\shiftRecord;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 
 use Carbon\Carbon;
 
@@ -226,15 +227,27 @@ class AdminWorkController extends Controller{
 
     public function change_planned_shifts(Request $request){
         $changedShifts = $request->shifts;
+        $shiftDays = collect($request->shifts)->pluck('shift_day');
         if(!empty((array)$changedShifts)){
             $updatedShifts = [];
+            $existingShift = shiftRecord::whereIn('shift_day', $shiftDays)
+                                        ->where('user_id', $request->userId)
+                                        ->where('shift_type', 3)
+                                        ->get()->pluck('shift_day');
+            if(count($existingShift) > 0){
+                $string = '';
+                foreach($existingShift as $day){
+                    $string = $string . $day . ' ';
+                }
+                throw ValidationException::withMessages(['message' => $string . '日はすでに計画された計画有給のため、変更することはできません。']);
+            }
+            shiftRecord::whereIn('shift_day', $shiftDays)
+                        ->where('user_id', $request->userId)
+                        ->whereNot('shift_type', 3)
+                        ->delete();
             foreach($changedShifts as $shift){
                 $shiftRecord = shiftRecord::findOrFail($shift['id']);
-                $existingShift = shiftRecord::where('shift_day', $shift['shift_day'])->where('user_id', $shiftRecord->user_id)->first();
-                if($existingShift){
-                    $existingShift->delete();
-                }
-                
+
                 $newShift = shiftRecord::create([
                     "user_id" => $shiftRecord->user_id,
                     "start_time" => $shiftRecord->start_time,
