@@ -94,7 +94,7 @@
         <div v-if="responsive.mobile" style="min-height: 60px;display: flex;align-items: center">
             <HamBurger/>
         </div>        
-        <div style="height: 100%;width: 100%;text-align: center;justify-content: center;display: flex;align-items: center;flex-direction: column;">
+        <div style="color:var(--primary-color);height: 100%;width: 100%;text-align: center;justify-content: center;display: flex;align-items: center;flex-direction: column;">
             <p>アクセス権限ありません。</p>
             <router-link class="l-button" style="margin: 30px 0 70px 0;" to="/board">ボードへ戻る</router-link>
         </div>        
