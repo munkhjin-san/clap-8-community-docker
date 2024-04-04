@@ -8,8 +8,8 @@
                 :name="name" 
                 :class="['g-text-long', customClass, {'date-color' : theme.dark }]"                 
             ></textarea>
-            <p v-if="error" class="i-error">{{ error }}</p>
         </div>
+        <p v-if="error" class="i-error">{{ error }}</p>
     </div> 
 </template>
   
