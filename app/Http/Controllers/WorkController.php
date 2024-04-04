@@ -392,10 +392,11 @@ class WorkController extends Controller
             $work_group_users = User::where('deleted_flag', 0)
                         ->where('partner_flag', 0)
                         ->where('retire', 0)
+                        ->orWhere('retire_date', '>=', Carbon::now())
                         ->whereNotIn('id', $ids)
                         ->whereNotIn('name', $ng_list)
                         ->select('id', 'name', 'icon_id', 'name_kana')
-                        ->orderByRaw("id = $authenticatedUserId desc") // Sorting by whether the ID matches the authenticated user's ID
+                        ->orderByRaw("id = $authenticatedUserId desc")
                         ->orderBy('id', 'asc')
                         ->get();
         }else{

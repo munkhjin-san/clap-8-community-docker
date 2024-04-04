@@ -4,8 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\User;
-use App\Models\userDetail;
-use App\Models\Icons;
 use App\Models\boardRecord;
 use App\Models\boardToUser;
 use App\Models\positionRecord;
@@ -17,12 +15,9 @@ use App\Models\KnowledgeRecord;
 use App\Models\ChallengeRecord;
 use App\Models\ClapRecord;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use App\Services\SharedService;
+use Carbon\Carbon;
 class AdminAccountController extends Controller
 {
     
@@ -96,8 +91,9 @@ class AdminAccountController extends Controller
         $user->partner_flag = $user_params['position_id'] == 14 ? 1 : 0;
         $user->retire = $user_params['retire'];
         if($user_params['retire'] == 1){
-            $user->login = $user_params['login'] . '_r_' . date("Ymd") . '_' . rand(1000,9999);
-            $user->email = $user_params['login'] . date("Ymd") . $this->generateRandomString();
+            $user->retire_date = Carbon::now()->addMonth();
+            $user->login = $user_params['login'] . '_r_' . Carbon::now()->isoFormat('YYYY-MM-DD') . '_' . rand(1000,9999);
+            $user->email = $user_params['login'] . Carbon::now()->isoFormat('YYYY-MM-DD') . $this->generateRandomString();
             $user->password = bcrypt('glowd0802');
             $user->hide_flag = 1;
             // $board_to_users = boardToUser::where('user_id', $user->id)->get();
