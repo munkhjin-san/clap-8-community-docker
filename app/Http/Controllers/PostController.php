@@ -85,15 +85,38 @@ class PostController extends Controller
             }
         }
         
-     
+        $has_user = array_key_exists('member', $params) && $params['member'] !== null;
+        $user = $has_user ? User::where('name', $params['member'])->first() : null;
+        $target_users = $user ? [$user->id] : [];
         $records = $model::query();
-
+        $path = $request->path;
         $qr = $records->where('deleted_flag', 0)
-        ->when($params, function ($query) use($params, $search_tags) {
+        ->when($params, function ($query) use($params, $search_tags, $target_users, $path) {
             $query->when(array_key_exists('id', $params) && $params['id'], function ($query) use($params) {
                 $query->where('id', $params['id']);
             });
-            
+            $query->when($target_users, function($query) use ($target_users, $path) {
+                $query->when(($path == 'knowledge'), function($q) use($target_users){
+                    $q->whereHas('user', function ($query) use ($target_users) {
+                        $query->whereIn('id', $target_users);
+                    });  
+                });          
+                $query->when(($path == 'challenge'), function($q) use($target_users){
+                    foreach($target_users as $user_id){
+                        $q->whereHas('to_users', function ($query) use ($user_id) {
+                            $query->where('users.id', $user_id);
+                        });
+                    }  
+                }); 
+                $query->when(($path == 'nice'), function($q) use($target_users){
+                    foreach($target_users as $user_id){
+                        $q->whereHas('to_users', function ($query) use ($user_id) {
+                            $query->where('users.id', $user_id);
+                        });
+                    }
+                    $q->orWhereIn('user_id', $target_users);
+                });   
+            });
             $query->when($search_tags, function ($query) use ($search_tags) {
                 $query->whereHas('tags', function ($query) use ($search_tags) {
                     $query->whereIn('text', $search_tags);

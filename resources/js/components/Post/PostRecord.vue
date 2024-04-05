@@ -19,21 +19,20 @@
         </div>
         <div class="post-second-wrap">
             <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers}]">
-                <div v-if="record.app_type == 2 || record.app_type == 3" style="display:flex;align-items: center;cursor: pointer;">
-                    <UserIcon :user="record.user" imgClass="userNormalIcon" size="30"/>
-                    <p @click.stop="pushInstantUser($event, record.user)" class="userName">{{ record.user ? record.user.name : '' }}</p>
-                    
-                </div>                
+                <RouterLink class="user-link" :to="`${route.name}?member=${record.user.name}`" v-if="record.app_type == 2 || record.app_type == 3" style="display:flex;align-items: center;cursor: pointer;">
+                    <UserIcon :user="record.user" :disableInstant="true" imgClass="userNormalIcon" size="30"/>
+                    <p class="userName">{{ record.user ? record.user.name : '' }}</p>
+                </RouterLink>              
                 <div v-if="record.app_type == 4 || record.app_type == 3" style="position: relative;">
                     <div style="display: flex;align-items: center;">
                         <svg v-if="record.app_type == 3" version="1.1" xmlns="http://www.w3.org/2000/svg" class="nice-arrow" viewBox="0 0 47 32" style="margin-right: 15px;">
                             <path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path>
                         </svg>
-                        <div ref="toUsersRef" :class="['toUserListContainer', {expandToUserListContainer : expand}]">
-                            <div :key="user.id" v-for="user in record.to_users" style="display: flex;align-items: center;cursor: pointer;">                                                             
-                                <UserIcon size="30" :user="user" :imgClass="isMultipleUsers ? 'toUsersIconSmall' : 'toUsersIcon'"/>                               
-                                <p @click.stop="pushInstantUser($event, user)" style="width: max-content;" class="userName">{{ user.name }}</p>                                                                
-                            </div>                               
+                        <div ref="toUsersRef" :class="['toUserListContainer', {expandToUserListContainer : expand}]">   
+                            <RouterLink class="user-link" :to="`${route.name}?member=${user.name}`" :key="user.id" v-for="user in record.to_users" style="display: flex;align-items: center;cursor: pointer;">                                                    
+                                <UserIcon size="30" :disableInstant="true"  :user="user" :imgClass="isMultipleUsers ? 'toUsersIconSmall' : 'toUsersIcon'"/>                               
+                                <p style="width: max-content;" class="userName">{{ user.name }}</p>    
+                            </RouterLink>                                                              
                         </div>
                     </div>
                     
@@ -265,7 +264,6 @@ import { useMessageUsers } from '@/store/messageUsers'
         const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
         return urlParse    
     })
-    const pushInstantUser = inject('pushInstantUser')
     const updateStatus = () => {
         if(isOwner.value){
             emit('updateStatus', props.record)
