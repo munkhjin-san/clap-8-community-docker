@@ -368,7 +368,7 @@ import { useTopTags } from '@/store/topTags'
 .active-query{
     font-size: 14px;
     background: var(--background-color);
-    color: var(--primary-button);
+    color: var(--primary-color);
     padding: 10px 10px;
     width: fit-content;
     display: flex;
