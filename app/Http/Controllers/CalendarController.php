@@ -900,7 +900,7 @@ class CalendarController extends Controller
             // $unavialable_items[] = $facility_check;
             $item = [
                 "label" => !$facility_check ? $list[$id]['label'] : $list[$id]['label'] . '（選択不可）' ,
-                "id" => $list[$id]['value'],
+                "id" => (string) $list[$id]['value'],
                 "availablity" => !$facility_check
             ];
             $items[] = $item;

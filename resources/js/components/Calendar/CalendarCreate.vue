@@ -362,9 +362,9 @@ import { useSharingDataStore } from '@/store/sharingData'
         }
     })
     const facility = ref({
-        qualified_institution:  ref( props.editTarget && props.editTarget.qualified_institution !== null ? props.editTarget.qualified_institution : null),
-        qualified_car: ref(props.editTarget && props.editTarget.qualified_car !== null ? props.editTarget.qualified_car : null),
-        zoom_value: ref(props.editTarget && props.editTarget.zoom_value !== null ? props.editTarget.zoom_value : null)
+        qualified_institution:  ref( props.editTarget && props.editTarget.qualified_institution !== null ? props.editTarget.qualified_institution.toString() : null),
+        qualified_car: ref(props.editTarget && props.editTarget.qualified_car !== null ? props.editTarget.qualified_car.toString() : null),
+        zoom_value: ref(props.editTarget && props.editTarget.zoom_value !== null ? props.editTarget.zoom_value.toString() : null)
     })
     const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
     const processing = ref(false)
@@ -487,6 +487,11 @@ import { useSharingDataStore } from '@/store/sharingData'
             return
         }
         processing.value = true
+
+        let convertableFacilities = {};
+        for (let key in facility.value) {
+            convertableFacilities[key] =  facility.value[key] !== null ? parseInt(facility.value[key]) : null            
+        }
         const params = {
             editId: props.editTarget ? props.editTarget.id : null,
             edit_repeat: props.edit_all_record,
@@ -502,9 +507,10 @@ import { useSharingDataStore } from '@/store/sharingData'
             time_end: all_day.value ? '23:59' : time_end.value,
             once_date: once_date.value,
             repeat_span: repeat_span.value,
-            facility: facility.value,
+            facility: convertableFacilities,
             file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : []
         }
+        
         axios.post('/calendar_add_record',params)
         .then(response =>  {
             info(props.editTarget ? '編集しました。' : '作成しました。')
