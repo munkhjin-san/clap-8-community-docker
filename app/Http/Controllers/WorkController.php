@@ -883,7 +883,8 @@ class WorkController extends Controller
         $today = date("Y-m");
         $year = date("Y");
         $month = date("m");
-        if($auth_user_id == 610 || $auth_user_id == 608 || in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
+        $ids = [490, 558, 495, 610, 608];
+        if(in_array($auth_user_id, $ids) || in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
             $resposnsArray = [
                 'yesterday' => $yesterday,
                 'shiftNotSubmittedList' => [],
