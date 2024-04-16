@@ -99,10 +99,10 @@ const downloadCSV = () => {
         });
         let form = ''
         if(item.lesson_form){
-            for (let index = 0; index < 2; index++) {
+            for (let index = 0; index <= 2; index++) {
                 const offset = index + 1
                 const q = `Q: ${item.lesson_form[`question${offset}`]}\n`
-                const a = `Q: ${item.lesson_form[`answer${offset}`]}\n`
+                const a = `A: ${item.lesson_form[`answer${offset}`]}\n`
                 form = form + q
                 form = form + a                
             }
