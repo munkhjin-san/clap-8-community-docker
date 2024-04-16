@@ -33,21 +33,21 @@ class CalendarController extends Controller
     private function zoom_account($index){
         $account_information = [
             [
-                'accountId' => '_ubCKWJlRVCgbgb8UdiG1w',
-                'clientId' => 'zWxB7QVSKa6cFHOi5W1BQ',
-                'clientSecret' => 'LN7dmUOI6odCli14m9s723dBZIlnS0UF',
+                'accountId' => 'NIv1ZAkIRdCnjX7uddQLAQ',
+                'clientId' => 'fwZ711P6R5C47R5pb4zugg',
+                'clientSecret' => 'VBsTEsuhP6RBGlhKQ2ceCRbpuQIxah7m',
                 'accountMail' => 'zoom1@glowd.co.jp',
             ],
             [
-                'accountId' => '_ubCKWJlRVCgbgb8UdiG1w',
-                'clientId' => 'WPER8r40QVWwa52loOCRzQ',
-                'clientSecret' => 'WWEJX8YHPh2gnxJgggZB6Y47LVnPaNE8',
+                'accountId' => 'NIv1ZAkIRdCnjX7uddQLAQ',
+                'clientId' => 'ozsT8JcdQpKLhdbdVPMZzg',
+                'clientSecret' => 'LivCOTnVCmBohjE3SMJc2EqBnCHhQJTM',
                 'accountMail' => 'zoom2@glowd.co.jp',
             ],
             [
-                'accountId' => 'pjE0gLynQu-qFakQHtdFew',
-                'clientId' => 'I1s5DepQRs2umQuuqNO2mg',
-                'clientSecret' => 'P9gydADDvOsyi4HcAOXMNSz8RPA3Mb6o',
+                'accountId' => 'NIv1ZAkIRdCnjX7uddQLAQ',
+                'clientId' => '62FVOmH6SZu1rVpPxiZaFw',
+                'clientSecret' => '4ks6zEXcXCUq7YdiRNywjq8u9KBQ0PWR',
                 'accountMail' => 'zoom3@glowd.co.jp',
             ]
         ];
@@ -379,7 +379,7 @@ class CalendarController extends Controller
                     $r_record->files()->detach();
                     $r_record->delete();                    
                 }
-                if($record->zoom_value && $record->zoom_id){
+                if($record->zoom_id){
                     $token = $this->zoomToken($record['zoom_value']);
                     $params = [
                         "zoom_id" => $record['zoom_value'],
@@ -393,7 +393,7 @@ class CalendarController extends Controller
                 $record->delete();
             }           
         }else{
-            if($record->zoom_value && $record->zoom_id){
+            if($record->zoom_id){
                 $token = $this->zoomToken($record['zoom_value']);
                 $params = [
                     "zoom_id" => $record['zoom_value'],
@@ -451,7 +451,7 @@ class CalendarController extends Controller
                 "qualified_car" => $request['facility']['qualified_car']
             ]);
         }
-        if($record['zoom_value'] && $record['zoom_id']){
+        if($record['zoom_id']){
             $token = $this->zoomToken($record['zoom_value']);
             $params = [
                 "zoom_id" => $record['zoom_value'],
