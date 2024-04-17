@@ -27,7 +27,6 @@
             <LessonCreate 
                 v-if="createWindow"
                 :editTarget="editTarget"
-                :lessonThemeId="activeLesson"
                 @createFinish="createFinish"           
             />
             
@@ -39,6 +38,7 @@ import { inject, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMenuStore } from '@/store/menu';
 import LessonCreate from './LessonCreate.vue';
+const props = defineProps(['theme'])
 const { confirm } = inject('dialog')
 const route = useRoute()
 const menu = useMenuStore()
@@ -59,7 +59,7 @@ const editLesson = (lesson) => {
 const createFinish = (reload) => {
     createWindow.value = false
     if(reload){
-        getLesson(activeLesson.value)
+        getLesson()
     }
     
 }

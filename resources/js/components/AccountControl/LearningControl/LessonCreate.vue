@@ -15,7 +15,6 @@
                     name="lessonTitle" 
                     placeHolder="タイトルを入力（必須）" 
                     :rules="'required'"
-                    :initialValue="editTarget ? editTarget.title : ''"
                     customClass="full"
                     ref="lessonTitle"
                     type="text"
@@ -65,16 +64,18 @@ import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
 import RichEditor from '../../Global/RichEditor.vue';
 import { computed, inject, ref } from 'vue';
+import { useRoute } from 'vue-router';
     const priorities = [
         {value: 0, content: 'ヘッダー'},
         {value: 1, content: 'セクション'},
     ]
+    const route = useRoute()
     const { notify, info } = inject('dialog')
-    const props = defineProps(['editTarget', 'lessonThemeId'])
+    const props = defineProps(['editTarget'])
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
     const hasFeedBack =  ref(props.editTarget && props.editTarget.has_feedback ? props.editTarget.has_feedback : false)
-    const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : false)
+    const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : '')
     const richEdit = ref(null)
     const richEditDetailed = ref(null)
     const selectedPriority = ref(props.editTarget ? props.editTarget.priority : null)
@@ -96,7 +97,7 @@ import { computed, inject, ref } from 'vue';
                 
                 const params = {
                     edit_id: props.editTarget ? props.editTarget.id : null,
-                    lesson_theme_id: props.lessonThemeId,
+                    lesson_theme_id: route.params.themeId,
                     title: title.value,
                     content: richContent,
                     content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
