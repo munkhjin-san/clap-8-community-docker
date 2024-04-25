@@ -69,7 +69,7 @@
     const { notify, info } = inject('dialog')
     const workGroupName = ref(null)
     const optionUsers = computed(() => {
-        return props.userList.map(user => ({
+        return props.userList.filter(user => user.retire == 0 && user.partner_flag == 0).map(user => ({
                 id: user.id,
                 name: user.name,
                 icon_id: user.icon_id,
