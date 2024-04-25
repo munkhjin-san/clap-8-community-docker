@@ -107,6 +107,7 @@ class AdminAccountController extends Controller
         
         $user->user_code = $user_params['user_code'];
         $user->work_type = $user_params['work_type'];
+        $user->on_leave = $user_params['on_leave'];
         $user->work_time_day = $user_params['work_time_day'];
         $user->hide_flag = $user_params['hide_flag'];
         if($user_params['position_id'] == 6){
@@ -173,7 +174,16 @@ class AdminAccountController extends Controller
         $work_group = $request->work_group_id ? workGroup::findOrFail($request->work_group_id) : new workGroup;        
         $work_group->name = $request->work_group_name;
         $work_group->save();
-        $work_group->members()->syncWithPivotValues($request->work_group_users, ['updated_at' => now()]);
+        $current_user_ids = $work_group->members->pluck('id')->toArray();
+        $userIds = array_unique(array_merge($request->work_group_users, $request->work_group_pm));
+        $userIdsToDelete = array_diff($current_user_ids, $userIds);
+        $work_group->members()->detach($userIdsToDelete);
+        $pivotData = collect($userIds)->mapWithKeys(function ($userId) use ($request) {
+            $authority = in_array($userId, $request->work_group_pm) ? 1 : 0;
+            return [$userId => ['authority' => $authority, 'updated_at' => now()]];
+        });
+
+        $work_group->members()->sync($pivotData->toArray(), false);
         return response()->json('success');
     }
     public function clap_statistics(Request $request) {      

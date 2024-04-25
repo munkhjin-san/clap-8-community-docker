@@ -24,19 +24,22 @@
                         </div>                        
                     </td>
                     <td>
-                        <CommandButton 
-                            :buttons="[
-                                {
-                                    name: '編集',
-                                    value: 1
-                                },
-                                {
-                                    name: '削除',
-                                    value: 2
-                                }
-                            ]"
-                            @select="(button) => button.value == 1 ? openModal(item) : deleteWorkGroup(item)"
-                        />
+                        <div style="display: flex; justify-content: center; gap: 10px;">
+                            <CommandButton 
+                                :buttons="[
+                                    {
+                                        name: '編集',
+                                        value: 1
+                                    },
+                                    {
+                                        name: '削除',
+                                        value: 2
+                                    }
+                                ]"
+                                @select="(button) => button.value == 1 ? openModal(item) : deleteWorkGroup(item)"
+                            />
+                        </div>
+                        
                         <!-- <button type="submit" @click="openModal(item)" class="account-btn">編集</button> -->
                     </td>
                 </tr>

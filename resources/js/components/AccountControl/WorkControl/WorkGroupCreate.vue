@@ -20,6 +20,16 @@
             </div>
             <div class="si-box">
                 <MemberSelector 
+                    placeHolder="執行役員"
+                    v-model="workgroup_pm"
+                    :options="optionPms"
+                    rules=""
+                    name="workgroup_pm"
+                    :closeOnSelect="true"
+                />
+            </div>
+            <div class="si-box">
+                <MemberSelector 
                     placeHolder="メンバー"
                     v-model="workgroup_users"
                     :options="optionUsers"
@@ -46,9 +56,16 @@
     import { computed } from 'vue';
     const props = defineProps(['editWorkGroupData', 'userList'])
     const emit = defineEmits(['postFinish', 'closeModal'])
+    const users = computed(() => {
+        return props.editWorkGroupData ? props.editWorkGroupData.members.filter(ob => ob.pivot.authority == 0) : []
+    })
+    const pm = computed(() => {
+        return props.editWorkGroupData ? props.editWorkGroupData.members.filter(ob => ob.pivot.authority == 1) : []
+    })
     const work_group_name = ref(props.editWorkGroupData ? props.editWorkGroupData.name : '')
     const processing = ref(false)
-    const workgroup_users = ref(props.editWorkGroupData ? props.editWorkGroupData.members : [])
+    const workgroup_users = ref(users.value ? users.value : [])
+    const workgroup_pm = ref(pm.value ? pm.value : [])
     const { notify, info } = inject('dialog')
     const workGroupName = ref(null)
     const optionUsers = computed(() => {
@@ -56,8 +73,12 @@
                 id: user.id,
                 name: user.name,
                 icon_id: user.icon_id,
-                name_kana: user.name_kana
+                name_kana: user.name_kana,
+                position_id: user.position_id
             }))
+    })
+    const optionPms = computed(() => {
+        return optionUsers.value.filter(user => user.position_id === 6)
     })
     const workGroupAdd = async() => {
         const result = await workGroupName.value.validate();
@@ -71,6 +92,7 @@
                 work_group_id : props.editWorkGroupData ? props.editWorkGroupData.id : null,
                 work_group_name : work_group_name.value,
                 work_group_users : workgroup_users.value.map(ob => ob.id),
+                work_group_pm : workgroup_pm.value.map(ob => ob.id)
             }
             try {
                 await axios.post('/work_group_add', params)

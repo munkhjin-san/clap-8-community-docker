@@ -12,8 +12,9 @@
         </Transition>
         <div class="admin-command-bar" style="margin: 20px">            
             <div class="sub-tab-container" style="margin-bottom: 20px;">
-                <div @click="retire = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 0}]">在籍者</div>
-                <div @click="retire = 1" :class="['sub-tab-item', { 'selected-sub-tab': retire == 1}]">退職者</div>
+                <div @click="retire = 0, on_leave = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 0 && on_leave == 0}]">在籍者</div>
+                <div @click="on_leave = 1, retire = 0" :class="['sub-tab-item', { 'selected-sub-tab': on_leave == 1 && retire == 0}]">休職者</div>
+                <div @click="retire = 1, on_leave = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 1 && on_leave == 0}]">退職者</div>                
             </div>    
             <UserSearchBar v-model="keywords"/>           
         </div>
@@ -76,13 +77,14 @@
     import CommandButton from '../Global/CommandButton.vue';
     import UserCreate from './UserCreate.vue'
     import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
-    import { computed, inject, onMounted, ref } from 'vue';
+    import { computed, onMounted, ref } from 'vue';
     import UserSearchBar from './UserSearchBar.vue';
     const showModalContent = ref(false)
     const editUserData = ref(null)
     const passwordFlag = ref(false)
     const scrollContainer = ref(null)
     const retire = ref(0)
+    const on_leave = ref(0)
     const keywords = ref('')
     const usersList = ref([])
     const fetch = ref(0)
@@ -104,7 +106,7 @@
         offices.value = o
     }
     const filteredUsers = computed(() => {
-        const filtered = usersList.value.filter(user => user.retire == retire.value)
+        const filtered = usersList.value.filter(user => user.retire == retire.value && user.on_leave == on_leave.value)
         if(keywords.value){
             let lowSearch = keywords.value.toLowerCase()
             return filtered.filter(user => Object.values(user).some(val => 

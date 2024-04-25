@@ -110,6 +110,16 @@
                         </label>
                     </div>
                 </div>
+                <div class="si-box" v-if="!isPartner && editUserData" style="flex-direction:column">
+                    <span class="user form-label">休職</span>
+                    <div class="input-inner-wrapper" style="margin-top:15px;">                        
+                        <label class="check-container user" style="align-self: center;margin:auto">
+                            <input id="onleave" type="checkbox" :true-value="1" :false-value="0" v-model="userParams.on_leave" name="on_leave">
+                            <span class="checkmark-mini" style="width: 18px; height:18px;top:2px"></span>
+                            <label for="onleave">休職者</label>
+                        </label>
+                    </div>
+                </div>
                 <p v-if="!isPartner" class="user-header">ワーク設定</p>
                                                 
                 <div class="si-box" v-if="!isPartner">                  
@@ -161,7 +171,7 @@
                     </div>
                 </div>
 
-                <div style="padding: 15px;border: solid thin tomato;" class="si-box">
+                <div v-if="!isPartner" style="padding: 15px;border: solid thin tomato;" class="si-box">
                     <MemberSelector 
                         placeHolder="サブアカウント"
                         v-model="subParams.linked"
@@ -201,7 +211,7 @@
            
     </template>
     <script setup>
-        import { computed, inject, onMounted, reactive, ref, markRaw } from 'vue';
+        import { computed, inject, onMounted, reactive, ref, markRaw, watch } from 'vue';
         import ShortInput from '../Form/ShortInput.vue';
         import MemberSelector from '../Form/MemberSelector.vue'
         const emit = defineEmits(['postFinish'])
@@ -236,13 +246,18 @@
             office_id: props.editUserData ? props.editUserData.office_id :  '',
             hide_flag: props.editUserData ? props.editUserData.hide_flag :  0,
             user_code:props.editUserData ? props.editUserData.user_code :  '',
+            on_leave: props.editUserData ? props.editUserData.on_leave : 0,
         })
 
         const subParams = reactive({
             workGroup: props.editUserData && props.editUserData.work_groups ? props.editUserData.work_groups :  [],
             linked: props.editUserData && props.editUserData.linked ? props.editUserData.linked :  [],
         })
-
+        watch(() => userParams.position_id, (newValue) => {
+            if(newValue === 15){
+                userParams.work_type = 1
+            }
+        })
         onMounted(() => {
             console.log(props.linkables)
         })
