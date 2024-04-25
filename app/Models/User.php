@@ -167,7 +167,7 @@ class User extends Authenticatable
         return $this->hasOne(workTemp::class, 'user_code', 'user_code');
     }
     public function work_groups(){
-        return $this->belongsToMany(workGroup::class, 'work_group_users', 'user_id', 'record_id')->whereNull('work_group_users.deleted_at');
+        return $this->belongsToMany(workGroup::class, 'work_group_users', 'user_id', 'record_id')->whereNull('work_group_users.deleted_at')->withPivot(['authority']);
     }
     public function linked(){
         return $this->belongsToMany(User::class, 'user_linked_accounts', 'main_id', 'link_id')->withPivot(['active']);
