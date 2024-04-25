@@ -20,7 +20,7 @@
             </div>
             <div class="si-box">
                 <MemberSelector 
-                    placeHolder="執行役員"
+                    placeHolder="承認者"
                     v-model="workgroup_pm"
                     :options="optionPms"
                     rules=""

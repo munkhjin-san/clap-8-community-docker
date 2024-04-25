@@ -20,7 +20,10 @@
                     </td>
                     <td >
                         <div style="display: flex;flex-wrap: wrap;gap: 5px;padding: 5px;">
-                            <div style="padding: 5px;background: var(--bg3);font-size: 12px;" v-for="member in item.members">{{ member.name }}</div>
+                            <div style="padding: 5px;background: var(--bg3);font-size: 12px;" v-for="member in item.members">
+                                {{ member.name }}
+                                <span v-if="member?.pivot?.authority == 1"><strong>(承認者)</strong></span>
+                            </div>
                         </div>                        
                     </td>
                     <td>

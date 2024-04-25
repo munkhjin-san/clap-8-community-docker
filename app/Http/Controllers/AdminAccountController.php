@@ -44,11 +44,13 @@ class AdminAccountController extends Controller
         $office_list_label = officeRecord::select('id AS value', 'name AS label')->get();
         $linkable_accounts = User::where('linkable', 1)->select('id', 'name', 'icon_id')->get();
         $work_groups = workGroup::select('name', 'id')
+        ->whereHas('members')
         ->when($with_users, function ($q) {
             $q->with(['members' => function($q) {
                 $q->where('users.partner_flag', 0)
                     ->where('users.hide_flag',0)
-                    ->where('users.retire', 0);
+                    ->where('users.retire', 0)
+                    ->orderBy('pivot_authority', 'desc');
             }]);
         })
         ->get();
