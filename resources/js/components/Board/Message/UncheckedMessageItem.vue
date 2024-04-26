@@ -66,7 +66,7 @@
                         color: #fff;
                         margin-top:10px;" @click="emit('remindRequest', message)" >リマインドから外す</button>        
                
-                <div style="display: flex;width:100%;position:relative;" v-if="userReacts">
+                <div style="display: flex;width:100%;position:relative;white-space:nowrap;" v-if="userReacts">
                     <div style="display:flex;width: fit-content;">
                         
                         <div 
