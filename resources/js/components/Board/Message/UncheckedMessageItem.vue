@@ -88,7 +88,7 @@
                     <div v-if="checkFunctionView" style="display: flex;font-size: 12px;margin-left:auto;height:30px">
                         <p @click.stop="viewCheckedUserList" class="cursor-pointer" :class="{activeCheck : menu.name == 'checkedUsersList' && menu.id == message.id && message.checked_users !== null}" style="margin-top: auto;padding: 8px 8px 9px 8px;margin-bottom:-8px;">確認済み  {{checkedUsers.length}}人</p>                                            
                         <Transition name="modalFade">
-                        <div id="checkedUsersList" v-if="menu.name == 'checkedUsersList' && menu.id == message.id && message.checked_users !== null" class="checkUsersList" :class="{rightSide : message.checked_users && message.user_id == auth.activeUser.id}" style="top: 38px;right: 89px;">                               
+                        <div id="checkedUsersList" v-if="menu.name == 'checkedUsersList' && menu.id == message.id && message.checked_users !== null" class="checkUsersList" :class="{rightSide : message.checked_users && message.user_id == auth.activeUser.id}" style="top: 38px;right: 88px;">                               
                             <div v-for="(user, index) in checkedUsers" class="boardUsersListInner">
                                 <p class="cursor-pointer" style="font-size:small;">{{user.name}}</p>
                             </div>                      
@@ -96,7 +96,7 @@
                         </div>
                         </Transition>
                     </div>
-                    <div v-if="checkFunctionView" style="display: flex;font-size: 12px;padding-left:10px;height:30px">
+                    <div v-if="checkFunctionView" style="display: flex;font-size: 12px;height:30px">
                         <p @click.stop="viewunCheckedUserList"  class="cursor-pointer" :class="{activeCheck : menu.name == 'uncheckedUsersList' && menu.id == message.id && message.unchecked_users !== null}" style="margin-top: auto;padding: 8px 8px 9px 8px;margin-bottom:-8px;">未確認  {{uncheckedUsers.length}}人</p>                                               
                         <Transition name="modalFade">
                         <div id="uncheckedUsersList" style="top: 38px;"  v-if="menu.name == 'uncheckedUsersList' && menu.id == message.id && message.unchecked_users !== null" class="checkUsersList" :class="{rightSide : message.unchecked_users && message.user_id == auth.activeUser.id}">                                
