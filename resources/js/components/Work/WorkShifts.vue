@@ -293,7 +293,7 @@
         const month = shiftMonth.value + 1
         var lastDay = new Date(shiftYear.value, month, 0).getDate();
         var holidayNum;
-        if(lastDay > selectedShifts.value.length && props.notSubmitted){
+        if(lastDay > selectedShifts.value.length){
             required.value = true 
             return
         } 
