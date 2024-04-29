@@ -55,7 +55,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/process_csv', [AutoJobController::class, "process_csv"]);
 // Route::get('/create_thumbnails', [AutoJobController::class, 'createThumbnails']);
 // Route::get('/board_files_thumbnail', [AutoJobController::class, 'board_files_thumbnail']);
-Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
+// Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
 // temp_routes
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
 
