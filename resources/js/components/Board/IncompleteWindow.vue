@@ -228,7 +228,7 @@ import { useRoute, useRouter } from "vue-router";
     }
     const getNotApproved = async() => {
 
-        if(auth && auth.user.position_id == 6 || (auth.activeUser.id == 610 || auth.activeUser.id == 608)){
+        if(auth && auth.user.position_id == 6 || auth.activeUser.id == 610){
             try{
                 const response = await axios.get('/not_approved')
                 notapprovedTimecards.value = Object.values(response.data)
