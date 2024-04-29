@@ -80,8 +80,7 @@
                 new Date(a.updated_at) - new Date(b.updated_at);
             });               
 
-            const ordered = props.orderCreator(0, sortedList, props.day.full)           
-            console.log('check', ordered.length == sortedList.length)
+            const ordered = props.orderCreator(0, sortedList, props.day.full)     
             return ordered
         }
         return []

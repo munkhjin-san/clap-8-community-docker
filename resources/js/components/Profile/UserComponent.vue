@@ -34,7 +34,7 @@
                     <div id="userMenuList" class="boxMenu" v-if="UserAllData.id == auth.id && menu.id == 52 && menu.name == 'userMenuList'" style="z-index: 9;right: 40px;top: 32px;display: flex;flex-direction: column;">
 
                         <router-link class=" boxMenuItems menuLink" :to="{name: 'personal-info-settings'}">プロフィール編集</router-link>
-                        <router-link v-if="!auth.isPartner && auth.user.user_code" class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link>
+                        <router-link v-if="!auth.isPartner && auth.user.user_code && !auth.isRegistered" class=" boxMenuItems menuLink" :to="{name: 'salary-issue'}">昇給課題</router-link>
                         
                     </div>
     

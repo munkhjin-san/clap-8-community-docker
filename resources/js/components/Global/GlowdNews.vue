@@ -24,7 +24,6 @@ import { onMounted, ref } from 'vue';
     const props = defineProps(['newsItems'])
     const visibility = ref('none')
     onMounted(() => {
-        console.log(props.newsItems)
         setTimeout(() => {
             visibility.value = 'block'
             new Swiper('.swiper-news', {

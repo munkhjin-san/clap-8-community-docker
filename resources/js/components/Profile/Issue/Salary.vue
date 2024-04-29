@@ -273,29 +273,6 @@ import { useResponsive } from '@/store/responsive';
         } else {
             selectedDate.value = moment().month(7).set('date', 1).format('YYYY-MM-DD')
         }
-        // const client = new KintoneRestAPIClient({
-        // baseUrl: "https://glowd-hldgs.cybozu.com",
-        // // Use password authentication
-        // auth: {
-        //     username: 'kanribu',
-        //     password: 'Y72wyZ9z',
-        // },
-        // // Use API token authentication
-        // // auth: { apiToken: process.env.KINTONE_API_TOKEN }
-        // // Use OAuth token authentication
-        // // auth: { oAuthToken: process.env.KINTONE_OAUTH_TOKEN }
-
-        // // Use session authentication if `auth` is omitted (in browser only)
-        // });
-        // console.log(client)
-        // client.record
-        // .getRecords({ app: "928" })
-        // .then((resp) => {
-        //     console.log(resp.records);
-        // })
-        // .catch((err) => {
-        //     console.log(err);
-        // });
 
 
 
@@ -336,7 +313,6 @@ import { useResponsive } from '@/store/responsive';
         newIssue.value = true
     }
     const selectThemeConfirm = (level, theme) => {
-        // console.log(level)
         selectedTheme.value = getIssues(level, theme)[0]
     }
     const getIssues = (level, theme) => {

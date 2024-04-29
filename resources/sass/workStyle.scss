@@ -41,6 +41,20 @@
     border: solid 1px var(--primary-color);
     border-radius: 3px;
 }
+.cancelButton{
+    width: 15px;
+    height: 15px;
+    background: var(--primary-color);
+    color: var(--background-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 0;
+    top: 0;
+    border-radius: 50px;
+    cursor: pointer;
+}
 .work-member-check{
     display: block;
     position: relative;
@@ -63,7 +77,16 @@
   .work-member-check input:checked ~ .work-check-mark:after {
     display: block;
   }
-  
+    input::-webkit-outer-spin-button,
+    input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+    }
+
+    /* Firefox */
+    input[type=number] {
+    -moz-appearance: textfield;
+    }
   /* Style the checkmark/indicator */
   .work-member-check .work-check-mark:after {
       left: 5px;
@@ -230,7 +253,7 @@
     align-items: center;
     justify-content: center;
     background-color: var(--overlay);
-    z-index: 50;
+    z-index: 43;
 }
 .condition-img{
     margin: auto;
@@ -329,7 +352,6 @@
     gap: 10px;
 }
 .shift-wrapper{
-    padding: 10px;
     margin-bottom: 20px;
 }
 .shift-type_name{

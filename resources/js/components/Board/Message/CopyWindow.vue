@@ -49,7 +49,6 @@ import { inject, onMounted, ref } from 'vue';
             var startPos = textComponent.selectionStart;
             var endPos = textComponent.selectionEnd;
             selectedText = textComponent.value.substring(startPos, endPos);
-            console.log(99, startPos, endPos)
         }
         else if (document.selection !== undefined)
         {// IE Version

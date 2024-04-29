@@ -89,7 +89,6 @@ import { useRoute } from 'vue-router';
             const richContent = richEdit.value.editor.getHTML()
             // const richContentDetailed = richEditDetailed.value.editor.getHTML()
             if(!richContent || !title.value || selectedPriority.value == null){
-                console.log(selectedPriority.value, title.value )
                 processing.value = false
                 return
             }

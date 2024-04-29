@@ -20,16 +20,22 @@ export const useBadgeStore = defineStore('badge', {
             this.task = payload
         },
         async getPostBadge(){
-            const response = await axios.get('/post_badge')
-            this.post = response.data            
+            const auth = useAuthUserStore()  
+            if(!auth.isPartner && !auth.isRegistered){
+                const response = await axios.get('/post_badge')
+                this.post = response.data         
+            }   
         },
         async updatePostBadge(which:string){
             const response = await axios.patch('/post_badge', {which: which})
             this.post = response.data           
         },
         async getNoticeBadge(){
-            const response = await axios.get('/notice_badge')
-            this.notice = response.data   
+            const auth = useAuthUserStore()  
+            if(!auth.isPartner && !auth.isRegistered){
+                const response = await axios.get('/notice_badge')
+                this.notice = response.data   
+            }
         },
         async getBoardBadge() {
             const data = await axios.get('/board_badge').then(response => response.data)       

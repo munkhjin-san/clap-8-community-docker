@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\timecardCostRecord;
+use App\Models\timecardIncentive;
 use App\Models\User;
 
 use App\Models\attendanceRecord;
@@ -33,7 +35,7 @@ class AdminWorkController extends Controller{
         
     }
 
-    public function getAllMessage(Request $request) {
+    public function get_admin_work(Request $request) {
 
         $month = $request->month;
         $today = Carbon::now();
@@ -83,10 +85,10 @@ class AdminWorkController extends Controller{
                 $q->where('type_id', 40)
                 ->where('value_int', '=' , 1)
                 ->select('type_id', 'value_int', 'date', 'table_record_id');
-            }]);
+                }]);
         }])
         ->with(['attendance_records' => function($q) use($month){
-            $q->where('date_year_month', $month);
+            $q->where('date_year_month', $month)->select('month_petition', 'user_id');
         }])->get([
             'id',
             'name',
@@ -94,11 +96,19 @@ class AdminWorkController extends Controller{
         ]);
         $userIds = $all_users->pluck('id');
         
+        
+        $expenses = timecardCostRecord::whereIn('user_id', $userIds)->where('date_month', $request->month)->get();
+        $monthly_expenses = $expenses->groupBy('user_id')->map(function ($records) {
+            return $records->sum('expenses');
+        });
+        $incentives = timecardIncentive::whereIn('user_id', $userIds)->where('date_month', $request->month)->get();
+        $monthly_incentive = $incentives->groupBy('user_id')->map(function ($records) {
+            return $records->sum('count');
+        });
         $sevenDaysAgo = now()->subDays(7);
         if($today->day == 1 || $today->day == 2 || $today->day == 3 || $today->day == 4 || $today->day == 5 || $today->day == 6){
             $currentMonth -= 1;
         }
-        
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $userIds)
             ->where('date', '>=', $sevenDaysAgo) // Filter by the last 7 days
             ->whereYear('date', $currentYear)
@@ -206,6 +216,8 @@ class AdminWorkController extends Controller{
                 'users' => $all_users,
                 'weather_average' => $mostCommonValuesPerUser,
                 'kintone_data' => $recieve,
+                'monthly_expenses' => $monthly_expenses,
+                'monthly_incentive' => $monthly_incentive 
             );
 
         return response()->json($responseArray);

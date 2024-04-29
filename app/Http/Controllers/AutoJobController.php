@@ -339,9 +339,9 @@ class AutoJobController extends Controller
     public function change_to_dummy(){
         $list = User::get();
 
-        foreach($list as $user){
-            $createIcon = $this->sharedService->createUserDefaultIcon($user, Auth::id());   
-        }
+        // foreach($list as $user){
+        //     $createIcon = $this->sharedService->createUserDefaultIcon($user, Auth::id());   
+        // }
         // $icons = Icons::where('use_of', 'board')->forceDelete();
 
         // $board = BoardRecord::where('id', 1143)->first();
@@ -408,5 +408,18 @@ class AutoJobController extends Controller
         //     $file->delete();            
         // }
         return;
+    }
+
+    public function change_shift_status(){
+        $date = Carbon::now();
+        $year = $date->year;
+        $month = $date->month;
+        $all_shifts = shiftRecord::whereMonth('shift_day', '>', $month)
+                                    ->whereYear('shift_day', '>=', $year)
+                                    ->whereNot('shift_type', 3)
+                                    ->update([
+                                        'status_flag' => 2
+                                    ]);
+        return response()->json($all_shifts);
     }
 }

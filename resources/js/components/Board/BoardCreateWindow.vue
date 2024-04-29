@@ -35,6 +35,7 @@
                         name="boardMembers"
                         ref="boardMembers"
                         path="board_possible_users"
+                        :exclude="[auth.id]"
                         :closeOnSelect="chatType == 1 ? true : false"
                         :limit="chatType == 1 ? 1 : null"
                         v-model="board_users"
@@ -89,8 +90,8 @@ import MemberSelector from '../Form/MemberSelector.vue'
 import 'cropperjs/dist/cropper.css';
 import ShortInput from '../Form/ShortInput.vue'
 import { computed, inject, ref } from 'vue';
-
-
+import { useAuthUserStore } from '@/store/auth';
+    const auth = useAuthUserStore()
     const emit = defineEmits(['close'])
     const chatType = ref(0)
     const tempImage = ref(null)
@@ -147,7 +148,6 @@ import { computed, inject, ref } from 'vue';
         tempImage.value = URL.createObjectURL(event.target.files[0]);
         setTimeout(() => {
             var image = cropImage.value 
-            console.log(image)
             cropperInstance.value = new Cropper(image, {              
                 dragMode: 'move',
                 preview: '.preview',

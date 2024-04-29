@@ -59,7 +59,7 @@ import { useMenuStore } from "@/store/menu";
         -ms-overflow-style: none;  /* Internet Explorer 10+ */
         scrollbar-width: none;  /* Firefox */
     }
-    .pagerWrap::-webkit-scrollbar { 
+    .pagerWrap { 
         display: none;  /* Safari and Chrome */
     }
     .selectedPageButton{

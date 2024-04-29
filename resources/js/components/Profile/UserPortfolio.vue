@@ -17,7 +17,6 @@ import { ref, onMounted } from 'vue';
 const props = defineProps(['portfolio'])
 const portfolioBody = ref(null)
 onMounted(() => {
-        console.log(portfolioBody.value?.clientHeight)
     if(portfolioBody.value?.clientHeight > 250){
         dynamicHeight.value = '250px'   
     }

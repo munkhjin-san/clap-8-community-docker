@@ -1,0 +1,16 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class timecardIncentive extends Model
+{
+    use HasFactory;
+    use SoftDeletes;
+    public function file(){
+        return $this->hasOne(FileRecord::class, 'id', 'file_id')->select('id', 'user_id', 'path', 'extension', 'mime_type');
+    }
+}

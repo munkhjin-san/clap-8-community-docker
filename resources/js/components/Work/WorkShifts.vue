@@ -40,7 +40,7 @@
                         </div>
                     </div>
                     <div class="shift-inner">
-                        <div class="shift-month" v-for="(week, index) in calendarData" :key="index">                
+                        <div class="shift-month" v-for="(week, index) in dataLoad" :key="index">                
                             <div class="shift-week" v-for="(day, index) in week" :key="index">
                                 <div @click="selectShift(day, [], index + 1)" :class="{ 'hidden-date': !day.day_short, 'showed-date': day.day_short, 'planned-date': selectedShift(day) && selectedShift(day).id == 3}">
                                     <div>
@@ -92,7 +92,20 @@
                         />
                     </div>
                 </div>
-                <LoaderButton style="margin-top:30px;" @triggered="shiftAdd" :loading="loading" :content="attendanceFlag ? '勤怠確定後は編集できません' : '保存'"/>
+                <!-- <div v-if="auth.activeUser.work_authority > usersData[0].work_authority">
+                    <div style="text-align: center;" v-if="shiftApply?.status == 2">
+                        承認済み
+                        <LoaderButton style="margin-top:30px;" @triggered="shiftApprove" :loading="loading" :content="attendanceFlag ? '勤怠確定後は編集できません' : '承認する'"/>
+                    </div>
+                    <LoaderButton v-else style="margin-top:30px;" @triggered="shiftApprove" :loading="loading" :content="attendanceFlag ? '勤怠確定後は編集できません' : '承認する'"/>
+                </div>
+                <div v-else>
+                    <div style="text-align: center;" v-if="shiftApply?.status == 1">申請中</div>
+                    <div style="text-align: center;" v-else-if="shiftApply?.status == 2">承認済み</div>
+                    <LoaderButton v-else style="margin-top:30px;" @triggered="shiftAdd" :loading="loading" :content="attendanceFlag ? '勤怠確定後は編集できません' : '申請する'"/>
+                </div> -->
+
+                <LoaderButton style="margin-top:30px;" @triggered="shiftAdd" :loading="loading" :content="attendanceFlag ? '勤怠確定後は編集できません' : '申請'"/>
                 
             </div>
         </div>
@@ -108,11 +121,12 @@
     import { useResponsive } from '@/store/responsive';
     import ShortInput from '../Form/ShortInput.vue';
     import holiday_jp from '@holiday-jp/holiday_jp'
-
+    import { useAuthUserStore } from '../../store/auth';
+    const auth = useAuthUserStore()
     const responsive = useResponsive()
     const theme = useTheme()
     const emit = defineEmits(['closeModal', 'reload'])
-    const { notify } = inject('dialog')
+    const { notify, info } = inject('dialog')
     const props = defineProps([
             'selectedMonth', 
             'selectedYear', 
@@ -121,7 +135,8 @@
             'notSubmitted',
             'filteredRecord',
             'usersCheckArray',
-            'chosenId'
+            'chosenId',
+            'attendanceFlag'
             ])
     const shiftTime = ref(null)
     const selectedShiftType = ref(0)
@@ -141,13 +156,11 @@
     const shiftTypes = ref([])
     const shiftRecords = ref([])
     onMounted(async() => {
-        
-        
         await getShiftData()
         isShiftRecord()
         propsCheck()
     })
-    const calendarData = computed(() => {
+    const dataLoad = computed(() => {
         const thisMonth = moment([shiftYear.value, shiftMonth.value]);
         const firstDay = thisMonth.clone().startOf("isoWeek")
         const lastDay = thisMonth.clone().endOf("month").endOf("isoWeek");
@@ -186,15 +199,11 @@
             workTemp.value = response.data.workTemp
             shiftTypes.value = response.data.shift_type
             shiftRecords.value = response.data.shift_record
-            
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
     }
     const propsCheck = () => {
-        if(props.notSubmitted){
-            selectedShifts.value = props.filteredRecord
-        }
         if(props.startDate){
             const newDate = props.startDate;
             shiftYear.value = moment(newDate).year();
@@ -221,11 +230,9 @@
                 let date = {
                     day_full : shift.shift_day,
                 }
-                // selectedShiftType.value = shift.shift_type.id,
                 selectShift(date, shift)
             } 
         }else{
-            // selectedShiftType.value = props.startDate ? 3 : 0
             selectedShifts.value = []
             holidayCount.value = 0
             startTime.value = '09:00'
@@ -236,7 +243,7 @@
         return moment().weekday(num).locale('ja').format("dd")
     }
     const selectShift = (date, record, val) => {
-        const status_flag = record ? record?.status_flag : 0
+        const status_flag = record ? record?.status_flag : 2
         const type_id = record && record.shift_type ? record?.shift_type?.id : selectedShiftType.value
         let existingShift = selectedShifts.value.find(shift => shift.date === date.day_full)
         if (existingShift) {
@@ -308,10 +315,10 @@
             }
             if(!result) return
             if (loading.value) return
+            loading.value = true
 
             let yearMonth = moment([shiftYear.value, shiftMonth.value]).format('YYYY-MM')
 
-            loading.value = true
             const params = {
                 shiftTimeStart : startTime.value,
                 shiftEndStart : endTime.value,
@@ -321,10 +328,10 @@
                 planned_year: tempStartDate.value ? tempStartDate.value.substring(0, 4) : props.selectedYear,
                 userId: props.usersData[0].id,
                 yearMonth: yearMonth
-                // deleted: deletedShifts.value,
             }
             try {
                 await axios.post('/add_shift', params);
+                info('申請しました。')
                 emit('closeModal')
                 emit('reload')
             } catch (e) {
@@ -347,7 +354,7 @@
     }
     const selectByWeek = (num) => {
         let selectedDays = []
-        for (let week of calendarData.value) {
+        for (let week of dataLoad.value) {
             for (let day of week) {
                 if (day.weekday === num) {
                     selectedDays.push(day);

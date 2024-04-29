@@ -13,7 +13,6 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
     const myInterval = ref(null)
     const emit = defineEmits(['close'])
     onMounted(() => {
-        console.log(props.data.stamp)
         myInterval.value = setInterval(timer, 1000); 
     })
     onUnmounted(() => {

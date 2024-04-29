@@ -558,7 +558,6 @@ import { useTempRecord } from '@/store/tempRecord';
             }, 100);
             selectedDay.value = moment().date()
         }else{
-            console.log('ttttttttttt')
             selectedMonth.value = activeMonth.value = moment().month()
             selectedYear.value = activeYear.value = moment().year()
             selectedDay.value = moment().date()
@@ -570,7 +569,6 @@ import { useTempRecord } from '@/store/tempRecord';
     }
 
     const jumpExecute = async(day) => {
-        console.log('yyyy', day)
         const layout = layouts.value[viewType.value]
         if(layout){
             await layout.containerScroll(day)

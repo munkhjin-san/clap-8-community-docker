@@ -193,7 +193,6 @@ import { useTopTags } from '@/store/topTags'
         getTopTags()
     })
     const onPusher = (e) =>{
-        console.log('yeee')
         const data = e && e.message && e.message.new_post_from ? e.message : null
         if(data && data.new_post_from !== auth.id && data.app_name == appName.value && data.record_id && !hasQuery.value){
             const query = {

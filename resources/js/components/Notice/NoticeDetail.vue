@@ -70,8 +70,7 @@ import { useBadgeStore } from '@/store/badge';
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
     }
-    const body = computed(() => { 
-        console.log(item.value)                     
+    const body = computed(() => {                   
         const linkedText = Autolinker.link(item.value?.body, {stripPrefix: false});   
         return linkedText;                
     })

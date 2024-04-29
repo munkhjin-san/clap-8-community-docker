@@ -2,16 +2,6 @@
     <div>
         <div v-for="(customType , index) in customInfo" :key="index">
             <div v-if="customType.form_type == 'textarea'" style="background: var(--background-color);">
-         
-                    <!-- <textarea 
-                        class="recordTextArea" 
-                        @change="customFieldChoose(comment, customType.id)" 
-                        v-model="comment" 
-                        name="comment" 
-                        :placeholder="customType.title + 'を入力'"
-                    >
-                    </textarea> -->
-
                     <LongInput
                         ref="commentRef"
                         :placeHolder="customType.title + 'を入力'"
@@ -97,16 +87,8 @@
                         }
                         break;
                     case 37:
-                        // if (Array.isArray(field)) {
-                            // console.log
-                            // for (const item of field) {
-                            //     if (typeof item.value_int === 'number') {
-                                    console.log('allowabce')
-                                    allowance.value.push(field.value_int);
-                                    break;
-                            //     }
-                            // }
-                        // }
+                        allowance.value.push(field.value_int);
+                        break;
                     default: break;
                 }
                    

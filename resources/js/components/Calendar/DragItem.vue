@@ -47,7 +47,6 @@ import UserIcon from '../Board/Mixed/UserIcon.vue';
     const mobile = ref(false)
     const draggingCalendar = inject('draggingCalendar')
     onMounted(() => {
-        console.log(record.value)
         if ('ontouchstart' in window || navigator.msMaxTouchPoints) {
             mobile.value = true;
         }

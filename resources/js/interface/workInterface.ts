@@ -68,4 +68,5 @@ export interface User {
     user_code: number
     work_time_day: number
     work_type: number
+    members: any
 }

@@ -247,7 +247,6 @@ import ConfirmWindow from './Message/ConfirmWindow.vue'
             urlTask.setUrlTaskId(parseInt(t_id))            
             const data = {status : true, val: 1}
             const t_edit = url.searchParams.get("task_edit");
-            console.log(t_edit)
             if(t_edit){     
                 if(t_edit === 'true'){
                     urlTaskEdit.setUrlTaskEdit(true)
@@ -332,7 +331,6 @@ import ConfirmWindow from './Message/ConfirmWindow.vue'
     }
 
     const afterRequestHandled = (response, id) => {
-        console.log(response)
         if(response === 'respondDeleted'){
             closeMessageContainer()
             getBoardList()

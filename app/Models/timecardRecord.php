@@ -18,7 +18,12 @@ class timecardRecord extends Model
     public function shift_records(){
         return $this->hasOne(shiftRecord::class, 'shift_day', 'day');
     }
-   
+    public function timecard_costs(){
+        return $this->hasMany(timecardCostRecord::class, 'record_id');
+    }
+    public function timecard_incentives(){
+        return $this->hasMany(timecardIncentive::class, 'record_id');
+    }
     public function custom_field_data_records(){
         return $this->hasMany(customFieldDataRecord::class, 'table_record_id','id');
     }

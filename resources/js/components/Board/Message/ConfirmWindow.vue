@@ -74,7 +74,6 @@ import { useAuthUserStore } from '@/store/auth'
     ]
     const targetUsers = computed(() => {
         let users = board.value && board.value.board_to_users ? board.value.board_to_users.map(ob => ob.user) : []
-        console.log(users)
         if(props.requestType == 'confirm'){
             users = users.filter(ob => ob.id !== auth.activeUser.id)
         }
@@ -102,7 +101,6 @@ import { useAuthUserStore } from '@/store/auth'
         }else{
             params['msg_id'] = props.message.id
         }
-        console.log(params)
         try {
             await axios.post('/check_request_api', params)
             refreshMessages()

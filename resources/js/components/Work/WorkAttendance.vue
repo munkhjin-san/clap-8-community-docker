@@ -47,7 +47,7 @@
                             <span>{{attendanceData.user.name}}</span>
                         </div>
                     </div>
-                    <div class="attendance-row">
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>予定稼働日数 / 所定労働時間</span>
                         </div>
@@ -79,7 +79,7 @@
                             <span>{{ attendanceData.unapproved_count ? attendanceData.unapproved_count + '日' : '--'}}</span>
                         </div>
                     </div>
-                    <div class="attendance-row">
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>年休</span>
                         </div>
@@ -87,7 +87,7 @@
                             <span>{{ attendanceData.annual_leave ? annualTime(attendanceData) : '--' }}</span>
                         </div>
                     </div>
-                    <div class="attendance-row">
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>休日出勤</span>
                         </div>
@@ -95,7 +95,7 @@
                             <span>{{ holidayWork(attendanceData) }}</span>
                         </div>
                     </div>
-                    <div class="attendance-row">
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>慶弔休暇</span>
                         </div>
@@ -103,7 +103,7 @@
                             <span>{{ attendanceData.condolence_leave + '日' }}</span>
                         </div>
                     </div>
-                    <div class="attendance-row">
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>転勤休暇</span>
                         </div>
@@ -111,7 +111,7 @@
                             <span>{{ attendanceData.transfer_leave + '日' }}</span>
                         </div>
                     </div>
-                    <div class="attendance-row">
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>残業</span>
                         </div>
@@ -119,7 +119,7 @@
                             <span>{{ overTime(attendanceData.month_over_time) }}</span>
                         </div>
                     </div>
-                    <div class="attendance-row">
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>深夜勤務</span>
                         </div>
@@ -127,13 +127,29 @@
                             <span>{{ attendanceData.night_over_time }}分</span>
                         </div>
                     </div>
-                    <div class="attendance-row">
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>諸手当</span>
                         </div>
                         <div class="attendance-value">
                             <p>宿泊日当 : {{ attendanceData.month_move_allowance_count }}</p>
                             <p><br>遠方手当 : {{ attendanceData.month_stay_allowance_count }}</p>
+                        </div>
+                    </div>
+                    <div class="attendance-row" v-if="attendanceData.user.position_id === 15">
+                        <div class="attendance-title">
+                            <span>経費</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.annual_costs }}円</span>
+                        </div>
+                    </div>
+                    <div class="attendance-row" v-if="attendanceData.user.position_id === 15">
+                        <div class="attendance-title">
+                            <span>インセンティブ</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.annual_incentives }}件</span>
                         </div>
                     </div>
                 </div>
@@ -202,6 +218,7 @@
             await axios.post('attendance_delete', params)
             info('勤怠確定を取り消しました。')
             emit('closeModal')
+            emit('reload')
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }   
@@ -263,7 +280,6 @@
         return `${days}(${minutes})`
     }
     const overTime = (minutes) => {
-        console.log(minutes, 'minutes')
         if (minutes === 0) {
             return '0時間';
         } else {
@@ -300,13 +316,16 @@
             over_time: attendanceData.value.month_over_time,
             night_work_time: attendanceData.value.night_over_time,
             stay_pay: attendanceData.value.month_stay_allowance_count,
-            move_pay: attendanceData.value.month_move_allowance_count
+            move_pay: attendanceData.value.month_move_allowance_count,
+            expenses: attendanceData.value.annual_costs,
+            incentive: attendanceData.value.annual_incentives
         }
         try{
             sending.value = true
             await axios.post('/attendance_confirm', params)
             info('確定しました。')
             emit('closeModal')
+            emit('reload')
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
             sending.value = false
@@ -323,6 +342,7 @@
             await axios.post('/attendance_closed', params)
             info('確定しました。')
             emit('closeModal')
+            emit('reload')
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }

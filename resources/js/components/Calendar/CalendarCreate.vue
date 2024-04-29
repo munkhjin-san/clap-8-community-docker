@@ -373,7 +373,6 @@ import { useSharingDataStore } from '@/store/sharingData'
     onMounted(() => {
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
             const repeats = props.editTarget.repeat_week.split(',').map(Number);
-            console.log(repeats)
             let pre = [false, false, false, false, false, false, false]
             repeats.forEach(val => {                
                 pre[val] = true
@@ -480,7 +479,6 @@ import { useSharingDataStore } from '@/store/sharingData'
         }
         if (!result) return
         const second_validate = await second_validation()
-        console.log(second_validate)
         if(!second_validate.valid){
             notify(second_validate.error)
             processing.value = false
@@ -552,7 +550,6 @@ import { useSharingDataStore } from '@/store/sharingData'
                 return Array.from({ length: 28 }, (_, index) => index + 1);
             } else {
                 const is31DaysMonth = moment(`${moment().year()}-${month}-31`, 'YYYY-MM-DD').isValid();
-                console.log(is31DaysMonth)
                 return Array.from({ length: is31DaysMonth ? 31 : 30 }, (_, index) => index + 1);
             }
         }else{

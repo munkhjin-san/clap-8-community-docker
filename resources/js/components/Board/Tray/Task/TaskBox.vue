@@ -21,7 +21,7 @@
                         </div>                                                                                       
                         <p style="margin-top:2px;cursor:pointer;font-size: 12px;margin-left: 3px;" v-if="taskUsers && taskUsers.length > 3">({{taskUsers.length}})</p>                                            
                     </div> 
-                    <div v-if="canModify && inTrash == 0" @click.stop="menu.setMenu( {name: 'taskBMenu', id: item.id})" class="taskMenuWrap cursor-pointer">
+                    <!-- <div v-if="canModify && inTrash == 0" @click.stop="menu.setMenu( {name: 'taskBMenu', id: item.id})" class="taskMenuWrap cursor-pointer">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="13" viewBox="0 0 7 32" class="dot-menu" style="width: -webkit-fill-available;">
                             <path d="M6.905 28.051c-0.011-0.447-0.114-0.881-0.275-1.273-0.039-0.1-0.085-0.196-0.135-0.287-0.047-0.093-0.096-0.185-0.153-0.27l-0.083-0.129-0.042-0.065-0.090-0.122c-0.036-0.051-0.102-0.135-0.143-0.182l-0.033-0.040c-0.095-0.111-0.2-0.214-0.319-0.302l-0.001-0.001-0.081-0.058-0.065-0.040-0.132-0.082c-0.086-0.057-0.178-0.104-0.273-0.152-0.092-0.049-0.188-0.096-0.289-0.132-0.392-0.164-0.829-0.262-1.277-0.273-0.896-0.026-1.818 0.321-2.465 0.963-0.653 0.634-1.041 1.546-1.042 2.464-0.003 0.456 0.083 0.907 0.238 1.316 0.154 0.41 0.465 0.877 0.744 1.194 0.281 0.32 0.76 0.57 1.169 0.728s0.86 0.245 1.316 0.245c0.917 0.007 1.831-0.388 2.465-1.038 0.641-0.648 0.993-1.567 0.968-2.461z"></path>
                             <path d="M3.405 12.33c-0.447 0.013-0.881 0.115-1.272 0.278-0.1 0.038-0.195 0.085-0.287 0.135-0.093 0.047-0.185 0.097-0.27 0.154l-0.129 0.083-0.064 0.042-0.124 0.088c-0.050 0.039-0.132 0.104-0.181 0.145l-0.040 0.035c-0.111 0.096-0.214 0.202-0.302 0.319-0.001 0-0.001 0.001-0.001 0.001l-0.058 0.081-0.040 0.064-0.082 0.134c-0.056 0.086-0.104 0.179-0.15 0.271-0.049 0.095-0.095 0.189-0.132 0.289-0.164 0.394-0.262 0.832-0.27 1.277-0.025 0.899 0.324 1.82 0.967 2.467 0.636 0.651 1.549 1.038 2.465 1.037 0.456 0.003 0.906-0.086 1.315-0.239 0.41-0.156 0.781-0.374 1.112-0.619l0.188-0.188c0.246-0.331 0.463-0.701 0.619-1.112 0.157-0.408 0.245-0.858 0.245-1.315 0.003-0.918-0.392-1.832-1.043-2.465-0.648-0.639-1.567-0.991-2.464-0.961z"></path>
@@ -35,7 +35,7 @@
                                 <li @click="deleteTask(); menu.setMenu( {name: '', id: null})" class="boxMenuItems cursor-pointer">削除</li>                          
                             </ul>                                                 
                         </div>
-                    </Transition>
+                    </Transition> -->
 
                 </div>
 
@@ -49,12 +49,12 @@
                 <div v-if="item.end_at" style="margin-top: 10px;">
                     <div :style="{fontSize: '12px', color: dateColor}">{{detailsDateText(item.end_at)}}</div>                         
                 </div>
-                <div v-if="completeButtonFilter" style="display:flex;align-items: center;margin-top: 15px;position:relative;white-space: nowrap;flex-wrap: wrap;gap: 10px 0;">
+                <div v-if="completeButtonFilter" style="display:flex;align-items: center;margin-top: 15px;position:relative;white-space: nowrap;flex-wrap: wrap;gap: 10px;">
                     <CommandButton 
                         v-if="buttonsCollection().length" 
                         :buttons="buttonsCollection()" 
                         @dblclick.stop 
-                        @select="(button) => button.value == 1 ? untilTomorrow() : emit(button.value, item)"
+                        @select="(button) => button.value == 1 ? untilTomorrow() : button.value == 2 ? deleteTask() : emit(button.value, item)"
                     />
                     <!-- <button v-if="isTask" class="shift-button" style="margin-right: 7px;" @dblclick.stop @click="emit('completeTaskBefore', item)" >{{ completeFlag ? '未完了' : '完了' }}</button>
                     <button v-if="inTrash == 0" @dblclick.stop @click="emit('editTask', item)" class="shift-button" style="margin-right: 7px;">編集</button>
@@ -197,6 +197,12 @@ import UserIcon from '../../Mixed/UserIcon.vue';
                 value: 'editTask'
             }
             buttons.push(temp)
+
+            const tempDelete = {
+                name: '削除',
+                value: 2
+            }
+            buttons.push(tempDelete)
         }
         if(isExpired.value && isTask.value){
             const temp = {

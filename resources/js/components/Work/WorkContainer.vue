@@ -5,11 +5,13 @@
             <WorkHeader
                 :workGroups="workGroups"
                 :usersCheckArray="usersCheckArray"
+                :selectedMonth="selectedMonth"
                 v-model="usersCheckArray"
                 @selectShift="selectShift"
                 @confirmAttendance="confirmAttendance"
                 @todayScroll="todayScroll"
                 @toBottomScroll="toBottomScroll"
+                @approveShift="approvalModal = true"
             />
             <div class="work-monthpicker">
                 <div @click="shiftMonth(-1)" class="work-prevmonth">
@@ -39,6 +41,7 @@
                 :records="recordsArray"
                 :loading="loading"
                 :headerHeight="headerHeight"
+                :workGroups="workGroups"
                 @timeStampStart="timeStampStart"
                 @timeStampEnd="timeStampEnd"
                 @timeStampEdit="timeStampEdit"
@@ -54,6 +57,7 @@
                     :usersCheckArray="usersCheckArray"
                     :usersData="usersData"
                     :startDate="startDate"
+                    :attendanceFlag="attendanceFlag"
                     @closeModal="shiftModal = false"
                     @reload="reload"
                 />
@@ -75,6 +79,16 @@
                     :item="editData"
                 />
             </Transition>
+            <Transition name="modalFade">
+                <ShiftApproval 
+                    v-if="approvalModal"
+                    :selectedMonth="selectedMonth"
+                    :selectedYear="selectedYear"
+                    :workGroups="workGroups"
+                    :usersCheckArray="usersCheckArray"
+                    @closeModal="approvalModal = false, getUsersRecords()"
+                />
+            </Transition>
     </div>
 </template>
 
@@ -85,6 +99,7 @@
     import WorkShifts from './WorkShifts.vue'
     import WorkAttendance from './WorkAttendance.vue'
     import WorkReport from './WorkReport.vue'
+    import ShiftApproval from './ShiftApproval.vue'
     import moment from 'moment'
     import { computed, onMounted, ref, provide, inject, watch } from 'vue'
     import { useRoute } from 'vue-router'
@@ -94,7 +109,7 @@
         return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
     })
     const auth = useAuthUserStore()
-    const { confirm, notify } = inject('dialog')
+    const { confirm, notify, info } = inject('dialog')
     const route = useRoute()
     const selectedYear = ref(moment().year())
     const selectedMonth = ref(moment().month())
@@ -115,6 +130,10 @@
     const recordsArray = ref([])
     const headerEl = ref(null)
     const editData = ref(null)
+    const attendanceFlag = ref(false)
+    const approvalModal = ref(false)
+    const costOptions = [{label: '交通費', value: 1},
+                    {label:'通信費', value: 2}]
     onMounted(async() => {
         const query = route.query
         if(query.user_id){
@@ -132,7 +151,9 @@
         }
     })
 
-    watch(() => usersCheckArray.value,  () => {
+    watch(() => usersCheckArray.value,  async() => {
+        const dataTable = document.querySelector('.v-table__wrapper')
+        dataTable ? dataTable.scrollTop = 0 : ''
         getUsersRecords()
         getWorkData()
     })
@@ -172,10 +193,12 @@
     }
     const timeStampStart = async(data) => {
         const month = selectedMonth.value + 1
-        if(data){
+        if(data || data.position_id === 15){
             if(data?.shift?.shift_type.id == 3){
                 notify('計画有給設定しているため日報作成ができません。')
-            }else{
+            } else if (data.shift?.status_flag == 2) {
+                notify('勤怠予定は承認されていません。') 
+            } else {
                 var date = new Date(); 
                 var minutes = date.getMinutes();
                 var quarterHours = Math.ceil(minutes / 15);
@@ -234,10 +257,12 @@
     }
     const timeStampEdit = (data) => {
         const month = selectedMonth.value + 1
-        if(data?.shift){
+        if(data?.shift || data.position_id === 15){
             if(data?.shift?.shift_type?.id == 3){
                 notify('計画有給設定しているため日報作成ができません。')
-            }else{
+            } else if (data.shift?.status_flag == 2) {
+                notify('勤怠予定は承認されていません。') 
+            } else {
                 editData.value = data
                 reportModal.value = true
             }
@@ -255,6 +280,7 @@
         }
         try{
             await axios.post('/delete_time_card', params)
+            info('削除しました。')
             reload()
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')     
@@ -295,6 +321,7 @@
             const response = await axios.post('/get_work_data', params)
             usersData.value = response.data.user_data
             monthAverage.value = response.data.month_average
+            attendanceFlag.value = response.data.attendance_flag
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
@@ -360,4 +387,11 @@
     }
     provide('customInfo', customInfo)
     provide('getUsersRecords', getUsersRecords)
+    provide('costOptions', costOptions)
+    provide('stamps', {
+        edit: (item) => timeStampEdit(item),
+        start: (item) => timeStampStart(item),
+        stampDelete: (item) => timeStampDelete(item),
+        end: (item) => timeStampEnd(item)
+    })
 </script>

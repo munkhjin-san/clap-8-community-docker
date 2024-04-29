@@ -96,7 +96,6 @@ import { useSharingDataStore } from '@/store/sharingData'
     }
     const setEnter = (val) => {
         entered.value = val
-        console.log('enter', entered.value)
     }
     const dropFile = (event) => {  
         if(event.dataTransfer.files && event.dataTransfer.files.length){                

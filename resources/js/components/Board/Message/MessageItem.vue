@@ -159,40 +159,25 @@
                     />                                 
                 </div>                           
             </div>
-            <div v-if="message.deleted_at == null" style="display: flex;width:100%;position:relative;">
+            <div v-if="message.deleted_at == null" class="message-foot-area">
                 <div style="display:flex;width: fit-content;">                    
-                    <div 
-                        v-if="reactButtonView" 
-                        class="reactButton" 
-                        :class="{cursorBlock : message.user_id == auth.activeUser.id, reactOn: reacting}"  
-                        @click="reactOrCheck(message)">
+                    <div v-if="reactButtonView" class="reactButton" :class="{cursorBlock : message.user_id == auth.activeUser.id, reactOn: reacting}" @click="reactOrCheck(message)">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="15" viewBox="0 0 38 32" :fill="checkSendIconColor ? 'var(--primary-color)' : 'var(--check-inactive)'">
                             <path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
                         </svg>
                     </div>
                     <div v-if="message.reacted_users.length" @click.stop="viewReactedUsersList" style="display:flex;padding: 10px;margin: 5px 0 -15px -15px;height: 15px;">
-                        <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in reactedUsersList">  
+                        <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in reactedUsersListAll.slice(0,3)">  
                             <UserIconPreLoad :title="user.name" :disableInstant="true" size="30" :user="user" imgClass="userSmallIcon"/>                                         
                         </div>
                         <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="message.reacted_users.length > 3">...({{message.reacted_users.length}})</span>
                     </div>                                    
                 </div>
-                <div v-if="checkFunctionView" style="display: flex;font-size: 12px;margin-left:auto;height:30px">
-                    <p @click.stop="viewCheckedUserList" class="cursor-pointer" style="margin-top: auto;padding: 8px 8px 9px 8px;margin-bottom:-8px;">確認済み ({{ message.checked_users.length}})</p>                                            
-                  
+                <div v-if="checkFunctionView" style="display: flex;margin-top: auto;gap: 15px;min-height: 25px;align-items: end;">
+                    <div @click.stop="viewCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">確認済み ({{ message.checked_users.length}})</div>
+                    <div @click.stop="viewunCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">未確認 ({{ message.unchecked_users.length}})</div> 
                 </div>
-                <div v-if="checkFunctionView" style="display: flex;font-size: 12px;padding-left:10px;height:30px">
-                    <p @click.stop="viewunCheckedUserList"  class="cursor-pointer" style="margin-top: auto;padding: 8px 8px 9px 8px;margin-bottom:-8px;">未確認 ({{ message.unchecked_users.length}})</p>                                               
-                  
-                </div> 
-            </div>
-            <div id="reactedUserListAll" v-if="menu.name == 'reactedUserListAll' && menu.id == message.id" class="taskUsersList" style="left: 15px;right: auto;margin-top: 10px;">
-                <div @click.stop="pushInstantUser($event, user.id)" :key="user.id" class="mentionBox-inner" v-for="user in reactedUsersListAll">                                                
-                    <div class="column-01"> 
-                        <UserIconPreLoad size="25" :user="user" imgClass="userMidIcon"/>   
-                    </div> 
-                    <p class="cursor-pointer" style="margin: auto auto auto 5px;font-size: 13px;">{{user.name}}</p>                                                                           
-                </div>
+                
             </div>          
         </div>
         <div class="clear-both"></div>
@@ -279,20 +264,6 @@ import MessageEditor from './MessageEditor.vue'
         return props.message.user && props.message.user.deleted_at == null
         ? props.message.user.name
         : '非アクティブユーザー';
-    })
-    const reactedUsersList = computed(() => {
-        
-        const list = props.message.reacted_users
-        if(list && list !== ''){
-            var res = [];            
-            list.forEach((user) => {
-                let checked = board.value.board_to_users.filter(obj => obj.user_id == user.id);
-                if(checked && checked.length){
-                    res.push(checked[0].user);
-                }                
-            });             
-            return res.slice(0,3);   
-        }
     })
     const messageBody = computed(() => {
         if(props.message.info_flag == 0){

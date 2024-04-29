@@ -188,7 +188,7 @@ import { useSharingDataStore } from '@/store/sharingData'
         }
     }      
     const canView = computed(() => {
-        return source.value == 'post' || source.value == 'message' || source.value == 'calendar' || source.value == 'user' || source.value == 'notice'
+        return source.value == 'post' || source.value == 'message' || source.value == 'calendar' || source.value == 'user' || source.value == 'notice' || source.value == 'work'
     })
     const source = computed(() => {
         return filePreview.source
@@ -270,7 +270,6 @@ import { useSharingDataStore } from '@/store/sharingData'
             const response = await axios.post('/user_generate_file_key')
             // const url = doc_path.value + '/' + response.data
             const url = `${window.location.origin}/cdn_external/${auth.id}/${response.data}${doc_path.value}`
-            console.log(url)
             const encodedUrl = encodeURIComponent(url);
             docUrl.value = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`
             setTimeout(() => {

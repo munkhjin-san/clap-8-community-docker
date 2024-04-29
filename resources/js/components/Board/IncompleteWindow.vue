@@ -1,6 +1,6 @@
 <template>
     <Transition name="modalFade">
-    <div v-if="incompleteShow && !isEdit && !isJumpToMessage" class="overlay">
+    <div v-if="incompleteShow && !isEdit && !isJumpToMessage && !(route.name == 'work' && route.query.user_id)" class="overlay">
             
         <div style="display:flex;flex-direction:column;width:100%;height:100%; margin: 20px 0;overflow: hidden auto;">
             <div @click="emit('closePopup')" class="modalCloseButton cursor-pointer">
@@ -13,21 +13,27 @@
                     <div><strong>承認漏れがあります</strong></div>
                     <div v-for="item in notapprovedTimecards">
                         <div style="display: grid; gap: 20px;">
-                            <div style="display:flex;align-items:center;gap:35px;position:relative">
-                                <div style="display:flex;align-items:center;gap: 10px">
+                            <div style="display:flex;gap:35px;position:relative">
+                                <div style="display:flex;gap: 10px">
                                     <UserIcon :disableInstant="true" size="30" :user="item.user" imgClass="userNormalIcon"/>
                                     <div >
-                                        <p>{{ item.user?.name }}</p>
-                                        <div style="display:flex;align-items:center;gap: 10px">
-                                            <div class="number-chip" v-if="item.timecard">日報申請{{ item.timecard }}件</div>
-                                            <div class="number-chip" v-if="item.overtime">残業申請{{ item.overtime }}件</div>
+                                        <p style="margin-top: 5px">{{ item.user?.name }}</p>
+                                        <div style="display:flex;flex-direction: column;gap:5px;margin-top: 10px;">
+                                            <div class="number-chip" v-if="item.timecard">日報申請 : <strong style="color:var(--primary-color)">{{ item.timecard }}件</strong></div>
+                                            <div class="number-chip" v-if="item.overtime">残業申請 : <strong style="color:var(--primary-color)">{{ item.overtime }}件</strong></div>
+                                            <template v-if="item.shift && item.shift.length">
+                                                <div v-for="shift in item.shift" class="number-chip">
+                                                    勤怠予定申請 : {{ shift.month }}月分<strong style="color:var(--primary-color)">{{shift.count}}件</strong>
+                                                </div>
+                                               
+                                            </template>
                                         </div>
                                     </div>                                        
                                 </div>                                  
                                 
-                                <router-link style="margin-left: auto" :to="{name: 'work', query: {user_id: item.user.id}}">                                        
-                                    <button class="shift-button" style="white-space: nowrap;">対応</button>
-                                </router-link>
+                                <div style="margin-left: auto">                                        
+                                    <button class="shift-button" @click="changeUser(item.user)" style="white-space: nowrap;">対応</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -73,7 +79,6 @@
                             v-if="item"
                             :message="item"
                             :reminder="reminder"
-                            @reload="() => getUncheckedMessages()"
                         />
                     </template>
                 </masonry-wall>
@@ -126,10 +131,13 @@ import TaskBoxpreload from "./Tray/Task/TaskBox.vue"
 import IncompleteFeedBack from "./IncompleteFeedBack.vue"
 import WorkMessage from "../Work/WorkMessage.vue"
 import UncheckedMessageItem from "./Message/UncheckedMessageItem.vue"
-import { ref, onMounted, watch, computed, inject } from 'vue';
+import { ref, onMounted, watch, computed, inject, provide } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useTaskFeedback } from '@/store/taskFeedback'
 import UserIcon from "./Mixed/UserIcon.vue"
+import { useRoute, useRouter } from "vue-router";
+    const route = useRoute()
+    const router = useRouter()
     const auth = useAuthUserStore()
     const taskFeedback = useTaskFeedback()
     const emit = defineEmits(['closePopup'])
@@ -211,6 +219,13 @@ import UserIcon from "./Mixed/UserIcon.vue"
     const closeOverRide = () => {
         emit('closePopup')
     }
+    const changeUser = async(user) => {
+        const authorized_user = auth.user.linked && auth.user.linked.length ? auth.user.linked.find(ob => ob.id === 610) : null
+        if(authorized_user){
+            await auth.setActiveUser(authorized_user.id)
+        }
+        router.push({name: 'work', query: {user_id: user.id}})
+    }
     const getNotApproved = async() => {
 
         if(auth && auth.user.position_id == 6){
@@ -218,7 +233,7 @@ import UserIcon from "./Mixed/UserIcon.vue"
                 const response = await axios.get('/not_approved')
                 notapprovedTimecards.value = Object.values(response.data)
             } catch (e) {
-                console.log(e)
+                
             }
         }
 
@@ -317,13 +332,12 @@ import UserIcon from "./Mixed/UserIcon.vue"
     const taskDeleted = () => {
         getIncompletedTasks()
     }
+    provide('getUncheckedMessages', getUncheckedMessages)
     defineExpose({getUnsignedMessages})
 </script>
 <style lang="scss">
 .number-chip{
-    font-size: 12px;
-    color: gray;
-    margin-top: 5px;
+    font-size: 13px;
 }
 .incompleted-title{
     font-size:14px;

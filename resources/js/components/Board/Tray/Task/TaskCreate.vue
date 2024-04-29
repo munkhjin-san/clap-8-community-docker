@@ -40,7 +40,6 @@
                     rules="required"
                     name="taskMembers"
                     ref="taskMembers"
-                    path="board_possible_users"
                     :closeOnSelect="false"
                     v-model="qualified_users"  
                     :options="boardMembers"                  

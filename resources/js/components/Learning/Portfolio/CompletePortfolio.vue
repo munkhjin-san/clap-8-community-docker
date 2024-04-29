@@ -90,7 +90,7 @@
         let portfolioStatus = 2
         if(status == 'next'){
             processing.value = true
-            portfolioStatus = 3
+            // portfolioStatus = 3
         }else{
             processing_save.value = true
         }

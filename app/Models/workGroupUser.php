@@ -27,4 +27,7 @@ class workGroupUser extends Model
     public function shift_overtime_requests(){
         return $this->hasMany(ShiftOvertimeRequest::class, 'created_by', 'user_id');
     }
+    public function shift_records(){
+        return $this->hasMany(shiftRecord::class, 'user_id', 'user_id');
+    }
 }

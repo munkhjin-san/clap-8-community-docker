@@ -1,13 +1,6 @@
 <template>
     <div class="records-wrapper" ref="wrapper" :style="{height: `calc(100% - ${headerHeight.value}px)`}">
-        <Teleport to="body">
-            <OverTimeRequest 
-                v-if="overtimeRequestData"
-                @close="overtimeRequestData = null"
-                :data="overtimeRequestData"
-                :statuses="statuses"
-            />
-        </Teleport>
+        
         <div v-if="!records.length" class="absolute-div">
             メンバーを選択してください。
         </div>  
@@ -30,71 +23,98 @@
                     </div> 
                 </Transition>
             </template>
-            <template v-slot:item="{ item }">
-                <tr :class="['w-row', {'last-row': item.last}]" >
-                    <td :class="[getDayClass(item.day_full), {'working' : item.time_card?.stamp_flag == 0}]">{{ dayFormatter(item.day_show) }}</td>
+            <template v-slot:item="{ item, index }">
+                <tr :class="['w-row', {'last-row': item.last}]">
+                    <td :class="[getDayClass(item.day_full), {'working' : item.time_card?.stamp_flag == 0}]">
+                        <div class="td-first">{{ dayFormatter(item.day_show) }}</div>
+                    </td>
                     <td style="white-space: nowrap;">{{  item.user_name }}</td>
-                    <td :class="getShiftClass(item.shift?.shift_type)">{{ item.shift?.shift_type?.abbreviation }}</td>
-                    <td :class="earlyOrLateClass(item, 'start_time')">{{  timeFormatter(item?.time_card?.start_time, item?.time_card?.end_time, 'start') }}</td>
-                    <td :class="earlyOrLateClass(item, 'end_time')">{{ timeFormatter(item?.time_card?.start_time, item?.time_card?.end_time, 'end') }}</td>
+                    <td v-if="hasHeader('予定')" :class="getShiftClass(item.shift?.shift_type)">{{ item.shift?.status_flag == 2 ? '申請中' : item.shift?.shift_type?.abbreviation }}</td>
+                    <td :class="earlyOrLateClass(item, 'start_time')">
+                        <div v-if="startOrEnd(item, null) && item.user_id == auth.activeUser.id && !item.attendance" class="w-hover-button mb-space">
+                            <CommandButton @select="start(item)" :buttons="[{name: '始業'}]"/>
+                        </div>
+                        <div v-else>
+                            {{  timeFormatter(item?.time_card?.start_time, item?.time_card?.end_time, 'start') }}
+                        </div>
+                    </td>
+                    <td :class="earlyOrLateClass(item, 'end_time')">
+                        <div v-if="startOrEnd(item, 0) && item.user_id == auth.activeUser.id" class="w-hover-button mb-space">
+                            <CommandButton @select="end(item)" :buttons="[{name: '終業'}]"/>
+                        </div>
+                        <div v-else>
+                            {{ timeFormatter(item?.time_card?.start_time, item?.time_card?.end_time, 'end') }}
+                        </div>
+                    </td>
                     <td>{{ workTimeDisplay(item?.time_card) }}</td>
                     <td>{{ overTimeDisplay(item) }}</td>
                     <td>{{ breakTimeDisplay(item) }}</td>
                     <td style="word-break: auto-phrase;">{{ hasAllowance(item?.time_card?.custom_field_data_records) }}</td>
-                    <td>{{ hasValue(item, 40, 'label') }}</td>
-                    <td>{{ hasValue(item, 41, 'label') }}</td>
+                    <td>{{ hasValue(item, 40, 'label', true) }}</td>
+                    <td>{{ hasValue(item, 41, 'label', true) }}</td>
                     <td v-html="hasCondition(item.weather)"></td> 
                     <td>
                         <div style="position: relative;">
-                            <div @click.stop="hasValue(item, 39, 'value_text') !== '' ? menu.setMenu({name: 'commentBox', id: item.time_card?.id}) : false">{{ hasValue(item, 39, 'value_text', true) }}</div>
-                            <div @click="menu.close()" class="comment-box" id="commentBox" v-if="menu.name == 'commentBox' && menu.id == item.time_card?.id">{{ hasValue(item, 39, 'value_text') }}                                
+                            <div @click.stop="hasValue(item, 39, 'value_text') !== '' ? menu.setMenu({name: 'commentBox', id: item.time_card?.id}) : false"> 
+                                <div>{{ hasValue(item, 39, 'value_text', true) }}</div>
+                            </div>
+                            <div @click="menu.close()" class="comment-box" id="commentBox" v-if="menu.name == 'commentBox' && menu.id == item.time_card?.id">
+                                <div style="word-break: break-all;" v-if="hasValue(item, 42, 'value_text') !== null">残業内容 : {{ hasValue(item, 42, 'value_text') }}</div>
+                                <div>{{ hasValue(item, 39, 'value_text') }}</div>                              
                             </div>
                         </div>
                     </td>
-                    <td>
-                        <div style="position: relative;white-space:nowrap;" class="workButton-wrapper mt-10" v-if="ableTo(item)">
-                            <div v-if="responsive.mobile">残業申請:</div>
-                            <div @click.stop="menu.setMenu({name: 'approveBox', id: item.shift?.overtime_request?.id})" v-if="item?.shift?.overtime_request">{{ overTimeRequestDisplay(item) }}</div>
-                            <div style="display:inline-block;" v-else-if="item.user_id == auth.activeUser.id">
-                                <CommandButton v-if="ableToRequestOvertime(item)" @select="overtimeRequest(item)" :buttons="[{name: '申請'}]"/>
-                            </div>
-                            <div @click="menu.close()" class="comment-box" id="approveBox" style="padding: 10px; display:flex; flex-direction: column; gap: 10px;" v-if="menu.name == 'approveBox' && menu.id == item.shift?.overtime_request?.id">
-                                {{ overTimeRequestDisplay(item) }} <br>
-                                {{ item.shift?.overtime_request?.content }}
-                            </div>
-                            <div style="display:inline-block;" v-if="auth.activeUser.work_authority > item.work_authority">
-                                <CommandButton v-if="item?.shift?.overtime_request?.status == 1" :buttons="[{name: '承認', value: 2}, {name: '差戻', value: 0}]" @select="(button) => respondOvertime(item?.shift?.overtime_request, button.value, button.name)"/>
-                                <CommandButton v-if="item?.shift?.overtime_request?.status == 2" :buttons="[{name: '承認取消', value: 1}]" @select="(button) => respondOvertime(item?.shift?.overtime_request, button.value, button.name)"/>
-                            </div>
-                        </div>
-                    </td>
-                    <td>
-                        <div class="workButton-wrapper" v-if="isTodayOrFuture(item.day_full) || auth.activeUser.id == 610">
-                            <div v-if="responsive.mobile">日報申請:</div>
-                            <div style="display:inline-block" v-if="item.user_id == auth.activeUser.id">
-                                <CommandButton
-                                    v-if="buttonsCollection(item).length" 
-                                    :buttons="buttonsCollection(item)"
-                                    @select="(button) => emit(button.value, item)"
-                                />
-                                <p v-if="item?.time_card?.status_flag == 1">申請中</p>
-                                <p v-else-if="item?.time_card?.status_flag == 2">承認済み</p>
-                            </div>
-                            <div style="display:inline-block" v-else-if="auth.activeUser.work_authority > item.work_authority">
-                                
-                                <div class="workButton-wrapper">
-                                    <p style="line-height: 2.5;white-space: nowrap;" v-if="item?.time_card?.status_flag == 0">作成中</p>
-                                    <p style="line-height: 2.5;white-space: nowrap;" v-else-if="item?.time_card?.status_flag == 10">差戻中</p>
-                                    <CommandButton 
-                                        v-if="manageButtons(item).length"
-                                        :buttons="manageButtons(item)"
-                                        @select="(button) => button.value == 'timeStampEdit' || button.value == 'timeStampDelete' ? emit(button.value, item) : dailyButtons(button.value, item)"
-                                    />
+                    <td v-if="hasHeader('経費')">
+                        <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
+                            <div v-if="responsive.mobile && item.time_card?.timecard_costs.length">経費 : </div>
+                            <div @click.stop="hasWorkCost(item.time_card?.timecard_costs) !== '' ? menu.setMenu({name: 'costBox', id: item.time_card?.id}) : false">{{ hasWorkCost(item.time_card?.timecard_costs) }}</div>
+                            <div @click="menu.close()" class="comment-box" id="costBox" v-if="menu.name == 'costBox' && menu.id == item.time_card?.id">
+                                <div v-for="cost in item.time_card?.timecard_costs" :key="cost.id">
+                                    <div>{{ `${hasWorkCostLabel(cost) ? hasWorkCostLabel(cost) : ''}:${cost.content ? cost.content : ''} ${cost.expenses ? cost.expenses + '円' : ''}` }}</div>
+                                    <img @click="previewImage(cost.file)" style="height:120px;cursor: pointer;" v-if="cost?.file" :src="`/cdn/timecard_files/${cost?.file?.id}_${cost?.file?.user_id}_${cost?.file?.path}.${cost?.file?.extension}`"/>
                                 </div>
                             </div>
                         </div>
                         
                     </td>
+                    <td v-if="hasHeader('インセンティブ')">
+                        <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
+                            <div v-if="responsive.mobile && item.time_card?.timecard_incentives.length">インセンティブ : </div>
+                            <div @click.stop="incentiveCount(item.time_card?.timecard_incentives, '件') !== '' ? menu.setMenu({name: 'incentiveBox', id: item.time_card?.id}) : false">{{ incentiveCount(item.time_card?.timecard_incentives, '件') }}</div>
+                            <div @click="menu.close()" class="comment-box" id="incentiveBox" v-if="menu.name == 'incentiveBox' && menu.id == item.time_card?.id">
+                                <div v-for="incentive in item.time_card?.timecard_incentives" :key="incentive.id">
+                                    <div>{{ `${incentive.count ? incentive.count + '件' : ''}` }}</div>
+                                    <img @click="previewImage(incentive.file)" style="height:120px;cursor: pointer;" v-if="incentive?.file" :src="`/cdn/timecard_files/${incentive?.file?.id}_${incentive?.file?.user_id}_${incentive?.file?.path}.${incentive?.file?.extension}`"/>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="position: relative;">
+                            <div>
+                                <div @click.stop="menu.setMenu({name: 'approveBox', id: item.shift?.overtime_request?.id})" v-if="item?.shift?.overtime_request">残業 : {{ overTimeRequestDisplay(item) }}</div>
+                                <div @click="menu.close()" class="comment-box" id="approveBox" style="padding: 10px; display:flex; flex-direction: column; gap: 10px;" v-if="menu.name == 'approveBox' && menu.id == item.shift?.overtime_request?.id">
+                                    {{ overTimeRequestDisplay(item) }} <br>
+                                    {{ item.shift?.overtime_request?.content }}
+                                </div>
+                                <div v-if="isTodayOrFuture(item.day_full) || auth.activeUser.id == 610"> 
+                                    <div style="display:inline-block" v-if="item?.time_card?.status_flag">
+                                        <div>日報 : {{ getStatusText(item?.time_card?.status_flag) }}</div>
+                                    </div>
+                                </div> 
+                            </div>
+                            
+                        </div>
+                        
+                    </td>
+                    <td>
+                        <div class="w-hover-button center-mobile">
+                            
+                            <CommandButton v-if="ableTo(item)" @select="callModal(item)" :buttons="[{name: '手続き'}]"/>
+                            
+                        </div>
+                    </td>
+                    
                 </tr>
                 
             </template>
@@ -103,11 +123,11 @@
                     <td style="border-bottom: thin solid transparent;">
                         <div v-if="index == 0">
                             <span>集計</span>
-                            <div class="cursor-pointer" @click="exportCSV()" v-if="auth.activeUser.id == 610 || auth.user.position_id == 6 || auth.activeUser.id == 608">CSV</div>
+                            <div class="cursor-pointer" @click="exportCSV" v-if="auth.activeUser.id == 610 || auth.user.position_id == 6 || auth.activeUser.id == 608">CSV</div>
                         </div>
                     </td>
                     <td>{{ user.name }}</td>
-                    <td v-if="!responsive.mobile"></td>
+                    <td v-if="!responsive.mobile && hasHeader('予定')"></td>
                     <td v-if="!responsive.mobile"></td>
                     <td v-if="!responsive.mobile"></td>
                     <td>{{ workTotalTimeFormat(monthAverage[user.id]?.month_work_time) }}</td>
@@ -123,6 +143,8 @@
                     <td>{{ monthAverage[user.id]?.month_achievement_average }}</td>
                     <td v-html="hasCondition(monthAverage[user.id]?.month_weather_average)"></td>
                     <td v-if="!responsive.mobile"></td>
+                    <td v-if="!responsive.mobile && hasHeader('経費')">{{ monthAverage?.[user.id]?.mont_total_costs ? `${monthAverage?.[user.id]?.mont_total_costs}円` : ''}}</td>
+                    <td v-if="!responsive.mobile && hasHeader('インセンティブ')">{{ monthAverage?.[user.id]?.mont_total_incentive ? `${monthAverage?.[user.id]?.mont_total_incentive}件` : ''}}</td>
                     <td v-if="!responsive.mobile"></td>
                     <td v-if="!responsive.mobile"></td>
                 </tr>
@@ -130,23 +152,35 @@
                 
             
         </v-data-table-virtual>
-             
+        <RecordButtons
+            v-if="tempItem" 
+            :item="tempItem"
+            :currentDay="currentDay"
+            :statuses="statuses"
+            @closeModal="closeModal"
+            @dailyButtons="dailyButtons"
+            @reload="emit('reload')"
+        />
     </div>
 </template>
 <script setup>
 import { VDataTableVirtual } from 'vuetify/components/VDataTable'
 import moment from 'moment'
-import { inject, ref } from 'vue';
+import { inject, ref, computed } from 'vue';
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { useAuthUserStore } from '@/store/auth';
 import holiday_jp from '@holiday-jp/holiday_jp'
 import { mkConfig, generateCsv, download } from "export-to-csv";
-import OverTimeRequest from './OverTimeRequest.vue';
 import CommandButton from '../Global/CommandButton.vue'
+import RecordButtons from './RecordButtons.vue'
+import { useFilePreview } from '../../store/filePreview';
+    const statuses = ['差戻中', '申請中', '承認済']
+    const { start, end } = inject('stamps')
     const menu = useMenuStore()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
+    const filePreview = useFilePreview()
     const props = defineProps([
         'currentDay', 
         'monthAverage',
@@ -155,35 +189,20 @@ import CommandButton from '../Global/CommandButton.vue'
         'records',
         'loading',
         'selectedYear',
-        'headerHeight'
+        'headerHeight',
+        'workGroups'
     ]) 
     const { confirm, notify, info } = inject('dialog')
     const emit = defineEmits(['reload', 'timeStampDelete'])
-    const headers = ref([
-        { title: '日付'},
-        { title: 'メンバー'},
-        { title: '予定'},
-        { title: '出勤'},
-        { title: '退勤'},
-        { title: '労働時間'},
-        { title: '時間外'},
-        { title: '休憩時間'},
-        { title: '諸手当'},
-        { title: 'インシデント'},
-        { title: '目標達成率'},
-        { title: 'コンディション'},
-        { title: 'コメント'},
-        { title: '残業申請'},
-        { title: '日報申請'},
-        
-    ])
-    const statuses = ['差戻中', '申請中', '承認済み']
-    const overtimeRequestData = ref(null)
+
+    const costOptions = inject('costOptions')
+    const tempItem = ref(null)
     const holiday = (day) => {
         const holidays = holiday_jp.between(new Date(props.selectedYear + '-01-01'), new Date(props.selectedYear + '-12-31'));
         return holidays.find(h => moment(h.date).isSame(day, 'day'));
     }
     const wrapper = ref(null)
+    
     const dayFormatter = (value) => {
         if(value){
             const date =  moment(value).format('M / D (dd)')
@@ -192,14 +211,13 @@ import CommandButton from '../Global/CommandButton.vue'
     }
     const hasCondition = (index) => {
         const mobileTitle = responsive.mobile ? 'コンディション : ' : ''
-        if(index){
+        if(index != null){
             return `<div class="condition-area"><div>${mobileTitle}</div><img class="condition-img" src="images/icon_${index}.svg" width="17" height="17"/></div>`
         }
         return responsive.mobile ? '' : ''
         
     }
     const dailyButtons = (value, item) => {
-        console.log(value)
         switch (value) {
             case 0:
                 dailyApproval(item)
@@ -212,89 +230,81 @@ import CommandButton from '../Global/CommandButton.vue'
                 break
         }
     }
-    const manageButtons = (item) => {
-        const buttons = []
-        if(item?.time_card?.status_flag == 1){
-            const temp = {
-                name: '承認',
-                value: 0
-            }
-            buttons.push(temp)
-            const backTemp = {
-                name: '差戻',
-                value: 1
-            }
-            buttons.push(backTemp)
-        } else if(item?.time_card?.status_flag == 2){
-            const temp = {
-                name: '承認取消',
-                value: 2
-            }
-            buttons.push(temp)
+    const getStatusText = (statusFlag) => {
+        switch (statusFlag) {
+            case 0:
+                return '作成中';
+            case 10:
+                return '差戻中';
+            case 1:
+                return '申請中';
+            case 2:
+                return '承認済';
+            default:
+                return '';
         }
-        if((auth.activeUser.id == 608 || auth.activeUser.id == 610) && item?.time_card?.work_time == null && item?.time_card?.start_time == null){
-            const temp = {
-                name: '作成',
-                value: 'timeStampEdit'
-            }
-            buttons.push(temp)
-        } else if (auth.activeUser.id == 608 || auth.activeUser.id == 610){
-            const temp = {
-                name : '編集',
-                value: 'timeStampEdit',
-            }
-            buttons.push(temp)
-            const tempDelete = {
-                name: '削除',
-                value: 'timeStampDelete',
-            }
-            buttons.push(tempDelete)
-        }
-        return buttons
-
     }
-    const buttonsCollection = (item) => {
-        const buttons = []
-        if(startOrEnd(item, null)){
-            const temp = {
-                name: '始業',
-                value: 'timeStampStart'
-            }
-            buttons.push(temp)
-        }else if(startOrEnd(item, 0)){
-            const temp = {
-                name: '終業',
-                value: 'timeStampEnd'
-            }
-            buttons.push(temp)
+    const includeRegistered = computed(() => {
+        return !!props.usersData.find(ob => ob.position_id === 15)
+    })
+    const hasHeader = (title) => {
+        return headers.value.findIndex(element => element.title == title) !== -1
+    }
+    const headers = computed(() => {
+        let headersArray = [
+            { title: '日付'},
+            { title: 'メンバー'},
+            { title: '出勤'},
+            { title: '退勤'},
+            { title: '労働時間'},
+            { title: '時間外'},
+            { title: '休憩時間'},
+            { title: '諸手当'},
+            { title: 'インシデント'},
+            { title: '目標達成率'},
+            { title: 'コンディション'},
+            { title: 'コメント'},
+            { title: 'ステータス'},
+            { title: '手続き'},
+        ];
+        if(auth.user.position_id !== 15){
+            headersArray.splice(2, 0, {title: '予定'})
         }
-        if(item?.time_card?.status_flag == 10 || item?.time_card?.status_flag == 0){
-            const temp = {
-                name : '編集',
-                value: 'timeStampEdit',
-            }
-            buttons.push(temp)
-            const tempDelete = {
-                name: '削除',
-                value: 'timeStampDelete',
-            }
-            buttons.push(tempDelete)
+        if(includeRegistered.value){
+            const index = headersArray.findIndex(element => element.title == 'ステータス')
+            headersArray.splice(index, 0, {title: '経費'})
+            headersArray.splice(index + 1, 0, {title: 'インセンティブ'})
         }
         
-        if(item.time_card?.work_time == null && item.time_card?.start_time == null){
-            const temp = {
-                name: '作成',
-                value: 'timeStampEdit'
+
+        return headersArray;
+    })
+    const closeModal = () => {
+        tempItem.value = null
+    }
+    const callModal = (item) => {
+        tempItem.value = item
+    }
+    const previewImage = (file) => {
+        if(file?.id){
+            let target_data = file
+            const file_path = `/cdn/timecard_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`
+            target_data['file_path'] = file_path
+            const data = {
+                active: true,
+                files: [target_data],
+                source: 'work',
+                index: 0,
+                message: null,
             }
-            buttons.push(temp)
+            filePreview.setFilePreview(data)
         }
-        return buttons
     }
     const hasValue = (record, number, label, trim) => {
         const headers = [
             { label: 'インシデント : ', id:40},
             { label: '目標達成率 : ', id:41},
-            { label: 'コメント : ', id:39},            
+            { label: 'コメント : ', id:39},         
         ]
         const header = headers.find(ob => ob.id == number)        
         if(record.time_card){
@@ -328,6 +338,27 @@ import CommandButton from '../Global/CommandButton.vue'
         }
         return false
     }
+    const workCostForCSV = (timecard_costs) => {
+        const costs = timecard_costs && timecard_costs.length ?  timecard_costs.reduce((acc, cost) => {
+            if (cost.type === 1) {
+                acc.sum1 += cost.expenses;
+            } else {
+                acc.sum2 += cost.expenses;
+            }
+            return acc
+        }, { sum1: 0, sum2: 0}) : []
+        let costsSum = [];
+
+        if (costs.sum1 > 0) {
+            costsSum.push(`交通費: ${costs.sum1}円`)
+        }
+
+        if (costs.sum2 > 0) {
+            costsSum.push(`通信費: ${costs.sum2}円`)
+        }
+
+        return costsSum.join(' ')
+    }
     const exportCSV = () => {
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `work_${props.selectedMonth + 1}月`});
         const data = []
@@ -335,9 +366,12 @@ import CommandButton from '../Global/CommandButton.vue'
             const allowanceData = hasAllowance(item?.time_card?.custom_field_data_records)
             const workhour = workTimeDisplay(item?.time_card)
             const overtime = overTimeDisplay(item)
+            const workcost = workCostForCSV(item?.time_card?.timecard_costs)
+            const workcount = incentiveCount(item?.time_card?.timecard_incentives)
             const incident = hasValue(item, 40, 'label')
             const manzoku = hasValue(item, 41, 'label')
-            const comment = hasValue(item, 39, 'value_text')
+            const overtime_text = hasValue(item, 42, 'value_text')
+            const comment = hasValue(item, 39, 'value_text').replace(/\n/g, "")
             const row = {
                 "日付" : dayFormatter(item.day_full),
                 "氏名" : item.user_name,
@@ -351,7 +385,11 @@ import CommandButton from '../Global/CommandButton.vue'
                 "インシデント": incident == '' ? '' : incident,
                 "目標達成率" : manzoku == '' ? '' : manzoku,
                 "コンディション": item.weather !== null ? emojis[item.weather] : '',
-                "コメント": comment
+                "コメント": overtime_text ? `残業内容 : ${overtime_text}\n${comment}` : comment,
+            }
+            if (includeRegistered.value) {
+                row["経費"] = workcost;
+                row["インセンティブ"] = workcount;
             }
             data.push(row)
         });
@@ -377,7 +415,22 @@ import CommandButton from '../Global/CommandButton.vue'
             return responsive.mobile ? '残業時間合計：' + formatted : formatted;
         }
     }
-    const hasAllowance = (fields) => {         
+    const hasWorkCost = (costs) => {
+        return costs && costs.length ?
+            costs.map(ob => {
+                const costOption = costOptions.find(opt => opt.value === ob.type);
+                return costOption ? costOption.label : '';
+            }).join(' ') : '';
+    }
+    const incentiveCount = (costs, unit) => {
+        const sum = costs && costs.length ? costs.reduce((accumulator, element) => accumulator + element.count, 0) : 0
+        const suffix = unit ? unit : ''
+        return sum !== 0 ? sum + suffix : ''
+    }
+    const hasWorkCostLabel = (cost) => {
+        return costOptions.find(opt => opt.value === cost.type)?.label;
+    }
+    const hasAllowance = (fields) => {      
         const allowances = fields && fields.length ? fields.filter(ob => ob.type_id == 37) : []
         const mobileTitle = allowances.length && responsive.mobile ? '諸手当 : ' : ''  
         const label = allowances.length ? allowances.map(ob => ob.label).join(' ') : responsive.mobile ? '' : ''
@@ -471,6 +524,7 @@ import CommandButton from '../Global/CommandButton.vue'
         }
         try{
             await axios.post('/remand_time_card', params)
+            info('差戻しました。')
             emit('reload')
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
@@ -485,6 +539,7 @@ import CommandButton from '../Global/CommandButton.vue'
         };
         try{
             await axios.post('/approve_time_card', params )
+            info('承認しました。')
             emit('reload')
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
@@ -497,6 +552,7 @@ import CommandButton from '../Global/CommandButton.vue'
         };
         try{
             await axios.post('/cancel_time_card', params )
+            info('承認取消しました。')
             emit('reload')
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')  
@@ -515,57 +571,70 @@ import CommandButton from '../Global/CommandButton.vue'
         
         return ''
     }
-    const overtimeRequest = (record) => {  
-        overtimeRequestData.value = record
-    }
     const ableTo = (item) => {
-        const shift = item?.shift
-        if(!shift) return false
-        const futureOrToday = moment(shift.shift_day).isSameOrAfter(moment(), 'day')
+        const { shift } = item || {}
+        if(!shift && item.position_id !== 15) return false
+
         const possibleTypes = [1,6,7,8,9,10,11,12,13]
-        return futureOrToday && possibleTypes.includes(shift.shift_type.id)
+        const { time_card } = item || {}
+        const inThePast = props.currentDay >= item.day_full
+        const timeCardChange = time_card === null || time_card.status_flag === 10 || time_card.status_flag === 0
+        const isAttendancePending = item.attendance
+        if(auth.isRegistered){
+            return inThePast && timeCardChange && !isAttendancePending
+        }
+        
+        const overTimeRequest = possibleTypes.includes(shift?.shift_type.id) && !shift?.overtime_request
+        
+        const hasAuthority = auth.activeUser.work_authority > item.work_authority
+        const overTimeOrTimeCard = shift?.overtime_request || time_card
+        const authorityOver = authorityCheck(item) && (overTimeOrTimeCard || auth.activeUser.id == 610)
+        return (timeCardChange && (overTimeRequest || inThePast) && 
+            auth.activeUser.id === item.user_id || authorityOver && 
+            (overTimeOrTimeCard || inThePast)) && !isAttendancePending
+        
     }
-    const ableToRequestOvertime = (item) => {
-        const shift = item?.shift
-        if(!shift) return false
-        const futureOrToday = moment(shift.shift_day).isSameOrAfter(moment(), 'day')
-        const possibleTypes = [1,6,7,8,9,10,11,12,13]
-        return futureOrToday && possibleTypes.includes(shift.shift_type.id) && item.user_id == auth.activeUser.id && (!item.time_card || item.time_card?.status_flag == 10 || item.time_card?.status_flag == 0)
+    const authorityCheck = (item) => {
+        const findUser = filterGroups.value.find(ob => ob.id === item.user_id)
+        return auth.activeUser.work_authority > findUser?.work_authority
     }
+    const filterGroups = computed(() => {
+        let groups
+        if(auth.activeUser.id === 610 || auth.activeUser.id === 608){
+            groups = props.workGroups
+        } else {
+            let filter = props.workGroups.filter(val => val.members.some(ob => ob.id === auth.id && ob.pivot.authority === 1))
+            groups = filter
+            .flatMap(workGroup => workGroup.members)
+            .reduce((acc, member) => {
+                if (!acc.some(m => m.id === member.id)) {
+                acc.push(member);
+                }
+                return acc;
+            }, [])
+        }     
+        
+        const uniqueMemberObjects = groups.sort((a, b) => {
+                if (a.id === auth.id) return -1;
+                if (b.id === auth.id) return 1;
+                return a.id - b.id;
+            });
+        return uniqueMemberObjects   
+    })
+
     const overTimeRequestDisplay = (item) => {
         const overtime = item?.shift?.overtime_request
         if(!overtime) return 
         const status = statuses[overtime.status]
         return `${status}${overtime.minutes}分`
-    }
-    const appliedOvertime = (overtime) => {
-        const hours = Math.floor(overtime.minutes / 60);
-        const minutes = overtime.minutes % 60;
-        const status = overtime.status == 1 ? '承認済み' : '申請中'
-        return `${status} : ${hours}時間${minutes}分`
-    } 
-    const respondOvertime = async(data, status, action) => {
-        if(status == 0){
-            const answer = await confirm(`${data?.overtime_day}申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。`)
-            if(!answer) return
-        }
-        const params = {
-            id: data.id,      
-            approved_by: auth.activeUser.id,
-            status: status
-        }
-
-        try{
-            await axios.patch('/request_overtime', params).then(res => res.data)
-            emit('reload')
-            info(`${action}しました。`)
-            // emit('close')
-        } catch (e) { 
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } 
-    }
+    }   
+    
 </script>
 <style lang="scss">
+.w-hover-button{
+    display: flex;
+    justify-content: center;
+}
 .absolute-div{
     position:absolute; 
     color: var(--primary-color); 
@@ -624,7 +693,7 @@ import CommandButton from '../Global/CommandButton.vue'
                     border-bottom: 1px solid var(--calendarBorder);
                     border-right: 1px solid var(--calendarBorder);
                     vertical-align: middle;
-                    width: 90px;
+                    width: 100px;
                     text-align: center;
                     height: 40px !important;
                     box-sizing: border-box;
@@ -652,6 +721,15 @@ import CommandButton from '../Global/CommandButton.vue'
 }
 
 @media (max-width: 959px) {
+    .mb-space{
+        margin-top: 10px;
+    }
+    .w-hover-button{
+        justify-content: flex-start;
+    }
+    .center-mobile{
+        justify-content: center;
+    }
     .condition-area{
         display: flex;
         align-items: center;
@@ -665,6 +743,14 @@ import CommandButton from '../Global/CommandButton.vue'
     }
     .last-row{
         margin-bottom: 25px !important;
+    }
+    .td-first{
+        padding: 15px 0px 0px 0px;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .today .td-first{
+        padding: 10px 0px;
     }
     .v-table{
         table{            
@@ -697,7 +783,8 @@ import CommandButton from '../Global/CommandButton.vue'
                     height: auto !important;
                     box-sizing: border-box;
                     font-size: 13px;
-                    padding-bottom: 10px;
+                    padding-bottom: 20px;
+                    position: relative;
                     .date-cell{
                         padding: 5px 20px !important;
                         text-align: center !important;
@@ -711,7 +798,7 @@ import CommandButton from '../Global/CommandButton.vue'
                     border-bottom: none !important;
                     display: block;
                     height: fit-content !important;
-                    position: relative;
+                    
                     width: 100%;
                     line-height: 2;
                     padding: 0 20px !important;
@@ -737,8 +824,6 @@ import CommandButton from '../Global/CommandButton.vue'
 
 </style>
 <style scoped>
-
-
 .tc{
     border-bottom: 1px solid var(--calendarBorder);
     vertical-align: middle;

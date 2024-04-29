@@ -159,7 +159,6 @@ const resetColor = () => {
     colorPickerView.value = null
 }
 const selectColor = (color) => {
-    console.log(color)
     if(colorPickerView.value == 55){
         editor.value.chain().focus().setColor(color).run()
     }else if(colorPickerView.value == 20){
@@ -212,12 +211,6 @@ const uploadImage = (event) => {
     
         axios.post('/upload_lesson_file', formData , { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) } )
         .then(response =>{    
-            if(event.target.id == 'imagePicker'){
-                // editor.value.chain().focus().setImage({ src: response.data }).run()
-            }else if(event.target.id == 'videoPicker'){
-                // editor.value.chain().focus().insertContent(`hello`).run()
-                // console.log('tttttttt')
-            }
             getFileList()
             
             

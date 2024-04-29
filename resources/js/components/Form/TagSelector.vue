@@ -44,88 +44,10 @@ import OpenAI from "openai";
     })      
     const selectedTag = defineModel()
     const superCounter = ref(0)
-    const suggestedTagsOptions = ref([])
     onMounted(() => {
         superFetch()
-        // console.log(props.suggestion)
-    })
-    // watch(props.suggestion, (after) => {
-    //     console.log(after)
-    //     if(after && after.length && after.length > 4){
-    //         search(key)
-    //     }
-    // })
-    watch(() => props.suggestion, (after) => {
-        // console.log(after)
-        // if(after && after.length && after.length > 4){
-        //     suggestedTags(after)
-        // }
-    })       
-    // const generateTag = async() => {
-    //     // console.log(props.suggestion)
-    //     // return
-    //     const openai = new OpenAI({
-    //         apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    //         dangerouslyAllowBrowser: true 
-    //     });
+    })      
 
-    //     const response = await openai.chat.completions.create({
-    //         model: "gpt-3.5-turbo",
-    //         messages: [
-    //             {
-    //                 "role": "system",
-    //                 "content": "挙げられた投稿文書の中から分析し、ちゃんと意味を持つタグにするキーワードをピックアップしコンマで分けてください。最大10件。"
-    //             },
-    //             {
-    //                 "role": "user",
-    //                 "content": props.suggestion
-    //             }
-    //         ],
-    //         temperature: 0.5,
-    //         max_tokens: 1000,
-    //     });
-    //     const tags = response?.choices[0].message?.content || ''
-    //     const tagsList = tags.split(',').map(item => item.trim());
-    //     console.log(selectedTag)
-    //     const pre = []
-    //     tagsList.forEach(tag => {
-    //         pre.push({
-    //             id: randomId(),
-    //             text: tag
-    //         })
-    //     });
-    //     selectedTag.value = pre
-        
-
-    // } 
-    // const suggestedTags = _.debounce(async(key) => {
-    //     const openai = new OpenAI({
-    //         apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-    //         dangerouslyAllowBrowser: true 
-    //     });
-
-    //     const response = await openai.chat.completions.create({
-    //         model: "gpt-3.5-turbo",
-    //         messages: [
-    //             {
-    //             "role": "system",
-    //             "content": "You will be provided with a block of text, and your task is to extract a list of keywords from it."
-    //             },
-    //             {
-    //             "role": "user",
-    //             "content": `ドコモショップのスマホ初期設定スタッフとして
-    //             活動している宮本さんをご紹介させていただきます。
-    //             昨年11月からドコモショップへスマートフォンの初期設定や操作案内などを対応し
-    //             ています。
-    //             店舗からの評価も良く作業が早く店長絶賛でした。
-    //             そんな宮本さんにナイスです。`
-    //             }
-    //         ],
-    //         temperature: 0.5,
-    //         max_tokens: 1000,
-    //         top_p: 1,
-    //     });
-    // }, 350)
     const search = _.debounce((key) => {
         axios.post('/post_get_tags', {key: key, super: false})
         .then(response => {

@@ -13,6 +13,14 @@
                     />
                 </div>
             </div>
+            <div class="work-notstyle" v-if="nextShiftNotSubmittedList.length">
+                <div v-for="item in nextShiftNotSubmittedList">
+                    <WorkNotSubmitted 
+                        v-if="item"
+                        :item="item"
+                    />
+                </div>
+            </div>
             <div class="work-notstyle" style="display: grid; gap: 20px;" v-if="timecardNotSubmittedList.length">
                 <div v-for="item in timecardNotSubmittedList">
                     <WorkNotSubmitted 
@@ -28,16 +36,40 @@
     import { onMounted, computed, ref, provide } from 'vue';
     import WorkNotSubmitted from '../Work/WorkNotSubmitted.vue';
     import { useRoute } from 'vue-router';
+    import { useAuthUserStore } from '../../store/auth';
+    import moment from 'moment';
+    const auth = useAuthUserStore()
     const shiftNotSubmittedList = ref([])
+    const nextShiftNotSubmittedList = ref([])
     const timecardNotSubmittedList = ref([])
     const route = useRoute()
     onMounted(() => {
-        getNotSubmitted()        
+        if(!auth.isRegistered && !auth.isOnLeave){
+            getNotSubmitted()
+            checkDay() 
+        }        
     })
+    const checkDay = () => {
+        const currentDate = moment()
+        const lastDayOfMonth = moment().endOf('month')
+        const twentyFifthOfMonth = moment().date(25)
+        if (currentDate.isBetween(twentyFifthOfMonth, lastDayOfMonth, null, '[]')){
+            checkNextMonthShift()
+        }
+    }
+    const checkNextMonthShift = async() => {
+        try {
+            const data = await axios.get('/next_month_shift').then(res => res.data)
+            nextShiftNotSubmittedList.value = data
+        } catch (e) {
+
+        }
+    }
     const checkworkShow = computed(() =>{
         const hasItems =
             shiftNotSubmittedList.value.length ||
-            timecardNotSubmittedList.value.length
+            timecardNotSubmittedList.value.length ||
+            nextShiftNotSubmittedList.value.length
         return hasItems      
     })
     const checkQuery = computed(() => {
@@ -46,13 +78,15 @@
 
     const getNotSubmitted = async() => {
         try{
-            const response = await axios.post('/not_submitted')
-            shiftNotSubmittedList.value = response.data.shiftNotSubmittedList;
-            timecardNotSubmittedList.value = response.data.timecardNotSubmittedList;
+            const data = await axios.post('/not_submitted').then(res => res.data)
+            timecardNotSubmittedList.value = data.timecard_notSubmitted
+            shiftNotSubmittedList.value = data.shift_notSubmitted
         } catch (e) {
-            console.log(e)
+
         }
     }
-    
-    provide('getNotSubmitted', getNotSubmitted)
+    provide('checkWork', {
+        nextMonthShift: () => checkNextMonthShift(),
+        notSubmitted: () => getNotSubmitted()
+    })
 </script>

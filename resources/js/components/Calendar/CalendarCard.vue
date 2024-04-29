@@ -181,11 +181,7 @@
     const fullDay = computed(() => {
         const start = moment(props.record.date_start)
         const end = moment(props.record.date_end)
-        const diff = Math.abs(start.diff(end, 'hours')) >= 23
-        if(props.record.id == 7768){
-            console.log(Math.abs(start.diff(end, 'hours')) >= 23)
-        }   
-
+        const diff = Math.abs(start.diff(end, 'hours')) >= 23 
         return diff
     })
 

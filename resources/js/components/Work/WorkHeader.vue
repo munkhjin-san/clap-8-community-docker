@@ -2,13 +2,37 @@
     <div class="workButtons-wrapper">
         <HamBurger v-if="responsive.mobile"/>
 
-        <button class="work-button" @click="clickButton('selectShift')">
+        <button class="work-button pc" @click="clickButton('selectShift')" v-if="!auth.isRegistered">
             勤怠予定
         </button>
-        <button class="work-button" @click="clickButton('confirmAttendance')">
+        <button class="work-button pc" @click="clickButton('selectApproveShift')" v-if="auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608">
+            勤怠予定承認
+        </button>
+        <button class="work-button pc" @click="clickButton('confirmAttendance')">
             勤怠確定
         </button>
-        <div class="work-button" @click.stop="clickButton('selectMember')">
+        <button class="work-button mobile" @click="modal = true">
+            勤怠手続き
+        </button>
+        <div class="work-modal" v-if="modal" @mousedown="modal = false">
+            <div class="work-modal-inner" @mousedown.stop style="height: fit-content; width: calc(100% - 80px);">
+                <div class="recordFormTitle">
+                    <p style="font-size: 18px;">{{ `${selectedMonth + 1}月の勤怠手続き` }}</p>
+                    <div @click="modal = false" class="cursor-pointer" style="margin: auto 0 auto auto;">
+                        <svg class="modalWindowCloseButton" version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
+                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                    <CommandButton 
+                        :buttons="buttonCollection"
+                        @select="(button: any) => choseButton(button)"
+                    />
+                </div>
+            </div>
+        </div>
+        <div class="work-button" v-if="!auth.isRegistered" @click.stop="clickButton('selectMember')">
             メンバー
         </div>
         <Transition name="modalFade">
@@ -53,7 +77,7 @@
         <button class="work-button" @click="clickButton('jumpToToday')">
             今日
         </button>
-        <button class="work-button pc" @click="clickButton('jumpToTotal')">
+        <button class="work-button" @click="clickButton('jumpToTotal')">
             集計
         </button>
         
@@ -64,6 +88,7 @@
     import { ref, computed } from 'vue';
     import HamBurger from '../Global/HamBurger.vue'
     import UserIcon from '../Board/Mixed/UserIcon.vue';
+    import CommandButton from '../Global/CommandButton.vue';
     import { useMenuStore } from "../../store/menu";
     import { useResponsive } from '../../store/responsive';
     import { useAuthUserStore } from '../../store/auth';
@@ -74,29 +99,53 @@
     interface Props {
         usersCheckArray: Array<number | null>
         workGroups: Array<User>
+        selectedMonth: string | null 
     }
     const props = defineProps<Props>()
-    const emit = defineEmits(['selectShift', 'confirmAttendance', 'todayScroll', 'toBottomScroll'])
+    const emit = defineEmits([
+        'selectShift', 
+        'confirmAttendance', 
+        'todayScroll', 
+        'toBottomScroll', 
+        'approveShift',
+    ])
     const keywords = ref<string>()
-
+    const modal = ref(false)
     const selectedUsersList = defineModel<any>()
-    
+    const flatworkGroups = computed(() => {
+        let groups : any
+        if(auth.activeUser.id === 608 || auth.activeUser.id === 610){
+            groups = props.workGroups
+        }else{
+            groups = props.workGroups
+            .flatMap(workGroup => workGroup.members)
+            .reduce((acc: User[], member: User) => {
+                if (!acc.some(m => m.id === member.id)) {
+                acc.push(member);
+                }
+                return acc;
+            }, [])
+        }
+        const uniqueMemberObjects: User[] = groups.sort((a: User, b: User) => {
+            if (a.id === auth.id) return -1;
+            if (b.id === auth.id) return 1;
+            return a.id - b.id;
+        });
+        return uniqueMemberObjects
+    })
     const searchUsers = computed(() => {
-        if(keywords.value && Array.isArray(props.workGroups)){
+        if(keywords.value && Array.isArray(flatworkGroups.value)){
             let lowSearch: string = keywords.value.toLowerCase()
-            return props.workGroups.filter(user => 
+            return flatworkGroups.value.filter(user => 
                 Object.values(user).some(val => 
                     String(val).toLowerCase().includes(lowSearch)
                 )
             )
         }else{         
-            return props.workGroups
+            return flatworkGroups.value
         }
     })
     
-    const checked = (id: number) => {
-        return props.usersCheckArray.includes(id)
-    }
     const clickButton = (action: string) => {
         if(action == 'selectShift'){
             emit('selectShift')
@@ -108,6 +157,8 @@
             emit('todayScroll')
         }else if(action == 'jumpToTotal'){
             emit('toBottomScroll')
+        }else if(action == 'selectApproveShift'){
+            emit('approveShift')
         }
     }
 
@@ -117,4 +168,28 @@
     const selectAll = (event: any) => {        
         selectedUsersList.value = event.target.checked ? searchUsers.value.map(ob => ob.id) : []        
     }
+    const choseButton = (button: any) => {
+        button.value === 1 ? clickButton('selectShift') : button.value === 2 ? clickButton('selectApproveShift') : clickButton('confirmAttendance')
+        modal.value = false
+    }
+    const buttonCollection = computed(() => {
+        const buttons: { name: string, value: number }[] = []
+        buttons.push({
+            name: '勤怠予定', 
+            value: 1
+        })
+
+        buttons.push({
+            name: '勤怠確定', 
+            value: 3
+        })
+        if(auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608){
+            buttons.push({
+                name: '勤怠予定承認', 
+                value: 2
+            })
+        }
+        buttons.sort((a, b) => a.value - b.value);
+        return buttons
+    })
 </script>

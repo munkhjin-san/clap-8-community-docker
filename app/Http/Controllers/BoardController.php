@@ -204,7 +204,11 @@ class BoardController extends Controller
         $no_partner_zone = ['knowledge', 'nice', 'challenge', 'work', 'support'];
         if(in_array($name, $no_partner_zone) && Auth::user()->partner_flag == 1){
             return redirect('board');
-        }   
+        }
+        $no_registered_zone = ['knowledge', 'nice', 'challenge', 'learning'];
+        if(in_array($name, $no_registered_zone) && Auth::user()->position_id == 15){
+            return redirect('board');
+        } 
         // echo $id; 
         // return;
         $today = Carbon::now()->format('Y-m-d');     
@@ -1885,6 +1889,7 @@ class BoardController extends Controller
         $all_users = User::where('deleted_flag', 0)
         ->where('retire', 0)
         ->whereNotIn('name', $ng_list)
+        ->whereNotIn('id', $request->exclude)
         ->select('id', 'name', 'icon_id')
         ->get();
         return response()->json($all_users);

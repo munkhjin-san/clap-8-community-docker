@@ -9,9 +9,11 @@
         <Transition name="modalFade">
             <MessageUsers v-if="messageUsers.active"/>
         </Transition>
-        <Transition name="modalFade">
-            <FilePreview v-if="filePreview.active"/>
-        </Transition> 
+        <Teleport to="body">
+            <Transition name="modalFade">
+                <FilePreview v-if="filePreview.active"/>
+            </Transition> 
+        </Teleport>
         <Transition name="modalFade">
             <WeatherComponent v-if="auth.user"/>
         </Transition> 
@@ -81,8 +83,6 @@
     const incompleteCall = () => {
         if(auth.id){
             const string = '/user/' + auth.id
-            // const currentUrl = window.location.href;
-            // console.log(window.location)
             if(window.location.pathname == string){
                 viewIncompleteWindow.value = true
             }else{

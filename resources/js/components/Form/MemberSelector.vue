@@ -57,6 +57,7 @@ import { validator } from '@/validation/validator'
         'selectAll', 
         'multiple', 
         'options',
+        'exclude'
     ])
     const error = ref('')
     const trigger = ref(false)
@@ -87,7 +88,8 @@ import { validator } from '@/validation/validator'
 
     const getPossibleMembers = async() => {
         if(props.path){
-            options.value = await axios.post(`/${props.path}`).then(response => response.data)
+            const exclude = props.exclude && props.exclude.length ? props.exclude : []
+            options.value = await axios.post(`/${props.path}`, {exclude: exclude}).then(response => response.data)
         }
     }
     const noDrop = computed(() =>{
@@ -101,7 +103,6 @@ import { validator } from '@/validation/validator'
         if(passive && !trigger.value) return
 
         const { isValid, errorMessage }= await validator(props.rules, qualified_users.value)
-        console.log(qualified_users.value, isValid, errorMessage)
         error.value = errorMessage
         trigger.value = true
         return {valid: isValid}

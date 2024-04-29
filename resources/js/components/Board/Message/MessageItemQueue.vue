@@ -217,7 +217,6 @@ import UserIcon from '../Mixed/UserIcon.vue';
                     }
                 }catch (e) {
                     sendError(props.message)
-                    console.log(e)
                     resending.value = false
                 }               
             }

@@ -40,11 +40,6 @@ import { markRaw, ref, watchEffect } from 'vue';
     const selector = ref(null)
     const getPossibleItems = (loading) => {  
         spinner.value = true
-        
-        // if(selector.value){
-        //     selector.value.toggleLoading(true)
-        //     console.log(selector)
-        // }
         const params = {
             editId: props.editId,
             target: props.target,

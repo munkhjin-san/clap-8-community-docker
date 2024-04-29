@@ -12,7 +12,7 @@
         
             <div class="si-box" style="margin-top: 10px">
                 <TagSelector 
-                    placeHolder="タグ選択"
+                    placeHolder="タグ選択（＃なし）"
                     :suggestion="tagSuggestionText"
                     v-model="tags"
                 />
@@ -234,7 +234,7 @@ import FileUploader from '../Form/FileUploader.vue'
                 content_goal: content_goal.value, 
                 date_start: date_start.value, 
                 date_end: date_end.value,  
-                tags: tags.value.length ? tags.value.map(ob => ob.text) : [], 
+                tags: tags.value.length ? tags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [], 
                 file_ids : uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
                 referrer: referrer.value, 
                 path: props.appName,

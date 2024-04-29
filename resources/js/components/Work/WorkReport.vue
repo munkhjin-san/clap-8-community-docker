@@ -10,7 +10,7 @@
                     </svg>
                 </div>
             </div>
-            <div class="report-wrapper">
+            <div class="report-wrapper" style="background:inherit;">
                 <div class="report-field">
                     <p class="report-header">就業時間</p>
                     
@@ -29,19 +29,6 @@
                    
                 </div>
                
-                <div class="report-field" v-if="editTime">
-                    <p class="report-header">就業時間の入力</p>
-                    <div class="report-input-time">
-                        <div>
-                            <input class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editStartTime" step="900">
-                        </div>
-                        <div class="between-line">～</div>
-                        <div>
-                            <input class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editEndTime" step="900">
-                        </div>
-                        
-                    </div>
-                </div>
                 <div class="report-field">
                     <p class="report-header">休憩時間</p>
                     <div class="report-input">
@@ -49,20 +36,16 @@
                             <option :key="index" v-for="(item , index) in breakTimeOptions" :value="item.value">{{ item.label }}</option>
                         </select>
                     </div>
-                   
                 </div>
                 
-                <div class="report-field" v-if="breakTime">
-                    <p class="report-header">休憩時間の選択</p>
-                    <div class="report-input">
-                        <select class="report-breakTime dropDownSelector taskDateTimePicker" v-model="breakTimeSelect" name="breakTimeSelect">
-                            <option :key="index" v-for="(item , index) in breakTimeOptions" :value="item.value">{{ item.label }}</option>
-                        </select>
-                    </div>
-                </div>
-               
-                <CustomField v-for="field in fields" :shift_type="shift?.shift_type" :data="field" v-model="customValues[field.id]"/>
-                
+                <CostField v-if="item.position_id === 15" v-model="costs"/>
+                <IncentiveField v-if="item.position_id === 15" v-model="incentives"/>
+                <CustomField 
+                    v-for="field in filterCustomValues" 
+                    :shift_type="shift?.shift_type" 
+                    :data="field" 
+                    v-model="customValues[field.id]"
+                />               
                 <div class="si-box">
                     <LoaderButton :loading="loading" content="申請する" @triggered="saveTimeCard(1)" />
                 </div>
@@ -71,15 +54,19 @@
     </div>
 </template>
 <script setup>
-    import { computed, inject, onMounted, ref } from 'vue';
+    import { computed, inject, onMounted, ref, watch } from 'vue';
     import LoaderButton from '../Global/LoaderButton.vue';
-    import WorkCustomField from './WorkCustomField.vue'
     import { useTheme } from '@/store/theme';
     import moment from 'moment';
     import CustomField from './CustomField.vue'
+    import CostField from './CostField.vue';
+    import IncentiveField from './IncentiveField.vue'
+    import { useAuthUserStore } from '../../store/auth';
+    const auth = useAuthUserStore()
     const fields = inject('customInfo')
     const emit = defineEmits(['reload'])
     const theme = useTheme()
+    
     const props = defineProps([
             'chosenDate', 
             'todayStartTime', 
@@ -98,32 +85,37 @@
     const timeCard = computed(() => {
         return props.item?.time_card
     })
-    const customValues = ref({})
-    const reportTimeEdit = ref(0)
-    const breakTimeEdit = ref(0)
+    const costs = ref(timeCard.value?.timecard_costs?.length ? timeCard.value.timecard_costs : [
+        {
+            content: '',
+            type: 1,
+            expenses: null,
+            file: null,
+        }
+    ])
+    const incentives = ref(timeCard.value?.timecard_incentives?.length ? timeCard.value.timecard_incentives : [
+        {
+            count: null,
+            file: null,
+        }
+    ])
     const loading = ref(false)
-    const editTime = ref(false)
-    const breakTime = ref(false)
-    const editStartTime = ref(timeCard.value?.start_time ? timeCard.value.start_time : shift.value.start_time)
-    const editEndTime = ref(timeCard.value?.end_time ? timeCard.value.end_time : shift.value.end_time)
+    const editStartTime = ref(timeCard.value?.start_time ? timeCard.value.start_time : shift.value?.start_time ? shift.value.start_time : '09:00:00')
+    const editEndTime = ref(timeCard.value?.end_time ? timeCard.value.end_time : shift.value?.end_time ? shift.value.end_time : '18:00:00')
     const breakTimeOptions = [{label : 'なし' , value : 0 },
                         {label : '30分' , value : 30 },
                         {label : '45分' , value : 45 },
                         {label : '60分' , value : 60 },
                         {label : '90分' , value : 90 }]
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
-    const reportComment = ref('')
-    const reportIncident = ref('')
-    const reportAchievement = ref('')
-    const reportAllowance = ref([])
-    const { confirm, notify } = inject('dialog')
+    const { confirm, notify, info } = inject('dialog')
+    const customValues = ref({})
     onMounted(() => {
         breakTimeCalc()
-        // customFieldFill()
         if(fields.value){
 
             fields.value.forEach(element => {
-                const index = element.id == 39 ? 'value_text' : 'value_int'
+                const index = element.id == 39 || element.id == 42 ? 'value_text' : 'value_int'
                 const pre = timeCard.value?.custom_field_data_records.filter(ob => ob.type_id == element.id && ob.user_id == timeCard.value.user_id)
                 if(element.id == 37){
                     const allowance = pre && pre.length ? pre.map(ob => ob.value_int) : []
@@ -135,11 +127,29 @@
             });
         }
     })
-    
+    const shiftWorkTime = computed(() => {
+        const shiftStartTime = shift.value ? shift.value?.start_time : '09:00:00'
+        const shiftEndTime = shift.value ? shift.value?.end_time : '18:00:00'
+        const start = moment(shiftStartTime, 'HH:mm:ss')
+        const end = moment(shiftEndTime, 'HH:mm:ss')
+        return end.diff(start, 'minutes')
+    })
+    const workedTime = computed(() => {
+        const start = moment(editStartTime.value, 'HH:mm:ss')
+        const end = moment(editEndTime.value, 'HH:mm:ss')
+        return end.diff(start, 'minutes')
+    })
+    const filterCustomValues = computed(() => {
+        if(workedTime.value > shiftWorkTime.value && props.item?.work_type == 1 && !shift.value?.overtime_request){
+            return fields.value
+        }else{
+            return fields.value.filter(ob => ob.id !== 42)
+        }
+    })
     const breakTimeCalc = () => {
-        if(shift.value.start_time && shift.value.end_time && breakTimeSelect.value == 0){
-            const startTimeParts = shift.value.start_time.split(":");
-            const endTimeParts = shift.value.end_time.split(":");
+        if(editStartTime.value && editEndTime.value && breakTimeSelect.value == 0){
+            const startTimeParts = editStartTime.value.split(":");
+            const endTimeParts = editEndTime.value.split(":");
             const startHour = parseInt(startTimeParts[0]);
             const startMinute = parseInt(startTimeParts[1]);
             const endHour = parseInt(endTimeParts[0]);
@@ -156,81 +166,27 @@
             }
         }
     }
-    const customFieldFill = () => {
-        if(timeCard.value?.custom_field_data_records && timeCard.value?.custom_field_data_records.length){
-            for(let field of timeCard.value.custom_field_data_records){
-                if(field.type_id == 39){
-                    reportComment.value = {
-                        value: field.value_text,
-                        field_type_id: field.type_id
-                    }
-                }else if(field.type_id == 40){
-                    reportIncident.value = {
-                        value: field.value_int,
-                        field_type_id: field.type_id
-                    }
-                }else if(field.type_id == 41){
-                    reportAchievement.value = {
-                        value: field.value_int,
-                        field_type_id: field.type_id
-                    }
-                }else if(field.length > 0){
-                    const values = []
-                    let type_id = ''
-                    for(let item of field){
-                        values.push(item.value_int)
-                        type_id = item.type_id
-                    }
-                    reportAllowance.value = {
-                        value: values,
-                        field_type_id: type_id
-                    }
-                }
-            }
-        }
-    }
+    
     const formatedDay = computed(() => {
         const date = new Date(props.item?.day_full)
         return `${date.getMonth() + 1}月${date.getDate()}日`
     })
-    const updateData = (data) => {
-        if(data.field_type_id == 39){
-            reportComment.value = data
-        }else if(data.field_type_id == 40){
-            reportIncident.value = data
-        }else if(data.field_type_id == 41){
-            reportAchievement.value = data
-        }else{
-            reportAllowance.value = data
-        }
-    }
-    const showTime = () => {
-        if(reportTimeEdit.value == 1){
-            editTime.value = true
-        }else{
-            editTime.value = false
-        }
-    }
-    const showBreakTime = () => {
-        if(breakTimeEdit.value == 1){
-            breakTime.value = true
-        }else{
-            breakTime.value = false
-        }
-    }
-    const showToastIfEmpty = async(fieldName, value) => {
+    
+    const showToastIfEmpty = async() => {
         return new Promise ((resolve) => {
             const targets = [39,40,41]
+            if (workedTime.value > shiftWorkTime.value && props.item?.work_type == 1 && !shift.value?.overtime_request) {
+                targets.push(42)
+            }
             targets.forEach(index => {
                 const v = customValues.value[index]
-                console.log(index, v)
                 if(!v){
                     const fieldName = fields.value.find(ob => ob.id == index)?.title
                     const message = `${fieldName}は必須項目です。必ず選択してください。`
                     notify(message)
                     resolve(false)
                 }
-            });
+            })
             resolve(true)
         })
     }
@@ -243,21 +199,7 @@
             return time;
         }
     }
-    const buildParams = async(status_flag) => {
-        return new Promise((resolve) => {
-            const a = {
-                customValues: customValues.value,
-                breakTime: breakTimeSelect.value,
-                start_time: formatTime(editStartTime.value),
-                end_time: formatTime(editEndTime.value),
-                day: props.item?.day_full,
-                status_flag: status_flag,
-                userId: props.item?.user_id,
-                overTimeMinute: shift.value?.overtime_request?.minutes
-            }
-            resolve(a)
-        })
-    }
+    
     const fifteenMinuteCalc = async() => {
         return new Promise((resolve) => {
             const [endhours, endminutes] = editEndTime.value.split(":");
@@ -308,6 +250,23 @@
             }
         })
     }
+    const buildParams = async(status_flag) => {
+        return new Promise((resolve) => {
+            const a = {
+                customValues: customValues.value,
+                breakTime: breakTimeSelect.value,
+                start_time: formatTime(editStartTime.value),
+                end_time: formatTime(editEndTime.value),
+                day: props.item?.day_full,
+                status_flag: status_flag,
+                userId: props.item?.user_id,
+                overTimeMinute: shift.value?.overtime_request?.minutes,
+                costsValues: costs.value,
+                incentiveValues: incentives.value
+            }
+            resolve(a)
+        })
+    }
     const saveTimeCard = async(status_flag) => {
         const validate = await showToastIfEmpty()
         if(!validate) return
@@ -323,6 +282,7 @@
         const params = await buildParams(status_flag)
         try{
             await axios.post('/save_time_card', params)
+            info('申請しました。')
             emit('reload')
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')    
@@ -330,11 +290,6 @@
             loading.value = false
         }
         
-        
-    }
-            
-    const deleteTimeCard = async() => {             
-           
         
     }
 

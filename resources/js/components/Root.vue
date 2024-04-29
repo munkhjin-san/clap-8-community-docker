@@ -65,6 +65,7 @@ import InstantProfile from './Board/InstantProfile.vue';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useSkeleton } from '@/store/skeleton'
 import { useTitle } from '@vueuse/core'
+import { includes } from 'lodash';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -110,7 +111,7 @@ import { useTitle } from '@vueuse/core'
                 if(mainRef.value.onPusher){
                     mainRef.value.onPusher(e)
                 }
-                if(auth.user && e.message.board_id && e.message.sender !== auth.id){                
+                if(auth.user && e.message.board_id && e.message.sender !== auth.id && e.board_members && e.board_members.length && (e.board_members.includes(auth.activeUser.id) || e.board_members.includes(auth.id))){                
                     badge.getBoardBadge()
                 }
                 if(e.message.new_post_from && e.message.new_post_from !== auth.id){

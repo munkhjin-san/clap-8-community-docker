@@ -55,8 +55,11 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/process_csv', [AutoJobController::class, "process_csv"]);
 // Route::get('/create_thumbnails', [AutoJobController::class, 'createThumbnails']);
 // Route::get('/board_files_thumbnail', [AutoJobController::class, 'board_files_thumbnail']);
+Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
 // temp_routes
+// Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
 
+// Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
 
 Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
@@ -187,7 +190,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/work_group_edit', [AdminAccountController::class, 'workgroupEdit']);
         Route::post('/work_group_delete', [AdminAccountController::class, 'workgroupDelete']);
         // Admin Panel Work
-        Route::post('/get_admin_work', [AdminWorkController::class, 'getAllMessage']);
+        Route::post('/get_admin_work', [AdminWorkController::class, 'get_admin_work']);
         // Admin clap statistics
         Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
         Route::post('/get_planned_shifts', [AdminWorkController::class, 'get_planned_shifts']);
@@ -299,6 +302,14 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/request_overtime', [WorkController::class, 'request_overtime']);
         Route::delete('/request_overtime', [WorkController::class, 'delete_overtime']);
         Route::patch('/request_overtime', [WorkController::class, 'respond_overtime']);
+        Route::patch('/shift_approve', [WorkController::class, 'shift_approve']);
+        Route::patch('/shift_approve_all', [WorkController::class, 'shift_approve_all']);
+        Route::delete('/work_cost_delete', [WorkController::class, 'work_cost_delete']);
+        Route::delete('/work_incentive_delete', [WorkController::class, 'work_incentive_delete']);
+        Route::post('/work_file_upload', [WorkController::class, 'work_file_upload']);
+        Route::post('/work_file_delete', [WorkController::class, 'work_file_delete']);
+        Route::get('/next_month_shift', [WorkController::class, 'next_month_shift']);
+        Route::post('/get_shift_with_work_group', [WorkController::class, 'get_shift_with_work_group']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
         Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);

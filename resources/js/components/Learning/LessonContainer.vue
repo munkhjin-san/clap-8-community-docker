@@ -223,7 +223,6 @@
         }
     })
     const goBack = () => {
-        console.log(route.name)
         if(route.name == 'top'){
             router.push({name : 'learning'})
         }else if(route.name == 'basic'){

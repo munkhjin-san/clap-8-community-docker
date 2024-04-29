@@ -218,11 +218,11 @@ import UserIcon from '../Mixed/UserIcon.vue'
     const filePreview = useFilePreview()
     const keyboardHeight = inject('keyboardHeight')
     
-    watch(() => keyCharacters.value, (after) => {
-        if(!after){
-            resetMention()
-        }
-    })
+    // watch(() => keyCharacters.value, (after) => {
+    //     if(!after){
+    //         resetMention()
+    //     }
+    // })
     onUnmounted(() => {
         messageInputArea.value?.removeEventListener('keyup', inputKeyEventfirst);  
         messageInputArea.value?.removeEventListener('keyup',inputKeyEventSecond);
@@ -413,8 +413,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
         const mentioned = text.replace(/\[To:(.*?)\]/g, (match, content) => {                    
             const strippedContent = content.replace(/^\s*\[To:|\]\s*$/g, '');                    
             if(strippedContent === '全員'){
-                var list = filteredUsers.value.filter(ob => ob.id !== -1 && ob.id !== auth.activeUser.id).map(obj => obj.id);
-                console.log(list)                        
+                var list = filteredUsers.value.filter(ob => ob.id !== -1 && ob.id !== auth.activeUser.id).map(obj => obj.id);             
                 mentionedUsers.value = list;
                 return '<a class="toAll">@全員</a>'
             }else{
@@ -545,8 +544,10 @@ import UserIcon from '../Mixed/UserIcon.vue'
         }    
     }, 
     composeUpdate = (event) => {
-        if(event.data == '@' || event.data == '＠'){     
-            getCharacterPrecedingCaret()
+        if(event.data == '@' || event.data == '＠'){ 
+            keyCharacters.value = ''
+            highlighted.value = 0
+            mentionBoxToggle.value = true;
         }else{
             keyCharacters.value = event.data
             if(!keyCharacters.value.length){

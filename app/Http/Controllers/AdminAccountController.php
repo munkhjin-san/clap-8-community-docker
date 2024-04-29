@@ -39,7 +39,13 @@ class AdminAccountController extends Controller
     public function get_controllable_users(Request $request){
         $with_users = (int) $request->with_users;
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
-        $user_list = User::with('user_detail')->with('positions')->whereNotIn('name', $ng_list)->with('offices')->with('work_groups')->with('linked')->get();
+        $user_list = User::with('user_detail')
+                            ->with('positions')
+                            ->whereNotIn('name', $ng_list)
+                            ->with('offices')
+                            ->with('work_groups')
+                            ->with('linked')
+                            ->get();
         $position_list_label = positionRecord::select('id AS value', 'name AS label')->get();
         $office_list_label = officeRecord::select('id AS value', 'name AS label')->get();
         $linkable_accounts = User::where('linkable', 1)->select('id', 'name', 'icon_id')->get();
@@ -50,7 +56,8 @@ class AdminAccountController extends Controller
                 $q->where('users.partner_flag', 0)
                     ->where('users.hide_flag',0)
                     ->where('users.retire', 0)
-                    ->orderBy('pivot_authority', 'desc');
+                    ->orderBy('pivot_authority', 'desc')
+                    ->orderBy('users.id', 'desc');
             }]);
         })
         ->get();
@@ -176,16 +183,13 @@ class AdminAccountController extends Controller
         $work_group = $request->work_group_id ? workGroup::findOrFail($request->work_group_id) : new workGroup;        
         $work_group->name = $request->work_group_name;
         $work_group->save();
-        $current_user_ids = $work_group->members->pluck('id')->toArray();
         $userIds = array_unique(array_merge($request->work_group_users, $request->work_group_pm));
-        $userIdsToDelete = array_diff($current_user_ids, $userIds);
-        $work_group->members()->detach($userIdsToDelete);
         $pivotData = collect($userIds)->mapWithKeys(function ($userId) use ($request) {
             $authority = in_array($userId, $request->work_group_pm) ? 1 : 0;
             return [$userId => ['authority' => $authority, 'updated_at' => now()]];
         });
 
-        $work_group->members()->sync($pivotData->toArray(), false);
+        $work_group->members()->sync($pivotData->toArray());
         return response()->json('success');
     }
     public function clap_statistics(Request $request) {      

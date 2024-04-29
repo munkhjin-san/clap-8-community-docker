@@ -106,7 +106,6 @@ import { useResponsive } from '@/store/responsive';
     const { notify, confirm } = inject('dialog')
     const savePdf = async () => {
         const viewer = props.viewer()
-        console.log(viewer)
         let pageIndex = 0
         pageIndex = viewer.currentPageNumber - 1
         if(pageIndex < 0){

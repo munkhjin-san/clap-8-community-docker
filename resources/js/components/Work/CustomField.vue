@@ -1,6 +1,6 @@
 <template>
     <div>        
-        <div v-if="data.form_type == 'textarea'" style="background: var(--background-color);">
+        <div v-if="data.form_type == 'textarea'" style="background: var(--background-color);margin-bottom: 20px;">
             <LongInput
                 ref="commentRef"
                 :placeHolder="data.title + 'を入力'"

@@ -2200,7 +2200,7 @@ textarea{
 .commentTextBoxRight {
   // float:right;
   width: 100%;
-  position: relative;
+//   position: relative;
   // line-height: 30px;
   word-wrap:break-word;
   overflow-wrap:break-word;
@@ -4349,7 +4349,7 @@ font-size: 13px;
 .replyQuotBox-enter-active,
 .replyQuotBox-leave-active {
     height: 50px;
-    transition: height 0.1s;
+    transition: height 0.2s ease;
 }
 
 .replyQuotBox-enter,
@@ -5793,6 +5793,15 @@ input:autofill {
         font-size: 14px;
         padding: 15px;
         z-index: 106;
+    }
+    .message-foot-area{
+        display: flex;
+        width:100%;
+        position:relative;
+        justify-content: space-between;
+        white-space: nowrap;
+        flex-wrap: wrap;
+        column-gap: 15px;
     }
 @media screen and (max-width: 959px) {
     .ls-video{

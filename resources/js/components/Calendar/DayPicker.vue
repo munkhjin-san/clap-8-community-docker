@@ -84,7 +84,6 @@ import { useMenuStore } from "@/store/menu";
     })
     const formatDate = computed(() => {
         const instance = moment([year.value, month.value - 1, day.value])
-        console.log(instance.format('YYYY-MM-DD'))
         return moment([year.value, month.value - 1, day.value]).format('YYYY年M月D日')
     })
 
@@ -95,7 +94,6 @@ import { useMenuStore } from "@/store/menu";
     }
     const dayNavigation = (index) => {
         const instance = moment([year.value, month.value - 1, day.value]).add(index, 'days').format('YYYY-MM-DD')
-        console.log(instance)
         setDate(instance, true)        
     }    
     

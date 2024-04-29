@@ -37,8 +37,7 @@ import { computed, inject, ref } from 'vue';
                 draggingCalendar.value = null
                 const record_date = moment(record.date_start)
                 const date = props.day.day_full
-                const merge = moment(date).set('hour', record_date.hour()).set('minute', record_date.minute()).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
-                console.log(merge)
+                const merge = moment(date).set('hour', record_date.hour()).set('minute', record_date.minute()).set('second', 0).format('YYYY-MM-DD HH:mm:ss');    
                 dragActive.value = false
                 if(dropFinish){
                     dropFinish(record, merge)

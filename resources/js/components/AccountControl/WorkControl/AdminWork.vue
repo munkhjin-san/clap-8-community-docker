@@ -8,7 +8,7 @@
         <div class="admin-sub-c-bar">
             <UserSearchBar v-model="keywords"/>   
             <div class="admin-work-header">
-                <div class="admin-button" v-on:click="downloadCSV">CSV出力</div>
+                <div class="admin-button" @click="exportCSV">CSV出力</div>
                 <div class="admin-month-wrapper">
                     <MonthPicker 
                         :selectedYear="selectedYear"
@@ -24,29 +24,31 @@
             <table class="admin-work-table">
                 <thead style="background:#363636;color:#fff;position:sticky; top:0px;">
                     <tr style="border:1px solid rgb(102, 102, 102);">
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;" rowspan="2">社員名</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "rowspan="2">勤怠確定</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "rowspan="2">インシデント</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "rowspan="2">職階</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "rowspan="2">天気（3日連続）</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "rowspan="2">勤怠予定入力</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "rowspan="2">計画有給</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "colspan="9">年休</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "colspan="2">休暇</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle; "rowspan="2">労働時間</td>
+                        <td class="admin-table-data" rowspan="2">社員名</td>
+                        <td class="admin-table-data" rowspan="2">勤怠確定</td>
+                        <td class="admin-table-data" rowspan="2">インシデント</td>
+                        <td class="admin-table-data" rowspan="2">職階</td>
+                        <td class="admin-table-data" rowspan="2">天気（3日連続）</td>
+                        <td class="admin-table-data" rowspan="2">勤怠予定入力</td>
+                        <td class="admin-table-data" rowspan="2">計画有給</td>
+                        <td class="admin-table-data" colspan="9">年休</td>
+                        <td class="admin-table-data" colspan="2">休暇</td>
+                        <td class="admin-table-data" rowspan="2">経費</td>
+                        <td class="admin-table-data" rowspan="2">インセ</td>
+                        <td class="admin-table-data" rowspan="2">労働時間</td>
                     </tr>
                     <tr>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;border-left: none;">1日</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">半日</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">1時間</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">2時間</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">3時間</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">4時間</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">5時間</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">6時間</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">7時間</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">慶弔</td>
-                        <td style="font-size: 13px;text-align: center;vertical-align: middle;">転勤</td>
+                        <td class="admin-table-data" style="border-left: none;">1日</td>
+                        <td class="admin-table-data">半日</td>
+                        <td class="admin-table-data">1時間</td>
+                        <td class="admin-table-data">2時間</td>
+                        <td class="admin-table-data">3時間</td>
+                        <td class="admin-table-data">4時間</td>
+                        <td class="admin-table-data">5時間</td>
+                        <td class="admin-table-data">6時間</td>
+                        <td class="admin-table-data">7時間</td>
+                        <td class="admin-table-data">慶弔</td>
+                        <td class="admin-table-data">転勤</td>
                     </tr>
                 </thead>
                 <tbody>
@@ -60,6 +62,8 @@
                         </td>                        
                         <td v-html="item.shift_records.length ? '済' : ''"></td>
                         <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15]" v-html="computedHoliday(item.id, number)"></td>
+                        <td style="white-space: nowrap;">{{ monthly_expenses[item.id] ? `${monthly_expenses[item.id]}円` : '' }}</td>
+                        <td style="white-space: nowrap;">{{ monthly_incentive[item.id] }}</td>
                         <td v-html="conversionTime(month_work_time[item.id])"></td>
                     </tr>
                 </tbody>
@@ -73,6 +77,8 @@
     import { computed, inject, onMounted, ref } from 'vue';
     import { useResponsive } from '@/store/responsive';
     import UserSearchBar from '../UserSearchBar.vue';
+    import { mkConfig, generateCsv, download } from "export-to-csv";
+
     const keywords = ref('')
     const selectedYear = ref(moment().year())
     const selectedMonth = ref(moment().month())
@@ -82,6 +88,8 @@
     const users = ref([])
     const weather_average = ref([])
     const kintone_data = ref([])
+    const monthly_expenses = ref([])
+    const monthly_incentive = ref([])
     const responsive = useResponsive()
     const { notify } = inject('dialog')
     const fetch = ref(0)
@@ -112,53 +120,61 @@
         });
         return days
     }
-    const downloadCSV = () => {
-        var csv = '\ufeff' + '社員コード,社員名,所定労働時間,就業形態,職階,勤怠月,給与支払日,確定フラグ,予定稼働日,通常出勤日数,休日出勤日数,欠勤日数,年休時間,計画年休,1日年休,半日年休,1時間年休,2時間年休,3時間年休,4時間年休,5時間年休,6時間年休,7時間年休,慶弔休暇,特別休暇,休業,労働時間,欠勤時間,残業時間,深夜勤務,遠方手当,宿泊日当\n';
-        attendance_record_items.value.forEach(el => {
-            const data = kintone_data.value.filter(ob => ob.user_code == el['user_code'])
-            const shokkai = data && data.length ? data[0]['general_position'] : ''
-            var line = el['user_code'] + ',' 
-            + el['name'] + ','
-            + el['prescribed_working_hours'] + ','
-            + el['work_type'] + ',' 
-            + shokkai + ','
-            + el['date_year_month'] + ','
-            + el['pay_day'] + ','
-            + el['month_petition'] + ',' 
-            + el['working_days_shift'] + ',' 
-            + el['normal_working_days'] + ','
-            + el['holiday_working_days'] + ',' 
-            + el['absence_days'] + ',' 
-            + el['paid_holiday_hours'] + ','
-            + el['planned_paid_holiday'] + ','
-            + el['petitionType8_count'] + ','
-            + el['half_day_holiday'] + ','
-            + el['petitionType1_count'] + ','
-            + el['petitionType2_count'] + ','
-            + el['petitionType3_count'] + ','
-            + el['petitionType4_count'] + ','
-            + el['petitionType5_count'] + ','
-            + el['petitionType6_count'] + ','
-            + el['petitionType7_count'] + ','
-            + el['condolence_holiday'] + ','
-            + el['special_holiday'] + ','
-            + el['closed_day'] + ','
-            + el['working_hours_no_over'] + ','
-            + el['absence_hour'] + ','
-            + el['over_time'] + ','
-            + el['night_work_time'] + ','
-            + el['stay_pay'] + ','
-            + el['move_pay'] + '\n';
-            csv += line;
-        });
-        let blob = new Blob([csv], { type: 'text/csv' });
-        let link = document.createElement('a');
+    const exportCSV = () => {
         const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
-        link.href = window.URL.createObjectURL(blob);
-        link.download = 'work_' + date + '.csv';
-        link.click();
-
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `work_${date}月`});
+        const data = []
+        attendance_record_items.value.forEach(item => {            
+            const kintone = kintone_data.value.filter(ob => ob.user_code == item.user_code)
+            const shokkai = kintone && kintone.length ? kintone[0]['general_position'] : ''
+            const row = {
+                "社員コード" : item.user_code,
+                "社員名" : item.name,
+                "所定労働時間" : item.prescribed_working_hours,
+                "就業形態" : item.work_type,
+                "職階" : shokkai,
+                "勤怠月" : item.date_year_month,
+                "給与支払日" : item.pay_day,
+                "確定フラグ" : item.month_petition,
+                "予定稼働日": item.working_days_shift,
+                "通常出勤日数": item.normal_working_days,
+                "休日出勤日数" : item.holiday_working_days,
+                "欠勤日数": item.absence_days,
+                "年休時間": item.paid_holiday_hours,
+                "計画年休": item.planned_paid_holiday,
+                "1日年休": item.petitionType8_count,
+                "半日年休": item.half_day_holiday,
+                "1時間年休": item.petitionType1_count,
+                "2時間年休": item.petitionType2_count,
+                "3時間年休": item.petitionType3_count,
+                "4時間年休": item.petitionType4_count,
+                "5時間年休": item.petitionType5_count,
+                "6時間年休": item.petitionType6_count,
+                "7時間年休": item.petitionType7_count,
+                "慶弔休暇": item.condolence_holiday,
+                "特別休暇": item.special_holiday,
+                "休業": item.closed_day,
+                "労働時間": item.working_hours_no_over,
+                "欠勤時間": item.absence_hour,
+                "残業時間": item.over_time,
+                "深夜勤務": item.night_work_time,
+                "経費": item.expenses,
+                "インセンティブ件" : item.incentive,
+                "遠方手当": item.stay_pay,
+                "宿泊日当": item.move_pay,
+            }
+            data.push(row)
+        });
+        if(data && data.length){
+            const csv = generateCsv(csvConfig)(data)
+            download(csvConfig)(csv);
+        } else {
+            notify('勤怠記録ないです。')
+            return
+        }
+        
     }
+    
 
     const getData = async() => {
         try{
@@ -166,13 +182,15 @@
             const params = {
                 month : date
             }
-            const response = await axios.post('/get_admin_work', params )
-            attendance_record_items.value = response.data.attendance_record,
-            paid_holiday_record.value = response.data.paid_holiday_record,
-            month_work_time.value = response.data.month_work_time,
-            users.value = response.data.users,
-            weather_average.value = response.data.weather_average,
-            kintone_data.value = response.data.kintone_data
+            const data = await axios.post('/get_admin_work', params ).then(res => res.data)
+            attendance_record_items.value = data.attendance_record,
+            paid_holiday_record.value = data.paid_holiday_record,
+            month_work_time.value = data.month_work_time,
+            users.value = data.users,
+            weather_average.value = data.weather_average,
+            kintone_data.value = data.kintone_data
+            monthly_expenses.value = data.monthly_expenses
+            monthly_incentive.value = data.monthly_incentive
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
         }
@@ -221,7 +239,11 @@
     }
 </script>
 <style lang="scss" scoped>
-
+    .admin-table-data{
+        font-size: 13px;
+        text-align: center;
+        vertical-align: middle;
+    }
     .admin-work-header{
 
         display: flex;
@@ -240,7 +262,7 @@
     }
     .admin-work-table td{
         padding: 10px;
-        font-size: 14px;
+        font-size: 13px;
         border-bottom: 1px solid rgb(102, 102, 102);
         border-right: 1px solid rgb(102, 102, 102);
     }

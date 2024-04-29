@@ -29,7 +29,6 @@ import UserIcon from '../Mixed/UserIcon.vue';
     const keyboardHeight = inject('keyboardHeight')
     onUnmounted(() => {
         window.removeEventListener('keydown', mentionBoxNavigation);
-        console.log('hiiiiiii')
     })
     onMounted(() => {
         window.addEventListener('keydown', mentionBoxNavigation);

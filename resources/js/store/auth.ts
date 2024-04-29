@@ -5,9 +5,12 @@ interface State {
   id: number | null
   user: User | null
   isPartner: boolean
+  isRegistered: boolean
+  isOnLeave: boolean
   linked: Array<subUser>
 }
 interface subUser {
+    position_id: number
     id: number | null
     name: string| null
     icon_id: number | null
@@ -35,6 +38,8 @@ export const useAuthUserStore = defineStore('authUser', {
     id: null,
     user: null,
     isPartner: false,
+    isRegistered: false,
+    isOnLeave: false,
     linked: [],
   }),
   actions: {
@@ -43,6 +48,8 @@ export const useAuthUserStore = defineStore('authUser', {
         this.name = payload.name
         this.user = payload
         this.isPartner = payload.partner_flag == 1
+        this.isRegistered = payload.position_id == 15
+        this.isOnLeave = payload.on_leave
         this.linked = payload?.linked
     },
     setFooterView(payload: boolean){

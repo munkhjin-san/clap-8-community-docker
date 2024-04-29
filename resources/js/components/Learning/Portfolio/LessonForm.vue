@@ -1,6 +1,7 @@
 <template>
     <div class="section-wrapper" style="height: calc(100% - 50px);">
         <div class="section-inner" v-if="selectedTopic && selectedTopic.active == 1"> 
+            <p>研修はまだ完了しておりません。アンケートの回答にご協力をお願い致します。</p>
             <p style="font-size: 18px;"><strong>研修に関するアンケート</strong></p>
             <div style="height: 20px;"></div>         
             <QuestionRadio

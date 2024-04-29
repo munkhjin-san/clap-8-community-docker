@@ -211,7 +211,7 @@
            
     </template>
     <script setup>
-        import { computed, inject, onMounted, reactive, ref, markRaw, watch } from 'vue';
+        import { computed, inject, reactive, ref, markRaw, watch } from 'vue';
         import ShortInput from '../Form/ShortInput.vue';
         import MemberSelector from '../Form/MemberSelector.vue'
         const emit = defineEmits(['postFinish'])
@@ -257,9 +257,6 @@
             if(newValue === 15){
                 userParams.work_type = 1
             }
-        })
-        onMounted(() => {
-            console.log(props.linkables)
         })
         const closeModal = (flag) => {
             processing.value = false

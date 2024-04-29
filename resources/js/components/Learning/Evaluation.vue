@@ -62,7 +62,6 @@ onMounted(() => {
     if(route.meta.list){
         portfolioList.value = route.meta.list
     }
-    console.log(portfolioList.value)
 })
 const downloadCSV = () => {
     const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: '職能研修機関確認用書類'});

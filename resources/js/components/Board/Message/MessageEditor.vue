@@ -6,15 +6,15 @@
         contentEditable="plaintext-only">
     </div>
     <Transition name="slidePop">   
-    <div v-if="active" style="position: absolute;bottom: -55px;left: -15px;">
+    <div v-if="active" style="position: absolute;bottom: -40px;left: 0;">
         <ul style="white-space: nowrap;">
             <li @click="update" :style="{opacity: sending ? '0.5': '1'}" class="commentEditButton">保存</li>
             <li @click="emit('cancel')" class="commentEditButton">キャンセル</li>
         </ul>
     </div>
     </Transition>
-    </template>
-    <script setup>
+</template>
+<script setup>
     import { inject, onMounted, ref } from 'vue';
     
     
@@ -47,8 +47,7 @@
         }catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
             sending.value = false
-        }
-                   
+        }             
         
     }
     </script>
