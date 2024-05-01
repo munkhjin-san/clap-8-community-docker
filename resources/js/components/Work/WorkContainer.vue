@@ -69,6 +69,7 @@
                     :selectedMonth="selectedMonth"
                     :usersCheckArray="usersCheckArray"
                     @closeModal="shiftAttendance = false"
+                    @reload="reload"
                 />
             </Transition>
             <Transition name="modalFade"> 

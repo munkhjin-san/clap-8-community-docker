@@ -310,6 +310,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/work_file_delete', [WorkController::class, 'work_file_delete']);
         Route::get('/next_month_shift', [WorkController::class, 'next_month_shift']);
         Route::post('/get_shift_with_work_group', [WorkController::class, 'get_shift_with_work_group']);
+        Route::get('/work_generate_csv', [WorkController::class, 'work_generate_csv']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
         Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);

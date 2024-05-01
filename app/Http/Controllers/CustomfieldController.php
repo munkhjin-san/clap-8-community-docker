@@ -39,7 +39,7 @@ class CustomfieldController extends Controller{
             return response()->json('weekend');
         }
         $shift_record = shiftRecord::where('user_id', $auth_user_id)->where('shift_day', $request->today)->first();
-        if($shift_record !== null && ($shift_record->shift_type == 2 || $shift_record->shift_type == 5 || $shift_record->shift_type == 0 || $shift_record->shift_type == 14 || $shift_record->shift_type == 15)){
+        if ($shift_record && in_array($shift_record->shift_type, [2, 5, 0, 14, 15, 3])) {
             return response()->json('weekend');
         }
         return response()->json($custom_field_data);

@@ -196,14 +196,10 @@
                     
                 
                 
+                <div class="si-box"> 
+                    <LoaderButton @triggered="send" content="保存する" :loading="processing"/>   
+                </div>
                 
-            
-                <div class="l-button cursor-pointer" style="margin-top:30px" @click="send" :disabled="processing">
-                    <span v-if="!processing">保存する</span>
-                    <div v-if="processing" id="loaderMini">
-                        <div class="spinner-mini" style="border: 4px #ffffff solid;border-top: 4px black solid;"></div>
-                    </div>
-                </div>    
             </div> 
         </div>
     </div>
@@ -214,6 +210,7 @@
         import { computed, inject, reactive, ref, markRaw, watch } from 'vue';
         import ShortInput from '../Form/ShortInput.vue';
         import MemberSelector from '../Form/MemberSelector.vue'
+        import LoaderButton from '../Global/LoaderButton.vue';
         const emit = defineEmits(['postFinish'])
         const props = defineProps(['positions', 'offices', 'editUserData', 'workGroups', 'linkables'])
         const processing = ref(false)
@@ -281,8 +278,11 @@
                 const val = await target?.validate() || false
                 result = result * val.valid
             }
-            if (!result) return
            
+            if (!result) return
+            if (processing.value) return
+
+            processing.value = true
 
 
             const params = {
@@ -296,6 +296,7 @@
                 await axios.post('/user_add', params)
                 info('保存しました')
                 emit('postFinish', true)
+                processing.value = false
             } catch (e) {
                 notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
             }

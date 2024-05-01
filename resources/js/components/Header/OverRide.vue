@@ -88,7 +88,7 @@
             }else{
                 viewIncompleteWindow.value = false
             }
-            if (hasOneHourPassed(auth.id)) {
+            if (hasOneHourPassed(auth.activeUser.id)) {
                 viewIncompleteWindow.value = true
             }
         }
@@ -108,7 +108,7 @@
     }
     const closePopup = () => {
         if(auth.id){
-            const user_id = auth.id
+            const user_id = auth.activeUser.id
             const string = '/user/' + user_id
             const currentUrl = window.location.href;
             if(currentUrl.includes(string)){

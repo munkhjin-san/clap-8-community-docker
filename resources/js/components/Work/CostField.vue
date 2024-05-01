@@ -1,7 +1,7 @@
 <template>
     <div class="report-field" style="background:inherit;">
         <p class="report-header" style="margin-bottom: 20px;">経費</p>
-        <div v-for="(cost, index) in model" :key="index" style="display:flex;gap:20px;background:inherit;margin-top:20px;align-items: center;">
+        <div v-for="(cost, index) in model" :key="index" style="display:flex;gap:20px;background:inherit;margin-top:20px;align-items: center;flex-wrap:wrap;">
             
             <select class="dropDownSelector taskDateTimePicker" v-model="cost.type" name="costType">
                 <option :key="index" v-for="(item , index) in costOptions" :value="item.value">{{ item.label }}</option>

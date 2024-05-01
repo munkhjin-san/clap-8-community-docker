@@ -81,6 +81,14 @@
                     </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
+                            <span>未承認勤怠予定</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.unapproved_shift_count ? attendanceData.unapproved_shift_count + '日' : '--'}}</span>
+                        </div>
+                    </div>
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
+                        <div class="attendance-title">
                             <span>年休</span>
                         </div>
                         <div class="attendance-value">
@@ -175,7 +183,7 @@
     const attendanceData = ref(null)
     const sending = ref(false)
     const disableButton = computed(() => {
-        return attendanceData.value.unsaved_count > 0 || attendanceData.value.unapproved_count > 0 || attendanceData.value.attendance_flag === true
+        return attendanceData.value.unapproved_shift_count > 0 || attendanceData.value.unsaved_count > 0 || attendanceData.value.unapproved_count > 0 || attendanceData.value.attendance_flag === true
     })
     const loading = ref(0)
     onMounted(() => {
@@ -198,7 +206,9 @@
         if(attendanceData.value.unapproved_count > 0){
             return '未承認日報があります'
         }else if(attendanceData.value.unsaved_count > 0){
-            return '未作成日報があります'   
+            return '未作成日報があります'
+        }else if(attendanceData.value.unapproved_shift_count > 0){
+            return '未承認勤怠予定があります。'
         }else if(attendanceData.value.attendance_flag){
             return '確定済み'
         }else{
