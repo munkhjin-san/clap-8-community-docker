@@ -19,7 +19,7 @@
                 <MonthPicker
                     :selectedMonth="approveMonth"
                     :selectedYear="approveYear"
-                    :right="windowWidth < 425 ? 'auto' : '0'" 
+                    :right="'auto'" 
                     @setDate="setDate"
                 />
                 <button style="margin: unset;background-color: tomato;" class="work-button" @click="approveAll">一括承認</button>
