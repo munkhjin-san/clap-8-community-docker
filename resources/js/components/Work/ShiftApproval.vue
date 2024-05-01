@@ -24,8 +24,8 @@
                     @setDate="setDate"
                 />
                 <Transition name="modalFade">
-                    <div v-if="menu.id == 199 && menu.name == 'shiftApproveSelector'" id="shiftApproveSelector" class="workMemberSelector" style="width: fit-content; left:0; top:40px;">
-                        <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;"> 
+                    <div v-if="menu.id == 199 && menu.name == 'shiftApproveSelector'" id="shiftApproveSelector" class="workMemberSelector" style="width: fit-content; left:0; top:40px; max-width: 100%;">
+                        <div id="checkUserSelecter" style=" max-height: 50vh; overflow: hidden auto;"> 
                             <div class="sub-tab-container">
                                 <div @click="byWorkGroups = 0" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 0}]">メンバー</div>
                                 <div @click="byWorkGroups = 1, checkedUsers = []" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">ワークグループ</div>
