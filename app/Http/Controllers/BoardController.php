@@ -636,10 +636,12 @@ class BoardController extends Controller
         $messageFrom = $targetBoard->message_from;     
         $time_condition = $messageFrom == 0 && $timeLimit;   
         
-        $comment_list_pre = messageRecord::withTrashed()
-        ->where('record_id', $request->record_id)
+        $comment_list_pre = messageRecord::where('record_id', $request->record_id)
         ->when($time_condition, function ($query) use ($timeLimit) {
             $query->where('created_at', '>=',  $timeLimit );
+        })
+        ->when($targetBoard->private_flag !== 3, function ($query) {
+            $query->withTrashed();
         })
         ->with('user')
         ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
