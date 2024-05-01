@@ -253,9 +253,9 @@ class WorkController extends Controller
                 $time_card = $user->time_card_records->where('day', $targetShiftDay)->first();                
                 $shift = $user->shift_records->where('shift_day', $targetShiftDay)->first();
 
-                $daily_report_ability = $this->has_daily_report($shift, $time_card, $date, $user);
-                $overtime_ability = empty($shift) ? false : $this->has_overtime_access($shift, $user, $time_card, $date);
-                $approve_ability = $this->has_approve_access($shift, $time_card, $authority, $attendance);
+                $daily_report_ability = $this->has_daily_report($shift, $time_card, $date, $user, $active_user);
+                $overtime_ability = empty($shift) ? false : $this->has_overtime_access($shift, $user, $time_card, $date, $active_user);
+                $approve_ability = $this->has_approve_access($shift, $time_card, $authority, $attendance, $active_user);
                 $data['day_full'] = $date->format('Y-m-d');
                 $data['day_show'] = $index == 0 ? $date->format('Y-m-d') : '';
                 $data['user_name'] = $user->name;
@@ -293,8 +293,7 @@ class WorkController extends Controller
         
         return response()->json($recordList);
     }
-    private function has_approve_access($shift, $time_card, $authority, $has_attendance){
-        $active_user = $this->active_user();
+    private function has_approve_access($shift, $time_card, $authority, $has_attendance, $active_user){
         $force = $active_user->id == 610 || $active_user->id == 608;
         $dailyReportStatus = $time_card->status_flag ?? -1;
         $overtimeStatus = $shift && $shift->overtime_request ? $shift->overtime_request->status : -1;
@@ -309,17 +308,15 @@ class WorkController extends Controller
             $overtimeCancel
         ];
     }
-    private function has_overtime_access($shift, $user, $time_card, $date){
-        $active_user = $this->active_user();
+    private function has_overtime_access($shift, $user, $time_card, $date, $active_user){
         $today_or_future = empty($shift) ? false : $date->format('Y-m-d') >= date('Y-m-d');
         $possibleTypes = [1,6,7,8,9,10,11,12,13];
         $userMatch = $user->id == $active_user->id;       
         $timeCardCheck = empty($time_card) || $time_card->status_flag == 10 || $time_card->status_flag == 0;
         return $today_or_future && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $timeCardCheck && $active_user->position_id !== 15 && !$shift->overtime_request; 
     }
-    private function has_daily_report($shift, $time_card, $day, $user){
+    private function has_daily_report($shift, $time_card, $day, $user, $active_user){
 
-        $active_user = $this->active_user();
         $has_attendace = $user->attendance_records->first()?->id ? true : false;
         $timecardExist = $time_card !== null;
         $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $active_user->position_id == 15;
