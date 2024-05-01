@@ -78,7 +78,6 @@
     import UserCreate from './UserCreate.vue'
     import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
     import { computed, onMounted, ref } from 'vue';
-    import UserSearchBar from './UserSearchBar.vue';
     import PostSearchBar from '../Post/PostSearchBar.vue';
     const showModalContent = ref(false)
     const editUserData = ref(null)
