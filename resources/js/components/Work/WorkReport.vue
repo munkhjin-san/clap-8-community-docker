@@ -122,7 +122,7 @@
                     customValues.value[element.id] = allowance
                     
                 }else{
-                    customValues.value[element.id] = pre && pre.length ? pre[0][index].toString() : ''
+                    customValues.value[element.id] = pre && pre.length ? pre[0][index] !== null ? pre[0][index].toString() : '' : ''
                 }               
             });
         }

@@ -11,7 +11,7 @@
         <button class="work-button pc" @click="clickButton('confirmAttendance')">
             勤怠確定
         </button>
-        <button class="work-button mobile" @click="modal = true">
+        <button class="work-button mobile" v-if="!auth.isRegistered" @click="modal = true">
             勤怠手続き
         </button>
         <div class="work-modal" v-if="modal" @mousedown="modal = false">
