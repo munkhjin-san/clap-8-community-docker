@@ -60,7 +60,7 @@
             </div>
         </Transition>
 
-        <div @click.stop="menu.setMenu( { id: 6, name: 'calendarMemberSelector'})" class="c-bar-button" style="margin-left: 15px;">メンバー</div>
+        <div @click.stop="menu.setMenu( { id: 6, name: 'calendarMemberSelector'})" v-if="!auth.isRegistered" class="c-bar-button" style="margin-left: 15px;">メンバー</div>
         <div @click.stop="menu.setMenu( { id: 7, name: 'calendarFacilitySelector'})" class="c-bar-button">施設</div>
         <div @click="emit('jumpToday')" class="c-bar-button">本日</div>
         <Transition name="modalFade">
@@ -169,8 +169,9 @@ import LoaderButton from '../Global/LoaderButton.vue'
 import ShortInput from '../Form/ShortInput.vue'
 import { computed, onMounted, ref, inject } from 'vue'
 import { useMenuStore } from "@/store/menu";
+import { useAuthUserStore } from '../../store/auth'
     const menu = useMenuStore()
-
+    const auth = useAuthUserStore()
     const props = defineProps(['facilitiesList', 'selectedYear', 'selectedMonth'])
     const emit = defineEmits(['jumpToday', 'updated', 'setFacility', 'setActiveMembers'])
     const list = ref([])
