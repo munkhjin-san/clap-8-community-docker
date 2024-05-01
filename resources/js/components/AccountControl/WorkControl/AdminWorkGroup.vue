@@ -6,7 +6,7 @@
             </div> 
         </Transition>
         <div class="admin-command-bar" style="margin: 20px;">  
-            <UserSearchBar v-model="keywords" placeHolder="ワークグループやユーザー検索"/>  
+            <PostSearchBar className="newChatMemberSearch" customPlaceHolder="ワークグループやユーザー検索" :searching="false"  @searchStart="(val) => keywords = val" />  
         </div>
         <div class="admin-workgroup-wrapper">
             <table class="admin-workgroup-innerwrapper">
@@ -71,7 +71,7 @@ import WorkGroupCreate from './WorkGroupCreate.vue';
 import { onMounted, ref, inject } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { computed } from 'vue';
-import UserSearchBar from '../UserSearchBar.vue';
+import PostSearchBar from '../../Post/PostSearchBar.vue';
     const keywords = ref('')
     const responsive = useResponsive()
     const showModalContent = ref(false)

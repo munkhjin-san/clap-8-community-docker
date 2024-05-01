@@ -6,7 +6,7 @@
             </div> 
         </Transition>
         <div class="admin-sub-c-bar">
-            <UserSearchBar v-model="keywords"/>   
+            <PostSearchBar className="newChatMemberSearch" :searching="false"  @searchStart="(val) => keywords = val"/>   
             <div class="admin-work-header">
             <div style="display: flex;align-items: center;">
                 <YearPicker 
@@ -103,7 +103,7 @@
     import LoaderButton from '../../Global/LoaderButton.vue';
     import { computed, inject, onMounted, ref } from 'vue';
     import { useTheme } from '@/store/theme';
-    import UserSearchBar from '../UserSearchBar.vue';
+    import PostSearchBar from '../../Post/PostSearchBar.vue';
     const keywords = ref('')
     const plannedShifts = ref([])
     const year = ref(new Date().getFullYear())

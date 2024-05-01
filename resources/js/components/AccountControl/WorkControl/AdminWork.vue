@@ -6,7 +6,7 @@
             </div> 
         </Transition>
         <div class="admin-sub-c-bar">
-            <UserSearchBar v-model="keywords"/>   
+            <PostSearchBar className="newChatMemberSearch" :searching="false"  @searchStart="(val) => keywords = val"/>   
             <div class="admin-work-header">
                 <div class="admin-button" @click="exportCSV">CSV出力</div>
                 <div class="admin-month-wrapper">
@@ -76,9 +76,8 @@
     import MonthPicker from '../../Global/MonthPicker.vue'
     import { computed, inject, onMounted, ref } from 'vue';
     import { useResponsive } from '@/store/responsive';
-    import UserSearchBar from '../UserSearchBar.vue';
     import { mkConfig, generateCsv, download } from "export-to-csv";
-
+    import PostSearchBar from '../../Post/PostSearchBar.vue';
     const keywords = ref('')
     const selectedYear = ref(moment().year())
     const selectedMonth = ref(moment().month())
