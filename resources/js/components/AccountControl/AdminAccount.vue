@@ -16,7 +16,7 @@
                 <div @click="on_leave = 1, retire = 0" :class="['sub-tab-item', { 'selected-sub-tab': on_leave == 1 && retire == 0}]">休職者</div>
                 <div @click="retire = 1, on_leave = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 1 && on_leave == 0}]">退職者</div>                
             </div>    
-            <UserSearchBar v-model="keywords"/>           
+            <PostSearchBar className="newChatMemberSearch" :searching="false" @searchStart="(val) => keywords = val"/>     
         </div>
         
         <div style="flex: 1;overflow: hidden;">
@@ -79,6 +79,7 @@
     import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
     import { computed, onMounted, ref } from 'vue';
     import UserSearchBar from './UserSearchBar.vue';
+    import PostSearchBar from '../Post/PostSearchBar.vue';
     const showModalContent = ref(false)
     const editUserData = ref(null)
     const passwordFlag = ref(false)
