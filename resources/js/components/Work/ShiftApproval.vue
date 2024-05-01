@@ -14,15 +14,15 @@
                     </svg>
                 </div>
             </div>
-            <div style="margin: 10px 0 30px; display: flex; gap: 30px; position: relative;">
+            <div style="margin: 10px 0 30px; display: flex; gap: 30px; position: relative; justify-content: space-between;">
                 <button style="margin: unset;" class="work-button" @click.stop="menu.setMenu( { id: 199, name: 'shiftApproveSelector'})">メンバー</button>
-                <button style="margin: unset;" class="work-button" @click="approveAll">一括承認</button>
                 <MonthPicker
                     :selectedMonth="approveMonth"
                     :selectedYear="approveYear"
                     :right="windowWidth < 425 ? 'auto' : '0'" 
                     @setDate="setDate"
                 />
+                <button style="margin: unset;background-color: tomato;" class="work-button" @click="approveAll">一括承認</button>
                 <Transition name="modalFade">
                     <div v-if="menu.id == 199 && menu.name == 'shiftApproveSelector'" id="shiftApproveSelector" class="workMemberSelector" style="width: fit-content; left:0; top:40px; max-width: 100%;">
                         <div id="checkUserSelecter" style=" max-height: 50vh; overflow: hidden auto;">
