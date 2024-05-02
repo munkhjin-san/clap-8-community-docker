@@ -161,6 +161,7 @@
                 "インセンティブ件" : item.incentive,
                 "遠方手当": item.stay_pay,
                 "宿泊日当": item.move_pay,
+                "待機手当": item.waiting_pay,
             }
             data.push(row)
         });

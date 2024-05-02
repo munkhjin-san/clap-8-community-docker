@@ -133,8 +133,11 @@
     const editData = ref(null)
     const attendanceFlag = ref(false)
     const approvalModal = ref(false)
-    const costOptions = [{label: '交通費', value: 1},
-                    {label:'通信費', value: 2}]
+    const costOptions = [
+        {label: '交通費', value: 1},
+        {label:'通信費', value: 2},
+        {label:'宿泊費', value: 3}
+    ]
     onMounted(async() => {
         const query = route.query
         if(query.user_id){

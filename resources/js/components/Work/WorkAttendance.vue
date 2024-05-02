@@ -142,6 +142,7 @@
                         <div class="attendance-value">
                             <p>宿泊日当 : {{ attendanceData.month_move_allowance_count }}</p>
                             <p><br>遠方手当 : {{ attendanceData.month_stay_allowance_count }}</p>
+                            <p><br>待機手当 : {{ attendanceData.month_waiting_allowance_count }}</p>
                         </div>
                     </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id === 15">
@@ -327,6 +328,7 @@
             night_work_time: attendanceData.value.night_over_time,
             stay_pay: attendanceData.value.month_stay_allowance_count,
             move_pay: attendanceData.value.month_move_allowance_count,
+            waiting_pay: attendanceData.value.month_waiting_allowance_count,
             expenses: attendanceData.value.annual_costs,
             incentive: attendanceData.value.annual_incentives
         }

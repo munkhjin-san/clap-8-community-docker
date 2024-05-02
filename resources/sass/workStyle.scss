@@ -279,10 +279,10 @@
     color: #39f;
 }
 .shift-sunday{
-    color: #ff0000;
+    color: red;
 }
 .shift-everyholiday{
-    color: #ff0000;
+    color: red;
 }
 .shift-weekdays{
     flex: 1;   
@@ -657,13 +657,13 @@
     background-color: rgb(197, 175, 114);
   }
   .late-class{
-    color: #d71718;
+    color: red;
   }
   .over-class{
     color: #39f;
   }
   .early-class{
-    color: #d71718;
+    color: red;
   }
   .work-delete-button{
     width: auto; 

@@ -71,7 +71,7 @@
                     </div>
                     <div> 
                         <div style="display:inline-block" v-if="item?.time_card?.status_flag">
-                            <div>日報 : {{ getStatusText }}</div>
+                            <div>日報 : <span :class="{'shift-sunday' : item?.time_card?.status_flag == 1}">{{ getStatusText }}</span></div>
                         </div>
                     </div> 
                 </div>

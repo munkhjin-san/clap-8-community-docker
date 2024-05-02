@@ -885,7 +885,7 @@ class WorkController extends Controller
                 $query->where('type_id', 37)
                     ->whereYear('date', $currentYear)
                     ->whereMonth('date', $currentMonth)
-                    ->select('value_int', 'user_id');
+                    ->select('value_int', 'user_id', 'table_record_id');
             }
         ])->select('id','name','work_type', 'work_time_day', 'user_code', 'position_id')->findOrFail($user_list[0]);        
         $monthNum = (int)$currentMonth;
@@ -979,8 +979,9 @@ class WorkController extends Controller
             $month_over_time = $over_time;
         }
         
-        $month_stay_allowance_count = $user->custom_field_data_records->where('value_int', 1)->count();
-        $month_move_allowance_count = $user->custom_field_data_records->where('value_int', 0)->count();
+        $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
+        $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
+        $month_waiting_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 2)->count();
         $attendance_flag = !empty($attendance) ? true : false;
         $responseArray = [
             'user' => $userData,
@@ -1001,12 +1002,13 @@ class WorkController extends Controller
             'over_time' => $over_time,
             'month_stay_allowance_count' => $month_stay_allowance_count,
             'month_move_allowance_count' => $month_move_allowance_count,
+            'month_waiting_allowance_count' => $month_waiting_allowance_count,
             'worked_time' => $worked_time,
             'holiday_worked_time' => $holiday_worked_time,
             'night_over_time' => $night_over_time,
             'annual_costs' => $annual_costs,
             'annual_incentives' => $annual_incentive,
-            'unapproved_shift_count' => $unapproved_shift_count
+            'unapproved_shift_count' => $unapproved_shift_count,
         ];
 
         return response()->json($responseArray);
@@ -1124,6 +1126,7 @@ class WorkController extends Controller
             $attendance_record->night_work_time = $request->night_work_time;
             $attendance_record->stay_pay = $request->stay_pay;
             $attendance_record->move_pay = $request->move_pay;
+            $attendance_record->waiting_pay = $request->waiting_pay;
             $attendance_record->expenses = $request->expenses;
             $attendance_record->incentive = $request->incentive;
             $attendance_record->save();
@@ -1629,7 +1632,8 @@ class WorkController extends Controller
                     $totalIncentive = collect($incentives)->sum('count');
                     $transportCost = collect($costs)->where('type', 1)->sum('expenses');
                     $communicationCost = collect($costs)->where('type', 2)->sum('expenses');
-                    $costFormatted = ($transportCost ? "交通費 : $transportCost" . '円 ' : '') . ($communicationCost ? "通信費 : $communicationCost" . '円' : "");
+                    $accommodationCost = collect($costs)->where('type', 3)->sum('expenses');
+                    $costFormatted = ($transportCost ? "交通費 : $transportCost" . '円 ' : '') . ($communicationCost ? "通信費 : $communicationCost" . '円' : "") . ($accommodationCost ? "宿泊費 : $accommodationCost" . '円' : "");
                     $data['経費'] = $costFormatted;
                     $data['インセンティブ'] = $totalIncentive ? $totalIncentive . "件" : '';
                 }
