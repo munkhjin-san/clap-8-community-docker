@@ -748,7 +748,7 @@ class WorkController extends Controller
             $this->overTimeCheck($request, $overtimeMinutes);
         }
 
-        response()->json(['success' => 'success'], 200); 
+        return response()->json(['success' => 'success'], 200); 
     }
     private function saveWorkIncentive($user, $request, $is_exist){
         if($user->position_id === 15){
