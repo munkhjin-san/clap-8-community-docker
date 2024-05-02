@@ -734,9 +734,10 @@ class BoardController extends Controller
                     $newFile->mime_type = $file['record']['mime_type'];  
                     $newFile->size = $file['record']['size'];      
                     $newFile->save(); 
+                    $origin_path = 'shared_files/' . $file['record']['board_id'] . '/' . $file['record']['id']. '_' . $file['record']['user_id'] . '_' . $file['record']['message_id'] . '.' . $file['record']['extension'];
                     $msg_file_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
                     File::isDirectory(storage_path('app/shared_files/' . $request->record_id)) or File::makeDirectory(storage_path('app/shared_files/' . $request->record_id), 0755, true, true); 
-                    Storage::disk('local')->copy($file['path'], $path_shared_files . '/' . $msg_file_path);
+                    Storage::disk('local')->copy($origin_path, $path_shared_files . '/' . $msg_file_path);
                 }
             }
             
