@@ -6,7 +6,7 @@
             </div> 
         </Transition>
         <div class="admin-sub-c-bar">
-            <PostSearchBar className="newChatMemberSearch" :searching="false"  @searchStart="(val) => keywords = val"/>   
+            <PostSearchBar className="newChatMemberSearch" style="width:auto;" :searching="false"  @searchStart="(val) => keywords = val"/>   
             <div class="admin-work-header">
                 <div class="admin-button" @click="exportCSV">CSV出力</div>
                 <div class="admin-month-wrapper">
