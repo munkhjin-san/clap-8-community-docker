@@ -683,6 +683,9 @@ class WorkController extends Controller
         if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
             $night_difference_seconds -= $request->breakTime * 60;
         }
+        if($request->customValues[37] && in_array(2, $request->customValues[37])){
+            $this->checkWaitingAllowance($request);
+        }
         $is_exist = timecardRecord::firstOrCreate([
             'day' => $request->day,
             'user_id' => $request->userId
@@ -738,8 +741,6 @@ class WorkController extends Controller
             }
             
         }
-        $this->checkWaitingAllowance($request);
-
         
         $is_exist->save();
         $this->saveWorkCost($user, $request, $is_exist);
@@ -814,12 +815,13 @@ class WorkController extends Controller
     private function checkWaitingAllowance($request){
         [$currentYear, $currentMonth] = explode('-', $request->day);
         $count = customFieldDataRecord::where('type_id', 37)
+                                    ->whereNotNull('table_record_id')
                                     ->where('user_id', $request->userId)
                                     ->where('value_int', 2)
                                     ->whereYear('date', $currentYear)
                                     ->whereMonth('date', $currentMonth)
                                 ->count();
-        if($count > 5){
+        if($count >= 5){
             throw ValidationException::withMessages(['message' => '待機手当は1か月に5回以上の利用はできません。']);
         }
     }
