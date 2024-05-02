@@ -818,8 +818,8 @@ class WorkController extends Controller
                                     ->whereYear('date', $currentYear)
                                     ->whereMonth('date', $currentMonth)
                                 ->count();
-        if($count > 3){
-            throw ValidationException::withMessages(['message' => '待機手当は1か月に3回以上の利用はできません。']);
+        if($count > 5){
+            throw ValidationException::withMessages(['message' => '待機手当は1か月に5回以上の利用はできません。']);
         }
     }
     private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id){
