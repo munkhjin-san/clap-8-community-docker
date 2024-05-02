@@ -740,6 +740,7 @@ class WorkController extends Controller
         }
         $this->checkWaitingAllowance($request);
 
+        
         $is_exist->save();
         $this->saveWorkCost($user, $request, $is_exist);
         $this->saveWorkIncentive($user, $request, $is_exist);
