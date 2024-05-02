@@ -1580,9 +1580,9 @@ class WorkController extends Controller
         }])->with(['custom_field_data_records' => function ($q) use($year, $month) {
             $q->whereYear('date', $year)->whereMonth('date', $month)
                 ->where('type_id', 43);
-        }])->get();   
-        
-        $insentive_exists = User::whereIn('id', $users_list)->where('position_id', 15)->exists();
+        }])->select('id', 'name', 'position_id')->get();   
+        $insentive_user = $users->where('position_id', 15)->first();
+        $insentive_exists = !empty($insentive_user); 
         $recordList = [];
         $conditions = ['🌈','☀️','☁️','☂️','⚡','☃️'];
         for ($day = 1; $day <= cal_days_in_month(CAL_GREGORIAN, $month, $year); $day++) {
