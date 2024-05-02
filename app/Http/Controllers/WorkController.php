@@ -683,7 +683,7 @@ class WorkController extends Controller
         if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
             $night_difference_seconds -= $request->breakTime * 60;
         }
-        $is_exist = timecardRecord::firstOrCreate([
+        $is_exist = timecardRecord::firstOrNew([
             'day' => $request->day,
             'user_id' => $request->userId
         ]);
@@ -717,19 +717,23 @@ class WorkController extends Controller
         if($today != $request->day){
             $is_exist->work_time_edit_flag = 1;
         }
+        
+        
         foreach ($request->customValues as $key => $field) {
             
-            $customFieldData = customFieldDataRecord::where('table_record_id', $is_exist->id)
+            customFieldDataRecord::where('table_record_id', $is_exist->id)
                 ->where('user_id', $request->userId)
                 ->where('type_id', $key)
-                ->get();
-            if($customFieldData){
-                $customFieldData->each->delete();
-            }
+                ->delete();
             if ($key == 37) {
                 if(is_array($field)){
                     foreach ($field as $val) {
-                        $this->saveCustomData($request->day, $is_exist->id, $request->userId, $val, $key);
+                        if($val == 2){
+                            $this->checkWaitingAllowance($request);
+                            $this->saveCustomData($request->day, $is_exist->id, $request->userId, $val, $key);
+                        } else {
+                            $this->saveCustomData($request->day, $is_exist->id, $request->userId, $val, $key);
+                        }
                     }
                 }
                 
@@ -738,8 +742,6 @@ class WorkController extends Controller
             }
             
         }
-        $this->checkWaitingAllowance($request);
-
         $is_exist->save();
         $this->saveWorkCost($user, $request, $is_exist);
         $this->saveWorkIncentive($user, $request, $is_exist);
@@ -818,7 +820,8 @@ class WorkController extends Controller
                                     ->whereYear('date', $currentYear)
                                     ->whereMonth('date', $currentMonth)
                                 ->count();
-        if($count > 5){
+                        
+        if($count >= 5){
             throw ValidationException::withMessages(['message' => '待機手当は1か月に5回以上の利用はできません。']);
         }
     }
