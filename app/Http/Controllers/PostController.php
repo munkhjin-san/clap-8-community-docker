@@ -238,9 +238,26 @@ class PostController extends Controller
                 $fileRecord->user_id = Auth::id();
                 $fileRecord->save();
                 $set_path = $path . '/' . $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '.' . $fileRecord->extension;
-                Storage::disk('local')->copy( $source_file_path, $set_path );
+                
+                $thumbnail_path = '/thumbnail/' . $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '_thumbnail.webp';
+                $height = 130;
+                $file_type = $file['record']['mime_type'];
+                if($file_type == 'image' && $file['record']['extension'] !== 'svg'){
+                    $img = Image::make(storage_path('app') . $source_file_path)->orientate();
+                        
+                    File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
+                    $img->save(storage_path('app') . $set_path, 30);  
+                    $thumbnail = $img->encode('webp')->resize(null, $height, function($constraint) {
+                        $constraint->aspectRatio();
+                        $constraint->upsize();
+                    });  
+                    $thumbnail->save(storage_path('app') . $path . $thumbnail_path, 100);
+                }else{
+                    Storage::disk('local')->copy( $source_file_path, $set_path );
+                }
                 $ids[] = $fileRecord;  
             }
+
             
         }
         return response()->json($ids);   
