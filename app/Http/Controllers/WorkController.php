@@ -231,13 +231,6 @@ class WorkController extends Controller
                 $attendance = $user->attendance_records->where('date_year_month', $requestDateString)->first()?->id ? true : false;
                 $time_card = $user->time_card_records->where('day', $targetShiftDay)->first();                
                 $shift = $user->shift_records->where('shift_day', $targetShiftDay)->first();
-                
-                $overtime_reason = empty($time_card) ? '' : $time_card->custom_field_data_records->where('type_id', 42)->first();
-                $comment = empty($time_card) ? '' : $time_card->custom_field_data_records->where('type_id', 39)->first();
-                $allowances = empty($time_card) ? [] : $time_card->custom_field_data_records->where('type_id', 37)->pluck('label')->toArray();    
-                $allowances_value = implode(" ", $allowances); 
-                $incident = empty($time_card) ? [] : $time_card->custom_field_data_records->where('type_id', 40)->first();      
-                $satisfy = empty($time_card) ? [] : $time_card->custom_field_data_records->where('type_id', 41)->first(); 
 
                 $daily_report_ability = $this->has_daily_report($shift, $time_card, $date, $user, $active_user, $attendance);
                 $overtime_ability = empty($shift) ? false : $this->has_overtime_access($shift, $user, $time_card, $date, $active_user);
@@ -252,16 +245,7 @@ class WorkController extends Controller
                 $data['flex'] = $user->work_type == 0;
                 $data['last'] = count($users_list) - 1 == $index;
                 $data['position_id'] = $user->position_id;
-                // '諸手当' => $allowances_value, 
-                //     'インシデント' => empty($incident) ? '' : $incident->label,
-                //     '目標達成率' => empty($satisfy) ? '' : $satisfy->label,
-                //     'コンディション' => $condition_index ? $conditions[$condition_index] : '',
-                //     'コメント' => $comment ? $comment->value_text : '',
-                $data['comment'] = $comment ? $comment->value_text : '';
-                $data['incident'] = empty($incident) ? '' : $incident->label;
-                $data['satisfy'] = empty($satisfy) ? '' : $satisfy->label;
-                $data['allowances'] = $allowances_value;
-                $data['overtime_reason'] = $overtime_reason ? $overtime_reason->value_text : '';
+                
                 $data['attendance'] = $attendance;
                 $data['shift'] = $shift;
                 $data['time_card'] = $time_card;

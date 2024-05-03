@@ -206,34 +206,65 @@ const breakTimeFormatted = computed(() => {
 })
 
 const hasAllowance = computed(() => {      
-    const mobileTitle = props.item?.allowances && responsive.mobile ? '諸手当 : ' : ''  
-    const label = props.item?.allowances
+    const fields = props.item?.time_card?.custom_field_data_records
+    const allowances = fields && fields.length ? fields.filter(ob => ob.type_id == 37) : []
+    const mobileTitle = allowances.length && responsive.mobile ? '諸手当 : ' : ''  
+    const label = allowances.length ? allowances.map(ob => ob.label).join(' ') : responsive.mobile ? '' : ''
     return `${mobileTitle}${label}`      
 })
 
 const incidentFormatted = computed(() => {
-    const title = props.item?.incident && responsive.mobile ? 'インシデント : ' : ''
-    return title + props.item?.incident
+    const record = props.item
+    if(record.time_card){
+        const incident = record.time_card?.custom_field_data_records.find(ob => ob.type_id == 40)
+        if(incident){
+            const title = responsive.mobile ? 'インシデント : ' : ''
+            return title + incident.label
+        }
+        return ''
+    }
+    return ''
 })
 
 const satisfyFormatted = computed(() => {
-    
-    const title = props.item?.satisfy && responsive.mobile ? '目標達成率 : ' : ''
-    return  title + props.item?.satisfy
+    const record = props.item
+    if(record.time_card){
+        const satisfy = record.time_card?.custom_field_data_records.find(ob => ob.type_id == 41)
+        if(satisfy){
+            const title = responsive.mobile ? '目標達成率 : ' : ''
+            return  title + satisfy.label
+        }
+        return ''
+    }
+    return ''
 })
 
 const commentFormatted = computed(() => {
-    
-    const title = props.item?.comment && responsive.mobile ? 'コメント : ' : ''
-    return title + props.item?.comment
+    const record = props.item
+    if(record.time_card){
+        const comment = record.time_card?.custom_field_data_records.find(ob => ob.type_id == 39)
+        if(comment){
+            const title = responsive.mobile ? 'コメント : ' : ''
+            return title + comment.value_text 
+        }
+        return ''
+    }
+    return ''
 })
 const commentTrim = computed(() => {
     return commentFormatted.value && commentFormatted.value.length > 10 ? commentFormatted.value.slice(0, 6) + "..." : commentFormatted.value
 })
 const overTimeReasonFormatted = computed(() => {
-    
-    const content = props.item?.overtime_reason ? '残業内容 : ' +  props.item.overtime_reason : ''
-    return content
+    const record = props.item
+    if(record.time_card){
+        const comment = record.time_card?.custom_field_data_records.find(ob => ob.type_id == 42)
+        if(comment && comment.value_text){
+            const title = responsive.mobile ? '残業内容 : ' : ''
+            return title + comment.value_text 
+        }
+        return ''
+    }
+    return ''
 })
 
 const hasCondition = computed(() => {
