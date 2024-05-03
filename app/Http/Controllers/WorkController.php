@@ -210,7 +210,28 @@ class WorkController extends Controller
         $active_user = $this->active_user();
         $users_list = $request->work_group ?? [Auth::id()];
         list($year, $month) = explode("-", $requestDateString);
-        $users = $this->data_with_users($users_list, $year, $month);        
+        $users = User::whereIn('id', $users_list)->with(['time_card_records' => function($q) use($year, $month) {
+            $q->whereYear('day', $year)->whereMonth('day', $month)
+                ->with(['custom_field_data_records' => function ($q) {
+                    $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
+                }])
+                ->with(['timecard_costs' => function ($q) {
+                    $q->with('file')->select('content', 'type', 'expenses', 'record_id', 'file_id', 'id');
+                }])
+                ->with(['timecard_incentives' => function ($q) {
+                    $q->with('file')->select('count', 'id', 'file_id', 'record_id');
+                }])
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
+        }])->with(['shift_records' => function ($q) use($year, $month) {
+            $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
+                ->with(['shiftType', 'overtime_request'])
+                ->select('id', 'shift_day', 'shift_type', 'user_id', 'start_time', 'end_time', 'status_flag');
+        }])->with(['custom_field_data_records' => function ($q) use($year, $month) {
+            $q->whereYear('date', $year)->whereMonth('date', $month)
+                ->where('type_id', 43);
+        }])->with(['attendance_records' => function ($q) use($requestDateString) {
+            $q->where('date_year_month', $requestDateString);
+        }])->get();        
         $recordList = [];
         $workGroups = workGroup::whereHas('members', function ($q) {
             $q->where('user_id',Auth::id())
@@ -228,10 +249,17 @@ class WorkController extends Controller
             foreach ($users as $index => $user) {
                 $targetShiftDay = $date->format('Y-m-d');
                 $authority = in_array($user->id, $work_group_users);
-                $attendance = $user->attendance_records->where('date_year_month', $requestDateString)->first()?->id ? true : false;
+                $attendance = $user->attendance_records->first()?->id ? true : false;
                 $time_card = $user->time_card_records->where('day', $targetShiftDay)->first();                
                 $shift = $user->shift_records->where('shift_day', $targetShiftDay)->first();
-
+                
+                $overtime_reason = empty($time_card) ? '' : $time_card->custom_field_data_records->where('type_id', 42)->first();
+                $comment = empty($time_card) ? '' : $time_card->custom_field_data_records->where('type_id', 39)->first();
+                $allowances = empty($time_card) ? [] : $time_card->custom_field_data_records->where('type_id', 37)->pluck('label')->toArray();    
+                $allowances_value = implode(" ", $allowances); 
+                $incident = empty($time_card) ? [] : $time_card->custom_field_data_records->where('type_id', 40)->first();      
+                $satisfy = empty($time_card) ? [] : $time_card->custom_field_data_records->where('type_id', 41)->first();  
+                
                 $daily_report_ability = $this->has_daily_report($shift, $time_card, $date, $user, $active_user, $attendance);
                 $overtime_ability = empty($shift) ? false : $this->has_overtime_access($shift, $user, $time_card, $date, $active_user);
                 $approve_ability = $this->has_approve_access($shift, $time_card, $authority, $attendance, $active_user);
@@ -245,7 +273,11 @@ class WorkController extends Controller
                 $data['flex'] = $user->work_type == 0;
                 $data['last'] = count($users_list) - 1 == $index;
                 $data['position_id'] = $user->position_id;
-                
+                $data['overtime_reason'] = $overtime_reason ? $overtime_reason->value_text : '';
+                $data['comment'] = $comment ? $comment->value_text : '';
+                $data['incident'] = empty($incident) ? '' : $incident->label;
+                $data['satisfy'] = empty($satisfy) ? '' : $satisfy->label;
+                $data['allowances'] = $allowances_value;
                 $data['attendance'] = $attendance;
                 $data['shift'] = $shift;
                 $data['time_card'] = $time_card;
@@ -271,29 +303,6 @@ class WorkController extends Controller
         }
         
         return response()->json($recordList);
-    }
-    private function data_with_users($users_list, $year, $month){
-        $users = User::whereIn('id', $users_list)->with(['time_card_records' => function($q) use($year, $month) {
-            $q->whereYear('day', $year)->whereMonth('day', $month)
-                ->with(['custom_field_data_records' => function ($q) {
-                    $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
-                }])
-                ->with(['timecard_costs' => function ($q) {
-                    $q->with('file')->select('content', 'type', 'expenses', 'record_id', 'file_id', 'id');
-                }])
-                ->with(['timecard_incentives' => function ($q) {
-                    $q->with('file')->select('count', 'id', 'file_id', 'record_id');
-                }])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
-        }])->with(['shift_records' => function ($q) use($year, $month) {
-            $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
-                ->with(['shiftType', 'overtime_request'])
-                ->select('id', 'shift_day', 'shift_type', 'user_id', 'start_time', 'end_time', 'status_flag');
-        }])->with(['custom_field_data_records' => function ($q) use($year, $month) {
-            $q->whereYear('date', $year)->whereMonth('date', $month)
-                ->where('type_id', 43);
-        }])->get();
-        return $users;
     }
     private function has_approve_access($shift, $time_card, $authority, $has_attendance, $active_user){
         $force = $active_user->id == 610 || $active_user->id == 608;
@@ -1567,7 +1576,26 @@ class WorkController extends Controller
         foreach ($users_list as &$value) {
             $value = intval($value);
         }
-        $users = $this->data_with_users($users_list, $year, $month);  
+        $users = User::whereIn('id', $users_list)->with(['time_card_records' => function($q) use($year, $month) {
+            $q->whereYear('day', $year)->whereMonth('day', $month)
+                ->with(['custom_field_data_records' => function ($q) {
+                    $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
+                }])
+                ->with(['timecard_costs' => function ($q) {
+                    $q->with('file')->select('content', 'type', 'expenses', 'record_id', 'file_id', 'id');
+                }])
+                ->with(['timecard_incentives' => function ($q) {
+                    $q->with('file')->select('count', 'id', 'file_id', 'record_id');
+                }])
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
+        }])->with(['shift_records' => function ($q) use($year, $month) {
+            $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
+                ->with(['shiftType', 'overtime_request'])
+                ->select('id', 'shift_day', 'shift_type', 'user_id', 'start_time', 'end_time', 'status_flag');
+        }])->with(['custom_field_data_records' => function ($q) use($year, $month) {
+            $q->whereYear('date', $year)->whereMonth('date', $month)
+                ->where('type_id', 43);
+        }])->get();  
         $insentive_user = $users->where('position_id', 15)->first();
         $insentive_exists = !empty($insentive_user); 
         $recordList = [];
