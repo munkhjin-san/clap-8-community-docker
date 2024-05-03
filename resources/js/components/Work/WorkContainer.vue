@@ -382,7 +382,7 @@
     const todayScroll = async() => {
         let scrollPosition = document.querySelector('.today');
         if (scrollPosition) {
-            scrollPosition.scrollIntoView({ behavior: 'instant', block: 'start' });
+            scrollPosition.scrollIntoView({ behavior: 'instant', block: 'center' });
         }
     }
     const toBottomScroll = () => {
