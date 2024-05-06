@@ -692,7 +692,7 @@ class WorkController extends Controller
         if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
             $night_difference_seconds -= $request->breakTime * 60;
         }
-        if($request->customValues[37] && in_array(2, $request->customValues[37])){
+        if(array_key_exists(37, $request->customValues) && $request->customValues[37] && in_array(2, $request->customValues[37])){
             $this->checkWaitingAllowance($request);
         }
         $is_exist = timecardRecord::firstOrCreate([
