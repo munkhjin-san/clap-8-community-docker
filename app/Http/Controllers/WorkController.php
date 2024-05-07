@@ -430,7 +430,9 @@ class WorkController extends Controller
         $userShifts = shiftRecord::whereIn('user_id', $user_ids)
                         ->whereYear('shift_day', $year)
                         ->whereMonth('shift_day', $month)
-                        ->with('shiftType')->with('old_shift')
+                        ->with('shiftType')->with(['old_shift' => function ($q) {
+                            $q->whereNot('status_flag', 1);
+                        }])
                         ->orderBy('shift_day', 'asc')
                         ->get();
         $shift_records = [];
