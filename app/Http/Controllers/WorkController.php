@@ -1313,6 +1313,8 @@ class WorkController extends Controller
             $attendance_record->pay_day = 20;
             $attendance_record->absence_days = 0;
             $attendance_record->absence_hour = 0;
+            $attendance_record->expenses = 0;
+            $attendance_record->incentive = 0;
             $attendance_record->save();
 
         }
