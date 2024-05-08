@@ -46,7 +46,7 @@ class AdminAccountController extends Controller
                             ->with('work_groups')
                             ->with('linked')
                             ->get();
-        $position_list_label = positionRecord::select('id AS value', 'name AS label')->get();
+        $position_list_label = positionRecord::select('id AS value', 'name AS label')->orderBy('sort_flag', 'asc')->get();
         $office_list_label = officeRecord::select('id AS value', 'name AS label')->get();
         $linkable_accounts = User::where('linkable', 1)->select('id', 'name', 'icon_id')->get();
         $work_groups = workGroup::select('name', 'id')
