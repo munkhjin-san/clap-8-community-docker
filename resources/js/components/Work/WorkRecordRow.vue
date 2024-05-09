@@ -228,7 +228,7 @@ const commentFormatted = computed(() => {
     return title + props.item?.comment
 })
 const commentTrim = computed(() => {
-    return commentFormatted.value && commentFormatted.value.length > 10 ? commentFormatted.value.slice(0, 12) + "..." : commentFormatted.value
+    return commentFormatted.value && commentFormatted.value.length > 10 ? commentFormatted.value.slice(0, 10) + "..." : commentFormatted.value
 })
 const overTimeReasonFormatted = computed(() => {
     
