@@ -52,13 +52,13 @@
         <td v-if="hasHeader('インセンティブ')">
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
                 <div v-if="responsive.mobile && item.time_card?.timecard_incentives.length">インセンティブ : </div>
-                <div @click.stop="incentiveCount ? menu.setMenu({name: 'incentiveBox', id: item.time_card?.id}) : false">{{ incentiveCount}}</div>
-                <div @click="menu.close()" class="comment-box" id="incentiveBox" v-if="menu.name == 'incentiveBox' && menu.id == item.time_card?.id">
+                <div>{{ incentiveCount}}</div>
+                <!-- <div @click="menu.close()" class="comment-box" id="incentiveBox" v-if="menu.name == 'incentiveBox' && menu.id == item.time_card?.id">
                     <div v-for="incentive in item.time_card?.timecard_incentives" :key="incentive.id">
                         <div>{{ `${incentive.count ? incentive.count + '件' : ''}` }}</div>
                         <img @click="previewImage(incentive.file)" style="height:120px;cursor: pointer;" v-if="incentive?.file" :src="`/cdn/timecard_files/${incentive?.file?.id}_${incentive?.file?.user_id}_${incentive?.file?.path}.${incentive?.file?.extension}`"/>
                     </div>
-                </div>
+                </div> -->
             </div>
         </td>
         <td>
@@ -228,7 +228,7 @@ const commentFormatted = computed(() => {
     return title + props.item?.comment
 })
 const commentTrim = computed(() => {
-    return commentFormatted.value && commentFormatted.value.length > 10 ? commentFormatted.value.slice(0, 6) + "..." : commentFormatted.value
+    return commentFormatted.value && commentFormatted.value.length > 10 ? commentFormatted.value.slice(0, 12) + "..." : commentFormatted.value
 })
 const overTimeReasonFormatted = computed(() => {
     
@@ -251,7 +251,8 @@ const hasWorkCost = computed(() => {
     return costs && costs.length ?
     costs.map(ob => {
         const costOption = costOptions.find(opt => opt.value === ob.type);
-        return costOption ? costOption.label : '';
+        const expense = ob.expenses !== null ? ob.expenses : 0
+        return costOption ? `${costOption.label} : ${expense}円`: '';
     }).join(' ') : '';
 })
 

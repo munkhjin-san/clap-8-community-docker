@@ -12,18 +12,10 @@
             <div class="report-field">
                 <p class="report-header">{{ data.title }}を選択</p>
                 <div class="report-input">
-                        <template v-if="data.id == 40">
-                            <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records">
-                                <input :id="'workIncident' + index" type="radio" name="incident" v-model="value" :value="customPart.parts_value">
-                                <label :for="'workIncident' + index">{{ customPart.parts_lavel }}</label>
-                            </div>
-                        </template>
-                        <template v-if="data.id == 41">
-                            <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records">
-                                <input :id="'workAchievement' + index" type="radio" name="achievement" v-model="value" :value="customPart.parts_value">
-                                <label :for="'workAchievement' + index">{{ customPart.parts_lavel }}</label>
-                            </div>
-                        </template>
+                    <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records">
+                        <input :id="'workIncident' + index" type="radio" :name="data.title" v-model="value" :value="customPart.parts_value">
+                        <label :for="'workIncident' + index">{{ customPart.parts_lavel }}</label>
+                    </div>
                 </div>
             </div>
         </div>
