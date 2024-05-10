@@ -1423,7 +1423,7 @@ class BoardController extends Controller
             $infoMessage->save();
         }
 
-        $end_time = '00:00:00';
+        $end_time = '23:59:59';
         // if($request->show_time){
         //     $end_time = $request->task_end_time;
         // }
