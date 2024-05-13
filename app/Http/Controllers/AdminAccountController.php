@@ -209,7 +209,7 @@ class AdminAccountController extends Controller
         foreach($all_users as $user){
             $var_id = $user->id;
 
-            $nice_from = $niceFrom = NiceRecord::where('deleted_flag', '=', 0)->whereBetween('created_at', [$from, $to])->where('user_id', '=', $var_id)->pluck('id')->toArray();
+            $nice_from  = NiceRecord::where('deleted_flag', '=', 0)->whereBetween('created_at', [$from, $to])->where('user_id', '=', $var_id)->pluck('id')->toArray();
             // return $nice_from;
 
             $nice_to = NiceRecord::where('deleted_flag', '=', 0)->whereBetween('created_at', [$from, $to])->whereHas('to_users', function($q) use ($var_id){
@@ -224,11 +224,11 @@ class AdminAccountController extends Controller
                 $q->where('user_id', $var_id);
             })->pluck('id')->toArray();
 
-            $knowledge_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'knowledge')->whereIn('record_id', $knowledges)->count();
+            $knowledge_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 2)->whereIn('record_id', $knowledges)->count();
 
-            $challenge_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'challenge')->whereIn('record_id', $challenges)->count();
+            $challenge_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 4)->whereIn('record_id', $challenges)->count();
 
-            $nice_from_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'nice')->whereIn('record_id', $merged)->count();
+            $nice_from_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 3)->whereIn('record_id', $merged)->count();
 
             $sum = $nice_from_claps + $challenge_claps + $knowledge_claps;
 

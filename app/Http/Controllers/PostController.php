@@ -452,15 +452,23 @@ class PostController extends Controller
         return response()->json();  
     }
     public function post_add_clap(Request $request){
-        $validatedData = $request->validate([
+        $request->validate([
             'app_name' => 'required',
             'record_id' => 'required',
             'action' => 'required'
         ]);
+        $app_ids = [
+            "portfolio" => 6,
+            "challenge" => 4,
+            "nice" => 3,
+            "knowledge" => 2
+        ];
+        $app_id = $app_ids[$request->app_name];
         $existingRecord = ClapRecord::where([
             'record_id' => $request->record_id,
             'from_user' => Auth::id(),
-            'app_name' => $request->app_name
+            'app_name' => $request->app_name,
+            'app_id' => $app_id
         ])->first();
         
         if ($existingRecord) {
@@ -471,7 +479,8 @@ class PostController extends Controller
             ClapRecord::create([
                 'record_id' => $request->record_id,
                 'from_user' => Auth::id(),
-                'app_name' => $request->app_name
+                'app_name' => $request->app_name,
+                'app_id' => $app_id
             ]);
         }
         return response()->json(); 

@@ -11,7 +11,7 @@ class ClapRecord extends Model
     use SoftDeletes;
     use HasFactory;
     protected $fillable = [
-        'deleted_flag', 'from_user', 'record_id', 'app_name'
+        'deleted_flag', 'from_user', 'record_id', 'app_name', 'app_id'
     ];
     public function user(){
         return $this->hasOne(User::class, 'id', 'from_user')->select('id', 'name');

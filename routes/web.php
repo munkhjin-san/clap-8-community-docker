@@ -60,6 +60,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
 
 // Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
+Route::get('/clap_process', [AutoJobController::class, 'clap_process']);
 
 Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
@@ -341,6 +342,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/save_lesson_portfolio', [LessonController::class, 'save_lesson_portfolio']);
         Route::post('/get_lesson_portfolio', [LessonController::class, 'get_lesson_portfolio']);
         Route::post('/save_lesson_form', [LessonController::class, 'save_lesson_form']);
+        Route::get('/get_portfolio_view', [LessonController::class, 'get_portfolio_view']);
 
         Route::post('/create_learning_theme', [LessonController::class, 'create_learning_theme']);
         Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);

@@ -26,6 +26,7 @@ use App\Models\UserAlbum;
 use App\Models\LessonPortfolio;
 use App\Models\LessonSection;
 use App\Models\LessonMaterial;
+use App\Models\ClapRecord;
 use App\Mail\Warning;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -53,6 +54,25 @@ class AutoJobController extends Controller
     {
         $this->sharedService = $sharedService;
         // $this->middleware('throttle:3,1');
+    }
+
+    public function clap_process(){
+        $update1 = ClapRecord::where('app_name', 'board')->update(['app_id' => 1]);
+        $update2 = ClapRecord::where('app_name', 'knowledge')->update(['app_id' => 2]);
+        $update3 = ClapRecord::where('app_name', 'nice')->update(['app_id' => 3]);
+        $update4 = ClapRecord::where('app_name', 'challenge')->update(['app_id' => 4]);
+        $update5 = ClapRecord::where('app_name', 'comment')->update(['app_id' => 5]);
+    
+        echo('<br>board');
+        echo($update1);
+        echo('<br>knowledge');
+        echo($update2);
+        echo('<br>nice');
+        echo($update3);
+        echo('<br>challenge');
+        echo($update4);
+        echo('<br>comment');
+        echo($update5);
     }
     public function process_csv(){
 

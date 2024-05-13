@@ -30,6 +30,6 @@ class NiceRecord extends Model
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'nice')->where('deleted_flag', 0);
     }
     public function claps(){
-        return $this->hasMany(ClapRecord::class, 'record_id')->where('app_name', 'nice')->where('deleted_flag', 0)->select('record_id', 'from_user');;
+        return $this->hasMany(ClapRecord::class, 'record_id')->where('app_id', 3)->where('deleted_flag', 0)->select('record_id', 'from_user');;
     }
 }

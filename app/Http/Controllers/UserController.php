@@ -355,11 +355,11 @@ class UserController extends Controller{
                 $q->where('user_id', $var_id);
             })->pluck('id')->toArray();
 
-            $knowledge_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'knowledge')->whereIn('record_id', $knowledges)->count();
+            $knowledge_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 2)->whereIn('record_id', $knowledges)->count();
 
-            $challenge_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'challenge')->whereIn('record_id', $challenges)->count();
+            $challenge_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 4)->whereIn('record_id', $challenges)->count();
 
-            $nice_from_claps = ClapRecord::where('deleted_flag', 0)->where('app_name', 'nice')->whereIn('record_id', $merged)->count();
+            $nice_from_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 3)->whereIn('record_id', $merged)->count();
 
             $sum = $nice_from_claps + $challenge_claps + $knowledge_claps;
 
