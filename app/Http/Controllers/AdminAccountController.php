@@ -194,23 +194,31 @@ class AdminAccountController extends Controller
         return response()->json('success');
     }
     public function clap_statistics(Request $request) {      
-        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];  
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $from = date($request->start . ' 00:00:00');
+        $to = date($request->end . ' 23:59:59');  
         $all_users = User::where('deleted_flag', '=', 0)
         ->where('hide_flag', '=', 0)
         ->where('partner_flag', '=', 0)
         ->whereNotIn('name',  $ng_list)
+        ->with('portfolio')
+        ->with(['knowledge' => function ($q) use($from, $to) {
+            $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to]);
+        }])
+        ->with(['nice' => function ($q) use($from, $to){
+            $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to]);
+        }])
         ->select('id', 'name')
         ->get();
         $clap_data = [];
         $claps = [];
-        $from = date($request->start . ' 00:00:00');
-        $to = date($request->end . ' 23:59:59');
+        
 
         
         foreach($all_users as $user){
             $var_id = $user->id;
 
-            $nice_from  = NiceRecord::where('deleted_flag', '=', 0)->whereBetween('created_at', [$from, $to])->where('user_id', '=', $var_id)->pluck('id')->toArray();
+            $nice_from  = $user->nice->pluck('id')->toArray();
             // return $nice_from;
 
             $nice_to = NiceRecord::where('deleted_flag', '=', 0)->whereBetween('created_at', [$from, $to])->whereHas('to_users', function($q) use ($var_id){
@@ -219,9 +227,9 @@ class AdminAccountController extends Controller
 
             $merged = array_merge(array_diff($nice_from, $nice_to), array_diff($nice_to, $nice_from));
 
-            $knowledges = KnowledgeRecord::where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->where('user_id', $var_id)->pluck('id')->toArray();
+            $knowledges = $user->knowledge->pluck('id')->toArray();
 
-            $portfolios = LessonPortfolio::where('user_id', $user->id)->pluck('id')->toArray();
+            $portfolios = $user->portfolio->pluck('id')->toArray();
 
             $challenges = ChallengeRecord::where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->whereHas('to_users', function($q) use ($var_id){
                 $q->where('user_id', $var_id);

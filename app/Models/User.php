@@ -172,5 +172,10 @@ class User extends Authenticatable
     public function linked(){
         return $this->belongsToMany(User::class, 'user_linked_accounts', 'main_id', 'link_id')->withPivot(['active']);
     }
-    
+    public function knowledge(){
+        return $this->hasMany(KnowledgeRecord::class, 'user_id');
+    }
+    public function nice(){
+        return $this->hasMany(NiceRecord::class, 'user_id');
+    }
 }
