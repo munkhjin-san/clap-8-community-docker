@@ -178,4 +178,10 @@ class User extends Authenticatable
     public function nice(){
         return $this->hasMany(NiceRecord::class, 'user_id');
     }
+    public function nice_recieved(){
+        return $this->belongsToMany(NiceRecord::class, 'nice_to_users', 'user_id', 'record_id');
+    }
+    public function challenge(){
+        return $this->belongsToMany(ChallengeRecord::class, 'challenge_to_users', 'user_id', 'record_id');
+    }
 }

@@ -209,7 +209,13 @@ class AdminAccountController extends Controller
                 },
                 'nice' => function ($q) use ($from, $to) {
                     $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to]);
-                }
+                },
+                'nice_recieved' => function ($q) use ($from, $to) {
+                    $q->where('nice_records.deleted_flag', 0)->whereBetween('nice_records.created_at', [$from, $to]);
+                },
+                'challenge' => function ($q) use ($from, $to) {
+                    $q->where('challenge_records.deleted_flag', 0)->whereBetween('challenge_records.created_at', [$from, $to]);
+                },
             ])
             ->select('id', 'name')
             ->get();
@@ -221,26 +227,14 @@ class AdminAccountController extends Controller
 
             $nice_from = $user->nice->pluck('id')->toArray();
 
-            $nice_to = NiceRecord::where('deleted_flag', 0)
-                ->whereBetween('created_at', [$from, $to])
-                ->whereHas('to_users', function ($q) use ($var_id) {
-                    $q->where('user_id', $var_id);
-                })
-                ->pluck('id')
-                ->toArray();
+            $nice_to = $user->nice_recieved->pluck('id')->toArray();
 
             $merged = array_merge(array_diff($nice_from, $nice_to), array_diff($nice_to, $nice_from));
 
             $knowledges = $user->knowledge->pluck('id')->toArray();
             $portfolios = $user->portfolio->pluck('id')->toArray();
 
-            $challenges = ChallengeRecord::where('deleted_flag', 0)
-                ->whereBetween('created_at', [$from, $to])
-                ->whereHas('to_users', function ($q) use ($var_id) {
-                    $q->where('user_id', $var_id);
-                })
-                ->pluck('id')
-                ->toArray();
+            $challenges = $user->challenge->pluck('id')->toArray();
 
             $knowledge_claps = ClapRecord::where('deleted_flag', 0)
                 ->where('app_id', 2)
