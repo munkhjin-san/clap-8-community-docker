@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace App\Http\Controllers;
+use App\Models\LessonPortfolio;
 use App\Models\User;
 use App\Models\Icons;
 
@@ -355,18 +356,23 @@ class UserController extends Controller{
                 $q->where('user_id', $var_id);
             })->pluck('id')->toArray();
 
+            $portfolios = LessonPortfolio::where('user_id', $var_id)->pluck('id')->toArray();
+
             $knowledge_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 2)->whereIn('record_id', $knowledges)->count();
 
             $challenge_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 4)->whereIn('record_id', $challenges)->count();
 
             $nice_from_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 3)->whereIn('record_id', $merged)->count();
 
-            $sum = $nice_from_claps + $challenge_claps + $knowledge_claps;
+            $portfolio_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 6)->whereIn('record_id', $portfolios)->count();
+
+            $sum = $nice_from_claps + $challenge_claps + $knowledge_claps + $portfolio_claps;
 
             $claps = [
                 "nice" => $nice_from_claps,
                 "challenge" => $challenge_claps,
                 "knowledge" => $knowledge_claps,
+                "portfolio" => $portfolio_claps,
                 "sum" => $sum,
             ]; 
 
