@@ -1,5 +1,5 @@
 <template>
-    <div style="height: calc(100% - 50px);width: 100%;position: relative;overflow: hidden;">
+    <div style="height: 100%;width: 100%;position: relative;overflow: hidden;">
         <div v-if="selectedTopic && selectedTopic.active == 1" :style="{height: route.name == 'basic'  ? '100%' : '0'}">
             <div style="height: 100%; overflow: hidden auto;">
                 <div style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">

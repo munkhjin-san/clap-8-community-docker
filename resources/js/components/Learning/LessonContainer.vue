@@ -15,11 +15,11 @@
                 </div>
             </div>                
         </div>
-        <div style="height: 100%;">    
-            <div v-if="noData" style="line-height: 1.8;height:calc(100% - 50px);display: flex;justify-content: center;align-items: center;">
+        <div style="height: calc(100% - 50px);">    
+            <div v-if="noData" style="line-height: 1.8;height:100%;display: flex;justify-content: center;align-items: center;">
                 <p>現在データはありません。</p>
             </div>
-            <div v-else-if="route.name == 'top' && selectedTopic && selectedTopic.active == 1" style="height: calc(100% - 50px);overflow: hidden auto;">
+            <div v-else-if="route.name == 'top' && selectedTopic && selectedTopic.active == 1" style="height: 100%;overflow: hidden auto;">
                 <div style="padding:20px;
                     white-space: break-spaces;
                     font-size: 14px;

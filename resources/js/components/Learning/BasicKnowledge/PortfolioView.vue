@@ -53,7 +53,7 @@ import UserIcon from '../../Board/Mixed/UserIcon.vue'
     
     display: flex;
     flex-direction: column;       
-    height: calc(100% - 50px);
+    height: 100%;
     overflow: hidden auto;
     gap: 25px;
 }

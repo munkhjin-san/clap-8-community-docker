@@ -1,5 +1,5 @@
 <template>
-    <div class="section-wrapper" style="height: calc(100% - 50px);">
+    <div class="section-wrapper">
         <div class="section-inner" v-if="selectedTopic && selectedTopic.active == 1">  
         
             <div>
