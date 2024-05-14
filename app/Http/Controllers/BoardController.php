@@ -654,6 +654,8 @@ class BoardController extends Controller
         ->with('messageRemindUsers')
         ->with('task')
         ->latest('created_at')
+        ->orderBy('created_at', 'desc')
+        ->orderBy('id', 'desc')
         ->take($pagenate)
         ->get();
 
@@ -661,7 +663,7 @@ class BoardController extends Controller
 
     }
     public function chatAdd(Request $request){
-        $active_user = $this->active_user();
+        $active_user = $request->override_user ? $request->override_user : $this->active_user();
         $auth_user_id = $active_user->id;
         if($request->quot_flag == 1 && $request->reply_flag == 1){
             throw ValidationException::withMessages(['message' => 'commonError']);            
@@ -919,7 +921,8 @@ class BoardController extends Controller
 
         $updateLastMessage = boardToUser::where('record_id','=', $request->board_id)->where('user_id','=', $auth_user_id)->first();
         if(!empty($updateLastMessage)){
-            $lastMessageId = messageRecord::where('record_id', '=', $request->board_id)->orderBy('created_at', 'desc')->withTrashed()->select('id')->first();
+            $lastMessageId = messageRecord::where('record_id', '=', $request->board_id)->orderBy('created_at', 'desc')->withTrashed()->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')->select('id')->first();
             if(!empty($lastMessageId)){
                 $updateLastMessage->last_message = $lastMessageId->id;
                 $updateLastMessage->save();
@@ -1195,7 +1198,7 @@ class BoardController extends Controller
     }
     public function sendMail($request){
 
-        $active_user = $this->active_user();
+        $active_user = $request['override_user'] ? $request['override_user'] : $this->active_user();
         $auth_user_id = $active_user->id;
 
         if(!empty($request['send_list']) && !empty($auth_user_id) && !empty($request['msg_id'])){
@@ -1324,7 +1327,7 @@ class BoardController extends Controller
     }
     public function checkRequest(Request $request){
 
-        $path_shared_files = 'shared_files/' . $request->board_id;
+        
         if($request->type == 'confirm'){
             $message = messageRecord::findOrFail($request->msg_id);
             $message->check_flag = 1;
@@ -1337,11 +1340,12 @@ class BoardController extends Controller
                 "board_id" => $board->id,
                 "msg_id" => $message->id,
                 "send_condition" => 1,              
-
+                "override_user" => $request->override_user
             ];
             $this->sendMail($req);
             
         }else if($request->type == 'sign'){
+            $path_shared_files = 'shared_files/' . $request->board_id;
             $messageFile = messageFile::findOrFail($request->msg_file_id);
             $messageFile->sign_flag = 1;
             $messageFile->signUsers()->sync($request->users);

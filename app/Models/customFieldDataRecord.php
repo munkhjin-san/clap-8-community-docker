@@ -12,7 +12,7 @@ class customFieldDataRecord extends Model
 
     use HasFactory;
     public function user(){
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id');
     }
 
     public function custom_field_records(){
