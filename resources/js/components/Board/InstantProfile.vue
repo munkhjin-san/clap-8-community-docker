@@ -15,7 +15,7 @@
                     </div>
                     <div v-if="user.work_email" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'mailto:' + user.work_email">{{user.work_email}}</a></div>
                     <div v-if="user.phone_number" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'tel:' + user.phone_number">{{user.phone_number}}</a></div>   
-                    <div v-if="!auth.isPartner" style="margin-bottom:10px;height:14px;cursor:pointer"><a :href="`/start_private_board?with=${user.id}`" class="prvt">個別ボード</a></div>   
+                    <div v-if="!auth.isPartner && auth.id !== user.id" style="margin-bottom:10px;height:14px;cursor:pointer"><a :href="`/start_private_board?with=${user.id}`" class="prvt">個別ボード</a></div>   
 
                 </div>
                 

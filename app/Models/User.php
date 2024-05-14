@@ -161,7 +161,7 @@ class User extends Authenticatable
         return $this->belongsToMany(UserAlbum::class, 'user_albums', 'user_id', 'id');
     }
     public function portfolio(){
-        return $this->hasMany(LessonPortfolio::class, 'user_id')->with('lesson_theme')->orderBy('lesson_theme_id');
+        return $this->hasMany(LessonPortfolio::class, 'user_id')->with('lesson_theme')->with('claps')->orderBy('lesson_theme_id');
     }
     public function workTemps(){
         return $this->hasOne(workTemp::class, 'user_code', 'user_code');

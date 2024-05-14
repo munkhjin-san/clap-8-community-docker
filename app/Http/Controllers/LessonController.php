@@ -234,4 +234,17 @@ class LessonController extends Controller
         $update = LessonPortfolio::findOrFail($request->id)->update(['status' => $request->value]);
         return response()->json($update);
     }
+    public function get_portfolio_view(Request $request){
+        $id = $request->id;
+        $portfolio_list = LessonPortfolio::where('lesson_theme_id', $request->lesson_theme_id)
+        ->when($id && $id > -1, function($q) use($id) {
+            $q->where('id', $id);
+        })
+        ->where('status', 3)
+        ->with('user')
+        ->with('claps')
+        ->withCount('claps')
+        ->orderByDesc('claps_count')->get();
+        return response()->json($portfolio_list);
+    }
 }

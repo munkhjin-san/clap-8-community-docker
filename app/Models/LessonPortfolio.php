@@ -25,6 +25,10 @@ class LessonPortfolio extends Model
     {
         return $this->hasOne(LessonForm::class, 'user_id', 'user_id')->latest();
     }
+
+    public function claps(){
+        return $this->hasMany(ClapRecord::class, 'record_id')->where('app_id', 6)->where('deleted_flag', 0)->select('record_id', 'from_user');;
+    }
     protected $fillable = [
         'lesson_theme_id',
         'user_id',

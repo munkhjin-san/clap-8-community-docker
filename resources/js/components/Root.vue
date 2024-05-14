@@ -353,7 +353,7 @@ import { includes } from 'lodash';
         instantUser.value = data    
     }
     const pushInstantUser = (e, id) => {
-        if(id == auth.id) return
+        // if(id == auth.id) return
         const cX = e.clientX;
         const cY = e.clientY;  
         const data = {

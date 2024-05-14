@@ -110,7 +110,7 @@
                                 <p class="record-inner">ポートフォリオ</p>
                             </div>
                             <div v-if="userPortfolio && userPortfolio.length" class="record">
-                                <UserPortfolio v-for="portfolio in userPortfolio" :portfolio="portfolio"/>
+                                <UserPortfolio v-for="portfolio in userPortfolio" :portfolio="portfolio" @reload="updateUser"/>
                                 <!-- <div v-for="portfolio in userPortfolio"  :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease'}" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc;">
                                     <div>
                                         <p class="record-inner" style="font-size: 13px;">{{ portfolio.lesson_theme.title }}</p>

@@ -21,7 +21,7 @@ import { useAuthUserStore } from '@/store/auth'
         return clapped.value || props.item.user_id == auth.id ? 'var(--primary-color)' : 'rgb(169, 169, 169)'
     })
     const canClap = computed(() => {
-        if(props.appName == 'knowledge' || props.appName == 'nice'){
+        if(props.appName == 'knowledge' || props.appName == 'nice' || props.appName == 'portfolio'){
             return props.item.user_id == auth.id ? false : true                    
         }else if(props.appName == 'challenge'){
             if(props.item.award_entry == 1){
@@ -43,7 +43,7 @@ import { useAuthUserStore } from '@/store/auth'
         }
         loading.value = true
         const action = clapped.value ? 1 : 0
-        axios.post('post_add_clap',{ 
+        axios.post('/post_add_clap',{ 
             record_id: props.item.id, 
             app_name: props.appName,
             action: action

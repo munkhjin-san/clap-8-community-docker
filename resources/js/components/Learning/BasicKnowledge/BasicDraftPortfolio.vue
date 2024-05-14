@@ -1,6 +1,6 @@
 <template>
     <div class="section-wrapper" style="height: calc(100% - 50px);">
-        <div class="section-inner">    
+        <div v-if="route.name == 'portfoliodraft'" class="section-inner">    
             <div>
                 <div>
                     <div v-if="selectedTopic && selectedTopic.guidance" v-html="selectedTopic?.guidance"></div>
@@ -14,6 +14,9 @@
                     </div>
                     
                 </div>
+            </div>
+            <div class="si-box" style="margin:45px 0">
+                <LoaderButton :loading="false" content="ポートフォリオ作成例を確認する" @triggered="router.push({ name: 'portfolioview'})"/>
             </div>
             <div class="si-box">
                 <p v-if="portfolio?.status < 1" :style="{marginBottom: portfolio?.status < 1 ? '20px' : '0'}"><strong>ディスカッション用のポートフォリオを作成してください</strong></p>
@@ -30,6 +33,7 @@
                 />
                 <p v-else><strong>ディスカッション用ポートフォリオタイトル<br></strong>{{ portfolio?.portfolio_title }}</p>
             </div>
+            
             <div class="si-box">
                 <LongInput
                     v-if="portfolio?.status < 1"
@@ -55,6 +59,9 @@
             </div>
 
         </div>
+        <router-view>
+            
+        </router-view>
     </div>
 </template>
 <script setup>

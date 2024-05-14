@@ -35,6 +35,7 @@
                             <th>ナレッジ</th>
                             <th>ナイス</th>
                             <th>チャレンジ</th>
+                            <th>ポートフォリオ</th>
                             <th>合計</th>
                         </tr>
                         <tr v-for="data in clapData">
@@ -42,6 +43,7 @@
                             <td>{{data.knowledge}}</td>
                             <td>{{data.nice}}</td>
                             <td>{{data.challenge}}</td>
+                            <td>{{data.portfolio}}</td>
                             <td>{{data.sum}}</td>
                         </tr>
                     </table>
@@ -83,6 +85,7 @@ import { mkConfig, generateCsv, download } from "export-to-csv";
                 "ナレッジ" : data.knowledge,
                 "ナイス" : data.nice,
                 "チャレンジ" : data.challenge,
+                "ポートフォリオ" : data.portfolio,
                 "合計" : data.sum
             }
             dataSet.push(v)

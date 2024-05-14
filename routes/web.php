@@ -60,7 +60,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
 
 // Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
-Route::get('/clap_process', [AutoJobController::class, 'clap_process']);
+// Route::get('/clap_process', [AutoJobController::class, 'clap_process']);
 
 Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);

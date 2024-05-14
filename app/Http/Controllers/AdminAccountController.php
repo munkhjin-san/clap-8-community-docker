@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LessonPortfolio;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\boardRecord;
@@ -220,6 +221,8 @@ class AdminAccountController extends Controller
 
             $knowledges = KnowledgeRecord::where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->where('user_id', $var_id)->pluck('id')->toArray();
 
+            $portfolios = LessonPortfolio::where('user_id', $user->id)->pluck('id')->toArray();
+
             $challenges = ChallengeRecord::where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->whereHas('to_users', function($q) use ($var_id){
                 $q->where('user_id', $var_id);
             })->pluck('id')->toArray();
@@ -230,12 +233,15 @@ class AdminAccountController extends Controller
 
             $nice_from_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 3)->whereIn('record_id', $merged)->count();
 
-            $sum = $nice_from_claps + $challenge_claps + $knowledge_claps;
+            $portfolio_claps = ClapRecord::where('deleted_flag', 0)->where('app_id', 6)->whereIn('record_id', $portfolios)->count();
+
+            $sum = $nice_from_claps + $challenge_claps + $knowledge_claps + $portfolio_claps;
 
             $claps = [
                 "nice" => $nice_from_claps,
                 "challenge" => $challenge_claps,
                 "knowledge" => $knowledge_claps,
+                "portfolio" => $portfolio_claps,
                 "sum" => $sum,
                 "name" => $user->name,
                 "id" => $user->id

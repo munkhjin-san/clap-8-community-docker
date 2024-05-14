@@ -5,6 +5,7 @@ import { useFilePreview } from "@/store/filePreview"
 import { useResponsive } from '@/store/responsive'
 import { useSideMenuView } from '@/store/sideMenuView'
 import { useAuthUserStore } from './store/auth'
+import axios from 'axios'
 const routes = [
     { 
         path: '/board', 
@@ -361,7 +362,21 @@ const routes = [
                         path: 'portfoliodraft',
                         name: 'portfoliodraft',
                         props: true,
-                        component: () => import('./components/Learning/BasicKnowledge/BasicDraftPortfolio.vue')
+                        component: () => import('./components/Learning/BasicKnowledge/BasicDraftPortfolio.vue'),
+                        // children: [
+                        //     {
+                        //         path:'portfolioview',
+                        //         name:'portfolioview',
+                        //         props: true,
+                        //         component: () => import('./components/Learning/BasicKnowledge/PortfolioView.vue')
+                        //     }
+                        // ]
+                    },
+                    {
+                        path:'portfolioview',
+                        name:'portfolioview',
+                        props: true,
+                        component: () => import('./components/Learning/BasicKnowledge/PortfolioView.vue')
                     },
                     {
                         path: 'portfolio',
