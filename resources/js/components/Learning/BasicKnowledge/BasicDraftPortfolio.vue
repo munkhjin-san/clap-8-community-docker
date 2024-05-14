@@ -1,5 +1,5 @@
 <template>
-    <div class="section-wrapper" style="height: calc(100% - 50px);">
+    <div class="section-wrapper">
         <div v-if="route.name == 'portfoliodraft'" class="section-inner">    
             <div>
                 <div>
