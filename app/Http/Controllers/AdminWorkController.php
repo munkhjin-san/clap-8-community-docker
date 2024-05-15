@@ -40,29 +40,6 @@ class AdminWorkController extends Controller{
         $month = $request->month;
         $today = Carbon::now();
         [$currentYear, $currentMonth] = explode('-', $request->month);
-        $user_list = User::where('retire', 0)->where('deleted_flag', 0)->whereNotNull('user_code')->pluck('user_code')->toArray();
-        $strings = array_map('strval', $user_list);
-        $result = '(' . implode(', ', $strings) . ')';
-        $queryParams = [
-            'app' => '9',
-            "query" => "社員コード in $result limit 200",
-            'fields' => ['社員コード', '文字列__1行__15']
-        ];
-        
-        $queryString = http_build_query($queryParams);
-        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
-        $headers = [
-            'Authorization' => 'Basic', 
-            'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
-        ];
-        $recieve = [];
-        $response = Http::withHeaders($headers)->get($url);
-        $responseData = $response->json();
-        foreach ($responseData['records'] as $data){
-            $recieve[] = ['user_code'=>$data['社員コード']['value'], 'general_position'=>$data['文字列__1行__15']['value']];
-
-        }
-        $attendance_record = attendanceRecord::where('date_year_month', $month)->get();
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント', '研修サポート'];
         $ids = [608, 610];
         $all_users = User::where('partner_flag', '=', 0)
@@ -95,6 +72,30 @@ class AdminWorkController extends Controller{
             'user_code'
         ]);
         $userIds = $all_users->pluck('id');
+        $user_list = $all_users->whereNotNull('user_code')->pluck('user_code')->toArray();
+        $strings = array_map('strval', $user_list);
+        $result = '(' . implode(', ', $strings) . ')';
+        $queryParams = [
+            'app' => '9',
+            "query" => "社員コード in $result limit 200",
+            'fields' => ['社員コード', '文字列__1行__15']
+        ];
+        
+        $queryString = http_build_query($queryParams);
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+        $headers = [
+            'Authorization' => 'Basic', 
+            'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
+        ];
+        $recieve = [];
+        $response = Http::withHeaders($headers)->get($url);
+        $responseData = $response->json();
+        foreach ($responseData['records'] as $data){
+            $recieve[] = ['user_code'=>$data['社員コード']['value'], 'general_position'=>$data['文字列__1行__15']['value']];
+
+        }
+        $attendance_record = attendanceRecord::where('date_year_month', $month)->get();
+        
         
         
         $expenses = timecardCostRecord::whereIn('user_id', $userIds)->where('date_month', $request->month)->get();
