@@ -203,18 +203,20 @@ class AdminAccountController extends Controller
             ->where('partner_flag', 0)
             ->whereNotIn('name', $ng_list)
             ->with([
-                'portfolio',
+                'portfolio' => function ($q) {
+                    $q->withCount('claps');
+                },
                 'knowledge' => function ($q) use ($from, $to) {
-                    $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to]);
+                    $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->withCount('claps');
                 },
                 'nice' => function ($q) use ($from, $to) {
-                    $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to]);
+                    $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->withCount('claps');
                 },
                 'nice_recieved' => function ($q) use ($from, $to) {
-                    $q->where('nice_records.deleted_flag', 0)->whereBetween('nice_records.created_at', [$from, $to]);
+                    $q->where('nice_records.deleted_flag', 0)->whereBetween('nice_records.created_at', [$from, $to])->withCount('claps');
                 },
                 'challenge' => function ($q) use ($from, $to) {
-                    $q->where('challenge_records.deleted_flag', 0)->whereBetween('challenge_records.created_at', [$from, $to]);
+                    $q->where('challenge_records.deleted_flag', 0)->whereBetween('challenge_records.created_at', [$from, $to])->withCount('claps');
                 },
             ])
             ->select('id', 'name')
@@ -223,38 +225,18 @@ class AdminAccountController extends Controller
         $clap_data = [];
 
         $all_users->each(function ($user) use ($from, $to, &$clap_data) {
-            $var_id = $user->id;
 
-            $nice_from = $user->nice->pluck('id')->toArray();
+            $nice_from = $user->nice->sum('claps_count');
 
-            $nice_to = $user->nice_recieved->pluck('id')->toArray();
+            $nice_to = $user->nice_recieved->sum('claps_count');
 
-            $merged = array_merge(array_diff($nice_from, $nice_to), array_diff($nice_to, $nice_from));
+            $knowledge_claps = $user->knowledge->sum('claps_count');
 
-            $knowledges = $user->knowledge->pluck('id')->toArray();
-            $portfolios = $user->portfolio->pluck('id')->toArray();
+            $challenge_claps = $user->challenge->sum('claps_count');
 
-            $challenges = $user->challenge->pluck('id')->toArray();
-
-            $knowledge_claps = ClapRecord::where('deleted_flag', 0)
-                ->where('app_id', 2)
-                ->whereIn('record_id', $knowledges)
-                ->count();
-
-            $challenge_claps = ClapRecord::where('deleted_flag', 0)
-                ->where('app_id', 4)
-                ->whereIn('record_id', $challenges)
-                ->count();
-
-            $nice_from_claps = ClapRecord::where('deleted_flag', 0)
-                ->where('app_id', 3)
-                ->whereIn('record_id', $merged)
-                ->count();
-
-            $portfolio_claps = ClapRecord::where('deleted_flag', 0)
-                ->where('app_id', 6)
-                ->whereIn('record_id', $portfolios)
-                ->count();
+            $nice_from_claps = $nice_from + $nice_to;
+            
+            $portfolio_claps = $user->portfolio->sum('claps_count');
 
             $sum = $nice_from_claps + $challenge_claps + $knowledge_claps + $portfolio_claps;
 
