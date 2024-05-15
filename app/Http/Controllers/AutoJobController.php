@@ -477,8 +477,8 @@ class AutoJobController extends Controller
             $incident_result = "・インシデント：なし\n";
         }
         $message = "<a class=\"toAll\">@全員</a>\n各位\nお疲れ様です。経営管理本部です。\n昨日までにインシデント有を選択されていた社員は下記の通りです。\n\n" . $incident_result . "・サポートデスク：{$support_result}件";
-        $mention_users = boardToUser::where('record_id', 4789)->pluck('user_id')->toArray();
-        $this->send_report(610, 4789, $message, $mention_users);
+        $mention_users = boardToUser::where('record_id', 3532)->pluck('user_id')->toArray();
+        $this->send_report(610, 3532, $message, $mention_users);
         
         return response()->json($message);
     }
@@ -532,8 +532,8 @@ class AutoJobController extends Controller
         【インシデントに関する事項】
         ・インシデント報告・進捗各位
         EOT;
-        $mention_users = boardToUser::where('record_id', 4789)->pluck('user_id')->toArray();
-        $chat = $this->send_report(610, 4789, $message, $mention_users);
+        $mention_users = boardToUser::where('record_id', 3599)->pluck('user_id')->toArray();
+        $chat = $this->send_report(610, 3599, $message, $mention_users);
         $chatMessage = $chat->original['data'];
         $override_user = User::select('id', 'name', 'icon_id')->findOrFail(610);
         $checkData = [
@@ -583,8 +583,8 @@ class AutoJobController extends Controller
         
         お忙しいとは思いますが、ご対応の程、宜しくお願い致します。
         EOT;
-        $mention_users = boardToUser::where('record_id', 4789)->pluck('user_id')->toArray();
-        $this->send_report(610, 4789, $message, $mention_users);
+        $mention_users = boardToUser::where('record_id', 1056)->pluck('user_id')->toArray();
+        $this->send_report(610, 1056, $message, $mention_users);
         return response()->json($message);
     }
     public function monthly_report2(){
@@ -592,8 +592,8 @@ class AutoJobController extends Controller
         $message = "<a class=\"toAll\">@全員</a>\n🔔立替経費・仮払　領収証原本の郵送につきまして🔔\nお疲れ様です。経営管理本部　平川です。\n\n"
                 . $nextMonth . "月2日(木) までに、レコードの作成、執行役員承認済みのものが" . $nextMonth . "月精算となります。\n\n"
                 . "領収書は" . $nextMonth . "月9日(木) までに本社必着で郵送お願いいたします。";
-        $mention_users = boardToUser::where('record_id', 4789)->pluck('user_id')->toArray();
-        $this->send_report(610, 4789, $message, $mention_users);
+        $mention_users = boardToUser::where('record_id', 1056)->pluck('user_id')->toArray();
+        $this->send_report(610, 1056, $message, $mention_users);
         return response()->json($message);
     }
     public function monthly_report3S(){
@@ -625,8 +625,8 @@ class AutoJobController extends Controller
         不明点等出てくるかと思いますが、毎月不明点・質問事項などは、下記URLまでお願い致します。
         https://docs.google.com/spreadsheets/d/1DtHU5xa5uEu2Q6Zhu6fHEbhoukTn7oNIXdU-A-53-7k/edit?usp=sharing
         EOT;
-        $mention_users = boardToUser::where('record_id', 4789)->pluck('user_id')->toArray();
-        $this->send_report(610, 4789, $message, $mention_users);
+        $mention_users = boardToUser::where('record_id', 1056)->pluck('user_id')->toArray();
+        $this->send_report(610, 1056, $message, $mention_users);
         return response()->json($message);
     }
     private function send_report($override_user_id, $board_id, $message, $mention_users){
