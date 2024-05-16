@@ -43,6 +43,9 @@
                         <button class="btn btn-primary login-btn-change" type="submit">ログイン</button>
                     </div>
                 </div>
+                <div class="login-group" v-if="message">
+                    <p class="valid-error">{{ message }}</p>
+                </div>
             </div>
         </form>
     </div>
@@ -51,6 +54,8 @@
 <script setup>
     import Logo from '../Global/Logo.vue'
     import { onMounted } from 'vue';
+    const props = defineProps(['message'])
+   
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content
     onMounted(() => {
         window.document.title = `CLAP - ログイン`; 

@@ -62,7 +62,10 @@ class AdminWorkController extends Controller{
                 $q->where('type_id', 40)
                 ->where('value_int', '=' , 1)
                 ->select('type_id', 'value_int', 'date', 'table_record_id');
-                }]);
+                }])
+              ->with(['timecard_costs' => function ($q) {
+                $q->with('user');
+              }]);
         }])
         ->with(['attendance_records' => function($q) use($month){
             $q->where('date_year_month', $month)->select('month_petition', 'user_id');
@@ -150,7 +153,7 @@ class AdminWorkController extends Controller{
             
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
-
+            $time_card_costs = [];
             
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 15);
@@ -174,7 +177,14 @@ class AdminWorkController extends Controller{
                 if (count($user->time_card_records) > 0) {
                     $work_time_array = $user->time_card_records->sum('work_time');
                     $workTimeInSeconds = $work_time_array;
-                    
+                    foreach($user->time_card_records as $record){
+                        $timecard_costs = $record->timecard_costs ?? [];
+                        foreach ($timecard_costs as $cost) {
+                            if (!empty($cost->toArray())) {
+                                $time_card_costs[] = $cost->toArray();
+                            }
+                        }
+                    }
                     $totalPaidHours = 0;
                     foreach ($shiftTypes as $shift_type) {
                         switch($shift_type) {
@@ -210,6 +220,7 @@ class AdminWorkController extends Controller{
                     $month_work_time_array2[$user->id] = $workTimeInSeconds + ($totalPaidHours * 60);
                 }
             }
+            
             $responseArray = array(
                 'attendance_record' => $attendance_record,
                 'paid_holiday_record' => $new_shift_record_array,
@@ -218,7 +229,8 @@ class AdminWorkController extends Controller{
                 'weather_average' => $mostCommonValuesPerUser,
                 'kintone_data' => $recieve,
                 'monthly_expenses' => $monthly_expenses,
-                'monthly_incentive' => $monthly_incentive 
+                'monthly_incentive' => $monthly_incentive,
+                'timecard_costs' => $time_card_costs
             );
 
         return response()->json($responseArray);

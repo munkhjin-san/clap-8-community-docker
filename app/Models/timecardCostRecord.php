@@ -13,7 +13,9 @@ class timecardCostRecord extends Model
     public function file(){
         return $this->hasOne(FileRecord::class, 'id', 'file_id')->select('id', 'user_id', 'path', 'extension', 'mime_type');
     }
-
+    public function user(){
+        return $this->belongsTo(User::class)->select('id', 'name');
+    }
     protected $fillable = [
         'user_id', 'record_id'
     ];

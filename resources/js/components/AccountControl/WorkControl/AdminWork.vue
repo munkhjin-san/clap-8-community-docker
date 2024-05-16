@@ -8,7 +8,8 @@
         <div class="admin-sub-c-bar">
             <PostSearchBar className="newChatMemberSearch" style="width:auto;" :searching="false"  @searchStart="(val) => keywords = val"/>   
             <div class="admin-work-header">
-                <div class="admin-button" @click="exportCSV">CSV出力</div>
+                <div class="admin-button" @click="exportCSV">勤怠CSV出力</div>
+                <div class="admin-button" @click="expenseCSV">経費CSV出力</div>
                 <div class="admin-month-wrapper">
                     <MonthPicker 
                         :selectedYear="selectedYear"
@@ -89,9 +90,17 @@
     const kintone_data = ref([])
     const monthly_expenses = ref([])
     const monthly_incentive = ref([])
+    const timecard_costs = ref([])
     const responsive = useResponsive()
     const { notify } = inject('dialog')
     const fetch = ref(0)
+    const costOptions = [{label: '交通費', value: 1},
+                    {label:'通信費', value: 2},
+                    {label:'宿泊費', value: 3},
+                    {label: '旅費交通費', value: 4},
+                    {label:'消耗品費', value: 5},
+                    {label:'交際費', value: 6},
+                    {label:'支払手数料', value: 7}]
     onMounted(async() => {
         await getData()
         fetch.value ++
@@ -119,9 +128,31 @@
         });
         return days
     }
+    const expenseCSV = () => {
+        const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `経費_${date}月`});
+        const data = []
+        timecard_costs.value.forEach(cost => {
+            console.log(cost)
+            const row = {
+                "氏名" : cost.user.name,
+                "部門" : cost.department ? cost.department : '',
+                "勘定科目" : costOptions.find(ob => ob.value == cost.type).label,
+                "金額" : cost.expenses ? cost.expenses : 0,
+            }
+            data.push(row)
+        })
+        if(data && data.length){
+            const csv = generateCsv(csvConfig)(data)
+            download(csvConfig)(csv);
+        } else {
+            notify('経費記録ないです。')
+            return
+        }
+    }
     const exportCSV = () => {
         const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
-        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `work_${date}月`});
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `勤怠_${date}月`});
         const data = []
         attendance_record_items.value.forEach(item => {            
             const kintone = kintone_data.value.filter(ob => ob.user_code == item.user_code)
@@ -157,7 +188,6 @@
                 "欠勤時間": item.absence_hour,
                 "残業時間": item.over_time,
                 "深夜勤務": item.night_work_time,
-                "経費": item.expenses,
                 "インセンティブ件" : item.incentive,
                 "遠方手当": item.stay_pay,
                 "宿泊日当": item.move_pay,
@@ -191,6 +221,7 @@
             kintone_data.value = data.kintone_data
             monthly_expenses.value = data.monthly_expenses
             monthly_incentive.value = data.monthly_incentive
+            timecard_costs.value = data.timecard_costs
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
         }

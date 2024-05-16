@@ -1,5 +1,5 @@
 @extends('layouts.app')
 
 @section('content')
-    <login :intended="'{{url()->previous()}}'" />
+    <login :message="{{ json_encode(session('error', '')) }}" :intended="'{{url()->previous()}}'" />
 @endsection
