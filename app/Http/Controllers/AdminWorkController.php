@@ -51,7 +51,8 @@ class AdminWorkController extends Controller{
             $q->whereYear('shift_day', $currentYear)
               ->whereMonth('shift_day', $currentMonth)
               ->select('shift_day', 'shift_type', 'user_id')
-              ->orderBy('shift_day', 'asc');
+              ->orderBy('shift_day', 'asc')
+              ->with('shiftType');
         }])
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
@@ -157,67 +158,38 @@ class AdminWorkController extends Controller{
             
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 15);
-                $shiftTypeCounts = array_fill_keys($shiftTypes, 0);
-            
+                $totalPaidHours = 0;
                 if (count($user->shift_records) > 0) {
                     foreach ($user->shift_records as $record) {
                         $user_id = $record->user_id;
                         $shift_day = $record->shift_day;
-                        $shift_type = $record->shift_type;
-                        if (in_array($shift_type, $shiftTypes)) {
-                            $shiftTypeCounts[$shift_type]++;
+                        $shift_type = $record->shiftType;
+                        if (in_array($shift_type->id, $shiftTypes)) {
+                            $totalPaidHours += $shift_type->value;
                             $new_shift_record_array[$user_id][] = [
                                 'day' => $shift_day,
-                                'type' => $shift_type,
+                                'type' => $shift_type->id,
                             ];
                         }
                     }
                 }
             
                 if (count($user->time_card_records) > 0) {
-                    $work_time_array = $user->time_card_records->sum('work_time');
-                    $workTimeInSeconds = $work_time_array;
+                    $workTimeInSeconds = $user->time_card_records->sum('work_time');
                     foreach($user->time_card_records as $record){
                         $timecard_costs = $record->timecard_costs ?? [];
+                        if (empty($timecard_costs)) {
+                            continue;
+                        }
                         foreach ($timecard_costs as $cost) {
                             if (!empty($cost->toArray())) {
                                 $time_card_costs[] = $cost->toArray();
                             }
                         }
                     }
-                    $totalPaidHours = 0;
-                    foreach ($shiftTypes as $shift_type) {
-                        switch($shift_type) {
-                            case 6:
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 4;
-                                break;
-                            case 7:
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 1;
-                                break;
-                            case 8:
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 2;
-                                break;
-                            case 9:
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 3;
-                                break;
-                            case 10:
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 4;
-                                break;
-                            case 11:
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 5;
-                                break;
-                            case 12: 
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 6;
-                                break;
-                            case 13:
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 7;
-                                break;
-                            default:
-                                $totalPaidHours += $shiftTypeCounts[$shift_type] * 8;
-                        }  
-                    }
                     
-                    $month_work_time_array2[$user->id] = $workTimeInSeconds + ($totalPaidHours * 60);
+                    
+                    $month_work_time_array2[$user->id] = $workTimeInSeconds + $totalPaidHours;
                 }
             }
             
