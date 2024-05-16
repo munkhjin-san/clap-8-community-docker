@@ -36,8 +36,8 @@
     const updateTarget = () => {
         if(props.initialValue){
             value.value = props.initialValue
-        }
-        growRef.value.dataset.replicatedValue = value.value
+        }        
+        growRef.value.dataset.replicatedValue = value.value || props.initialValue
     }
     const validate = async(passive, event) => {
         if(event){
