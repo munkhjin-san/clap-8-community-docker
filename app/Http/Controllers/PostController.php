@@ -615,18 +615,19 @@ class PostController extends Controller
         
     }
     public function get_top_tags(Request $request){
-        $nameSpace = '\\App\\Models\\'; 
-        $model = $nameSpace . ucfirst($request->app_name) . 'UseTag';     
+        // $nameSpace = '\\App\\Models\\'; 
+        // $model = $nameSpace . ucfirst($request->app_name) . 'UseTag';     
         $occurence_type = $request->app_name . 'Occurence';
         $sort_value = $request->app_name . '_occurence_count';
-        $use_tags = $model::where('deleted_flag', 0)
-        ->whereHas('app_record', function($q){
-            $q->where('deleted_flag', 0);
-        })
-        ->pluck('tag_id')->toArray();
-        $unique_list = array_unique($use_tags);
+        // $use_tags = $model::where('deleted_flag', 0)
+        // ->whereHas('app_record', function($q){
+        //     $q->where('deleted_flag', 0);
+        // })
+        // ->pluck('tag_id')->toArray();
+        // $unique_list = array_unique($use_tags);
+        $model = $request->app_name . 'Records';
         $tags = TagRecord::where('deleted_flag', 0)
-        ->whereIn('id', $unique_list)
+        ->whereHas($model)
         ->withCount($occurence_type)
         ->orderBy($sort_value, 'desc')
         ->get();
