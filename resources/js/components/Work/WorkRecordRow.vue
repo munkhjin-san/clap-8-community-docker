@@ -94,8 +94,10 @@ import { computed, inject, onMounted } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from "@/store/menu";
 import CommandButton from '../Global/CommandButton.vue';
+import { useFilePreview } from '../../store/filePreview';
 const menu = useMenuStore()
 const responsive = useResponsive()
+const filePreview = useFilePreview()
 const costOptions = inject('costOptions')
 const {start, end } = inject('stamps')
 const props = defineProps({
