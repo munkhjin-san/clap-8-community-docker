@@ -253,8 +253,9 @@
                     </div>
                     <div class="selectSwitchArea" style="display: flex;width: 100%;">    
                         <input type="checkbox" id="zoom_waiting_room" v-model="zoom_waiting_room">
-                        <label for="zoom_waiting_room" style="min-width: 80px;" class="cursor-pointer"><span></span></label>
-                        <div class="switch-toggle"></div>
+                        <label for="zoom_waiting_room" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
                     </div>  
                 </div>  
                 <div class="si-box">

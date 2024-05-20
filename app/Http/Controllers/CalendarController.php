@@ -175,7 +175,7 @@ class CalendarController extends Controller
         }else{
             $settings['waiting_room'] = false;
             $settings['join_before_host'] = true;
-            $settings['jbh_time'] = 0;
+            $settings['jbh_time'] = '10';
         }
         $data_to_zoom_api = array(
             'topic' => $params['title'],
