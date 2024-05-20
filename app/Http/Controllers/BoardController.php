@@ -549,15 +549,14 @@ class BoardController extends Controller
     public function getUnsignedUsers(Request $request){
         $active_user = $this->active_user();
         $auth_id = $active_user->id;   
-        $list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-            $q->where('user_id', $active_user->id)->where('deleted_status', 0);
-        })->pluck('id')->toArray();
-                 
-        $comment_list_pre = messageRecord::whereIn('record_id', $list)
+        $comment_list_pre = messageRecord::whereHas('board_record.board_to_users', function ($q) use ($auth_id) {
+            $q->where('user_id', $auth_id)->where('deleted_status', 0);
+        })
         ->whereHas('message_files', function ($query) use ($auth_id) {
-            $query->where('sign_flag', 1)->whereHas('unsignedUsers', function ($q) use ($auth_id) {
-                $q->where('user_id', $auth_id)->where('cancel_flag', 0);
-            });
+            $query->where('sign_flag', 1)
+                ->whereHas('unsignedUsers', function ($q) use ($auth_id) {
+                    $q->where('user_id', $auth_id)->where('cancel_flag', 0);
+                });
         })
         ->with('user')
         ->with(['message_files', 'message_files.unsignedUsers', 'message_files.signedUsers'])
@@ -992,12 +991,12 @@ class BoardController extends Controller
         $auth_user_id = $active_user->id;
         if(!empty($request) && !empty($auth_user_id)){      
             if($request->flag == 0){
-                $list1 = taskRecord::where('board_id', '=', $request->record_id)
+                $list1 = taskRecord::where('board_id', $request->record_id)
                 ->whereNotNull('end_at')
                 ->with('to_users')
                 ->orderBy('created_at', 'desc')->get();
 
-                $list2 = taskRecord::where('board_id', '=', $request->record_id)
+                $list2 = taskRecord::where('board_id', $request->record_id)
                 ->whereNull('end_at')
                 ->with('to_users')
                 ->when($request->which == 1, function($q){
@@ -1257,12 +1256,10 @@ class BoardController extends Controller
         return $mail;
     }
     public function getRemindMessage(){
-        $active_user = $this->active_user();
-        $list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-            $q->where('user_id', $active_user->id)->where('deleted_status', 0);
-        })->pluck('id')->toArray();
-        $user = $active_user;
-        $remindedMessages = messageRecord::whereIn('record_id', $list)
+        $user = $this->active_user();
+        $remindedMessages = messageRecord::whereHas('board_record.board_to_users', function ($q) use ($user) {
+                $q->where('user_id', $user->id)->where('deleted_status', 0);
+            })
             ->whereHas('messageRemindUsers', function ($query) use ($user) {
                 $query->where('user_id', $user->id)
                       ->where('reminded', 1);
@@ -1300,14 +1297,12 @@ class BoardController extends Controller
         
     }
     public function getUncheckedMessage(Request $request){
-        $active_user = $this->active_user();
-        $user = $active_user;
+        $user = $this->active_user();
         $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
-        $list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-            $q->where('user_id', $active_user->id)->where('deleted_status', 0);
-        })->pluck('id')->toArray();
-        $checkMessages = messageRecord::
-            whereIn('record_id', $list)
+        
+        $checkMessages = messageRecord::whereHas('board_record.board_to_users', function ($q) use ($user) {
+                $q->where('user_id', $user->id)->where('deleted_status', 0);
+            })
             ->whereHas('checkUsers', function ($query) use ($user) {
                 $query->where('user_id', $user->id)
                       ->where('checked', 0);
