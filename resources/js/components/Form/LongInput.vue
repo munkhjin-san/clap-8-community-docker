@@ -55,22 +55,20 @@
 <style scoped>
 .g-text-long{
     width: -webkit-fill-available;
-    margin: 0 auto;
-    padding: 0px;
-    border: 1px solid var(--primary-color);
-    padding: 10px;
     color: inherit;
     width: -moz-available;
     font-size: 16px;
-    transition: border 0.3s ease;
     min-height: 150px;
     display: inline-block;
-    border-radius: 0;
 }
 .grow-wrap {
   /* easy way to plop the elements on top of each other and have them both sized based on the tallest one's height */
   display: grid;
   line-height: 1.6;
+  border: 1px solid var(--primary-color);
+  padding: 20px 0;
+  transition: border 0.3s ease;
+  max-width: 100%;
 }
 .grow-wrap::after {
   /* Note the weird space! Needed to preventy jumpy behavior */
@@ -91,11 +89,11 @@
 }
 .grow-wrap > textarea,
 .grow-wrap::after {
-  padding: 20px 10px 10px 15px;
   font: inherit;
   grid-area: 1 / 1 / 2 / 2;
-  max-width: 100%;
+  max-width: calc(100% - 30px);
   word-break: break-word;
+  margin-left: 15px;
 }
 
 
