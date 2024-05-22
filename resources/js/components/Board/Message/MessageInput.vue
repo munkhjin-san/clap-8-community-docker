@@ -115,7 +115,6 @@
                         @click="caretPos"
                         @paste="pasteListener($event)" 
                         @focus="focused"
-                        @blur="blured"
                         @input="setInput"
                         @compositionupdate="composeUpdate"
                         id="typeArea" 
@@ -298,7 +297,6 @@ import UserIcon from '../Mixed/UserIcon.vue'
             source: 'message',
             index: 0,
             message: null,
-            reminder: 'board',
         }
         filePreview.setFilePreview(data)
     }
@@ -802,13 +800,13 @@ import UserIcon from '../Mixed/UserIcon.vue'
             navigator.virtualKeyboard.overlaysContent = true;                    
         }
     }
-    const blured = () => {
-        if ("virtualKeyboard" in navigator) {                  
-            navigator.virtualKeyboard.overlaysContent = false;
-            setTimeout(() => {
-                keyboardHeight.value = 0
-            }, 0);                    
-        }
-    }
+    // const blured = () => {
+    //     if ("virtualKeyboard" in navigator) {                  
+    //         navigator.virtualKeyboard.overlaysContent = false;
+    //         setTimeout(() => {
+    //             keyboardHeight.value = 0
+    //         }, 0);                    
+    //     }
+    // }
 
 </script>
