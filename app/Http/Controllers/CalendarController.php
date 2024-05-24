@@ -242,19 +242,19 @@ class CalendarController extends Controller
         $validatedData = $request->validate([
             'day' => 'required',
         ]);
-
-        $myGroupCheck = MyGroup::where('user_id', $this->active_user()->id)->exists();
+        $active_user = $this->active_user();
+        $myGroupCheck = MyGroup::where('user_id', $active_user->id)->exists();
         
         if(!$myGroupCheck){
             
             $newMyGroup = MyGroup::create([
-                'user_id' => $this->active_user()->id,
+                'user_id' => $active_user->id,
                 'name' =>  'マイグループ',
                 'selected' => true
             ]);
-            $newMyGroup->users()->syncWithPivotValues([$this->active_user()->id], ['selected_as_calendar_member' => 1, "created_at" => now()]); 
+            $newMyGroup->users()->syncWithPivotValues([$active_user->id], ['selected_as_calendar_member' => 1, "created_at" => now()]); 
         }        
-        $gr = MyGroup::where('user_id', $this->active_user()->id)->where('selected', true)->latest()->first();
+        $gr = MyGroup::where('user_id', $active_user->id)->where('selected', true)->latest()->first();
         // $myWorkGroups = MyWorkGroup::where('user_id', $this->active_user()->id)->pluck('work_group_id')->toArray();
 
         $work_group_users_id = [];
@@ -645,7 +645,7 @@ class CalendarController extends Controller
                     $zoom_values = array(
                         "zoom_url" => $has_prev_date['zoom_url'],
                         "zoom_id" => $has_prev_date['zoom_id'],
-                        "zoom_pass" => $has_prev_date['zoom_id'],
+                        "zoom_pass" => $has_prev_date['zoom_pass'],
                         "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
                         "zoom_account_pass" => 'Glowd0802'
                     );
@@ -668,6 +668,7 @@ class CalendarController extends Controller
 
             // }
         }
+        $active_user = $this->active_user();
         $records = CalendarRecord::whereIn('id', $ids)->update([
             "title" => $request['title'],
             "remarks" => $request['remarks'],
@@ -675,8 +676,8 @@ class CalendarController extends Controller
             "release_flag" => $request['release_flag'],
             "edit_all" => $request['edit_all'],
             "repetition_type" => $request['repetition_type'],
-            "updated_user" => $this->active_user()->id,
-            "user_id" => $this->active_user()->id,
+            "updated_user" => $active_user->id,
+            "user_id" => $active_user->id,
             "r_group_id" => $r_group_id,
             "zoom_url" => $zoom_values['zoom_url'],
             "zoom_id" => $zoom_values['zoom_id'],
@@ -684,7 +685,7 @@ class CalendarController extends Controller
             "zoom_account" => $zoom_values['zoom_account'],
             "zoom_account_pass" => $zoom_values['zoom_account_pass'],
             "created_at" => $has_prev_date ? $has_prev_date['created_at'] : now(),
-            "created_user" => $has_prev_date ? $has_prev_date['created_user'] : $this->active_user()->id,
+            "created_user" => $has_prev_date ? $has_prev_date['created_user'] : $active_user->id,
             "descendant_of" => $has_prev_date ? $has_prev_date['id'] : null,
             "real_created_at" => now()
         ]);
@@ -694,7 +695,7 @@ class CalendarController extends Controller
         }
 
         $targetIds = $request['users'];
-        $targetUsersMail = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $targetIds)->where('id', '!=', $this->active_user()->id)->pluck('email')->toArray();
+        $targetUsersMail = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $targetIds)->where('id', '!=', $active_user->id)->pluck('email')->toArray();
         $type = $has_prev_date ? '更新' : '作成';
         $c_records = CalendarRecord::whereIn('id', $ids)->get();
         $title = $c_records[0]['title'];
@@ -922,12 +923,13 @@ class CalendarController extends Controller
         return response()->json($res); 
     }
     public function select_work_group(Request $request){
-        $my_work_groups = MyWorkGroup::where('user_id', $this->active_user()->id)->delete();
+        $active_user = $this->active_user();
+        $my_work_groups = MyWorkGroup::where('user_id', $active_user->id)->delete();
         $create = MyWorkGroup::create([
-            'user_id' => $this->active_user()->id,
+            'user_id' => $active_user->id,
             'work_group_id' => $request->work_group_id
         ]);
-        $groups = MyGroup::where('user_id', $this->active_user()->id)->update(['selected' => false]);
+        $groups = MyGroup::where('user_id', $active_user->id)->update(['selected' => false]);
         return response()->json($create); 
     }
     public function update_selected_calendar_members(Request $request){
@@ -970,34 +972,36 @@ class CalendarController extends Controller
         return response()->json($merged_users); 
     }
     public function set_more_members(Request $request){
+        $active_user = $this->active_user();
         if($request->id){
             $group = MyGroup::findOrFail($request->id);
           
         }else{
             $group = new MyGroup;
-            $group->user_id = $this->active_user()->id;
+            $group->user_id = $active_user->id;
             
         }
         $group->selected = true;
         $group->name = $request->title;
         $group->save();
         $group->users()->syncWithPivotValues($request->users, ['selected_as_calendar_member' => 1, "created_at" => now()]);  
-        $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $group->id)->update(['selected' => false]);
+        $unselect = MyGroup::where('user_id', $active_user->id)->whereNot('id', $group->id)->update(['selected' => false]);
         return response()->json($request->users); 
     }
     public function get_calendar_search(Request $request){
-        $gr_list = MyGroup::where('user_id', $this->active_user()->id)->where('selected', 1)->with('selected_users')->get();
+        $active_user = $this->active_user();
+        $gr_list = MyGroup::where('user_id', $active_user->id)->where('selected', 1)->with('selected_users')->get();
         $all_ids = $gr_list->pluck('selected_users')->flatten()->pluck('id')->toArray();
         $list = array_unique($all_ids);
         $key = $request->key;
-        $records = CalendarRecord::where(DB::raw("CONCAT_WS('', title, ' ', remarks, ' ', referrer)"), 'LIKE', '%' . $key . '%')
+        $records = CalendarRecord::whereRaw("CONCAT_WS('', title, ' ', remarks, ' ', referrer) LIKE ?", ['%' . $key . '%'])
         ->whereHas('calendar_users', function ($query) use ($list) {
             $query->whereIn('users.id', $list);
         })
-        ->where(function ($query) {
+        ->where(function ($query) use($active_user) {
             $query->where('release_flag', 0)
-            ->orWhereHas('calendar_users', function ($query) {
-                $query->whereIn('users.id', [$this->active_user()->id]);
+            ->orWhereHas('calendar_users', function ($query) use($active_user){
+                $query->whereIn('users.id', [$active_user()->id]);
             });
         })
         ->select('id', 'title', 'remarks', 'referrer', 'date_start', 'date_end', 'zoom_value', 'qualified_institution', 'qualified_car')
@@ -1180,8 +1184,9 @@ class CalendarController extends Controller
         
     }
     public function get_possible_groups(Request $request){
-        $list = boardRecord::where('private_flag', 0)->whereHas('board_to_users', function($q){
-            $q->where('user_id', $this->active_user()->id);
+        $active_user = $this->active_user();
+        $list = boardRecord::where('private_flag', 0)->whereHas('board_to_users', function($q) use($active_user){
+            $q->where('user_id', $active_user->id);
         })->with(['board_to_users' => function($q){
             $q->whereHas('user')
             ->with('user')
@@ -1192,7 +1197,7 @@ class CalendarController extends Controller
         }])
         ->orderBy('updated_at', 'desc')
         ->get();
-        $groups = MyGroup::where('user_id', $this->active_user()->id)->where('deleted_flag', 0)->with('users')->get();
+        $groups = MyGroup::where('user_id', $active_user->id)->where('deleted_flag', 0)->with('users')->get();
         return response()->json([
             "board" => $list,
             "group" => $groups
