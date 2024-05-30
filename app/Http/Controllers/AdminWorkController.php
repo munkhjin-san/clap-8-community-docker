@@ -100,22 +100,29 @@ class AdminWorkController extends Controller{
         }
         $attendance_record = attendanceRecord::where('date_year_month', $month)->get();
         
-        
-        
-        $expenses = timecardCostRecord::whereIn('user_id', $userIds)->where('date_month', $request->month)->get();
-        $monthly_expenses = $expenses->groupBy('user_id')->map(function ($records) {
-            return $records->sum('expenses');
-        });
-        $incentives = timecardIncentive::whereIn('user_id', $userIds)->where('date_month', $request->month)->get();
-        $monthly_incentive = $incentives->groupBy('user_id')->map(function ($records) {
-            return $records->sum('count');
-        });
+        $expenses = timecardCostRecord::selectRaw(
+            'user_id,
+            SUM(expenses) as totalExpenses'
+        )->whereIn('user_id', $userIds)
+        ->where('date_month', $request->month)
+        ->groupBy('user_id')
+        ->get();
+        $monthly_expenses = $expenses->pluck('totalExpenses', 'user_id');
+        $incentives = timecardIncentive::selectRaw(
+            'user_id,
+            SUM(count) as totalCount'
+        )->whereIn('user_id', $userIds)
+        ->where('date_month', $request->month)
+        ->groupBy('user_id')
+        ->get();
+        $monthly_incentive = $incentives->pluck('totalCount', 'user_id');
+
         $sevenDaysAgo = now()->subDays(7);
         if($today->day == 1 || $today->day == 2 || $today->day == 3 || $today->day == 4 || $today->day == 5 || $today->day == 6){
             $currentMonth -= 1;
         }
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $userIds)
-            ->where('date', '>=', $sevenDaysAgo) // Filter by the last 7 days
+            ->where('date', '>=', $sevenDaysAgo)
             ->whereYear('date', $currentYear)
             ->whereMonth('date', $currentMonth)
             ->where('type_id', 43)
