@@ -133,7 +133,6 @@
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `経費_${date}月`});
         const data = []
         timecard_costs.value.forEach(cost => {
-            console.log(cost)
             const row = {
                 "氏名" : cost.user.name,
                 "部門" : cost.department ? cost.department : '',
