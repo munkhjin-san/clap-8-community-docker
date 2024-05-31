@@ -125,7 +125,10 @@ class WorkController extends Controller
             ->orderBy('user_id')
             ->get();
 
-        $annual_leave = $shift_record->pluck('total_shift_value', 'user_id');
+        $annual_leave = $shift_record->pluck('total_shift_value', 'user_id')->map(function ($value) {
+            return $value ?? 0;
+        });
+            
         $attendance_flag = attendanceRecord::where('date_year_month', $request->current_date)
                             ->whereIn('user_id', $users_list)
                             ->exists();
