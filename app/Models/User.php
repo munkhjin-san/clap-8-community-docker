@@ -184,4 +184,7 @@ class User extends Authenticatable
     public function challenge(){
         return $this->belongsToMany(ChallengeRecord::class, 'challenge_to_users', 'user_id', 'record_id');
     }
+    public function shift_overtime(){
+        return $this->hasMany(ShiftOvertimeRequest::class, 'user_id');
+    }
 }

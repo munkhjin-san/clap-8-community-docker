@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use DB;
 
 use App\Models\boardRecord;
 use App\Models\boardToUser;
@@ -423,16 +422,17 @@ class BoardController extends Controller
      
             
             $board = boardRecord::findOrFail($request->id);
+            $active_user = $this->active_user();
             if(!empty($board)){
                 if($board->private_flag == 0){
-                    $admin_access = $board->board_to_users()->where('user_id', $this->active_user()->id)->where('admin_flag', 1)->exists();
+                    $admin_access = $board->board_to_users()->where('user_id', $active_user->id)->where('admin_flag', 1)->exists();
                     if(!$admin_access){
                         throw ValidationException::withMessages(['message' => 'Sufficient administrative permission.']);
                     }
                     $createIcon = $this->sharedService->removeBoard($board);     
                     return response()->json($createIcon);
                 }else if($board->private_flag == 1){
-                    $member_access = $board->board_to_users()->where('user_id', $this->active_user()->id)->first();
+                    $member_access = $board->board_to_users()->where('user_id', $active_user->id)->first();
                     if(!empty($member_access)){
                         $member_access->update(['deleted_status' => 1]);
                         return response()->json('success');
@@ -546,12 +546,57 @@ class BoardController extends Controller
         }      
         return response()->json("success");
     }
+    public function incomplete_check(Request $request) {
+        $user = $this->active_user();
+        $today = Carbon::today();
+        $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
+        $list = boardToUser::where('user_id', $user->id)
+                            ->where('deleted_status', 0)
+                            ->pluck('record_id');
+        $messages = messageRecord::whereIn('record_id', $list)
+        ->where('deleted_flag', 0)
+        ->with('user')
+        ->with(['message_files', 'message_files.unsignedUsers', 'message_files.signedUsers'])
+        ->with('reactedUsers')
+        ->with('checkedUsers')
+        ->with('uncheckedUsers')
+        ->with('messageRemindUsers')
+        ->whereHas('messageRemindUsers', function ($query) use ($user) {
+            $query->where('user_id', $user->id)
+                    ->where('reminded', 1); // For reminded messages
+        })
+        ->orWhereHas('checkUsers', function ($query) use ($user, $start_point) {
+            $query->where('user_id', $user->id)
+                    ->where('checked', 0)
+                    ->whereDate('check_request_at', '>', $start_point); // For check messages
+        })
+        ->orWhereHas('message_files', function ($query) use ($user) {
+            $query->where('sign_flag', 1)
+                    ->whereHas('unsignedUsers', function ($q) use ($user) {
+                        $q->where('user_id', $user->id)
+                            ->where('cancel_flag', 0); // For comment_list_pre messages
+                    });
+        })
+        ->get();
+        $tasks = taskRecord::where('comp_flag', '=', 0)
+                ->whereHas('task_users', function($q) use($user){
+                    $q->where('user_id', $user->id)->where('comp_flag', 0);
+                })
+                ->with('to_users')
+                ->whereDate('end_at', '<=', $today)
+                ->orderBy('created_at', 'desc')->get();
+        $data = [
+            'messages' => $messages,
+            'tasks' => $tasks
+        ];
+        return response()->json($data);
+    }
     public function getUnsignedUsers(Request $request){
         $active_user = $this->active_user();
         $auth_id = $active_user->id;   
-        $list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-            $q->where('user_id', $active_user->id)->where('deleted_status', 0);
-        })->pluck('id')->toArray();
+        $list = boardToUser::where('user_id', $auth_id)
+                            ->where('deleted_status', 0)
+                            ->pluck('record_id');
                  
         $comment_list_pre = messageRecord::whereIn('record_id', $list)
         ->whereHas('message_files', function ($query) use ($auth_id) {
@@ -757,7 +802,7 @@ class BoardController extends Controller
                 
             }
             if(!empty($request->mentioned_users)){                  
-                $board = boardRecord::where('id', '=', $request->record_id)->first();              
+                $board = $boardRecord;              
                 
                 if(!empty($board) && $board->private_flag == 1){
                     $b_title = $active_user->name;
@@ -937,7 +982,6 @@ class BoardController extends Controller
         
     }
     public function get_board_badge(){       
-        $active_user = $this->active_user();
         $linked = Auth::user()->linked()->get()->pluck('id')->toArray();
         array_push($linked, Auth::id());
         // return response()->json($linked); 
@@ -992,12 +1036,12 @@ class BoardController extends Controller
         $auth_user_id = $active_user->id;
         if(!empty($request) && !empty($auth_user_id)){      
             if($request->flag == 0){
-                $list1 = taskRecord::where('board_id', '=', $request->record_id)
+                $list1 = taskRecord::where('board_id', $request->record_id)
                 ->whereNotNull('end_at')
                 ->with('to_users')
                 ->orderBy('created_at', 'desc')->get();
 
-                $list2 = taskRecord::where('board_id', '=', $request->record_id)
+                $list2 = taskRecord::where('board_id', $request->record_id)
                 ->whereNull('end_at')
                 ->with('to_users')
                 ->when($request->which == 1, function($q){
@@ -1023,7 +1067,7 @@ class BoardController extends Controller
         $auth_user_id = $active_user->id;
         
         if(!empty($request) && !empty($auth_user_id)){            
-            $list = taskUser::where('record_id', '=', $request->task_id)->where('user_id', '=', $auth_user_id)->first();
+            $list = taskUser::where('record_id', $request->task_id)->where('user_id', $auth_user_id)->first();
             $list->comp_flag = $request->comp_flag;
             if($request->late_answer){
                 $list->late_answer = $request->late_answer;
@@ -1032,42 +1076,25 @@ class BoardController extends Controller
                 $list->late_answer_custom = $request->late_answer_custom;
             }
             $list->save();
-            // #20201202_0013 Tumur　通知機能追加
-            $task_record = taskRecord::find($request->task_id);
             
-            $allCount = taskUser::where('record_id', '=', $request->task_id)->count();
+            $allCount = taskUser::where('record_id', $request->task_id)->count();
             if($allCount > 0){
                 $completedCount = taskUser::where('record_id', '=', $request->task_id)->where('comp_flag', '=', 1)->count();
+                $task = taskRecord::find($request->task_id);
                 if($allCount == $completedCount){
-                    $task = taskRecord::find($request->task_id);
                     $task->comp_flag = 1;
-                    $task->save();
-                    // if($infos){
-                    //     foreach($infos as $info){
-                    //         $info->delete();
-                    //         $info->save();
-                    //     }
-                    // }
                 }else{
-                    $task = taskRecord::find($request->task_id);
                     $task->comp_flag = 0;
-                    $task->save();
-                    // if($infos){
-                    //     foreach($infos as $info){
-                    //         $info->delete();
-                    //         $info->save();
-                    //     }
-                    // }
                 }
-                
+                $task->save();
             }
             
-            $related_members = [];
-            $related_members[] = $auth_user_id;
-            $rebound = array(
-                "info_update_id" => $related_members
-            );
-            event(new MessageSent($rebound));
+            // $related_members = [];
+            // $related_members[] = $auth_user_id;
+            // $rebound = array(
+            //     "info_update_id" => $related_members
+            // );
+            // event(new MessageSent($rebound));
             
             return response()->json('saved');     
             
@@ -1172,17 +1199,17 @@ class BoardController extends Controller
                     }    
                     
                 }                
-                $related_members = [];
-                $related_members[] = $auth_user_id;
-                $rebound01 = array(
-                    "info_update_id" => $related_members
-                );
-                event(new MessageSent($rebound01));
-                $rebound = array(
-                    "updateId" => $request->board_id
-                );
-                $boardRecord = boardRecord::findOrFail($task->board_id);
-                event(new MessageSent($rebound));
+                // $related_members = [];
+                // $related_members[] = $auth_user_id;
+                // $rebound01 = array(
+                //     "info_update_id" => $related_members
+                // );
+                // event(new MessageSent($rebound01));
+                // $rebound = array(
+                //     "updateId" => $request->board_id
+                // );
+                // $boardRecord = boardRecord::findOrFail($task->board_id);
+                // event(new MessageSent($rebound));
                 return response()->json($task);
             }
             
@@ -1257,11 +1284,13 @@ class BoardController extends Controller
         return $mail;
     }
     public function getRemindMessage(){
-        $active_user = $this->active_user();
-        $list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-            $q->where('user_id', $active_user->id)->where('deleted_status', 0);
-        })->pluck('id')->toArray();
-        $user = $active_user;
+        $user = $this->active_user();
+        // $list = boardRecord::whereHas('board_to_users', function($q) use($user){
+        //     $q->where('user_id', $user->id)->where('deleted_status', 0);
+        // })->pluck('id')->toArray();
+        $list = boardToUser::where('user_id', $user->id)
+                            ->where('deleted_status', 0)
+                            ->pluck('record_id');
         $remindedMessages = messageRecord::whereIn('record_id', $list)
             ->whereHas('messageRemindUsers', function ($query) use ($user) {
                 $query->where('user_id', $user->id)
@@ -1300,12 +1329,11 @@ class BoardController extends Controller
         
     }
     public function getUncheckedMessage(Request $request){
-        $active_user = $this->active_user();
-        $user = $active_user;
+        $user = $this->active_user();
         $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
-        $list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-            $q->where('user_id', $active_user->id)->where('deleted_status', 0);
-        })->pluck('id')->toArray();
+        $list = boardToUser::where('user_id', $user->id)
+                            ->where('deleted_status', 0)
+                            ->pluck('record_id');
         $checkMessages = messageRecord::
             whereIn('record_id', $list)
             ->whereHas('checkUsers', function ($query) use ($user) {
@@ -1358,7 +1386,7 @@ class BoardController extends Controller
                 "board_id" => $record_id,
                 "msg_id" => $message_id,
                 "send_condition" => 3,              
-
+                "override_user" => []
             ];
             $this->sendMail($req);
             if($request->prepare == true){
@@ -1411,7 +1439,7 @@ class BoardController extends Controller
         return response()->json($message);
     }    
     public function addTask(Request $request){
-        $active_user = $this->active_user();
+        $active_user = $request->override_user ? $request->override_user : $this->active_user();
         $validatedData = $request->validate([
             'qualified_users' => 'required',
             'board_id' => 'required',

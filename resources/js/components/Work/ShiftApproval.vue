@@ -15,7 +15,7 @@
                 </div>
             </div>
             <div style="margin: 10px 0 30px; display: flex; gap: 30px; position: relative; justify-content: space-between;">
-                <button style="margin: unset;" class="work-button" @click.stop="menu.setMenu( { id: 199, name: 'shiftApproveSelector'})">メンバー</button>
+                <button style="margin: unset;" class="work-button" @click.stop="menu.setMenu( { id: 199, name: 'workMemberSelector'})">メンバー</button>
                 <MonthPicker
                     :selectedMonth="approveMonth"
                     :selectedYear="approveYear"
@@ -24,68 +24,14 @@
                 />
                 <button style="margin: unset;background-color: tomato;" class="work-button" @click="approveAll">一括承認</button>
                 <Transition name="modalFade">
-                    <div v-if="menu.id == 199 && menu.name == 'shiftApproveSelector'" id="shiftApproveSelector" class="workMemberSelector" style="width: fit-content; left:0; top:40px; max-width: 100%;">
-                        <div id="checkUserSelecter" style=" max-height: 50vh; overflow: hidden auto;">
-                            <div style="position: sticky; top:0;background: var(--bg3);z-index: 2;">
-                                <div class="sub-tab-container">
-                                    <div @click="byWorkGroups = 0" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 0}]">メンバー</div>
-                                    <div @click="byWorkGroups = 1, checkedUsers = []" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">ワークグループ</div>
-                                </div>
-                                <div class="searchBarInner" style="margin: 10px 15px 0;width: auto;min-width: 270px"> 
-                                    <PostSearchBar  className="newChatMemberSearch" :searching="false" @searchStart="(val) => keywords = val"/>
-                                </div> 
-                            </div>         
-                            <div v-if="searchUsers.length">
-                                <div style="padding:0 15px;display:flex;" v-if="byWorkGroups == 0">                                
-                                    <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                        <input @change="selectAll" :checked="searchUsers.length && searchUsers.length == checkedUsers.length"  name="memberCheckBox" type="checkbox">
-                                        <span class="cal-check-mark" style="top: 13px;"></span>
-                                        <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                                    
-                                            <p class="userName" style="line-height: 30px;margin-left: 0;">全員選択</p>                                    
-                                        </div>
-                                    </label>  
-                                </div>    
-                                <div :key="group.id" v-for="group in searchUsers" style="padding:0 15px;display:flex;">
-                                    <div v-if="group.members && group.members.length">
-                                        <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                            <input :value="group.id" :checked="selectedGroups.includes(group.id)" @change="checkedUsers = group.members.map(ob => ob.id), selectGroup(group.id)" name="memberCheckBox" type="checkbox">
-                                            <span class="work-check-mark" style="top: 13px;"></span>
-                                            <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                                <p class="userName" style="line-height: 30px; margin-left: 0;">{{group.name}}</p>                                    
-                                            </div>
-                                        </label>
-                                        <div v-if="selectedGroups.includes(group.id)" v-for="member in group.members" style="padding:0 15px 0 30px;display:flex;">
-                                            <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                                <input v-model="checkedUsers" :value="member.id" name="memberCheckBox" type="checkbox">
-                                                <span class="work-check-mark" style="top: 10px;"></span>
-                                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                                    <UserIcon :disable-instant="true" size="30" :title="member.name" :user="member" imgClass="userNormalIcon"/>                      
-                                                    <p class="userName">{{member.name}}</p>                                    
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>                                
-                                    <div v-else>
-                                        <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                            <input v-model="checkedUsers" :value="group.id" name="memberCheckBox" type="checkbox">
-                                            <span class="work-check-mark" style="top: 10px;"></span>
-                                            <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                                <UserIcon :disable-instant="true" size="30" :title="group.name" :user="group" imgClass="userNormalIcon"/>                      
-                                                <p class="userName">{{group.name}}</p>                                    
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div> 
-                            <div v-else-if="loading != 0 && byUserOrGroup.length" style="height: calc(100% - 128px); display: flex; align-items: center; justify-content: center;white-space: nowrap;font-size: 13px;padding: 30px;">
-                                検索結果はありません。
-                            </div>
-                            <div v-else-if="loading != 0" style="height: calc(100% - 128px); display: flex; align-items: center; justify-content: center;white-space: nowrap;font-size: 13px;padding: 30px;">
-                                現在予定申請中のメンバーはいません。
-                            </div>                          
-                        </div>
-                    </div>
+                    <WorkMembers 
+                        v-if="menu.id == 199 && menu.name == 'workMemberSelector'"
+                        :workUsers="workUsers"
+                        :workGroups="workGroups"
+                        :loading="loading"
+                        customStyle="width: fit-content; left:0; top:40px; max-width: 100%;"
+                        v-model="checkedUsers"
+                    />
                 </Transition>
             </div>
             <div v-if="loading !== 0 && filterGroups.length" style="height: calc(100% - 128px); overflow: auto;">
@@ -95,8 +41,8 @@
                             日付
                         </th>
                         <th v-for="user in filterGroups">
-                            <div style="display: flex; align-items: center; gap:10px; padding: 10px;">
-                                <div>{{ user.name }}</div>
+                            <div style="display: flex; align-items: center; gap:10px; padding: 10px; justify-content: center;">
+                                {{ user.name }}
                             </div>
                         </th>
                     </thead>
@@ -138,13 +84,14 @@
 <script setup>
     import { inject, ref, computed, onMounted } from 'vue';
     import moment from 'moment';
-    import UserIcon from '../Board/Mixed/UserIcon.vue';
     import CommandButton from '../Global/CommandButton.vue';
     import MonthPicker from '../Global/MonthPicker.vue';
-    import PostSearchBar from '../Post/PostSearchBar.vue';
     import { useAuthUserStore } from '../../store/auth';
     import holiday_jp from '@holiday-jp/holiday_jp'
     import { useMenuStore } from '../../store/menu';
+    import { useCheckApproval } from '../../store/checkApproval';
+    import { getShiftWithWorkGroup } from '../../utils/workApi';
+    import WorkMembers from './WorkMembers.vue';
     const props = defineProps([
         'selectedYear',
         'selectedMonth',
@@ -156,11 +103,12 @@
     ])
     const nextMonthOrCurrent = computed(() => {
         const now = moment()
-        if(now.date() >= 25){
+        if(now.date() >= 25 && props.selectedMonth == now.month()){
             return props.selectedMonth + 1
         } 
         return props.selectedMonth
     })
+    const checkApproval = useCheckApproval()
     const menu = useMenuStore()
     const approveYear = ref(props.selectedYear)
     const approveMonth = ref(nextMonthOrCurrent.value)
@@ -169,14 +117,13 @@
     const workUsers = ref([])
     const workGroups = ref([])
     const loading = ref(0)
-    const keywords = ref('')
+    
     const checkedUsers = ref([])
-    const byWorkGroups = ref(0)
-    const selectedGroups = ref([])
+    
     const statuses = ['', '', ' : 申請中', ' : 承認済']
     const { notify, confirm, info } = inject('dialog')
     onMounted(async() => {
-        await getWorkGroups()
+        await fetchWorkGroups()
         const exist = workUsers.value.filter(ob => props.usersCheckArray.includes(ob.id))
         checkedUsers.value = exist.map(ob => ob.id)
     })
@@ -184,28 +131,7 @@
     const filterGroups = computed(() => {
         return workUsers.value.filter(user => checkedUsers.value.find(id => id == user.id))
     })
-    const setKeyord = (event) => {
-        keywords.value = event.target.value
-    }
-    const searchUsers = computed(() => {
-        if(keywords.value && Array.isArray(byUserOrGroup.value)){
-            let lowSearch = keywords.value.toLowerCase()
-            return byUserOrGroup.value.filter(user => 
-                Object.values(user).some(val => 
-                    String(val).toLowerCase().includes(lowSearch)
-                )
-            )
-        }else{         
-            return byUserOrGroup.value
-        }
-    })
-    const byUserOrGroup = computed(() => {
-        if(byWorkGroups.value == 0){
-            return workUsers.value
-        } else {
-            return workGroups.value
-        }
-    })
+    
     const getDayClass = (date) => {
         const day = moment(date).day()
         return {
@@ -231,10 +157,10 @@
     const authorityCheck = (user, shift) => {
         return auth.activeUser.work_authority > user?.work_authority && shift
     }
-    const getWorkGroups = async() => {
+    const fetchWorkGroups = async() => {
         let yearMonth = moment([approveYear.value, approveMonth.value]).format('YYYY-MM')
         try {
-            const data = await axios.post('/get_shift_with_work_group', {year_month: yearMonth, user_ids: checkedUsers.value}).then(res => res.data)
+            const data = await getShiftWithWorkGroup(yearMonth, checkedUsers.value)
             workUsers.value = data.work_users
             shiftRecords.value = data.shift_records
             workGroups.value = data.work_groups
@@ -244,18 +170,7 @@
             loading.value ++    
         }
     }
-    const selectAll = (event) => {        
-        checkedUsers.value = event.target.checked ? searchUsers.value.map(ob => ob.id) : []   
-    }
-    const selectGroup = (groupId) => {
-        const index = selectedGroups.value.indexOf(groupId);
-        if (index !== -1) {
-            selectedGroups.value.splice(index, 1);
-            checkedUsers.value = []
-        } else {
-            selectedGroups.value = [groupId];
-        }
-    }
+    
     const approveAll = async() => {
         if(!checkedUsers.value || !checkedUsers.value.length){
             notify('メンバーを選択してください。')
@@ -269,10 +184,11 @@
         try {
             await axios.patch('/shift_approve_all', {user_ids: userIds, year_month: yearMonth}).then(res => res.data)
             info('承認しました。')
+            checkApproval.setCheckApproval(true)
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {
-            getWorkGroups()
+            fetchWorkGroups()
         }
     }
     const shiftApprove = async(shift, status) => {
@@ -284,32 +200,21 @@
         try {
             await axios.patch('/shift_approve', {shift_id: shiftId, status: status}).then(res => res.data)
             info(status == 3 ? '承認しました。' : status == 2 ? '承認取消しました。' : '差戻しました。')
+            checkApproval.setCheckApproval(true)
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {
-            getWorkGroups()
+            fetchWorkGroups()
         }
     }
     const setDate = (date) => {
         approveMonth.value = date.month - 1
         approveYear.value = date.year
-        getWorkGroups()
+        fetchWorkGroups()
     }
 </script>
 <style scoped lang="scss">
-    .sub-tab-item{
-        padding: 10px 15px;
-        font-size: 14px;
-        border-bottom: solid thin transparent;
-        box-sizing: border-box;
-        cursor: pointer;
-    }
-    .selected-sub-tab{
-        border-bottom: solid thin var(--primary-color);
-    }
-    .sub-tab-container{
-        display: flex;
-    }
+    
     .overstyle{
         width: fit-content;
         overflow: hidden;

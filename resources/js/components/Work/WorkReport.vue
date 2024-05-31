@@ -11,6 +11,7 @@
                 </div>
             </div>
             <div class="report-wrapper" style="background:inherit;">
+                
                 <div class="report-field">
                     <p class="report-header">就業時間</p>
                     
@@ -37,13 +38,38 @@
                         </select>
                     </div>
                 </div>
-                
-                <CostField v-if="item.position_id === 15" v-model="costs"/>
+                <!-- <div class="report-field">
+                    <p class="report-header">部門</p>
+                    <div class="report-input">
+                        <select class="dropDownSelector taskDateTimePicker" v-model="department" name="department" style="max-width: 100%;">
+                            <option :key="item.id" v-for="item in workGroupAsOptions" :value="item.value">{{ item.label }}</option>
+                        </select>
+                    </div>
+                    
+                </div> -->
+                <div class="report-field" style="background:inherit;">
+                    <p class="report-header" style="margin-bottom: 20px;">経費</p>
+                    <CostField 
+                        v-for="cost, index in costs"
+                        :key="index"
+                        v-model:department="cost.department"
+                        v-model:content="cost.content"
+                        v-model:type="cost.type"
+                        v-model:expenses="cost.expenses"
+                        v-model:file_path="cost.file_path"
+                        :workGroupAsOptions="workGroupAsOptions"
+                        :fieldIndex="index"
+                        :isRegistered="item.position_id === 15"
+                        @addCostField="addCostField"
+                        @removeCostField="removeCostField"
+                        @removeFile="removeFile"
+                    />
+                </div>
                 <IncentiveField v-if="item.position_id === 15" v-model="incentives"/>
                 <CustomField 
                     v-for="field in filterCustomValues" 
                     :shift_type="shift?.shift_type" 
-                    :data="field" 
+                    :data="field"
                     v-model="customValues[field.id]"
                 />               
                 <div class="si-box">
@@ -54,7 +80,7 @@
     </div>
 </template>
 <script setup>
-    import { computed, inject, onMounted, ref, watch } from 'vue';
+    import { computed, inject, onMounted, ref, toRaw, reactive } from 'vue';
     import LoaderButton from '../Global/LoaderButton.vue';
     import { useTheme } from '@/store/theme';
     import moment from 'moment';
@@ -66,7 +92,7 @@
     const fields = inject('customInfo')
     const emit = defineEmits(['reload'])
     const theme = useTheme()
-    
+    const workGroups = inject('workGroups')
     const props = defineProps([
             'chosenDate', 
             'todayStartTime', 
@@ -85,14 +111,19 @@
     const timeCard = computed(() => {
         return props.item?.time_card
     })
-    const costs = ref(timeCard.value?.timecard_costs?.length ? timeCard.value.timecard_costs : [
-        {
-            content: '',
-            type: 1,
-            expenses: null,
-            file: null,
+    const workGroupAsOptions = computed(() => {
+        let groups
+        if(auth.activeUser.id == 608 || auth.activeUser.id == 610){
+            groups = workGroups.value
+            .filter(group => group.members.some(member => member.id === props.item.user_id))
+            .map(group => group.name);
+
+        } else {
+            groups = workGroups.value.map(group => group.name)
         }
-    ])
+        return groups
+    })
+    const costs = reactive([])
     const incentives = ref(timeCard.value?.timecard_incentives?.length ? timeCard.value.timecard_incentives : [
         {
             count: null,
@@ -110,10 +141,48 @@
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
     const { confirm, notify, info } = inject('dialog')
     const customValues = ref({})
-    onMounted(() => {
-        breakTimeCalc()
-        if(fields.value){
 
+    const addCostField = () => {
+        if(costs.length >= 10){
+            notify('上限は10個です。')
+            return
+        }
+        costs.push({
+            department: workGroupAsOptions.value[0] ?? '',
+            content: '',
+            type: props.item.position_id == 15 ? 1 : 4,
+            expenses: null,
+            file_path: null,
+        })
+    }
+    const removeCostField = async(index) => {
+        costs.splice(index, 1)
+        if(costs.length == 0){
+            addCostField()
+        }
+    }
+    const removeFile = async(index) => {
+        costs[index].file_path = null
+    }
+
+    onMounted(() => {
+        costsFill()
+        breakTimeCalc()
+        customFieldFill()
+    })
+    const costsFill = () => {
+        if(timeCard.value?.timecard_costs?.length){
+            timeCard.value.timecard_costs.forEach(cost => {
+                const boil = { ...cost}
+                costs.push(boil)
+            });
+        }
+        if(!costs.length){
+            addCostField()
+        }
+    }
+    const customFieldFill = () => {
+        if(fields.value){
             fields.value.forEach(element => {
                 const index = element.id == 39 || element.id == 42 ? 'value_text' : 'value_int'
                 const pre = timeCard.value?.custom_field_data_records.filter(ob => ob.type_id == element.id && ob.user_id == timeCard.value.user_id)
@@ -126,7 +195,7 @@
                 }               
             });
         }
-    })
+    }
     const shiftWorkTime = computed(() => {
         const shiftStartTime = shift.value ? shift.value?.start_time : '09:00:00'
         const shiftEndTime = shift.value ? shift.value?.end_time : '18:00:00'
@@ -261,8 +330,9 @@
                 status_flag: status_flag,
                 userId: props.item?.user_id,
                 overTimeMinute: shift.value?.overtime_request?.minutes,
-                costsValues: costs.value,
-                incentiveValues: incentives.value
+                costsValues: costs,
+                incentiveValues: incentives.value,
+                // department: department.value
             }
             resolve(a)
         })

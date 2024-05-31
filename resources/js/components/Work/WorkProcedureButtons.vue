@@ -85,13 +85,14 @@
     import LoaderButton from '../Global/LoaderButton.vue';
     import { inject, ref, computed } from 'vue';
     import OverTimeRequest from './OverTimeRequest.vue';
+    import { useCheckApproval } from '../../store/checkApproval';
     const overtimeRequestData = ref(null)
     const props = defineProps(['currentDay', 'statuses', 'item'])
     const emit = defineEmits(['reload', 'closeModal'])
     const { confirm, notify, info } = inject('dialog')
     const auth = useAuthUserStore()
     const { edit, stampDelete } = inject('stamps')
-
+    const checkApproval = useCheckApproval()
     const respondOvertime = async(data, status, action) => {
         if(status == 0){
             const answer = await confirm(`${data?.overtime_day}申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。`)
@@ -108,6 +109,7 @@
             emit('reload')
             info(`${action}しました。`)
             emit('closeModal')
+            checkApproval.setCheckApproval(true)
         } catch (e) { 
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } 

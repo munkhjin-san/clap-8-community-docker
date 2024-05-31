@@ -96,7 +96,6 @@ class AdminWorkController extends Controller{
         $responseData = $response->json();
         foreach ($responseData['records'] as $data){
             $recieve[] = ['user_code'=>$data['社員コード']['value'], 'general_position'=>$data['文字列__1行__15']['value']];
-
         }
         $attendance_record = attendanceRecord::where('date_year_month', $month)->get();
         
@@ -118,7 +117,7 @@ class AdminWorkController extends Controller{
         $monthly_incentive = $incentives->pluck('totalCount', 'user_id');
 
         $sevenDaysAgo = now()->subDays(7);
-        if($today->day == 1 || $today->day == 2 || $today->day == 3 || $today->day == 4 || $today->day == 5 || $today->day == 6){
+        if (in_array($today->day, range(1, 6))) {
             $currentMonth -= 1;
         }
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $userIds)
@@ -129,7 +128,7 @@ class AdminWorkController extends Controller{
             ->where('deleted_flag', 0)
             ->orderBy('user_id')
             ->orderBy('date')
-            ->get();
+            ->get(['user_id', 'value_int', 'date']);
 
         $streakDataPerUser = [];
         $mostCommonValuesPerUser = [];

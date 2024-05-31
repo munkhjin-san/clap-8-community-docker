@@ -3,19 +3,15 @@
 <head>
     <meta name="title" content="{{ __('meta.og_title') }}"/>
     <meta name="description" content="{{ __('meta.description') }}"/>
-    <meta property="og:title" content="{{ __('meta.og_title') }}" />
-    <meta property="og:description" content="{{ __('meta.description') }}" />
-    <meta property="og:image" content="https://glowd.app/glowd_icon_200.png">
-    <meta property='twitter:title' content="{{ __('meta.og_title') }}"/>
-    <meta property='twitter:image' content="https://glowd.app/glowd_icon_200.png"/>
-    <meta name="twitter:card" content="summary"/>
+
+
     <meta name="google" content="notranslate">
     <meta charset="utf-8">
     <meta name="robots" content="noindex">
     <meta name="theme-color" content="#262626"/>
-    <!-- <meta name="googlebot" content="index, follow"> -->
     <meta name="csrf-token" content="{{ csrf_token() }}">    
-    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" /> --}}
     <!-- <link rel="apple-touch-icon" size="152x152" href="/glowd_icon_192.png">
     <link rel="icon" type="image/png" size="152x152" href="/glowd_icon_192-152.png"> 
     <link rel="apple-touch-icon" sizes="180x180" href="/glowd_icon_180.png">

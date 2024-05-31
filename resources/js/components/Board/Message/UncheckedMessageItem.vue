@@ -15,33 +15,6 @@
                 </div>                             
                                 
                     
-                
-                             
-                    <MessageQuoteReply 
-                        v-if="message.message_reply"
-                        :which="'reply'"
-                        :message="message.message_reply"
-                        :quotMessage="null"
-                        :openedBoard="openedBoard"
-                        :urlCheck="urlCheck"/>
-                    <MessageQuoteReply 
-                        v-if="message.message_quot"
-                        :which="'quot'"
-                        :message="message.message_quot"
-                        :quotMessage="message.quot_message"
-                        :openedBoard="openedBoard"
-                        :urlCheck="urlCheck"/>
-                    <MessageQuoteReply 
-                        v-if="message.message_forward"
-                        :which="'forward'"
-                        :message="message.message_forward"
-                        :quotMessage="null"
-                        :openedBoard="openedBoard"
-                        :urlCheck="urlCheck"/>
-                    
-
-
-
                     <div v-if="messageBody" class="normal-body" @click="jumpToMessage">
                         <div
                             @dragstart.prevent
@@ -56,7 +29,6 @@
                         v-if="message.message_files && message.message_files.length"
                         :list="message.message_files"
                         :message="message"
-                        :reminder="reminder"
                     /> 
                     <button v-if="remindedUsers" style="padding: 5px 10px 5px 10px;
                         font-size: 12px;
@@ -103,11 +75,11 @@ import { useAuthUserStore } from '@/store/auth'
 import { useMessageUsers } from "../../../store/messageUsers";
     const auth = useAuthUserStore()
     const messageUsers = useMessageUsers()
-    const props = defineProps(['message', 'openedBoard', 'reminder', 'boxClass'])
-    const emit = defineEmits(['reload', 'remindRequest'])
+    const props = defineProps(['message', 'openedBoard', 'boxClass'])
+    const emit = defineEmits(['remindRequest'])
     const reacting = ref(false)
     const { notify, confirm, info } = inject('dialog')
-    const getUncheckedMessages = inject('getUncheckedMessages')
+    const get_incomplete = inject('get_incomplete')
     const remindedUsers = computed(() => {
         return props.message.message_remind_users && props.message.message_remind_users.length ? props.message.message_remind_users.find(val => val.user_id == auth.activeUser.id) : null
     })
@@ -195,7 +167,7 @@ import { useMessageUsers } from "../../../store/messageUsers";
             reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
         try{
             const response = await axios.post('/send_reaction_api', {id: msg.id})
-            await getUncheckedMessages()
+            await get_incomplete()
             const checkedMessage = response.data
             if(checkedMessage.check_flag == 1){
                 const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
@@ -205,7 +177,7 @@ import { useMessageUsers } from "../../../store/messageUsers";
                     const confirmed = await confirm('確認済みにしますか')
                     if(confirmed){
                         await axios.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
-                        await getUncheckedMessages() 
+                        await get_incomplete() 
                         info('確認済みにしました。')      
                     }
 

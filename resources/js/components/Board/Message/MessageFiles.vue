@@ -1,5 +1,5 @@
 <template>
-    <div class="file-area-content" :style="reminder ? 'margin-top: 5px; margin-bottom: 0px' : ''">
+    <div class="file-area-content">
         <div class="file-wrap" draggable="true" @dragover.prevent @dragstart.prevent="fileExportStart(file, message.record_id)" v-for="(file, index) in filteredFiles" :class="{ hasMessage: (message.message && message.message.length)}">   
             <div class="file-area-container" @click="previewFile(file, index)">
                 <div class="flex-centered">             
@@ -104,7 +104,7 @@
     const messageUsers = useMessageUsers()    
     const menu = useMenuStore()
     const auth = useAuthUserStore()
-    const props = defineProps(['list', 'message', 'reminder', 'mIndex'])
+    const props = defineProps(['list', 'message', 'mIndex'])
     const fileMenuLayer = ref(0)
     const confirmWindow = ref(false)
     const currentFile = ref(null)
@@ -255,7 +255,6 @@
         }));
         
         let target_data = selectedItem
-        let reminder = props.reminder ? props.reminder : 'board'
         target_data['source_board_id'] = props.message.record_id
         const data = {
             active: true,
@@ -264,7 +263,6 @@
             source: 'message',
             index: file_index.value,
             message: props.message,
-            reminder: reminder
         }
         filePreview.setFilePreview(data)
     }

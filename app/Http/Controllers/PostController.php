@@ -549,22 +549,32 @@ class PostController extends Controller
         $auth_user_id = Auth::id();
         $result = [];
         if(!empty($auth_user_id)){
-            $list = UserLastRecord::where('user_id', '=', $auth_user_id)->where('deleted_flag', '=', 0)->first();
-            $kn = KnowledgeRecord::latest('created_at')->first();
-            $nc = NiceRecord::latest('created_at')->first();
-            $ch = ChallengeRecord::latest('created_at')->first();
+            $list = $request->last_update ? $request->last_update : UserLastRecord::where('user_id', '=', $auth_user_id)->where('deleted_flag', '=', 0)->first();
+            $recordTypes = [
+                'knowledge' => KnowledgeRecord::class,
+                'challenge' => ChallengeRecord::class,
+                'nice' => NiceRecord::class,
+            ];
+            
+            foreach ($recordTypes as $type => $modelClass) {
+                if ($request->which == $type) {
+                    ${$type} = $request->rec;
+                } else {
+                    ${$type} = $modelClass::latest('created_at')->first();
+                }
+            }
             if(empty($list)){
                 $newls = new UserLastRecord;
                 $newls->user_id = $auth_user_id;
-                $newls->last_knowledge = $kn->id;
-                $newls->last_nice = $nc->id;
-                $newls->last_challenge = $ch->id;
+                $newls->last_knowledge = $knowledge->id;
+                $newls->last_nice = $nice->id;
+                $newls->last_challenge = $challenge->id;
                 $newls->save();
                 $list = $newls;
             }
             
             $kn_from = $list->last_knowledge;            
-            $kn_to = $kn->id;
+            $kn_to = $knowledge->id;
             $kn_difference = KnowledgeRecord::whereBetween('id', [$kn_from, $kn_to])->count(); 
             if($kn_difference > 0){
                 $kn_difference = $kn_difference - 1;
@@ -574,7 +584,7 @@ class PostController extends Controller
             
             
             $nc_from = $list->last_nice;            
-            $nc_to = $nc->id;
+            $nc_to = $nice->id;
             $nc_difference = NiceRecord::whereBetween('id', [$nc_from, $nc_to])->count(); 
             if($nc_difference > 0){
                 $nc_difference = $nc_difference - 1;
@@ -583,7 +593,7 @@ class PostController extends Controller
 
             
             $ch_from = $list->last_challenge;            
-            $ch_to = $ch->id;
+            $ch_to = $challenge->id;
             $ch_difference = ChallengeRecord::whereBetween('id', [$ch_from, $ch_to])->count(); 
             if($ch_difference > 0){
                 $ch_difference = $ch_difference - 1;
@@ -608,7 +618,13 @@ class PostController extends Controller
                     $last_update->save();
                 }
             }
-            $update = $this->get_post_badge($request);
+            $parameters = [
+                'last_update' => $last_update,
+                'rec' => $rec
+            ];
+
+            $requestData = array_merge($request->all(), $parameters);
+            $update = $this->get_post_badge(new Request($requestData));
             return $update;         
             
         }
@@ -662,7 +678,7 @@ class PostController extends Controller
             $model = $nameSpace . ucfirst($request->app_name) . 'Record';  
             $tag_list = $request->tags;
 
-            $query = $model::query()->where(DB::raw('deleted_flag'), '=', '0'); 
+            $query = $model::query()->whereRaw('deleted_flag = ?', ['0']); 
             $target_users = $request->target_users;
             if(count($target_users)){    
        
@@ -690,11 +706,11 @@ class PostController extends Controller
             if(!empty($request->key_list)){
                 foreach($request->key_list as $key){ 
                     if($request->app_name == 'challenge'){
-                        $query->where(DB::raw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result)"), 'LIKE', '%' . $key . '%');
+                        $query->whereRaw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
                     }else if($request->app_name == 'nice'){
-                        $query->where(DB::raw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags)"), 'LIKE', '%' . $key . '%');
+                        $query->whereRaw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags) LIKE ?", ['%' . $key . '%']);
                     }else if($request->app_name == 'knowledge'){
-                        $query->where(DB::raw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags)"), 'LIKE', '%' . $key . '%');
+                        $query->whereRaw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags) LIKE ?", ['%' . $key . '%']);
                     }
                     
                 }
@@ -808,10 +824,10 @@ class PostController extends Controller
         });
         foreach($request->key_list as $key){ 
             $query->when(($path == 'knowledge' || $path == 'nice'), function($q) use($key){
-                $q->where(DB::raw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags)"), 'LIKE', '%' . $key . '%');
+                $q->whereRaw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags) LIKE ?", ['%' . $key . '%']);
             });
             $query->when($path == 'challenge', function($q) use($key){
-                $q->where(DB::raw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result)"), 'LIKE', '%' . $key . '%');
+                $q->whereRaw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
             });           
         }                   
             

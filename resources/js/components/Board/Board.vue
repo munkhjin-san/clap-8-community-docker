@@ -285,9 +285,9 @@ import ConfirmWindow from './Message/ConfirmWindow.vue'
             badge.getBoardBadge('pusher')                
             
         }
-        if(e.message && e.message.updateId){  
+        // if(e.message && e.message.updateId){  
             
-        }
+        // }
     }
     const openedBoard = computed(() =>{
         if(filteredAllBoard.value && filteredAllBoard.value.length && openedBoardId.value){

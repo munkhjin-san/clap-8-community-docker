@@ -224,28 +224,21 @@ import { useBadgeStore } from '@/store/badge'
         }
     }
     const completeTaskBefore = (task) => {
-        if(task.comp_flag == 0){
-            const today = moment().format('YYYY-MM-DD')
-            const end = moment(task.end_at).format('YYYY-MM-DD')
-            const overdue = today > end
-            if(overdue){
-                const data = { 
-                    active: true,
-                    data: task
-                }
-                taskFeedBack.setTaskFeedback(data)
-                return
+        var userData = task.to_users.find(obj => obj.id == auth.activeUser.id);
+        const today = moment().format('YYYY-MM-DD')
+        const end = moment(task.end_at).format('YYYY-MM-DD')
+        const overdue = today > end
+        if (userData && userData.pivot.comp_flag == 1) {
+            completeTask(task.id, 0);
+        } else if (overdue) {
+            const data = { 
+                active: true,
+                data: task
             }
-        }
-        
-        var userData = task.to_users.filter(obj => obj.id == auth.activeUser.id);
-        if (userData.length) {
-            if (userData[0].pivot.comp_flag == 1 || userData[0].pivot.comp_flag == "1") {
-                completeTask(task.id, 0);
-            }
-            else {
-                completeTask(task.id, 1);
-            }
+            taskFeedBack.setTaskFeedback(data)
+            return
+        } else {
+            completeTask(task.id, 1);       
         }
     }
     const completeTask = (task_id, compFlag) => {

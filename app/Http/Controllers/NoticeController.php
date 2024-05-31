@@ -28,7 +28,7 @@ class NoticeController extends Controller
         $key = $request->keyword;
         $notices = NoticeRecord::where('deleted_flag', 0)
         ->when($key, function($q) use($key){
-            $q->where(DB::raw("CONCAT_WS('', title, ' ', body)"), 'LIKE', '%' . $key . '%');
+            $q->whereRaw("CONCAT_WS('', title, ' ', body) LIKE ?", ['%' . $key . '%']);
         })
         ->orderBy('created_at', 'desc')->with('files')->with('readers')->paginate(20);        
         return response()->json($notices);
@@ -77,8 +77,9 @@ class NoticeController extends Controller
     }
     public function read_notice(Request $request){
         $record = NoticeRecord::findOrFail($request->record_id);
-        if (!$record->readers->contains($this->active_user()->id)) {
-            $record->readers()->attach($this->active_user()->id);
+        $active_user = $this->active_user();
+        if (!$record->readers->contains($active_user->id)) {
+            $record->readers()->attach($active_user->id);
 
             return response()->json('success');
         }

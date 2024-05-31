@@ -36,38 +36,12 @@
             メンバー
         </div>
         <Transition name="modalFade">
-            <div v-if="menu.id == 98 && menu.name == 'workMemberSelector'" id="workMemberSelector" class="workMemberSelector" style="width: min-content;">
-                <div style="margin: 10px 15px 0;width: auto;min-width: 270px">
-                    <PostSearchBar className="newChatMemberSearch" :searching="false" @searchStart="(val: string) => keywords = val"/>
-
-                    </div>
-                <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;">                
-                    <div>
-                        <div style="padding:0 15px;display:flex;">                                
-                            <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                <input @change="selectAll" :checked="searchUsers.length == selectedUsersList.length"  name="memberCheckBox" type="checkbox">
-                                <span class="cal-check-mark" style="top: 13px;"></span>
-                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                               
-                                    <p class="userName" style="line-height: 30px;margin-left: 0;">全員選択</p>                                    
-                                </div>
-                            </label>  
-                            
-                        </div>    
-                        <div :key="user.id" v-for="user in searchUsers" style="padding:0 15px;display:flex;">                                
-                            <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                <input v-model="selectedUsersList" :value="user.id" name="memberCheckBox" type="checkbox">
-                                <span class="work-check-mark" style="top: 10px;"></span>
-                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                    <UserIcon size="30" :title="user.name" :user="user" imgClass="userNormalIcon"/>                      
-                                    <p class="userName">{{user.name}}</p>                                    
-                                </div>
-                            </label>  
-                            
-                        </div>
-                    </div>                             
-                </div>
-            </div>
+            <WorkMembers 
+                v-if="menu.id == 98 && menu.name == 'workMemberSelector'"
+                :workUsers="flatworkGroups"
+                :workGroups="workGroups"
+                v-model="selectedUsersList"
+            />
         </Transition>
         
         <button class="work-button" @click="clickButton('jumpToToday')">
@@ -83,20 +57,18 @@
 <script setup lang="ts">
     import { ref, computed } from 'vue';
     import HamBurger from '../Global/HamBurger.vue'
-    import UserIcon from '../Board/Mixed/UserIcon.vue';
     import CommandButton from '../Global/CommandButton.vue';
-    import PostSearchBar from '../Post/PostSearchBar.vue';
     import { useMenuStore } from "../../store/menu";
     import { useResponsive } from '../../store/responsive';
     import { useAuthUserStore } from '../../store/auth';
     import { User } from '../../interface/workInterface';
+    import WorkMembers from './WorkMembers.vue';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
     interface Props {
-        usersCheckArray: Array<number | null>
         workGroups: Array<User>
-        selectedMonth: string | null 
+        selectedMonth: number
     }
     const props = defineProps<Props>()
     const emit = defineEmits([
@@ -106,41 +78,26 @@
         'toBottomScroll', 
         'approveShift',
     ])
-    const keywords = ref<string>()
     const modal = ref(false)
     const selectedUsersList = defineModel<any>()
     const flatworkGroups = computed(() => {
         let groups : any
-        if(auth.activeUser.id === 608 || auth.activeUser.id === 610){
-            groups = props.workGroups
-        }else{
-            groups = props.workGroups
-            .flatMap(workGroup => workGroup.members)
-            .reduce((acc: User[], member: User) => {
-                if (!acc.some(m => m.id === member.id)) {
-                acc.push(member);
-                }
-                return acc;
-            }, [])
-        }
+       
+        groups = props.workGroups
+        .flatMap(workGroup => workGroup.members)
+        .reduce((acc: User[], member: User) => {
+            if (!acc.some(m => m.id === member.id)) {
+            acc.push(member);
+            }
+            return acc;
+        }, [])
+        
         const uniqueMemberObjects: User[] = groups.sort((a: User, b: User) => {
             if (a.id === auth.id) return -1;
             if (b.id === auth.id) return 1;
             return a.id - b.id;
         });
         return uniqueMemberObjects
-    })
-    const searchUsers = computed(() => {
-        if(keywords.value && Array.isArray(flatworkGroups.value)){
-            let lowSearch: string = keywords.value.toLowerCase()
-            return flatworkGroups.value.filter(user => 
-                Object.values(user).some(val => 
-                    String(val).toLowerCase().includes(lowSearch)
-                )
-            )
-        }else{         
-            return flatworkGroups.value
-        }
     })
     
     const clickButton = (action: string) => {
@@ -159,12 +116,6 @@
         }
     }
 
-    const setKeyord = (event: any) => {
-        keywords.value = event.target.value
-    }
-    const selectAll = (event: any) => {        
-        selectedUsersList.value = event.target.checked ? searchUsers.value.map(ob => ob.id) : []        
-    }
     const choseButton = (button: any) => {
         button.value === 1 ? clickButton('selectShift') : button.value === 2 ? clickButton('selectApproveShift') : clickButton('confirmAttendance')
         modal.value = false

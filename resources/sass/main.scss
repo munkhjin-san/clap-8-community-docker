@@ -438,7 +438,6 @@ progress {
   color-scheme: dark;
 }
 .taskDateTimePicker{    
-    text-align: center !important;
     line-height: 36px !important;
     border: 1px solid var(--primary-color);
     cursor: pointer;
@@ -447,6 +446,7 @@ progress {
     max-width: 120px;
     min-height: 40px;
     width: fit-content;
+    width: -moz-fit-content;
 }
 .boardTypeArea{
     width:calc(100% - 150px);
@@ -723,6 +723,7 @@ progress {
     left: 0;
     right: 0;
     width: fit-content;
+    width: -moz-fit-content;
     cursor: pointer;
 }
 .post-list-reset:hover{
@@ -1401,7 +1402,9 @@ img {
 .check-container input:checked ~ .checkmark-mini {
   background-color: var(--primary-color);
 }
-
+.check-container .g-text input:checked ~ .checkmark-mini {
+  background-color: var(--primary-color);
+}
 /* Create the checkmark/indicator (hidden when not checked) */
 .checkmark:after {
   content: "";
@@ -2822,7 +2825,6 @@ div.recordFormTitle > p{
   
   font-size: medium;
   word-break: break-word;
-  margin-bottom: 10px;
 
 }
 .record-inner{

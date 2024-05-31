@@ -11,12 +11,10 @@ class timecardCostRecord extends Model
     use HasFactory;
     use SoftDeletes;
     public function file(){
-        return $this->hasOne(FileRecord::class, 'id', 'file_id')->select('id', 'user_id', 'path', 'extension', 'mime_type');
+        return $this->hasOne(FileRecord::class, 'id', 'file_id');
     }
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name');
+        return $this->belongsTo(User::class);
     }
-    protected $fillable = [
-        'user_id', 'record_id'
-    ];
+    protected $guarded = [];
 }

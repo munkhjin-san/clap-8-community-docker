@@ -51,7 +51,7 @@ import { inject, ref, watch } from 'vue';
 import FileIcon from '../../Board/Mixed/FileIcon.vue'
     const { notify } = inject('dialog')
     const props = defineProps(['path'])
-    const emit = defineEmits(['updated', 'saved', 'getUserInfo', 'cancel'])
+    const emit = defineEmits(['updated', 'saved', 'cancel'])
     const entered = ref(false)
     const formUploader = ref(null)
     const uploadingProgress = ref(0)

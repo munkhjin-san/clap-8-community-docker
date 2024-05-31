@@ -78,7 +78,6 @@
                             boxClass="incompleted-task-box-container"
                             v-if="item"
                             :message="item"
-                            :reminder="reminder"
                         />
                     </template>
                 </masonry-wall>
@@ -91,8 +90,6 @@
                             boxClass="incompleted-task-box-container"
                             v-if="item"
                             :message="item"
-                            :reminder="reminder"
-                            @reload="() => getUnsignedMessages()"
                         />
                     </template>
                 </masonry-wall>
@@ -106,7 +103,6 @@
                             v-if="item"
                             :message="item"
                             @remindRequest="remindRequest"
-                            @reload="() => getRemindMessages()"
                         />
                     </template>
                 </masonry-wall>
@@ -114,21 +110,12 @@
             
         
         </div>
-        <!--<Transition name="modalFade">
-            <IncompleteFeedBack 
-                v-if="selectedComplete.status && selectedComplete.record" 
-                :task="selectedComplete"
-                @taskCompleted="taskCompleted"
-                @closeMe="closeFeedBack"
-            />
-        </Transition>-->
     </div>
     </Transition>
 </template>
 
 <script setup>
 import TaskBoxpreload from "./Tray/Task/TaskBox.vue"
-import IncompleteFeedBack from "./IncompleteFeedBack.vue"
 import WorkMessage from "../Work/WorkMessage.vue"
 import UncheckedMessageItem from "./Message/UncheckedMessageItem.vue"
 import { ref, onMounted, watch, computed, inject, provide } from 'vue';
@@ -136,6 +123,7 @@ import { useAuthUserStore } from '@/store/auth'
 import { useTaskFeedback } from '@/store/taskFeedback'
 import UserIcon from "./Mixed/UserIcon.vue"
 import { useRoute, useRouter } from "vue-router";
+import { useCheckApproval } from "../../store/checkApproval";
     const route = useRoute()
     const router = useRouter()
     const auth = useAuthUserStore()
@@ -143,19 +131,15 @@ import { useRoute, useRouter } from "vue-router";
     const emit = defineEmits(['closePopup'])
     const incompletedTasksList = ref([])
     const unsignedMessages = ref([])
-    const selectedComplete = ref({
-                    status: false,
-                    record: null
-                })
-    const reminder = 'reminder'
-    const { notify } = inject('dialog')
+    const { notify, info } = inject('dialog')
     const remindMessages = ref([])
     const uncheckedMessages = ref([])
     const planShift = ref(false)
     const tempData = ref([])
     const remainingDays = ref(0)
     const notapprovedTimecards = ref([])
-
+    const incompleteMessages = ref([])
+    const checkApproval = useCheckApproval()
     const closePopupIfNeeded = () => {
         if(!incompleteShow.value){
             closeOverRide()
@@ -163,10 +147,7 @@ import { useRoute, useRouter } from "vue-router";
     }
     const performTasksOnMounted = async () => {
         try{
-            await getIncompletedTasks()
-            await getUnsignedMessages()
-            await getRemindMessages()
-            await getUncheckedMessages()
+            await get_incomplete()
             await getPlannedShifts()
             await getNotApproved()
         }catch (e){
@@ -180,17 +161,31 @@ import { useRoute, useRouter } from "vue-router";
         () => taskFeedback.active,
         (after, before) => {
             if (after === false) {
-                getIncompletedTasks();
+                get_incomplete();
             }
         }
     )
-       
+    watch( () => checkApproval.approved, (after) => {
+        if (after === true) {
+            getNotApproved()
+        }
+    })
+    const get_incomplete = async() => {
+        try {
+            const data = await axios.get('/incomplete_check').then(res => res.data)
+            incompleteMessages.value = data?.messages
+            incompletedTasksList.value = data?.tasks
+            uncheckedMessages.value = incompleteMessages.value.filter(message => message.check_flag == 1 && message.unchecked_users.find(user => user.id == auth.activeUser.id))
+            remindMessages.value = incompleteMessages.value.filter(message => message.message_remind_users.length > 0)
+            unsignedMessages.value = incompleteMessages.value.filter(message => message.message_files.find(file => file.sign_flag == 1))
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')  
+        }
+    }
     const incompleteShow = computed(() =>{
         const hasItems =
             incompletedTasksList.value.length ||
-            unsignedMessages.value.length ||
-            remindMessages.value.length ||
-            uncheckedMessages.value.length ||
+            incompleteMessages.value.length ||
             notapprovedTimecards.value.length
         const hasPlanShift = planShift.value
 
@@ -232,6 +227,7 @@ import { useRoute, useRouter } from "vue-router";
             try{
                 const response = await axios.get('/not_approved')
                 notapprovedTimecards.value = Object.values(response.data)
+                checkApproval.setCheckApproval(false)
             } catch (e) {
                 
             }
@@ -263,64 +259,15 @@ import { useRoute, useRouter } from "vue-router";
     const remindRequest = async(data) => {
         const response = await axios.post('/remind_add', { id: data.id })
         if(response.data == true){
-            notify('リマインドしました。')
+            info('リマインドしました。')
         }else{
-            notify('リマインドを取り消しました。')
+            info('リマインドを取り消しました。')
         }
-        getRemindMessages()
-    }
-
-    const reload = () => {
-        getUnsignedMessages()
-        getRemindMessages()
-        getUncheckedMessages()
-    }
-    const taskCompleted = () => {
-        getIncompletedTasks()
-        resetSelectedComplete()
-    }
-    const resetSelectedComplete = () => {
-        const data = {
-            status : false,
-            record: null
-        }
-        selectedComplete.value = data
-    }
-    const getIncompletedTasks = async() => {
-        try{
-            const response = await axios.post('/get_incompleted_tasks')
-            incompletedTasksList.value = response.data
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')    
-        }
-    }
-    const getUnsignedMessages = async() => {
-        try{
-            const response = await axios.post('/get_unsigned_messages')
-            unsignedMessages.value = response.data.message_list
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')  
-        }
+        get_incomplete()
     }
     const editTask = (task) => {
         const url = '/board/' + task.board_id + '?t='+ task.id + '&task_edit=true'
         window.open(url, '_blank').focus();
-    }
-    const getUncheckedMessages = async() => {
-        try{
-            const response = await axios.post('/get_unchecked_messages')
-            uncheckedMessages.value = response.data
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
-    }
-    const getRemindMessages = async() => {
-        try{
-            const response = await axios.post('/get_remind_messages')
-            remindMessages.value = response.data
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }     
     }
     const completeTaskBefore = (task) => {
         const data = {
@@ -332,8 +279,8 @@ import { useRoute, useRouter } from "vue-router";
     const taskDeleted = () => {
         getIncompletedTasks()
     }
-    provide('getUncheckedMessages', getUncheckedMessages)
-    defineExpose({getUnsignedMessages})
+    provide('get_incomplete', get_incomplete)
+    defineExpose({get_incomplete})
 </script>
 <style lang="scss">
 .number-chip{

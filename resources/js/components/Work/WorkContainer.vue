@@ -4,7 +4,6 @@
         <div class="work-header" ref="headerEl">
             <WorkHeader
                 :workGroups="workGroups"
-                :usersCheckArray="usersCheckArray"
                 :selectedMonth="selectedMonth"
                 v-model="usersCheckArray"
                 @selectShift="selectShift"
@@ -33,7 +32,6 @@
             </div>
         </div>
             <WorkRecords 
-                :currentDay="currentDay"
                 :usersData="relocateUsers"
                 :monthAverage="monthAverage"
                 :selectedMonth="selectedMonth"
@@ -42,10 +40,6 @@
                 :loading="loading"
                 :headerHeight="headerHeight"
                 :workGroups="workGroups"
-                @timeStampStart="timeStampStart"
-                @timeStampEnd="timeStampEnd"
-                @timeStampEdit="timeStampEdit"
-                @timeStampDelete="timeStampDelete"
                 @reload="reload"
             />
         
@@ -87,7 +81,7 @@
                     :selectedYear="selectedYear"
                     :workGroups="workGroups"
                     :usersCheckArray="usersCheckArray"
-                    @closeModal="approvalModal = false, getUsersRecords()"
+                    @closeModal="approvalModal = false, fetchShiftDataTable()"
                 />
             </Transition>
     </div>
@@ -102,10 +96,11 @@
     import WorkReport from './WorkReport.vue'
     import ShiftApproval from './ShiftApproval.vue'
     import moment from 'moment'
-    import { computed, onMounted, ref, provide, inject, watch } from 'vue'
+    import { computed, onMounted, ref, provide, inject, watch, nextTick } from 'vue'
     import { useRoute } from 'vue-router'
     import { useAuthUserStore } from '@/store/auth'
     import { useElementSize } from '@vueuse/core'
+    import { getWorkGroup, getCustomFields, getWorkData, getShiftDataTable } from '../../utils/workApi'
     const firstUser = computed(() => {
         return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
     })
@@ -133,22 +128,14 @@
     const editData = ref(null)
     const attendanceFlag = ref(false)
     const approvalModal = ref(false)
-    const costOptions = [
-        {label: '交通費', value: 1},
-        {label:'通信費', value: 2},
-        {label:'宿泊費', value: 3}
-    ]
     onMounted(async() => {
         const query = route.query
         if(query.user_id){
             usersCheckArray.value = [Number(query.user_id)]
         }
-        
-        getWorkData()
-        // await getShiftData()
-        getWorkGroup()
-        getCustomFields()
-        getUsersRecords(0)
+        fetchDatas()
+        fetchWorkData()
+        fetchShiftDataTable(0)
         if(query.startDate){
             startDate.value = query.startDate
             selectShift()
@@ -158,8 +145,8 @@
     watch(() => usersCheckArray.value,  async() => {
         const dataTable = document.querySelector('.v-table__wrapper')
         dataTable ? dataTable.scrollTop = 0 : ''
-        getUsersRecords()
-        getWorkData()
+        fetchShiftDataTable()
+        fetchWorkData()
     })
     
     const headerHeight = computed(() => {
@@ -183,18 +170,6 @@
         customFieldData.value = []
     }
     
-    const getCustomFields = async() => {
-        const params = {
-            app_name : 'work'
-        };
-
-        try{
-            const response = await axios.post('/custom_field_data', params)
-            customInfo.value = response.data
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
-        }
-    }
     const timeStampStart = async(data) => {
         const month = selectedMonth.value + 1
         if(data || data.position_id === 15){
@@ -250,7 +225,7 @@
         if(!answer) return
         try{
             const response = await axios.post('/daily_report_add', params)
-            await getUsersRecords()
+            await fetchShiftDataTable()
             const record = recordsArray.value.find(ob => ob.user_id == response.data.user_id && ob.day_full == response.data.day)
             if(record){
                 timeStampEdit(record)
@@ -290,13 +265,13 @@
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')     
         } 
     }
-    const reload = () => {
+    const reload = async() => {
         if(reportModal.value){
             closeModal()
         }
         if(usersCheckArray.value.length > 0){
-            getWorkData()
-            getUsersRecords()            
+            await fetchWorkData()
+            await fetchShiftDataTable()            
         }else{
             notify('メンバーを選択してください。')
         }       
@@ -306,29 +281,39 @@
         selectedMonth.value = date.month - 1
         reload()
     }
-    const getWorkGroup = async() => {
+    const fetchDatas = async () => {
         try{
-            const response = await axios.post('/get_work_group', {id: auth.activeUser.id})
-            workGroups.value = response.data
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            workGroups.value = await getWorkGroup()
+            customInfo.value = await getCustomFields()
+            
+        } catch (e){
+            notify(e?.message || 'エラーが発生しました。') 
         }
-        
     }
-    const getWorkData = async() => {
+    const fetchWorkData = async () => {
         let yearMonth = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
-        const params = {
-            current_date : yearMonth,
-            work_group : usersCheckArray.value,
+
+        try {
+            const workData = await getWorkData(yearMonth, usersCheckArray.value)
+            usersData.value = workData.user_data
+            monthAverage.value = workData.month_average
+            attendanceFlag.value = workData.attendance_flag
+        } catch (e){
+            notify(e?.message || 'エラーが発生しました。') 
         }
-        try{
-            const response = await axios.post('/get_work_data', params)
-            usersData.value = response.data.user_data
-            monthAverage.value = response.data.month_average
-            attendanceFlag.value = response.data.attendance_flag
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+    }
+    const fetchShiftDataTable = async(init) => {
+        let yearMonth = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+
+        recordsArray.value = await getShiftDataTable(yearMonth, usersCheckArray.value)
+        if(init == 0){
+            loading.value ++
+            setTimeout(() => {
+                todayScroll()
+            }, 50);
+        }else{
+            loading.value ++
+        }       
     }
     const modalSelect = computed(() => {
         return (usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610) && usersCheckArray.value.length == 1
@@ -360,42 +345,32 @@
         reload()
     }
     const loading = ref(0)
-    const getUsersRecords = async(init) => {
-        let yearMonth = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
-        const params = {
-            current_date : yearMonth,
-            work_group : usersCheckArray.value
-        }
-        recordsArray.value = await axios.post('get_shift_data_table', params).then(res => res.data)      
-        
-        if(init == 0){
-            loading.value ++
-            setTimeout(() => {
-                todayScroll()
-            }, 50);
-        }else{
-            loading.value ++
-        }       
-        
-
-    }
+    
     const todayScroll = async() => {
+        if(!moment([selectedYear.value, selectedMonth.value]).isSame(moment(), 'month')){
+            selectedMonth.value = moment().month()
+            selectedYear.value = moment().year()
+            await reload()
+        }
+        await nextTick()
         let scrollPosition = document.querySelector('.today');
+        
         if (scrollPosition) {
             scrollPosition.scrollIntoView({ behavior: 'instant', block: 'center' });
         }
+        
     }
     const toBottomScroll = () => {
         let scrollInto = document.getElementById('bottomTotal');
         scrollInto.scrollIntoView({ behavior: 'instant', block: 'start' });
     }
     provide('customInfo', customInfo)
-    provide('getUsersRecords', getUsersRecords)
-    provide('costOptions', costOptions)
+    provide('fetchShiftDataTable', fetchShiftDataTable)
     provide('stamps', {
         edit: (item) => timeStampEdit(item),
         start: (item) => timeStampStart(item),
         stampDelete: (item) => timeStampDelete(item),
         end: (item) => timeStampEnd(item)
     })
+    provide('workGroups', workGroups)
 </script>

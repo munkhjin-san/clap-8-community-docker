@@ -332,7 +332,7 @@ import { useSharingDataStore } from '@/store/sharingData'
     const emit = defineEmits(['close'])
 
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
-    const remarks = ref(props.editTarget && props.editTarget.remarks ? props.editTarget.remarks : "")
+    const remarks = ref(props.editTarget && props.editTarget.remarks ? props.editTarget.remarks : sharingData.active ? sharingData.text : '')
     const calendar_users = ref(props.editTarget && props.editTarget.calendar_users ? props.editTarget.calendar_users : props.preSelectedMembers)
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     const release_flag = ref(props.editTarget && props.editTarget.release_flag ? true : false)

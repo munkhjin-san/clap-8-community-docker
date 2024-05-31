@@ -84,7 +84,7 @@ class AdminAccountController extends Controller
     public function addUser(Request $request){           
           
         $id = $request->id ? $request->id : '';
-        $validatedData = $request->validate([
+        $request->validate([
             'user_params.login' => 'unique:users,login,'. $id,
         ], [
             'user_params.login.unique' => 'このログインIDはすでに登録されています' ,
@@ -101,7 +101,7 @@ class AdminAccountController extends Controller
         $user->partner_flag = $user_params['position_id'] == 14 ? 1 : 0;
         $user->retire = $user_params['retire'];
         if($user_params['retire'] == 1){
-            $user->retire_date = Carbon::now()->addMonth();
+            $user->retire_date = Carbon::now()->addMonthNoOverflow();
             $user->login = $user_params['login'] . '_r_' . Carbon::now()->isoFormat('YYYY-MM-DD') . '_' . rand(1000,9999);
             $user->email = $user_params['login'] . Carbon::now()->isoFormat('YYYY-MM-DD') . $this->generateRandomString();
             $user->password = bcrypt('glowd0802');
@@ -173,8 +173,7 @@ class AdminAccountController extends Controller
     public function workgroupDelete(Request $request){
         $work_group = workGroup::findOrFail($request->work_group_id);
         if($work_group){
-            $work_group_user = workGroupUser::where('record_id', $work_group->id)->get();
-            $work_group_user->each->delete();
+            workGroupUser::where('record_id', $work_group->id)->delete();
             $work_group->delete();
         }
 
@@ -224,7 +223,7 @@ class AdminAccountController extends Controller
 
         $clap_data = [];
 
-        $all_users->each(function ($user) use ($from, $to, &$clap_data) {
+        $all_users->each(function ($user) use (&$clap_data) {
 
             $nice_from = $user->nice->sum('claps_count');
 

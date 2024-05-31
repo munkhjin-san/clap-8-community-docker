@@ -103,7 +103,7 @@ import { useRouter } from 'vue-router'
 import { useResponsive } from '@/store/responsive';
     const responsive = useResponsive()
     const { notify } = inject('dialog')
-    const emit = defineEmits(['getUserInfo'])
+    const emit = defineEmits(['reload'])
     const router = useRouter()
     const props = defineProps(['UserAllData'])
     const processing = ref(false)
@@ -131,7 +131,7 @@ import { useResponsive } from '@/store/responsive';
         try {
             const response = await axios.post('/profile_profile_edit_api', params);
             if (response.data) {
-                emit('getUserInfo');
+                emit('reload');
                 saved.value = true;
                 router.go(-1);
                 setTimeout(() => {

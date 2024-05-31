@@ -58,7 +58,6 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
 // temp_routes
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
-
 // Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
 // Route::get('/clap_process', [AutoJobController::class, 'clap_process']);
 
@@ -74,7 +73,7 @@ Auth::routes();
 Route::prefix('cdn_external')->group(function () {
     Route::get('{user_id}/{keyword}/{any?}', [ContentController::class, 'fileTransferAllExternal'])->where('any', '.*');
 });
-Route::group(["middleware"=>"auth"],function(){
+Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
     // pusher authorize
     Route::post('/pusher_authorizition',  [BoardController::class, "pusher_auth"]);
@@ -179,7 +178,7 @@ Route::group(["middleware"=>"auth"],function(){
     Route::post('/get_unchecked_messages', [BoardController::class, 'getUncheckedMessage']);
     Route::post('/addable_board_members', [BoardController::class, 'addable_board_members']);
     Route::post('/get_file_list', [FileController::class, 'fetchFileList']); 
-
+    Route::get('/incomplete_check', [BoardController::class, 'incomplete_check']);
 
 
 
@@ -280,15 +279,15 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/get_applied_issues', [MemberController::class, 'get_applied_issues']);
         Route::post('/update_issue', [MemberController::class, 'update_issue']);
 
-        Route::post('/get_work_data', [WorkController::class, 'getWorkData']);
-        Route::post('/get_shift_data', [WorkController::class, 'getShiftData']);
-        Route::post('/get_shift_data_table', [WorkController::class, 'get_shift_data_table']);
+        Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
+        Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
+        Route::get('/get_shift_data_table', [WorkController::class, 'get_shift_data_table']);
         Route::post('/add_shift', [WorkController::class, 'shiftAdd']);
         Route::post('/get_work_group', [WorkController::class, 'getWorkGroup']);
         Route::post('/daily_report_add', [WorkController::class, 'dailyReportAdd']);
         Route::post('/save_time_card', [WorkController::class, 'saveTimeCard']);
         Route::post('/delete_time_card', [WorkController::class, 'deleteTimeCard']);
-        Route::post('/get_attendance_data', [WorkController::class, 'getAttendanceData']);
+        Route::get('/get_attendance_data', [WorkController::class, 'getAttendanceData']);
         Route::post('/remand_time_card', [WorkController::class, 'remandTimeCard']);
         Route::post('/approve_time_card', [WorkController::class, 'approveTimeCard']);
         Route::post('/cancel_time_card', [WorkController::class, 'cancelTimeCard']);
@@ -298,7 +297,6 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/attendance_closed', [WorkController::class, 'attendanceClose']);
         Route::post('/get_temp_data', [WorkController::class, 'get_temp_data']);
         Route::get('/not_approved', [WorkController::class, 'not_approved']);
-        Route::get('/get_shift_types', [WorkController::class, 'get_shift_types']);
         Route::get('/work_badge', [WorkController::class, 'work_badge']);
         Route::post('/request_overtime', [WorkController::class, 'request_overtime']);
         Route::delete('/request_overtime', [WorkController::class, 'delete_overtime']);
@@ -310,7 +308,7 @@ Route::group(["middleware"=>"auth"],function(){
         Route::post('/work_file_upload', [WorkController::class, 'work_file_upload']);
         Route::post('/work_file_delete', [WorkController::class, 'work_file_delete']);
         Route::get('/next_month_shift', [WorkController::class, 'next_month_shift']);
-        Route::post('/get_shift_with_work_group', [WorkController::class, 'get_shift_with_work_group']);
+        Route::get('/get_shift_with_work_group', [WorkController::class, 'get_shift_with_work_group']);
         Route::get('/work_generate_csv', [WorkController::class, 'work_generate_csv']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);

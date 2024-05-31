@@ -35,7 +35,9 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useTaskFeedback } from '@/store/taskFeedback'
+import { useBadgeStore } from '@/store/badge'
     const taskFeedback = useTaskFeedback()
+    const badge = useBadgeStore()
     const answers = [
         { label: 'タスク対応に時間がかかった', value: 1, id:"incomplete_ans1"},
         { label: 'タスクの優先順位を変更した', value: 2, id:"incomplete_ans2"},
@@ -65,6 +67,7 @@ import { useTaskFeedback } from '@/store/taskFeedback'
             late_answer_custom: lateAnswerCustom.value
         }
         await axios.post("/complete_task_api", data)
+        badge.getTaskBadge()
         closeFeedBack()    
     }
     const closeFeedBack = () => {

@@ -13,8 +13,8 @@
                 <p class="report-header">{{ data.title }}を選択</p>
                 <div class="report-input">
                     <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records">
-                        <input :id="'workIncident' + index" type="radio" :name="data.title" v-model="value" :value="customPart.parts_value">
-                        <label :for="'workIncident' + index">{{ customPart.parts_lavel }}</label>
+                        <input :id="'workRadio' + customPart.id" type="radio" :name="data.title" v-model="value" :value="customPart.parts_value">
+                        <label :for="'workRadio' + customPart.id">{{ customPart.parts_lavel }}</label>
                     </div>
                 </div>
             </div>

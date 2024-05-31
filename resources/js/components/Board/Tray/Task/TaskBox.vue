@@ -241,8 +241,7 @@ import UserIcon from '../../Mixed/UserIcon.vue';
         const thisYear = moment().year();
         const taskYear = moment(value).year();
         const hasTime = moment(value).format('HH:mm:ss') !== '00:00:00' && moment(value).format('HH:mm:ss') !== '12:00:00'            
-        return (thisYear == taskYear) ? hasTime ? moment(value).format('M/D (dd) HH:mm') : moment(value).format('M/D (dd)')  :              
-        hasTime ? moment(value).format('YYYY/M/D (dd) HH:mm') : moment(value).format('YYYY/M/D (dd)')               
+        return (thisYear == taskYear) ? moment(value).format('M/D (dd)') : moment(value).format('YYYY/M/D (dd)')               
     } 
     
     const urlCheck = (text) => {

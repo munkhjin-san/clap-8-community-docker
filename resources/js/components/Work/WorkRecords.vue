@@ -70,9 +70,9 @@ import WorkRecordRow from './WorkRecordRow.vue';
 import WorkProcedureButtons from './WorkProcedureButtons.vue'
 import OverTimeRequest from './OverTimeRequest.vue';
 import WorkRecordTotal from './WorkRecordTotal.vue'
+import { useCheckApproval } from '../../store/checkApproval';
     const auth = useAuthUserStore()
     const props = defineProps([
-        'currentDay', 
         'monthAverage',
         'usersData',
         'selectedMonth',
@@ -80,12 +80,11 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
         'loading',
         'selectedYear',
         'headerHeight',
-        'workGroups'
     ]) 
     const overTimeRequestData = ref(null)
     const { confirm, notify, info } = inject('dialog')
     const emit = defineEmits(['reload'])
-
+    const checkApproval = useCheckApproval()
     const tempItem = ref(null)
     const holidays = computed(() => {
         const holidays = holiday_jp.between(new Date(props.selectedYear + '-01-01'), new Date(props.selectedYear + '-12-31'));
@@ -100,6 +99,7 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
         tempItem.value = null
         const targets = [dailyApproval, timeCardRemand, dailyCancel, overtTimeRequest]
         targets[value](item)
+        checkApproval.setCheckApproval(true)
     }
     const overtTimeRequest = (item) => {
         overTimeRequestData.value = item
@@ -120,11 +120,13 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
             { title: '労働時間'},
             { title: '時間外'},
             { title: '休憩時間'},
+            // { title: '部門'},
             { title: '諸手当'},
             { title: 'インシデント'},
             { title: '目標達成率'},
             { title: 'コンディション'},
             { title: 'コメント'},
+            { title: '経費'},
             { title: 'ステータス'},
             { title: '手続き'},
         ];
@@ -133,8 +135,7 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
         }
         if(includeRegistered.value){
             const index = headersArray.findIndex(element => element.title == 'ステータス')
-            headersArray.splice(index, 0, {title: '経費'})
-            headersArray.splice(index + 1, 0, {title: 'インセンティブ'})
+            headersArray.splice(index, 0, {title: 'インセンティブ'})
         }      
 
         return headersArray;
@@ -221,6 +222,13 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
     gap: 5px;
     align-items: center;
 }
+.text-wrap {
+    white-space: break-spaces;
+    max-height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-word;
+}
 .v-table{
     height: 100%;
     background: var(--bg2) !important;
@@ -269,6 +277,7 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
                     height: 40px !important;
                     box-sizing: border-box;
                     padding: 0 !important;
+                    white-space: nowrap;
                 }
             }
             .w-row:hover{
@@ -292,6 +301,9 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
 }
 
 @media (max-width: 959px) {
+    .text-wrap {
+        white-space: nowrap;
+    }
     .mb-space{
         margin-top: 10px;
     }
@@ -373,6 +385,7 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
                     width: 100%;
                     line-height: 2;
                     padding: 0 20px !important;
+                    max-width: calc(100vw - 45px);
                 }
                 .w-row:hover{
                     background: var(--background-color);

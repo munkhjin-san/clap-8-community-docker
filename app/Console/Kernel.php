@@ -2,10 +2,12 @@
 
 namespace App\Console;
 
+use App\Jobs\SendReport;
+use App\Jobs\RemoveFile;
+use App\Jobs\ResetCharge;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
-use App\Http\Controllers\AutoJobController;
-use App\Models\tempUser;
+
 class Kernel extends ConsoleKernel
 {
     /**
@@ -21,15 +23,16 @@ class Kernel extends ConsoleKernel
         // $schedule->call('\App\Http\Controllers\AutoJobController@removeOldFiles');
         // $schedule->call('\App\Http\Controllers\AutoJobController@removeTempUsers');
         // $schedule->call('\App\Http\Controllers\AutoJobController@removePasswordResets');
-        $schedule->call('\App\Http\Controllers\AutoJobController@removeTemprorayFiles')->cron('15 9 * * *');
-        // pause until March data revision
-        $schedule->call('\App\Http\Controllers\MemberController@reset_charge')->cron('15 9 1 3,6,9,12 *'); 
-        $schedule->call('\App\Http\Controllers\AutoJobController@incident_report')->cron('15 9 * * *');
-        $schedule->call('\App\Http\Controllers\AutoJobController@weekly_report')->cron('15 9 * * 1');
-        $schedule->call('\App\Http\Controllers\AutoJobController@monthly_report1')->cron('15 9 20 * *');
-        $schedule->call('\App\Http\Controllers\AutoJobController@monthly_report2')->cron('15 9 20 * *');
-        $schedule->call('\App\Http\Controllers\AutoJobController@monthly_report3S')->cron('15 9 20 * *');
-
+        
+        $schedule->job(new RemoveFile('temp'))->cron('15 9 * * *');
+        $schedule->job(new ResetCharge())->cron('15 9 1 3,6,9,12 *'); 
+        $schedule->job(new RemoveFile('cost'))->cron('15 9 * * 1');
+        $schedule->job(new SendReport(610, 3532, 'incident'))->cron('15 9 * * *');
+        $schedule->job(new SendReport(610, 3599, 'weekly'))->cron('15 9 * * 1');
+        $schedule->job(new SendReport(610, 1056, 'monthly_3S'))->cron('15 9 20 * *');
+        $schedule->job(new SendReport(610, 1056, 'monthly_performance'))->cron('15 9 15 * *');
+        $schedule->job(new SendReport(610, 1056, 'monthly_shift'))->cron('15 9 20 * *');
+        $schedule->job(new SendReport(610, 1056, 'monthly_mailing'))->cron('15 9 20 * *');
     }
 
     /**

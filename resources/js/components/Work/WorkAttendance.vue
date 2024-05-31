@@ -145,7 +145,7 @@
                             <p><br>待機手当 : {{ attendanceData.month_waiting_allowance_count }}</p>
                         </div>
                     </div>
-                    <div class="attendance-row" v-if="attendanceData.user.position_id === 15">
+                    <div class="attendance-row">
                         <div class="attendance-title">
                             <span>経費</span>
                         </div>
@@ -172,6 +172,7 @@
     import LoaderButton from '../Global/LoaderButton.vue'
     import { computed, inject, onMounted, ref } from 'vue';
     import { useAuthUserStore } from '@/store/auth';
+    import { getAttendanceData } from '../../utils/workApi';
     
     const emit = defineEmits(['reload', 'closeModal'])
     const props = defineProps([
@@ -188,19 +189,15 @@
     })
     const loading = ref(0)
     onMounted(() => {
-        getAttendanceData()
+        fetchAttendanceData()
     })
-    const getAttendanceData = async() => {
+    const fetchAttendanceData = async() => {
         let yearMonth = moment([props.selectedYear, props.selectedMonth]).format('YYYY-MM')
-        const params = {
-            current_date : yearMonth,
-            work_group : props.usersCheckArray
-        }
         try{
-            attendanceData.value  = await axios.post('/get_attendance_data', params).then(res => res.data)
+            attendanceData.value  = await getAttendanceData(yearMonth, props.usersCheckArray)
             loading.value ++
         }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            notify(e?.message)
         }
     }
     const buttonTexts = computed(() => {

@@ -1,3 +1,31 @@
+
+.op-button-container{
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    margin-left: -15px;
+    div{
+        width: 30px;
+        height: 30px; 
+        display:flex;
+        cursor: pointer;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50px;        
+    }
+    div:hover{
+        background: var(--bg3);
+    }
+}
+.cost-file-container{
+    min-width: auto;
+    min-height: auto;
+    max-width: 40px;
+    max-height: 40px;
+    min-height: 40px;
+    display: flex;
+    position: relative;
+}
 .work-loader{
     position: absolute;
     width: 100%;
@@ -55,6 +83,7 @@
     border-radius: 50px;
     cursor: pointer;
 }
+
 .work-member-check{
     display: block;
     position: relative;
@@ -84,9 +113,9 @@
     }
 
     /* Firefox */
-    input[type=number] {
-    -moz-appearance: textfield;
-    }
+    // input[type=number] {
+    // -moz-appearance: textfield;
+    // }
   /* Style the checkmark/indicator */
   .work-member-check .work-check-mark:after {
       left: 5px;

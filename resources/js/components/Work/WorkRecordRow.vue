@@ -3,7 +3,7 @@
         <td :class="[getDayClass, {'working' : item.time_card?.stamp_flag == 0}]">
             <div class="td-first">{{ dayFormatter }}</div>
         </td>
-        <td style="white-space: nowrap;">{{  item.user_name }}</td>
+        <td>{{  item.user_name }}</td>
         <td v-if="hasHeader('予定')" :class="getShiftClass">{{ item.shift?.status_flag == 2 ? '申請中' : item.shift?.shift_type?.abbreviation }}</td>
         <td :class="startEarly">
             <div v-if="item.ability.start_stamp" class="w-hover-button mb-space">
@@ -20,29 +20,29 @@
         <td>{{ workTimeFormatted }}</td>
         <td>{{ overTimeFormatted }}</td>
         <td>{{ breakTimeFormatted }}</td>
+        <!-- <td>{{ item.time_card?.work_group?.name }}</td> -->
         <td style="word-break: auto-phrase;">{{ hasAllowance }}</td>
         <td>{{ incidentFormatted }}</td>
         <td>{{ satisfyFormatted }}</td>
         <td v-html="hasCondition"></td> 
         <td>
             <div style="position: relative;">
-                <div @click.stop="commentFormatted !== '' ? menu.setMenu({name: 'commentBox', id: item.time_card?.id}) : false"> 
-                    <div>{{ commentTrim }}</div>
+                <div class="text-wrap" @click.stop="commentFormatted !== '' ? menu.setMenu({name: 'commentBox', id: item.time_card?.id}) : false"> 
+                    {{ commentFormatted }}
                 </div>
                 <div @click="menu.close()" class="comment-box" id="commentBox" v-if="menu.name == 'commentBox' && menu.id == item.time_card?.id">
-                    <div style="word-break: break-all;" v-if="overTimeReasonFormatted">{{ overTimeReasonFormatted }}</div>
-                    <div>{{ commentFormatted }}</div>                              
+                    <div style="word-break: break-word;" v-if="overTimeReasonFormatted">{{ overTimeReasonFormatted }}</div>
+                    <div style="word-break: break-word;">{{ commentFormatted }}</div>                              
                 </div>
             </div>  
         </td>
-        <td v-if="hasHeader('経費')">
+        <td>
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
-                <div v-if="responsive.mobile && item.time_card?.timecard_costs.length">経費 : </div>
-                <div @click.stop="hasWorkCost !== '' ? menu.setMenu({name: 'costBox', id: item.time_card?.id}) : false">{{ hasWorkCost }}</div>
+                <div @click.stop="hasWorkCost !== '' ? menu.setMenu({name: 'costBox', id: item.time_card?.id}) : false" class="text-wrap">{{ hasWorkCost }}</div>
                 <div @click="menu.close()" class="comment-box" id="costBox" v-if="menu.name == 'costBox' && menu.id == item.time_card?.id">
                     <div v-for="cost in item.time_card?.timecard_costs" :key="cost.id">
-                        <div>{{ `${hasWorkCostLabel(cost) ? hasWorkCostLabel(cost) : ''}:${cost.content ? cost.content : ''} ${cost.expenses ? cost.expenses + '円' : ''}` }}</div>
-                        <img @click="previewImage(cost.file)" style="height:120px;cursor: pointer;" v-if="cost?.file" :src="`/cdn/timecard_files/${cost?.file?.id}_${cost?.file?.user_id}_${cost?.file?.path}.${cost?.file?.extension}`"/>
+                        <div style="word-break: break-word;" v-html="formatCostString(cost)"></div>
+                        <img @click="previewImage(cost.file_path)" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="`/cdn/timecard_files/${cost?.file_path}`"/>
                     </div>
 
                 </div>
@@ -98,7 +98,13 @@ import { useFilePreview } from '../../store/filePreview';
 const menu = useMenuStore()
 const responsive = useResponsive()
 const filePreview = useFilePreview()
-const costOptions = inject('costOptions')
+const costOptions = [{label: '交通費', value: 1},
+                    {label:'通信費', value: 2},
+                    {label:'宿泊費', value: 3},
+                    {label: '旅費交通費', value: 4},
+                    {label:'消耗品費', value: 5},
+                    {label:'交際費', value: 6},
+                    {label:'支払手数料', value: 7}]
 const {start, end } = inject('stamps')
 const props = defineProps({
     item: {type: Object, default: null},
@@ -250,18 +256,41 @@ const hasCondition = computed(() => {
 
 const hasWorkCost = computed(() => {
     const costs = props.item.time_card?.timecard_costs
-    return costs && costs.length ?
+    const costText = costs && costs.length ?
     costs.map(ob => {
+        const department = ob.department !== null ? ob.department + '\n' : ''
         const costOption = costOptions.find(opt => opt.value === ob.type);
         const expense = ob.expenses !== null ? ob.expenses : 0
-        return costOption ? `${costOption.label} : ${expense}円`: '';
+        return costOption ? `${department}${costOption.label}:${expense}円`: '';
     }).join(' ') : '';
+    const title = costText && responsive.mobile ? '経費 : ' : ''
+    return title + costText
 })
 
 const hasWorkCostLabel = (cost) => {
     return costOptions.find(opt => opt.value === cost.type)?.label;
 }
+const formatCostString = (cost) => {
+    let result = '';
 
+    if (cost.department) {
+      result += `部門:${cost.department}<br>`;
+    }
+
+    if (hasWorkCostLabel(cost)) {
+      result += `${hasWorkCostLabel(cost)}:`;
+    }
+
+    if (cost.content) {
+      result += `${cost.content} `;
+    }
+
+    if (cost.expenses) {
+      result += `${cost.expenses}円`;
+    }
+
+    return result;
+}
 const hasAction = computed(() => {
     const authorityCheck = Object.values(props.item.ability).some(val => val == true)
     return authorityCheck
@@ -269,10 +298,14 @@ const hasAction = computed(() => {
 
 
 const previewImage = (file) => {
-    if(file?.id){
-        let target_data = file
-        const file_path = `/cdn/timecard_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`
-        target_data['file_path'] = file_path
+        const file_path = `/cdn/timecard_files/${file}`
+
+        let target_data = {
+            extension: 'webp',
+            mime_type: 'image',
+            file_path: file_path,
+            name: file
+        }
         const data = {
             active: true,
             files: [target_data],
@@ -281,7 +314,7 @@ const previewImage = (file) => {
             message: null,
         }
         filePreview.setFilePreview(data)
-    }
+    
 }
 const incentiveCount = computed(() => {
     const costs = props.item.time_card?.timecard_incentives

@@ -145,7 +145,6 @@ import { useMenuStore } from "@/store/menu";
                 source: 'message',
                 index: index,
                 message: {record_id: file.board_id},
-                reminder: 'board',
             }
             filePreview.setFilePreview(data)
         }else{

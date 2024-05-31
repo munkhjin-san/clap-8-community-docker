@@ -1,6 +1,6 @@
 <template>
-    <div id="mRw1" class="md-window">
-        <div class="searchMessageArea" style="padding: 10px;">
+    <div id="mRw1" class="md-window" @mousedown="emit('closeModal')">
+        <div class="searchMessageArea" @mousedown.stop style="padding: 10px;">
             <div style="display:flex;height: 40px;min-height: 40px;line-height: 40px;">
                 <p style="margin:0 20px;" class="copyareaTitle">#{{tagText}}</p>
                 <div @click="emit('closeModal')" style="margin:0 0 0 auto;cursor:pointer;width:40px;height:40px;display:flex">
@@ -47,7 +47,7 @@
         tagText: string | null
         tagAlbums: any
     }
-    const props = defineProps<Props>()
+    defineProps<Props>()
     const isMov = (type : string) => {
         return type.includes('video') 
     }

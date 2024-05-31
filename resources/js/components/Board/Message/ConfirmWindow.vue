@@ -24,7 +24,7 @@
                 <div>    
                     <div :key="user.id" v-for="user in targetUsers" style="padding:0 15px;display:flex;">                                
                         <label class="check-container" style="align-self: center;margin-bottom: 5px;">
-                            <input v-model="selectedMembers" :value="user.id" name="targetMembers" type="checkbox">
+                            <input @change="validateSelection" v-model="selectedMembers" :value="user.id" name="targetMembers" type="checkbox">
                             <span class="checkmark-mini" style="margin: auto;bottom: 0;"></span>                        
                             <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;">
                                 <UserIconPreLoad :disableInstant="true" size="30" :title="user.name" :user="user" imgClass="userNormalIcon"/>                      
@@ -46,7 +46,7 @@
 
             </div>
             <div style="position: relative;display: flex;flex-direction: column;">
-                <span id="userSelectError" style="position: absolute;left: 0;top: 10px;" v-if="!selectedMembers.length" class="valid-error">必須です</span>
+                <span id="userSelectError" style="position: absolute;left: 0;top: 10px;" v-if="required" class="valid-error">必須です</span>
                 <LoaderButton style="margin: 30px auto 20px auto;" @triggered="checkRequest" :content="'送信する'" :loading="processing"/>
             </div>
       
@@ -55,7 +55,7 @@
 </template>
 
 <script setup>
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
 import UserIconPreLoad from '../Mixed/UserIcon.vue'
 import { useAuthUserStore } from '@/store/auth'
@@ -68,6 +68,7 @@ import { useAuthUserStore } from '@/store/auth'
     const selectedMembers = ref([])
     const { confirm, notify, info } = inject('dialog')
     const {refreshMessages} = inject('boardItem')
+    const required = ref(false)
     const prepareTypes = [
         {content: '１枚（連名）', value: 0},
         {content: '人数分（個別）', value: 1}
@@ -86,7 +87,12 @@ import { useAuthUserStore } from '@/store/auth'
             selectedMembers.value = []
         }
     }
+    const validateSelection = () => {
+        required.value = selectedMembers.value.length === 0
+    }
     const checkRequest = async() => {
+        validateSelection()
+        if(required.value) return
         const confirmed = props.requestType == 'confirm' ? await confirm('確認依頼をオンにします。\n選択したメンバーへ確認依頼の通知メールが送信されます。\nよろしいですか。') : true
         if(!confirmed || processing.value) return
         processing.value = true

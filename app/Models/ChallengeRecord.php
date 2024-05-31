@@ -11,7 +11,7 @@ class ChallengeRecord extends Model
     use HasFactory;
     use SoftDeletes;
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id');
     }
     public function files(){
         return $this->belongsToMany(FileRecord::class, 'challenge_use_files', 'record_id', 'file_id')->wherePivot('result_flag', 0)->where('file_records.deleted_flag', 0);

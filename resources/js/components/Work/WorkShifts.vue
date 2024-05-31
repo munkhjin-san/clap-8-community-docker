@@ -122,6 +122,7 @@
     import ShortInput from '../Form/ShortInput.vue';
     import holiday_jp from '@holiday-jp/holiday_jp'
     import { useAuthUserStore } from '../../store/auth';
+    import { getShiftData } from '../../utils/workApi';
     const auth = useAuthUserStore()
     const responsive = useResponsive()
     const theme = useTheme()
@@ -133,7 +134,6 @@
             'usersData',
             'startDate',
             'notSubmitted',
-            'filteredRecord',
             'usersCheckArray',
             'chosenId',
             'attendanceFlag'
@@ -156,9 +156,9 @@
     const shiftTypes = ref([])
     const shiftRecords = ref([])
     onMounted(async() => {
-        await getShiftData()
-        isShiftRecord()
         propsCheck()
+        await fetchShiftData()
+        isShiftRecord()
     })
     const dataLoad = computed(() => {
         const thisMonth = moment([shiftYear.value, shiftMonth.value]);
@@ -187,20 +187,17 @@
         }
         return calendar
     })
-    const getShiftData = async() => {
+    const fetchShiftData = async() => {
         let yearMonth = moment([shiftYear.value, shiftMonth.value]).format('YYYY-MM')
-        const params = {
-            current_date : yearMonth,
-            work_group : props.chosenId ? [props.chosenId] : props.usersCheckArray
-        }
+        const work_group = props.chosenId ? [props.chosenId] : props.usersCheckArray
         try{
-            const response = await axios.post('/get_shift_data', params)            
-            remainingDays.value = response.data.remaining_days
-            workTemp.value = response.data.workTemp
-            shiftTypes.value = response.data.shift_type
-            shiftRecords.value = response.data.shift_record
+            const shiftData = await getShiftData(yearMonth, work_group)           
+            remainingDays.value = shiftData.remaining_days
+            workTemp.value = shiftData.workTemp
+            shiftTypes.value = shiftData.shift_type
+            shiftRecords.value = shiftData.shift_record
         }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            notify(e?.message)
         }
     }
     const propsCheck = () => {
@@ -349,7 +346,7 @@
         selectedShifts.value = []
         shiftYear.value = date.year
         shiftMonth.value = date.month - 1
-        await getShiftData()
+        await fetchShiftData()
         isShiftRecord()
     }
     const selectByWeek = (num) => {

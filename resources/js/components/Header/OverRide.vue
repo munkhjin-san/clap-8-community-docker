@@ -121,8 +121,8 @@
         } 
     }
     const getIncompleteMessage = () => {
-        if(incompleteRef.value && incompleteRef.value.getUnsignedMessages){
-            incompleteRef.value.getUnsignedMessages()
+        if(incompleteRef.value && incompleteRef.value.get_incomplete){
+            incompleteRef.value.get_incomplete()
         }else{
             refresh()
         }

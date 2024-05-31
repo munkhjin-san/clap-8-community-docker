@@ -83,7 +83,7 @@ const overtime = ref({
     minutes: 0
 })
 
-const getUsersRecords = inject('getUsersRecords')
+const fetchShiftDataTable = inject('fetchShiftDataTable')
 onMounted(() => {
     if(target.value){
         remarks.value = target.value.content
@@ -138,7 +138,7 @@ const send = async() => {
     loading.value = true
     try{
         await axios.post('/request_overtime', params).then(res => res.data)
-        await getUsersRecords()
+        await fetchShiftDataTable()
         info('申請しました。')
         emit('close', true)
     } catch (e) { 
@@ -153,7 +153,7 @@ const deleteRequest = async() => {
     if(!answer) return
     try{
         await axios.delete(`/request_overtime?id=${target.value.id}`).then(res => res.data)
-        await getUsersRecords()
+        await fetchShiftDataTable()
         info('削除しました。')
         emit('close', true)
     } catch (e) { 

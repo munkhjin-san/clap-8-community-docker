@@ -7,10 +7,8 @@
                     :is="Component" 
                     :user="UserAllData"
                     :UserAllData="UserAllData"
-                    :albumImages="albumImages"
                     @close="closeModal"
                     @reload="updateUser"
-                    @getUserInfo="getUserInfo"
                 />
             </transition>
         </router-view>        
@@ -40,85 +38,41 @@
     
                     <UserIconEdit 
                         :UserAllData="UserAllData"
-                        :deviceWidth="deviceWidth"
-                        :isAccessible="isAccessible"
                         :clapData="clapData"
                         :movExist="movExist"
                         :key="movExist.length"
-                        :introUpload="introUpload"
-                        @closeModal="introUpload = false"
                         @updateUser="updateUser"
-                        @getUserInfo="getUserInfo"
-                        @addIntroFile="addIntroFile"
-                        @editIntro="editIntro"
                     />
                     
                     <div v-if="UserAllData" class="second-bar">
                         <div class="record-area" style="padding-right: 20px;">
-                            <div style="display:flex">
-                                <div class="title">
-                                    <p class="record-inner">役職</p>
-                                </div>
-                                <div class="record" style="padding-left: 10px;">
-                                    <p v-if="UserAllData.positions == null"></p>
-                                    <p class="record-inner" v-else>{{UserAllData.positions.name}}</p>
-                                </div>
+                            <div style="display:flex; gap: 10px; margin-bottom: 10px;">
+                                <p class="record-inner title">役職</p>
+                                <p class="record-inner record" v-if="UserAllData.positions !== null">{{UserAllData.positions.name}}</p>
                             </div>
-                            <div style="display:flex">
-                                <div class="title">
-                                    <p class="record-inner">営業所</p>
-                                </div>
-                                <div class="record" style="padding-left: 10px;">
-                                    <p v-if="UserAllData.offices == null"></p>
-                                    <p class="record-inner" v-else>{{UserAllData.offices.name}}</p>
-                                </div>
+                            <div style="display:flex; gap: 10px; margin-bottom: 10px;">
+                                <p class="record-inner title">営業所</p>
+                                <p class="record-inner record" v-if="UserAllData.offices !== null">{{UserAllData.offices.name}}</p>
                             </div>
-                            <div v-if="UserAllData.motto !== null" class="title">
-                                <p class="record-inner">好きな言葉</p>
+                            <div v-if="UserAllData.motto !== null">
+                                <p class="record-inner title">好きな言葉</p>
+                                <p class="record-inner record">{{UserAllData.motto}}</p>
                             </div>
-                            <div v-if="UserAllData.motto !== null" class="record">
-    
-                                <p class="record-inner">{{UserAllData.motto}}</p>
+                            <div v-if="UserAllData.enjoy !== null">
+                                <p class="record-inner title">私の「楽」</p>
+                                <p class="record-inner record">{{UserAllData.enjoy}}</p>
                             </div>
-                            <div v-if="UserAllData.enjoy !== null" class="title">
-                                <p class="record-inner">私の「楽」</p>
+                            <div v-if="UserAllData.intro !== null">
+                                <p class="record-inner title">自己紹介</p>
+                                <p class="record-inner record">{{UserAllData.intro}}</p>
                             </div>
-                            <div v-if="UserAllData.enjoy !== null" class="record">
-    
-                                <p class="record-inner">{{UserAllData.enjoy}}</p>
+                            <div v-if="UserAllData.recommend !== null">
+                                <p class="record-inner title">推し</p>
+                                <p class="record-inner record" v-html="urlCheck(UserAllData.recommend)"></p>
                             </div>
-                            <div v-if="UserAllData.intro !== null" class="title">
-                                <p class="record-inner">自己紹介</p>
-                            </div>
-                            <div v-if="UserAllData.intro !== null" class="record">
-    
-                                <p class="record-inner">{{UserAllData.intro}}</p>
-                            </div>
-                            <div v-if="UserAllData.recommend !== null || (albumImages && albumImages.length)" class="title">
-                                <p class="record-inner">推し</p>
-                            </div>
-                            <div v-if="UserAllData.recommend !== null" class="record">    
-                                <p class="record-inner" v-html="urlCheck(UserAllData.recommend)"></p>
-                            </div>
-                            <!-- <div v-if="UserAllData.awareness!== null" class="title">
-                                <p class="record-inner">自己認識</p>
-                            </div>
-                            <div v-if="UserAllData.awareness !== null" class="record">
-                                <p class="record-inner">{{UserAllData.awareness}}</p>
-                            </div>           -->
-                            <div v-if="userPortfolio && userPortfolio.length" class="title" style="margin-bottom: 10px;">
-                                <p class="record-inner">ポートフォリオ</p>
-                            </div>
-                            <div v-if="userPortfolio && userPortfolio.length" class="record">
-                                <UserPortfolio v-for="portfolio in userPortfolio" :portfolio="portfolio" @reload="updateUser"/>
-                                <!-- <div v-for="portfolio in userPortfolio"  :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease'}" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc;">
-                                    <div>
-                                        <p class="record-inner" style="font-size: 13px;">{{ portfolio.lesson_theme.title }}</p>
-                                        <p class="record-inner"><strong>{{ portfolio.public_title }}</strong></p>
-                                        <p class="record-inner">{{ portfolio.public_content }}</p>
-                                        <div @click="toggleFull" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto' && which == 'reply'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
-                                    </div>                                    
-                                </div> -->
+                            <div v-if="userPortfolio && userPortfolio.length">
+                                <p class="record-inner title" style="margin-bottom: 10px;">ポートフォリオ</p>
+                                <UserPortfolio class="record" v-for="portfolio in userPortfolio" :portfolio="portfolio" @reload="updateUser"/>
                             </div>
                         </div>
                     </div>
@@ -136,10 +90,9 @@
 
 import UserIconEdit from './UserEditComps/UserIconEdit.vue';
 import HamBurger from '../Global/HamBurger.vue'
-import Swiper from 'swiper';
 import 'swiper/css'
 import Autolinker from 'autolinker';
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
@@ -152,67 +105,15 @@ import UserPortfolio from './UserPortfolio.vue';
     const route = useRoute()
     const showModalContent = ref(false)
     const showSettingModalContent = ref(false)
-    const deviceWidth = ref(0)
     const UserAllData = ref(null)
     const clapData = ref(null)
-    const introUpload = ref(false)
     
     const userPortfolio = computed(() => {
         return UserAllData.value.portfolio.filter(data => data.status == 3)
     })
-    const isAccessible = computed(() => {
-        return UserAllData.value.id == auth.id
-    })
-    const albumImages = computed(() => {
-        if(UserAllData.value && UserAllData.value.user_album){
-            let album = []
-            if(UserAllData.value && UserAllData.value.user_album.length){
-                for(let img of UserAllData.value.user_album){
-                    if(img.intro_flag == 2){
-                        album.push(img)
-                    }
-                }
-                return album
-            }
-        }
-        return []
-        
-    })
     const movExist = computed(() => {
-        let album = []
-        if(UserAllData.value && UserAllData.value.user_album && UserAllData.value.user_album.length){
-            for(let mov of UserAllData.value.user_album){
-                album.push(mov)
-            }
-            return album
-        }
-        return album
+        return UserAllData.value.user_album
     })
-    const images = computed(() => {
-        return albumImages.value.filter(ob => ob.mime_type == 'image')
-    })
-    
-    
-    const editIntro = () => {
-        introUpload.value = true
-    }
-    const addIntroFile = () => {
-        introUpload.value = true
-    }
-    const swiperCreate = () => {
-        if(images.value && images.value.length){
-            new Swiper('.swiper-user', {
-                slidesPerView: 2,
-                spaceBetween: 10,
-                breakpoints: {
-                    640: {
-                        slidesPerView: 5,
-                        spaceBetween: 20,
-                    },
-                }
-            })
-        }
-    }  
     const urlCheck = (text) => {
         if(text){                
             var linkedText = Autolinker.link(text, {stripPrefix: false});       
@@ -221,10 +122,6 @@ import UserPortfolio from './UserPortfolio.vue';
             linkedText = linkedText.replaceAll(catch_tag, rep_tag);
             return linkedText;                
         }            
-    }
-        
-    const getUserInfo = () => {
-        updateUser()
     }
     const updateUser = async(targetId) => {
         const id = targetId ? targetId : UserAllData.value ? UserAllData.value.id : null
@@ -257,10 +154,7 @@ import UserPortfolio from './UserPortfolio.vue';
         showModalContent.value = false;
         showSettingModalContent.value = false;
     }
-        
-    const handleResize = () => {
-        deviceWidth.value = window.innerWidth
-    }   
+         
         
     watch(() => route.params.userId, (newUserId, oldUserId) => {
         if (newUserId !== oldUserId) {
@@ -273,22 +167,7 @@ import UserPortfolio from './UserPortfolio.vue';
 
     onMounted(() => {
         UserAllData.value = route.meta.data && Object.hasOwn(route.meta.data, 'id') ? route.meta.data : null;
-        document.body.style.height = '100%';
-        document.body.style.position = 'fixed';
-        document.body.style.overflow = 'hidden';
-        if(responsive.mobile){
-            document.body.style.background = 'var(--background-color)'
-        }
-        
-        deviceWidth.value = window.innerWidth
-        window.addEventListener('resize', handleResize())
-        setTimeout(() => {
-            swiperCreate()
-        },);
     })  
-    onUnmounted(() => {
-        window.removeEventListener('resize', handleResize())
-    })
 </script>
 <style lang="scss" scoped>
 .menuLink{

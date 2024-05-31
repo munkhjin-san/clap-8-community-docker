@@ -18,6 +18,7 @@
         <p v-else></p>
     </td>
     <td v-if="!responsive.mobile"></td>
+    <!-- <td v-if="!responsive.mobile"></td> -->
     <td v-if="!responsive.mobile"></td>
     <td v-if="!responsive.mobile"></td>
     <td>{{ data?.month_achievement_average }}</td>
