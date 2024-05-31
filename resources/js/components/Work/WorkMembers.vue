@@ -2,7 +2,7 @@
     <div id="workMemberSelector" class="workMemberSelector" :style="customStyle">
         <div id="checkUserSelecter" style=" max-height: 50vh; overflow: hidden auto;">
             <div style="position: sticky; top:0;background: var(--bg3);z-index: 2;">
-                <div class="sub-tab-container">
+                <div class="sub-tab-container" style="color: var(--primary-color);">
                     <div @click="byWorkGroups = 0" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 0}]">メンバー</div>
                     <div @click="byWorkGroups = 1, checkedUsers = []" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">ワークグループ</div>
                 </div>
