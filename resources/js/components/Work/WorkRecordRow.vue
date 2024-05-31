@@ -247,7 +247,7 @@ const overTimeReasonFormatted = computed(() => {
 const hasCondition = computed(() => {
     const index = props.item.weather
     const mobileTitle = responsive.mobile ? 'コンディション : ' : ''
-    if(index != null){
+    if(index){
         return `<div class="condition-area"><div>${mobileTitle}</div><img class="condition-img" src="images/icon_${index}.svg" width="17" height="17"/></div>`
     }
     return ''
