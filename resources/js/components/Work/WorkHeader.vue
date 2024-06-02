@@ -41,6 +41,7 @@
                 :workUsers="flatworkGroups"
                 :workGroups="workGroups"
                 v-model="selectedUsersList"
+                customStyle="color: var(--primary-color);"
             />
         </Transition>
         
