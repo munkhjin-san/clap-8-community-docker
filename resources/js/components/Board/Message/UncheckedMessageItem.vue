@@ -79,7 +79,7 @@ import { useMessageUsers } from "../../../store/messageUsers";
     const emit = defineEmits(['remindRequest'])
     const reacting = ref(false)
     const { notify, confirm, info } = inject('dialog')
-    const get_incomplete = inject('get_incomplete')
+    const get_incomplete = inject('getUncheckedMessages')
     const remindedUsers = computed(() => {
         return props.message.message_remind_users && props.message.message_remind_users.length ? props.message.message_remind_users.find(val => val.user_id == auth.activeUser.id) : null
     })
