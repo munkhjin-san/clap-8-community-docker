@@ -22,8 +22,8 @@
                                             <div class="number-chip" v-if="item.timecard">日報申請 : <strong style="color:var(--primary-color)">{{ item.timecard }}件</strong></div>
                                             <div class="number-chip" v-if="item.overtime">残業申請 : <strong style="color:var(--primary-color)">{{ item.overtime }}件</strong></div>
                                             <template v-if="item.shift && item.shift.length">
-                                                <div v-for="(shift, index) in item.shift" class="number-chip">
-                                                    勤怠予定申請 : {{ index }}月分<strong style="color:var(--primary-color)">{{shift}}件</strong>
+                                                <div v-for="(shift) in item.shift" class="number-chip">
+                                                    勤怠予定申請 : {{ shift.month }}月分<strong style="color:var(--primary-color)">{{shift.count}}件</strong>
                                                 </div>
                                                
                                             </template>
