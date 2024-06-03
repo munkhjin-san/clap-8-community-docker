@@ -30,6 +30,7 @@
                     @callModal="item => tempItem = item"
                     @procedureStart="procedureStart"
                     :holidays="holidays"
+                    :wrapper="wrapper"
                     @workRecordRowCreated="workRecordRowCreated"
                 />                
             </template>
@@ -62,7 +63,7 @@
 <script setup>
 import { VDataTableVirtual } from 'vuetify/components/VDataTable'
 import moment from 'moment'
-import { inject, ref, computed } from 'vue';
+import { inject, ref, computed, onMounted } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import holiday_jp from '@holiday-jp/holiday_jp'
 import { mkConfig, generateCsv, download } from "export-to-csv";
@@ -94,7 +95,6 @@ import { useCheckApproval } from '../../store/checkApproval';
     const procedureStart = (item) => {
         tempItem.value = item
     }
-
     const dailyButtons = (value, item) => {
         tempItem.value = null
         const targets = [dailyApproval, timeCardRemand, dailyCancel, overtTimeRequest]

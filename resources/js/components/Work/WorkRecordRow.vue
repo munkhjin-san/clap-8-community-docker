@@ -27,10 +27,10 @@
         <td v-html="hasCondition"></td> 
         <td>
             <div style="position: relative;">
-                <div class="text-wrap" @click.stop="commentFormatted !== '' ? menu.setMenu({name: 'commentBox', id: item.time_card?.id}) : false"> 
+                <div class="text-wrap" @click.stop="commentBoxPosition"> 
                     {{ commentFormatted }}
                 </div>
-                <div @click="menu.close()" class="comment-box" id="commentBox" v-if="menu.name == 'commentBox' && menu.id == item.time_card?.id">
+                <div @click="menu.close()" ref="commentBox" class="comment-box" id="commentBox" :style="commentBoxStyle" v-if="menu.name == 'commentBox' && menu.id == item.time_card?.id">
                     <div style="word-break: break-word;" v-if="overTimeReasonFormatted">{{ overTimeReasonFormatted }}</div>
                     <div style="word-break: break-word;">{{ commentFormatted }}</div>                              
                 </div>
@@ -90,7 +90,7 @@
 </template>
 <script setup>
 import moment from 'moment';
-import { computed, inject, onMounted } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from "@/store/menu";
 import CommandButton from '../Global/CommandButton.vue';
@@ -109,9 +109,12 @@ const {start, end } = inject('stamps')
 const props = defineProps({
     item: {type: Object, default: null},
     hasHeader: {type: Function},
-    holidays: {type: Array, default: []}
+    holidays: {type: Array, default: []},
+    wrapper: {type: HTMLDivElement}
 })
 const emit = defineEmits(['callModal', 'procedureStart'])
+const commentBoxStyle = ref('')
+const commentBox = ref(null)
 const getDayClass = computed(() => {
     const date = props.item.day_full
     const day = moment(date).day()
@@ -130,7 +133,16 @@ const dayFormatter = computed(() => {
         return date
     }
 })
-
+const commentBoxPosition = () => {
+    commentFormatted.value !== '' ? menu.setMenu({name: 'commentBox', id: props.item.time_card?.id}) : false
+    setTimeout(() => {
+        const wrapperRect = props.wrapper.getBoundingClientRect()
+        const commentbox = commentBox.value.getBoundingClientRect()
+        if(commentbox.bottom > wrapperRect.bottom){
+            commentBoxStyle.value = 'top: auto; bottom: 0;'
+        }
+    })
+}
 const getShiftClass = computed(() => {
     const shift = props.item.shift?.shift_type
     return shift && [0,5,14,15,16,3].includes(shift?.id) ? 'shift-sunday' : ''
