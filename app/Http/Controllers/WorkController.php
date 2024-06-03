@@ -259,7 +259,7 @@ class WorkController extends Controller
                     },
                     'timecard_incentives' => function ($q) {
                         $q->with('file')
-                            ->select('count', 'id', 'file_id', 'record_id');
+                            ->select('count', 'id', 'record_id');
                     }
                 ])
                 ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
@@ -1626,12 +1626,7 @@ class WorkController extends Controller
                 ->with(['custom_field_data_records' => function ($q) {
                     $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
                 }])
-                ->with(['timecard_costs' => function ($q) {
-                    $q->with('file')->select('content', 'type', 'expenses', 'record_id', 'file_id', 'id');
-                }])
-                ->with(['timecard_incentives' => function ($q) {
-                    $q->with('file')->select('count', 'id', 'file_id', 'record_id');
-                }])
+                ->with(['timecard_costs', 'timecard_incentives'])
                 ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
         }])->with(['shift_records' => function ($q) use($year, $month) {
             $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
