@@ -163,12 +163,14 @@ import { useRoute, useRouter } from "vue-router";
     }
     const performTasksOnMounted = async () => {
         try{
-            await getIncompletedTasks()
-            await getUnsignedMessages()
-            await getRemindMessages()
-            await getUncheckedMessages()
-            await getPlannedShifts()
-            await getNotApproved()
+            await Promise.all([
+                getIncompletedTasks(),
+                getUnsignedMessages(),
+                getRemindMessages(),
+                getUncheckedMessages(),
+                getPlannedShifts(),
+                getNotApproved()
+            ]);
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }finally{
