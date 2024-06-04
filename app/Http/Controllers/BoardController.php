@@ -609,6 +609,7 @@ class BoardController extends Controller
         ->with('reactedUsers')
         ->with('checkedUsers')
         ->with('uncheckedUsers')
+        ->select('check_flag', 'created_at', 'id', 'message', 'record_id', 'user_id', 'info_flag')
         ->get();
            
         
@@ -1303,6 +1304,7 @@ class BoardController extends Controller
             ->with('reactedUsers')
             ->with('checkedUsers')
             ->with('uncheckedUsers')
+            ->select('check_flag', 'created_at', 'id', 'message', 'record_id', 'user_id', 'info_flag')
             ->get();
             
         return response()->json($remindedMessages);
