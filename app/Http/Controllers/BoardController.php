@@ -1342,12 +1342,14 @@ class BoardController extends Controller
             })
             ->whereDate('check_request_at', '>', $start_point)
             ->where('deleted_flag', '0')
+            ->where('check_flag', 1)
             ->with('messageRemindUsers')
             ->with('user')
             ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
             ->with('reactedUsers')
             ->with('checkedUsers')
             ->with('uncheckedUsers')
+            ->select('check_flag', 'created_at', 'id', 'message', 'record_id', 'user_id', 'info_flag')
             ->get();
 
         // return response()->json($list);
