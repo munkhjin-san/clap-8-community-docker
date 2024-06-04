@@ -8,7 +8,7 @@
         <button class="work-button pc" @click="clickButton('selectApproveShift')" v-if="auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608">
             勤怠予定承認
         </button>
-        <button class="work-button pc" @click="clickButton('confirmAttendance')">
+        <button class="work-button" :class="{'pc' : !auth.isRegistered}" @click="clickButton('confirmAttendance')">
             勤怠確定
         </button>
         <button class="work-button mobile" v-if="!auth.isRegistered" @click="modal = true">
