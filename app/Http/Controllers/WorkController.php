@@ -1560,11 +1560,11 @@ class WorkController extends Controller
                 $img->encode('webp');
                 $file_path .= '.webp';
             }
-            $img->resize(640, 480, function ($constraint) {
+            $img->resize(640, null, function ($constraint) {
                 $constraint->aspectRatio();
             });
             File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . $path, 0755, true, true);                      
-            $img->save(storage_path('app') . $path .'/'. $file_path, 30);  
+            $img->save(storage_path('app') . $path .'/'. $file_path, 80);  
         }
     
         return response()->json($file_path); 
