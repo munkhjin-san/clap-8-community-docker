@@ -41,10 +41,11 @@
 </template>
 
 <script setup>
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import UserIcon from './Mixed/UserIcon.vue';
     const props = defineProps(['data'])
+    const emit = defineEmits(['resetInstantUser'])
     const auth = useAuthUserStore()
     const info = ref(null)
     const skLoader = ref(true)
@@ -55,17 +56,28 @@ import UserIcon from './Mixed/UserIcon.vue';
     const left = ref('auto')
     const right = ref('auto')
     const opacity = ref(0)
-    onMounted(async() => {        
+    onMounted(async() => {
+        document.addEventListener('mouseup', clickHandle)
+        document.addEventListener('touchend', clickHandle)        
         const el = instantProfileWindow.value
         await getInstantUser(el)
     })
-
+    onUnmounted(() => {
+        document.removeEventListener('mouseup', clickHandle)
+        document.removeEventListener('touchend', clickHandle)
+    })
     const user = computed(() => {
         return info.value ? info.value.user : null
     })
     const found = computed(() => {
         return info.value ? info.value.found : false
     })
+    const clickHandle = (event) => {
+        const cont1 = instantProfileWindow.value;    
+        if(cont1 && !cont1.contains(event.target)){
+            emit('resetInstantUser')
+        } 
+    }
     const getInstantUser = async(el) => {
 
         try{
