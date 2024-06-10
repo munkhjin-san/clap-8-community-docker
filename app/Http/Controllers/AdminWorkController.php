@@ -161,7 +161,7 @@ class AdminWorkController extends Controller{
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
             $time_card_costs = [];
-            
+            $workTimeInSeconds = 0;
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 15);
                 $totalPaidHours = 0;
@@ -194,9 +194,8 @@ class AdminWorkController extends Controller{
                         }
                     }
                     
-                    
-                    $month_work_time_array2[$user->id] = $workTimeInSeconds + $totalPaidHours;
                 }
+                $month_work_time_array2[$user->id] = $workTimeInSeconds + $totalPaidHours;
             }
             
             $responseArray = array(
