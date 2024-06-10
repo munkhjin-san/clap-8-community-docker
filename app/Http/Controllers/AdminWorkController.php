@@ -160,6 +160,7 @@ class AdminWorkController extends Controller{
             
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
+            $test_array = [];
             $time_card_costs = [];
             $workTimeInSeconds = 0;
             foreach ($all_users as $user) {
@@ -196,6 +197,7 @@ class AdminWorkController extends Controller{
                     
                 }
                 $month_work_time_array2[$user->id] = $workTimeInSeconds + $totalPaidHours;
+                $test_array[$user->id] = $workTimeInSeconds;
             }
             
             $responseArray = array(
@@ -207,7 +209,8 @@ class AdminWorkController extends Controller{
                 'kintone_data' => $recieve,
                 'monthly_expenses' => $monthly_expenses,
                 'monthly_incentive' => $monthly_incentive,
-                'timecard_costs' => $time_card_costs
+                'timecard_costs' => $time_card_costs,
+                'test_array' => $test_array, 
             );
 
         return response()->json($responseArray);
