@@ -23,8 +23,8 @@
             <div class="shift-wrapper">
                 <div class="shift-types">
                     <div class="shift-type_name" v-for="(shift_type, index) in shiftTypes" :key="index">
-                        <input type="radio" :disabled="shift_type.id === 3 && notSubmitted" :id="shift_type.id" v-model="selectedShiftType" :value="shift_type.id">
-                        <label :class="{'planned-date' : notSubmitted && shift_type.id === 3}" :for="shift_type.id">{{ shift_type.name }}</label>
+                        <input type="radio" :disabled="shift_type.id === 3 && notSubmitted || shift_type.id === 16 && odaCheck" :id="shift_type.id" v-model="selectedShiftType" :value="shift_type.id">
+                        <label :class="{'planned-date' : notSubmitted && shift_type.id === 3 || shift_type.id === 16 && odaCheck}" :for="shift_type.id">{{ shift_type.name }}</label>
                     </div>
                 </div>
                 <div class="shift-holiday">
@@ -121,9 +121,7 @@
     import { useResponsive } from '@/store/responsive';
     import ShortInput from '../Form/ShortInput.vue';
     import holiday_jp from '@holiday-jp/holiday_jp'
-    import { useAuthUserStore } from '../../store/auth';
     import { getShiftData } from '../../utils/workApi';
-    const auth = useAuthUserStore()
     const responsive = useResponsive()
     const theme = useTheme()
     const emit = defineEmits(['closeModal', 'reload'])
@@ -155,6 +153,7 @@
     const workTemp = ref([])
     const shiftTypes = ref([])
     const shiftRecords = ref([])
+    const odaCheck = ref([])
     onMounted(async() => {
         propsCheck()
         await fetchShiftData()
@@ -196,6 +195,7 @@
             workTemp.value = shiftData.workTemp
             shiftTypes.value = shiftData.shift_type
             shiftRecords.value = shiftData.shift_record
+            odaCheck.value = shiftData.odaCheck
         }catch (e){
             notify(e?.message)
         }
