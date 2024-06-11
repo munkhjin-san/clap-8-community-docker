@@ -162,7 +162,7 @@ class AdminWorkController extends Controller{
             $month_work_time_array2 = [];
             $time_card_costs = [];
             foreach ($all_users as $user) {
-                $shiftTypes = range(3, 15);
+                $shiftTypes = range(3, 16);
                 $totalPaidHours = 0;
                 if (count($user->shift_records) > 0) {
                     foreach ($user->shift_records as $record) {
