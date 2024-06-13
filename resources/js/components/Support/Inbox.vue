@@ -66,7 +66,7 @@
                     </div>
                     <div class="si-box">
                         <p>相談内容</p>
-                        <div>{{selectedItem.consultation_content}}</div>
+                        <div style="white-space:break-spaces;">{{selectedItem.consultation_content}}</div>
                         <div style="background: var(--bg3);padding: 10px;margin-top: 10px;">
                             <div style="display: flex;align-items: center;justify-content: space-between;">
                                 <p>メモ</p>
