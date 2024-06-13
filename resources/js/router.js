@@ -195,7 +195,13 @@ const routes = [
                                 path: 'trainee',
                                 name: 'trainee',
                                 component: () => import('./components/AccountControl/LearningControl/TraineeControl.vue')
-                            }
+                            },
+                            // {
+                            //     props: true,
+                            //     path: 'assistant',
+                            //     name: 'assistant',
+                            //     component: () => import('./components/AccountControl/LearningControl/AssistantControl.vue')
+                            // }
                             
                         ]
                     },
@@ -241,19 +247,7 @@ const routes = [
             { path: 'faq',props: true, name: 'faq', component: () => import('./components/Support/Faq.vue') },
             { path: 'email_consult',props: true, name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
             { path: 'phone_consult',props: true, name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
-            { path: 'email_inbox',props: true, name: 'email_inbox', component: () => import('./components/Support/Inbox.vue'), 
-                beforeEnter: (to, from, next) => {
-                    const auth = useAuthUserStore()
-                    const userId = auth?.activeUser?.id
-                    const viewTrayUsers = [610, 516, 517, 519, 518, 526, 494, 604, 765]
-                    if(!viewTrayUsers.includes(userId)){
-                        next({name:'email_consult'});
-                    }else{
-                        next();
-                    }
-                    
-                }, 
-            }
+            { path: 'email_inbox',props: true, name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')}
         ],
     },
     {

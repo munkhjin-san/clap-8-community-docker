@@ -12,6 +12,14 @@ use Illuminate\Support\Facades\Auth;
 
 class SupportController extends Controller
 {
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
     public function support_record_list(Request $request){
         $record_list = questionAndAnswerRecord::where('deleted_flag','=', 0)->with(['qanda_use_tags' => function($q){
             $q->where('deleted_flag','=', 0)->with(['qanda_tag_records' => function($q){
@@ -48,8 +56,9 @@ class SupportController extends Controller
         return response()->json($incement);
     }
     public function support_add_consult(Request $request){
+        $user_id = $this->active_user()->id;
         $create = SupportMailFormRecord::create([
-            "user_id" => Auth::id(),
+            "user_id" => $user_id,
             "kind_value" => $request->kind_value,
             "contact_address" => $request->contact_address,
             "consultation_content" => $request->consultation_content,
@@ -57,15 +66,24 @@ class SupportController extends Controller
         return response()->json($create);
     }
     public function get_recieved_consults(){
-        $record_list = supportMailFormRecord::where('deleted_flag','=', 0)->with('user')
+
+        
+        $user_id = $this->active_user()->id;
+        $has_privilage = in_array($user_id, [610, 608, 516, 517, 519, 518, 526, 494]);
+        $record_list = supportMailFormRecord::where('deleted_flag','=', 0)
+        ->when(!$has_privilage, function($q){
+            $q->where('user_id', Auth::id());
+        })
+        ->with('user')
         ->with(['support_mail_responding_logs' => function($q){
             $q->where('deleted_flag','=', 0)->orderBy('created_at', 'desc')->with('user');
         }])->orderBy('created_at', 'desc')->get();
         return response()->json($record_list);
     }
     public function add_memo_to_consult(Request $request){
+        $user_id = $this->active_user()->id;
         $create = SupportMailRespondingLog::create([
-            "user_id" => Auth::id(),
+            "user_id" => $user_id,
             "text" => $request->text,
             "record_id" => $request->record_id,
         ]);
