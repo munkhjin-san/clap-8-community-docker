@@ -7,12 +7,11 @@ use App\Models\NoticeRecord;
 use App\Models\NoticeFile;
 use App\Models\User;
 use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Notice;
 use Auth;
-use DB;
 
 class NoticeController extends Controller
 {
@@ -96,7 +95,7 @@ class NoticeController extends Controller
     public function notice_file_upload(Request $request ){    
         $ids = [];
         $path = '/notice_temp';
-
+        $active_user = $this->active_user();
         // return response()->json($path);
         foreach($request->file() as $file ){         
             $file_extension = $file->getClientOriginalExtension();
@@ -111,16 +110,16 @@ class NoticeController extends Controller
             $fileRecord->mime_type = $file_type;
             $fileRecord->extension = $file_extension;
             
-            $fileRecord->user_id = $this->active_user()->id;
+            $fileRecord->user_id = $active_user->id;
             $fileRecord->save();
             $set_path = $fileRecord->id . '.' . $fileRecord->extension;
 
             
             if($file_type == 'image' && $file_extension !== 'svg'){
-                $img = Image::make($file)->orientate();
+                $img = Image::read($file);
                     
                 File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
-                $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
+                $img->encodeByExtension($file_extension, 30)->save(storage_path('app') . $path .'/'. $set_path);  
                 
             }else{
                 Storage::disk('local')->putFileAs(

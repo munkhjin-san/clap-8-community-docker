@@ -12,22 +12,25 @@
             <div style="display:flex;flex-direction:column;overflow: hidden;">   
                 <div class="divTable blueTable">
                     <div class="divTableBody">
-                        <div class="divTableRow">
-                            <div class="divTableCell">ID</div>
+                        <div class="divTableRow wrap-mb">
+                            <div class="divTableCell mb-title">ID</div>
+                            <span class="mobile">:</span>
                             <div class="divTableCell">{{board.id}}</div>
                         </div>
-                        <div class="divTableRow">
-                            <div class="divTableCell">タイトル</div>
+                        <div class="divTableRow wrap-mb">
+                            <div class="divTableCell mb-title">タイトル</div>
+                            <span class="mobile">:</span>
                             <div class="divTableCell">
                                 <BoardTitle :item="board" titleStyle="word-break: break-all;white-space: break-spaces;"/>
                             </div>
                         </div>
-                        <div class="divTableRow">
-                            <div class="divTableCell">タイプ</div>
+                        <div class="divTableRow wrap-mb">
+                            <div class="divTableCell mb-title">タイプ</div>
+                            <span class="mobile">:</span>
                             <div class="divTableCell">{{ boardType }}</div>
                         </div>
                         <div v-if="board.private_flag == 0 " class="divTableRow">
-                            <div class="divTableCell">管理者</div>
+                            <div class="divTableCell mb-title">管理者</div>
                             <div class="divTableCell">
                                 <div class="member-out">                                    
                                     <div class="member" v-for="admin in admins">
@@ -37,7 +40,7 @@
                             </div>
                         </div>
                         <div class="divTableRow">
-                            <div class="divTableCell">メンバー ({{members.length}})</div>
+                            <div class="divTableCell mb-title">メンバー ({{members.length}})</div>
                             <div class="divTableCell">
                                 <div class="member-out">
                                     <div class="member" v-for="member in members">
@@ -46,12 +49,14 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="divTableRow">
-                            <div class="divTableCell">作成日</div>
+                        <div class="divTableRow  wrap-mb">
+                            <div class="divTableCell mb-title">作成日</div>
+                            <span class="mobile">:</span>
                             <div class="divTableCell">{{momentMessage}}</div>
                         </div>   
-                        <div class="divTableRow" v-if="board.user"> 
-                            <div class="divTableCell">作成者</div>
+                        <div class="divTableRow  wrap-mb" v-if="board.user"> 
+                            <div class="divTableCell mb-title">作成者</div>
+                            <span class="mobile">:</span>
                             <div class="divTableCell">
                                 <div class="member-out">
                                     <div class="member" v-if="board.user">
@@ -159,10 +164,35 @@ div.blueTable {
 .divTableFoot { display: table-footer-group;}
 .divTableBody { display: table-row-group;}
 @media screen and (max-width: 959px) {
+    div.blueTable {
+        border: none;
+    }
     .detailed-window{
         width: 85%;
         max-width: 85%;
         max-height: calc(85% - 40px);
+    }
+    .divTableRow { 
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    .divTable.blueTable .divTableCell, .divTable.blueTable .divTableHead {
+        border: none;
+        padding: 5px;
+        line-height: 1.8;
+    }
+    .divTableBody { 
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    .wrap-mb{
+        flex-direction: row;
+        align-items: center;
+    }
+    .mb-title{
+        font-weight: 600;
     }
 }
 </style>

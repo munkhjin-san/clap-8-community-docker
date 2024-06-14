@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class timecardBreakRecord extends Model
 {
     use SoftDeletes;
-
+    protected $guarded = [];
     public function timecard_records(){
         return $this->belongsTo(timecardRecord::class,'id');
     }

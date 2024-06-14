@@ -136,6 +136,7 @@ import { useAuthUserStore } from '@/store/auth'
 import { useTaskFeedback } from '@/store/taskFeedback'
 import UserIcon from "./Mixed/UserIcon.vue"
 import { useRoute, useRouter } from "vue-router";
+import { useCheckApproval } from "../../store/checkApproval";
     const route = useRoute()
     const router = useRouter()
     const auth = useAuthUserStore()
@@ -155,7 +156,7 @@ import { useRoute, useRouter } from "vue-router";
     const tempData = ref([])
     const remainingDays = ref(0)
     const notapprovedTimecards = ref([])
-
+    const checkApproval = useCheckApproval()
     const closePopupIfNeeded = () => {
         if(!incompleteShow.value){
             closeOverRide()
@@ -183,6 +184,14 @@ import { useRoute, useRouter } from "vue-router";
         (after, before) => {
             if (after === false) {
                 getIncompletedTasks();
+            }
+        }
+    )
+    watch(
+        () => checkApproval.approved,
+        (after) => {
+            if(after) {
+                getNotApproved();
             }
         }
     )
@@ -234,6 +243,7 @@ import { useRoute, useRouter } from "vue-router";
             try{
                 const response = await axios.get('/not_approved')
                 notapprovedTimecards.value = Object.values(response.data)
+                checkApproval.setCheckApproval(false)
             } catch (e) {
                 
             }

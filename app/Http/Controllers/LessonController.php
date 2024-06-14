@@ -10,7 +10,7 @@ use App\Models\LessonForm;
 use App\Models\LessonSection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 class LessonController extends Controller
@@ -45,20 +45,10 @@ class LessonController extends Controller
         }
     }
     public function create_learning_theme(Request $request){
-        if($request->edit_id){
-            $theme = LessonTheme::findOrFail($request->edit_id)->update([
-                "title" => $request->title,
-                "discussion_date" => $request->discussion_date,
-                "active" => $request->active
-            ]);
-        }
-        else{
-            $theme = LessonTheme::create([
-                "title" => $request->title,
-                "discussion_date" => $request->discussion_date,
-                "active" => $request->active
-            ]);
-        }
+
+        $id = $request->id ?? null;
+        $params = $request->params;
+        $theme = LessonTheme::updateOrCreate(['id' => $id], $params);
         return response()->json($theme);
     }
     public function lesson_add_record(Request $request){
@@ -121,31 +111,27 @@ class LessonController extends Controller
         return response()->json();
     }
 
-    public function save_lesson_portfolio(Request $request){
-      
-            // $lessonPortfolio = LessonPortfolio::findOrFail($request->portfolio_id);
-        $validatedData = $request->validate([
+    public function save_lesson_portfolio(Request $request){      
+    
+        $request->validate([
             'theme_id' => 'required',
         ]);
         $lessonPortfolio = $this->check_portfolio($request->theme_id, Auth::id());
 
-        $lessonPortfolio->update([
-            "content" => $request->content ?? $lessonPortfolio->content,
-            "positive_feedback" => $request->p_feedback ?? $lessonPortfolio->positive_feedback,
-            "negative_feedback" => $request->n_feedback ?? $lessonPortfolio->negative_feedback, 
-            "status" => $request->status ?? $lessonPortfolio->status,
-            "understand" => $request->understand ?? $lessonPortfolio->understand,
-            "portfolio_title" => $request->portfolio_title ?? $lessonPortfolio->portfolio_title,
-            "noticed" => $request->noticed ?? $lessonPortfolio->noticed,
-            "public_title" => $request->public_title ?? $lessonPortfolio->public_title,
-            "public_content" => $request->public_content ?? $lessonPortfolio->public_content,
-        ]);
+        $lessonPortfolio->update($request->params);
             
       
         
         return response()->json($lessonPortfolio);
     }
-
+    public function update_lesson_portfolio(Request $request){
+      
+        $request->validate([
+            'id' => 'required',
+        ]);
+        $lessonPortfolio = LessonPortfolio::findOrFail($request->id)->update($request->params);       
+        return response()->json($lessonPortfolio);
+    }
     public function get_lesson_portfolio(Request $request){
         $lesson_portfolio = LessonPortfolio::where('lesson_theme_id', $request->lesson_theme_id)
         ->where('user_id', Auth::id())
@@ -194,12 +180,12 @@ class LessonController extends Controller
         $fileName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
         if (strpos($mime, 'image') !== false) {
             $ext = 'webp';
-            $img = Image::make($file)->orientate();
+            $img = Image::read($file);
             
             File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);      
-            $thumbnail = $img->encode('webp');  
+            $thumbnail = $img->toWebp();  
             
-            $thumbnail->save(storage_path('app') . $path .'/' . $fileName . '_' . $uniqueID . '.' . $ext , 100);
+            $thumbnail->save(storage_path('app') . $path .'/' . $fileName . '_' . $uniqueID . '.' . $ext);
             $url = '/lesson_files/' . $fileName . '_' . $uniqueID . '.' . $ext;
             return response()->json($url);
         }elseif (strpos($mime, 'video') !== false) {

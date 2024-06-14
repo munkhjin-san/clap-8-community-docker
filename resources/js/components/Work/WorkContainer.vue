@@ -101,6 +101,8 @@
     import { useAuthUserStore } from '@/store/auth'
     import { useElementSize } from '@vueuse/core'
     import { getWorkGroup, getCustomFields, getWorkData, getShiftDataTable } from '../../utils/workApi'
+    import axios from 'axios'
+    import { useBreakTime } from '@/store/breakTime'
     const firstUser = computed(() => {
         return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
     })
@@ -128,6 +130,7 @@
     const editData = ref(null)
     const attendanceFlag = ref(false)
     const approvalModal = ref(false)
+    const breakTimeStore = useBreakTime()
     onMounted(async() => {
         const query = route.query
         if(query.user_id){
@@ -178,16 +181,12 @@
             } else if (data.shift?.status_flag == 2) {
                 notify('勤怠予定は承認されていません。') 
             } else {
-                var date = new Date(); 
-                var minutes = date.getMinutes();
-                var quarterHours = Math.ceil(minutes / 15);
-                date.setMinutes(quarterHours * 15);
-                date.setSeconds(0);
-                var hours = date.getHours();
-                var minutes = date.getMinutes();
-                hours = hours < 10 ? '0' + hours : hours;
-                minutes = minutes < 10 ? '0' + minutes : minutes;
-                let time = hours + ':' + minutes + ':00'
+                let date = moment();
+                let minutes = date.minutes();
+                let quarterHours = Math.ceil(minutes / 15);
+                date.minutes(quarterHours * 15).seconds(0);
+
+                let time = date.format('HH:mm:ss');
                 todayStartTime.value = time
                 const params = {
                     start_time : time,
@@ -205,17 +204,12 @@
         }
     }
     const timeStampEnd = async() => {
-        var date = new Date();
-        var minutes = date.getMinutes();
-        var rounded = Math.floor(minutes / 15) * 15;
-        date.setMinutes(rounded);
-        date.setSeconds(0);
-        var hours = date.getHours();
-        var minutes = date.getMinutes();
+        let date = moment();
+        let minutes = date.minutes();
+        let quarterHours = Math.floor(minutes / 15);
+        date.minutes(quarterHours * 15).seconds(0);
 
-        hours = hours < 10 ? '0' + hours : hours;
-        minutes = minutes < 10 ? '0' + minutes : minutes;
-        let time = hours + ':' + minutes + ':00'
+        let time = date.format('HH:mm:ss');
         todayEndTime.value = time
         const params = {
             end_time : time,
@@ -233,6 +227,19 @@
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
         } 
+    }
+    const timeStampBreak = async(data) => {
+        const params = {
+            break_start : moment().format('HH:mm:ss'),
+            record : data.time_card
+        }
+        try {
+            await axios.post('/daily_report_break', params)
+            breakTimeStore.checkBreakTime()
+            await fetchShiftDataTable()
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
+        }
     }
     const timeStampEdit = (data) => {
         const month = selectedMonth.value + 1
@@ -370,7 +377,8 @@
         edit: (item) => timeStampEdit(item),
         start: (item) => timeStampStart(item),
         stampDelete: (item) => timeStampDelete(item),
-        end: (item) => timeStampEnd(item)
+        end: (item) => timeStampEnd(item),
+        takeBreak: (item) => timeStampBreak(item)
     })
     provide('workGroups', workGroups)
 </script>

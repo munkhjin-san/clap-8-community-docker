@@ -18,7 +18,7 @@
                 />               
             </div>         
         </div>
-        <div class="member-container">
+        <div class="member-container" @scroll="scrollListen" ref="memberContainerRef">
             
             <div v-for="(position, index) in positions" style="">
                 <p class="position-title" :class="{'first-position' : index == 0}">{{position.name}}</p>
@@ -69,33 +69,25 @@
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import HamBurger from '../Global/HamBurger.vue';
 import MemberItem from './MemberItem.vue';
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, inject, onActivated, onMounted, ref } from 'vue';
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
+    const scrollPos = ref(0)
     const menu = useMenuStore()
     const responsive = useResponsive()
     const memberList = ref([])
     const searching = ref(false)
     const keyword = ref('')
-    const levels = [
-                {active: false, label: "一般職"}, 
-                {active: false, label: "A"}, 
-                {active: false, label: "B"}, 
-                {active: false, label: "C"}, 
-                {active: false, label: "D"}, 
-                {active: false, label: "E"}, 
-                {active: false, label: "F"},
-                {active: false, label: "G"}
-            ]
-    const searchFocus = ref(true)
     const sortByShokkai = ref(false)
     const initialLoader = ref(true)
     const { notify } = inject('dialog')
-    const shokkaiSelector = computed(() => {
-        return searchFocus.value
-    })
-    const selectedShokkai = computed(() => {
-        return levels.filter(ob => ob.active == true).map(s => s.label)
+    const memberContainerRef = ref(null)
+    onActivated(() => {
+        if(scrollPos.value && memberContainerRef.value){
+            setTimeout(() => {
+                memberContainerRef.value.scrollTo(0, scrollPos.value)
+            }, 0);
+        }
     })
     const sortableList = computed(() => {
         if (!keyword.value.trim()) {
@@ -156,6 +148,9 @@ import { useResponsive } from '@/store/responsive';
                 initialLoader.value = false
             }, 200); 
         }
+    }
+    const scrollListen = (event) => {
+        scrollPos.value = event.target.scrollTop
     }
 
 </script>

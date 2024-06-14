@@ -72,10 +72,14 @@ const create = () => {
     if(!title.value) return
     loader.value = true
     axios.post('/create_learning_theme', { 
-        title: title.value, 
-        edit_id: props.editTarget ? props.editTarget.id : null,
-        active: active.value,
-        discussion_date: discussionDate.value
+    
+        id: props.editTarget ? props.editTarget.id : null,
+        params: {
+            active: active.value,
+            discussion_date: discussionDate.value,
+            title: title.value
+        }
+
     }).then(response => {
         loader.value = false
         info(props.editTarget ? '編集しました。' :'保存しました。')

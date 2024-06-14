@@ -34,7 +34,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
@@ -132,26 +131,7 @@ class AutoJobController extends Controller
         foreach($imageFiles as $file){
 
             GenerateThumbnailJob::dispatch($file);
-            // $parentDirectory = dirname($file);
-            // $fileName = pathinfo(basename($file), PATHINFO_FILENAME);
-      
-            //     $height = 130;
-            
-            //         $img = Image::make(storage_path('app/'.$file));
-                    
-            //         $thumbnail = $img->encode('webp')->resize(null, $height, function($constraint) {
-            //             $constraint->aspectRatio();
-            //             $constraint->upsize();
-            //         });  
-            //         if (!Storage::disk('local')->exists($parentDirectory . '/thumbnail')) {
-            //             Storage::disk('local')->makeDirectory($parentDirectory . '/thumbnail');
-            //         }
-            //         $thumbnailPath = storage_path('app/') .  $parentDirectory . '/thumbnail/' .  $fileName  . '_thumbnail.webp';
-            //         $thumbnail->save($thumbnailPath, 100);
-            
-           
-            // echo($fileName);           
-
+               
             echo('<br>');
         }
         // dd($imageFiles);
@@ -169,25 +149,6 @@ class AutoJobController extends Controller
         }
 
 
-
-        // foreach ($file_records as $file) {
-        //     $imgPath = storage_path('app/post_files/') . $file->id . '_' . $file->user_id . '_' . $file->path . '.' . $file->extension;
-        //     $height = 130;
-        //     if (file_exists($imgPath)) {
-        //         $img = Image::make($imgPath);
-                
-        //         $thumbnail = $img->encode('webp')->resize(null, $height, function($constraint) {
-        //             $constraint->aspectRatio();
-        //             $constraint->upsize();
-        //         });  
-        
-        //         // Save the thumbnail
-        //         $thumbnailPath = storage_path('app/post_files/') . $file->id . '_' . $file->user_id . '_' . $file->path . '_thumbnail.webp';
-        //         $thumbnail->save($thumbnailPath, 100);
-        //     }
-        // }
- 
-        
 
         return 'success';
     }

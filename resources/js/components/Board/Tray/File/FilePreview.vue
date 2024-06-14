@@ -139,7 +139,7 @@ import PdfViewer from './PdfViewer.vue'
 import Swiper from 'swiper';
 import 'swiper/css/bundle';
 import "swiper/css/zoom";
-import { Zoom, Navigation, Thumbs } from 'swiper';
+import { Navigation, Zoom, Thumbs } from 'swiper/modules';
 import 'swiper/css/navigation'
 import 'swiper/css/thumbs'
 import FileIcon from '../../Mixed/FileIcon.vue';
@@ -220,7 +220,7 @@ import { useSharingDataStore } from '@/store/sharingData'
     const swiperCreate = () => {
         thumbsSwiper.value = new Swiper('.gallery-thumbs', {
             spaceBetween: 10,
-            slidesPerView: 4,
+            slidesPerView: 'auto',
             freeMode: true,
             watchSlidesProgress: true
         })
@@ -521,7 +521,8 @@ import { useSharingDataStore } from '@/store/sharingData'
         height: calc(100% - 37px);
         display: flex;
         flex-direction: column;
-        position:relative
+        position:relative;
+        user-select: none;
     }
     .mySwiper-wrapper{
         display:flex;
@@ -554,12 +555,12 @@ import { useSharingDataStore } from '@/store/sharingData'
             display: flex;
             justify-content: center;
         }
-        .swiper{
-            &.gallery-thumbs .swiper-wrapper{
-                transform: translate3d(0px, 0px, 0px) !important;
-                transition-property: none;
-          }
-        }
+        // .swiper{
+        //     &.gallery-thumbs .swiper-wrapper{
+        //         transform: translate3d(0px, 0px, 0px) !important;
+        //         transition-property: none;
+        //   }
+        // }
     }
     @media screen and (max-width: 760px) {
         .corner{

@@ -10,20 +10,16 @@ use App\Models\ChallengeRecord;
 use App\Models\TagRecord;
 use App\Models\FileRecord;
 use App\Models\ClapRecord;
-use App\Models\KnowledgeUseTag;
-use App\Models\ChallengeUseTag;
-use App\Models\NiceUseTag;
 use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
 use App\Models\UserLastRecord;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Comment;
 use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use App\Events\MessageSent;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 
 class PostController extends Controller
@@ -243,15 +239,12 @@ class PostController extends Controller
                 $height = 130;
                 $file_type = $file['record']['mime_type'];
                 if($file_type == 'image' && $file['record']['extension'] !== 'svg'){
-                    $img = Image::make(storage_path('app') . $source_file_path)->orientate();
+                    $img = Image::read(storage_path('app') . $source_file_path);
                         
                     File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
                     $img->save(storage_path('app') . $set_path, 30);  
-                    $thumbnail = $img->encode('webp')->resize(null, $height, function($constraint) {
-                        $constraint->aspectRatio();
-                        $constraint->upsize();
-                    });  
-                    $thumbnail->save(storage_path('app') . $path . $thumbnail_path, 100);
+                    $thumbnail = $img->scale(height: 130);  
+                    $thumbnail->toWebp()->save(storage_path('app') . $path . $thumbnail_path);
                 }else{
                     Storage::disk('local')->copy( $source_file_path, $set_path );
                 }
@@ -289,15 +282,12 @@ class PostController extends Controller
             $thumbnail_path = 'thumbnail/' . $fileRecord->id . '_' . $fileRecord->user_id . '_' . $file_path . '_thumbnail.webp';
             $height = 130;
             if($file_type == 'image' && $file_extension !== 'svg'){
-                $img = Image::make($file)->orientate();
+                $img = Image::read($file);
                     
                 File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
                 $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
-                $thumbnail = $img->encode('webp')->resize(null, $height, function($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                });  
-                $thumbnail->save(storage_path('app') . $path .'/'. $thumbnail_path, 100);
+                $thumbnail = $img->scale(height: 130);  
+                $thumbnail->toWebp()->save(storage_path('app') . $path .'/'. $thumbnail_path);
             }else{
                 Storage::disk('local')->putFileAs(
                     $path, $file, $set_path

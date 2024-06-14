@@ -43,13 +43,13 @@
                 <div v-if="loading" class="l-spinner" style="background-color: var(--background-color);">
                     <span style="min-width: 20px; height: 20px;" class="l-loader"></span>
                 </div>
-                <label for="sharedfile" class="cursor-pointer" @click="currentIndex = index">                                       
+                <label :for="`sharedfile${fieldIndex}`" class="cursor-pointer">                                       
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="17" viewBox="0 0 27 32" style="fill: var(--primary-color)">
                         <path d="M25.954 7.013c-0.479-0.575-4.378-4.56-5.978-5.816-0.623-0.489-1.284-0.853-2.127-0.949-1.178-0.125-2.97-0.182-4.091-0.22-1.36-0.029-2.472-0.029-3.832-0.029-1.36 0.010-3.008 0.077-4.474 0.172-1.36 0.077-2.328 0.134-2.845 0.22-0.69 0.105-1.188 0.489-1.265 1.303-0.077 0.805-0.172 4.905-0.172 7.454 0.010 2.558 0.115 5.835 0.201 6.822 0.096 0.987 0.556 1.447 1.083 1.504 0.527 0.067 0.843-0.537 0.853-1.159 0.019-0.623 0.019-1.226 0.019-1.734s-0.048-2.913-0.019-5.432c0.029-2.098 0.086-4.206 0.192-6.304 0.010-0.134 0.115-0.24 0.249-0.24 0.92-0.029 1.849-0.048 2.778-0.058 1.341-0.019 2.683-0.019 4.024-0.010s2.683 0.029 4.024 0.058c0.987 0.019 1.983 0.048 2.96 0.086 0.153 0.010 0.268 0.134 0.268 0.287-0.010 0.901-0.019 3.612-0.019 3.612 0 0.546 0.010 1.083 0.019 1.629v0.010c0.010 0.546 0.45 0.987 0.996 0.987l1.705 0.019h1.705c0.441 0 1.428-0.019 1.926-0.029 0.153 0 0.287 0.125 0.297 0.278 0.048 1.399 0.067 2.807 0.077 4.216 0.010 1.878 0 3.756-0.029 5.634s-0.077 3.756-0.153 5.624c-0.067 1.514-0.144 3.037-0.268 4.532-0.019 0.201-0.182 0.355-0.383 0.364-1.418 0.038-2.778 0.067-4.302 0.077-1.648 0.010-6.266 0.010-8.163 0-1.964-0.010-5.365-0.029-7.042-0.086-0.125 0-0.24-0.153-0.259-0.278-0.058-0.374-0.105-0.834-0.163-1.389-0.067-0.623-0.469-1.092-1.035-1.025-0.45 0.048-0.824 0.45-0.891 1.198-0.067 0.738-0.019 1.619 0.067 2.213s0.441 1.016 1.198 1.14c1.006 0.163 5.72 0.249 8.057 0.268 2.347 0.019 6.275-0.019 8.259-0.019 1.974-0.010 3.286-0.019 4.857-0.182 1.121-0.115 1.408-0.747 1.552-1.715 0.24-1.667 0.345-3.325 0.469-4.982 0.134-1.887 0.24-3.775 0.326-5.672 0.086-1.887 0.144-3.784 0.192-5.672 0.029-1.428 0.038-3.21 0.019-4.235-0.010-0.948-0.287-1.782-0.862-2.472zM19.832 7.023c-0.019-0.537-0.077-2.060-0.096-2.692 0-0.096 0.105-0.144 0.182-0.086 0.537 0.489 2.491 2.271 3.152 2.874 0.077 0.067 0.029 0.192-0.077 0.182-0.719-0.029-2.434-0.086-2.98-0.105-0.096 0.010-0.182-0.077-0.182-0.172z"></path>
                         <path d="M18.405 25.61l2.050-6.189c0.029-0.086 0.048-0.182 0.048-0.268 0-0.45-0.383-0.843-0.881-0.843h-18.74c-0.24 0-0.46 0.096-0.623 0.249s-0.259 0.364-0.259 0.604v6.189c0 0.23 0.096 0.441 0.259 0.594s0.383 0.249 0.623 0.249h16.69c0.374-0.010 0.709-0.24 0.834-0.584zM22.41 11.89c0.019-0.383-0.278-0.719-0.671-0.738-1.284-0.067-2.568-0.096-3.842-0.115-0.642-0.010-1.284-0.029-1.926-0.029l-1.926-0.010-1.926 0.010-1.926 0.029c-1.284 0.019-2.568 0.038-3.842 0.086-0.374 0.019-0.69 0.316-0.699 0.699-0.010 0.402 0.297 0.738 0.699 0.757 1.284 0.048 2.568 0.067 3.842 0.086l1.926 0.019 1.926 0.010 1.926-0.010c0.642 0 1.284-0.019 1.926-0.029 1.284-0.019 2.568-0.048 3.842-0.115 0.364-0.010 0.651-0.287 0.671-0.652zM15.875 14.63c-0.527-0.010-1.054-0.029-1.581-0.029l-1.59-0.010-1.581 0.010-1.59 0.029c-1.054 0.019-2.117 0.038-3.171 0.086-0.374 0.019-0.68 0.316-0.69 0.699-0.019 0.402 0.297 0.738 0.69 0.757 1.054 0.048 2.117 0.067 3.171 0.086l1.59 0.029 1.581 0.010 1.59-0.010c0.527 0 1.054-0.019 1.581-0.029 1.054-0.019 2.117-0.048 3.171-0.115 0.345-0.019 0.632-0.297 0.661-0.661 0.019-0.383-0.268-0.719-0.661-0.738-1.054-0.057-2.117-0.086-3.171-0.115z"></path>
                     </svg>  
                 </label>
-                <input  accept="image/*" type="file" name="sharedfile" id="sharedfile" @change="addAttachment($event, currentIndex)" style="display: none;">
+                <input  accept="image/*" type="file" :name="`sharedfile${fieldIndex}`" :id="`sharedfile${fieldIndex}`" @change="addAttachment($event)" style="display: none;">
             </div>
             <div class="file-area-content" v-else style="margin:0">
                 <div class="cost-file-container" @click.stop >   
@@ -57,7 +57,7 @@
                         style="max-width:100%;margin:auto;max-height:100%;cursor: pointer;" 
                         class="list-image-mobile" 
                         :src=fileSrc(fileModel)
-                        @click="previewImage(fileModel)"
+                        @click="workFilePreview(fileModel)"
                     />
                     <div @click.stop="fileUpCancel()" class="cancelButton">
                         <svg @click.prevent version="1.1" xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 32 32" fill="var(--background-color)">
@@ -82,10 +82,10 @@
         </div>
 </template>
 <script setup>
-import { useFilePreview } from '../../store/filePreview';
 import ShortInput from '../Form/ShortInput.vue'
 import { inject, ref, computed } from 'vue';
 import OptionSelector from '../Form/OptionSelector.vue';
+import { workFilePreview } from '../../utils/workApi';
 
     const department = defineModel('department')
     const content = defineModel('content')
@@ -94,7 +94,6 @@ import OptionSelector from '../Form/OptionSelector.vue';
     const fileModel = defineModel('file_path')
     const loading = ref(false)
 
-    const filePreview = useFilePreview()
     const { notify } = inject('dialog')
     
     const currentIndex = ref(null)
@@ -120,9 +119,9 @@ import OptionSelector from '../Form/OptionSelector.vue';
     const fileSrc = (file) => {
         return `/cdn/timecard_files/${file}`
     }
-    const addAttachment = (event, index) => {
-        if(event.target.files && event.target.files.length && index !== null){
-            uploadStart(event.target.files[0], index)
+    const addAttachment = (event) => {
+        if(event.target.files && event.target.files.length){
+            uploadStart(event.target.files[0])
         }
     }
     const uploadStart = async(file) => {
@@ -146,25 +145,6 @@ import OptionSelector from '../Form/OptionSelector.vue';
                 loading.value = false
             }
         }
-    }
-    const previewImage = (file) => {
-        
-            const file_path = fileSrc(file)
-            let target_data = {
-                extension: 'webp',
-                mime_type: 'image',
-                file_path: file_path,
-                name: file
-            }
-            const data = {
-                active: true,
-                files: [target_data],
-                source: 'work',
-                index: 0,
-                message: null,
-            }
-            filePreview.setFilePreview(data)
-        
     }
 </script>
 <style scoped>

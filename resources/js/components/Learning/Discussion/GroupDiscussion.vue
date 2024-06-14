@@ -100,11 +100,14 @@
         }
         
         const params = {
-            p_feedback: p_feedBack.value ? p_feedBack.value : portfolio.positive_feedback,
-            n_feedback: n_feedBack.value ? n_feedBack.value : portfolio.negative_feedback,
-            noticed: noticed.value ? noticed.value : portfolio.noticed,
             theme_id: route.params.lessonThemeId,
-            status: portfolioStatus,
+            params:{
+                positive_feedback: p_feedBack.value ? p_feedBack.value : portfolio.positive_feedback,
+                negative_feedback: n_feedBack.value ? n_feedBack.value : portfolio.negative_feedback,
+                noticed: noticed.value ? noticed.value : portfolio.noticed,                
+                status: portfolioStatus,
+            }
+
         }
         axios.post('/save_lesson_portfolio', params).then(response => {
             if(status == 'save'){
@@ -124,7 +127,7 @@
     }
     
     const nextStage = async() => {
-        const answer = await confirm('グループディスカッションを完了にしますか。\n※完了後に、編集するができません。')
+        const answer = await confirm('グループディスカッションを完了にしますか。\n完了後は編集ができません。')
         if(!answer) return
         await saveContent('next')
         setTimeout(() => {                    
@@ -136,7 +139,7 @@
         const options = {
             answers: [{label: 'OK', value: true}]
         }
-        const answer = await confirm('グループディスカッションを完了にしまた。\n\nお疲れ様でした。', options)
+        const answer = await confirm('グループディスカッションを完了にしまた。\nお疲れ様でした。', options)
         if(answer){
             lesson()                        
             router.push({name: 'top'})

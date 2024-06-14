@@ -29,7 +29,6 @@
                     </div>
                    
                 </div>
-               
                 <div class="report-field">
                     <p class="report-header">休憩時間</p>
                     <div class="report-input">
@@ -38,15 +37,6 @@
                         </select>
                     </div>
                 </div>
-                <!-- <div class="report-field">
-                    <p class="report-header">部門</p>
-                    <div class="report-input">
-                        <select class="dropDownSelector taskDateTimePicker" v-model="department" name="department" style="max-width: 100%;">
-                            <option :key="item.id" v-for="item in workGroupAsOptions" :value="item.value">{{ item.label }}</option>
-                        </select>
-                    </div>
-                    
-                </div> -->
                 <div class="report-field" style="background:inherit;">
                     <p class="report-header" style="margin-bottom: 20px;">経費</p>
                     <CostField 
@@ -133,11 +123,11 @@
     const loading = ref(false)
     const editStartTime = ref(timeCard.value?.start_time ? timeCard.value.start_time : shift.value?.start_time ? shift.value.start_time : '09:00:00')
     const editEndTime = ref(timeCard.value?.end_time ? timeCard.value.end_time : shift.value?.end_time ? shift.value.end_time : '18:00:00')
-    const breakTimeOptions = [{label : 'なし' , value : 0 },
+    const breakTimeOptions = ref([{label : 'なし' , value : 0 },
                         {label : '30分' , value : 30 },
                         {label : '45分' , value : 45 },
                         {label : '60分' , value : 60 },
-                        {label : '90分' , value : 90 }]
+                        {label : '90分' , value : 90 }])
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
     const { confirm, notify, info } = inject('dialog')
     const customValues = ref({})
@@ -166,8 +156,17 @@
     }
 
     onMounted(() => {
+        if(props.item?.total_break_time){
+            const newItem = {
+                label: props.item?.total_break_time + '分',
+                value: props.item?.total_break_time
+            }
+            breakTimeOptions.value.push(newItem)
+            breakTimeSelect.value = props.item?.total_break_time
+        } else {
+            breakTimeCalc()
+        }
         costsFill()
-        breakTimeCalc()
         customFieldFill()
     })
     const costsFill = () => {
@@ -332,7 +331,6 @@
                 overTimeMinute: shift.value?.overtime_request?.minutes,
                 costsValues: costs,
                 incentiveValues: incentives.value,
-                // department: department.value
             }
             resolve(a)
         })

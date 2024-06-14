@@ -169,7 +169,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/get_unsigned_messages', [BoardController::class, 'getUnsignedUsers']);
     Route::post('/get_edit_user', [BoardController::class, 'getEditUser']);
     Route::post('/signature_upload_api', [BoardController::class, 'signFile']);
-    Route::post('/save_user_signature', [BoardController::class, 'saveSignature']);
+    // Route::post('/save_user_signature', [BoardController::class, 'saveSignature']);
     Route::post('/cancel_sign', [BoardController::class, 'cancelSignature']);
     Route::post('/leave_board', [BoardController::class, 'leaveBoard']);
     Route::post('/board_possible_users', [BoardController::class, 'board_possible_users']);
@@ -285,6 +285,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/add_shift', [WorkController::class, 'shiftAdd']);
         Route::post('/get_work_group', [WorkController::class, 'getWorkGroup']);
         Route::post('/daily_report_add', [WorkController::class, 'dailyReportAdd']);
+        Route::post('/daily_report_break', [WorkController::class, 'daily_report_break']);
         Route::post('/save_time_card', [WorkController::class, 'saveTimeCard']);
         Route::post('/delete_time_card', [WorkController::class, 'deleteTimeCard']);
         Route::get('/get_attendance_data', [WorkController::class, 'getAttendanceData']);
@@ -310,6 +311,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/next_month_shift', [WorkController::class, 'next_month_shift']);
         Route::get('/get_shift_with_work_group', [WorkController::class, 'get_shift_with_work_group']);
         Route::get('/work_generate_csv', [WorkController::class, 'work_generate_csv']);
+        Route::get('/check_break_time', [WorkController::class, 'check_break_time']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
         Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);
@@ -338,6 +340,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/lesson_add_record', [LessonController::class, 'lesson_add_record']);
         Route::delete('/lesson_remove_record', [LessonController::class, 'lesson_remove_record']);
         Route::post('/save_lesson_portfolio', [LessonController::class, 'save_lesson_portfolio']);
+        Route::post('/update_lesson_portfolio', [LessonController::class, 'update_lesson_portfolio']);
         Route::post('/get_lesson_portfolio', [LessonController::class, 'get_lesson_portfolio']);
         Route::post('/save_lesson_form', [LessonController::class, 'save_lesson_form']);
         Route::get('/get_portfolio_view', [LessonController::class, 'get_portfolio_view']);

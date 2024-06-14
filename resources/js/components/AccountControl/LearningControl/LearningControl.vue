@@ -22,6 +22,9 @@
                             <div style="font-size: 12px;margin-top: 15px;color: gray;">
                                 <span>アクティブ：{{ theme.active ? 'ON' : 'OFF' }}</span>
                             </div>
+                            <div style="font-size: 12px;margin-top: 15px;color: gray;">
+                                <span>アシスタンID：{{ theme.assistant_id }}</span>
+                            </div>
                         </div>
                         <div class="boardMenuContainer cursor-pointer" @click.stop="menu.setMenu({name: 'themeBoxMenu', id: theme.id})" @touchstart.stop style="position: absolute;right: 10px;top: 10px;">                                            
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="dot-menu" height="13" viewBox="0 0 7 32" style="margin:auto;">
@@ -50,7 +53,7 @@
     </div>
 </template>
 <script setup>
-import { computed, onMounted, ref, inject } from 'vue';
+import { computed, onMounted, ref, inject, provide } from 'vue';
 import ThemeCreate from './ThemeCreate.vue';
 import { useMenuStore } from "@/store/menu";
 import { useRoute, useRouter } from 'vue-router';
@@ -87,12 +90,9 @@ import { useRoute, useRouter } from 'vue-router';
             getThemes()
         }
     }
-    const getThemes = () => {
-
-        axios.get('/get_learning_themes').then(res => {
-            if(res.data){
-                themeRecords.value = res.data          
-            }
-        })
+    const getThemes = async() => {
+        themeRecords.value = await axios.get('/get_learning_themes').then(res => res.data)
+        console.log(themeRecords.value)
     }
+    provide('getThemes', getThemes)
 </script>

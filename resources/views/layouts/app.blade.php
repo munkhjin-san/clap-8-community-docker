@@ -10,7 +10,7 @@
     <meta name="robots" content="noindex">
     <meta name="theme-color" content="#262626"/>
     <meta name="csrf-token" content="{{ csrf_token() }}">    
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
     {{-- <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" /> --}}
     <!-- <link rel="apple-touch-icon" size="152x152" href="/glowd_icon_192.png">
     <link rel="icon" type="image/png" size="152x152" href="/glowd_icon_192-152.png"> 

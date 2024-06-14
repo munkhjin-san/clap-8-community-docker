@@ -8,20 +8,23 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
-use Carbon\CarbonPeriod;
 use Auth;
-use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\File; 
 use OpenAI\Laravel\Facades\OpenAI;
-use OpenAI\Responses\Completions\CreateResponse;
+use Illuminate\Support\Facades\Log;
 class MemberController extends Controller
 {
     public function reset_charge(){
         $today = Carbon::today();
 
-        if ($today->day == 1 && in_array($today->month, [3, 6, 9, 12])) {
+        if ($today->day == 10 && in_array($today->month, [3, 6, 9, 12])) {
             echo "Yay, lets reset";
         
+            $filePath = storage_path('logs/Chargereset.log');
 
+            if (!File::exists($filePath)) {
+                File::put($filePath, '');
+            }
             $list = $this->fetch_members(true);
             $blocks = collect($list);
             $charge_amounts = array(
@@ -34,6 +37,7 @@ class MemberController extends Controller
                 "A" => 3000,
                 "一般職" => 3000
             );
+           
             foreach($blocks as $block){
                 if($block['id'] <= 5){
                     $members = $block['employees'];
@@ -42,6 +46,8 @@ class MemberController extends Controller
                         $user->timestamps = false; 
                         $user->update(['award_charge' => 15000]);
                         $user->timestamp = true;
+                        
+                        Log::channel('custom')->info("{$user->id}",['name' => $user->name, 'amount' => 15000]);
                     }
                 }else if($block['level']){
                     $members = $block['employees'];
@@ -50,6 +56,7 @@ class MemberController extends Controller
                         $user->timestamps = false; 
                         $user->update(['award_charge' => $charge_amounts[$block['level']]]);
                         $user->timestamp = true;
+                        Log::channel('custom')->info("{$user->id}",['name' => $user->name, 'amount' => (int)$charge_amounts[$block['level']]]);
                     }
                 }
             }        
@@ -79,7 +86,7 @@ class MemberController extends Controller
         ->get();   
 
         $allEmployees = collect($list)->pluck('employees')->flatten()->filter(function ($employee) {
-            return $employee['user_code'] != null;
+            return $employee->user_code != null;
         })->pluck('user_code')->toArray();
         $strings = array_map('strval', $allEmployees);
         $result = '(' . implode(', ', $strings) . ')';
@@ -101,7 +108,7 @@ class MemberController extends Controller
 
         if(!$sort){
             $departments = collect($list)->map(function ($department) use ($responseData) {
-                $department['employees'] = collect($department['employees'])->map(function ($employee) use ($responseData) {
+                $department->employees = collect($department->employees)->map(function ($employee) use ($responseData) {
                     $user_code = $employee['user_code'];
                     if(isset($responseData['records'])){
                         $index = collect($responseData['records'])->search(function ($item) use ($user_code) {

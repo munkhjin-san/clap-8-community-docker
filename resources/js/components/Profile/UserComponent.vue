@@ -11,7 +11,10 @@
                     @reload="updateUser"
                 />
             </transition>
-        </router-view>        
+        </router-view>       
+        <Transition name="modalFade">
+            <UserPortfolioEdit v-if="editingPortfolio" :editTarget="editingPortfolio" @close="portfolioEditComplete"/>
+        </Transition> 
         <div style="position:relative;height: 100%;">
             
             <div style="height: 60px;display: flex;align-items: center;position: absolute;z-index:2;left: 0;top: 0;" v-if="responsive.mobile">
@@ -72,7 +75,7 @@
                             </div>
                             <div v-if="userPortfolio && userPortfolio.length">
                                 <p class="record-inner title" style="margin-bottom: 10px;">ポートフォリオ</p>
-                                <UserPortfolio class="record" v-for="portfolio in userPortfolio" :portfolio="portfolio" @reload="updateUser"/>
+                                <UserPortfolio class="record" @editPortfolio="editingPortfolio = portfolio" v-for="portfolio in userPortfolio" :portfolio="portfolio" @reload="updateUser"/>
                             </div>
                         </div>
                     </div>
@@ -98,6 +101,7 @@ import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import UserPortfolio from './UserPortfolio.vue';
+import UserPortfolioEdit from './UserPortfolioEdit.vue';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
@@ -107,7 +111,7 @@ import UserPortfolio from './UserPortfolio.vue';
     const showSettingModalContent = ref(false)
     const UserAllData = ref(null)
     const clapData = ref(null)
-    
+    const editingPortfolio = ref(null)
     const userPortfolio = computed(() => {
         return UserAllData.value.portfolio.filter(data => data.status == 3)
     })
@@ -155,18 +159,27 @@ import UserPortfolio from './UserPortfolio.vue';
         showSettingModalContent.value = false;
     }
          
-        
-    watch(() => route.params.userId, (newUserId, oldUserId) => {
-        if (newUserId !== oldUserId) {
-          updateUser(newUserId);
-          getClaps(newUserId);
+    const portfolioEditComplete = (flag) => {
+        if(flag){
+            updateUser()
         }
-      },
-      { immediate: true } 
-    )
+        editingPortfolio.value = null
+    }
+    // watch(() => route.params.userId, (newUserId, oldUserId) => {
+    //     if (newUserId !== oldUserId) {
+    //       updateUser(newUserId);
+    //       getClaps(newUserId);
+    //     }
+    //   },
+    //   { immediate: true } 
+    // )
 
     onMounted(() => {
         UserAllData.value = route.meta.data && Object.hasOwn(route.meta.data, 'id') ? route.meta.data : null;
+        if (route.params.userId !== UserAllData.value.id) {
+          updateUser(newUserId);
+          getClaps(newUserId);
+        }
     })  
 </script>
 <style lang="scss" scoped>

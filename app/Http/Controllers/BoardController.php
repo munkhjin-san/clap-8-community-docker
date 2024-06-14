@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -465,23 +465,23 @@ class BoardController extends Controller
 
         return response()->json($signUser);
     }
-    public function saveSignature(Request $request){
-        $active_user = $this->active_user();
-        $auth_id = $active_user->id;
-        $user = User::findOrFail($auth_id);
-        $unique_number = rand(1000, 9999); 
-        $current_timestamp = time(); 
-        $new_a_path = $current_timestamp . $unique_number; 
-        $set_path = $auth_id . '_' . $new_a_path . '.png';
-        if (!Storage::disk('local')->exists('user_signature')) {
-            Storage::disk('local')->makeDirectory('user_signature');
-        }
-        Storage::disk('local')->put('user_signature/' . $set_path, file_get_contents($request->sign));
-        Storage::disk('local')->delete('user_signature/' . $auth_id . '_' . $user->sign_path . '.png');
-        $user->sign_path = $new_a_path;
-        $user->save();
-        return response()->json($user);
-    }
+    // public function saveSignature(Request $request){
+    //     $active_user = $this->active_user();
+    //     $auth_id = $active_user->id;
+    //     $user = User::findOrFail($auth_id)->with('linked');
+    //     $unique_number = rand(1000, 9999); 
+    //     $current_timestamp = time(); 
+    //     $new_a_path = $current_timestamp . $unique_number; 
+    //     $set_path = $auth_id . '_' . $new_a_path . '.png';
+    //     if (!Storage::disk('local')->exists('user_signature')) {
+    //         Storage::disk('local')->makeDirectory('user_signature');
+    //     }
+    //     Storage::disk('local')->put('user_signature/' . $set_path, file_get_contents($request->sign));
+    //     Storage::disk('local')->delete('user_signature/' . $auth_id . '_' . $user->sign_path . '.png');
+    //     $user->sign_path = $new_a_path;
+    //     $user->save();
+    //     return response()->json($user);
+    // }
     public function getEditUser(Request $request){
         $active_user = $this->active_user();
         $auth_id = $active_user->id;
@@ -640,7 +640,7 @@ class BoardController extends Controller
 
         
             if($file_type == 'image'){
-                $img = Image::make($file)->orientate();
+                $img = Image::read($file);
                 $set_path = $newFile->id . '.' . $file_extension;
                 File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
                 $img->save(storage_path('app') . '/' . $path .'/'. $set_path, 30);  
@@ -1781,12 +1781,12 @@ class BoardController extends Controller
             $fileRecord->save();
             $path = '/board_icon';
             $set_path = 'board'. '_' . $fileRecord->id  . '.jpg';
-            $img = Image::make($request->file('file'))->encode('jpg')->orientate();
+            $img = Image::read($request->file('file'));
             File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                
 
             $save_path = (storage_path('app') . '/' . $path . '/' . $set_path);
             if($file_size > 2000000){
-                $img->save(($save_path), 30);
+                $img->toJpeg(30)->save($save_path);
             }else{
                 $img->save($save_path);  
             }         

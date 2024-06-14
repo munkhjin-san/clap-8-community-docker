@@ -1,5 +1,6 @@
 import axios from "axios";
 import { useAuthUserStore } from "../store/auth";
+import { useFilePreview } from "../store/filePreview";
 
 export const getWorkGroup = async () => {
     try {
@@ -52,4 +53,24 @@ export const getShiftData = async(yearMonth: string, checkedUsers: number[]) => 
 
 export const getShiftWithWorkGroup = async(yearMonth: string, checkedUsers: number[]) => {
     return fetchData('/get_shift_with_work_group', yearMonth, checkedUsers)
+}
+
+export const workFilePreview = (file: string) => {
+    const filePreview = useFilePreview()
+    const file_path = `/cdn/timecard_files/${file}`
+
+    let target_data = {
+        extension: 'webp',
+        mime_type: 'image',
+        file_path: file_path,
+        name: file
+    }
+    const data = {
+        active: true,
+        files: [target_data],
+        source: 'work',
+        index: 0,
+        message: null,
+    }
+    filePreview.setFilePreview(data)
 }

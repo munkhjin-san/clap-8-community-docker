@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\timecardBreakRecord;
 use App\Models\timecardIncentive;
 use DateTime;
 use App\Models\User;
@@ -12,22 +13,18 @@ use App\Models\timecardRecord;
 use App\Models\timecardCostRecord;
 use App\Models\customFieldDataRecord;
 use App\Models\customFieldPartsRecord;
-use Illuminate\Support\Facades\Storage;
-use App\Models\FileRecord;
+
 use App\Models\workGroup;
 use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Models\ShiftOvertimeRequest;
 use App\Services\SharedService;
 use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use League\Csv\Writer;
-use League\Csv\CharsetConverter;
 use Carbon\Carbon;
-use DB;
 
 class WorkController extends Controller
 {
@@ -260,7 +257,9 @@ class WorkController extends Controller
                     'timecard_incentives' => function ($q) {
                         $q->with('file')
                             ->select('count', 'id', 'record_id');
-                    }
+                    },
+                    // 'timecard_break_records',
+                    'total_break_time'
                 ])
                 ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
             },
@@ -302,11 +301,11 @@ class WorkController extends Controller
         for ($day = 1; $day <= cal_days_in_month(CAL_GREGORIAN, $month, $year); $day++) {
             $date = Carbon::create($year, $month, $day);
             $targetShiftDay = $date->format('Y-m-d');
-
+            $targetShiftMonth = $date->format('Y-m');
             foreach ($users as $index => $user) {
                 $userId = $user->id;
                 $authority = in_array($userId, $workGroupUserIds);
-                $attendance = $attendanceRecords[$userId][$targetShiftDay]->id ?? false;
+                $attendance = $attendanceRecords[$userId][$targetShiftMonth]->id ?? false;
                 $time_card = $timeCardRecords[$userId][$targetShiftDay] ?? null;
                 $shift = $shiftRecords[$userId][$targetShiftDay] ?? null;
                         
@@ -320,7 +319,6 @@ class WorkController extends Controller
                 $daily_report_ability = $this->has_daily_report($shift, $time_card, $date, $user, $active_user, $attendance);
                 $overtime_ability = $shift ? $this->has_overtime_access($shift, $user, $time_card, $date, $active_user) : false;
                 $approve_ability = $this->has_approve_access($shift, $time_card, $authority, $attendance, $active_user);
-
                 $recordList[] = [
                     'day_full' => $date->format('Y-m-d'),
                     'day_show' => $index == 0 ? $date->format('Y-m-d') : '',
@@ -340,9 +338,10 @@ class WorkController extends Controller
                     'attendance' => $attendance,
                     'shift' => $shift,
                     'time_card' => $time_card,
-                    'weather' => $customFieldData[$userId][$targetShiftDay]->value_int ?? '',
+                    'weather' => $customFieldData[$userId][$targetShiftDay]->value_int ?? null,
                     'authority' => $authority,
                     'force_authority' => $active_user->id == 610 || $active_user->id == 608,
+                    'total_break_time' => $time_card?->total_break_time->first()->total_break_minute ?? 0,
                     'ability' => [
                         'overtime_request' => $overtime_ability,
                         'daily_report_create' => $daily_report_ability[0],
@@ -391,18 +390,16 @@ class WorkController extends Controller
         $status = $time_card->status_flag ?? -1;
         $modify = $timecardExist && !$has_attendace && (($status == 10 || $status == 0 && $user->id == $active_user->id) || (($active_user->id == 610 || $active_user->id == 608) && $status !== 2));
         $start_stamp = !$timecardExist && !$has_attendace && $valid_shift && $isToday && $user->id == $active_user->id; 
-        $end_stamp = $timecardExist && !$has_attendace && $time_card->stamp_flag == 0 && $valid_shift && $isToday && $user->id == $active_user->id; 
+        $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id; 
         return [$create ,$modify, $start_stamp, $end_stamp];
     }
     // Shift Functions
     public function get_shift_data(Request $request){
         $users_list = $request->work_group ?? [Auth::id()];
         [$currentYear, $currentMonth] = explode('-', $request->current_date);
-        $user = User::select('user_code')->findOrFail($users_list[0]);
+        $user = User::select('user_code', 'position_id')->findOrFail($users_list[0]);
         $user_code = $user->user_code;
-        
-        $auth_user = Auth::user();
-       
+               
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->where('user_id', $users_list[0])
@@ -421,6 +418,10 @@ class WorkController extends Controller
                         ])
                         ->orderBy('created_at', 'desc')
                         ->get();
+        $odaCheck = shiftRecord::where('user_id', $users_list[0])
+            ->where('shift_type', 16)
+            ->whereYear('shift_day', $currentYear)
+            ->exists();
         $between_records = 0;
         $remaining_days = 0;
         $work_temp = workTemp::where('user_code', $user_code)->first();
@@ -431,15 +432,16 @@ class WorkController extends Controller
             $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $planned_date);
             $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $work_temp->planned_days - $between_records;
         }
-        $shift_type = $auth_user->position_id <= 11
+        $shift_type = $user->position_id <= 11 || $user->position_id == 16
                       ? shiftType::where('deleted_flag', 0)->get()
-                      : shiftType::where('id','!=', 14)->where('id','!=', 15)->get();
+                      : shiftType::where('id','!=', 14)->where('id','!=', 15)->where('id','!=', 16)->get();
         $data = [
             "shift_record" => $shift_record,
             "shift_type" => $shift_type,
             "workTemp" => $work_temp ? $work_temp : null,
             "consumed_days" => $remaining_days > 0 ? $between_records : 0,
             "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
+            "odaCheck" => $odaCheck
         ];
         
 
@@ -567,17 +569,17 @@ class WorkController extends Controller
     }
     public function shiftAdd(Request $request)
     {
-        $user = $this->active_user();
         $user_id = $request->userId;
         $shift_array = $request->shift_array;
         $start_time_val = $request->shiftTimeStart;
         $end_time_val = $request->shiftEndStart;
-        $types = [0, 2, 3, 5, 14, 15];
+        $types = [0, 2, 3, 5, 14, 15, 16];
         [$year, $month] = explode('-', $request->yearMonth);
         $shift_days = collect($shift_array)->pluck('date')->toArray();
         $holidays = collect($shift_array)->filter(function ($shift) use($types) {
             return in_array($shift['type'], $types);
         })->pluck('date')->toArray();
+    
         $overtimeCheck = shiftRecord::where('user_id', $user_id)
             ->whereIn('shift_day', $holidays)
             ->whereHas('overtime_request')
@@ -597,6 +599,7 @@ class WorkController extends Controller
         if($overtimeCheck){
             throw ValidationException::withMessages(['message' => '残業申請の日をお休みにすることができません。もう一回確認ください。']);
         }
+        
         $shift_record_check = shiftRecord::where('user_id', $user_id)
             ->whereIn('shift_day', $shift_days)
             ->get()
@@ -646,6 +649,7 @@ class WorkController extends Controller
                 $q->whereNotIn('users.id', $ids)
                     ->where('users.partner_flag', 0)
                     ->where('users.retire', 0)
+                    ->orWhere('users.retire_date', '>=', Carbon::now())
                     ->select([
                         'users.id as id', 
                         'users.name',
@@ -697,6 +701,47 @@ class WorkController extends Controller
             $timecard->save();
             return response()->json($timecard);
         }
+    }
+    public function daily_report_break(Request $request){
+        $breakTime = $request->break_start;
+        $time_card = $request->record;
+        $exist_timecard = timecardRecord::find($time_card['id']);
+        $timecard_break = $exist_timecard->timecard_break_records()->where('break_flag', 1)->first();
+        if(!empty($timecard_break)){                       
+             
+            $start = Carbon::createFromFormat('H:i:s', $timecard_break->start_time);
+            $end = Carbon::createFromFormat('H:i:s', $breakTime);
+            $diffinMinutes = $end->diffInMinutes($start);
+
+            $timecard_break->update([
+                'break_by_minute' => ceil($diffinMinutes / 15) * 15,
+                'end_time' => $breakTime,
+                'break_flag' => 2
+            ]);
+            $exist_timecard->update(['stamp_flag' => 0]);
+            return response()->json($timecard_break);
+             
+            
+        }        
+        $exist_timecard->timecard_break_records()->create([
+            'user_id' => $time_card['user_id'],
+            'day' => $time_card['day'],
+            'start_time' => $breakTime,
+        ]);
+        $exist_timecard->update(['stamp_flag' => 2]);
+        return response()->json($timecard_break);
+        
+        
+    }
+
+    public function check_break_time(){
+        $active_user = $this->active_user();
+        $today = Carbon::now()->format('Y-m-d');
+        $inBreak = timecardBreakRecord::where('break_flag', 1)
+                            ->where('user_id', $active_user->id)
+                            ->where('day', $today)
+                            ->exists();
+        return response()->json($inBreak);
     }
     private function breakTimeCheck($request){
         $startTime = $request->start_time;
@@ -1011,6 +1056,7 @@ class WorkController extends Controller
         
         $condolence_leave = $user->shift_records->where('shift_type', 14)->count();
         $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
+        $oda_leave = $user->shift_records->where('shift_type', 16)->count();
         $over_time = $user->time_card_records->sum('over_time');
         $late_time = $user->time_card_records->sum('late_time');
         $annual_costs = 0;
@@ -1067,6 +1113,7 @@ class WorkController extends Controller
             'annual_leave' => $annual_leave,
             'condolence_leave' => $condolence_leave,
             'transfer_leave' => $transfer_leave,
+            'oda_leave' => $oda_leave,
             'month_over_time' => $month_over_time > 0 ? $month_over_time : 0,
             'over_time' => $over_time,
             'month_stay_allowance_count' => $month_stay_allowance_count,
@@ -1188,6 +1235,7 @@ class WorkController extends Controller
             $attendance_record->paid_holiday_hours = $request->annual_leave;
             $attendance_record->condolence_holiday = $request->condolence_leave;
             $attendance_record->special_holiday = $request->transfer_leave;
+            $attendance_record->oda_holiday = $request->oda_leave;
             $attendance_record->closed_day = 0;
             $attendance_record->working_hours = $request->worked_hours;
             $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
@@ -1367,6 +1415,7 @@ class WorkController extends Controller
             $attendance_record->half_day_holiday = 0;
             $attendance_record->condolence_holiday = 0;
             $attendance_record->special_holiday = 0;
+            $attendance_record->oda_holiday = 0;
             $attendance_record->working_days_shift = 0;
             $attendance_record->pay_day = 20;
             $attendance_record->absence_days = 0;
@@ -1555,16 +1604,11 @@ class WorkController extends Controller
     
         
         if($file_type == 'image' && $file_extension !== 'svg'){
-            $img = Image::make($fileContent)->orientate();
-            if (in_array($file_extension, ['jpeg', 'jpg', 'png'])) {
-                $img->encode('webp');
-                $file_path .= '.webp';
-            }
-            $img->resize(640, null, function ($constraint) {
-                $constraint->aspectRatio();
-            });
+            $img = Image::read($fileContent);
+            
+            $img->scale(640);
             File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . $path, 0755, true, true);                      
-            $img->save(storage_path('app') . $path .'/'. $file_path, 80);  
+            $img->toWebp(80)->save(storage_path('app') . $path .'/'. $file_path);  
         }
     
         return response()->json($file_path); 

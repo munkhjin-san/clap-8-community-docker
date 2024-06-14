@@ -17,7 +17,7 @@
 </template>
 <script setup>
 import Swiper from 'swiper';
-import { Autoplay } from 'swiper';
+import { Autoplay } from 'swiper/modules';
 import 'swiper/css'
 import 'swiper/css/autoplay'
 import { onMounted, ref } from 'vue';

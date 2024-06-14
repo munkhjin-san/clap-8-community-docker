@@ -48,20 +48,21 @@
                 />
                 <p v-else><strong>ディスカッション用ポートフォリオ内容<br></strong>{{ portfolio?.content }}</p>
             </div>
-            
-            <div v-if="portfolio && portfolio.status < 1" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
-                <div>
-                    <LoaderButton @triggered="tempSavePort('save')" :loading="processing_save" :content="'一時保存'"/>
-                </div> 
-                <div>
-                    <LoaderButton @triggered="nextStage" :loading="processing" :content="'作成完了'"/>
-                </div>
+            <OpenAiReview 
+                v-if="selectedTopic && portfolio && selectedTopic.assistant_id" 
+                :assistand-id="selectedTopic.assistant_id" 
+                :soure-text="portfolio?.ai_review_pre" 
+                :message="content"
+                :confirm-text="'AI分析による結果を反映し、発表時間が5分程度の内容であり、研修テーマに沿ったポートフォリオとしてふさわしいという分析結果が表示されていることを確認しました。'"
+                ref="reviewEl"
+            />
+            <div v-if="portfolio && portfolio.status < 1" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">              
+                <LoaderButton style="margin: 0" @triggered="savePortfolio(0)" :loading="loading[0]" :content="'一時保存'"/>
+                <LoaderButton style="margin: 0" @triggered="finishPortfolio" :loading="loading[1]" :content="'作成完了'"/>               
             </div>
 
         </div>
-        <router-view>
-            
-        </router-view>
+        <router-view></router-view>
     </div>
 </template>
 <script setup>
@@ -70,40 +71,36 @@
     import LongInput from '../../Form/LongInput.vue';
     import ShortInput from '../../Form/ShortInput.vue';
     import { ref, inject } from 'vue'
-    const props = defineProps(['selectedTopic'])
+    import OpenAiReview from '../../Global/OpenAiReview.vue'
+    const props = defineProps(['selectedTopic', 'materials'])
     const content = ref('')
     const portfolioBody = ref(null)
-    const processing = ref(false)
-    const processing_save = ref(false)
+    const loading = ref([false, false])
     const router = useRouter()
     const route = useRoute()
     const lesson = inject('getLessonPortfolios')
     const portfolio = inject('portfolio')
     const portfolio_title = ref('')
     const { notify, info, confirm } = inject('dialog')
-    const tempSavePort = async(status) => {
+    const reviewEl = ref(null)
+    const savePortfolio = async(status) => {
         const result = await portfolioBody.value.validate()
         if(result.valid){
-            let portfolioStatus = 0
-            if(status == 'next'){
-                processing.value = true
-                portfolioStatus = 1
-            }else{
-                processing_save.value = true
-            }
-            const params = {
-                content: content.value ? content.value : portfolio?.content,
-                status: portfolioStatus,
+            loading.value[status] = true
+            const params = {                
                 theme_id: route.params.lessonThemeId,
-                portfolio_title: portfolio_title.value ? portfolio_title.value : portfolio?.portfolio_title
+                params: {
+                    status: status,
+                    content: content.value ? content.value : portfolio.value?.content,
+                    portfolio_title: portfolio_title.value ? portfolio_title.value : portfolio.value?.portfolio_title,
+                    ai_review_pre: reviewEl.value?.reviewResultRaw,
+                }
             }
             try{
                 await axios.post('/save_lesson_portfolio', params)
-                if(status == 'next'){
-
-                }else{
+                if(status == 0){
                     info(props.editTarget ? '編集しました。' :'保存しました。')
-                    processing_save.value = false
+                    loading.value[status] = false
                 }
                 lesson()
             }catch (error){
@@ -113,10 +110,19 @@
             }
         }
     }
-    const nextStage = async() => {
-        const answer = await confirm('基礎知識研修を完了にしますか。\n※完了後に、編集するができません。')
+
+    const finishPortfolio = async() => {
+        if(props.selectedTopic.assistant_id && !reviewEl.value?.reviewResultRaw){
+            notify('基礎知識研修を完了する前、AI分析してください。')
+            return
+        }
+        const valid = reviewEl.value?.validate()
+        if(props.selectedTopic.assistant_id && !valid){
+            return
+        }
+        const answer = await confirm('基礎知識研修を完了にしますか。\n完了後は編集ができません。')
         if(!answer) return  
-        await tempSavePort('next')
+        await savePortfolio(1)
         setTimeout(() => {                    
             finishBasic()
         }, 1000); 
@@ -126,11 +132,43 @@
         const options = {
             answers: [{label: 'OK', value: true}]
         }
-        const answer = await confirm('基礎知識研修完了しました。\n\nお疲れ様でした。', options)
+        const answer = await confirm('基礎知識研修完了しました。\nお疲れ様でした。', options)
         if(answer){
-            processing.value = false   
+            loading.value[1] = false
             await lesson()                     
             router.push({name: 'top'})
         }        
     } 
 </script>
+
+<style lang="scss">
+.response-container {
+  line-height: 1.6;
+  color: var(--primary-color);
+  font-size: 14px;
+}
+.response-container ol{
+    list-style: decimal!important;
+    padding: revert-layer !important;
+    line-height: 1 !important;
+}
+.response-container ul{
+    list-style: disc !important;
+    padding: revert-layer !important;
+    line-height: 1 !important;
+}
+.response-container li {
+    line-height: 2 !important;
+    white-space: normal !important;
+}
+.response-container h1,
+.response-container h2,
+.response-container h3,
+.response-container h4,
+.response-container h5,
+.response-container h6 {
+  font-weight: bold;
+}
+
+
+</style>

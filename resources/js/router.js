@@ -196,12 +196,12 @@ const routes = [
                                 name: 'trainee',
                                 component: () => import('./components/AccountControl/LearningControl/TraineeControl.vue')
                             },
-                            // {
-                            //     props: true,
-                            //     path: 'assistant',
-                            //     name: 'assistant',
-                            //     component: () => import('./components/AccountControl/LearningControl/AssistantControl.vue')
-                            // }
+                            {
+                                props: true,
+                                path: 'assistant',
+                                name: 'assistant',
+                                component: () => import('./components/AccountControl/LearningControl/AssistantControl.vue')
+                            }
                             
                         ]
                     },

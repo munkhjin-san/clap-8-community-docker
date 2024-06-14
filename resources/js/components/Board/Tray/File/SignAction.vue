@@ -52,16 +52,15 @@
         </Teleport>
         <Teleport to=".md-window">
             <div v-if="isDragging" ref="resizable" :id="'signImage' + file.id + '_' + file.message_id" style="z-index: 2;display:flex; flex-direction: column;position:absolute;">
-                <img class="resizeable" id="resizeable" :src="imgData" :style="{transform: `scale(${scale})`}"/>
+                <img ref="imgRef" class="resizeable" id="resizeable" :src="imgData"/>
                 <div class="corner" id="topRight"></div>
                 <div class="corner" id="bottomLeft"></div>
             </div>
                 
-            </Teleport>
+        </Teleport>
         <div class="pdfButton-wrapper">
             <button class="signatureButton cursor-pointer" v-if="!canvasElementShow" @click="electronicSignatureRequest">サインする</button>
             <button class="signatureButton cursor-pointer" v-if="!canvasElementShow" @click="notSign">サインしない</button>
-            
             <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="savePdf()">
                 <span v-if="!processing">保存</span>
                 <div v-if="processing" id="loaderMini">
@@ -79,7 +78,6 @@
 <script setup>
 import { ref, nextTick, inject } from 'vue';
 import SignaturePad from 'signature_pad'
-import { PDFDocument } from 'pdf-lib'
 import { useAuthUserStore } from '@/store/auth';
 import { useFilePreview } from '@/store/filePreview';
 import { useMenuStore } from "@/store/menu";
@@ -97,6 +95,7 @@ import { useResponsive } from '@/store/responsive';
     const signaturePadDraw = ref(null)
     const mySignature = ref(null)
     const resizable = ref(null)
+    const imgRef = ref(null)
     const scale = ref(1)
     const posX = ref(0)
     const posY = ref(0)
@@ -111,13 +110,6 @@ import { useResponsive } from '@/store/responsive';
         if(pageIndex < 0){
             pageIndex = 0
         }
-        let pdfDoc = ''
-        let imageBytes = ''
-        let pngImage = ''
-        let page = ''
-        let pageWidth = ''
-        let pageHeight = ''
-        let modifiedPdfBytes = ''
 
         const signImageGet = document.getElementById('signImage' + props.file.id + '_' + props.file.message_id);
         const parent = document.getElementById('docViewer')
@@ -131,12 +123,13 @@ import { useResponsive } from '@/store/responsive';
         const percentLeft1 = Math.max(0, Math.min(100, percentLeft));
         const percentTop1 = Math.max(0, Math.min(100, percentTop));
         const existingPdfBytes = await fetch(props.source).then(res => res.arrayBuffer());
-        pdfDoc = await PDFDocument.load(existingPdfBytes);
-        imageBytes = await fetch(imgData.value).then(res => res.arrayBuffer());
-        pngImage = await pdfDoc.embedPng(imageBytes);
-        page = pdfDoc.getPages()[pageIndex];
-        pageWidth = page.getWidth();
-        pageHeight = page.getHeight();
+        const {PDFDocument} = await import('pdf-lib')
+        const pdfDoc = await PDFDocument.load(existingPdfBytes);
+        const imageBytes = await fetch(imgData.value).then(res => res.arrayBuffer());
+        const pngImage = await pdfDoc.embedPng(imageBytes);
+        const page = pdfDoc.getPages()[pageIndex];
+        const pageWidth = page.getWidth();
+        const pageHeight = page.getHeight();
         const perImgWidth = markRect.width / viewer._pages[pageIndex].width * 100
         const perImgHeight = markRect.height / viewer._pages[pageIndex].height * 100
         const fromLeft = percentLeft1
@@ -151,7 +144,7 @@ import { useResponsive } from '@/store/responsive';
             width: imgWidth,
             height: imgHeight,
         });
-        modifiedPdfBytes = await pdfDoc.save();
+        const modifiedPdfBytes = await pdfDoc.save();
         downloadPdf(modifiedPdfBytes)
         
     }
@@ -244,7 +237,9 @@ import { useResponsive } from '@/store/responsive';
             source_board_id: null
         }
         filePreview.setFilePreview(data)
-        refresh()
+        setTimeout(() => {
+            refresh()
+        }, 100);
     }
     const useMySignature = () => {
         imgData.value = '/cdn/user_signatures/' + mySignature.value 
@@ -266,11 +261,12 @@ import { useResponsive } from '@/store/responsive';
                 formData.append('file_id', props.file.id)
                 formData.append('board_id', props.file.board_id)
                 await axios.post('/signature_upload_api', formData)                   
-                closePdf()
-                modifiedPdfBytes.value = null
+                
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {
+            closePdf()
+            modifiedPdfBytes.value = null
             processing.value = false 
         }
     }
@@ -279,17 +275,22 @@ import { useResponsive } from '@/store/responsive';
         if(!signaturePad.value.isEmpty()){
             imgData.value = signaturePad.value.toDataURL();
             const answer = await confirm('このサインをマイサインとして保存しますか?')
-            if(!answer) return
-            await axios.post('/save_user_signature', {sign: imgData.value})
-            const response = await axios.post('/profile_get_update_user', {id: auth.activeUser.id})             
-            if(response.data && Object.hasOwn(response.data, 'id')){   
-                auth.setUser(response.data)                     
-            }               
+            if(answer) {
+                const response = await axios.post('/save_user_signature', {sign: imgData.value})
+                // const response = await axios.post('/profile_get_update_user', {id: auth.activeUser.id}) 
+                if(response.data.sign_path){
+                    mySignature.value = `${response.data.id}_${response.data.sign_path}.png`
+                }            
+                if(response.data && Object.hasOwn(response.data, 'id')){   
+                    auth.setUser(response.data)                     
+                }
+            }
+                           
             isDragging.value = true
             
-            nextTick(() => {               
+            setTimeout(() => {               
                 interactPDF()
-            })
+            }, 100)
             
             
         }else{
@@ -325,7 +326,7 @@ import { useResponsive } from '@/store/responsive';
 
         const viewerWidth = instance.clientWidth
         const viewerRect = instance.getBoundingClientRect()
-        const imageWidth = resizable.value.clientWidth
+        const imageWidth = imgRef.value.clientWidth
         const minScale = 0.3;
         const maxScale = viewerWidth / imageWidth;
         const minWidth = responsive.mobile ? 80 : 100
@@ -341,15 +342,9 @@ import { useResponsive } from '@/store/responsive';
                 left: '#bottomLeft',  
                 bottom: '#bottomLeft',  
             },
-            constrain: {
-                width: true,
-                height: true,
-            },
             listeners: {
                 move (event) {
                     var target = event.target
-                    var x = (parseFloat(target.getAttribute('data-x')) || 0)
-                    var y = (parseFloat(target.getAttribute('data-y')) || 0)
                     target.style.width = event.rect.width + 'px'
                     target.style.height = event.rect.height + 'px'
                 }
@@ -417,5 +412,6 @@ import { useResponsive } from '@/store/responsive';
         z-index:2; 
         border: 1px solid black;
         touch-action: none;
+        user-select: none;
     }
 </style>

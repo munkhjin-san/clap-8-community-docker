@@ -33,7 +33,7 @@
                         <td class="admin-table-data" rowspan="2">勤怠予定入力</td>
                         <td class="admin-table-data" rowspan="2">計画有給</td>
                         <td class="admin-table-data" colspan="9">年休</td>
-                        <td class="admin-table-data" colspan="2">休暇</td>
+                        <td class="admin-table-data" colspan="3">休暇</td>
                         <td class="admin-table-data" rowspan="2">経費</td>
                         <td class="admin-table-data" rowspan="2">インセ</td>
                         <td class="admin-table-data" rowspan="2">労働時間</td>
@@ -50,6 +50,7 @@
                         <td class="admin-table-data">7時間</td>
                         <td class="admin-table-data">慶弔</td>
                         <td class="admin-table-data">転勤</td>
+                        <td class="admin-table-data">ODA</td>
                     </tr>
                 </thead>
                 <tbody>
@@ -62,7 +63,7 @@
                             <img v-if="weather_average[item.id]" :src="'/images/icon_' + weather_average[item.id].current_value + '.svg'" alt="Weather Icon" width="30" height="17" />
                         </td>                        
                         <td v-html="item.shift_records.length ? '済' : ''"></td>
-                        <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15]" v-html="computedHoliday(item.id, number)"></td>
+                        <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15,16]" v-html="computedHoliday(item.id, number)"></td>
                         <td style="white-space: nowrap;">{{ monthly_expenses[item.id] ? `${monthly_expenses[item.id]}円` : '' }}</td>
                         <td style="white-space: nowrap;">{{ monthly_incentive[item.id] }}</td>
                         <td v-html="conversionTime(month_work_time[item.id])"></td>
@@ -182,6 +183,7 @@
                 "7時間年休": item.petitionType7_count,
                 "慶弔休暇": item.condolence_holiday,
                 "特別休暇": item.special_holiday,
+                "ODA休暇": item.oda_holiday,
                 "休業": item.closed_day,
                 "労働時間": item.working_hours_no_over,
                 "欠勤時間": item.absence_hour,

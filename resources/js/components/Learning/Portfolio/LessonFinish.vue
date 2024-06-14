@@ -8,16 +8,13 @@
                     </div>
                     <p style="font-size: 20px;"><strong>研修完了しました。</strong></p>
                 </div>
-                <p>アンケートの回答ありがとうございました。<br>
-                <strong>【{{ selectedTopic ? selectedTopic.title : ''}}】</strong>研修は完了しました。<br>
-                    お疲れ様でした。</p>
+                <p>
+                <strong>【{{ selectedTopic ? selectedTopic.title : ''}}】</strong>研修の全行程を修了しました。<br>お疲れ様でした。</p>
                 <div class="si-box">
                     <LoaderButton @triggered="router.push({name: 'learning'})" content="ホーム画面へ戻る"/>
                 </div>
-            </div>
-            
+            </div>            
         </div>
-
     </div>
 </template>
 <script setup>

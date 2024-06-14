@@ -50,6 +50,14 @@
                 />
                 <p v-else>{{ portfolio?.public_content }}</p>
             </div>
+            <OpenAiReview 
+                v-if="selectedTopic && portfolio" 
+                assistand-id="asst_NnPHXCXimhJ09GNZwOfg107Y" 
+                :soure-text="portfolio?.ai_review_final" 
+                :message="portfolioContent"
+                confirm-text="グループディスカッションによるフィードバックから得た発見と成長についての内容が記載されており、AI分析による結果からも内容を満たしていることを確認しました。"
+                ref="reviewElFinal"
+            />
             <div v-if="portfolio && portfolio.status == 2" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                 <div>
                     <LoaderButton @triggered="savePortfolio('save')" :loading="processing_save" :content="'一時保存'"/>
@@ -67,6 +75,7 @@
     import ShortInput from '../../Form/ShortInput.vue';
     import LoaderButton from '../../Global/LoaderButton.vue';
     import { ref, onBeforeMount, inject } from 'vue'
+    import OpenAiReview from '../../Global/OpenAiReview.vue'
     const { confirm, info, notify } = inject('dialog')
     const props = defineProps(['selectedTopic', 'available'])
     const portfolio = inject('portfolio')
@@ -78,6 +87,7 @@
     const processing_save = ref(false)
     const portfolio_title = ref(portfolio ? portfolio.public_title : '')
     const route = useRoute()
+    const reviewElFinal = ref(null)
     onBeforeMount(() => {
         setTimeout(() => {
             if(props.selectedTopic?.lesson_portfolio?.status < 2 || !props.selectedTopic.lesson_portfolio){
@@ -89,18 +99,23 @@
     const savePortfolio = async(status) => {
         let portfolioStatus = 2
         if(status == 'next'){
+            
             processing.value = true
             // portfolioStatus = 3
         }else{
             processing_save.value = true
         }
         const params = {
-            portfolio_title: portfolio.value.portfolio_title,
-            content: portfolio.value.content,
             theme_id: route.params.lessonThemeId,
-            public_title: portfolio_title.value,
-            public_content: portfolioContent.value,
-            status: portfolioStatus,
+            params: {
+                portfolio_title: portfolio.value.portfolio_title,
+                content: portfolio.value.content,                
+                public_title: portfolio_title.value,
+                public_content: portfolioContent.value,
+                status: portfolioStatus,
+                ai_review_final: reviewElFinal.value?.reviewResultRaw,
+            }  
+
         }
         axios.post('/save_lesson_portfolio', params).then(response => {
             if(status == 'next'){
@@ -118,8 +133,9 @@
     const nextStage = async() => {
         const result = await portfolioBody.value.validate()
         const title_result = await portfolioTitle.value.validate()
-        if(result.valid && title_result.valid){
-            const answer = await confirm('ポートフォリオを完了にしますか。\n※完了後に、編集するができません。')
+        const valid = reviewElFinal.value?.validate()
+        if(result.valid && title_result.valid && valid){
+            const answer = await confirm('ポートフォリオを完了にしますか。\n完了後は編集ができません。')
                                       
             if(!answer) return
             await savePortfolio('next')

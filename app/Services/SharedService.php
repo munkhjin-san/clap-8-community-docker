@@ -21,7 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -83,7 +83,7 @@ class SharedService
         $firstChar = mb_strtoupper(mb_substr($userName, 0, 1, "UTF-8"));        
         $input = array("#000");
         $random = $input[array_rand($input, 1)];
-        $img = Image::canvas(200, 200, $random);
+        $img = Image::create(200, 200)->fill($random);
         $regex = '/[А-Яа-яЁёөү]/u';
         $is_mn = preg_match($regex, $firstChar);
         $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';
@@ -117,29 +117,6 @@ class SharedService
         $user->update(['icon_id' => $icon->id]);
         return true;
     }
-    public function newUserQrCode ($path, $id, $current_token) {   
-        if (empty($path) || empty($id)) {
-            throw new InvalidArgumentException('All attributes are required.');
-        }
-        
-        if (!Storage::disk('s3')->exists($path)) {
-            Storage::disk('s3')->makeDirectory($path);
-        }
-        if($current_token){
-            if (!Storage::disk('s3')->exists($path . '/' . $current_token . '_' . $id)) {
-                Storage::disk('s3')->delete($path . '/' . $current_token . '_' . $id . '.png');
-            }  
-        }           
-        
-        $new_token = Str::random(8);
-        $prefix = $path == 'user_qr_code' ? 'invite' : ($path == 'board_qr_code' ? 'join' : '');
-        $client = new \GuzzleHttp\Client();        
-        $qrCodeUrl = 'https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=' . urlencode($url = url('/'. $prefix . '?token=' . $new_token . '&id=' . $id));           
-        $response = $client->get($qrCodeUrl);    
-        Storage::disk('s3')->put($path . '/'. $new_token . '_' . $id . '.png', $response->getBody());  
-                    
-        return $new_token;        
-    }
     public function removeBoard($target){
         $board = $target;
         $board->board_to_users()->delete();
@@ -153,21 +130,8 @@ class SharedService
         messageFile::where('board_id', $board->id)->delete();
         $icon = Icons::findOrFail($board->icon_id);
         if($icon){
-            Storage::disk('s3')->delete('board_icon/board_' . $board->icon_id . '.png');
             $icon->delete();
-        }
-        Storage::disk('s3')->delete('board_qr_code/' . $board->q_token . '_' . $board->id . '.png');   
-        $directory = 'message_files/' . $board->id;
-        // $contents = Storage::disk('s3')->listContents($directory, true);
-
-        // foreach ($contents as $item) {
-        //     if ($item['type'] == 'file') {
-        //         Storage::disk('s3')->delete($item['path']);
-        //     } else {
-        //         Storage::disk('s3')->deleteDirectory($item['path']);
-        //     }
-        // }
-        Storage::disk('s3')->deleteDirectory($directory);
+        }  
         return "respondDeleted";
     }
     public function createBoardDefaultIcon($board, $user_id){
@@ -196,139 +160,34 @@ class SharedService
         $board->timestamps = true;
         
       
-        
-        $boardname = $board->title;
         $boardname_no_space = preg_replace('/\s+/', '', $board->title);
-        $firstChar = mb_substr($boardname_no_space, 0, 3, "UTF-8");
-        $lastChar = mb_substr($boardname_no_space, 3, 6, "UTF-8");
         
-        $input = array("#000");
-        $random = $input[array_rand($input, 1)];
-        $img = Image::canvas(200, 200, $random);   
+        $img = Image::create(200, 200)->fill('#000');   
         $length = mb_strlen($boardname_no_space);
-        $font_size = '20';
-        $pos_x = 0;
-        $pos_y = 0;   
-        $pos_x_lower = 0;
-        $pos_y_lower = 0;         
-        $regex = '/[А-Яа-яЁёөү]/u';
-        $is_mn = preg_match($regex, $firstChar);
-        $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';
-        
-        switch(true){
-        case $length == 1:
-            $font_size = '100';
-            $pos_x = 100;
-            $pos_y = 100;
-            $img->text($firstChar, 100, 100, function ($font) use($font_size, $font_path) {
+        $font_path = 'fonts/Noto_Sans_CJK-Bold.otf';        
+
+        $bucket = array(
+            array(),
+            array( array('y' => 100, 'size' => 100, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8"))),
+            array( array('y' => 100, 'size' => 80, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8"))),
+            array( array('y' => 100, 'size' => 60, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8"))),
+            array( array('y' => 70, 'size' => 60, 'text' => mb_substr($boardname_no_space, 0, 2, "UTF-8")),  array('y' => 130, 'size' => 60, 'text' => mb_substr($boardname_no_space, 2, 2, "UTF-8"))),
+            array( array('y' => 75, 'size' => 50, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8")), array('y' => 135, 'size' => 50, 'text' => mb_substr($boardname_no_space, 3, 2, "UTF-8"))),
+            array( array('y' => 70, 'size' => 50, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8")), array('y' => 130, 'size' => 50, 'text' => mb_substr($boardname_no_space, 3, 3, "UTF-8"))),           
+        );
+
+        $index = $length >= 6 ? 6 : $length;        
+        $pot = $bucket[$index];
+        foreach($pot as $plate){
+            $img->text($plate['text'], 100, $plate['y'], function ($font) use($font_path, $plate) {
                 $font->file(resource_path($font_path));
-                $font->size($font_size);
+                $font->size($plate['size']);
                 $font->color('#fff');
                 $font->align('center');
                 $font->valign('middle');
                 
             });
-        break;
-        case $length == 2:
-            $font_size = '80';
-            $pos_x = 100;
-            $pos_y = 100;
-            $img->text($firstChar, 100, 100, function ($font) use($font_size, $font_path) {
-                $font->file(resource_path($font_path));
-                $font->size($font_size);
-                $font->color('#fff');
-                $font->align('center');
-                $font->valign('middle');
-                
-            });
-        break;
-        case $length == 3:
-            $font_size = '60';
-            $pos_x = 100;
-            $pos_y = 100;
-            $img->text($firstChar, 100, 100, function ($font) use($font_size, $font_path) {
-                $font->file(resource_path($font_path));
-                $font->size($font_size);
-                $font->color('#fff');
-                $font->align('center');
-                $font->valign('middle');
-                
-            });
-        break;
-        case $length == 4:
-            $font_size = '60';
-            $pos_x = 100;
-            $pos_y = 70;                        
-            $first2 = mb_substr($boardname_no_space, 0, 2, "UTF-8");
-            $last2 = mb_substr($boardname_no_space, 2, 2, "UTF-8");
-            $img->text($first2, 100, 70, function ($font) use($font_size, $font_path) {
-                $font->file(resource_path($font_path));
-                $font->size($font_size);
-                $font->color('#fff');
-                $font->align('center');
-                $font->valign('middle');
-                
-            });
-            $img->text($last2, 100, 130, function ($font) use($font_size, $font_path) {
-                $font->file(resource_path($font_path));
-                $font->size($font_size);
-                $font->color('#fff');
-                $font->align('center');
-                $font->valign('middle');
-                
-            });
-        break;
-        case $length == 5:
-            $font_size = '50';
-            $pos_x = 100;
-            $pos_y = 70;                        
-            $first3 = mb_substr($boardname_no_space, 0, 3, "UTF-8");
-            $last2 = mb_substr($boardname_no_space, 3, 2, "UTF-8");
-            $img->text($first3, 100, 75, function ($font) use($font_size, $font_path) {
-                $font->file(resource_path($font_path));
-                $font->size($font_size);
-                $font->color('#fff');
-                $font->align('center');
-                $font->valign('middle');
-                
-            });
-            $img->text($last2, 100, 135, function ($font) use($font_size, $font_path) {
-                $font->file(resource_path($font_path));
-                $font->size($font_size);
-                $font->color('#fff');
-                $font->align('center');
-                $font->valign('middle');
-                
-            });
-        break;
-        case $length >= 6:
-            $font_size = '50';
-            $pos_x = 100;
-            $pos_y = 70;                        
-            $first3 = mb_substr($boardname_no_space, 0, 3, "UTF-8");
-            $last3 = mb_substr($boardname_no_space, 3, 3, "UTF-8");
-            $img->text($first3, 100, 70, function ($font) use($font_size, $font_path) {
-                $font->file(resource_path($font_path));
-                $font->size($font_size);
-                $font->color('#fff');
-                $font->align('center');
-                $font->valign('middle');
-                
-            });
-            $img->text($last3, 100, 130, function ($font) use($font_size, $font_path) {
-                $font->file(resource_path($font_path));
-                $font->size($font_size);
-                $font->color('#fff');
-                $font->align('center');
-                $font->valign('middle');
-                
-            });
-        break;                    
-        default:
-            $font_size = '70';
-            $pos_x = 23;
-            $pos_y = 22; 
-        }    
+        }
                  
         $set_path = 'board' . '_' . $icon->id . '.' . 'png';
         if (!Storage::disk('local')->exists('board_icon')) {

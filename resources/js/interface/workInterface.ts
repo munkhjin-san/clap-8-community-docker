@@ -1,43 +1,43 @@
-export interface WorkItem {
+export type WorkItem = {
     date: string
     endDate: string
     notification_user: NotificationUser
 }
 
-interface NotificationUser {
+type NotificationUser = {
     id: number
     name: string
     icon_id: number
 }
-export interface ChosenDateShiftType {
+export type ChosenDateShiftType = {
     id: number | null
     name: string
     abbreviation: string
     value: number | null
 }
-export interface CustomFieldData {
+export type CustomFieldData = {
     type_id: number
     value_text: string
     value_int: number
 }
-export interface CustomInfoType {
+export type CustomInfoType = {
     customType: CustomType
 }
-interface CustomType {
+type CustomType = {
     form_type: string
     title: string
     id: number
     custom_field_parts_records: CustomParts
 }
-interface CustomParts {
+type CustomParts = {
     custom_part: CustomPartsInterface
 }
-interface CustomPartsInterface{
+type CustomPartsInterface = {
     parts_value: number | null
     parts_lavel: string | null
 }
 
-export interface AttendanceData {
+export type AttendanceData = {
     annual_leave: number
     approved_count: number
     attendance_flag: boolean
@@ -60,7 +60,7 @@ export interface AttendanceData {
     worked_time: number
     workedday_count: 4
 }
-export interface User {
+export type User = {
     id: number
     name: string
     icon_id: number
@@ -69,4 +69,49 @@ export interface User {
     work_time_day: number
     work_type: number
     members: any
+}
+export type RecordItem = {
+    day_show: string
+    day_full: Date | string
+    shift: Shift
+    time_card: TimeCard
+    user_name: string
+    allowances: string
+    comment: string
+    satisfy: string
+    weather: number | null
+    incident: string
+    ability: any
+    last: boolean
+    user_id: number | null
+    work_type: number | null
+    work_time_day: number | undefined
+}
+export type Shift = {
+    id: number | null
+    user_id: number | null
+    start_time: string
+    end_time: string
+    shift_type: ShiftType | undefined
+    shift_day: Date | string
+    overtime_request: any
+    status_flag: number
+}
+export type TimeCard = {
+    id: number | null
+    user_id: number | null
+    day: Date | undefined
+    start_time: string
+    end_time: string
+    over_time: string
+    work_time: number
+    break_time: number
+    status_flag: number
+    stamp_flag: number
+    custom_field_data_records: CustomFieldData[]
+}
+export type ShiftType = {
+    id: number | null
+    name: string
+    abbreviation: string
 }

@@ -9,7 +9,7 @@ class LessonTheme extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['title', 'discussion_date', 'active'];
+    protected $guarded = [];
 
     public function lesson_portfolio(){
         return $this->hasOne(LessonPortfolio::class, 'lesson_theme_id')->select('lesson_theme_id', 'status', 'understand');

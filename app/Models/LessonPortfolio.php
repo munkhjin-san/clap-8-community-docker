@@ -29,20 +29,6 @@ class LessonPortfolio extends Model
     public function claps(){
         return $this->hasMany(ClapRecord::class, 'record_id')->where('app_id', 6)->where('deleted_flag', 0)->select('record_id', 'from_user');;
     }
-    protected $fillable = [
-        'lesson_theme_id',
-        'user_id',
-        'content',
-        'title',
-        'status',
-        'basic_knowledge',
-        'positive_feedback',
-        'negative_feedback',
-        'understand',
-        'noticed',
-        'portfolio_title',
-        'public_title',
-        'public_content'
-    ];
+    protected $guarded = [];
 
 }

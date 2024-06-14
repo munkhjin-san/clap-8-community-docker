@@ -36,7 +36,7 @@
                             <span>勤怠年月</span>
                         </div>
                         <div class="attendance-value">
-                            <span>{{monthFormat(selectedYear, selectedMonth)}}</span>
+                            <span>{{monthFormat}}</span>
                         </div>
                     </div>
                     <div class="attendance-row">
@@ -231,10 +231,10 @@
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }   
     }
-    const monthFormat = (year, month) => {
-        let yearMonth = year + '-' + (month + 1)
-        return moment(yearMonth, "YYYY-MM").format("YYYY年M月");
-    }
+    const monthFormat = computed(() => {
+        let yearMonth = moment([props.selectedYear, props.selectedMonth]).format('YYYY-MM')
+        return moment(yearMonth).format("YYYY年M月");
+    })
     const shiftDay = (data) => {
         let days = data.shift_count + '日'
         let hours = data.should_work/60 + '時間'
@@ -319,6 +319,7 @@
             annual_leave: attendanceData.value.annual_leave/60,
             condolence_leave: attendanceData.value.condolence_leave,
             transfer_leave: attendanceData.value.transfer_leave,
+            oda_leave: attendanceData.value.oda_leave,
             worked_hours: attendanceData.value.worked_time,
             worked_hours_no_over_time: attendanceData.value.worked_time - attendanceData.value.over_time,
             over_time: attendanceData.value.month_over_time,

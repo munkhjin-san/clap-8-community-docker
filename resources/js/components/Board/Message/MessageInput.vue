@@ -317,24 +317,26 @@ import UserIcon from '../Mixed/UserIcon.vue'
         if(editing.value) return
         const text = messageInputArea.value.textContent
         if(text && text.length){
-            aiResponseCustomize.value = false
-            
-            const full = '文章を修正してください。' + text
-            const openai = new OpenAI({
-                apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-                dangerouslyAllowBrowser: true 
-                
-            });
-            editing.value = true
-            aiResponse.value = ''
-            const stream = await openai.chat.completions.create({
-                // model: 'gpt-4',
-                model: 'gpt-3.5-turbo-16k',
-                messages: [{ role: 'assistant', content: full }],
-                stream: true,
-                temperature: 0.8
-            })
-            .catch((err) => {
+            try{
+                aiResponseCustomize.value = false          
+                editing.value = true
+                aiResponse.value = ''
+                const openai = new OpenAI({
+                    apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+                    dangerouslyAllowBrowser: true 
+                });       
+                const assistant = await openai.beta.assistants.retrieve("asst_00ym17kRKEnOWvM0y9Mnaah7");
+                const thread = await openai.beta.threads.create();
+                await openai.beta.threads.messages.create(thread.id, {role: "user", content: text});
+                openai.beta.threads.runs.stream(thread.id, { assistant_id: assistant.id })
+                .on('textDelta', (textDelta, snapshot) => {
+                    const content = textDelta.value || ''
+                    aiResponse.value = aiResponse.value + content
+                }).on('end', () => {
+                    editing.value = false
+                    aiResponseCustomize.value = true   
+                })
+            }catch(err){
                 if (err instanceof OpenAI.APIError) {
                     console.log(err.status); 
                     console.log(err); 
@@ -349,20 +351,10 @@ import UserIcon from '../Mixed/UserIcon.vue'
                 }
                 editing.value = false
                 aiResponseCustomize.value = true
-            });
-            for await (const part of stream) {
-                const content = part.choices[0]?.delta?.content || ''
-                aiResponse.value = aiResponse.value + content
-            }
-            editing.value = false
-            aiResponseCustomize.value = true                
-            
-            
+            }        
         }
-
-
     }
-    const setInput = () => {
+    const setInput = (event) => {
         charLength.value = event.target.innerText.length
     }            
     const inputKeyEventSecond = () => {
@@ -371,7 +363,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
                 
         }  
     }
-    const inputKeyEventfirst = () => {
+    const inputKeyEventfirst = (event) => {
         startPosition.value = getCaretPosition();
         if(board.value && mentionBoxToggle.value){      
             if (event.key === 'Backspace' || event.key === 'Delete') {
@@ -433,27 +425,18 @@ import UserIcon from '../Mixed/UserIcon.vue'
         return mentioned
     }
     const commentSendConfirm = async() => {
-        var textCheck = messageInputArea.value.textContent;     
-        var nospace = textCheck.replace(/\s/g, "")       
+        let textCheck = messageInputArea.value.textContent;     
+        const nospace = textCheck.replace(/\s/g, "")       
         charLength.value = textCheck.length
-        if(!nospace && (!attachedFiles.value || !attachedFiles.value.length) && !sharingFiles.value.length){            
-            return;
-        }
-        if(charLength.value >= 5000){
-            return;
-        }
-        messageReady.value = textCheck 
-        var nospace = textCheck.replace(/\s/g, "")            
+        if((!nospace && (!attachedFiles.value || !attachedFiles.value.length) && !sharingFiles.value.length) || charLength.value >= 5000) return;       
+
+        messageReady.value = textCheck            
         const mentioned = await createMention(textCheck)
-        const a = Date.now().toString();
-        const b = Math.random().toString(36).substring(5);
-        const m_uid = a + '_' + b
+   
         const replyFlag = quoteReply.active && quoteReply.which == 'reply'
         const replyId = replyFlag ? quoteReply.message.id : null
         const quotFlag = quoteReply.active && quoteReply.which == 'quot'
         const quotId = quotFlag ? quoteReply.message.id : null 
-        const selected_quot_text = quotFlag && quotId ? quoteReply.text : null
-        const files = attachedFiles.value && attachedFiles.value.length ? attachedFiles.value : []
         const message_quot = quotFlag ? quoteReply.message : null
         const message_reply = replyFlag ? quoteReply.message : null
         const forward_message_id = forwardItem.value ? forwardItem.value.id : null
@@ -466,7 +449,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
             reply_id: replyId,
             quot_flag: quotFlag,
             quot_id: quotId,
-            quot_message: selected_quot_text,
+            quot_message: quotFlag && quotId ? quoteReply.text : null,
             forward_message_id: forward_message_id,
             record_id: board.value.id,
             mentioned_users: mentionedUsers.value,
@@ -476,17 +459,14 @@ import UserIcon from '../Mixed/UserIcon.vue'
             message_quot: message_quot,
             message_reply: message_reply,
             message_forward: message_forward,
-            message_attachments: files,
+            message_attachments: attachedFiles.value && attachedFiles.value.length ? attachedFiles.value : [],
             created_at: moment().format(),
             error: false,
-            u_id: m_uid,
+            u_id: `${Date.now().toString()}_${Math.random().toString(36).substring(5)}`,
             sharing_files: sharingFiles.value 
         }
+        addQueue(queueMessage)        
         messageInputArea.value.textContent = ''
-        if(props.messageListType == 'search'){
-            
-        }
-        addQueue(queueMessage)
         localStorage.setItem(board.value.id, '');
         mentionedUsers.value = [];
         mentionBoxToggle.value = false;

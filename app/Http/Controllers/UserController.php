@@ -3,21 +3,16 @@
 declare(strict_types=1);
 
 namespace App\Http\Controllers;
-use App\Models\LessonPortfolio;
 use App\Models\User;
 use App\Models\Icons;
 
 use App\Models\UserAlbum;
 use App\Models\TagRecord;
 use Carbon\Carbon;
-use App\Models\NiceRecord;
-use App\Models\KnowledgeRecord;
-use App\Models\ChallengeRecord;
-use App\Models\ClapRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File; 
-use Intervention\Image\Facades\Image;
+use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
@@ -50,7 +45,7 @@ class UserController extends Controller{
     }
     public function saveSignature(Request $request){
         $auth_id = Auth::id();
-        $user = User::findOrFail($auth_id);
+        $user = User::with('linked')->findOrFail($auth_id);
         $unique_number = rand(1000, 9999); 
         $current_timestamp = time(); 
         $new_a_path = $current_timestamp . $unique_number; 
@@ -70,7 +65,7 @@ class UserController extends Controller{
         $user = Auth::user();
         $auth_user_id = Auth::id();
 
-        $img = Image::make($request->file('croppedImage'))->fit(200);      
+        $img = Image::read($request->file('croppedImage'))->scale(200);      
         
         $size_variants = [200, 120, 80, 45, 30, 25, 20, 15];
         if (!Storage::disk('local')->exists('profile_icon')) {
@@ -83,7 +78,7 @@ class UserController extends Controller{
         $imageUrl = $orgImage['url'];
 
         $imageData = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $imageUrl));
-        $org_img = Image::make($imageData)->orientate();
+        $org_img = Image::read($imageData);
         
         $icon = new Icons;
                 
@@ -178,9 +173,9 @@ class UserController extends Controller{
                 File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);
                 if($file_type == 'image' && $file_extension !== 'svg'){
 
-                    $img = Image::make($fileContent)->orientate();
+                    $img = Image::read($fileContent);
                     
-                    $img->save(storage_path('app') . $path .'/'. $set_path, 30);
+                    $img->encodeByExtension($file_extension, 30)->save(storage_path('app') . $path .'/'. $set_path);
                     // $thumbnail = $img->encode('webp')->resize($width, null, function($constraint) {
                     //     $constraint->aspectRatio();
                     //     $constraint->upsize();

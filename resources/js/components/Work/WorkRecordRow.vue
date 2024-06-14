@@ -19,7 +19,16 @@
         </td>
         <td>{{ workTimeFormatted }}</td>
         <td>{{ overTimeFormatted }}</td>
-        <td>{{ breakTimeFormatted }}</td>
+        <td>
+            <div style="white-space: pre-wrap;" v-if="item.time_card?.stamp_flag == 1">{{ breakTimeFormatted }}</div>
+            <div v-if="item.time_card?.stamp_flag == 0 || item.time_card?.stamp_flag == 2" class="w-hover-button mb-space">
+                <CommandButton @select="takeBreak(item)" :buttons="[{name: item.time_card?.stamp_flag == 0 ? '休憩' : '再開'}]"/>
+            </div>
+            <!-- <div v-else-if="item.time_card?.stamp_flag == 2" class="w-hover-button mb-space">
+                <CommandButton @select="takeBreak(item)" :buttons="[{name: '続く'}]"/>
+            </div> -->
+            
+        </td>
         <!-- <td>{{ item.time_card?.work_group?.name }}</td> -->
         <td style="word-break: auto-phrase;">{{ hasAllowance }}</td>
         <td>{{ incidentFormatted }}</td>
@@ -27,10 +36,10 @@
         <td v-html="hasCondition"></td> 
         <td>
             <div style="position: relative;">
-                <div class="text-wrap" @click.stop="commentBoxPosition"> 
+                <div class="text-wrap" @click.stop="boxPosition('commentBox')"> 
                     {{ commentFormatted }}
                 </div>
-                <div @click="menu.close()" ref="commentBox" class="comment-box" id="commentBox" :style="commentBoxStyle" v-if="menu.name == 'commentBox' && menu.id == item.time_card?.id">
+                <div @click="menu.close()" ref="commentBox" class="comment-box" id="commentBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'commentBox' && menu.id == item.time_card?.id">
                     <div style="word-break: break-word;" v-if="overTimeReasonFormatted">{{ overTimeReasonFormatted }}</div>
                     <div style="word-break: break-word;">{{ commentFormatted }}</div>                              
                 </div>
@@ -38,11 +47,11 @@
         </td>
         <td>
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
-                <div @click.stop="hasWorkCost !== '' ? menu.setMenu({name: 'costBox', id: item.time_card?.id}) : false" class="text-wrap">{{ hasWorkCost }}</div>
-                <div @click="menu.close()" class="comment-box" id="costBox" v-if="menu.name == 'costBox' && menu.id == item.time_card?.id">
+                <div @click.stop="boxPosition('costBox')" class="text-wrap">{{ hasWorkCost }}</div>
+                <div @click="menu.close()" ref="costBox" class="comment-box" id="costBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'costBox' && menu.id == item.time_card?.id">
                     <div v-for="cost in item.time_card?.timecard_costs" :key="cost.id">
                         <div style="word-break: break-word;" v-html="formatCostString(cost)"></div>
-                        <img @click="previewImage(cost.file_path)" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="`/cdn/timecard_files/${cost?.file_path}`"/>
+                        <img @click="workFilePreview(cost.file_path)" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="`/cdn/timecard_files/${cost?.file_path}`"/>
                     </div>
 
                 </div>
@@ -94,10 +103,9 @@ import { computed, inject, ref } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from "@/store/menu";
 import CommandButton from '../Global/CommandButton.vue';
-import { useFilePreview } from '../../store/filePreview';
+import { workFilePreview } from '../../utils/workApi';
 const menu = useMenuStore()
 const responsive = useResponsive()
-const filePreview = useFilePreview()
 const costOptions = [{label: '交通費', value: 1},
                     {label:'通信費', value: 2},
                     {label:'宿泊費', value: 3},
@@ -105,7 +113,7 @@ const costOptions = [{label: '交通費', value: 1},
                     {label:'消耗品費', value: 5},
                     {label:'交際費', value: 6},
                     {label:'支払手数料', value: 7}]
-const {start, end } = inject('stamps')
+const {start, end, takeBreak } = inject('stamps')
 const props = defineProps({
     item: {type: Object, default: null},
     hasHeader: {type: Function},
@@ -113,8 +121,10 @@ const props = defineProps({
     wrapper: {type: HTMLDivElement}
 })
 const emit = defineEmits(['callModal', 'procedureStart'])
-const commentBoxStyle = ref('')
+
 const commentBox = ref(null)
+const costBox = ref(null)
+const topOffset = ref(0)
 const getDayClass = computed(() => {
     const date = props.item.day_full
     const day = moment(date).day()
@@ -133,13 +143,15 @@ const dayFormatter = computed(() => {
         return date
     }
 })
-const commentBoxPosition = () => {
-    commentFormatted.value !== '' ? menu.setMenu({name: 'commentBox', id: props.item.time_card?.id}) : false
+const boxPosition = (name) => {
+    if(!commentFormatted.value && name == 'commentBox') return
+    topOffset.value = 0
+    menu.setMenu({name: name, id: props.item.time_card?.id})
     setTimeout(() => {
-        const wrapperRect = props.wrapper.getBoundingClientRect()
-        const commentbox = commentBox.value.getBoundingClientRect()
-        if(commentbox.bottom > wrapperRect.bottom){
-            commentBoxStyle.value = 'top: auto; bottom: 0;'
+        const box = name == 'costBox' ? costBox.value : commentBox.value
+        if(box){
+            const rects = box.getBoundingClientRect()
+            topOffset.value = rects.bottom > window.innerHeight ? Math.ceil(window.innerHeight - rects.bottom - 10) : 0
         }
     })
 }
@@ -192,6 +204,7 @@ const endTimeFormatted = computed(() => {
 
 const workTimeFormatted = computed(() => {
     const timeCard = props.item?.time_card
+    if(timeCard?.stamp_flag == 2) return
     if(timeCard){
         const mobileTitle = responsive.mobile ? '労働時間 : ' : ''
         if(timeCard.work_time){
@@ -207,10 +220,14 @@ const workTimeFormatted = computed(() => {
 const countdown = computed(() => {
     const currentTime = moment();
     const givenTime = props.item?.time_card.start_time
+    const breakMinute = props.item?.total_break_time || 0
     const todayWithGivenTime = moment().format('YYYY-MM-DD') + ' ' + givenTime;
     const givenTimeInstance = moment(todayWithGivenTime, 'YYYY-MM-DD HH:mm');
+    
     const difference = moment.duration(currentTime.diff(givenTimeInstance));
-    return difference < 0 ? '0時間0分' : `${difference.hours()}時間${difference.minutes()}分`;
+    const breakDuration = moment.duration(breakMinute, 'minutes');
+    const adjustedDifference = difference.subtract(breakDuration);
+    return adjustedDifference < 0 ? '0時間0分' : `${adjustedDifference.hours()}時間${adjustedDifference.minutes()}分`;
 })
 const overTimeFormatted = computed(() => {
     const data = props.item
@@ -259,7 +276,7 @@ const overTimeReasonFormatted = computed(() => {
 const hasCondition = computed(() => {
     const index = props.item.weather
     const mobileTitle = responsive.mobile ? 'コンディション : ' : ''
-    if(index){
+    if(index !== null){
         return `<div class="condition-area"><div>${mobileTitle}</div><img class="condition-img" src="images/icon_${index}.svg" width="17" height="17"/></div>`
     }
     return ''
@@ -308,26 +325,6 @@ const hasAction = computed(() => {
     return authorityCheck
 })
 
-
-const previewImage = (file) => {
-        const file_path = `/cdn/timecard_files/${file}`
-
-        let target_data = {
-            extension: 'webp',
-            mime_type: 'image',
-            file_path: file_path,
-            name: file
-        }
-        const data = {
-            active: true,
-            files: [target_data],
-            source: 'work',
-            index: 0,
-            message: null,
-        }
-        filePreview.setFilePreview(data)
-    
-}
 const incentiveCount = computed(() => {
     const costs = props.item.time_card?.timecard_incentives
     const sum = costs && costs.length ? costs.reduce((accumulator, element) => accumulator + element.count, 0) : 0

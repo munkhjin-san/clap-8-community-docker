@@ -70,7 +70,8 @@
                 },
                 time_card: {
                     custom_field_data_records: customFieldData.value
-                }
+                },
+                total_break_time: 0
             }
             reportModal.value = true
         }else{

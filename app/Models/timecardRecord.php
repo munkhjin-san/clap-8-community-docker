@@ -27,12 +27,17 @@ class timecardRecord extends Model
     public function custom_field_data_records(){
         return $this->hasMany(customFieldDataRecord::class, 'table_record_id','id');
     }
+    public function total_break_time(){
+        return $this->hasMany(timecardBreakRecord::class, 'record_id')
+            ->select('record_id')
+            ->selectRaw('SUM(break_by_minute) as total_break_minute')
+            ->groupBy('record_id');
+    }
+    
     protected $casts = [
         'record_id' => 'int',
         'deleted_flag' => 'int',
     ];
 
-    protected $fillable = [
-        'day', 'start_time', 'end_time', 'stamp_flag', 'user_id'
-    ];
+    protected $guarded = [];
 }
