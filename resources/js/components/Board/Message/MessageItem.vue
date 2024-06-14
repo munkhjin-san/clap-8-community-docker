@@ -12,7 +12,7 @@
             <p v-if="showDate">{{momentMessage}}</p>       
             <p style="cursor:pointer" @click="showDate = !showDate" v-html="taskInfoMessage"></p>        
         </div>
-        <div 
+         <div 
             v-else-if="message.info_flag == 0" 
             :style="{
                 float: auth && auth.activeUser.id == message.user.id ? 'right' : 'left',
@@ -276,7 +276,7 @@ import MessageEditor from './MessageEditor.vue'
         
     })
     const reactedUsersListAll = computed(() => {
-        return props.message.reacted_users && props.message.reacted_users.length ? props.message.reacted_users.reverse() : []                
+        return props.message.reacted_users && props.message.reacted_users.length ? Array.from(props.message.reacted_users).reverse() : []                
     })
     const checkFunctionView = computed(() => {
         if(props.message.check_flag == 1){
