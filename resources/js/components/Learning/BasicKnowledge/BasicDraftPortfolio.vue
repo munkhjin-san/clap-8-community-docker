@@ -53,7 +53,7 @@
                 :assistand-id="selectedTopic.assistant_id" 
                 :soure-text="portfolio?.ai_review_pre" 
                 :message="content"
-                :confirm-text="'AI分析による結果を反映し、発表時間が5分程度の内容であり、研修テーマに沿ったポートフォリオとしてふさわしいという分析結果が表示されていることを確認しました。'"
+                :confirm-text="'発表用ポートフォリオは、研修テーマに沿った内容であり、発表時間が５分程度の内容にまとめられている。'"
                 ref="reviewEl"
             />
             <div v-if="portfolio && portfolio.status < 1" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">              

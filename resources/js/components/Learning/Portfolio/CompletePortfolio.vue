@@ -55,7 +55,7 @@
                 assistand-id="asst_NnPHXCXimhJ09GNZwOfg107Y" 
                 :soure-text="portfolio?.ai_review_final" 
                 :message="portfolioContent"
-                confirm-text="グループディスカッションによるフィードバックから得た発見と成長についての内容が記載されており、AI分析による結果からも内容を満たしていることを確認しました。"
+                confirm-text="ポジティブ・ネガティブフィードバックから得た発見と成長がポートフォリオに反映されている。"
                 ref="reviewElFinal"
             />
             <div v-if="portfolio && portfolio.status == 2" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
