@@ -9,7 +9,7 @@
         <div class="sub-tab-container"  style="margin: 0 20px 20px;">
             <div @click="router.push({name: 'content'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'content'}]">コンテンツ</div>
             <div @click="router.push({name: 'trainee'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'trainee'}]">参加者</div>
-            <div @click="router.push({name: 'assistant'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'assistant'}]">GPTアシスタン</div>
+            <div @click="router.push({name: 'assistant'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'assistant'}]">AIアシスタント</div>
         </div>
         <div style="height: calc(100% - 110px);" v-if="theme">
             <router-view :theme="theme"></router-view>
