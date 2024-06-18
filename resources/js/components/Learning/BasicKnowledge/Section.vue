@@ -89,8 +89,8 @@
     const comment = ref("")
     const processing = ref(false)
     const list = [
-        { value: 1, content: '理解しました'},
-        { value: 0, content: 'もっと詳しく知りたい'}        
+        { value: 1, content: '理解した'},
+        { value: 0, content: '理解できなかった'}        
     ]
     const selectedAnswer = ref('')
  
