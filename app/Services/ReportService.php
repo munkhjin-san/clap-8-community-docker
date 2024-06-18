@@ -178,8 +178,8 @@ class ReportService
         お疲れ様です。経営管理本部です。
         昨日までにインシデント有を選択されていた社員は下記の通りです。
 
-        ${incident_result}
-        ・サポートデスク：${support_result}件
+        {$incident_result}
+        ・サポートデスク：{$support_result}件
         EOT;
 
         return $message;
