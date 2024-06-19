@@ -176,6 +176,7 @@ import UserPortfolioEdit from './UserPortfolioEdit.vue';
 
     onMounted(() => {
         UserAllData.value = route.meta.data && Object.hasOwn(route.meta.data, 'id') ? route.meta.data : null;
+        const newUserId = route.params.userId
         if (route.params.userId !== UserAllData.value.id) {
           updateUser(newUserId);
           getClaps(newUserId);
