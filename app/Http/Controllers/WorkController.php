@@ -383,7 +383,7 @@ class WorkController extends Controller
     }
     private function has_daily_report($shift, $time_card, $day, $user, $active_user, $has_attendace){
         $timecardExist = $time_card !== null;
-        $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $active_user->position_id == 15;
+        $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $user->position_id == 15;
         $isToday = date('Y-m-d') == $day->format('Y-m-d');
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
         $create = !$timecardExist && !$has_attendace && $valid_shift && $isTodayOrPast && ($user->id == $active_user->id || $active_user->id == 610 || $active_user->id == 608);
