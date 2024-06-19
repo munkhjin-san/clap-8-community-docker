@@ -1607,6 +1607,7 @@ class WorkController extends Controller
             $img = Image::read($fileContent);
             
             $img->scale(640);
+            $file_path .= '.webp';
             File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . $path, 0755, true, true);                      
             $img->toWebp(80)->save(storage_path('app') . $path .'/'. $file_path);  
         }
