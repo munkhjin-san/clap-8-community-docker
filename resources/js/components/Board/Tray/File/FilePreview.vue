@@ -544,7 +544,7 @@ import { useSharingDataStore } from '@/store/sharingData'
         line-height: 1.5;
         border-radius: 0px;
         background: var(--primary-button);
-        color: #fff;
+        color: #fff !important;
     }
     
     

@@ -59,8 +59,8 @@
                 
         </Teleport>
         <div class="pdfButton-wrapper">
-            <button class="signatureButton cursor-pointer" v-if="!canvasElementShow" @click="electronicSignatureRequest">サインする</button>
-            <button class="signatureButton cursor-pointer" v-if="!canvasElementShow" @click="notSign">サインしない</button>
+            <button class="signatureButton cursor-pointer" v-if="!canvasElementShow && signableFile" @click="electronicSignatureRequest">サインする</button>
+            <button class="signatureButton cursor-pointer" v-if="!canvasElementShow && signableFile" @click="notSign">サインしない</button>
             <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="savePdf()">
                 <span v-if="!processing">保存</span>
                 <div v-if="processing" id="loaderMini">
@@ -70,13 +70,13 @@
             <button v-if="isDragging" :disabled="processing" class="signatureButton cursor-pointer" style="margin-right:5px;" @click="cancelSign()">
                 <span>キャンセル</span>
             </button>
-            <button v-if="file.multiple_flag == 1 && !file.unsigned_users.length && file.user_id == auth.id" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="downloadAll()">すべてダウンロード</button>
+            <button v-if="file.multiple_flag == 1 && !file.unsigned_users.length && file.user_id == auth.activeUser.id" class="signatureButton cursor-pointer" style="margin-right:5px;" type="button" @click="downloadAll()">すべてダウンロード</button>
         </div>
     </div>
 
 </template>
 <script setup>
-import { ref, nextTick, inject } from 'vue';
+import { ref, nextTick, inject, computed } from 'vue';
 import SignaturePad from 'signature_pad'
 import { useAuthUserStore } from '@/store/auth';
 import { useFilePreview } from '@/store/filePreview';
@@ -103,6 +103,12 @@ import { useResponsive } from '@/store/responsive';
     const refresh = inject('getIncompleteMessage')
     const filePreview = useFilePreview()
     const { notify, confirm } = inject('dialog')
+    
+    const signableFile = computed(() => {
+        const unsignedUsers = props.file.unsigned_users;
+        const includesUser = Object.values(unsignedUsers).some(user => user.id === auth.activeUser.id && user.pivot.cancel_flag === 0);
+        return includesUser && (props.file.multiple_flag == 2 || props.file.multiple_flag == 0)
+    })
     const savePdf = async () => {
         const viewer = props.viewer()
         let pageIndex = 0
@@ -189,22 +195,31 @@ import { useResponsive } from '@/store/responsive';
     }
     const downloadAll = () => {
         let src, name;
-        for(let file of filePreview.files){
-            if(file.multiple_flag == 2){
-                const path = file.source_board_id + '/' + file.id + '_' + file.user_id + '_' + file.message_id + '.' + file.extension        
-                name = file.name
-                src = '/cdn/shared_files/'+ path;
-                const link = document.createElement('a');
-                link.href = src;
-                link.download = '';
-                link.setAttribute('download', name);
-                document.body.appendChild(link);            
-                link.click();  
-                document.body.removeChild(link); 
+        let index = 0;
+        const delay = 100;
+        const downloadNextFile = () => {
+            if (index < filePreview.files.length) {
+                const file = filePreview.files[index];
+                if (file.multiple_flag == 2) {
+                    const path = file.source_board_id + '/' + file.id + '_' + file.user_id + '_' + file.message_id + '.' + file.extension;        
+                    name = file.name;
+                    src = '/cdn/shared_files/' + path;
+                    const link = document.createElement('a');
+                    link.href = src;
+                    link.download = '';
+                    link.setAttribute('download', name);
+                    document.body.appendChild(link);            
+                    link.click();  
+                    document.body.removeChild(link); 
+                }
+                index++;
+                setTimeout(downloadNextFile, delay);
+            } else {
+                menu.setMenu({name: '', id: null});
             }
-            
-        }
-        menu.setMenu( {name: '', id: null})
+        };
+
+        downloadNextFile();
     }
     const selectLineWidth = (width) => {
         signaturePad.value.maxWidth = width;

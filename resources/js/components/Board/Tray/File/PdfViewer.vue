@@ -40,6 +40,8 @@ import { File } from '../../../../interface/trayInterface';
         if(unsignedUsers && (props.file.multiple_flag == 2 || props.file.multiple_flag == 0)){
             const includesUser = Object.values(unsignedUsers).some(user => user.id === auth.activeUser.id && user.pivot.cancel_flag === 0);
             signActive.value = includesUser
+        } else {
+            signActive.value = props.file.multiple_flag == 1 && props.file.user_id == auth.activeUser.id
         }
     })
     onUnmounted(() => {
