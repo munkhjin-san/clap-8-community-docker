@@ -175,7 +175,7 @@
     
     const timeStampStart = async(data) => {
         const month = selectedMonth.value + 1
-        if(data || data.position_id === 15){
+        if(data || data.position_id === 15 || data.position_id < 6){
             if(data?.shift?.shift_type.id == 3){
                 notify('計画有給設定しているため日報作成ができません。')
             } else if (data.shift?.status_flag == 2) {
@@ -243,7 +243,7 @@
     }
     const timeStampEdit = (data) => {
         const month = selectedMonth.value + 1
-        if(data?.shift || data.position_id === 15){
+        if(data?.shift || data.position_id === 15 || data.position_id < 6){
             if(data?.shift?.shift_type?.id == 3){
                 notify('計画有給設定しているため日報作成ができません。')
             } else if (data.shift?.status_flag == 2) {
