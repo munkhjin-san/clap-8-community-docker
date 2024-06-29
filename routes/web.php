@@ -20,6 +20,8 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\LessonController;
+use App\Http\Controllers\AdminAlertController;
+use App\Http\Controllers\TaskController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -68,7 +70,7 @@ Route::get('/help/{any?}', function () {
 })->where('any', '.*')->name('help');
 Route::match(['get', 'post'], '/cron-trigger', [AutoJobController::class, 'cronTest']);
 
-Auth::routes();
+Auth::routes(['register' => false]);
 
 Route::prefix('cdn_external')->group(function () {
     Route::get('{user_id}/{keyword}/{any?}', [ContentController::class, 'fileTransferAllExternal'])->where('any', '.*');
@@ -145,19 +147,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::patch('/board_badge', [BoardController::class, 'update_board_badge']); // #20201207_006
     Route::get('/board_badge', [BoardController::class, 'get_board_badge']); 
     Route::post('/icon_up_api', [BoardController::class, 'getIconUp']);
-    Route::post('/get_task_api', [BoardController::class, 'getTask']); 
-    Route::post('/complete_task_api', [BoardController::class, 'completeTask']); 
-    Route::post('/task_update_api', [BoardController::class, 'updateTask']); 
-    Route::get('/task_badge', [BoardController::class, 'get_task_badge']);    
     Route::post('/pin_board_api', [BoardController::class, 'pinBoard']); 
-    Route::post('/task_edit_api', [BoardController::class, 'taskEdit']); 
-    Route::post('/task_delete_api', [BoardController::class, 'taskDelete']); 
     Route::post('/attach_upload_api', [BoardController::class, 'attachUpload']); 
     Route::post('/remove_temp_file', [BoardController::class, 'removeTemp']); 
     Route::post('/check_request_api', [BoardController::class, 'checkRequest']);
     Route::post('/remind_add', [BoardController::class, 'remindRequest']); 
     Route::post('/send_reaction_api', [BoardController::class, 'sendReaction']); 
-    Route::post('/add_task_api', [BoardController::class, 'addTask']); 
+    
     Route::post('/message_search', [BoardController::class, 'messageSearch']);
     Route::post('/get_target_message', [BoardController::class, 'getTargetMessage']); 
     Route::post('/get_bottom_messages', [BoardController::class, 'getAppend']); 
@@ -180,8 +176,19 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/get_file_list', [FileController::class, 'fetchFileList']); 
     Route::get('/incomplete_check', [BoardController::class, 'incomplete_check']);
 
-
-
+    // Task
+    Route::post('/get_task_api', [TaskController::class, 'getTask']); 
+    Route::post('/complete_task_api', [TaskController::class, 'completeTask']); 
+    Route::post('/task_update_api', [TaskController::class, 'updateTask']); 
+    Route::post('/task_file_upload', [TaskController::class, 'task_file_upload']);
+    Route::get('/task_badge', [TaskController::class, 'get_task_badge']);    
+    Route::post('/task_edit_api', [TaskController::class, 'taskEdit']); 
+    Route::post('/task_delete_api', [TaskController::class, 'taskDelete']); 
+    Route::post('/add_task_api', [TaskController::class, 'addTask']); 
+    Route::put('/task_approve_request', [TaskController::class, 'task_approve_request']);
+    Route::put('/task_approve', [TaskController::class, 'task_approve']);
+    Route::get('/task_not_approved', [TaskController::class, 'task_not_approved']);
+    
         // Admin Panel User:
         Route::get('/get_controllable_users', [AdminAccountController::class, 'get_controllable_users']);
         Route::post('/user_add', [AdminAccountController::class, 'addUser']);
@@ -195,6 +202,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
         Route::post('/get_planned_shifts', [AdminWorkController::class, 'get_planned_shifts']);
         Route::post('/change_planned_shifts', [AdminWorkController::class, 'change_planned_shifts']);
+
+        Route::post('/alert_templates_item', [AdminAlertController::class, 'create_alert_templates_item']);
+        Route::delete('/alert_templates_item', [AdminAlertController::class, 'delete_alert_templates_item']);
+        Route::get('/alert_templates_list', [AdminAlertController::class, 'alert_templates_list']);
+        Route::get('/get_related_alerts', [AdminAlertController::class, 'get_related_alerts']);
         
         //User
         Route::post('/user_generate_file_key', [UserController::class, 'generate_key']);
@@ -268,7 +280,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
-        Route::post('/get_kadai_reviev', [MemberController::class, 'get_kadai_reviev']);
         Route::post('/update_kadai', [MemberController::class, 'update_kadai']);
         Route::post('/save_kadai_template', [MemberController::class, 'save_kadai_template']);
         Route::post('/get_kadai_template', [MemberController::class, 'get_kadai_template']);

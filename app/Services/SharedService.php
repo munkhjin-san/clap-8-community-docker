@@ -36,8 +36,8 @@ class SharedService
             if(in_array( $shift['shift_type'], [0, 2, 3, 5, 14, 15])){
                 $shiftType = shiftType::find($shift['shift_type']);
                 $instance = Carbon::parse($shift['shift_day']); 
-                $start_instance = $instance->clone()->hour('00')->minute('00')->second('00');
-                $end_instance = $instance->clone()->hour('23')->minute('59')->second('00');
+                $start_instance = $instance->clone()->hour(00)->minute(00)->second(00);
+                $end_instance = $instance->clone()->hour(23)->minute(59)->second(00);
                 $start = Carbon::createFromFormat('Y-m-d H:i:s', $start_instance);
                 $end = Carbon::createFromFormat('Y-m-d H:i:s', $end_instance);
                 $record = CalendarRecord::create([

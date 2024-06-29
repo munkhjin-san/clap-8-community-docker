@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useAuthUserStore } from "../store/auth";
 import { useFilePreview } from "../store/filePreview";
-
+import moment from "moment";
 export const getWorkGroup = async () => {
     try {
         const auth = useAuthUserStore()
@@ -73,4 +73,11 @@ export const workFilePreview = (file: string) => {
         message: null,
     }
     filePreview.setFilePreview(data)
+}
+
+export const dateDetail = (value: string | Date) => {
+    moment.locale('ja');
+    const thisYear = moment().year();
+    const taskYear = moment(value).year();
+    return (thisYear == taskYear) ? moment(value).format('M/D (dd)') : moment(value).format('YYYY/M/D (dd)')               
 }

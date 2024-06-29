@@ -1,5 +1,5 @@
 <template>
-    <ul ref="innerMention" id="mentionedPc" class="mentionBox" :style="mentionBoxPosition()">
+    <ul ref="innerMention" id="mentionedPc" class="mentionBox reset-bullet" :style="mentionBoxPosition()">
         <li 
             :id="'mentionAble_' + index" 
             :key="index" 

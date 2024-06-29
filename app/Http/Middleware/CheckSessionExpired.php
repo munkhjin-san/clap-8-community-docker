@@ -20,7 +20,7 @@ class CheckSessionExpired
             $lastActivity = Session::get('last_activity');
             $sessionLifetime = config('session.lifetime');
 
-            if ($lastActivity && now()->diffInMinutes($lastActivity) > $sessionLifetime) {
+            if ($lastActivity && $lastActivity->diffInMinutes(now()) > $sessionLifetime) {
                 Auth::logout();
                 Session::flush();
                 $request->session()->flash('error', 'セキュリティ保護のためもう一度ログインしてください。');

@@ -5,7 +5,7 @@ a, abbr, acronym, address, big, cite, code,
 del, dfn, em, img, ins, kbd, q, s, samp,
 small, strike, strong, sub, sup, tt, var,
 b, u, i, center,
-dl, dt, dd, ol, ul, li,
+dl, dt, dd, 
 fieldset, form, label, legend,
 table, caption, tbody, tfoot, thead, tr, th, td,
 article, aside, canvas, details, embed, 
@@ -39,8 +39,18 @@ body {
     width: 100%;
     
 }
-ol, ul {
+.boxMenu {
+    ol, ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+} 
+.reset-bullet{
     list-style: none;
+    padding: 0;
+    margin:0;
+    text-align: left;
 }
 blockquote, q {
     quotes: none;
@@ -90,7 +100,7 @@ html {
   vertical-align: inherit;
 }
 
-* {
+*:not(ul, li, ol) {
   padding: 0; /* Reset `padding` and `margin` of all elements */
   margin: 0;
 }
@@ -4235,9 +4245,9 @@ font-size: 13px;
     position:relative;
     text-overflow: ellipsis;
     white-space: nowrap;
-    overflow: hidden;
+    // overflow: hidden;
     align-items: center;
-    z-index: 1;
+    // z-index: 1;
     user-select: none;
     background-color: var(--background-color);
     //transition: all 0.2s;
@@ -4316,10 +4326,8 @@ font-size: 13px;
 }
 .messageIconContainer{
     display: flex;
-    float:right;
-    right:1%;
-    top: 10px;
-    text-align: center;
+    min-width: 50px;
+    justify-content: end;
 }
 .bell-icon{
     display: flex;
@@ -5805,6 +5813,35 @@ input:autofill {
         flex-wrap: wrap;
         column-gap: 15px;
     }
+
+    .message-top-block {
+        display: flex;
+        align-items: center;
+        gap: 30px;
+        position: relative;
+        justify-content: space-between;
+        margin-bottom: 15px;
+    
+        .m-date {
+            position: absolute;
+            top: -40px;
+            right: -13px;
+            font-size: 12px;
+            color: gray;
+        }
+    }
+    
+.mntuser {
+    color: var(--link-color);
+    cursor: pointer;
+    user-select: none;
+}
+
+.mntuser:hover {
+    color: var(--link-color);
+    text-decoration: underline;
+    font-weight: 600;
+}
 @media screen and (max-width: 959px) {
     .ls-video{
         max-width: 100%;

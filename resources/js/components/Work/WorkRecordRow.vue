@@ -5,6 +5,7 @@
         </td>
         <td>{{  item.user_name }}</td>
         <td v-if="hasHeader('予定')" :class="getShiftClass">{{ item.shift?.status_flag == 2 ? '申請中' : item.shift?.shift_type?.abbreviation }}</td>
+        
         <td :class="startEarly">
             <div v-if="item.ability.start_stamp" class="w-hover-button mb-space">
                 <CommandButton @select="start(item)" :buttons="[{name: '始業'}]"/>
@@ -21,7 +22,7 @@
         <td>{{ overTimeFormatted }}</td>
         <td>
             <div style="white-space: pre-wrap;" v-if="item.time_card?.stamp_flag == 1">{{ breakTimeFormatted }}</div>
-            <div v-if="item.time_card?.stamp_flag == 0 || item.time_card?.stamp_flag == 2" class="w-hover-button mb-space">
+            <div v-if="item.ability.break_stamp" class="w-hover-button mb-space">
                 <CommandButton @select="takeBreak(item)" :buttons="[{name: item.time_card?.stamp_flag == 0 ? '休憩' : '再開'}]"/>
             </div>
             <!-- <div v-else-if="item.time_card?.stamp_flag == 2" class="w-hover-button mb-space">
@@ -30,6 +31,11 @@
             
         </td>
         <!-- <td>{{ item.time_card?.work_group?.name }}</td> -->
+        <td>
+            <div class="text-wrap">
+                {{ item.time_card?.department?.name }}
+            </div>
+        </td>
         <td style="word-break: auto-phrase;">{{ hasAllowance }}</td>
         <td>{{ incidentFormatted }}</td>
         <td>{{ satisfyFormatted }}</td>

@@ -286,6 +286,7 @@ class PostController extends Controller
                     
                 File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
                 $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
+                File::isDirectory(storage_path('app') . $path .'/thumbnail') or File::makeDirectory(storage_path('app') . '/' . $path .'/thumbnail', 0755, true, true);
                 $thumbnail = $img->scale(height: 130);  
                 $thumbnail->toWebp()->save(storage_path('app') . $path .'/'. $thumbnail_path);
             }else{

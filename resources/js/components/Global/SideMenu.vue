@@ -9,7 +9,7 @@
                         <span style="top: -3px;right: auto;left: 20px;" v-if="auth.linked.length && badge.totalUserBadge(auth.id) && auth.activeUser.id !== auth.id" class="side-notification">{{ badgeFilter(badge.totalUserBadge(auth.id))}}</span> 
                     </div>                         
                     <div class="sideMenuUserName" style="white-space: break-spaces;display: flex;align-items: center;gap:5px;" v-if="sideMenuView.active">{{ auth.user.name }}
-                        <img style="margin-right: 10px;" v-if="todayWeather !== null" :src="`/images/icon_${todayWeather}.svg`" alt="Weather Icon" width="20" height="20" />
+                        <WeatherIcon style="margin-right: 10px;min-width: 20px;" v-if="todayWeather !== null" :key="`weather_${todayWeather}`" :which="todayWeather" size="20"/>
                     </div>                   
                 </div>
                 <div @click.prevent.stop="setActiveUser(user.id)" v-for="user in auth.user.linked" class="side-menu-route-inner">
@@ -127,6 +127,7 @@ import { useRoute } from 'vue-router';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useBadgeStore } from '@/store/badge'
 import { useBreakTime } from '../../store/breakTime';
+import WeatherIcon from '@/components/Global/WeatherIcon.vue';
     const badge = useBadgeStore()
     const route = useRoute()
     const auth = useAuthUserStore()

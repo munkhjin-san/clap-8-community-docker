@@ -4,7 +4,7 @@
         <Transition name="modalFade">
             <div class="overlay" style="z-index:100" v-if="switchLoader"></div>
         </Transition>
-        <InstantProfile :key="instantUser.cY + instantUser.cX" :data="instantUser" v-if="instantUser.id" @resetInstantUser="resetInstantUser"/>  
+        <InstantProfile :key="instantUser.cY + instantUser.cX" :data="instantUser" v-if="instantUser.id || instantUser.name" @resetInstantUser="resetInstantUser"/>  
         <div style="width: 100%;height:calc(100% - 45px);display: flex; flex:1">
             <Transition name="modalFade">
                 <div @click="sideMenuView.setSideMenuView(false)" v-if="sideMenuView.active" class="overlay mobile" style="z-index: 26;"></div>
@@ -65,7 +65,8 @@ import InstantProfile from './Board/InstantProfile.vue';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useSkeleton } from '@/store/skeleton'
 import { useTitle } from '@vueuse/core'
-import { includes } from 'lodash';
+import { io } from "socket.io-client";
+import axios from 'axios';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -80,10 +81,12 @@ import { includes } from 'lodash';
     const switchLoader = ref(false)
     const instantUser = ref({
         id: null,
+        name: null,
         cX: 0,
         cY: 0
     })
     const confused = ref(false)
+    const socket = ref()
     onBeforeMount(() => {
         auth.setUser(props.auth_user)
     })
@@ -91,7 +94,36 @@ import { includes } from 'lodash';
     onUnmounted(() => {
         removeEventListener()
     })
-    onMounted(() => {
+    onMounted(async() => {
+        socket.value = io(import.meta.env.VITE_SOCKET_URL, {
+            auth: {
+                token: import.meta.env.VITE_SOCKET_TOKEN
+            },
+            withCredentials: true,
+            transports: ["websocket"],
+            reconnectionAttempts: 5 
+        })
+        socket.value.on("connect", () => {
+            console.log('Connected to socket Successfully')
+        });
+        socket.value.on("message", (e) => {
+            console.log('recieved', e)
+            if(e && e.active_user_changed && e.active_user_changed.owner == auth.id && e.active_user_changed.target !== auth.activeUser.id && !focused.active){
+                    setAlert()
+                }                
+                if(mainRef.value.onPusher){
+                    const event = {message:e}
+                    mainRef.value.onPusher(event)
+                }
+                if(auth.user && e.board_id && e.sender !== auth.id && e.board_members && e.board_members.length && (e.board_members.includes(auth.activeUser.id) || e.board_members.includes(auth.id))){                
+                    badge.getBoardBadge()
+                }
+                if(e.new_post_from && e.new_post_from !== auth.id){
+                    if(!auth.isPartner){
+                        badge.getPostBadge()
+                    }
+                }   
+        });
         if(props.auth_user && props.auth_user.id){
             const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
             let pusher = new Pusher(import.meta.env.VITE_PUSHER_APP_KEY, {
@@ -261,15 +293,13 @@ import { includes } from 'lodash';
         }
     }
     const onClick = (event) => {
-        if(menu && menu.id){
-            const cont = document.getElementById(menu.name);               
-            if(cont && !cont.contains(event.target)){
-                menu.setMenu({name: null, id: null})
+        const target = event.target
+        if(menu){
+            const cont = document.getElementById(menu.parent ? menu.parent : menu.name);  
+            if(cont && !cont.contains(target)){
+                menu.close()
             } 
-        }
-        
-
-        
+        }        
     }
     const authCheck = async() => {
         const options = {
@@ -344,19 +374,21 @@ import { includes } from 'lodash';
     const resetInstantUser = () => {
         const data = {
             id: null,
+            name: null,
             cX: 0,
             cY: 0
         }
         instantUser.value = data    
     }
-    const pushInstantUser = (e, id) => {
+    const pushInstantUser = (e, id, name) => {
         // if(id == auth.id) return
         const cX = e.clientX;
         const cY = e.clientY;  
         const data = {
             id: id,
+            name: name,
             cX: cX,
-            cY: cY
+            cY: cY,
         }
         instantUser.value = data               
     }
@@ -371,6 +403,12 @@ import { includes } from 'lodash';
             confused.value = true
         }
     }
+    const sendToSocket = (params) => {
+        if(socket.value.connected){
+            console.log('emit')
+            socket.value.emit('message', params)
+        }
+    }
     provide('dialog', {
         confirm: (question, options) => confirm(question, options),
         notify: (message) => notify(message),
@@ -380,5 +418,6 @@ import { includes } from 'lodash';
 
     provide('refreshMessage', refreshMessage)
     provide('resetInstantUser', resetInstantUser)
+    provide('sendToSocket', sendToSocket)
 </script>
 

@@ -34,7 +34,6 @@ import { onMounted, ref } from 'vue';
                     disableOnInteraction: false
                 },
                 spaceBetween: 10,
-                loop: true,
                 slidesPerView: 1,
             })
         }, 300);  

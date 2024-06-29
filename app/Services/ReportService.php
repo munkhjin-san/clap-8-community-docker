@@ -32,7 +32,6 @@ class ReportService
             'record_id' => $board_id,
             'override_user_id' => $override_user_id,
             'message' => $message,
-            'mentioned_users' => $mention_users,
             'override_user' => $override_user,
         ];
         $request = new Request($requestData);
@@ -173,7 +172,7 @@ class ReportService
             $incident_result = "・インシデント：なし";
         }
         $message = <<<EOT
-        <a class=\"toAll\">@全員</a>
+        [To:全員:]
         各位
         お疲れ様です。経営管理本部です。
         昨日までにインシデント有を選択されていた社員は下記の通りです。
@@ -188,7 +187,7 @@ class ReportService
     private function weekly_message()
     {
         $message = <<<EOT
-        <a class="toAll">@全員</a>
+        [To:全員:]
         各位
         お疲れ様です。経営管理本部です。
         
@@ -243,7 +242,7 @@ class ReportService
     {
         $month = date("n");
         $message = <<<EOT
-        <a class=\"toAll\">@全員</a>
+        [To:全員:]
         お疲れ様です。経営管理本部 宇都宮です。
 
         {$month}月の3Sご回答をお願い致します。
@@ -279,7 +278,7 @@ class ReportService
         $achieve = $this->weekday_get($month, '20');
         
         $message = <<<EOT
-        <a class="toAll">@全員</a>
+        [To:全員:]
         🔔お願い🔔
         翌月成果シート作成。
         
@@ -313,7 +312,7 @@ class ReportService
         $attendance = $this->weekday_get($nextMonth, '2');
         
         $message = <<<EOT
-        <a class="toAll">@全員</a>
+        [To:全員:]
         🔔お願い🔔
         翌月シフト、勤怠月締め、勤怠管理者変更について
         
@@ -345,7 +344,7 @@ class ReportService
         $record = $this->weekday_get($nextMonth, '2');
         $mail = $this->weekday_get($nextMonth, '9');
         $message = <<<EOT
-        <a class=\"toAll\">@全員</a>
+        [To:全員:]
         🔔立替経費・仮払　領収証原本の郵送につきまして🔔
         お疲れ様です。経営管理本部　平川です。
 

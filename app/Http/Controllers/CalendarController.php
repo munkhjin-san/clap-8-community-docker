@@ -718,8 +718,12 @@ class CalendarController extends Controller
     }
     private function time_parser($instance, $time){               
         list($hour, $minute) = explode(':', $time);
-        $combined = $instance->hour($hour)->minute($minute)->second('00');
-        $cooked = Carbon::createFromFormat('Y-m-d H:i:s', $combined);
+        $hour = (int) $hour;
+        $minute = (int) $minute;
+
+        $combined = $instance->hour($hour)->minute($minute)->second(0);
+        $cooked = $combined->format('Y-m-d H:i:s');
+        $cooked = Carbon::createFromFormat('Y-m-d H:i:s', $cooked);
         return $cooked;
     }
     private function execute_yearly_record($request, $validate_indexes, $throw){
@@ -1001,7 +1005,7 @@ class CalendarController extends Controller
         ->where(function ($query) use($active_user) {
             $query->where('release_flag', 0)
             ->orWhereHas('calendar_users', function ($query) use($active_user){
-                $query->whereIn('users.id', [$active_user()->id]);
+                $query->whereIn('users.id', [$active_user->id]);
             });
         })
         ->select('id', 'title', 'remarks', 'referrer', 'date_start', 'date_end', 'zoom_value', 'qualified_institution', 'qualified_car')

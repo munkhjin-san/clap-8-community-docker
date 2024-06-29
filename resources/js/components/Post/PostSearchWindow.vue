@@ -87,6 +87,7 @@
                         rules=""
                         name="recordUsers"
                         ref="recordUsers"
+                        :multiple="true"
                         :path="'post_get_all_possible_users'"
                         v-model="targetUsers"
                         :closeOnSelect="false"
@@ -203,7 +204,6 @@
 
 <script setup>
 import moment from 'moment'
-import Autolinker from 'autolinker';
 import UserIcon from '../Board/Mixed/UserIcon.vue'
 import PostSearchPager from './PostSearchPager.vue'
 import SearchHistory from './SearchHistory.vue'
@@ -212,6 +212,7 @@ import MemberSelector from '../Form/MemberSelector.vue';
 import ShortInput from '../Form/ShortInput.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
+import { urlCheck } from '@/utils/tools';
     const props = defineProps(['appName', 'appTitle'])
     const emit = defineEmits(['closePostSearch'])
     const keyword = ref('')
@@ -488,12 +489,7 @@ import { useResponsive } from '@/store/responsive';
         let r = urlCheck(a);                
         return r
     }
-    const urlCheck = (text) => {
-        if(text){                
-            var linkedText = Autolinker.link(text, {stripPrefix: false});              
-            return linkedText;                
-        }            
-    }
+    
     const getPostSearch = (index) => {
         searchPageIndex.value = index
         const inputSearch = postAdvancedSearch.value

@@ -33,7 +33,12 @@ class timecardRecord extends Model
             ->selectRaw('SUM(break_by_minute) as total_break_minute')
             ->groupBy('record_id');
     }
-    
+    public function department(){
+        return $this->hasOne(workGroup::class, 'id', 'work_group_id');
+    }
+    public function department_members(){
+        return $this->hasMany(workGroupUser::class, 'record_id', 'work_group_id');
+    }
     protected $casts = [
         'record_id' => 'int',
         'deleted_flag' => 'int',

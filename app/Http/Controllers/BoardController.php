@@ -101,88 +101,6 @@ class BoardController extends Controller
         return $with;
     }
     public function index(Request $request){ 
-
-        // $q = '文章を修正してください。';
-
-        // $full = $q . 'Hallo how you r';
-        // // return $full;
-        // $result = OpenAI::chat()->create([
-        //     'model' => 'gpt-3.5-turbo',
-        //     // 'model' => 'gpt-4',
-        //     'messages' => [
-        //         ['role' => 'assistant', 'content' => $full],
-        //     ],
-        //     'max_tokens' => 5000,
-        //     'temperature' => 0.8
-        // ]);
-        // // return response()->json($result );
-
-        // $answer = $result['choices'][0]['message']['content'];
-        // echo $answer;
-        // return;
-        
-        // $messages = messageRecord::where('id', '>', 0)->forceDelete();
-        // return $messages;
-        
-
-        // $accountId = 'L3W-GByoTl2mpGHNg012IA';
-        // $clientId = 'z52yTnebQw6CcsupLdAOrA';
-        // $clientSecret = 'cnNw9wc2LeZCRWmbfJO6xe79h1YML4F3';
-        // $accountMail = 'glowd.zoom1@gmail.com';
-
-        
-        // $headers = [
-        //     'Authorization' => 'Basic ' . base64_encode($clientId.':'.$clientSecret),
-        //     'Content-type' => 'application/json',
-        // ];
-
-        // $url = 'https://zoom.us/oauth/token?grant_type=account_credentials&account_id='.$accountId;
-
-        // $response = Http::withHeaders($headers)->post($url);
-
-        
-        // if ($response->status() === 200) {
-        //     // Check if the response has an "access_token" attribute
-        //     $data = $response->json();
-        //     if (isset($data['access_token'])) {
-        //         // Handle the case where the response is valid
-              
-
-        //         $access_token = $data['access_token'];
-        //         // return $access_token;
-        //         $zoom_url = 'http://api.zoom.us/v2/users/glowd.zoom1@gmail.com/meetings';
-        //         $data_to_zoom_api = array(
-        //             'topic' => 'Tumur meeting 1',
-        //             'type' => '2',
-        //             'duration' => '60',
-        //             'start_time' => '2023-09-05T20:02:00Z',
-        //             'timezone' => 'Asia/Tokyo',
-        //             //20230531 ここ編集
-        //             'default_password' => 'true',
-        //             'settings' => array(
-        //               'use_pmi' => 'false'
-        //             )
-        //         );
-        //         $headers_create = [
-        //             'Authorization' => 'Bearer ' . $access_token,
-        //             'Content-type' => 'application/json',
-        //             // 'content' => json_encode($data_to_zoom_api)
-        //         ];
-
-        //         $create = Http::withHeaders($headers_create)->post($zoom_url);
-
-        //         return $create->json();
-        //     } else {
-        //         // Handle the case where the "access_token" attribute is missing
-        //         return response()->json(['error' => 'Access token not found in the response'], 400);
-        //     }
-        // } else {
-        //     // Handle the case where the response status is not 200
-        //     return response()->json(['error' => 'Invalid response status'], $response->status());
-        // }
-        // return 'error';
-        // echo(url()->full());
-        // return;
         $id = $request->query('id');
         $m = $request->query('m');
         if($id && $m){
@@ -709,13 +627,17 @@ class BoardController extends Controller
 
     }
     public function chatAdd(Request $request){
+
+
+
         $active_user = $request->override_user ? $request->override_user : $this->active_user();
         $auth_user_id = $active_user->id;
         if($request->quot_flag == 1 && $request->reply_flag == 1){
             throw ValidationException::withMessages(['message' => 'commonError']);            
         }   
         $boardRecord = boardRecord::findOrFail($request->record_id);
-          
+
+
         if($request->message_id){
             $chat = messageRecord::findOrFail($request->message_id);
         }else{
@@ -802,7 +724,22 @@ class BoardController extends Controller
                 }
                 
             }
-            if(!empty($request->mentioned_users)){                  
+            $syntax = '/\[To:(.*?)\:\]/';
+            preg_match_all($syntax, $request->message, $matches);
+            $mentioned_targets = $matches[1];
+            $mentioned_all = in_array('全員', $mentioned_targets);
+    
+            
+            $mentioned_users = $boardRecord->members()
+            ->whereNot('users.id', Auth::id())
+            ->when(!$mentioned_all, function($q) use($mentioned_targets) {
+                $q->whereIn('users.name', $mentioned_targets);
+            })->get();
+
+            if(!empty($mentioned_users)){     
+                $emails = collect($mentioned_users)->filter(function($user){
+                    return filter_var($user->email, FILTER_VALIDATE_EMAIL);
+                })->pluck('email')->toArray();             
                 $board = $boardRecord;              
                 
                 if(!empty($board) && $board->private_flag == 1){
@@ -819,22 +756,21 @@ class BoardController extends Controller
                         $block_flag = true;
                     }
                 }         
-                
-                $mails = User::whereIn('id', $request->mentioned_users)->where('retire', 0)->whereNotNull('email')->pluck('email')->toArray();
+                $mention_ids = $mentioned_users->pluck('id')->toArray();
                 $mail_payload = array(
                     "b_title" => $b_title,
                     "content" => $content,
                     "block_flag" => $block_flag,
                     "board_id" => $board->id,
                     "chat_id" => $chat->id,
-                    "mails" => $mails,
+                    "mails" => $emails,
                 );                
                 SendEmail::dispatchAfterResponse($mail_payload);               
 
 
                 $members = array_map(function ($userId) {
                     return (string) $userId;
-                }, $request->mentioned_users);
+                }, $mention_ids);
                 
                 $deep_link = url('board/' . $request->record_id);
                 $icon = url('content_api/profile_icon/' . $active_user->icon_id . '_' . $active_user->id . '_200.jpg');
@@ -864,7 +800,6 @@ class BoardController extends Controller
                     "user_id" => $auth_user_id,
                     "user_name" => $active_user->name,
                     "message" => $chat->message_text,
-                    "members_int" => $request->mentioned_users,
                 ];
                 SendNotification::dispatchAfterResponse($payload);
             }
@@ -882,7 +817,8 @@ class BoardController extends Controller
             $data = [
                 "success" => true,
                 "u_id" => $request->u_id,
-                "data" => $chat
+                "data" => $chat,
+                "socket" => $rebound 
             ];          
             return response()->json($data);
 
@@ -1030,97 +966,10 @@ class BoardController extends Controller
 
         return response()->json($list);       
     }
-    public function getTask(Request $request){
-
-        
-        $active_user = $this->active_user();
-        $auth_user_id = $active_user->id;
-        if(!empty($request) && !empty($auth_user_id)){      
-            if($request->flag == 0){
-                $list1 = taskRecord::where('board_id', $request->record_id)
-                ->whereNotNull('end_at')
-                ->with('to_users')
-                ->orderBy('created_at', 'desc')->get();
-
-                $list2 = taskRecord::where('board_id', $request->record_id)
-                ->whereNull('end_at')
-                ->with('to_users')
-                ->when($request->which == 1, function($q){
-                    $q->onlyTrashed();                    
-                })
-                ->orderBy('created_at', 'desc')->get();
-                $list = $list1->concat($list2);
-                $order = $request->which == 1 ? 'updated_at' : 'created_at';
-                $list3 = $list->sortByDesc($order)->values();
-                return response()->json($list3);
-            }     
-            
-                  
-        
-        }else{
-            return response()->json('error');
-        }
-        
-    } 
-    public function completeTask(Request $request){
-        
-        $active_user = $this->active_user();
-        $auth_user_id = $active_user->id;
-        
-        if(!empty($request) && !empty($auth_user_id)){            
-            $list = taskUser::where('record_id', $request->task_id)->where('user_id', $auth_user_id)->first();
-            $list->comp_flag = $request->comp_flag;
-            if($request->late_answer){
-                $list->late_answer = $request->late_answer;
-            }
-            if($request->late_answer_custom){
-                $list->late_answer_custom = $request->late_answer_custom;
-            }
-            $list->save();
-            
-            $allCount = taskUser::where('record_id', $request->task_id)->count();
-            if($allCount > 0){
-                $completedCount = taskUser::where('record_id', '=', $request->task_id)->where('comp_flag', '=', 1)->count();
-                $task = taskRecord::find($request->task_id);
-                if($allCount == $completedCount){
-                    $task->comp_flag = 1;
-                }else{
-                    $task->comp_flag = 0;
-                }
-                $task->save();
-            }
-            
-            // $related_members = [];
-            // $related_members[] = $auth_user_id;
-            // $rebound = array(
-            //     "info_update_id" => $related_members
-            // );
-            // event(new MessageSent($rebound));
-            
-            return response()->json('saved');     
-            
-        }
-        return response()->json('loggedOut');  
-        
-    }    
-    public function get_task_badge(Request $request){
-        $active_user = $this->active_user();
-        $result = [];
-        
-        $allBoard = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-            $q->where('user_id', $active_user->id)->where('deleted_status','=', 0);
-        })->pluck('id')->toArray();
-        if(!empty($allBoard)){
-            foreach($allBoard as $id){
-                $allTasks = taskRecord::where('comp_flag', '=', 0)->whereNotNull('end_at')->where('board_id', '=', $id)->whereHas('task_users', function($q) use($active_user){
-                    $q->where('user_id', $active_user->id)->where('comp_flag', '=', 0);
-                })->count();
-                $result[$id] = $allTasks;
-            }
-            
-        }
-        return response()->json($result);
-    } 
+    
+       
+    
+     
     public function pinBoard(Request $request){
         $active_user = $this->active_user();
         $auth_user_id = $active_user->id;
@@ -1140,90 +989,7 @@ class BoardController extends Controller
         
         }
     }
-    public function taskEdit(Request $request){
-        $active_user = $this->active_user();
-        $auth_user_id = $active_user->id;
-        if($auth_user_id){
-            $task = taskRecord::find($request->task_id);
-            // #20201202_0013 Tumur　通知機能追加
-            if($task){
-                $task_info_edit_trigger = 0;
-                $end_time = '00:00:00';
-                if($request->task_end_time){
-                    $end_time = $request->task_end_time;
-                }
-                $combinedDT = date('Y-m-d H:i:s', strtotime("$request->task_end_date $end_time"));
-                $minutes = intval(date('i', strtotime($combinedDT))); // Get the minutes from the combined datetime
-
-                if ($minutes > 30) {
-                    // Increment the hour by 1
-                    $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT . '+1 hour'));
-                } else {
-                    // Set the minutes to 0
-                    $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT));
-                }
-
-                if($task->task_end !== $combinedDT){
-                    $task_info_edit_trigger = 1;
-                }
-                $task->updated_user = $auth_user_id;
-                $task->end_at = $combinedDT;
-          
-                $task->remarks = $request->remarks;
-                $task->title = $request->title;
-                // $task->color = $request->color;
-                $task->save();
-                
-                if(!empty($request->qualified_users)){
-
-                    $qualified_users = $request->qualified_users;
-                    $old_users = taskUser::where('record_id', '=', $request->task_id)->get();
-                    foreach($old_users as $old_user){
-                        $old_user->delete();
-                        $old_user->save();
-                    }                   
-                    foreach($qualified_users as $qualified_user){
-                        $exist_user = taskUser::where('record_id', '=', $request->task_id)->where('user_id', '=', $qualified_user)->first();
-                        if($exist_user){
-                            $exist_user->delete();
-                            $exist_user->save();
-                            
-                        }else{
-                            $new_user = new taskUser;
-                            $new_user->record_id = $request->task_id;
-                            $new_user->user_id = $qualified_user;
-                            $new_user->save();
-                           
-                            
-                        }
-                        
-                    }    
-                    
-                }                
-                // $related_members = [];
-                // $related_members[] = $auth_user_id;
-                // $rebound01 = array(
-                //     "info_update_id" => $related_members
-                // );
-                // event(new MessageSent($rebound01));
-                // $rebound = array(
-                //     "updateId" => $request->board_id
-                // );
-                // $boardRecord = boardRecord::findOrFail($task->board_id);
-                // event(new MessageSent($rebound));
-                return response()->json($task);
-            }
-            
-        }
-    }
-    public function taskDelete(Request $request){
-        $task = taskRecord::find($request->task_id);
-        if($task){
-            $task->delete();
-            boardRecord::findOrFail($task->board_id);
-            return response()->json($task);
-        }
-    }
+    
     public function sendMail($request){
 
         $active_user = $request['override_user'] ? $request['override_user'] : $this->active_user();
@@ -1442,92 +1208,8 @@ class BoardController extends Controller
         $message->load('reactedUsers', 'checkedUsers', 'uncheckedUsers');
         return response()->json($message);
     }    
-    public function addTask(Request $request){
-        $active_user = $request->override_user ? $request->override_user : $this->active_user();
-        $validatedData = $request->validate([
-            'qualified_users' => 'required',
-            'board_id' => 'required',
-
-        ]);
-        if(!$request->edit_id){
-            $infoMessage = new messageRecord;
-            $infoMessage->user_id = $active_user->id;
-            $infoMessage->info_flag = 2;
-            $infoMessage->record_id = $request->board_id;
-            $infoMessage->message = '新しいタスクが追加されました。';
-            $infoMessage->message_text = '新しいタスクが追加されました。';
-            $infoMessage->save();
-        }
-
-        $end_time = '23:59:59';
-        // if($request->show_time){
-        //     $end_time = $request->task_end_time;
-        // }
-
-        
-        
-        if($request->edit_id){
-            $task = taskRecord::findOrFail($request->edit_id);
-        }else{
-            $task = new taskRecord;
-        }
-        
-
-        $task->user_id = $active_user->id;
-        $task->updated_user = $active_user->id;
-        if($request->task_end_date){
-            $combinedDT = date('Y-m-d H:i:s', strtotime("$request->task_end_date $end_time"));
-            $minutes = intval(date('i', strtotime($combinedDT))); // Get the minutes from the combined datetime
-
-            if ($minutes > 30) {
-                $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT . '+1 hour'));
-            } else {
-                $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT));
-            }
-            $task->end_at = $combinedDT;
-        }else{
-            $task->end_at = null;
-        }
-        
-        if(!$request->edit_id){
-            $task->message_id = $infoMessage->id;
-        }
-
-        
-        $task->remarks = $request->remarks;
-        $task->board_id = $request->board_id;
-
-        $task->save();
-       
-
-        $task->to_users()->syncWithPivotValues($request->qualified_users, ['updated_at' => now()]);
-        $related_members = boardToUser::where('record_id','=', $request->board_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $active_user->id)->pluck('user_id');
-        if(!$request->edit_id){
-            $update_last_message = boardToUser::where('record_id','=', $request->board_id)->where('user_id', '=', $active_user->id)->update(["last_message" => $infoMessage->id]);
-        }
-        $rebound = array(
-            "type" => "new_message",
-            "board_members" => $related_members,
-            "board_id" => $request->record_id,
-            "sender" => $active_user->id
-        );                      
-        event(new MessageSent($rebound)); 
-                      
-        return response()->json($task->id);
-                
-
-
-
-        
-
-
-    }
-    public function updateTask(Request $request){
-        $active_user = $this->active_user();
-        $task = taskRecord::findOrFail($request->task_id);
-        $task->update(['end_at' => $request->date, 'updated_user' => $active_user->id]);
-        return response()->json($request);
-    }
+   
+    
     public function messageSearch(Request $request){
         $active_user = $this->active_user();
         if($request->private_flag && $request->record_id){
@@ -1721,7 +1403,7 @@ class BoardController extends Controller
     }
     public function getInstantUser(Request $request){
         $today = Carbon::now()->format('Y-m-d');
-        $user = User::where('id', $request->id)->where('id', '>', 105)->where('retire', 0)->with(['weathers' => function($q) use ($today){
+        $user = User::where('id', $request->id)->orWhere('name', $request->name)->where('id', '>', 105)->where('retire', 0)->with(['weathers' => function($q) use ($today){
             $q->where('type_id', 43)->where('date', $today);
         }])->select('id', 'name', 'phone_number', 'work_email', 'icon_id')->first();
         if($user){
@@ -1803,9 +1485,11 @@ class BoardController extends Controller
         $today = Carbon::today();
         $list = taskRecord::where('comp_flag', '=', 0)
                 ->whereHas('task_users', function($q) use($active_user){
-                    $q->where('user_id', $active_user->id)->where('comp_flag', 0);
+                    $q->where('user_id', $active_user->id)->where('comp_flag', 0)->where('status_flag', 0);
                 })
                 ->with('to_users')
+                ->with('files')
+                ->with('approve_user')
                 ->whereDate('end_at', '<=', $today)
                 ->orderBy('created_at', 'desc')->get();
         

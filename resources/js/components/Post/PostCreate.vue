@@ -37,6 +37,7 @@
                     rules="required"
                     name="recordUsers"
                     ref="recordUsers"
+                    :multiple="true"
                     :path="`post_get_${appName}_users`"
                     :closeOnSelect="false"
                     v-model="to_users"

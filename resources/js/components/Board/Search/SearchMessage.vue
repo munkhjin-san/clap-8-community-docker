@@ -96,7 +96,6 @@
 
 <script setup>
 import moment from 'moment'
-import Autolinker from 'autolinker';
 import UserIconPreLoad from '../Mixed/UserIcon.vue'
 import BoardTitlePreLoad from '../Mixed/BoardTitle.vue'
 import BoardIconPreLoad from '../Mixed/BoardIcon.vue'
@@ -105,6 +104,7 @@ import PostSearchPager from '../../Post/PostSearchPager.vue'
 import LoaderButton from '../../Global/LoaderButton.vue';
 import { computed, inject, onMounted, watch, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
+import { urlCheck } from '@/utils/tools';
     const auth = useAuthUserStore()
 
     const props = defineProps([
@@ -365,11 +365,6 @@ import { useAuthUserStore } from '@/store/auth'
         let r = urlCheck(a);                
         return r
     }
-    const urlCheck = (text) => {
-        if(text){                
-            var linkedText = Autolinker.link(text, {stripPrefix: false});              
-            return linkedText;                
-        }            
-    }
+    
 
 </script>

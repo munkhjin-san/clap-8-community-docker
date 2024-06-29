@@ -259,9 +259,12 @@ class WorkController extends Controller
                             ->select('count', 'id', 'record_id');
                     },
                     // 'timecard_break_records',
-                    'total_break_time'
+                    'total_break_time',
+                    'department' => function ($q) {
+                        $q->with('members');
+                    }
                 ])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id');
             },
             'shift_records' => function ($q) use($year, $month) {
                 $q->whereYear('shift_day', $year)
@@ -285,15 +288,15 @@ class WorkController extends Controller
         ])->get();
        
         $recordList = [];
-        $workGroups = workGroup::whereHas('members', function ($q) {
-            $q->where('user_id', Auth::id())
-              ->where('authority', 1);
-        })->with(['members' => function ($q) {
-            $q->where('user_id', '<>', Auth::id());
-        }])->get();
-        $workGroupUserIds = $workGroups->flatMap(function ($workGroup) {
-            return $workGroup->members->pluck('id');
-        })->unique()->values()->all();
+        // $workGroups = workGroup::whereHas('members', function ($q) {
+        //     $q->where('user_id', Auth::id())
+        //       ->where('authority', 1);
+        // })->with(['members' => function ($q) {
+        //     $q->where('user_id', '<>', Auth::id());
+        // }])->get();
+        // $workGroupUserIds = $workGroups->flatMap(function ($workGroup) {
+        //     return $workGroup->members->pluck('id');
+        // })->unique()->values()->all();
         $timeCardRecords = $users->flatMap->time_card_records->groupBy('user_id')->map->keyBy('day');
         $shiftRecords = $users->flatMap->shift_records->groupBy('user_id')->map->keyBy('shift_day');
         $customFieldData = $users->flatMap->custom_field_data_records->groupBy('user_id')->map->keyBy('date');
@@ -304,11 +307,26 @@ class WorkController extends Controller
             $targetShiftMonth = $date->format('Y-m');
             foreach ($users as $index => $user) {
                 $userId = $user->id;
-                $authority = in_array($userId, $workGroupUserIds);
                 $attendance = $attendanceRecords[$userId][$targetShiftMonth]->id ?? false;
                 $time_card = $timeCardRecords[$userId][$targetShiftDay] ?? null;
                 $shift = $shiftRecords[$userId][$targetShiftDay] ?? null;
-                        
+                $department = $time_card?->department;
+                $authority = false;  
+                if($department) {
+                    $members = $department->members;
+                    $currentUserAuthority = $members->first(function ($member) {
+                        return $member->pivot->user_id == Auth::id() && $member->pivot->authority == 1;
+                    });
+                    if($currentUserAuthority){
+                        $otherMembers = $members->filter(function ($member) {
+                            return $member->id !== Auth::id();
+                        })->pluck('id')->all();
+                        $authority = in_array($user->id, $otherMembers);
+                    }
+                }
+                
+                
+                
                 $overtime_reason = $time_card ? $time_card->custom_field_data_records->firstWhere('type_id', 42) : '';
                 $comment = $time_card ? $time_card->custom_field_data_records->firstWhere('type_id', 39) : '';
                 $allowances = $time_card ? $time_card->custom_field_data_records->where('type_id', 37)->pluck('label')->toArray() : [];
@@ -348,6 +366,7 @@ class WorkController extends Controller
                         'daily_report_modify' => $daily_report_ability[1],
                         'start_stamp' => $daily_report_ability[2],
                         'end_stamp' => $daily_report_ability[3],
+                        'break_stamp' => $daily_report_ability[4],
                         'daily_report_approve' => $approve_ability[0],
                         'daily_report_cancel' => $approve_ability[1],
                         'overtime_approve' => $approve_ability[2],
@@ -383,15 +402,16 @@ class WorkController extends Controller
     }
     private function has_daily_report($shift, $time_card, $day, $user, $active_user, $has_attendace){
         $timecardExist = $time_card !== null;
-        $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $user->position_id == 15;
+        $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $user->position_id == 15 || $user->position_id < 6;
         $isToday = date('Y-m-d') == $day->format('Y-m-d');
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
         $create = !$timecardExist && !$has_attendace && $valid_shift && $isTodayOrPast && ($user->id == $active_user->id || $active_user->id == 610 || $active_user->id == 608);
         $status = $time_card->status_flag ?? -1;
         $modify = $timecardExist && !$has_attendace && (($status == 10 || $status == 0 && $user->id == $active_user->id) || (($active_user->id == 610 || $active_user->id == 608) && $status !== 2));
         $start_stamp = !$timecardExist && !$has_attendace && $valid_shift && $isToday && $user->id == $active_user->id; 
-        $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id; 
-        return [$create ,$modify, $start_stamp, $end_stamp];
+        $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id;
+        $break_stamp = $timecardExist && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $user->id == $active_user->id; 
+        return [$create ,$modify, $start_stamp, $end_stamp, $break_stamp];
     }
     // Shift Functions
     public function get_shift_data(Request $request){
@@ -711,7 +731,7 @@ class WorkController extends Controller
              
             $start = Carbon::createFromFormat('H:i:s', $timecard_break->start_time);
             $end = Carbon::createFromFormat('H:i:s', $breakTime);
-            $diffinMinutes = $end->diffInMinutes($start);
+            $diffinMinutes = $start->diffInMinutes($end);
 
             $timecard_break->update([
                 'break_by_minute' => ceil($diffinMinutes / 15) * 15,
@@ -785,18 +805,18 @@ class WorkController extends Controller
         $shift_time_difference_seconds = ($user->work_time_day * 60);
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
         
-        $time_difference_seconds = $end->diffInSeconds($start);
+        $time_difference_seconds = $start->diffInSeconds($end);
         $time_difference_seconds -= $request->breakTime * 60;
         $time_difference_seconds = max(0, $time_difference_seconds);
         
         $night_difference_seconds = 0;
         $overtimeMinutes = 0;
         if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
-            $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? $end->diffInSeconds($start) : $nightOvertimeEnd->diffInSeconds($start);
+            $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? $start->diffInSeconds($end) : $start->diffInSeconds($nightOvertimeEnd);
         } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
-            $night_difference_seconds = $end->diffInSeconds($nightOvertimeStart);
+            $night_difference_seconds = $nightOvertimeStart->diffInSeconds($end);
         } else if ($end->greaterThan($todayNightOverTime)){
-            $night_difference_seconds = $end->diffInSeconds($todayNightOverTime);
+            $night_difference_seconds = $todayNightOverTime->diffInSeconds($end);
         } else {
             $night_difference_seconds = 0;
         }
@@ -810,9 +830,10 @@ class WorkController extends Controller
             'day' => $request->day,
             'user_id' => $request->userId
         ]);
-        // $is_exist->work_group_id = $request->department;
+        $is_exist->work_group_id = $request->department;
         $is_exist->start_time = $request->start_time;
         $is_exist->end_time = $request->end_time;
+        
         if ($time_difference_seconds >= $shift_time_difference_seconds) {                
             $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
             $overtimeMinutes = floor($overtimeSeconds / 60);
@@ -835,7 +856,6 @@ class WorkController extends Controller
         
         $is_exist->break_time = $request->breakTime;
         $is_exist->stamp_flag = 1;
-        
         $is_exist->status_flag = $request->status_flag;
         
         if($today != $request->day){
@@ -1438,6 +1458,7 @@ class WorkController extends Controller
         $ids = [608, 610];
         $active_user = $this->active_user();
         $target_users = [];
+        $workGroupIds = [];
         $list = [];
         if(in_array($active_user->id, $ids)){
             $pms = User::where('position_id', 6)
@@ -1447,19 +1468,20 @@ class WorkController extends Controller
                         ->where('on_leave', 0)
                         ->pluck('id')->toArray();
             $target_users = $pms;
+            $workGroupIds = workGroup::pluck('id')->unique()->values()->toArray();
         }
-        if($authUser->position_id == 6){
-            $workGroups = workGroup::whereHas('work_group_user', function ($q) use($authUser, $ids) {
-                $q->whereIn('user_id', [$authUser->id])->whereNotIn('user_id', $ids)->where('authority', 1);
-            })->with(['work_group_user' => function($q) use ($ids, $authUser) {
-                $q->whereNotIn('user_id', [$authUser->id])->whereNotIn('user_id', $ids)
+        if($active_user->position_id == 6){
+            $workGroups = workGroup::whereHas('work_group_user', function ($q) use($active_user, $ids) {
+                $q->whereIn('user_id', [$active_user->id])->whereNotIn('user_id', $ids)->where('authority', 1);
+            })->with(['work_group_user' => function($q) use ($ids, $active_user) {
+                $q->whereNotIn('user_id', [$active_user->id])->whereNotIn('user_id', $ids)
                 ->whereHas('user', function ($q) {
                     $q->where('work_authority', 0);
                 });
             }])->get();
 
             
-
+            $workGroupIds = $workGroups->unique()->pluck('id')->toArray();
             $workGroups = $workGroups->flatMap(function ($workGroup) {
                 return $workGroup->work_group_user;
             })->unique('user_id')->values()->pluck('user_id')->toArray();
@@ -1468,10 +1490,11 @@ class WorkController extends Controller
         }
         $user_list = User::whereIn('id', $target_users)
                         ->with([
-                            'time_card_records' => function ($q) use($year, $month) {
+                            'time_card_records' => function ($q) use($year, $month, $workGroupIds) {
                                 $q->whereYear('day', $year)
                                     ->whereMonth('day', $month)
-                                    ->where('status_flag', 1);
+                                    ->where('status_flag', 1)
+                                    ->whereIn('work_group_id', $workGroupIds);
                             },
                             'shift_overtime' => function ($q) use($year, $month) {
                                 $q->where('status', 1)

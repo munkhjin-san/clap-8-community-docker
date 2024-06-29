@@ -23,7 +23,7 @@
                             <img
                                 style="max-width:100%;margin:auto;max-height:100%;"                                 
                                 class="list-image-mobile" 
-                                :src="`cdn/${props.path}/${file.id}_${file.user_id}_${file.path}.${file.extension}`" 
+                                :src="`/cdn/${props.path}/${file.id}_${file.user_id}_${file.path}.${file.extension}`" 
                             />
                         </div>
                         <div v-if="file.mime_type !== 'image'" style="position:relative;">

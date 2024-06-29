@@ -18,11 +18,11 @@
                 </div>
                 <div class="si-box" style="background: var(--bg3);padding: 15px;margin-top: 0;">
                     <p class="report-header">申請前の就業時間</p>
-                    <ul class="report-time">
-                        <li class="timePreview">{{ timeParser(data?.shift?.start_time) }}</li>
-                        <li class="between-line"> ～ </li>
-                        <li class="timePreview">{{ timeParser(data?.shift?.end_time) }}</li>
-                    </ul>
+                    <div class="report-time">
+                        <div class="timePreview">{{ timeParser(data?.shift?.start_time) }}</div>
+                        <div class="between-line"> ～ </div>
+                        <div class="timePreview">{{ timeParser(data?.shift?.end_time) }}</div>
+                    </div>
                 </div>
                 <div class="si-box" style="width: fit-content;">
                     <p class="report-header">残業時間</p>

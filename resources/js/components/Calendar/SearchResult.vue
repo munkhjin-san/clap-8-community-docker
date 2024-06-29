@@ -19,8 +19,7 @@
 </template>
 <script setup>
 import moment from 'moment';
-import Autolinker from 'autolinker';
-
+import { urlCheck } from '@/utils/tools';
     const props = defineProps(['searchResult', 'searchFetch'])
     const emit = defineEmits(['jumpToRecord'])
     
@@ -29,13 +28,4 @@ import Autolinker from 'autolinker';
             const to = moment(item.date_end).format('H:mm')
             return `${from} ~ ${to}`
         }
-        const urlCheck = (text) => {
-            if(text){                
-                var linkedText = Autolinker.link(text, {stripPrefix: false});     
-                return linkedText;                
-            }   
-        }
- 
-    
-
 </script>

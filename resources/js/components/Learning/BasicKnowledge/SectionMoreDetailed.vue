@@ -132,8 +132,8 @@ import { useAuthUserStore } from '@/store/auth'
 日程調整には時間がかかることがございますので、予めご了承ください。
 `
             const params = {
-                message: `<a href=/app/public/user?id=${supportAccountId.value}>@研修サポート</a>
-<a href=/app/public/user?id=${auth.id}>@${auth.name}</a>
+                message: `[To:研修サポート:]
+[To:${auth.name}:]
 ※このメッセージは自動生成されたメッセージです。
 下記の通りサポート依頼を受付しました。
 
@@ -145,7 +145,6 @@ import { useAuthUserStore } from '@/store/auth'
 ${guide}
 `,
                 record_id: chat.data,
-                mentioned_users: [supportAccountId.value, auth.id],
                 override_user_id: supportAccountId.value,
                 u_id: '',
                 emoji_flag: false

@@ -5,19 +5,18 @@
     "keywords": ["framework", "laravel"],
     "license": "MIT",
     "require": {
-        "php": "^8.2.9",
+        "php": "^8.3.7",
         "ably/ably-php": "^1.1",
         "fakerphp/faker": "^1.21",
         "guzzlehttp/guzzle": "^7.8",
         "intervention/image": "^3.7",
         "intervention/image-laravel": "^1.2",
-        "laravel/framework": "^10.0",
-        "laravel/sanctum": "^3.3",
+        "laravel/framework": "^11.0",
+        "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.6",
         "laravel/tinker": "^2.7",
         "laravel/ui": "^4.2",
         "league/csv": "^9.15",
-        "openai-php/laravel": "^0.7.0",
         "pusher/pusher-php-server": "^7.2",
         "pusher/pusher-push-notifications": "^2.0"
     },
@@ -25,8 +24,8 @@
         "laravel/pint": "^1.0",
         "laravel/sail": "^1.0.1",
         "mockery/mockery": "^1.4.4",
-        "nunomaduro/collision": "^6.1",
-        "phpunit/phpunit": "^9.5.10",
+        "nunomaduro/collision": "^8.1",
+        "phpunit/phpunit": "^11.2.2",
         "spatie/laravel-ignition": "^2.0"
     },
     "autoload": {

@@ -29,6 +29,7 @@
             :viewable="viewable"
             :editable="editable"
             :expanded="expanded"
+            :unique-id="unique"
             mode="mini"
             @selectRecord="selectRecord"
         />
@@ -67,8 +68,13 @@ import { useResponsive } from '@/store/responsive';
         const maxHeight = computed(() => {
             return expanded.value ? '100vh' : '60px'
         })
+        const unique = computed(() => {
+            const u = Math.floor(100000 + Math.random() * 900000).toString()
+            const r = props.record.id.toString()
+            return `cal_${r}_${u}`
+        })
         const expanded = computed(() => {
-            return menu.id == props.record.id && menu.user_id == props.user.id && (menu.name == `cal_${props.record.id}` || menu.name == `calendarRecordMenu`) 
+            return menu.parent == unique.value
         })
         const recordWidth = computed(() => {
             if(expanded.value){
@@ -116,7 +122,7 @@ import { useResponsive } from '@/store/responsive';
             if(event && Math.abs(event.x - beforeState.value) > 15) {
                 return
             }
-            menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`, user_id: props.user.id})
+            menu.setMenu( {parent: unique.value})
 
             nextTick(() => {
                 const el = document.getElementById(`dayRecordMember_${props.record.id}_${props.user.id}`)

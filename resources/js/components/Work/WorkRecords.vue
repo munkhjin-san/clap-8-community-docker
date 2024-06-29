@@ -121,7 +121,7 @@ import { useCheckApproval } from '../../store/checkApproval';
             { title: '労働時間'},
             { title: '時間外'},
             { title: '休憩時間'},
-            // { title: '部門'},
+            { title: '部門'},
             { title: '諸手当'},
             { title: 'インシデント'},
             { title: '目標達成率'},
@@ -204,6 +204,9 @@ import { useCheckApproval } from '../../store/checkApproval';
     }
 </script>
 <style lang="scss">
+::-webkit-scrollbar {
+    height: 4px;
+}
 .w-hover-button{
     display: flex;
     justify-content: center;
@@ -244,7 +247,7 @@ import { useCheckApproval } from '../../store/checkApproval';
             top: 0;
             line-height: 40px;
             text-align: center;
-            width: 100px;
+            width: 90px;
             background-color: #606060;
             font-size: 12px;
             color: #fff;
@@ -273,7 +276,7 @@ import { useCheckApproval } from '../../store/checkApproval';
                     border-bottom: 1px solid var(--calendarBorder);
                     border-right: 1px solid var(--calendarBorder);
                     vertical-align: middle;
-                    width: 100px;
+                    width: 90px;
                     text-align: center;
                     height: 40px !important;
                     box-sizing: border-box;

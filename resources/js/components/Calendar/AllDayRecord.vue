@@ -14,6 +14,7 @@
                 :viewable="viewable"
                 :editable="editable"
                 :expanded="expanded"
+                :unique-id="unique"
                 @selectRecord="selectRecord"
             />                
         </div>
@@ -40,12 +41,17 @@ import { useResponsive } from '@/store/responsive';
         return (me.length || props.record.edit_all) && props.record.shift == 0
     })
 
+    const unique = computed(() => {
+        const u = Math.floor(100000 + Math.random() * 900000).toString()
+        const r = props.record.id.toString()
+        return `cal_${r}_${u}`
+    })
     const expanded = computed(() => {
-        return menu.id == props.record.id && (menu.name == `cal_${props.record.id}` || menu.name == `calendarRecordMenu`) 
+        return menu.parent == unique.value
     })
 
     const selectRecord = () => {
-        menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`})
+        menu.setMenu( {parent: unique.value})
     }    
 
 </script>

@@ -19,34 +19,21 @@
             <div class="queueBox softBg" style="z-index:3">
                
             </div>
-            
-            <div id="commentBody">
-                <div :id="'reply_' + message.id" class="commentHeder" style="position:relative;">
-                    <div class="column-01 cursor-pointer" v-if="message.user">                        
-                        <UserIcon size="30" :user="message.user" imgClass="userNormalIcon"/>                       
-                    </div> 
-                    <div class="column-01 cursor-pointer" v-else>                        
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
-                            <circle cx="15" cy="15" r="15" fill="#ddd"/>
-                        </svg>                     
-                    </div>                    
-                    <div class="column-02 cursor-pointer" style="margin-top: 7px;line-height: unset;">                        
-                        <p :id="'messageSender_' + message.id" class="userName" @dragstart.prevent style="margin-left:10px;margin-right:35px;">{{ messageUserName }}</p>   
-                    </div> 
-                    
-                    <div class="column-03" style="position: absolute;top: -40px;right: -17px;display: flex;"> 
-                        <div v-if="message.error && !resending" style="font-size: 11px;color: tomato;bottom: -20px;white-space: nowrap;right:0;display:flex;align-items:center">
-                            <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
-                                <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
-                            </svg>    
-                            <span style="margin-left:5px">メッセージの送信に失敗しました</span>
-                        </div>                      
-                        
-                    </div>                   
-                    
-                    <div class="clearBoth"></div>
-                </div>                                            
-            </div>    
+            <div :id="'reply_' + message.id" class="message-top-block">
+                <div style="display: flex;align-items: center;gap:10px">
+                    <UserIcon size="30" :user="message.user" imgClass="userNormalIcon"/>                   
+                    <div @click.stop="pushInstantUser($event, message.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ messageUserName }}</div>     
+                </div>    
+                <div class="messageIconContainer"></div>                  
+                <div class="m-date" style="display: flex;"> 
+                    <div v-if="message.error && !resending" style="font-size: 11px;color: tomato;bottom: -20px;white-space: nowrap;right:0;display:flex;align-items:center">
+                        <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
+                            <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
+                        </svg>    
+                        <span style="margin-left:5px">メッセージの送信に失敗しました</span>
+                    </div>                      
+                </div>                  
+            </div>           
 
             
             <div :class="message.user_id == auth.activeUser.id ? 'commentTextBoxRight' : 'commentTextBoxLeft'" style="background:transparent">               
@@ -150,6 +137,7 @@ import { computed, inject, onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useTempUnique } from '@/store/tempUnique';
 import UserIcon from '../Mixed/UserIcon.vue';
+import { mentionFormatter } from '@/utils/tools';
         const auth = useAuthUserStore()
         const tempUnique = useTempUnique()
         const props = defineProps(['message', 'qIndex', 'messageListType'])
@@ -167,18 +155,14 @@ import UserIcon from '../Mixed/UserIcon.vue';
         })
 
             const messageBody = computed(() => {
-                const text = props.message.message ? props.message.message : ''
-                const to_all = text.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
-                const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
-                const br_remove = converterd.replace(/&lt;br&gt;/g," ");
-                return urlCheck(br_remove)
+                return mentionFormatter(props.message.message, true)    
             })
             const messageUserName = computed(() => {                
                 return props.message.user && props.message.user.deleted_at == null
                 ? props.message.user.name
                 : '非アクティブユーザー';
             })
-
+            const sendToSocket = inject('sendToSocket')
             const sendMessage = async() => {
                 if(!resending.value && props.message.error) {
                     return
@@ -193,7 +177,6 @@ import UserIcon from '../Mixed/UserIcon.vue';
                     quot_flag: props.message.quot_flag,
                     quot_id: props.message.quot_id,
                     forward_message_id: props.message.forward_message_id,
-                    mentioned_users: props.message.mentioned_users,
                     my_id: auth.activeUser.id,
                     selected_quot_text: props.message.quot_message,
                     attached_temp_files: props.message.attached_temp_files,
@@ -214,7 +197,9 @@ import UserIcon from '../Mixed/UserIcon.vue';
                         let u_list = tempUnique.ids
                         u_list = u_list.filter( ob => ob !== props.message.u_id)                                
                         tempUnique.setTempUniqueIds(u_list)
+                        
                     }
+                    // sendToSocket(response.data.socket)
                 }catch (e) {
                     sendError(props.message)
                     resending.value = false

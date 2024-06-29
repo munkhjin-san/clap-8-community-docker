@@ -73,24 +73,38 @@
                     </div>
                 </div>
                 <div class="si-box">
-                    <span  class="form-plc smallPlc">役職</span> 
-                    <div class="w-100">
+                    <span class="form-plc smallPlc">役職</span>
+                    <drop-selector
+                        :options="positions"
+                        :reduce="option => option.value"
+                        v-model="userParams.position_id"
+                        style="border: 1px solid var(--primary-color)"
+                    >
+                    </drop-selector> 
+                    <!-- <div class="w-100">
                         <div class="input-inner-wrapper">
                             <select class="recordText-user dropdown" v-model="userParams.position_id" name="positions">
                                 <option :key="index" v-for="(item , index) in positions" :value="item.value">{{ item.label }}</option>
                             </select>  
                         </div>                    
-                    </div>
+                    </div> -->
                 </div>
                 <div class="si-box" v-if="!isPartner">
-                    <span  class="form-plc smallPlc">営業所</span> 
-                    <div class="w-100">
+                    <span  class="form-plc smallPlc">営業所</span>
+                    <drop-selector
+                        :options="offices"
+                        :reduce="option => option.value"
+                        v-model="userParams.office_id"
+                        style="border: 1px solid var(--primary-color)"
+                    >
+                    </drop-selector> 
+                    <!-- <div class="w-100">
                         <div class="input-inner-wrapper">
                             <select class="recordText-user dropdown" v-model="userParams.office_id" name="offices">
                                 <option :key="index" v-for="(item , index) in offices" :value="item.value">{{ item.label }}</option>
                             </select>  
                         </div>                    
-                    </div>
+                    </div> -->
                 </div>
                 <div class="si-box">
                     <span  class="form-plc smallPlc">電話番号</span> 
@@ -176,6 +190,7 @@
                         placeHolder="サブアカウント"
                         v-model="subParams.linked"
                         :options="linkables"
+                        :multiple="true"
                         rules=""
                         name="workgroup_users"
                         :closeOnSelect="false"

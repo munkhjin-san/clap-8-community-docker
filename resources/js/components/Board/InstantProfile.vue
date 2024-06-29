@@ -81,7 +81,7 @@ import UserIcon from './Mixed/UserIcon.vue';
     const getInstantUser = async(el) => {
 
         try{
-            info.value = await axios.post('/get_instant_user', {id: props.data.id}).then(response => response.data)
+            info.value = await axios.post('/get_instant_user', {id: props.data.id, name: props.data.name}).then(response => response.data)
             setTimeout(() => {
                 skLoader.value = false
             },100)

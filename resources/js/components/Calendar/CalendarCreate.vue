@@ -29,6 +29,7 @@
                     name="calendarUsers"
                     ref="calendarUsers"
                     path="calendar_more_users"
+                    :multiple="true"
                     :closeOnSelect="false"
                     v-model="calendar_users"
                 />

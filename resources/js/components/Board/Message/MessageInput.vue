@@ -194,9 +194,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
     const mentionBoxToggle = ref(false)
     const highlighted = ref(0)
     const attachedFiles = ref([])
-    const messageReady = ref('')
     const draggingFiles = ref([])
-    const mentionedUsers = ref([])
     const successUploadedFiles = ref([])
     const progressPercentage = ref(0)
     const keyCharacters = ref('')
@@ -396,42 +394,11 @@ import UserIcon from '../Mixed/UserIcon.vue'
         caretPosition.value = caretPosition.value + 2;
         msgSave();
     }
-    const createMention = (text) => { 
-        if(!text || text == null || text == undefined){
-            return ''
-        }     
-        const mentioned = text.replace(/\[To:(.*?)\]/g, (match, content) => {                    
-            const strippedContent = content.replace(/^\s*\[To:|\]\s*$/g, '');                    
-            if(strippedContent === '全員'){
-                var list = filteredUsers.value.filter(ob => ob.id !== -1 && ob.id !== auth.activeUser.id).map(obj => obj.id);             
-                mentionedUsers.value = list;
-                return '<a class="toAll">@全員</a>'
-            }else{
-                var filtered = filteredUsers.value.filter(obj=>obj.name === strippedContent)
-                
-                if(filtered.length){
-
-                    var user = filtered[0]      
-                    
-                    var check = mentionedUsers.value.indexOf(user.id);
-                    if(check == -1){
-                        mentionedUsers.value.push(user.id);                                     
-                    }
-                    return `<a href=/app/public/user?id=${user.id}>@${strippedContent}</a>`     
-                }
-                return match
-            }
-        });    
-        return mentioned
-    }
     const commentSendConfirm = async() => {
         let textCheck = messageInputArea.value.textContent;     
         const nospace = textCheck.replace(/\s/g, "")       
         charLength.value = textCheck.length
         if((!nospace && (!attachedFiles.value || !attachedFiles.value.length) && !sharingFiles.value.length) || charLength.value >= 5000) return;       
-
-        messageReady.value = textCheck            
-        const mentioned = await createMention(textCheck)
    
         const replyFlag = quoteReply.active && quoteReply.which == 'reply'
         const replyId = replyFlag ? quoteReply.message.id : null
@@ -443,7 +410,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
         const message_forward = forwardItem.value ? forwardItem.value : null
         const queueMessage = {
             deleted_at: null,
-            message: mentioned,
+            message: textCheck,
             user: auth.activeUser,
             reply_flag: replyFlag,
             reply_id: replyId,
@@ -452,7 +419,6 @@ import UserIcon from '../Mixed/UserIcon.vue'
             quot_message: quotFlag && quotId ? quoteReply.text : null,
             forward_message_id: forward_message_id,
             record_id: board.value.id,
-            mentioned_users: mentionedUsers.value,
             user_id: auth.activeUser.id,
             id: Math.random().toString(36).substring(5),
             attached_temp_files: successUploadedFiles.value,
@@ -468,10 +434,8 @@ import UserIcon from '../Mixed/UserIcon.vue'
         addQueue(queueMessage)        
         messageInputArea.value.textContent = ''
         localStorage.setItem(board.value.id, '');
-        mentionedUsers.value = [];
         mentionBoxToggle.value = false;
         successUploadedFiles.value = [];
-        messageReady.value = null;
         msgSave();   
         attachedFiles.value = []; 
                     
@@ -481,42 +445,38 @@ import UserIcon from '../Mixed/UserIcon.vue'
         
     }       
     const mentionUser = (user, index) => {             
-        if(user){
-            const mentionSyntax = `[To:${user.name}]`
-            if(mentionBoxToggle.value){
-            
-                const inputEl = messageInputArea.value
-                const textBeforeCursor = inputEl.textContent.slice(0, caretPosition.value)
+        if(user && messageInputArea.value){
+            const mentionSyntax = `[To:${user.name}:]`
+            const text = messageInputArea.value.textContent
+            if(mentionBoxToggle.value && text){            
+                const textBeforeCursor = text.slice(0, caretPosition.value)
                 const match = textBeforeCursor.match(/[＠@]([^＠@^\s]*)$/);
                 if (match) {
                     const mentionTarget = match[1]
                     const position = caretPosition.value - mentionTarget.length - 1
-                    const outputBeforeMention = inputEl.textContent.slice(0, position)
-                    const outputAfterMention = inputEl.textContent.slice(caretPosition.value)
+                    const outputBeforeMention = text.slice(0, position)
+                    const outputAfterMention = text.slice(caretPosition.value)
                     const output = outputBeforeMention + mentionSyntax + outputAfterMention
-                    inputEl.textContent = output
+                    messageInputArea.value.textContent = output
                     const newPosition = position + mentionSyntax.length
                     setEndOfContenteditable(newPosition)
                 }
                 mentionBoxToggle.value = false;
             }
-            else if(keyCharacters.value.length){                       
-                let inputString = messageInputArea.value.textContent
+            else if(keyCharacters.value.length && text){             
                 let searchText = keyCharacters.value
                 let replacement = mentionSyntax
-                const lastIndex = inputString.lastIndexOf(searchText);
-                const hasAt = inputString[lastIndex - 1] && (inputString[lastIndex - 1] == '@' || inputString[lastIndex - 1] == '＠') ? 1 : 0
+                const lastIndex = text.lastIndexOf(searchText);
+                const hasAt = text[lastIndex - 1] && (text[lastIndex - 1] == '@' || text[lastIndex - 1] == '＠') ? 1 : 0
                 if (lastIndex === -1) {
-                    return inputString;
+                    return text;
                 }
-                const beforeLastIndex = inputString.slice(0, (lastIndex - hasAt));
-                const position = caretPosition.value
-                const afterLastIndex = inputString.slice(lastIndex + searchText.length);
+                const beforeLastIndex = text.slice(0, (lastIndex - hasAt));
+                const afterLastIndex = text.slice(lastIndex + searchText.length);
                 const result = beforeLastIndex + replacement.replace(/[@＠]/g, '') + afterLastIndex;
                 messageInputArea.value.textContent = result
                 setEndOfContenteditable(beforeLastIndex.length + mentionSyntax.length)
                 keyCharacters.value = '';
-
             }
             msgSave()
         }    

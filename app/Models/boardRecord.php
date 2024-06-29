@@ -16,6 +16,14 @@ class boardRecord extends Model
     public function board_to_users(){
         return $this->hasMany(boardToUser::class, 'record_id');
     }
+    public function members(){
+        return $this->belongsToMany(User::class, 'board_to_users', 'record_id', 'user_id')
+        ->wherePivot('deleted_flag', 0)
+        ->wherePivot('deleted_status', 0)
+        ->wherePivotNull('deleted_at')
+        ->where('retire', 0)
+        ->select(['users.id', 'users.name','users.icon_id', 'users.email', 'users.name_kana']);
+    }
     public function messages(){
         return $this->hasMany(messageRecord::class, 'record_id');
     }

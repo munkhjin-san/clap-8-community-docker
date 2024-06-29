@@ -12,3 +12,9 @@ interface Answer {
     value: boolean | null
 }
 
+export interface MenuList {
+    title: string;
+    action: () => void;
+    children?: MenuList[]; 
+    parent?: HTMLElement | null
+}

@@ -32,6 +32,7 @@
                     <MemberSelector 
                         placeHolder="メンバー選択（必須）"
                         rules="required"
+                        :multiple="true"
                         name="boardMembers"
                         ref="boardMembers"
                         path="board_possible_users"

@@ -38,8 +38,8 @@
                 <p ref="replyBody" style="line-height: 1.5;white-space: pre-line;" v-html="messageBody"></p>
             </div>            
             <div @click="toggleFull" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto' && which == 'reply'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
-            <p v-if="which == 'forward'" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
-            <p v-if="which == 'quot' && quotMessage" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
+            <p @click.stop="mentionClick" v-if="which == 'forward'" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
+            <p @click.stop="mentionClick" v-if="which == 'quot' && quotMessage" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
             <MessageFiles 
                 v-if="message.message_files && message.message_files.length"
                 :list="message.message_files"
@@ -54,7 +54,8 @@
 import { computed, inject, onMounted, ref } from "vue";
 import MessageFiles from "./MessageFiles.vue";
 import UserIcon from "../Mixed/UserIcon.vue";
-    const props = defineProps(['which', 'message', 'urlCheck', 'quotMessage'])
+import { mentionFormatter } from "@/utils/tools";
+    const props = defineProps(['which', 'message', 'quotMessage', 'mentionClick'])
     const pushInstantUser = inject('pushInstantUser')
     const replyBody = ref(null)
     const dynamicHeight = ref('auto')
@@ -67,12 +68,8 @@ import UserIcon from "../Mixed/UserIcon.vue";
         }        
     })
     const messageBody = computed(() => {
-        const t_text = props.which == 'quot' ? props.quotMessage : props.message.message
-        const text = t_text ? t_text : ''
-        const to_all = text.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>'); 
-        const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
-        const br_remove = converterd.replace(/&lt;br&gt;/g," ");
-        return props.urlCheck(br_remove)
+        const t_text = props.which == 'quot' ? String(props.quotMessage) : props.message.message
+        return mentionFormatter(t_text, true)
     })
     const messageUserName = computed(() => {                
         return props.message.user && props.message.user.deleted_at == null

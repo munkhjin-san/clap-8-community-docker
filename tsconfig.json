@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "types": ["vite/client"],
+        "module": "ESNext",
+        "moduleResolution": "Bundler",
+        "target": "ES2022",
+        "jsx": "preserve",
+        "jsxImportSource": "vue",
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "isolatedModules": true,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": ["resources/js/*"],
+            "assets/*": ["resources/assets/*"],
+            "styles/*": ["resources/sass/*"],
+            "utils/*": ["resources/js/utils/*"]
+        }
+    },
+    "include": [ "resources/**/*.*" ],
+    "exclude": [
+        "node_modules",
+        "**/node_modules/*"
+    ]
+}

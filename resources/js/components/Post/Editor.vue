@@ -7,10 +7,10 @@
 </div>
 <Transition name="slidePop">   
 <div v-if="active" style="position: absolute;bottom: -40px;left: 0;">
-    <ul style="white-space: nowrap;">
-        <li @click="update" :style="{opacity: sending ? '0.5': '1'}" class="commentEditButton">保存</li>
-        <li @click="emit('cancel')" class="commentEditButton">キャンセル</li>
-    </ul>
+    <div style="white-space: nowrap;">
+        <div @click="update" :style="{opacity: sending ? '0.5': '1'}" class="commentEditButton">保存</div>
+        <div @click="emit('cancel')" class="commentEditButton">キャンセル</div>
+    </div>
 </div>
 </Transition>
 </template>

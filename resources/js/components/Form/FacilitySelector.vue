@@ -50,17 +50,27 @@ import { markRaw, ref, watchEffect } from 'vue';
             once_date: props.once_date,
             edit_repeat: props.edit_all_record 
         }
-        axios.post('/get_possible_facilities', params)
-        .then(response => {
-            options.value = response.data
-            setTimeout(() => {
+        if (isValidTime(params.time_start) && isValidTime(params.time_end)) {
+            axios.post('/get_possible_facilities', params)
+            .then(response => {
+                options.value = response.data
+                setTimeout(() => {
+                    spinner.value = false
+                }, 300);
+                
+            }).catch(e => {
                 spinner.value = false
-            }, 300);
-            
-        }).catch(e => {
-            spinner.value = false
-        })
+            })
+        }
         
+    }
+    const isValidTime = (time) => {
+        const timeRegex = /^\d{1,2}:\d{2}$/; // Regex to check format HH:mm
+        if (!timeRegex.test(time)) {
+            return false;
+        }
+        const [hour, minute] = time.split(':').map(Number);
+        return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59; 
     }
     watchEffect(() => {
         getPossibleItems()

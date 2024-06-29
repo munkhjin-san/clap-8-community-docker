@@ -73,6 +73,7 @@ import UserIconPreLoad from '../Mixed/UserIcon.vue'
 import { computed, inject, ref } from "vue";
 import { useAuthUserStore } from '@/store/auth'
 import { useMessageUsers } from "../../../store/messageUsers";
+import { mentionFormatter } from "@/utils/tools";
     const auth = useAuthUserStore()
     const messageUsers = useMessageUsers()
     const props = defineProps(['message', 'openedBoard', 'boxClass'])
@@ -89,13 +90,7 @@ import { useMessageUsers } from "../../../store/messageUsers";
         : '非アクティブユーザー';
     })
     const messageBody = computed(() => {
-        if(props.message.info_flag == 0){
-            const text = props.message.message ? props.message.message : ''
-            const to_all = text.replace('<span class="toAll">@全員</span>', '<a class="toAll">@全員</a>');
-            const converterd = to_all.replace(/<((?!a )[^>]*)>/g, "&lt;$1&gt;").replace(/&lt;\/a&gt;/g, "</a>");
-            const br_remove = converterd.replace(/&lt;br&gt;/g," ");
-            return urlCheck(br_remove)
-        }       
+        return mentionFormatter(props.message.message, true)        
         
     })
     const checkFunctionView = computed(() => {

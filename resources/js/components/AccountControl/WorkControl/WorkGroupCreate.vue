@@ -25,6 +25,7 @@
                     :options="optionPms"
                     rules=""
                     name="workgroup_pm"
+                    :multiple="false"
                     :closeOnSelect="true"
                 />
             </div>
@@ -35,6 +36,7 @@
                     :options="optionUsers"
                     rules=""
                     name="workgroup_users"
+                    :multiple="true"
                     :closeOnSelect="false"
                 />
             </div>
