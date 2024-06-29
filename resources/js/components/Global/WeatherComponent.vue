@@ -34,7 +34,7 @@ const getTodayWeather = async () => {
     const yesterday = localStorage.getItem('weather_' + user_id)
     if (today != yesterday) {
         const response = await axios.post('/today_weather', { today }).then(res => res.data)
-        viewWeatherComponent.value = _.isEmpty(response.data) ? true : false
+        viewWeatherComponent.value = _.isEmpty(response.data) || response.data !== 'weekend' ? true : false
     }
 }
 const saveWeather = async (index) => {
