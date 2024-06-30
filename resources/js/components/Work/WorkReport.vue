@@ -12,7 +12,7 @@
             </div>
             <div class="report-wrapper" style="background:inherit;">
                 <div class="report-field">
-                    <p class="report-header">本日の部門</p>
+                    <p class="report-header">部門を選択</p>
                     <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="todayWorkGroup">
                         <option v-for="group in workGroupAsOptions.filteredgroups" :value="group.id">{{ group.name }}</option>
                     </select>
