@@ -642,6 +642,12 @@ class WorkController extends Controller
                     ]);
                     $shift_record->delete();
                 }
+                if ($shift_record->start_time !== $start_time_val || $shift_record->end_time !== $end_time_val) {
+                    $shift_record->update([
+                        "start_time" => $start_time_val,
+                        "end_time" => $end_time_val
+                    ]);
+                }
             } else {
                 shiftRecord::create([
                     'user_id' => $user_id,
