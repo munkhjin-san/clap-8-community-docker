@@ -9,7 +9,7 @@
                     v-model="qualified_users" 
                     name="qualified_users" 
                     :options="options"
-                    :multiple="multiple"
+                    :multiple="true"
                     :noDrop="noDrop"
                     :inputId="'taskUserSelector'"
                     :components="{Deselect}"

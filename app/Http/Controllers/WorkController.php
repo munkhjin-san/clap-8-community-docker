@@ -288,15 +288,15 @@ class WorkController extends Controller
         ])->get();
        
         $recordList = [];
-        // $workGroups = workGroup::whereHas('members', function ($q) {
-        //     $q->where('user_id', Auth::id())
-        //       ->where('authority', 1);
-        // })->with(['members' => function ($q) {
-        //     $q->where('user_id', '<>', Auth::id());
-        // }])->get();
-        // $workGroupUserIds = $workGroups->flatMap(function ($workGroup) {
-        //     return $workGroup->members->pluck('id');
-        // })->unique()->values()->all();
+        $workGroups = workGroup::whereHas('members', function ($q) {
+            $q->where('user_id', Auth::id())
+              ->where('authority', 1);
+        })->with(['members' => function ($q) {
+            $q->where('user_id', '<>', Auth::id());
+        }])->get();
+        $workGroupUserIds = $workGroups->flatMap(function ($workGroup) {
+            return $workGroup->members->pluck('id');
+        })->unique()->values()->all();
         $timeCardRecords = $users->flatMap->time_card_records->groupBy('user_id')->map->keyBy('day');
         $shiftRecords = $users->flatMap->shift_records->groupBy('user_id')->map->keyBy('shift_day');
         $customFieldData = $users->flatMap->custom_field_data_records->groupBy('user_id')->map->keyBy('date');
@@ -311,19 +311,20 @@ class WorkController extends Controller
                 $time_card = $timeCardRecords[$userId][$targetShiftDay] ?? null;
                 $shift = $shiftRecords[$userId][$targetShiftDay] ?? null;
                 $department = $time_card?->department;
-                $authority = false;  
-                if($department) {
-                    $members = $department->members;
-                    $currentUserAuthority = $members->first(function ($member) {
-                        return $member->pivot->user_id == Auth::id() && $member->pivot->authority == 1;
-                    });
-                    if($currentUserAuthority){
-                        $otherMembers = $members->filter(function ($member) {
-                            return $member->id !== Auth::id();
-                        })->pluck('id')->all();
-                        $authority = in_array($user->id, $otherMembers);
-                    }
-                }
+                $authority = in_array($user->id, $workGroupUserIds);
+                // $authority = false;  
+                // if($department) {
+                //     $members = $department->members;
+                //     $currentUserAuthority = $members->first(function ($member) {
+                //         return $member->pivot->user_id == Auth::id() && $member->pivot->authority == 1;
+                //     });
+                //     if($currentUserAuthority){
+                //         $otherMembers = $members->filter(function ($member) {
+                //             return $member->id !== Auth::id();
+                //         })->pluck('id')->all();
+                //         $authority = in_array($user->id, $otherMembers);
+                //     }
+                // }
                 
                 
                 

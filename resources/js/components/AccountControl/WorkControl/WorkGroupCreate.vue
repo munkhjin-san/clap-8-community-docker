@@ -25,8 +25,8 @@
                     :options="optionPms"
                     rules=""
                     name="workgroup_pm"
-                    :multiple="false"
                     :closeOnSelect="true"
+                    :limit="1"
                 />
             </div>
             <div class="si-box">
@@ -36,7 +36,6 @@
                     :options="optionUsers"
                     rules=""
                     name="workgroup_users"
-                    :multiple="true"
                     :closeOnSelect="false"
                 />
             </div>
@@ -89,7 +88,7 @@
 
         if(result.valid){
             processing.value = true;
-
+            console.log(workgroup_pm.value)
             const params = {
                 work_group_id : props.editWorkGroupData ? props.editWorkGroupData.id : null,
                 work_group_name : work_group_name.value,
