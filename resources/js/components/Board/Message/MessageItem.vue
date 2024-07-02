@@ -204,7 +204,7 @@ import { mentionFormatter } from "@/utils/tools";
             share.children.push({ title: app.name_jp, action: () => shareTo(app.name)})
         });
         list.push(share)
-        addItem('リマインド', () => remindRequest())     
+        addItem('リマインド', () => remind(props.message))     
         if(authorized.value){
             if(!props.message.check_flag && canConfirm){
                 addItem('確認依頼', () => check(props.message, 'confirm'))
