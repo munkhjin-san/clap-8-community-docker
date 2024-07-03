@@ -1508,8 +1508,10 @@ class WorkController extends Controller
                         ->with([
                             'time_card_records' => function ($q) use($year, $month, $workGroupIds, $prev_month) {
                                 $q->whereYear('day', $year)
-                                    ->whereMonth('day', $month)
-                                    ->orWhereMonth('day', $prev_month)
+                                    ->where(function ($query) use ($month, $prev_month) {
+                                        $query->whereMonth('day', $month)
+                                            ->orWhereMonth('day', $prev_month);
+                                    })
                                     ->where('status_flag', 1)
                                     ->whereIn('work_group_id', $workGroupIds);
                             },
