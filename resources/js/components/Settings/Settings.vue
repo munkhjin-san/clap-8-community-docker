@@ -266,7 +266,7 @@ import { useResponsive } from '@/store/responsive'
         const targets = [newPasswordRef.value, newPasswordConfirmRef.value, currentPasswordRef.value]
         let result = true
         for(const target of targets){            
-            const val = await target?.validate() || false
+            const val = await target?.validate() || {valid: false}
             result = result * val.valid
         }
         if (!result) return

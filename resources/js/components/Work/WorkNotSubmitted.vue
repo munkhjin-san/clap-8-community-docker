@@ -58,7 +58,11 @@
     })
     const timeCardAdd = (item) => {
         if(item.day){
-            const { value, shiftStartTime, shiftEndTime, shiftOverTimeRequest } = item;
+            const { value, shiftStartTime, shiftEndTime, shiftOverTimeRequest, shiftStatus } = item;
+            if(shiftStatus === 2) {
+                notify('勤怠予定は承認されていません。') 
+                return
+            }
             editData.value = {
                 day_full : value,
                 user_id : auth.id,

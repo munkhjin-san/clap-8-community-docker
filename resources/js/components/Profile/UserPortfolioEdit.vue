@@ -65,7 +65,7 @@ import LongInput from '../Form/LongInput.vue'
         let result = true
         for(const target of targets){
             
-            const val = await target?.validate() || false
+            const val = await target?.validate() || {valid: false}
             result = result * val.valid
         }
         if (!result) return
