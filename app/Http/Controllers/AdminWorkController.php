@@ -75,6 +75,15 @@ class AdminWorkController extends Controller{
             'name',
             'user_code'
         ]);
+        $time_card_costs = timecardCostRecord::where('date_month', $request->month)
+                                                ->with(['user' => function ($q) {
+                                                    $q->select('id', 'name');
+                                                }])
+                                                ->with(['timecard' => function ($q) {
+                                                    $q->select('id', 'day');
+                                                }])
+                                                ->select('id', 'date_month', 'department', 'type', 'expenses', 'user_id', 'record_id')
+                                                ->get();
         $userIds = $all_users->pluck('id');
         $user_list = $all_users->whereNotNull('user_code')->pluck('user_code')->toArray();
         $strings = array_map('strval', $user_list);
@@ -160,7 +169,7 @@ class AdminWorkController extends Controller{
             
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
-            $time_card_costs = [];
+            // $time_card_costs = [];
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 16);
                 $totalPaidHours = 0;
@@ -181,17 +190,17 @@ class AdminWorkController extends Controller{
                 $workTimeInSeconds = 0;
                 if (count($user->time_card_records) > 0) {
                     $workTimeInSeconds = $user->time_card_records->sum('work_time');
-                    foreach($user->time_card_records as $record){
-                        $timecard_costs = $record->timecard_costs ?? [];
-                        if (empty($timecard_costs)) {
-                            continue;
-                        }
-                        foreach ($timecard_costs as $cost) {
-                            if (!empty($cost->toArray())) {
-                                $time_card_costs[] = $cost->toArray();
-                            }
-                        }
-                    }
+                    // foreach($user->time_card_records as $record){
+                    //     $timecard_costs = $record->timecard_costs ?? [];
+                    //     if (empty($timecard_costs)) {
+                    //         continue;
+                    //     }
+                    //     foreach ($timecard_costs as $cost) {
+                    //         if (!empty($cost->toArray())) {
+                    //             $time_card_costs[] = $cost->toArray();
+                    //         }
+                    //     }
+                    // }
                     
                 }
                 $month_work_time_array2[$user->id] = $workTimeInSeconds + $totalPaidHours;

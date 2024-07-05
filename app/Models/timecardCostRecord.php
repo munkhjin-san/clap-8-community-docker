@@ -16,5 +16,8 @@ class timecardCostRecord extends Model
     public function user(){
         return $this->belongsTo(User::class);
     }
+    public function timecard(){
+        return $this->belongsTo(timeCardRecord::class, 'record_id', 'id');
+    }
     protected $guarded = [];
 }

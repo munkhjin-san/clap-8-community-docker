@@ -136,6 +136,7 @@
         timecard_costs.value.forEach(cost => {
             const row = {
                 "氏名" : cost.user.name,
+                "日付" : cost.timecard.day,
                 "部門" : cost.department ? cost.department : '',
                 "勘定科目" : costOptions.find(ob => ob.value == cost.type).label,
                 "金額" : cost.expenses ? cost.expenses : 0,
