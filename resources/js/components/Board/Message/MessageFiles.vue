@@ -90,7 +90,7 @@
             list.push({ title, action });
         }
         addItem('ダウンロード', () => downloadFile(file))
-        if(!file.sign_flag && file.user_id == auth.id && file.extension == 'pdf'){
+        if(!file.sign_flag && file.user_id == auth.activeUser.id && file.extension == 'pdf'){
             addItem('サイン依頼', () => signRequest(file))
         }   
         
