@@ -2,13 +2,13 @@
     <div class="workButtons-wrapper">
         <HamBurger v-if="responsive.mobile"/>
 
-        <button class="work-button pc" @click="clickButton('selectShift')" v-if="!auth.isRegistered">
+        <button class="work-button pc" @click="emit('selectShift')" v-if="!auth.isRegistered">
             勤怠予定
         </button>
-        <button class="work-button pc" @click="clickButton('selectApproveShift')" v-if="auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608">
+        <button class="work-button pc" @click="emit('approveShift')" v-if="auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608">
             勤怠予定承認
         </button>
-        <button class="work-button" :class="{'pc' : !auth.isRegistered}" @click="clickButton('confirmAttendance')">
+        <button class="work-button" :class="{'pc' : !auth.isRegistered}" @click="emit('confirmAttendance')">
             勤怠確定
         </button>
         <button class="work-button mobile" v-if="!auth.isRegistered" @click="modal = true">
@@ -27,12 +27,11 @@
                 <div style="display: flex; flex-wrap: wrap; gap: 10px;">
                     <CommandButton 
                         :buttons="buttonCollection"
-                        @select="(button: any) => choseButton(button)"
                     />
                 </div>
             </div>
         </div>
-        <div class="work-button" v-if="!auth.isRegistered" @click.stop="clickButton('selectMember')">
+        <div class="work-button" v-if="!auth.isRegistered" @click.stop="menu.setMenu( { id: 98, name: 'workMemberSelector'})">
             メンバー
         </div>
         <Transition name="modalFade">
@@ -45,10 +44,10 @@
             />
         </Transition>
         
-        <button class="work-button" @click="clickButton('jumpToToday')">
+        <button class="work-button" @click="emit('todayScroll')">
             今日
         </button>
-        <button class="work-button" @click="clickButton('jumpToTotal')">
+        <button class="work-button" @click="emit('toBottomScroll')">
             集計
         </button>
         
@@ -100,45 +99,27 @@
         });
         return uniqueMemberObjects
     })
-    
-    const clickButton = (action: string) => {
-        if(action == 'selectShift'){
-            emit('selectShift')
-        }else if(action == 'confirmAttendance'){
-            emit('confirmAttendance')
-        }else if(action == 'selectMember'){
-            menu.setMenu( { id: 98, name: 'workMemberSelector'})
-        }else if(action == 'jumpToToday'){
-            emit('todayScroll')
-        }else if(action == 'jumpToTotal'){
-            emit('toBottomScroll')
-        }else if(action == 'selectApproveShift'){
-            emit('approveShift')
-        }
-    }
-
-    const choseButton = (button: any) => {
-        button.value === 1 ? clickButton('selectShift') : button.value === 2 ? clickButton('selectApproveShift') : clickButton('confirmAttendance')
-        modal.value = false
-    }
     const buttonCollection = computed(() => {
-        const buttons: { name: string, value: number }[] = []
+        const buttons: { action: () => void, order: number, title: string }[] = []
         buttons.push({
-            name: '勤怠予定', 
-            value: 1
+            title: '勤怠予定', 
+            action: () => emit('selectShift'), 
+            order: 1
         })
 
         buttons.push({
-            name: '勤怠確定', 
-            value: 3
+            title: '勤怠確定', 
+            action: () => emit('confirmAttendance'),
+            order: 3
         })
         if(auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608){
             buttons.push({
-                name: '勤怠予定承認', 
-                value: 2
+                title: '勤怠予定承認', 
+                action: () => emit('approveShift'),
+                order: 2
             })
         }
-        buttons.sort((a, b) => a.value - b.value);
+        buttons.sort((a, b) => a.order - b.order);
         return buttons
     })
 </script>
