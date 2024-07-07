@@ -67,6 +67,7 @@ import { useSkeleton } from '@/store/skeleton'
 import { useTitle } from '@vueuse/core'
 import { io } from "socket.io-client";
 import axios from 'axios';
+import { instance as socket } from '@/utils/broadcaster'
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -86,7 +87,7 @@ import axios from 'axios';
         cY: 0
     })
     const confused = ref(false)
-    const socket = ref()
+    // const socket = ref()
     onBeforeMount(() => {
         auth.setUser(props.auth_user)
     })
@@ -95,64 +96,69 @@ import axios from 'axios';
         removeEventListener()
     })
     onMounted(async() => {
-        socket.value = io(import.meta.env.VITE_SOCKET_URL, {
-            auth: {
-                token: import.meta.env.VITE_SOCKET_TOKEN
-            },
-            withCredentials: true,
-            transports: ["websocket"],
-            reconnectionAttempts: 5 
-        })
-        socket.value.on("connect", () => {
-            console.log('Connected to socket Successfully')
-        });
-        socket.value.on("message", (e) => {
-            console.log('recieved', e)
-            if(e && e.active_user_changed && e.active_user_changed.owner == auth.id && e.active_user_changed.target !== auth.activeUser.id && !focused.active){
-                    setAlert()
-                }                
-                if(mainRef.value.onPusher){
-                    const event = {message:e}
-                    mainRef.value.onPusher(event)
-                }
-                if(auth.user && e.board_id && e.sender !== auth.id && e.board_members && e.board_members.length && (e.board_members.includes(auth.activeUser.id) || e.board_members.includes(auth.id))){                
-                    badge.getBoardBadge()
-                }
-                if(e.new_post_from && e.new_post_from !== auth.id){
-                    if(!auth.isPartner){
-                        badge.getPostBadge()
-                    }
-                }   
-        });
+        // const socket = instance
+        // console.log(socket)
+        // socket.value = io(import.meta.env.VITE_SOCKET_URL, {
+        //     auth: {
+        //         token: import.meta.env.VITE_SOCKET_TOKEN
+        //     },
+        //     withCredentials: true,
+        //     transports: ["websocket"],
+        //     reconnectionAttempts: 5 
+        // })
+        // socket.value.on("connect", () => {
+        //     console.log('Connected to socket Successfully')
+        // });
+        // socket.on("message", (e) => {
+        //     console.log('recieved', e)
+        //     console.log('rrrrr', auth.activeUser.id, focused.active)
+        //     // if(e && e.active_user_changed && e.active_user_changed.owner == auth.id && e.active_user_changed.target !== auth.activeUser.id){
+                
+        //     //     setAlert()
+        //     // }                
+        //     if(mainRef.value.onPusher){
+        //         const event = {message:e}
+        //         // mainRef.value.onPusher(event)
+        //     }
+        //     if(auth.user && e.board_id && e.sender !== auth.id && e.board_members && e.board_members.length && (e.board_members.includes(auth.activeUser.id) || e.board_members.includes(auth.id))){                
+        //         badge.getBoardBadge()
+        //     }
+        //     // if(e.new_post_from && e.new_post_from !== auth.id){
+        //     //     if(!auth.isPartner){
+        //     //         badge.getPostBadge()
+        //     //     }
+        //     // }   
+        // });
+        
         if(props.auth_user && props.auth_user.id){
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-            let pusher = new Pusher(import.meta.env.VITE_PUSHER_APP_KEY, {
-                cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
-                forceTLS: true,
-                channelAuthorization: { endpoint: "/pusher_subscribe", headers: { "X-CSRF-Token": csrfToken }},
-                userAuthentication: {
-                    endpoint: "/pusher_authorizition", headers: { "X-CSRF-Token": csrfToken }
-                }
-            });
-            var channel = pusher.subscribe('private-chat');
-            channel.bind("pusher:subscription_error", (error) => {console.log(error)});
-            channel.bind('my-event', (e) => { 
-                if(e.message && e.message.active_user_changed && e.message.active_user_changed.owner == auth.id && e.message.active_user_changed.target !== auth.activeUser.id && !focused.active){
-                    setAlert()
-                }                
-                if(mainRef.value.onPusher){
-                    mainRef.value.onPusher(e)
-                }
-                if(auth.user && e.message.board_id && e.message.sender !== auth.id && e.board_members && e.board_members.length && (e.board_members.includes(auth.activeUser.id) || e.board_members.includes(auth.id))){                
-                    badge.getBoardBadge()
-                }
-                if(e.message.new_post_from && e.message.new_post_from !== auth.id){
-                    if(!auth.isPartner){
-                        badge.getPostBadge()
-                    }
-                }           
+            // const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            // let pusher = new Pusher(import.meta.env.VITE_PUSHER_APP_KEY, {
+            //     cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
+            //     forceTLS: true,
+            //     channelAuthorization: { endpoint: "/pusher_subscribe", headers: { "X-CSRF-Token": csrfToken }},
+            //     userAuthentication: {
+            //         endpoint: "/pusher_authorizition", headers: { "X-CSRF-Token": csrfToken }
+            //     }
+            // });
+            // var channel = pusher.subscribe('private-chat');
+            // channel.bind("pusher:subscription_error", (error) => {console.log(error)});
+            // channel.bind('my-event', (e) => { 
+            //     if(e.message && e.message.active_user_changed && e.message.active_user_changed.owner == auth.id && e.message.active_user_changed.target !== auth.activeUser.id && !focused.active){
+            //         setAlert()
+            //     }                
+            //     if(mainRef.value.onPusher){
+            //         mainRef.value.onPusher(e)
+            //     }
+            //     if(auth.user && e.message.board_id && e.message.sender !== auth.id && e.board_members && e.board_members.length && (e.board_members.includes(auth.activeUser.id) || e.board_members.includes(auth.id))){                
+            //         badge.getBoardBadge()
+            //     }
+            //     if(e.message.new_post_from && e.message.new_post_from !== auth.id){
+            //         if(!auth.isPartner){
+            //             badge.getPostBadge()
+            //         }
+            //     }           
 
-            });                    
+            // });                    
             beamsInit()
         }
 
@@ -165,6 +171,16 @@ import axios from 'axios';
         }
         
     })
+    const postHandler = () => {
+        if(!auth.isPartner){
+            badge.getPostBadge()
+        }
+    }
+    const activeAccountHandler = (e) => {
+        if(e.to !== auth.activeUser.id){                
+            setAlert()
+        }
+    }
     const docTitle = computed(() => {       
         const name = route.meta && route.meta.title ? route.meta.title : 'CLAP'
         const total = badge.sumOfAll
@@ -172,6 +188,13 @@ import axios from 'axios';
         const space = badgeCount ? ' ' : ''
         return badgeCount + space + name   
     })
+    const boardBadgeHandler = (data) => {
+        const related = data && data.length? data[0] : []
+        if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
+            badge.getBoardBadge()
+        }
+        
+    }
     useTitle(docTitle)
     const addEventListener = () => {
         window.addEventListener('click', onClick);
@@ -179,6 +202,9 @@ import axios from 'axios';
         window.addEventListener('resize', handleResize);
         window.addEventListener("focus", handleFocus, false);
         window.addEventListener("blur", handleBlur, false);
+        socket.on("post:badge", postHandler)
+        socket.on(`switch:${auth.id}`, activeAccountHandler)
+        socket.on("refresh:badge", boardBadgeHandler)
     }
     const removeEventListener = () => {
         window.removeEventListener('resize', handleResize);
@@ -186,6 +212,7 @@ import axios from 'axios';
         window.removeEventListener('blur', handleBlur, false)
         window.removeEventListener('click', onClick);
         window.removeEventListener('touchstart', onClick);
+        socket.removeAllListeners();
     }
     const footerView = computed(() =>{
         const block_list = ['account-settings', 'personal-info-settings', 'salary-issue']
@@ -403,12 +430,7 @@ import axios from 'axios';
             confused.value = true
         }
     }
-    const sendToSocket = (params) => {
-        if(socket.value.connected){
-            console.log('emit')
-            socket.value.emit('message', params)
-        }
-    }
+
     provide('dialog', {
         confirm: (question, options) => confirm(question, options),
         notify: (message) => notify(message),
@@ -418,6 +440,5 @@ import axios from 'axios';
 
     provide('refreshMessage', refreshMessage)
     provide('resetInstantUser', resetInstantUser)
-    provide('sendToSocket', sendToSocket)
 </script>
 

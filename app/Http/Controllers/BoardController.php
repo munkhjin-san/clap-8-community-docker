@@ -193,12 +193,17 @@ class BoardController extends Controller
                         $restoreUsers = $checkCurrentBoard->board_to_users()->where('deleted_status', 1)->update([
                             'deleted_status' => 0,
                             'created_at' => now()
-                        ]);                        
+                        ]);     
+                        $socket = array();
+                        $related_members = $checkCurrentBoard->board_to_users()->pluck('user_id')->toArray();
+                        array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
+                        array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);                 
                         $arr = [
                             "restored" => $restoreUsers,
                             "message" => $restoreUsers ? "作成しました。" : "ボードがすでに存在します。",
                             "success" => true,
-                            "data" => $checkCurrentBoard
+                            "data" => $checkCurrentBoard,
+                            "socket" => $socket
                         ];   
                         $checkCurrentBoard->touch(); 
                         return response()->json($arr);
@@ -268,16 +273,20 @@ class BoardController extends Controller
                 $board->save();
             }       
             
+
+
+
+            $socket = array();
+            $related_members = $board->board_to_users()->pluck('user_id')->toArray();
+            array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
+            array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);   
             $arr = [
                 "message" => "作成しました。",
                 "success" => true,
-                "data" => $board
-            ];   
-            $related_id = boardToUser::where('record_id', '=', $board->id)->pluck('user_id');
-            $rebound = array(
-                "new_board_members" => $related_id->toArray()
-            );
-            event(new MessageSent($rebound));
+                "data" => $board,
+                "socket" => $socket
+            ];  
+            // event(new MessageSent($rebound));
             return response()->json($arr);
             
         }else{
@@ -327,13 +336,16 @@ class BoardController extends Controller
                 Icons::findOrFail($request->new_icon)->update(['record_id' => $board->id]);
             }
         }
-        $board->timestamps = true;  
-        $related_id = boardToUser::where('record_id', '=', $request->id)->pluck('user_id');
-        $rebound = array(
-            "new_board_members" => $related_id->toArray()
-        );
-        event(new MessageSent($rebound));
-        return response()->json("saved");       
+        $board->timestamps = true;       
+
+        $socket = array();
+        $related_members = $board->board_to_users()->pluck('user_id')->toArray();
+        array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
+        array_push($socket, ["event" => 'refresh:board', "data" => $related_members]); 
+        // event(new MessageSent($rebound));
+        return response()->json([
+            "socket" => $socket
+        ]);       
     }
     public function board_delete(Request $request){
         
@@ -591,6 +603,7 @@ class BoardController extends Controller
         }
     }
     public function get_messages(Request $request){
+        $id = $request->message_id ?? null;
         $pagenate = 30 * $request->page_index;       
         $active_user = $this->active_user();
         $auth_user_id = $active_user->id;
@@ -601,6 +614,9 @@ class BoardController extends Controller
         $time_condition = $messageFrom == 0 && $timeLimit;   
         
         $comment_list_pre = messageRecord::where('record_id', $request->record_id)
+        ->when($id, function($query) use($id){
+            $query->where('id', $id);
+        })
         ->when($time_condition, function ($query) use ($timeLimit) {
             $query->where('created_at', '>=',  $timeLimit );
         })
@@ -629,7 +645,7 @@ class BoardController extends Controller
     public function chatAdd(Request $request){
 
 
-
+      
         $active_user = $request->override_user ? $request->override_user : $this->active_user();
         $auth_user_id = $active_user->id;
         if($request->quot_flag == 1 && $request->reply_flag == 1){
@@ -806,19 +822,19 @@ class BoardController extends Controller
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
             if(!$request->override_user_id){
                 $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
-            }            
-            $rebound = array(
-                "type" => "new_message",
-                "board_members" => $related_members,
-                "board_id" => $request->record_id,
-                "sender" => $request->override_user_id ? $request->override_user_id : $auth_user_id,
-            ); 
-            SendPusher::dispatchAfterResponse($rebound);        
+            }    
+            $messageRecord = $this->get_messages(new Request(['page_index' => 1, 'record_id' => $request->record_id, 'message_id' => $chat->id]));          
+            // SendPusher::dispatchAfterResponse($rebound);  
+            $socket = array();
+            array_push($socket, ["event" => 'board:'.$request->record_id, "data" => $messageRecord->original ]);
+            array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
+            array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);
             $data = [
                 "success" => true,
                 "u_id" => $request->u_id,
                 "data" => $chat,
-                "socket" => $rebound 
+                "socket" => $socket,
+                "message" => $messageRecord->original 
             ];          
             return response()->json($data);
 
@@ -889,8 +905,10 @@ class BoardController extends Controller
         $rebound = array(
             "board_members" => $related_members
         );
-        event(new MessageSent($rebound));
-        return response()->json();
+        // event(new MessageSent($rebound));
+        return response()->json([
+            "socket" => $rebound
+        ]);
         
 
     }
@@ -1484,12 +1502,12 @@ class BoardController extends Controller
         $active_user = $this->active_user();
         $today = Carbon::today();
         $list = taskRecord::where('comp_flag', '=', 0)
-                ->whereHas('task_users', function($q) use($active_user){
-                    $q->where('user_id', $active_user->id)->where('comp_flag', 0)->where('status_flag', 0);
+                ->whereHas('executors', function($q) use($active_user){
+                    $q->where('users.id', $active_user->id)->where('comp_flag', 0)->where('status_flag', 0);
                 })
-                ->with('to_users')
+                ->with('executors')
                 ->with('files')
-                ->with('approve_user')
+                ->with('supervisors')
                 ->whereDate('end_at', '<=', $today)
                 ->orderBy('created_at', 'desc')->get();
         
@@ -1543,12 +1561,14 @@ class BoardController extends Controller
                     $createInfo = $this->sharedService->createInfoMessage($newUserRecord->name, $checkBoard->id, 'removed_members', $active_user->id);  
                     
                 }
-                $related_id = $checkBoard->board_to_users()->pluck('user_id');
-                $rebound = array(
-                    "new_board_members" => $related_id->toArray()
-                );
-                event(new MessageSent($rebound));
-                return response()->json("complete", 200);
+                $related_id = $checkBoard->board_to_users()->pluck('user_id')->toArray();
+                $socket = array();
+                array_push($socket, ["event" => 'refresh:badge', "data" => $related_id]);
+                array_push($socket, ["event" => 'refresh:board', "data" => $related_id]); 
+                // event(new MessageSent($rebound));
+                return response()->json([
+                    "socket" => $socket
+                ]);
             }
             throw ValidationException::withMessages(['message' => 'commonError']);
         }
@@ -1578,12 +1598,15 @@ class BoardController extends Controller
                 if($newUserRecord){                    
                     $createInfo = $this->sharedService->createInfoMessage($newUserRecord->name, $checkBoard->id, 'added_members', $active_user->id); 
                 }
-                $related_id = $checkBoard->board_to_users()->pluck('user_id');
-                $rebound = array(
-                    "new_board_members" => $related_id->toArray()
-                );
-                event(new MessageSent($rebound));
-                return response()->json("complete", 200);   
+        
+                $related_id = $checkBoard->board_to_users()->pluck('user_id')->toArray();
+                $socket = array();
+                array_push($socket, ["event" => 'refresh:badge', "data" => $related_id]);
+                array_push($socket, ["event" => 'refresh:board', "data" => $related_id]); 
+                // event(new MessageSent($rebound));
+                return response()->json([
+                    "socket" => $socket
+                ]);
             }
         }
         throw ValidationException::withMessages(['message' => 'commonError']);
@@ -1709,24 +1732,25 @@ class BoardController extends Controller
             'user_id' => 'required'
         ]);
         $message_id = $request->message_id;
-        $to_user = boardToUser::where('record_id', $request->board_id)->where('user_id', $request->user_id)->first();
+        $checkBoard = boardRecord::findOrFail($request->board_id);
+      
         $previousRecord = MessageRecord::where('record_id', $request->board_id)
         ->where('id', '<', $message_id)
         ->orderByDesc('id')
         ->withTrashed()
         ->first();
-        $val = $previousRecord ? $previousRecord->id : null;        
-        $to_user->update(['last_message' => $val]);           
-        
-        $rebound = array(
-            "type" => "new_message",
-            "board_members" => [$this->active_user()->id],
-            "board_id" => $request->board_id,
-            "sender" => Auth::id(),
-        );         
-        
-        event(new MessageSent($rebound));    
-        return response()->json($to_user);
+        $val = $previousRecord ? $previousRecord->id : null;   
+        $checkBoard->board_to_users()->where('user_id', $request->user_id)->update(['last_message' => $val]);      
+      
+        $related_id = $checkBoard->board_to_users()->pluck('user_id')->toArray();
+        $socket = array();
+        array_push($socket, ["event" => 'refresh:badge', "data" => $related_id]);
+        array_push($socket, ["event" => 'refresh:board', "data" => $related_id]);  
+
+        // event(new MessageSent($rebound));    
+        return response()->json([
+            "socket" => $socket
+        ]);
         
     }
 

@@ -1,6 +1,6 @@
 <template>
     <div class="overlay" @mousedown="emit('closeModal', false)">                         
-        <div class="chatCreate" @mousedown.stop>
+        <div class="chatCreate scrollable" @mousedown.stop>
             <div class="recordFormTitle" style="display:flex">
                 <p>{{ editTarget ? `テーマを編集する` : `新しいテーマを作成する`}}</p>
                 <div class="m-close-button" @click="emit('closeModal', false)" style="position:unset; margin:auto 0 auto auto">
@@ -22,11 +22,19 @@
                         v-model="title"
                     />
                 </div>
+                <div class="si-box" style="height: 70%;">
+                    <div style="font-size: 14px;margin-bottom: 15px;">ポートフォリオに関する説明</div>
+                    <RichEditor ref="portfolioGuidance" :initilaValue="initialPortfolioGuidance"/>
+                </div>
+                <div class="si-box" style="height: 70%;">
+                    <div style="font-size: 14px;margin-bottom: 15px;">エピソードに関する説明</div>
+                    <RichEditor ref="episodeGuidance" :initilaValue="initialEpisodeGuidance"/>
+                </div>
                 <div class="si-box">
                     <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">アクティブ</p>
                 </div>
-           
+                
 
                 <div class="selectSwitchArea" style="display: flex;width: 100%;">    
                     <input v-model="active" type="checkbox" id="edit_all">
@@ -45,7 +53,7 @@
                         v-model="discussionDate"
                     />
                 </div>
-                <div style="text-align: center;margin-top: auto;padding-top: 20px;">
+                <div style="text-align: center;margin-top: auto;padding: 20px 0;">
                     <LoaderButton @triggered="create" :loading="loader" content="作成する"/>
                 </div>
 
@@ -55,10 +63,11 @@
     </div>
 </template>
 <script setup>
-import { inject, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
 import { useTheme } from '@/store/theme';
+import RichEditor from '@/components/Global/RichEditor.vue';
 const props = defineProps(['editTarget'])
 const emit = defineEmits(['closeModal'])
 const title = ref(props.editTarget ? props.editTarget.title : '')
@@ -66,10 +75,19 @@ const loader = ref(false)
 const discussionDate = ref(props.editTarget ? props.editTarget.discussion_date : null)
 const active = ref(props.editTarget && props.editTarget.active ? true : false)
 const { info } = inject('dialog') 
+const episodeGuidance = ref(null)
+const portfolioGuidance = ref(null)
 const theme = useTheme()
+const initialPortfolioGuidance = computed(() => {
+    return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
+})
+const initialEpisodeGuidance = computed(() => {
+    return props.editTarget && props.editTarget.episode_guidance ? props.editTarget.episode_guidance : ''
+})
 const create = () => {
-    
-    if(!title.value) return
+    const episodeGuidanceContent = episodeGuidance.value.editor.getHTML()
+    const portfolioGuidanceContent = portfolioGuidance.value.editor.getHTML()
+    if(!episodeGuidanceContent || !portfolioGuidanceContent || !title.value) return
     loader.value = true
     axios.post('/create_learning_theme', { 
     
@@ -77,7 +95,9 @@ const create = () => {
         params: {
             active: active.value,
             discussion_date: discussionDate.value,
-            title: title.value
+            title: title.value,
+            episode_guidance: episodeGuidanceContent,
+            guidance: portfolioGuidanceContent,
         }
 
     }).then(response => {

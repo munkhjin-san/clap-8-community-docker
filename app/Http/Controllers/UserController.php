@@ -389,10 +389,14 @@ class UserController extends Controller{
         
         $updated = $this->profile_get_update_user(new Request (["id" =>  Auth::id()]));
         $rebound = array(
-            "active_user_changed" => [ "owner" => Auth::id(), "target" => $request->id]
+            array(
+                "event" => "switch:".Auth::id(),
+                "data" => array("to" => $request->id)
+            )            
         );
-        event(new MessageSent($rebound));
-        return $updated;
+
+        // event(new MessageSent($rebound));
+        return response()->json(["socket" => $rebound, "user" => $updated->original]);
 
         
     }

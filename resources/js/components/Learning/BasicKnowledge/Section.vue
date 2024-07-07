@@ -1,6 +1,6 @@
 <template>
-    <div class="section-wrapper">
-        <div class="section-inner">
+    <DraftLayout>
+        <template #main>
 
         
             <div style="background:inherit">
@@ -54,14 +54,15 @@
                 :sectionStatus="sectionStatus"
             >
             </router-view>
-        </div>
-    </div>
+        </template>
+    </DraftLayout>
 </template>
 <script setup>
     import { useRoute, useRouter } from 'vue-router';
     import LongInput from '../../Form/LongInput.vue';
     import LoaderButton from '../../Global/LoaderButton.vue'
     import { ref, computed, inject } from 'vue'
+    import DraftLayout from './DraftLayout.vue';
     const router = useRouter()
     const route = useRoute()
     const { notify, info } = inject('dialog')

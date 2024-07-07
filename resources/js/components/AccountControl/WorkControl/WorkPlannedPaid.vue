@@ -60,7 +60,7 @@
         </div>
         <div style="height: calc(100% - 70px);overflow: hidden auto">        
             <table>
-                <thead style="position:sticky; top: -1px;">
+                <thead style="position:sticky; top: -1px;z-index: 1;">
                     <tr>
                         <th>名前</th>
                         <th>当年度有休付与日</th>
@@ -83,12 +83,7 @@
                             </div>
                         </td>
                         <td>
-                            <CommandButton 
-                                :buttons="[{
-                                    name: '変更'
-                                }]"
-                                @select="changePlannedShifts(user)"
-                            />
+                            <CommandButton :buttons="[{ title: '変更', action:() => changePlannedShifts(user) }]"/>
                         </td>
                     </tr>
                 </tbody>

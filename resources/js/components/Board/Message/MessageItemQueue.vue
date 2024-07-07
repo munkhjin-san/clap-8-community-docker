@@ -162,7 +162,7 @@ import { mentionFormatter } from '@/utils/tools';
                 ? props.message.user.name
                 : '非アクティブユーザー';
             })
-            const sendToSocket = inject('sendToSocket')
+
             const sendMessage = async() => {
                 if(!resending.value && props.message.error) {
                     return
@@ -199,7 +199,6 @@ import { mentionFormatter } from '@/utils/tools';
                         tempUnique.setTempUniqueIds(u_list)
                         
                     }
-                    // sendToSocket(response.data.socket)
                 }catch (e) {
                     sendError(props.message)
                     resending.value = false

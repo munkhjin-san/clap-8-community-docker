@@ -87,7 +87,6 @@
                         rules=""
                         name="recordUsers"
                         ref="recordUsers"
-                        :multiple="true"
                         :path="'post_get_all_possible_users'"
                         v-model="targetUsers"
                         :closeOnSelect="false"

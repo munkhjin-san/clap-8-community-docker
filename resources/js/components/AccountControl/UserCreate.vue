@@ -190,7 +190,6 @@
                         placeHolder="サブアカウント"
                         v-model="subParams.linked"
                         :options="linkables"
-                        :multiple="true"
                         rules=""
                         name="workgroup_users"
                         :closeOnSelect="false"
@@ -290,7 +289,7 @@
             const validateTargets = targets.filter( target => target !== null)
             let result = true
             for(const target of validateTargets){                
-                const val = await target?.validate() || false
+                const val = await target?.validate() || {valid: false}
                 result = result * val.valid
             }
            

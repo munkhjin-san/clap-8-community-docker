@@ -37,7 +37,6 @@
                     rules="required"
                     name="recordUsers"
                     ref="recordUsers"
-                    :multiple="true"
                     :path="`post_get_${appName}_users`"
                     :closeOnSelect="false"
                     v-model="to_users"
@@ -219,7 +218,7 @@ import FileUploader from '../Form/FileUploader.vue'
         let result = true
         for(const target of targets){
             
-            const val = await target?.validate() || false
+            const val = await target?.validate() || {valid: false}
             result = result * val.valid
         }
         if (!result || dateComparsionError.value.hasError) return
@@ -245,7 +244,7 @@ import FileUploader from '../Form/FileUploader.vue'
     
             axios.post('post_add_record',params)
             .then(response => setTimeout(() => {
-                closeModal(true, response.data.id)
+                closeModal(true, response.data.record.id)
                 info(props.editTarget ? '編集しました。' :'投稿しました。')
             },0))
             .catch(function (error) {

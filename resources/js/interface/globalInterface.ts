@@ -18,3 +18,7 @@ export interface MenuList {
     children?: MenuList[]; 
     parent?: HTMLElement | null
 }
+export interface CommandButtonInterface {
+    title: string;
+    action: () => void;
+}

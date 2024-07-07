@@ -63,10 +63,7 @@ class AdminWorkController extends Controller{
                 $q->where('type_id', 40)
                 ->where('value_int', '=' , 1)
                 ->select('type_id', 'value_int', 'date', 'table_record_id');
-                }])
-              ->with(['timecard_costs' => function ($q) {
-                $q->with('user');
-              }]);
+                }]);
         }])
         ->with(['attendance_records' => function($q) use($month){
             $q->where('date_year_month', $month)->select('month_petition', 'user_id');
@@ -169,7 +166,6 @@ class AdminWorkController extends Controller{
             
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
-            // $time_card_costs = [];
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 16);
                 $totalPaidHours = 0;
@@ -190,18 +186,6 @@ class AdminWorkController extends Controller{
                 $workTimeInSeconds = 0;
                 if (count($user->time_card_records) > 0) {
                     $workTimeInSeconds = $user->time_card_records->sum('work_time');
-                    // foreach($user->time_card_records as $record){
-                    //     $timecard_costs = $record->timecard_costs ?? [];
-                    //     if (empty($timecard_costs)) {
-                    //         continue;
-                    //     }
-                    //     foreach ($timecard_costs as $cost) {
-                    //         if (!empty($cost->toArray())) {
-                    //             $time_card_costs[] = $cost->toArray();
-                    //         }
-                    //     }
-                    // }
-                    
                 }
                 $month_work_time_array2[$user->id] = $workTimeInSeconds + $totalPaidHours;
             }

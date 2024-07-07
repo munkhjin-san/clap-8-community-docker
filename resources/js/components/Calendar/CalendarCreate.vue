@@ -29,7 +29,6 @@
                     name="calendarUsers"
                     ref="calendarUsers"
                     path="calendar_more_users"
-                    :multiple="true"
                     :closeOnSelect="false"
                     v-model="calendar_users"
                 />
@@ -476,7 +475,7 @@ import { useSharingDataStore } from '@/store/sharingData'
         let result = true
         for(const target of targets){
             
-            const val = await target?.validate() || false
+            const val = await target?.validate() || {valid: false}
             result = result * val.valid
         }
         if (!result) return

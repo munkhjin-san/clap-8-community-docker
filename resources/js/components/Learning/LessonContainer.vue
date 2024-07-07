@@ -10,10 +10,11 @@
                 </svg> 
             </div>
             <div class="lesson-nav-bar">
-                <div class="lesson-breadcumb" v-for="(navi, index) in route.matched" @click="router.push(naviItem(navi, index).route)">
-                    <span style="margin-right: 5px;">{{ naviItem(navi, index).label }}</span>
+                <div v-for="(path, index) in pathGenerator">
+                    <span class="lesson-breadcumb" @click="router.push(path.route)" style="margin-right: 5px;">{{ path.label }}</span>
+                    <span v-if="index + 1 !== pathGenerator.length">／</span>
                 </div>
-            </div>                
+            </div>   
         </div>
         <div style="height: calc(100% - 50px);">    
             <div v-if="noData" style="line-height: 1.8;height:100%;display: flex;justify-content: center;align-items: center;">
@@ -120,7 +121,6 @@
     const route = useRoute()
     const theme = inject('getThemes')
     const materials = ref([])
-
     const portfolio = ref(null)
     const Explain = defineAsyncComponent(() =>
         import('./LessonExplain.vue')
@@ -157,51 +157,30 @@
             getLessonPortfolios()
         }
     })
-    const naviItem = (item, index) => {
-        if(index == 0){
-            return { label: '', route: {}}
-        }else if(index == 1){
-            return {
-                label: props.selectedTopic ? props.selectedTopic.title : '',
-                route: { name: item.name}
-            }
-        }else if(index == 2){
-            return {
-                label: getTitlePrefix(item.name),
-                route: {name: item.name}
-            }
+    const pathGenerator = computed(() => {
+        const relatedRoutes = route.matched.filter(rt => !['learning', 'top'].includes(rt.name))
+        const items = []
+        const base = {
+            label: props.selectedTopic ? props.selectedTopic.title : '',
+            route: {name: 'top'}
         }
-        else if(index == 3){
-            return {
-                label: getSubPrefix.value,
-                route: {name: item.name}
-            }
-        }
-        else if(index == 4){
-            return {
-                label: ' ／ 詳細',
-                route: {name: item.name}
-            }
-        }
-    }
-    const navigations = computed(() => {
-       return route.path.split('/')
+        items.push(base)
+        
+        relatedRoutes.forEach(rt => {
+            const label = rt.name == 'material' ? materialTitle.value : rt.meta?.nameJp
+            items.push({label: label, route: {name: rt.name}})
+        });
+        return items
     })
-
-    const title = computed(() => {
-        const prefix = getTitlePrefix(route.name);
-        const topicTitle = props.selectedTopic ? props.selectedTopic.title : '';
-        const subPrefix = getSubPrefix.value
-        return `${topicTitle}${prefix}${subPrefix}`;
-    })
-    const getSubPrefix = computed(() => {
+    const materialTitle = computed(() => {
         const materialId = route.params?.materialId
         if(materialId && materials.value){
             const title = materials.value.filter(ob => ob.id == materialId)[0]?.title
-            return title ? ` ／ ${title}` : ''
+            return title
         }
         return ''
     })
+
     const status = computed(() => {
         if(props.selectedTopic){
             if(props.selectedTopic.lesson_portfolio && props.selectedTopic.lesson_portfolio.status != null){
@@ -210,13 +189,7 @@
             return 0
         }
     })
-    const currentStatus = computed(() => {
-        if(props.selectedTopic){
-            return props.selectedTopic.lesson_portfolio && props.selectedTopic.lesson_portfolio.status != 3 || !props.selectedTopic.lesson_portfolio
-        }else{
-            return false
-        }
-    })
+
     const goBack = () => {
         if(route.name == 'top'){
             router.push({name : 'learning'})
@@ -227,22 +200,6 @@
         }else{
             router.go(-1)
         }
-    }
-    const getTitlePrefix = (name) => {
-        const titleMappings = {
-            top: '',
-            basic: ' ／ 基礎知識',
-            more: ' ／ 基礎知識',
-            section: ' ／ 基礎知識',
-            portfoliodraft: ' ／ ポートフォリオ作成',
-            discussion: ' ／ グループディスカッション',
-            portfolio: ' ／ ポートフォリオ',
-            form: ' ／ アンケート',
-            portfolioview: '／ ポートフォリオ作成例',
-            finish: '',
-        };
-
-        return titleMappings[name] || '';
     }
     const getLessonPortfolios = async() => {
         axios.post('/get_lesson_portfolio', {lesson_theme_id: route.params.lessonThemeId}).then(response => {

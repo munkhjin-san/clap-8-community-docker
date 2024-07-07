@@ -65,6 +65,7 @@
             errorMessage.value = sessionStorage.getItem('loginError')
             sessionStorage.removeItem('loginError')    
         }
+        localStorage.removeItem('hiding_alerts')
     })       
 
 </script>

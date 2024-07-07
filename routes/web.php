@@ -20,7 +20,6 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\LessonController;
-use App\Http\Controllers\AdminAlertController;
 use App\Http\Controllers\TaskController;
 use App\Models\User;
 /*
@@ -202,11 +201,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
         Route::post('/get_planned_shifts', [AdminWorkController::class, 'get_planned_shifts']);
         Route::post('/change_planned_shifts', [AdminWorkController::class, 'change_planned_shifts']);
-
-        Route::post('/alert_templates_item', [AdminAlertController::class, 'create_alert_templates_item']);
-        Route::delete('/alert_templates_item', [AdminAlertController::class, 'delete_alert_templates_item']);
-        Route::get('/alert_templates_list', [AdminAlertController::class, 'alert_templates_list']);
-        Route::get('/get_related_alerts', [AdminAlertController::class, 'get_related_alerts']);
         
         //User
         Route::post('/user_generate_file_key', [UserController::class, 'generate_key']);
@@ -289,6 +283,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_kadai_themes', [MemberController::class, 'get_kadai_themes']);
         Route::post('/get_applied_issues', [MemberController::class, 'get_applied_issues']);
         Route::post('/update_issue', [MemberController::class, 'update_issue']);
+        Route::get('/get_performance_options', [MemberController::class, 'get_performance_options']);
+        Route::post('/get_performance_records', [MemberController::class, 'get_performance_records']);
+        Route::post('/get_job_evaluation', [MemberController::class, 'get_job_evaluation']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);

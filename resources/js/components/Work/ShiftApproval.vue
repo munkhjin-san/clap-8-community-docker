@@ -66,8 +66,19 @@
                                         <span>{{statuses[shift[user.id]?.status_flag]}}</span>
                                     </div>
                                     <div v-if="authorityCheck(user, shift[user.id]) && shift[user.id]?.status_flag !== 1" class="authority-buttons">
-                                        <CommandButton customClass="custom-padding" v-if="shift[user.id]?.status_flag == 2" :buttons="[{name: '承認', value: 1}, {name: '差戻', value: 2}]" @select="(button) => button.value === 1 ? shiftApprove(shift[user.id], 3) : shiftApprove(shift[user.id])"/>
-                                        <CommandButton customClass="custom-padding" v-else-if="shift[user.id]?.status_flag == 3" :buttons="[{name: '取消'}]" @select="shiftApprove(shift[user.id], 2)"/>
+                                        <CommandButton 
+                                            customClass="custom-padding" 
+                                            v-if="shift[user.id]?.status_flag == 2" 
+                                            :buttons="[
+                                                {title: '承認', action:() => shiftApprove(shift[user.id], 3)}, 
+                                                {title: '差戻', action:() => shiftApprove(shift[user.id])}
+                                            ]" 
+                                        />
+                                        <CommandButton 
+                                            customClass="custom-padding" 
+                                            v-else-if="shift[user.id]?.status_flag == 3" 
+                                            :buttons="[{title: '取消', action:() => shiftApprove(shift[user.id], 2)}]" 
+                                        />
                                     </div>
                                 </div>
                             </td>

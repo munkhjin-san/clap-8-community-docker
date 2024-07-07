@@ -32,7 +32,6 @@
                     <MemberSelector 
                         placeHolder="メンバー選択（必須）"
                         rules="required"
-                        :multiple="true"
                         name="boardMembers"
                         ref="boardMembers"
                         path="board_possible_users"
@@ -196,7 +195,7 @@ import { useAuthUserStore } from '@/store/auth';
         const targets = validateTargets.value.filter(ob => ob !== null)
         let result = true
         for(const target of targets){            
-            const val = await target?.validate() || false
+            const val = await target?.validate() || {valid: false}
             result = result * val.valid
         }
         if (!result) return

@@ -2,7 +2,7 @@ import _ from 'lodash';
 window._ = _;
 
 import 'bootstrap';
-
+import { instance } from '@/utils/broadcaster'
 /**
  * We'll load the axios HTTP library which allows us to easily issue requests
  * to our Laravel back-end. This library automatically handles sending the
@@ -14,14 +14,27 @@ window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 window.axios.interceptors.response.use(
-    response => response,
+    response => {
+
+        if(response?.data?.socket && instance && instance?.connected){
+            const emits = response.data.socket
+            console.log('catchSocket', instance.connected)
+            if(emits && Array.isArray(emits) && typeof emits[Symbol.iterator] === 'function'){
+                emits.forEach(emitData => {
+                    instance.emit(emitData?.event, emitData?.data)
+                });
+            }
+            
+        }
+        return response
+    },
     error => {
         if (error.response && error.response.status === 401) {
             window.sessionStorage.setItem('loginError', 'セキュリティ保護のためもう一度ログインしてください。')
             window.location.href = '/login'
         }
         return Promise.reject(error)
-    }
+    },
 )
 /**
  * Echo exposes an expressive API for subscribing to channels and listening

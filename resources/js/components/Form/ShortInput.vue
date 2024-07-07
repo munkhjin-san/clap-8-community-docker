@@ -7,6 +7,8 @@
                 v-model="value" 
                 :name="name" 
                 :type="type" 
+                :max="max ? max : ''"
+                :min="min ? min : ''"
                 :class="['g-text', customClass, {'date-color' : theme.dark }]"   
                 :style="customStyle"              
             />
@@ -29,7 +31,9 @@
         type: String,
         customClass: String,
         customStyle: String,
-        initialValue: String
+        initialValue: String,
+        max: String,
+        min: String,
     })
     onMounted(() => {
         if(props.initialValue){

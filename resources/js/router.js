@@ -106,6 +106,32 @@ const routes = [
                     }
                 },
             },
+            // {
+            //     path: 'performance-goals',
+            //     component: () => import('./components/Profile/Issue/Performance.vue'),
+            //     name: 'performance-goals',
+            //     props: true,
+            //     meta: {
+            //         title: 'CLAP - 成果目標',
+            //     },
+            //     beforeEnter: (to, from, next) => {
+            //         const rootElement = document.getElementById('app');
+            //         const userId = rootElement.getAttribute('data-user-id');
+
+            //         if (to.params.userId !== userId) {
+            //             const currentUserIdRoute = `/user/${userId}/salary-issue`;
+                        
+            //             if (to.path !== currentUserIdRoute) {
+            //                 next(currentUserIdRoute);
+            //             } else {
+            //                 next();
+            //             }
+            //         } else {
+            //             next();
+            //         }
+            //     },
+
+            // }
 
         ],
         beforeEnter: (to, from, next) => {
@@ -288,6 +314,7 @@ const routes = [
         name: 'learning',
         meta: {
             title: 'CLAP - ラーニング',
+            titleJp: 'ラーニング'
         }, 
         component: () => import('./components/Learning/LearningRoot.vue'),
         children: [
@@ -299,6 +326,9 @@ const routes = [
                     {
                         path: 'evaluate',
                         name: 'evaluate',
+                        meta: {
+                            nameJp: 'ポートフォリオ'
+                        },
                         component: () => import('./components/Learning/Evaluation.vue'),
                         beforeEnter: (to, from, next) => {
                             const auth = useAuthUserStore()
@@ -319,6 +349,9 @@ const routes = [
                     {
                         path: 'basic',
                         name: 'basic',
+                        meta: {
+                            nameJp: '基礎知識'
+                        },
                         props: true,
                         component: () => import('./components/Learning/BasicKnowledge/BasicContainer.vue'),
                         children: [
@@ -342,39 +375,92 @@ const routes = [
                                         }
                                     },
                                 ]
-                            }
+                            },
+                            {
+                                path:'episode',
+                                name:'episode',
+                                props: true,
+                                meta: {
+                                    nameJp: 'エピソード'
+                                },
+                                component: () => import('./components/Learning/BasicKnowledge/Draft/Episode.vue')
+                            },
+                            {
+                                path:'story',
+                                name:'story',
+                                props: true,
+                                meta: {
+                                    nameJp: 'ポートフォリオ内容'
+                                },
+                                component: () => import('./components/Learning/BasicKnowledge/Draft/Story.vue')
+                            },
+                            {
+                                path:'title',
+                                name:'title',
+                                props: true,
+                                meta: {
+                                    nameJp: 'ポートフォリオタイトル'
+                                },
+                                component: () => import('./components/Learning/BasicKnowledge/Draft/Title.vue')
+                            },
+                            {
+                                path:'review',
+                                name:'review',
+                                props: true,
+                                meta: {
+                                    nameJp: 'AI分析'
+                                },
+                                component: () => import('./components/Learning/BasicKnowledge/Draft/Review.vue')
+                            },
+                            {
+                                path:'summary',
+                                name:'summary',
+                                props: true,
+                                meta: {
+                                    nameJp: 'サマリー'
+                                },
+                                component: () => import('./components/Learning/BasicKnowledge/Draft/Summary.vue')
+                            },
                             
                         ]
                     },
                     {
                         path: 'discussion',
                         name: 'discussion',
+                        meta: {
+                            nameJp: 'グループディスカッション'
+                        },
                         props: true,
                         component: () => import('./components/Learning/Discussion/GroupDiscussion.vue'),
                     },
-                    {
-                        path: 'portfoliodraft',
-                        name: 'portfoliodraft',
-                        props: true,
-                        component: () => import('./components/Learning/BasicKnowledge/BasicDraftPortfolio.vue'),
-                        // children: [
-                        //     {
-                        //         path:'portfolioview',
-                        //         name:'portfolioview',
-                        //         props: true,
-                        //         component: () => import('./components/Learning/BasicKnowledge/PortfolioView.vue')
-                        //     }
-                        // ]
-                    },
+                    // {
+                    //     path: 'portfoliodraft',
+                    //     name: 'portfoliodraft',
+                    //     meta: {
+                    //         nameJp: 'ポートフォリオ作成'
+                    //     },
+                    //     props: true,
+                    //     component: () => import('./components/Learning/BasicKnowledge/BasicDraftPortfolio.vue'),
+                    //     children: [
+                            
+                    //     ]
+                    // },
+                    
                     {
                         path:'portfolioview',
                         name:'portfolioview',
+                        meta: {
+                            nameJp: 'ポートフォリオ一覧'
+                        },
                         props: true,
                         component: () => import('./components/Learning/BasicKnowledge/PortfolioView.vue')
                     },
                     {
                         path: 'portfolio',
                         name: 'portfolio',
+                        meta: {
+                            nameJp: 'ポートフォリオ完成'
+                        },
                         props: true,
                         component: () => import('./components/Learning/Portfolio/CompletePortfolio.vue')
                     },
@@ -382,11 +468,17 @@ const routes = [
                     {
                         path: 'form',
                         name: 'form',
+                        meta: {
+                            nameJp: 'アンケート'
+                        },
                         component: () => import('./components/Learning/Portfolio/LessonForm.vue')
                     },
                     {
                         path: 'finish',
                         name: 'finish',
+                        meta: {
+                            nameJp: '完了'
+                        },
                         component: () => import('./components/Learning/Portfolio/LessonFinish.vue')
                     },
                 ],

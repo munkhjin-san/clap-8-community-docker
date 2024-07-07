@@ -57,7 +57,7 @@ export const useAuthUserStore = defineStore('authUser', {
     },
     async setActiveUser(payload:number){
         const response = await axios.patch('/set_active_linked_account', {id: payload}).then(res => res.data)
-        this.setUser(response)
+        this.setUser(response?.user)
     }    
   },
   getters:{

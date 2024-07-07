@@ -8,13 +8,13 @@
         
         <td :class="startEarly">
             <div v-if="item.ability.start_stamp" class="w-hover-button mb-space">
-                <CommandButton @select="start(item)" :buttons="[{name: '始業'}]"/>
+                <CommandButton :buttons="[{title: '始業', action:() => start(item)}]"/>
             </div>
             <div v-else>{{ startTimeFormatted }}</div>
         </td>
         <td :class="goLately">
             <div v-if="item.ability.end_stamp" class="w-hover-button mb-space">
-                <CommandButton @select="end(item)" :buttons="[{name: '終業'}]"/>
+                <CommandButton :buttons="[{title: '終業', action: () => end(item)}]"/>
             </div>
             <div v-else>{{ endTimeFormatted }}</div>
         </td>
@@ -23,11 +23,8 @@
         <td>
             <div style="white-space: pre-wrap;" v-if="item.time_card?.stamp_flag == 1">{{ breakTimeFormatted }}</div>
             <div v-if="item.ability.break_stamp" class="w-hover-button mb-space">
-                <CommandButton @select="takeBreak(item)" :buttons="[{name: item.time_card?.stamp_flag == 0 ? '休憩' : '再開'}]"/>
+                <CommandButton :buttons="[{title: item.time_card?.stamp_flag == 0 ? '休憩' : '再開', action:() => takeBreak(item)}]"/>
             </div>
-            <!-- <div v-else-if="item.time_card?.stamp_flag == 2" class="w-hover-button mb-space">
-                <CommandButton @select="takeBreak(item)" :buttons="[{name: '続く'}]"/>
-            </div> -->
             
         </td>
         <!-- <td>{{ item.time_card?.work_group?.name }}</td> -->
@@ -97,7 +94,7 @@
         <td>
             <div class="w-hover-button center-mobile">
                 
-                <CommandButton v-if="hasAction" @select="emit('procedureStart', item)" :buttons="[{name: '手続き'}]"/>
+                <CommandButton v-if="hasAction" :buttons="[{title: '手続き', action:() => emit('procedureStart', item)}]"/>
                 
             </div>
         </td>

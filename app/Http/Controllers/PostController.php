@@ -349,15 +349,29 @@ class PostController extends Controller
                         'last_' . $request->path => $record->id
                     ]);
                 }
-                
-                
-            $rebound = array(
-                "new_post_from" => Auth::id(),
+            
+            $data = array(
                 "app_name" => $request->path,
-                "record_id" => $record->id
+                "record_id" => $record->id,
             );
-            event(new MessageSent($rebound));            
-            return response()->json($record);
+            $socket = array();
+            array_push($socket, ["event" => 'post:new', "data" => $data]);
+            array_push($socket, ["event" => 'post:badge', "data" => []]);  
+
+            // $socket = array(
+            //     array(
+            //         "event" => "post:new",
+            //         "data" => array(
+            //             "app_name" => $request->path,
+            //             "record_id" => $record->id,
+            //         )
+            //     )
+            // );
+            // event(new MessageSent($rebound));            
+            return response()->json([
+                "socket" => $socket,
+                "record" => $record
+            ]);
         }
     }
     public function challenge_charge_to(Request $request){

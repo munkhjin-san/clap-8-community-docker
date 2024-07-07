@@ -38,7 +38,6 @@
                                 placeHolder="メンバー選択"
                                 rules="required"
                                 v-model="editingUserList"
-                                :multiple="true"
                                 name="groupUsers"
                                 ref="groupUsers"
                                 path="calendar_more_users"

@@ -137,6 +137,8 @@ import { useResponsive } from '@/store/responsive';
 import { useSharingDataStore } from '@/store/sharingData'
 import { useBadgeStore } from '@/store/badge'
 import { useTopTags } from '@/store/topTags'
+import { instance } from '@/utils/broadcaster';
+import { onUnmounted } from 'vue';
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
@@ -177,7 +179,7 @@ import { useTopTags } from '@/store/topTags'
             const query = getQuery()
             fetchPosts(query, null)
         }
-        
+        instance.on('post:new', postSocketHandler)
         hasQuery.value = Object.getOwnPropertyNames(route.query).length ? true : false
         
     
@@ -192,22 +194,23 @@ import { useTopTags } from '@/store/topTags'
         }
         getTopTags()
     })
-    const onPusher = (e) =>{
-        const data = e && e.message && e.message.new_post_from ? e.message : null
-        if(data && data.new_post_from !== auth.id && data.app_name == appName.value && data.record_id && !hasQuery.value){
+    onUnmounted(() => {
+        instance.off('post:new', postSocketHandler)
+    })
+    const postSocketHandler = (data) =>{
+        console.log(data)
+        const payload = data && data.length ? data[0] : null
+      
+        if(payload && payload?.app_name == appName.value && !hasQuery.value){
+            console.log('payload', payload)
             const query = {
-                id: data.record_id,
+                id: payload.record_id,
                 search_tags: null
             }
-            fetchPosts(query, data.record_id)
+            fetchPosts(query, payload.record_id)
         }
     }
     const getTopTags = async() => {
-        // axios.get(`/get_top_tags?app_name=${appName.value}`).then( response => {
-        //     tagsList.value = response.data
-            
-            
-        // })
         if(topTags.appName == appName.value) {
             tagLoading.value ++
             return
@@ -361,7 +364,6 @@ import { useTopTags } from '@/store/topTags'
         commentCount: (num, id) => setCommentCount(num, id)
     })
 
-    defineExpose({onPusher})
 </script>
 <style scoped lang="scss">
 .active-query{

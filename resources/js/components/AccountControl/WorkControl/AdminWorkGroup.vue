@@ -30,16 +30,9 @@
                         <div style="display: flex; justify-content: center; gap: 10px;">
                             <CommandButton 
                                 :buttons="[
-                                    {
-                                        name: '編集',
-                                        value: 1
-                                    },
-                                    {
-                                        name: '削除',
-                                        value: 2
-                                    }
+                                    { title: '編集', action: () => openModal(item) },
+                                    { title: '削除', action: () => deleteWorkGroup(item)}
                                 ]"
-                                @select="(button) => button.value == 1 ? openModal(item) : deleteWorkGroup(item)"
                             />
                         </div>
                         

@@ -127,6 +127,7 @@ import SearchMessage from './Search/SearchMessage.vue'
 import BoardEdit from './BoardEdit.vue'
 import CopyWindow from './Message/CopyWindow.vue'
 import ConfirmWindow from './Message/ConfirmWindow.vue'
+import { instance } from '@/utils/broadcaster'
     const badge = useBadgeStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -186,6 +187,7 @@ import ConfirmWindow from './Message/ConfirmWindow.vue'
     const messageContainerRef = ref(null)
     const { confirm, notify, info } = inject('dialog');
     const keyboardHeight = ref(0)
+    const activeListeners = new Set();
     watch(() => focused.active, (after) => {
         if(after){
             if(openedBoard.value && badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[openedBoard.value.id]){
@@ -226,7 +228,9 @@ import ConfirmWindow from './Message/ConfirmWindow.vue'
     onUnmounted(() => {        
         if(navigator.virtualKeyboard){
             navigator.virtualKeyboard.removeEventListener('geometrychange', keyboardHeightListener);
-        }        
+        }    
+        instance.off('refresh:board', updateBoardHandler)    
+        clearListeners()
     })
     onMounted(() => {
         const trayIndex = localStorage.getItem('favorite_tray');
@@ -259,35 +263,25 @@ import ConfirmWindow from './Message/ConfirmWindow.vue'
         getBoardList('mounted')
         getUnsentMessages();
         badge.getTaskBadge();      
+        instance.on('refresh:board', updateBoardHandler)
     })        
-
+    const updateBoardHandler = (data) => {
+        const related = data && data.length? data[0] : []
+        if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
+            getBoardList()
+        }
+    }
+    const socketMessageHandler = (data) => {
+        const messages = data && data.length ? data[0] : []
+        const message = messages && messages.length ? messages[0] : null        
+        if(message && openedBoard.value && listType.value == 'normal'){
+            getMessageList('pusher'); 
+        }       
+        
+    }
     const onPusher = (e) => {
-        if(e.message.board_id && e.message.sender !== auth.activeUser.id){
-            const index = filteredAllBoard.value.map( ob => ob.id).indexOf(e.message.board_id);                  
-            if(index > -1){
-                getBoardList('pusher');
-                badge.getBoardBadge('pusher')
-            }
-            if(openedBoard.value && openedBoard.value.id == e.message.board_id && listType.value == 'normal' && e.message.sender !== auth.activeUser.id){
-                getMessageList('pusher'); 
-            }
-        }
-        if(e.message.new_board_members){
-            const index = e.message.new_board_members.indexOf(auth.activeUser.id);                  
-            if(index > -1){
-                getBoardList('pusher');
-                badge.getBoardBadge('pusher')
-            }
-            
-        }
-        if(e.message.board_updated){                    
-            getBoardList('pusher');
-            badge.getBoardBadge('pusher')                
-            
-        }
-        // if(e.message && e.message.updateId){  
-            
-        // }
+
+
     }
     const openedBoard = computed(() =>{
         if(filteredAllBoard.value && filteredAllBoard.value.length && openedBoardId.value){
@@ -525,6 +519,7 @@ import ConfirmWindow from './Message/ConfirmWindow.vue'
             }          
         }
     }
+
     const openBoard = (item, second_atr) => {
         messageLoader.value = true
         openedBoardId.value = item.id           
@@ -573,9 +568,18 @@ import ConfirmWindow from './Message/ConfirmWindow.vue'
             routeWatchLock.value = false
         }, 100);
 
-        const mentionable = item.board_to_users.filter(ob => ob.user_id !== auth.activeUser.id && ob.user)
+        clearListeners()
+        instance.on(`board:${item.id}`, socketMessageHandler)
+        activeListeners.add(`board:${item.id}`);
     }
-
+    const clearListeners = () => {
+        activeListeners.forEach(listener => {
+            if (listener.startsWith('board:') || listener.startsWith('task:')) {
+                instance.off(listener, socketMessageHandler);
+                activeListeners.delete(listener);
+            }
+        });
+    }
     const getMessageList = async(source, queue) => {
         if(!openedBoard.value) return
         try {

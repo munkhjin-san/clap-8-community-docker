@@ -44,10 +44,7 @@
                         </div>
                     </div>
                     <div class="button-wrapper">
-                        <CommandButton 
-                            :buttons="[{name: '編集'}]"
-                            @select="openModal(item)"
-                        />
+                        <CommandButton :buttons="[{title: '編集', action:() => openModal(item)}]"/>
                         <!-- <button type="submit" @click="openModal(item)" class="account-btn cursor-pointer">
                             編集
                         </button> -->

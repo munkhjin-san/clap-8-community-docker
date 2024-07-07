@@ -28,12 +28,14 @@
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M22 8L21.9984 10L19.4934 12.883C21.0823 13.3184 22.25 14.7728 22.25 16.5C22.25 18.5711 20.5711 20.25 18.5 20.25C16.674 20.25 15.1528 18.9449 14.8184 17.2166L16.7821 16.8352C16.9384 17.6413 17.6481 18.25 18.5 18.25C19.4665 18.25 20.25 17.4665 20.25 16.5C20.25 15.5335 19.4665 14.75 18.5 14.75C18.214 14.75 17.944 14.8186 17.7056 14.9403L16.3992 13.3932L19.3484 10H15V8H22ZM4 4V11H11V4H13V20H11V13H4V20H2V4H4Z"></path></svg>
             </button>
 
-            <!-- <button @click="editor.chain().focus().toggleOrderedList().run()" :class="['toolbar-button', {'command-active': editor.isActive('orderedList')}]">
+
+            <button @click="editor.chain().focus().toggleOrderedList().run()" :class="['toolbar-button', {'command-active': editor.isActive('orderedList')}]">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M5.75024 3.5H4.71733L3.25 3.89317V5.44582L4.25002 5.17782L4.25018 8.5H3V10H7V8.5H5.75024V3.5ZM10 4H21V6H10V4ZM10 11H21V13H10V11ZM10 18H21V20H10V18ZM2.875 15.625C2.875 14.4514 3.82639 13.5 5 13.5C6.17361 13.5 7.125 14.4514 7.125 15.625C7.125 16.1106 6.96183 16.5587 6.68747 16.9167L6.68271 16.9229L5.31587 18.5H7V20H3.00012L2.99959 18.8786L5.4717 16.035C5.5673 15.9252 5.625 15.7821 5.625 15.625C5.625 15.2798 5.34518 15 5 15C4.67378 15 4.40573 15.2501 4.37747 15.5688L4.3651 15.875H2.875V15.625Z"></path></svg>
             </button>
             <button @click="editor.chain().focus().toggleBulletList().run()" :class="['toolbar-button', {'command-active': editor.isActive('bulletList')}]">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 4H21V6H8V4ZM3 3.5H6V6.5H3V3.5ZM3 10.5H6V13.5H3V10.5ZM3 17.5H6V20.5H3V17.5ZM8 11H21V13H8V11ZM8 18H21V20H8V18Z"></path></svg>
-            </button> -->
+            </button>
+   
             <div style="display: flex;position: relative;">
                 <button @click.stop="colorPickerView = 55" :class="['toolbar-button', {'command-active': editor.isActive('textStyle', 'color')}]">
                     <svg style="color:#ff8787" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M5.55397 22H3.3999L10.9999 3H12.9999L20.5999 22H18.4458L16.0458 16H7.95397L5.55397 22ZM8.75397 14H15.2458L11.9999 5.88517L8.75397 14Z"></path></svg>
@@ -102,6 +104,7 @@
 </template>  
 <script setup>
 import { useEditor, EditorContent } from '@tiptap/vue-3'
+import BulletList from '@tiptap/extension-bullet-list'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
@@ -123,7 +126,8 @@ const editor = useEditor({
     Highlight.configure({
         multicolor: true,
     }),
-    Image
+    Image,
+    // BulletList
   ],
 })
 const colorPickerView = ref(null)
@@ -136,8 +140,7 @@ onMounted(() =>{
 })
 defineExpose({editor})
 const colorShadesArray = [
-  ['var(--primary-color)', 'var(--background-color)'],
-  ['#000000', '#666666', '#999999', '#cccccc', '#d9d9d9', '#f3f3f3', '#ffffff'],
+  ['var(--primary-color)', 'var(--background-color)', '#999999', '#cccccc', '#d9d9d9', '#f3f3f3', '#ffffff'],
   ['#980000', '#ff9900', '#ffff00', '#00ffff', '#4a86e8', '#9900ff', '#ff00ff'],
   ['#e6b8af', '#fce5cd', '#fff2cc', '#d0e0e3', '#c9daf8', '#d9d2e9', '#ead1dc'],
   ['#dd7e6b', '#f9cb9c', '#ffe599', '#a2c4c9', '#a4c2f4', '#b4a7d6', '#d5a6bd'],

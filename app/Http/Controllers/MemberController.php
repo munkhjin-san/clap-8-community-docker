@@ -84,52 +84,32 @@ class MemberController extends Controller
         ->orderBy('sort_flag', 'asc')
         ->get();   
 
-        $allEmployees = collect($list)->pluck('employees')->flatten()->filter(function ($employee) {
-            return $employee->user_code != null;
-        })->pluck('user_code')->toArray();
-        $strings = array_map('strval', $allEmployees);
-        $result = '(' . implode(', ', $strings) . ')';
-        $queryParams = [
-            'app' => '9',
-            "query" => "社員コード in $result limit 200",
-            'fields' => ['$id', '社員コード', '氏名', '文字列__1行__15']
-        ];
-        
-        $queryString = http_build_query($queryParams);
-        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
-        $headers = [
-            'Authorization' => 'Basic', 
-            'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
-        ];
-        $response = Http::withHeaders($headers)->get($url);
-        $responseContent = $response->body();
-        $responseData = $response->json();
+
 
         if(!$sort){
-            $departments = collect($list)->map(function ($department) use ($responseData) {
-                $department->employees = collect($department->employees)->map(function ($employee) use ($responseData) {
-                    $user_code = $employee['user_code'];
-                    if(isset($responseData['records'])){
-                        $index = collect($responseData['records'])->search(function ($item) use ($user_code) {
-                            return isset($item['社員コード']) && $item['社員コード']['value'] == $user_code;
-                        });
-                        if($index){
-                            $shokkai = array(
-                                "id" => (int) $responseData['records'][$index]['$id']['value'],
-                                "name" => $responseData['records'][$index]['氏名']['value'],
-                                "level" => $responseData['records'][$index]['文字列__1行__15']['value'],
-                                "code" => $responseData['records'][$index]['社員コード']['value'],
-                            );
-                            $employee['shokkai'] = $shokkai;
-                        }                    
-                    }
-                    return $employee;
-                })->toArray();
-                return $department;
-            })->toArray();
-            return $departments;
+            return $list;
         }else{
-
+            $allEmployees = collect($list)->pluck('employees')->flatten()->filter(function ($employee) {
+                return $employee->user_code != null;
+            })->pluck('user_code')->toArray();
+    
+            $strings = array_map('strval', $allEmployees);
+            $result = '(' . implode(', ', $strings) . ')';
+            $queryParams = [
+                'app' => '9',
+                "query" => "社員コード in $result limit 200",
+                'fields' => ['$id', '社員コード', '氏名', '文字列__1行__15']
+            ];
+            
+            $queryString = http_build_query($queryParams);
+            $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+            $headers = [
+                'Authorization' => 'Basic', 
+                'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
+            ];
+            $response = Http::withHeaders($headers)->get($url);
+            $responseContent = $response->body();
+            $responseData = $response->json();
             $pre = [];
             $pr = [];
             $sks = array(
@@ -663,6 +643,7 @@ class MemberController extends Controller
 
         $response = Http::withHeaders($headers)->get($url);
         $responseData = $response->json();
+        
         if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])){
             $record = $responseData['records'][0];
             $ready_texts = [];
@@ -814,5 +795,75 @@ class MemberController extends Controller
 
         
 
+    }
+
+    public function get_performance_options(Request $request) {
+        $queryParams = [
+            'app' => '954',
+        ];
+        $queryString = http_build_query($queryParams);
+        $url_app = 'https://glowd-hldgs.cybozu.com/k/v1/app/form/fields.json?' . $queryString;
+        $user_name = env('KINTONE_USER_NAME');
+        $password = env('KINTONE_PASSWORD');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        $headers = [
+            'Authorization' => 'Basic', 
+            'X-Cybozu-Authorization' => $x_token
+        ];
+        $response = Http::withHeaders($headers)->get($url_app);
+        $responseData = $response->json();
+        return response()->json($responseData['properties']['ドロップダウン']['options']);
+        
+        
+    }
+    public function get_performance_records(Request $request) {
+        $queryParams = [
+            'app' => '954',
+            "query" =>  '社員ｺｰﾄﾞ = ' . Auth::user()->user_code . 'and ドロップダウン in ' . '("' . $request->date . '")',
+        ];
+
+        $queryString = http_build_query($queryParams);
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+        $user_name = env('KINTONE_USER_NAME');
+        $password = env('KINTONE_PASSWORD');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        $headers = [
+            'Authorization' => 'Basic', 
+            'X-Cybozu-Authorization' => $x_token
+        ];
+        $response = Http::withHeaders($headers)->get($url);
+        
+        $responseData = $response->json();
+        if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])){
+            $records = $responseData['records'];
+            foreach($records as $record){
+                if($record['社員ｺｰﾄﾞ']['value'] == Auth::user()->user_code){
+                    return response()->json($record);
+                }
+            }
+        }
+    }
+
+    public function get_job_evaluation(Request $request) {
+        $queryParams = [
+            'app' => '948',
+            "query" => '文字列__1行__1 = "' . $request->level . '"'
+        ];
+        $queryString = http_build_query($queryParams);
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+        $user_name = env('KINTONE_USER_NAME');
+        $password = env('KINTONE_PASSWORD');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        $headers = [
+            'Authorization' => 'Basic', 
+            'X-Cybozu-Authorization' => $x_token
+        ];
+        $response = Http::withHeaders($headers)->get($url);
+        
+        $responseData = $response->json();
+        return response()->json($responseData['records']);
     }
 }
