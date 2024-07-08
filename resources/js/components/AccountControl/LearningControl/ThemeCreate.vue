@@ -22,13 +22,17 @@
                         v-model="title"
                     />
                 </div>
-                <div class="si-box" style="height: 70%;">
+                <div class="si-box" style="height: 30%;">
                     <div style="font-size: 14px;margin-bottom: 15px;">ポートフォリオに関する説明</div>
                     <RichEditor ref="portfolioGuidance" :initilaValue="initialPortfolioGuidance"/>
                 </div>
-                <div class="si-box" style="height: 70%;">
+                <div class="si-box" style="height: 30%;">
                     <div style="font-size: 14px;margin-bottom: 15px;">エピソードに関する説明</div>
                     <RichEditor ref="episodeGuidance" :initilaValue="initialEpisodeGuidance"/>
+                </div>
+                <div class="si-box" style="height: 30%;">
+                    <div style="font-size: 14px;margin-bottom: 15px;">タイトルに関する説明</div>
+                    <RichEditor ref="titleGuidance" :initilaValue="initialTitleGuidance"/>
                 </div>
                 <div class="si-box">
                     <div class="switchLabel">
@@ -77,6 +81,7 @@ const active = ref(props.editTarget && props.editTarget.active ? true : false)
 const { info } = inject('dialog') 
 const episodeGuidance = ref(null)
 const portfolioGuidance = ref(null)
+const titleGuidance = ref(null)
 const theme = useTheme()
 const initialPortfolioGuidance = computed(() => {
     return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
@@ -84,10 +89,14 @@ const initialPortfolioGuidance = computed(() => {
 const initialEpisodeGuidance = computed(() => {
     return props.editTarget && props.editTarget.episode_guidance ? props.editTarget.episode_guidance : ''
 })
+const initialTitleGuidance = computed(() => {
+    return props.editTarget && props.editTarget.title_guidance ? props.editTarget.title_guidance : ''
+})
 const create = () => {
     const episodeGuidanceContent = episodeGuidance.value.editor.getHTML()
     const portfolioGuidanceContent = portfolioGuidance.value.editor.getHTML()
-    if(!episodeGuidanceContent || !portfolioGuidanceContent || !title.value) return
+    const titleGuidanceContent = titleGuidance.value.editor.getHTML()
+    if(!titleGuidanceContent || !episodeGuidanceContent || !portfolioGuidanceContent || !title.value) return
     loader.value = true
     axios.post('/create_learning_theme', { 
     
@@ -98,6 +107,7 @@ const create = () => {
             title: title.value,
             episode_guidance: episodeGuidanceContent,
             guidance: portfolioGuidanceContent,
+            title_guidance: titleGuidanceContent,
         }
 
     }).then(response => {

@@ -19,8 +19,8 @@
                 <p v-else><strong>ディスカッション用ポートフォリオエピソード<br></strong>{{ portfolio?.episode }}</p>
             </div>
             <div v-if="portfolio?.status < 1" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">              
-                <LoaderButton style="margin: 0" @triggered="saveItems('story', 0, [episodeRef], params)" :loading="loading[0]" :content="'一時保存'"/>
-                <LoaderButton style="margin: 0" @triggered="saveItems('story', 1, [episodeRef], params)" :loading="loading[1]" :content="'次へ'"/>               
+                <LoaderButton style="margin: 0" @triggered="saveItems('title', 0, [episodeRef], params)" :loading="loading[0]" :content="'一時保存'"/>
+                <LoaderButton style="margin: 0" @triggered="saveItems('title', 1, [episodeRef], params)" :loading="loading[1]" :content="'次へ'"/>               
             </div>
         </template>
     </DraftLayout>
