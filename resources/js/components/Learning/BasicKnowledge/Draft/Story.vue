@@ -22,7 +22,7 @@
                 <LongInput
                     v-if="portfolio?.status < 1"
                     :placeHolder="`ポートフォリオ内容`"
-                    rules="required|max:2000" 
+                    rules="required" 
                     ref="storyRef"
                     name="story"
                     v-model="storyContent"

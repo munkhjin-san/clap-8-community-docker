@@ -1,13 +1,14 @@
 <template>
     <DraftLayout>
         <template #main>
-            <div class="si-box" style="margin-top:0;">
+            <div v-html="selectedTopic?.title_guidance"></div>
+            <!-- <div class="si-box" style="margin-top:0;">
                 <p><strong>ポートフォリオ内容</strong></p>
                 {{ portfolio?.content }}
-            </div>
-            <div class="si-box" style="margin:45px 0">
+            </div> -->
+            <!-- <div class="si-box" style="margin:45px 0">
                 <LoaderButton :loading="false" content="ポートフォリオ作成例を確認する" @triggered="viewPortfolios"/>
-            </div>
+            </div> -->
             <div class="si-box">
                 <ShortInput
                     v-if="portfolio?.status < 1"
@@ -36,6 +37,7 @@ import { inject, ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
 const route = useRoute()
 const portfolio = inject('portfolio')
+defineProps(['selectedTopic'])
 const title = ref('')
 const titleRef = ref(null)
 const { loading, saveItems, viewPortfolios } = inject('basicItem')

@@ -19,7 +19,7 @@
                     v-if="portfolio?.status < 1" 
                     :placeHolder="`ディスカッション用ポートフォリオエピソード`"
                     ref="episodeRef"
-                    rules="required|max:2000"
+                    rules="required"
                     name="episode"
                     v-model="episodeContent"
                     :initialValue="portfolio ? portfolio.episode : episodeContent" 
@@ -31,7 +31,7 @@
                 <LongInput
                     v-if="portfolio?.status < 1"
                     :placeHolder="`ディスカッション用ポートフォリオ内容`"
-                    rules="required|max:2000" 
+                    rules="required" 
                     ref="storyRef"
                     name="story"
                     v-model="storyContent"

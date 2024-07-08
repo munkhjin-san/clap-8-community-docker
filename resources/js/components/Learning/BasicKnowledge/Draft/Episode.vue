@@ -10,7 +10,7 @@
                     v-if="portfolio?.status < 1" 
                     :placeHolder="`ポートフォリオエピソード`"
                     ref="episodeRef"
-                    rules="required|max:2000"
+                    rules="required"
                     name="episode"
                     v-model="episodeContent"
                     :initialValue="portfolio ? portfolio.episode : episodeContent" 

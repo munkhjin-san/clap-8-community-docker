@@ -38,7 +38,7 @@ const params = computed(() => {
     return  {
         params: {
             status : 1,
-            content: `${portfolio.value?.episode}\n\n${portfolio.value?.content}` 
+            content: `${portfolio.value?.content}\n\n${portfolio.value?.episode}` 
         },
         theme_id: route.params.lessonThemeId,
     }
