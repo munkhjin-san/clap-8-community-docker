@@ -1,11 +1,9 @@
 <template>
-    <DraftLayout>
-        <template #main>
-
-        
+    <DraftLayout v-if="material">
+        <template #main>        
             <div style="background:inherit">
                 <div>
-                    <p v-if="material" v-html="filteredContent"></p>
+                    <p v-html="filteredContent"></p>
                 </div>
                 <div class="post-separetor"></div>
                 <div v-if="sectionStatus != 2">
@@ -77,13 +75,13 @@
         });
     })
     const material = computed(() => {
-        return props.filteredMaterials ? props.filteredMaterials.filter(val => val.id == route.params.materialId)[0] : ''
+        return props.filteredMaterials ? props.filteredMaterials.find(val => val.id == route.params.materialId) : null
     })
     const sectionStatus = computed(() => {
-        return props.sections_status && props.sections_status.length ? props.sections_status.find(val => val.material_id === material.value.id)?.status : 0
+        return props.sections_status && props.sections_status.length ? props.sections_status.find(val => val.material_id === material.value?.id)?.status : 0
     })
     const sectionContent = computed(() => {
-        return props.sections_status && props.sections_status.length ? props.sections_status.find(val => val.material_id === material.value.id)?.content : ''
+        return props.sections_status && props.sections_status.length ? props.sections_status.find(val => val.material_id === material.value?.id)?.content : ''
     })
     const understandComment = ref(null)
     
