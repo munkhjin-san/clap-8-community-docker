@@ -214,9 +214,9 @@ import { mentionFormatter } from "@/utils/tools";
             addItem('削除する', () => deleteMessage(props.message.id) )
             
         }
-        if(auth.id !== auth.activeUser.id || auth.activeUser.linkable){
-            addItem('未読にする', () => markUnread(props.message.id))
-        }
+        
+        addItem('未読にする', () => markUnread(props.message.id))
+        
         return list
     })
     const authorized = computed(() => {
