@@ -27,7 +27,7 @@
                     />
                 </div>
                 
-                <BoardCreateButton v-if="auth.activeUser && !auth.activeUser.partner_flag !== 1" :createHidden="createHidden"/>
+                <BoardCreateButton v-if="auth.activeUser && auth.activeUser.partner_flag !== 1" :createHidden="createHidden"/>
             </div>                           
             <SkeletonBoard v-if="skeleton.active == 0"/>
                         
