@@ -41,7 +41,7 @@
             </div>
          
         </div>
-        <div @click="pushRoute(`timesheet`)" class="footerMenu-item">
+        <div @click="pushRoute(`schedule`)" class="footerMenu-item">
          
             <div class="icon-wrapper">
                 <svg style="fill:#fff;width:24px;" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 32">
