@@ -92,19 +92,19 @@ class PostController extends Controller
                 $query->where('id', $params['id']);
             });
             $query->when($target_users, function($query) use ($target_users, $path) {
-                $query->when(($path == 'knowledge'), function($q) use($target_users){
+                $query->when($path == 'knowledge', function($q) use($target_users){
                     $q->whereHas('user', function ($query) use ($target_users) {
                         $query->whereIn('id', $target_users);
                     });  
                 });          
-                $query->when(($path == 'challenge'), function($q) use($target_users){
+                $query->when($path == 'challenge', function($q) use($target_users){
                     foreach($target_users as $user_id){
                         $q->whereHas('to_users', function ($query) use ($user_id) {
                             $query->where('users.id', $user_id);
                         });
                     }  
                 }); 
-                $query->when(($path == 'nice'), function($q) use($target_users){
+                $query->when($path == 'nice', function($q) use($target_users){
                     foreach($target_users as $user_id){
                         $q->whereHas('to_users', function ($query) use ($user_id) {
                             $query->where('users.id', $user_id);
@@ -117,7 +117,7 @@ class PostController extends Controller
                 $query->whereHas('tags', function ($query) use ($search_tags) {
                     $query->whereIn('text', $search_tags);
                     foreach ($search_tags as $tag) {
-                        $query->orWhere('text', 'LIKE', '%' . $tag . '%');
+                        $query->orWhere('text', 'LIKE', "%{$tag}%");
                     }
                 });
             });

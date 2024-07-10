@@ -4,7 +4,7 @@
             <div class="message-top-block" style="margin-bottom: 0;">      
                 <div style="display: flex;align-items: center;gap:10px">
                     <UserIcon size="30" :user="comment.user" imgClass="userNormalIcon"/>                   
-                    <div @click.stop="pushInstantUser($event, comment.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ omment?.user?.name }}</div>     
+                    <div @click.stop="pushInstantUser($event, comment.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ comment?.user?.name }}</div>     
                 </div>     
                 <div class="m-date">{{momentMessage}}</div> 
                 <div class="messageIconContainer">
