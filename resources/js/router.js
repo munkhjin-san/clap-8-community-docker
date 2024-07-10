@@ -172,20 +172,20 @@ const routes = [
         },
     },
     {
-        path: '/calendar',
-        name: 'calendar',
+        path: '/schedule',
+        name: 'schedule',
         meta: {
-            title: 'CLAP - カレンダー',
+            title: 'CLAP - スケジュール',
         }, 
         component: () => import('./components/Calendar/CalendarContainer.vue'),       
         
     },
     {
-        path: '/work',
-        name: 'work',
+        path: '/timesheet',
+        name: 'timesheet',
         props: true,
         meta: {
-            title: 'CLAP - ワーク',
+            title: 'CLAP - タイムシート',
         }, 
         component: () => import('./components/Work/WorkContainer.vue'),
     },

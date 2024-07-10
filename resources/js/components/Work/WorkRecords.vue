@@ -309,13 +309,14 @@ import { useCheckApproval } from '../../store/checkApproval';
         white-space: nowrap;
     }
     .mb-space{
-        margin-top: 10px;
+        margin: 10px 0;
     }
     .w-hover-button{
         justify-content: flex-start;
     }
     .center-mobile{
         justify-content: center;
+        margin-top: 10px;
     }
     .condition-area{
         display: flex;

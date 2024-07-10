@@ -179,7 +179,7 @@ import { useResponsive } from '@/store/responsive';
 import { useSharingDataStore } from '@/store/sharingData'
 import { useTempRecord } from '@/store/tempRecord';
     const viewMenu = [
-        {title: '月（カレンダー）', value: 1},
+        {title: '月（スケジュール）', value: 1},
         {title: '月（時間）', value: 0},
         {title: '月（メンバー別）', value: 2},
         {title: '日（メンバー別）', value: 3}

@@ -19,7 +19,7 @@
                         <div @click="step = 1" class="suggested-wrap p-setting-item" v-html="'パスワードの変更'"></div>
                         <div @click="step = 2" class="suggested-wrap p-setting-item" v-html="'カラー設定'"></div>
                         <div @click="step = 3" class="suggested-wrap p-setting-item" v-html="'マイサイン'"></div>
-                        <div v-if="[540, 608 ,516, 604].includes(auth.activeUser.id)" @click="step = 4" class="suggested-wrap p-setting-item" v-html="'カレンダー設定'"></div>
+                        <div v-if="[540, 608 ,516, 604].includes(auth.activeUser.id)" @click="step = 4" class="suggested-wrap p-setting-item" v-html="'スケジュール設定'"></div>
                         <div @click="step = 5" class="suggested-wrap p-setting-item" v-html="'テーマ設定'"></div>
                         <div v-if="responsive.mobile" @click="step = 6" class="suggested-wrap p-setting-item" v-html="'フッターメニュー表示'"></div>
                         <div @click="logoutConfirm" class="suggested-wrap p-setting-item" v-html="'ログアウト'"></div>
@@ -201,7 +201,7 @@ import { useResponsive } from '@/store/responsive'
         return avialableColors ? avialableColors.find(ob => ob.id == chosenColor.value) : ''
     })
     const settingTitle = computed(() => {
-        const titles = ['パスワードの変更', 'カラー設定', 'マイサイン', 'カレンダー設定', 'テーマ設定', 'フッターメニュー表示']
+        const titles = ['パスワードの変更', 'カラー設定', 'マイサイン', 'スケジュール設定', 'テーマ設定', 'フッターメニュー表示']
         return titles[step.value - 1]
         
     })

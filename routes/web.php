@@ -111,7 +111,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         
     Route::get('/employee', function () {return redirect("/members");});
 
-    Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'knowledge', 'nice', 'members', 'calendar', 'work', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning'])->where('any', '.*')->name('board');
+    Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'knowledge', 'nice', 'members', 'schedule', 'timesheet', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning'])->where('any', '.*')->name('board');
     
 
     
