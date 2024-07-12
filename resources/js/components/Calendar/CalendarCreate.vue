@@ -144,11 +144,11 @@
                             v-if="!all_day"
                             name="calendarNormalTimeStart" 
                             :rules="'required'"
-                            :initialValue="time_start"
+                            :initialValue="set_start_time"
                             customClass="date"
                             ref="calendarNormalTimeStart"
                             type="time"
-                            v-model="time_start"
+                            v-model="set_start_time"
                         />
                         <ShortInput 
                             v-if="!all_day"
@@ -387,12 +387,20 @@ import { useSharingDataStore } from '@/store/sharingData'
             }
         }
     })
-
+    const set_start_time = computed({
+        get(){
+            return time_start.value
+        },
+        set(value){
+            time_start.value = value
+            time_end.value = moment(time_start.value, 'HH:mm').add(1, 'hour').startOf('hour').format('HH:mm')
+        }
+    })
     const setEditAllDefault = (event) => {
         const val = event.target.checked ? 1 : 0
         localStorage.setItem('editAllDefault', val)            
     }
-
+    
     const setAllDay = () => {
         if(event.target.checked){
             time_start.value = '00:00'
