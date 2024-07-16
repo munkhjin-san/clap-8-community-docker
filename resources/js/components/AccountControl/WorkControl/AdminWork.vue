@@ -133,7 +133,7 @@
     }
     const departmentCSV = () => {
         const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
-        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `経費_${date}月`});
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `部門_${date}月`});
         const data = []
         departmentCount.value.forEach(department => {
             const row = {
