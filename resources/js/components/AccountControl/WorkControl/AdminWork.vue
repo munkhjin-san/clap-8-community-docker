@@ -8,6 +8,7 @@
         <div class="admin-sub-c-bar">
             <PostSearchBar className="newChatMemberSearch" style="width:auto;" :searching="false"  @searchStart="(val) => keywords = val"/>   
             <div class="admin-work-header">
+                <div class="admin-button" @click="departmentCSV">部門CSV出力</div>
                 <div class="admin-button" @click="exportCSV">勤怠CSV出力</div>
                 <div class="admin-button" @click="expenseCSV">経費CSV出力</div>
                 <div class="admin-month-wrapper">
@@ -92,6 +93,7 @@
     const monthly_expenses = ref([])
     const monthly_incentive = ref([])
     const timecard_costs = ref([])
+    const departmentCount = ref([])
     const responsive = useResponsive()
     const { notify } = inject('dialog')
     const fetch = ref(0)
@@ -128,6 +130,27 @@
             }
         });
         return days
+    }
+    const departmentCSV = () => {
+        const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `経費_${date}月`});
+        const data = []
+        departmentCount.value.forEach(department => {
+            const row = {
+                "計上月" : department.month,
+                "部門" : department.department,
+                "氏名" : department.username,
+                "稼働日数" : department.count,
+            }
+            data.push(row)
+        })
+        if(data && data.length){
+            const csv = generateCsv(csvConfig)(data)
+            download(csvConfig)(csv);
+        } else {
+            notify('経費記録ないです。')
+            return
+        }
     }
     const expenseCSV = () => {
         const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
@@ -224,6 +247,7 @@
             monthly_expenses.value = data.monthly_expenses
             monthly_incentive.value = data.monthly_incentive
             timecard_costs.value = data.timecard_costs
+            departmentCount.value = data.departments
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
         }

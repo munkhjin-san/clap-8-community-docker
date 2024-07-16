@@ -57,13 +57,14 @@ class AdminWorkController extends Controller{
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
               ->whereMonth('day', $currentMonth)
-              ->select('work_time', 'day', 'id', 'user_id')
+              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id')
               ->orderBy('day', 'asc')
               ->with(['custom_field_data_records' => function($q) {
                 $q->where('type_id', 40)
                 ->where('value_int', '=' , 1)
                 ->select('type_id', 'value_int', 'date', 'table_record_id');
-                }]);
+              }])
+              ->with('department');
         }])
         ->with(['attendance_records' => function($q) use($month){
             $q->where('date_year_month', $month)->select('month_petition', 'user_id');
@@ -166,6 +167,7 @@ class AdminWorkController extends Controller{
             
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
+            $allDepartmentCounts = collect();
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 16);
                 $totalPaidHours = 0;
@@ -186,11 +188,29 @@ class AdminWorkController extends Controller{
                 $workTimeInSeconds = 0;
                 if (count($user->time_card_records) > 0) {
                     $workTimeInSeconds = $user->time_card_records->sum('work_time');
+                    $timeCardRecords = $user->time_card_records->map(function ($record) {
+                        $record['month'] = Carbon::parse($record['day'])->format('Y-m');
+                        return $record;
+                    });
+                    $timeCardRecords = $timeCardRecords->filter(function ($record) {
+                        return isset($record['department']['name']);
+                    });
+                    $departmentCounts = $timeCardRecords->groupBy(function ($record) use($user) {
+                        return $record['department']['name'] . '|' . $user->name . '|' . $record['month'];
+                    })->map(function ($records, $key) use($user){
+                        return [
+                            'count' => $records->count(),
+                            'department' => $records->first()['department']['name'],
+                            'username' => $user->name,
+                            'month' => $records->first()['month']
+                        ];
+                    });
+                    $allDepartmentCounts = $allDepartmentCounts->merge($departmentCounts);
                 }
                 $month_work_time_array2[$user->id] = $workTimeInSeconds + $totalPaidHours;
             }
-            
-            $responseArray = array(
+            $allDepartmentCountsArray = $allDepartmentCounts->values()->all();
+            $responseArray = [
                 'attendance_record' => $attendance_record,
                 'paid_holiday_record' => $new_shift_record_array,
                 'month_work_time' => $month_work_time_array2,
@@ -200,7 +220,8 @@ class AdminWorkController extends Controller{
                 'monthly_expenses' => $monthly_expenses,
                 'monthly_incentive' => $monthly_incentive,
                 'timecard_costs' => $time_card_costs,
-            );
+                'departments' => $allDepartmentCountsArray
+            ];
 
         return response()->json($responseArray);
 
