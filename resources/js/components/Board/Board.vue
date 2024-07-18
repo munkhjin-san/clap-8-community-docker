@@ -609,10 +609,11 @@ import { instance } from '@/utils/broadcaster'
             }
             infiniteLock.value = currentLen.value == messageList.value.length
             if(source == 'first_load'){                    
-                badge.updateBoardBadge(openedBoard.value.id)
+                badge.updateBoardBadge(openedBoard.value?.id)
             }                    
 
         }catch (e) {
+            console.log(e)
             messageLoader.value = false
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {

@@ -3,7 +3,11 @@
         <div class="post-header">
             <HamBurger v-if="responsive.mobile"/>
             <div class="post-search-wrap">
-                <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="`${appNameJp}検索`" @focus="searchWindow = true"/>                
+                <PostSearchBar 
+                    className="newChatMemberSearch" 
+                    :customPlaceHolder="`${appNameJp}検索`" 
+                    @focus="searchWindow = true"
+                />                
             </div>            
         </div>
        

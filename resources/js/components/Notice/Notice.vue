@@ -9,7 +9,13 @@
             <div class="post-header" style="position: sticky;top: 0;background: var(--bg2);z-index: 5;">
                 <HamBurger v-if="responsive.mobile"/>
                 <div class="post-search-wrap">
-                    <PostSearchBar :searching="searching" @searchStart="searchStart" className="newChatMemberSearch" :customPlaceHolder="`お知らせを検索`" />
+                    <PostSearchBar 
+                        :searching="searching" 
+                        @searchStart="searchStart"
+                        v-model="keyword" 
+                        className="newChatMemberSearch" 
+                        :customPlaceHolder="`お知らせを検索`" 
+                    />
                 </div>                
             </div>
             
@@ -114,9 +120,8 @@ import { useResponsive } from '@/store/responsive';
         }
 
     }
-    const searchStart = (val) => {
-        keyword.value = val
-        getNotices(val)
+    const searchStart = () => {
+        getNotices()
     }
     const setActivePage = (pagenum) => {
         page.value = pagenum

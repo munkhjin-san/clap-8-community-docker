@@ -16,7 +16,11 @@
                 <div @click="on_leave = 1, retire = 0" :class="['sub-tab-item', { 'selected-sub-tab': on_leave == 1 && retire == 0}]">休職者</div>
                 <div @click="retire = 1, on_leave = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 1 && on_leave == 0}]">退職者</div>                
             </div>    
-            <PostSearchBar className="newChatMemberSearch" :searching="false" @searchStart="(val) => keywords = val"/>     
+            <PostSearchBar 
+                className="newChatMemberSearch" 
+                :searching="false" 
+                v-model="keywords"
+            />     
         </div>
         
         <div style="flex: 1;overflow: hidden;">

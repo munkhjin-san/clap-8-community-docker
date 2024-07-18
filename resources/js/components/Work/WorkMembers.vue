@@ -7,7 +7,11 @@
                     <div @click="byWorkGroups = 1, checkedUsers = []" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">ワークグループ</div>
                 </div>
                 <div class="searchBarInner" style="margin: 10px 15px 0;width: auto;min-width: 270px"> 
-                    <PostSearchBar  className="newChatMemberSearch" :searching="false" @searchStart="(val) => keywords = val"/>
+                    <PostSearchBar  
+                        className="newChatMemberSearch" 
+                        :searching="false" 
+                        v-model="keywords"
+                    />
                 </div> 
             </div>         
             <div v-if="searchUsers.length">

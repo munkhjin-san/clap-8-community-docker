@@ -6,7 +6,12 @@
             </div> 
         </Transition>
         <div class="admin-sub-c-bar">
-            <PostSearchBar className="newChatMemberSearch" style="width:auto;" :searching="false"  @searchStart="(val) => keywords = val"/>   
+            <PostSearchBar 
+                className="newChatMemberSearch" 
+                style="width:auto;" 
+                :searching="false"  
+                v-model="keywords"
+            />   
             <div class="admin-work-header">
             <div style="display: flex;align-items: center;">
                 <YearPicker 

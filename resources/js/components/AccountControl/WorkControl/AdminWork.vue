@@ -6,7 +6,12 @@
             </div> 
         </Transition>
         <div class="admin-sub-c-bar">
-            <PostSearchBar className="newChatMemberSearch" style="width:auto;" :searching="false"  @searchStart="(val) => keywords = val"/>   
+            <PostSearchBar 
+                className="newChatMemberSearch" 
+                style="width:auto;" 
+                :searching="false"  
+                v-model="keywords"
+            />   
             <div class="admin-work-header">
                 <div class="admin-button" @click="departmentCSV">部門CSV出力</div>
                 <div class="admin-button" @click="exportCSV">勤怠CSV出力</div>

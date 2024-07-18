@@ -11,7 +11,7 @@
             <HamBurger v-if="responsive.mobile"/>
             <div class="calendar-search-wrap" id="memberSearchResultWindow" >
                 <PostSearchBar 
-                    @searchStart="val => keyword = val"  
+                    v-model="keyword"  
                     :searching="searching"
                     className="newChatMemberSearch" 
                     :customPlaceHolder="`メンバーを検索`"

@@ -12,7 +12,11 @@
                     </div>                
                 </div>
                 <div>                   
-                    <PostSearchBar className="newChatMemberSearch" :searching="searching" @searchStart="(val) => keyword = val"/>
+                    <PostSearchBar 
+                        className="newChatMemberSearch" 
+                        :searching="searching" 
+                        v-model="keyword"
+                    />
                 </div>
             </div>
             <div style="margin-top: 15px;height: -webkit-fill-available;overflow:hidden auto;">                

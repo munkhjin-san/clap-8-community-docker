@@ -6,7 +6,12 @@
             </div> 
         </Transition>
         <div class="admin-command-bar" style="margin: 20px;">  
-            <PostSearchBar className="newChatMemberSearch" customPlaceHolder="ワークグループやユーザー検索" :searching="false"  @searchStart="(val) => keywords = val" />  
+            <PostSearchBar 
+                className="newChatMemberSearch" 
+                customPlaceHolder="ワークグループやユーザー検索" 
+                :searching="false"  
+                v-model="keywords"
+            />  
         </div>
         <div class="admin-workgroup-wrapper">
             <table class="admin-workgroup-innerwrapper">

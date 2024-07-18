@@ -14,7 +14,12 @@
                 </div>
             </div>
             <div style="margin-bottom: 15px">
-                <PostSearchBar className="newChatMemberSearch" customPlaceHolder="ユーザーの検索" :searching="false" @searchStart="searchStart"/>
+                <PostSearchBar 
+                    className="newChatMemberSearch" 
+                    customPlaceHolder="ユーザーの検索" 
+                    :searching="false" 
+                    v-model="keyword"
+                />
             </div>            
             <div style="height: -webkit-fill-available;user-select: none;overflow: hidden auto;">
                     <div v-if="filteredMembers.length">
