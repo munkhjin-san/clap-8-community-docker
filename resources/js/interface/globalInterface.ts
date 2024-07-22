@@ -22,3 +22,23 @@ export interface CommandButtonInterface {
     title: string;
     action: () => void;
 }
+
+export interface Task{
+    id: number,
+    executors: User[],
+    supervisors: User[]
+}
+
+export interface User{
+    id: number,
+    name: string,
+    icon_id: number
+    pivot?: TaskUserPivot
+}
+export interface TaskUserPivot{
+    comment: string | null
+    comp_flag: number
+    late_answer: number
+    late_answer_custom: string | null
+    status_flag: number
+}

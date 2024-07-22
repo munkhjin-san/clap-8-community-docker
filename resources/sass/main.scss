@@ -218,7 +218,7 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
 input:-webkit-autofill:active{
-    -webkit-box-shadow: 0 0 0 30px var(--bg3) inset !important;
+    -webkit-box-shadow: 0 0 0 30px var(--background-color) inset !important;
 }
 button:focus{
 outline: none;
@@ -321,29 +321,38 @@ textarea {
 //   -webkit-appearance: none; /* Chrome 41+ */
 // }
 .form-plc {
-    position: absolute;
-    pointer-events: none;
-    transition-timing-function: ease-in;
-    transition-duration: .125s;
-    top: 10px;
-    white-space: nowrap;
-    overflow: hidden;
-    max-width: calc(100% - 32px);
-    left: 7px;
-    font-size: 14px;
-    font-weight: 400;
-    letter-spacing: -.022em;
-    color: gray;
-    background: inherit;
-    height: 20px;
-    line-height: 20px;
-    padding: 0 8px;
-    z-index: 2;
+  position: absolute;
+  pointer-events: none;
+  transition: all 0.125s ease-in;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: calc(100% - 32px);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -.022em;
+  color: gray;
+  left: 10px;
+}
+.form-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center; /* Center items vertically */
+}
+.focused .form-plc {
+  font-size: 11px;
+  top: 15px;
+  left: 15px;
+  color: var(--primary-color);
+  transform: translateY(-50%);
 }
 .smallPlc{
-    font-size:13px;
-    top: -10px;
+    font-size:11px;
+    top: 5px;
+    left: 15px;
     color:  var(--primary-color);
+}
+.form-padding {
+  padding: 30px 10px 10px 15px;
 }
 .login-plc{
     padding: 20px 0 10px 3px !important;
@@ -3037,7 +3046,7 @@ div.recordFormTitle > p{
 
 .vs__selected-options{
     gap: 10px;
-    padding: 10px !important;
+    padding: 20px 10px 10px !important;
 }
 .vs__selected{
     margin:0;
@@ -3124,7 +3133,9 @@ div.recordFormTitle > p{
     font-size: 14px !important;
     margin: 0px !important;
 }
-
+.vs__search, .vs__search:focus {
+  padding: 7px;
+}
 
 
 // 20211214
@@ -3250,7 +3261,7 @@ div.recordFormTitle > p{
 #email, #login , #name, #password, #verification_code, #email_or_phone, #password-confirm {
   width: -webkit-fill-available;
   width: -moz-available;
-  height: 20px;
+  height: 30px;
   line-height: 25px;
   text-indent: 12px;
 

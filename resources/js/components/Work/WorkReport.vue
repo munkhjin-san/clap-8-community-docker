@@ -67,8 +67,9 @@
                     :data="field"
                     v-model="customValues[field.id]"
                 />               
-                <div class="si-box">
-                    <LoaderButton :loading="loading" content="申請する" @triggered="saveTimeCard(1)" />
+                <div class="si-box" style="display: flex; justify-content: center; gap: 20px;">
+                    <LoaderButton style="margin: 0" :loading="loading[0]" content="一時保存" @triggered="saveTimeCard(0)" />
+                    <LoaderButton style="margin: 0" :loading="loading[1]" content="申請する" @triggered="saveTimeCard(1)" />
                 </div>
             </div>
         </div>
@@ -128,7 +129,7 @@
             file: null,
         }
     ])
-    const loading = ref(false)
+    const loading = ref([false, false])
     const editStartTime = ref(timeCard.value?.start_time ? timeCard.value.start_time : shift.value?.start_time ? shift.value.start_time : '09:00:00')
     const editEndTime = ref(timeCard.value?.end_time ? timeCard.value.end_time : shift.value?.end_time ? shift.value.end_time : '18:00:00')
     const breakTimeOptions = ref([{label : 'なし' , value : 0 },
@@ -339,7 +340,8 @@
                 overTimeMinute: shift.value?.overtime_request?.minutes,
                 costsValues: costs,
                 incentiveValues: incentives.value,
-                department: todayWorkGroup.value
+                department: todayWorkGroup.value,
+                shiftType: props.item?.shift?.shift_type?.id ?? null
             }
             resolve(a)
         })
@@ -350,12 +352,12 @@
         if(shift.value?.overtime_request){
             const confirm = await confirmOvertime()
             if(!confirm) return            
-        } else {
+        } else if(status_flag === 1){
             await fifteenMinuteCalc()
             const answer = await confirm('日報を申請します。申請後は修正できません。よろしいですか。')
             if(!answer) return
         }
-        loading.value = true
+        loading.value[status_flag] = true
         const params = await buildParams(status_flag)
         try{
             await axios.post('/save_time_card', params)
@@ -364,7 +366,7 @@
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')    
         }finally{
-            loading.value = false
+            loading.value[status_flag] = false
         }
         
         

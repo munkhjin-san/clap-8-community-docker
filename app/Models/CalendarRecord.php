@@ -22,6 +22,12 @@ class CalendarRecord extends Model
     public function files(){
         return $this->belongsToMany(FileRecord::class, 'calendar_use_files', 'record_id', 'file_id')->where('file_records.deleted_flag', 0);
     }
+    public function task(){
+        return $this->hasOne(taskRecord::class, 'id', 'task');
+    }
+    public function department(){
+        return $this->hasOne(workGroup::class, 'id', 'department_id');
+    }
     protected $hidden = [
         'color', 
         'comp_flag', 
@@ -41,37 +47,5 @@ class CalendarRecord extends Model
         'type',
 
     ];
-    protected $fillable = [
-        'user_id', 
-        'title', 
-        'date_start',
-        'date_end',
-        "title",
-        "remarks",
-        "referrer",
-        "release_flag",
-        "edit_all",
-        "repetition_type",
-        "created_user",
-        "updated_user",
-        "user_id",
-        "r_group_id",
-        "expiration_start",
-        "expiration_end",
-        "qualified_institution",
-        "zoom_value",
-        "qualified_car",
-        "repeat_week",
-        "repeat_days",
-        "repeat_month",
-        "zoom_url",
-        "zoom_id",
-        "zoom_pass",
-        "zoom_account",
-        "zoom_account_pass",
-        "created_at",
-        "shift",
-        "descendant_of",
-        "real_created_at"
-    ];
+    protected $guarded = [];
 }

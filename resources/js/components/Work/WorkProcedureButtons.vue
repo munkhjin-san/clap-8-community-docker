@@ -32,25 +32,31 @@
                         style="margin:0"
                         content="日報承認"
                         v-if="item.ability.daily_report_approve"
-                        @triggered="emit('dailyButtons', 0, props.item)"
+                        @triggered="emit('dailyButtons', 0, item)"
                     /> 
                     <LoaderButton 
                         style="margin:0"
                         content="日報差戻"
                         v-if="item.ability.daily_report_approve"
-                        @triggered="emit('dailyButtons', 1, props.item)"
+                        @triggered="emit('dailyButtons', 1, item)"
                     />   
                     <LoaderButton 
                         style="margin:0"
                         content="日報承認取消"
                         v-if="item.ability.daily_report_cancel"
-                        @triggered="emit('dailyButtons', 2, props.item)"
+                        @triggered="emit('dailyButtons', 2, item)"
+                    />
+                    <LoaderButton 
+                        style="margin:0"
+                        content="部門作成"
+                        v-if="item.ability.department_creation"
+                        @triggered="addDepartmentOnly(item.shift), emit('closeModal')"
                     /> 
                     <LoaderButton 
                         style="margin:0"
                         v-if="item.ability.overtime_request" 
                         content="残業申請"
-                        @triggered="emit('dailyButtons', 3, props.item)" 
+                        @triggered="emit('dailyButtons', 3, item)" 
                     />
                     <LoaderButton
                         style="margin:0" 
@@ -91,7 +97,7 @@
     const emit = defineEmits(['reload', 'closeModal'])
     const { confirm, notify, info } = inject('dialog')
     const auth = useAuthUserStore()
-    const { edit, stampDelete } = inject('stamps')
+    const { edit, stampDelete, addDepartmentOnly } = inject('stamps')
     const checkApproval = useCheckApproval()
     const respondOvertime = async(data, status, action) => {
         if(status == 0){

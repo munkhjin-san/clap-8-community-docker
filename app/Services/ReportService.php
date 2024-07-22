@@ -8,13 +8,16 @@ use App\Models\customFieldDataRecord;
 use App\Models\SupportMailFormRecord;
 use Illuminate\Http\Request;
 use App\Http\Controllers\BoardController;
+use App\Http\Controllers\TaskController;
 use Carbon\Carbon;
 class ReportService
 {
     protected $boardController;
-    public function __construct(BoardController $boardController)
+    protected $taskController;
+    public function __construct(BoardController $boardController, TaskController $taskController)
     {
         $this->boardController = $boardController;
+        $this->taskController = $taskController;
     }
 
     public function sendMessage($override_user_id, $board_id, $type)
@@ -74,7 +77,7 @@ class ReportService
             'override_user' => $override_user
         ];
         $request = new Request($requestData);
-        $task = $this->boardController->addTask($request);
+        $task = $this->taskController->addTask($request);
         return $task;
     }
     public function generateMessage($type)

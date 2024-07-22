@@ -29,8 +29,11 @@
         </td>
         <!-- <td>{{ item.time_card?.work_group?.name }}</td> -->
         <td>
-            <div class="text-wrap">
-                {{ item.time_card?.department?.name }}
+            <div v-if="item.time_card?.department" class="text-wrap">
+                {{ item.time_card.department?.name }}
+            </div>
+            <div v-else-if="item.shift?.department" class="text-wrap">
+                {{ item.shift.department?.name }}
             </div>
         </td>
         <td style="word-break: auto-phrase;">{{ hasAllowance }}</td>

@@ -1,7 +1,7 @@
 <template>
-    <div style="position: relative;background:inherit">
-        <div style="background:inherit">
-            <span v-if="placeHolder" class="form-plc smallPlc">{{placeHolder}}</span> 
+    <div>
+        <div class="form-wrapper" :class="{focused: modelValue}"> 
+             
             <input 
                 @input="validate(true)"
                 v-model="value" 
@@ -12,6 +12,7 @@
                 :class="['g-text', customClass, {'date-color' : theme.dark }]"   
                 :style="customStyle"              
             />
+            <label v-if="placeHolder" class="form-plc">{{placeHolder}}</label>
             <p v-if="error" class="i-error">{{ error }}</p>
         </div>
     </div> 
@@ -52,6 +53,14 @@
     defineExpose({validate})
 </script>
 <style scoped>
+
+input:focus + label{
+    font-size: 11px;
+    top: 15px;
+    left: 15px;
+    color: var(--primary-color);
+    transform: translateY(-50%);
+}
 .g-text{
     width: -webkit-fill-available;
     margin: 0 auto;
@@ -63,7 +72,7 @@
     font-size: 16px;
     line-height: 1.6;
     transition: border 0.3s ease;
-    padding: 20px 10px 10px 15px;
+    padding: 25px 10px 10px 15px;
 }
 .full{
     width: -webkit-fill-available;

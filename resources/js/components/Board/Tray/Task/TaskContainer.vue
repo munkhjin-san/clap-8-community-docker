@@ -48,12 +48,82 @@
         :editTaskData="editTaskData"/>
     </Transition>
     <div style="height:100%;overflow: hidden scroll;position: relative;background:inherit">
-        <div class="no-comment-text" v-if="!incompletedTasks.length" style="font-size:14px;">
+        <div class="no-comment-text" v-if="!sortedTasks?.once && !sortedTasks?.memos" style="font-size:14px;">
             <p>現在アイテムはありません</p>
         </div>
         <div :class="{collapseTasks : !viewActiveTask}" class="task-list-wrap" style="margin-top: 40px;">                 
-            
-            <TaskBox 
+            <div>
+                <!-- <div v-if="sortedTasks && sortedTasks?.weekly">
+                    <div class="task-list-wrap" v-for="tasks in sortedTasks.weekly">
+                        <TaskBox 
+                            boxClass="task-box-container"
+                            :item="tasks[0]"
+                            :inTrash="which"
+                            :siblings="tasks"
+                            @editTask="editTask" 
+                            @completeTaskBefore="completeTaskBefore"
+                            @taskDeleted="taskDeleted"
+                            @approveTask="approveTask"
+                        />
+                    </div>
+                </div>
+                <div v-if="sortedTasks && sortedTasks?.monthly">
+                    <div class="task-list-wrap" v-for="tasks in sortedTasks.monthly">
+                        <TaskBox 
+                            boxClass="task-box-container"
+                            :item="tasks[0]"
+                            :inTrash="which"
+                            :siblings="tasks"
+                            @editTask="editTask" 
+                            @completeTaskBefore="completeTaskBefore"
+                            @taskDeleted="taskDeleted"
+                            @approveTask="approveTask"
+                        />
+                    </div>
+                </div>
+                <div v-if="sortedTasks && sortedTasks?.yearly">
+                    <div class="task-list-wrap" v-for="tasks in sortedTasks.yearly">
+                        <TaskBox 
+                            boxClass="task-box-container"
+                            :item="tasks[0]"
+                            :inTrash="which"
+                            :siblings="tasks"
+                            @editTask="editTask" 
+                            @completeTaskBefore="completeTaskBefore"
+                            @taskDeleted="taskDeleted"
+                            @approveTask="approveTask"
+                        />
+                    </div>
+                </div> -->
+                <div class="task-list-wrap" v-if="sortedTasks && sortedTasks?.once">     
+                    <TaskBox 
+                        v-for="item in sortedTasks?.once"
+                        :key="item.id" 
+                        boxClass="task-box-container"
+                        :item="item"
+                        :inTrash="which"
+                        @editTask="editTask" 
+                        @completeTaskBefore="completeTaskBefore"
+                        @taskDeleted="taskDeleted"
+                        @approveTask="approveTask"
+                    />
+                </div>
+                <div class="task-list-wrap" v-if="sortedTasks && sortedTasks?.memos">     
+                    <TaskBox 
+                        v-for="item in sortedTasks?.memos"
+                        :key="item.id" 
+                        boxClass="task-box-container"
+                        :item="item"
+                        :inTrash="which"
+                        @editTask="editTask" 
+                        @completeTaskBefore="completeTaskBefore"
+                        @taskDeleted="taskDeleted"
+                        @approveTask="approveTask"
+                    />
+                </div>
+                
+            </div>
+            <!-- <TaskBox 
                 boxClass="task-box-container"
                 v-for="item in computedTasks"
                 :key="item.id" 
@@ -62,18 +132,44 @@
                 @editTask="editTask" 
                 @completeTaskBefore="completeTaskBefore"
                 @taskDeleted="taskDeleted"
-            /> 
+                @approveTask="approveTask"
+            />  -->
         </div>    
     </div>
-
+    <!-- <div v-if="toCompleteList.length" class="overlay" @mousedown="toCompleteList = []">
+        <div class="task-date-wrapper" @mousedown.stop>
+            <div style="display:flex; margin-bottom: 10px;">
+                <p style="font-weight:600;margin-right:20px;">{{ which == 0 ? '完了するタスクの日付選択' : '未完了するタスクの日付選択'}}</p>
+                <div style="margin-left:auto;display: flex;align-items: center;">                                          
+                    <div class="cursor-pointer" @click="toCompleteList = []" style="position:unset;">
+                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
+                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
+                        </svg>                        
+                    </div> 
+                </div>
+            </div>
+            <div v-for="task in toCompleteList">
+                <div class="task-date" @click="completeTaskBefore(task)">
+                    {{ moment(task?.end_at).format('YYYY/M/D(ddd)') }}
+                </div>
+            </div>
+        </div>
+    </div> -->
+    <!-- <TaskRequest 
+        v-if="approveTaskData" 
+        @getTask="getTask" 
+        :approveTaskData="approveTaskData" 
+        @close="approveTaskData = null"
+    /> -->
 </div>
 </template>
 <script setup>
 import TaskSortMenu from './TaskSortMenu.vue'
 import TaskCreate from './TaskCreate.vue'
 import TaskBox from './TaskBox.vue'
+import TaskRequest from './TaskRequest.vue'
 import moment from 'moment'
-import { computed, inject, onMounted, provide, ref, watch } from 'vue'
+import { computed, inject, onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive'
@@ -81,6 +177,10 @@ import { useUrlTask } from '@/store/urlTask'
 import { useSharingDataStore } from '@/store/sharingData'
 import { useTaskFeedback } from '@/store/taskFeedback'
 import { useBadgeStore } from '@/store/badge'
+import { useCheckApproval } from '@/store/checkApproval'
+import { useTaskRequest } from '@/store/taskRequest'
+import { instance } from '@/utils/broadcaster'
+import { onUnmounted } from 'vue'
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
@@ -92,10 +192,13 @@ import { useBadgeStore } from '@/store/badge'
     const taskPathSelector = ref(0)
     const taskModalView = ref(false)
     const editTaskData = ref(null)
+    const approveTaskData = ref(null)
     const viewActiveTask = ref(true)
     const viewCompletedTasks = ref(false)
-    const taskKey = ref(0)
     const createHidden = ref(false)
+    const checkApproval = useCheckApproval()
+    const taskRequest = useTaskRequest()
+    const toCompleteList = ref([])
     const sortIs = ref({
         by: 'deadline',
         order: 'desc',
@@ -104,7 +207,8 @@ import { useBadgeStore } from '@/store/badge'
     const calendarHide = ref(true)
     const which = ref(0)
     const board = inject('openedBoard')
-
+    const activeListeners = new Set();
+    const unorganizedTasks = ref({})
     onMounted(() => {
         if (urlTask.id) {
             viewCompletedTasks.value = true;
@@ -114,7 +218,7 @@ import { useBadgeStore } from '@/store/badge'
         }
 
         
-        getTask(0);
+        getTask();
         const myTaskPriority = localStorage.getItem('my_task_priority')
         if(myTaskPriority){
             sortIs.value.myRecord = JSON.parse(myTaskPriority)
@@ -123,21 +227,84 @@ import { useBadgeStore } from '@/store/badge'
         if(taskSortDesc){
             sortIs.value.order = JSON.parse(taskSortDesc)
         }
+        instance.on(`task:${board.value.id}`, socketTaskHandler)
+        activeListeners.add(`task:${board.value.id}`);
         
+
+
+    })
+    onUnmounted(() => {
+        clearListeners()
     })
 
     watch(() => taskFeedBack.active, () => {            
-        getTask(0);        
+        getTask();        
     })
-
-
+    watch(() => checkApproval.approved, () => {
+        getTask()
+    })
+    const clearListeners = () => {
+        activeListeners.forEach(listener => {
+            if (listener.startsWith('board:') || listener.startsWith('task:')) {
+                instance.off(listener, socketTaskHandler);
+                activeListeners.delete(listener);
+            }
+        });
+    }
+    const socketTaskHandler = () => {
+        getTask()
+    }
+    // const weeklyTasks = computed(() => {
+    //     if(unorganizedTasks.value &&unorganizedTasks.value?.weekly){
+    //         const data = []
+    //         const dayOfWeeks = ['月','火','水','木','金','土','日',]
+    //         unorganizedTasks.value.weekly.forEach(repeatData => {
+              
+                
+    //             data.push(item)
+    //         });
+    //         return data
+    //     }
+    //     return []
+    // })
+    const taskCategories = computed(() => {
+        const categorizedTasks = []
+        
+        for(const [address, data] of Object.entries(unorganizedTasks.value)){
+            categorizedTasks.push({
+                title: address,
+                tasks: data
+            })
+        }       
+    })
     const allTasks = computed(() => {
         return taskList.value;
+    })
+    const sortedTasks = computed(() => {
+        const types = ['memos', 'once'];
+        if (sortIs.value.myRecord) {
+            const filteredTasks = {};
+            
+            types.forEach(type => {
+                const tasks = unorganizedTasks.value[type];
+                
+                if (Array.isArray(tasks)) {
+                    const filteredArray = tasks.filter(task => 
+                        task.executors.some(executor => executor.id === auth.activeUser.id)
+                    );
+                    if (filteredArray.length > 0) {
+                        filteredTasks[type] = filteredArray;
+                    }
+                }
+            });
+            return filteredTasks;
+        }
+        return unorganizedTasks.value
     })
     const myTasks = computed(() => {
         let list = [];
         taskList.value.map(ob => {
-            const me = ob.to_users.filter(user => user.id == auth.activeUser.id);
+            const me = ob.executors.filter(user => user.id == auth.activeUser.id);
             if (me.length) {
                 list.push(ob);
             }
@@ -151,15 +318,15 @@ import { useBadgeStore } from '@/store/badge'
             if(ob.end_at == null){
                 list.push(ob);
             }else{
-                const me = ob.to_users.filter(user => user.id == auth.activeUser.id);
-                if (me.length && me[0].pivot.comp_flag === 1) {
+                const me = ob.executors.find(user => user.id == auth.activeUser.id);
+                if (me?.pivot?.comp_flag === 1) {
                     list.push(ob);
                 }
                 else if (ob.comp_flag === 1) {
                     
                     list.push(ob);
                 }else {
-                    const all_members = ob.to_users
+                    const all_members = ob.executors
                     const has_all_completed = all_members.filter(ob => ob.pivot.comp_flag == 1)
                     if(all_members.length == has_all_completed.length){
                         list.push(ob);
@@ -192,7 +359,7 @@ import { useBadgeStore } from '@/store/badge'
 
     const switchView = () => {
         which.value = which.value == 1 ? 0 : 1
-        getTask(0)
+        getTask()
     }
     const newTask = (day) => {
         editTaskData.value = null;
@@ -212,56 +379,67 @@ import { useBadgeStore } from '@/store/badge'
         
     }
     const taskDeleted = () => {
-        getTask(taskPathSelector.value);
+        getTask();
         taskModalView.value = false;
         badge.getTaskBadge(); 
     }
     const editTask = (task) => {
-        const usersId = task.to_users.map(ob => ob.id);
-        if (usersId.indexOf(auth.activeUser.id) > -1) {
+        const usersId = task.executors.map(ob => ob.id);
+        
+        if (usersId.indexOf(auth.activeUser.id) > -1 || task.supervisors.some(ob => ob.id == auth.activeUser.id)) {
             editTaskData.value = task;
             taskModalView.value = true;
         }
     }
     const completeTaskBefore = (task) => {
-        var userData = task.to_users.find(obj => obj.id == auth.activeUser.id);
+        // if(task.length) {
+        //     toCompleteList.value = task
+        //     return
+        // }
+        // toCompleteList.value = []
+        var userData = task.executors.find(obj => obj.id == auth.activeUser.id);
         const today = moment().format('YYYY-MM-DD')
         const end = moment(task.end_at).format('YYYY-MM-DD')
         const overdue = today > end
+        const data = {
+            active: true,
+            data: task,
+        }
+        if(task.supervisors.length && userData.pivot.comp_flag == 0) {
+            
+            taskRequest.setTaskRequest(data)
+            return
+        }
         if (userData && userData.pivot.comp_flag == 1) {
-            completeTask(task.id, 0);
+            completeTask(task.id, 0, 0);
         } else if (overdue) {
-            const data = { 
-                active: true,
-                data: task
-            }
             taskFeedBack.setTaskFeedback(data)
             return
         } else {
-            completeTask(task.id, 1);       
+            completeTask(task.id, 1, 0);       
         }
     }
-    const completeTask = (task_id, compFlag) => {
+    const completeTask = (task_id, compFlag, statusFlag) => {
         
-        axios.post("/complete_task_api", { task_id: task_id, comp_flag: compFlag }).then(response => {
-            getTask(taskPathSelector.value);
+        axios.post("/complete_task_api", { task_id: task_id, comp_flag: compFlag, status_flag: statusFlag }).then(response => {
+            getTask();
             badge.getTaskBadge(); 
         })
     }
     const taskSelector = (flag) => {
         taskPathSelector.value = flag;
-        getTask(flag);
+        getTask();
     }
-    const getTask = (flag) => {
+    const getTask = () => {
         axios.post("/get_task_api", { record_id: board.value.id, which: which.value }).then(response => {
-            taskList.value = response.data;
-            taskKey.value++;
+            unorganizedTasks.value = response.data
+            checkApproval.setCheckApproval(false)
         });
     }
     const closeTaskModal = (update) => {
         taskModalView.value = false
         if (update) {
-            getTask(taskPathSelector.value);
+            getTask();
             badge.getTaskBadge(); 
         }
         

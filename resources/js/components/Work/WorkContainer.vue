@@ -84,6 +84,13 @@
                     @closeModal="approvalModal = false, fetchShiftDataTable()"
                 />
             </Transition>
+            <Transition name="modalFade">
+                <DepartmentField 
+                    v-if="shiftForDepartment"
+                    :shiftForDepartment="shiftForDepartment"
+                    @close="shiftForDepartment = null, fetchShiftDataTable()"
+                />
+            </Transition>
     </div>
 </template>
 
@@ -103,6 +110,7 @@
     import { getWorkGroup, getCustomFields, getWorkData, getShiftDataTable } from '../../utils/workApi'
     import axios from 'axios'
     import { useBreakTime } from '@/store/breakTime'
+    import DepartmentField from './DepartmentField.vue'
     const firstUser = computed(() => {
         return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
     })
@@ -131,6 +139,7 @@
     const attendanceFlag = ref(false)
     const approvalModal = ref(false)
     const breakTimeStore = useBreakTime()
+    const shiftForDepartment = ref(null)
     onMounted(async() => {
         const query = route.query
         if(query.user_id){
@@ -172,7 +181,9 @@
         reportModal.value = false
         customFieldData.value = []
     }
-    
+    const addDepartmentOnly = async(data) => {
+        shiftForDepartment.value = data
+    }
     const timeStampStart = async(data) => {
         const month = selectedMonth.value + 1
         if(data || data.position_id === 15 || data.position_id < 6){
@@ -378,7 +389,8 @@
         start: (item) => timeStampStart(item),
         stampDelete: (item) => timeStampDelete(item),
         end: (item) => timeStampEnd(item),
-        takeBreak: (item) => timeStampBreak(item)
+        takeBreak: (item) => timeStampBreak(item),
+        addDepartmentOnly: (item) => addDepartmentOnly(item)
     })
     provide('workGroups', workGroups)
 </script>

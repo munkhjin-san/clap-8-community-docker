@@ -112,7 +112,7 @@
             <div class="si-box">
                 <ShortInput 
                     name="recordUrl" 
-                    placeHolder="参照元URLを入力" 
+                    placeHolder="URL" 
                     :initialValue="referrer"
                     customClass="full"
                     ref="recordUrl"

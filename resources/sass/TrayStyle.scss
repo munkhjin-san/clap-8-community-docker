@@ -30,8 +30,28 @@
     overflow: hidden;
     transition: max-height 0.15s ease;
 }
-
-
+.task-date-wrapper {
+    box-shadow: #00000059 0 5px 15px;
+    padding: 20px;
+    margin: auto;
+    background: var(--background-color);
+    color: var(--primary-color);
+    max-width: 80%;
+    font-size: 14px;
+    line-height: 1.5;
+    max-height: 90%;
+    overflow: hidden auto;
+    max-height: 60vh;
+    min-width: 20%;
+}
+.task-date {
+    padding: 10px 0;
+    cursor: pointer;
+}
+.task-date:hover{
+    background: var(--bg2);
+    color: var(--primary-color);
+}
 .task-list-wrap{
     display: flex;
     flex-direction: column;

@@ -660,7 +660,7 @@ class BoardController extends Controller
             $chat = new messageRecord;
         }           
             $chat->record_id = $request->record_id;
-            $chat->user_id = $request->override_user_id ? $request->override_user_id : $auth_user_id;
+            $chat->user_id = $request->override_user_id ?? $auth_user_id;
             
             if($request->message){
                 $chat->message = $request->message;
@@ -826,7 +826,7 @@ class BoardController extends Controller
             $messageRecord = $this->get_messages(new Request(['page_index' => 1, 'record_id' => $request->record_id, 'message_id' => $chat->id]));          
             // SendPusher::dispatchAfterResponse($rebound);  
             $socket = array();
-            array_push($socket, ["event" => 'board:'.$request->record_id, "data" => $messageRecord->original ]);
+            array_push($socket, ["event" => "board:{$request->record_id}", "data" => $messageRecord->original ]);
             array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
             array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);
             $data = [
@@ -940,7 +940,7 @@ class BoardController extends Controller
         $linked = Auth::user()->linked()->get()->pluck('id')->toArray();
         array_push($linked, Auth::id());
         // return response()->json($linked); 
-        $list = array();
+        $list = [];
         foreach($linked as $user_id){
             $savedLastMessages = boardToUser::where('user_id', $user_id)
             ->where('deleted_status', 0)
@@ -1508,7 +1508,7 @@ class BoardController extends Controller
                 ->with('executors')
                 ->with('files')
                 ->with('supervisors')
-                ->whereDate('end_at', '<=', $today)
+                ->whereDate('end_at', '<', $today)
                 ->orderBy('created_at', 'desc')->get();
         
         return response()->json($list);

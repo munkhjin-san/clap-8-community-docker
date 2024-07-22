@@ -50,9 +50,10 @@ class AdminWorkController extends Controller{
         ->with(['shift_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('shift_day', $currentYear)
               ->whereMonth('shift_day', $currentMonth)
-              ->select('shift_day', 'shift_type', 'user_id')
+              ->select('shift_day', 'shift_type', 'user_id', 'department_id')
               ->orderBy('shift_day', 'asc')
-              ->with('shiftType');
+              ->with('shiftType')
+              ->with('department');
         }])
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
@@ -172,6 +173,24 @@ class AdminWorkController extends Controller{
                 $shiftTypes = range(3, 16);
                 $totalPaidHours = 0;
                 if (count($user->shift_records) > 0) {
+                    $shiftRecords = $user->shift_records->map(function ($record) {
+                        $record['month'] = Carbon::parse($record['shift_day'])->format('Y-m');
+                        return $record;
+                    });
+                    $shiftRecords = $shiftRecords->filter(function ($record) {
+                        return isset($record['department']['name']);
+                    });
+                    $departmentCounts = $shiftRecords->groupBy(function ($record) use($user) {
+                        return $record['department']['name'] . '|' . $user->name . '|' . $record['month'];
+                    })->map(function ($records, $key) use($user){
+                        return [
+                            'count' => $records->count(),
+                            'department' => $records->first()['department']['name'],
+                            'username' => $user->name,
+                            'month' => $records->first()['month']
+                        ];
+                    });
+                    $allDepartmentCounts = $allDepartmentCounts->merge($departmentCounts);
                     foreach ($user->shift_records as $record) {
                         $user_id = $record->user_id;
                         $shift_day = $record->shift_day;

@@ -271,6 +271,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_all_facilities', [CalendarController::class, 'get_all_facilities']);
         Route::post('/calendar_drop', [CalendarController::class, 'calendar_drop']);
         Route::post('/calendar_delete_record', [CalendarController::class, 'calendar_delete_record']);
+        Route::get('/get_departments_calendar', [CalendarController::class, 'get_departments_calendar']);
 
         Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
@@ -320,6 +321,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_shift_with_work_group', [WorkController::class, 'get_shift_with_work_group']);
         Route::get('/work_generate_csv', [WorkController::class, 'work_generate_csv']);
         Route::get('/check_break_time', [WorkController::class, 'check_break_time']);
+        Route::put('/shift_add_department', [WorkController::class, 'shift_add_department']);
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
         Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);

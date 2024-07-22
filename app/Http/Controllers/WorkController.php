@@ -273,9 +273,10 @@ class WorkController extends Controller
                     'shiftType' => function ($query) {
                         $query->select('id', 'name', 'abbreviation', 'value');
                     },
-                    'overtime_request'
+                    'overtime_request',
+                    'department',
                 ])
-                ->select('id', 'shift_day', 'shift_type', 'user_id', 'start_time', 'end_time', 'status_flag');
+                ->select('id', 'shift_day', 'shift_type', 'user_id', 'start_time', 'end_time', 'status_flag', 'department_id');
             },
             'custom_field_data_records' => function ($q) use($year, $month) {
                 $q->whereYear('date', $year)
@@ -337,6 +338,7 @@ class WorkController extends Controller
                 $daily_report_ability = $this->has_daily_report($shift, $time_card, $date, $user, $active_user, $attendance);
                 $overtime_ability = $shift ? $this->has_overtime_access($shift, $user, $time_card, $date, $active_user) : false;
                 $approve_ability = $this->has_approve_access($shift, $time_card, $authority, $attendance, $active_user);
+                $department_creation = $this->has_department_create($shift, $time_card, $date, $active_user, $attendance, $user);
                 $recordList[] = [
                     'day_full' => $date->format('Y-m-d'),
                     'day_show' => $index == 0 ? $date->format('Y-m-d') : '',
@@ -371,6 +373,7 @@ class WorkController extends Controller
                         'daily_report_cancel' => $approve_ability[1],
                         'overtime_approve' => $approve_ability[2],
                         'overtime_cancel' => $approve_ability[3],
+                        'department_creation' => $department_creation,
                     ]
                 ];
             }
@@ -412,6 +415,13 @@ class WorkController extends Controller
         $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id;
         $break_stamp = $timecardExist && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $user->id == $active_user->id; 
         return [$create ,$modify, $start_stamp, $end_stamp, $break_stamp];
+    }
+    private function has_department_create($shift, $time_card, $day, $active_user, $has_attendace, $user){
+        $valid_shift = !empty($shift) && $shift->shiftType->id !== 0 && $shift->shiftType->id !== 1;
+        $timecardExist = $time_card !== null;
+        $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
+        $access = $user->id == $active_user->id || ($active_user->id == 610 || $active_user->id == 608);
+        return $valid_shift && !$timecardExist && $isTodayOrPast && $access && !$has_attendace;
     }
     // Shift Functions
     public function get_shift_data(Request $request){
@@ -657,7 +667,6 @@ class WorkController extends Controller
                     'end_time' => $end_time_val,
                     'status_flag' => $status_flag,
                     'planned_year' => $planned_year,
-                    'shift_month' => $request->yearMonth
                 ]);
             }
         }
@@ -808,7 +817,7 @@ class WorkController extends Controller
         if($end->lt($start)){
             $start->subDay();
         }
-        $shift_time_difference_seconds = ($user->work_time_day * 60);
+        $shift_time_difference_seconds = $user->work_time_day * 60;
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
         
         $time_difference_seconds = $start->diffInSeconds($end);
@@ -887,6 +896,9 @@ class WorkController extends Controller
         }
         
         $is_exist->save();
+        if($request->shiftType !== 0 && $request->shiftType !== 1){
+            $this->checkDepartment($request->day, $request->userId);
+        }
         $this->saveWorkCost($request, $is_exist);
         $this->saveWorkIncentive($user, $request, $is_exist);
         if($request->overTimeMinute){
@@ -894,6 +906,15 @@ class WorkController extends Controller
         }
 
         return response()->json(['success' => 'success'], 200); 
+    }
+    private function checkDepartment($day, $user_id){
+        $shift = shiftRecord::where('shift_day', $day)
+                            ->where('user_id', $user_id)
+                            ->first();
+        if($shift){
+            $shift->department_id = null;
+            $shift->save();
+        }
     }
     private function saveWorkIncentive($user, $request, $is_exist){
         if($user->position_id === 15){
@@ -1362,7 +1383,11 @@ class WorkController extends Controller
                         if($date <= $yesterday){
                             $timecard = timecardRecord::where('deleted_at', null)
                                                       ->where('user_id', $auth_user_id )
-                                                      ->where('day', $date)->first();
+                                                      ->where('day', $date)
+                                                      ->with('timecard_costs')
+                                                      ->with('custom_field_data_records')
+                                                      ->with('department')
+                                                      ->first();
                             if($timecard === null){
                                 $dateExplode = explode("-",$date);
                                 $timecardNotSubmittedList[] = [
@@ -1384,6 +1409,9 @@ class WorkController extends Controller
                                     'day' =>  (int) $dateExplode[2],
                                     'value' => $date,
                                     'shiftStatus' => $value2['status'],
+                                    'costs' => $timecard->timecard_costs,
+                                    'customData' => $timecard->custom_field_data_records,
+                                    'work_group_id' => $timecard->work_group_id,
                                     'shiftEndTime' => $timecard->edit_end_time,
                                     'shiftStartTime' => $timecard->edit_start_time,
                                     'shiftOverTimeRequest' => $shift_overtime_requests->where('overtime_day', $date)->first()
@@ -1791,6 +1819,12 @@ class WorkController extends Controller
         return response()->json($recordList);
     }    
 
-    
+    public function shift_add_department(Request $request) {
+        $request->validate([
+            'id' => 'required',
+        ]);
+        $update = shiftRecord::findOrFail($request->id)->update(['department_id' => $request->department_id]);
+        return response()->json($update);
+    }
 }
 

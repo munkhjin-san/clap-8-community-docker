@@ -27,6 +27,9 @@ class shiftRecord extends Model
     public function overtime_request(){
         return $this->hasOne(ShiftOvertimeRequest::class, 'record_id', 'id');
     }
-    protected $fillable = ['user_id', 'shift_day', 'shift_type', 'start_time', 'end_time', 'status_flag', 'planned_year', 'descendant_of'];
+    public function department(){
+        return $this->hasOne(workGroup::class, 'id', 'department_id');
+    }
+    protected $guarded = [];
 
 }

@@ -20,22 +20,36 @@
                 v-model="cost.department"
                 customStyle="padding:0 10px; height:38px;"
             /> -->
-            <ShortInput 
+            <input 
+                name="content" 
+                placeholder="内容"
+                type="text"
+                style="padding:0 10px; height:38px;border:1px solid var(--primary-color);"
+                v-model="content"
+            />
+            <!-- <ShortInput 
                 name="content" 
                 placeHolder="内容" 
                 type="text"
                 v-model="content"
                 customStyle="padding:0 10px; height:38px;"
-            />
+            /> -->
             <div style="background:inherit; position:relative;">
-                <ShortInput 
+                <input 
+                    name="expenses"
+                    placeholder="経費"
+                    type="number"
+                    style="padding: 0px 25px 0 10px; height:38px; width: 50px;border:1px solid var(--primary-color);"
+                    v-model="expenses"
+                />
+                <!-- <ShortInput 
                     name="expenses" 
                     placeHolder="経費" 
                     type="number"
                     v-model="expenses"
                     customStyle="padding: 0px 25px 0 10px; height:38px; width: 50px;"
-                />
-                <span style="position:absolute; height:100%; top:0; right: 5px; line-height: 40px;">円</span>
+                /> -->
+                <span style="position:absolute; height:100%; top:0; right: 5px; line-height: 38px;">円</span>
             </div>
             
             

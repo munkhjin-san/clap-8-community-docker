@@ -53,6 +53,7 @@
 
         <div @click.stop="menu.setMenu( { id: 6, name: 'calendarMemberSelector', parent: 'calendarMemberSelector'})" v-if="!auth.isRegistered" class="c-bar-button" style="margin-left: 15px;">メンバー</div>
         <div @click.stop="menu.setMenu( { id: 7, name: 'calendarFacilitySelector', parent: 'calendarFacilitySelector'})" :style="{marginLeft : auth.isRegistered ? '15px' : '0'}" class="c-bar-button">施設</div>
+        <div @click.stop="menu.setMenu( { id: 8, name: 'departmentSelector', parent: 'departmentSelector'})" :style="{marginLeft : auth.isRegistered ? '15px' : '0'}" class="c-bar-button">部門</div>
         <div @click="emit('jumpToday')" class="c-bar-button">本日</div>
         <Transition name="modalFade">
             <div v-if="menu.parent == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menuId = null">
@@ -134,6 +135,34 @@
                 </div>
             </div>
         </Transition>
+        <Transition>
+            <div v-if="menu.parent == 'departmentSelector'" id="departmentSelector" class="calendarMemberSelector">
+                <div id="departmentSelector" style=" max-height: 50vh; overflow-y: auto;"> 
+                    <div style="position: sticky; padding: 10px 15px 5px; top: 0; background: var(--bg3);z-index: 2;">
+                        <div class="searchBarInner" style="margin: auto;width: auto;min-width: 270px"> 
+                            <PostSearchBar  
+                                className="newChatMemberSearch" 
+                                :searching="false" 
+                                :customPlaceHolder="'部門検索'"
+                                v-model="keywords"
+                            />
+                        </div> 
+                    </div>               
+                    <div>
+                            
+                        <div style="padding: 0 15px;">                                                
+                            <label v-for="department in searchDepartment" class="cal-member-check" style="align-self: center;padding-left: 20px;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
+                                <input :value="department.id" :checked="selectedDepartment.includes(department.id)" @input="emit('setDepartment', department.id)" name="memberCheckBox" type="checkbox">
+                                <span class="cal-check-mark" style="top: 5px;"></span>
+                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">                    
+                                    <p class="userName">{{department.name}}</p>                                    
+                                </div>
+                            </label>  
+                        </div>     
+                    </div>                             
+                </div>
+            </div>
+        </Transition>
     </div>
 </template>
 <script setup>
@@ -145,10 +174,11 @@ import { computed, onMounted, ref, inject } from 'vue'
 import { useMenuStore } from "@/store/menu";
 import { useAuthUserStore } from '../../store/auth'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import PostSearchBar from '../Post/PostSearchBar.vue'
     const menu = useMenuStore()
     const auth = useAuthUserStore()
-    const props = defineProps(['facilitiesList', 'selectedYear', 'selectedMonth'])
-    const emit = defineEmits(['jumpToday', 'updated', 'setFacility', 'setActiveMembers'])
+    const props = defineProps(['facilitiesList', 'selectedYear', 'selectedMonth', 'departmentsList', 'selectedDepartment'])
+    const emit = defineEmits(['jumpToday', 'updated', 'setFacility', 'setActiveMembers', 'setDepartment'])
     const list = ref([])
     const addUsersWindow = ref(false)
     const selectedUsers = ref([])
@@ -162,12 +192,26 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
     const menuId = ref(null)
     const groupTitle = ref(null)
     const groupUsers = ref(null)
+    const keywords = ref('')
     const myGroups = computed(() => {
         return list.value ? list.value : []
     })        
     const { notify, confirm, info } = inject('dialog')
     onMounted(() => {
         getMyGroup()        
+    })
+    const searchDepartment = computed(() => {
+        const { departmentsList } = props;
+        const keyword = keywords.value.toLowerCase();
+        
+        if (keyword && Array.isArray(departmentsList)) {
+            return departmentsList.filter(department => {
+                return Object.values(department).some(value => {
+                    return typeof value === 'string' && value.toLowerCase().includes(keyword);
+                });
+            });
+        }
+        return departmentsList
     })
 
     const editGroupStart = (group) => {

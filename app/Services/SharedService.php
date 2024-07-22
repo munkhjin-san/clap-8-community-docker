@@ -57,6 +57,37 @@ class SharedService
         return 'success';
         
     }
+    public function syncTaskToCalendar($task, $executors){
+        $instance = Carbon::parse($task->end_at); 
+        $start_instance = $instance->clone()->hour(00)->minute(00)->second(00);
+        $end_instance = $instance->clone()->hour(23)->minute(59)->second(00);
+        $start = Carbon::createFromFormat('Y-m-d H:i:s', $start_instance);
+        $end = Carbon::createFromFormat('Y-m-d H:i:s', $end_instance); 
+        $this->deleteTaskFromCalendar($task);
+        $params = [
+            "title" => $task->title,
+            "updated_user" => $task->updated_user,
+            "user_id" => $task->user_id,
+            "created_user" => $task->user_id,
+            "date_start" => $start,
+            "date_end" => $end,
+            "release_flag" => 0,
+            "task" => $task->id,
+            "remarks" => $task->remarks,
+        ];
+        $record = CalendarRecord::create($params);
+        $record->calendar_users()->syncWithPivotValues($executors, ["created_at" => now(),"updated_at" => now()]);
+        return 'success';
+    }
+
+    public function deleteTaskFromCalendar($task){
+        $record = CalendarRecord::where('task', $task->id)->first();
+        if($record){
+            $record->calendar_users()->detach();
+            $record->delete();
+            return 'deleted';
+        }
+    }
     public function getUserState($target_id, $self){
         
         $data = User::where('id', $target_id)
@@ -198,15 +229,19 @@ class SharedService
         
         return true;
     }
-    public function createInfoMessage ($userName, $boardId, $type, $userId){
+    public function createInfoMessage ($userName, $boardId, $type, $userId, $extra = ''){
         $patterns = [
             "added_members" => "がボードメンバーに追加されました。",
             "removed_members" => "がボードを退出しました。",
-            "left_members" => "がボードを退出しました。"
+            "left_members" => "がボードを退出しました。",
+            "new_task" => "が作られました。"
         ];
         $addedMembers = ' <span class="addedMembers">' . $userName . '</span>' . $patterns[$type];
+        if($type == 'new_task'){
+            $addedMembers = "<strong>新しい{$userName}{$patterns[$type]}</strong>\n{$extra}";
+        }
         $first_message = new messageRecord;
-        $first_message->info_flag = 1;
+        $first_message->info_flag = $type == 'new_task' ? 2 : 1;
         $first_message->message = $addedMembers;
         $first_message->record_id = $boardId;
         $first_message->user_id = $userId;

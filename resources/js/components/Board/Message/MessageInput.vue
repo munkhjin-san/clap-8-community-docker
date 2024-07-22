@@ -45,9 +45,9 @@
                     />
                 </Transition>
                 <Transition name="downShiftPop">
-                    <div v-if="aiResponse" class="ai-prompt-root" style="color: var(--primary-color);" >
-                        <span class="form-plc smallPlc" style="font-weight: 600;top: -13px;">ChatGPT修正案</span> 
-                        <div v-html="aiResponse" ref="aiResponseText" class="typeBoxArea" style="width: calc(100% - 20px);outline: none;border: none;" :contenteditable="aiResponseCustomize"></div>
+                    <div v-if="aiResponse" class="ai-prompt-root focused" style="color: var(--primary-color);" >
+                        <span class="form-plc" style="font-weight: 600;">ChatGPT修正案</span> 
+                        <div v-html="aiResponse" ref="aiResponseText" class="typeBoxArea" style="width: calc(100% - 20px);outline: none;border: none; padding: 0 10px 10px; margin-top: 30px;" :contenteditable="aiResponseCustomize"></div>
                         <div style="width:100%;display: flex;align-items: end;">                            
                             <div @click="replaceText" v-if="aiResponseCustomize" style="margin: 0 10px 10px auto;" class="commentEditButton">適用</div>
                             <div @click="resetAi" v-if="aiResponseCustomize" style="margin: 0 10px 10px 0;" class="commentEditButton">閉じる</div>

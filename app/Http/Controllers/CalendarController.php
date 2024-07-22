@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\MyGroup;
 use App\Models\MyWorkGroup;
 use App\Models\boardRecord;
+use App\Models\workGroup;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
@@ -273,31 +274,43 @@ class CalendarController extends Controller
         $year = $carbonDate->year;
         $month = $carbonDate->month;
         $facility_check = !empty($request->facilities);
+        $department_check = !empty($request->departments);
         $facilities = $request->facilities;
-        
+        $departments = $request->departments;
         $records = CalendarRecord::query();
         $filter = $records
         ->when($facility_check, function ($query) use ($facilities, $list) {
             $query->where(function ($query) use ($facilities, $list) {
                 foreach ($facilities as $index => $value) {
-                    $query->orWhereIn($index, $value)
-                        ->orWhereHas('calendar_users', function ($query) use ($list) {
-                            $query->whereIn('user_id', $list);
-                        });
+                    $query->orWhereIn($index, $value);
                 }
+                $query->orWhereHas('calendar_users', function ($query) use ($list) {
+                    $query->whereIn('user_id', $list);
+                });
             });
-        })
-        ->when(!$facility_check, function ($query) use ($list) {           
+        }, function ($query) use ($list) {
             $query->whereHas('calendar_users', function ($query) use ($list) {
                 $query->whereIn('user_id', $list);
-            });            
+            });
+        })
+        ->when($department_check, function ($query) use ($departments, $list) {
+            $query->where(function ($query) use ($departments, $list) {
+                foreach ($departments as $department) {
+                    $query->orWhere('department_id', $department);
+                }
+                $query->orWhereHas('calendar_users', function ($query) use ($list) {
+                    $query->whereIn('user_id', $list);
+                });
+            });
+        }, function ($query) use ($list) {
+            $query->whereHas('calendar_users', function ($query) use ($list) {
+                $query->whereIn('user_id', $list);
+            });
         })
         ->whereBetween('date_start', [$previousMonday, $nextSunday])    
-        ->with('calendar_users')
-        ->with('updated_by')
-        ->with('created_by')
-        ->with('files')
+        ->with(['calendar_users', 'updated_by', 'created_by', 'files', 'task', 'department'])
         ->get();
+
 
         return response()->json($filter);
         
@@ -431,7 +444,8 @@ class CalendarController extends Controller
             "edit_all" => $request['edit_all'],
             "updated_user" => $this->active_user()->id,
             "date_start" => $date_start_ready,
-            "date_end" => $date_end_ready
+            "date_end" => $date_end_ready,
+            "department_id" => $request['department_id']
         ]);
 
         $new_record->save();
@@ -676,6 +690,7 @@ class CalendarController extends Controller
             "release_flag" => $request['release_flag'],
             "edit_all" => $request['edit_all'],
             "repetition_type" => $request['repetition_type'],
+            "department_id" => $request['department_id'],
             "updated_user" => $active_user->id,
             "user_id" => $active_user->id,
             "r_group_id" => $r_group_id,
@@ -1117,7 +1132,7 @@ class CalendarController extends Controller
         VERSION:2.0
         CALSCALE:GREGORIAN
         METHOD:PUBLISH
-        X-WR-CALNAME:CLAP:カレンダー
+        X-WR-CALNAME:CLAP:スケジュール
         X-WR-TIMEZONE:Asia/Tokyo
         BEGIN:VTIMEZONE
         TZID:Asia/Tokyo
@@ -1207,6 +1222,10 @@ class CalendarController extends Controller
             "group" => $groups
         ]); 
 
+    }
+    public function get_departments_calendar(){
+        $departments = workGroup::with('members')->get();
+        return response()->json($departments);
     }
 
     

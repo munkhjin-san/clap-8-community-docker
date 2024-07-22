@@ -33,6 +33,15 @@
                     v-model="calendar_users"
                 />
             </div>
+            <div class="si-box">
+                <ItemSelector 
+                    placeHolder="部門選択"
+                    :multiple="false"
+                    :clearable="false"
+                    :options="departmentsList"
+                    v-model="department_id" 
+                />
+            </div>
             <div class="si-box" style="position:relative;">
                 <div>
                     <p :class="['form-title-small', 'form-title-active']">編集許可</p>
@@ -290,7 +299,7 @@
                 <div class="si-box">
                     <ShortInput 
                         name="calendarUrl" 
-                        placeHolder="参照元URLを入力" 
+                        placeHolder="URL" 
                         rules=""
                         :initialValue="editTarget ? editTarget.referrer : ''"
                         customClass="full"
@@ -326,9 +335,18 @@ import GroupSelector from '../Form/GroupSelector.vue';
 import LongInput from '../Form/LongInput.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import { useSharingDataStore } from '@/store/sharingData'
+import ItemSelector from '../Form/ItemSelector.vue';
     const sharingData = useSharingDataStore()
 
-    const props = defineProps(['editTarget', 'facilitiesList', 'preSelected', 'edit_all_record', 'preSelectedMembers'])
+    const props = defineProps([
+        'editTarget', 
+        'facilitiesList', 
+        'preSelected', 
+        'edit_all_record', 
+        'preSelectedMembers', 
+        'departmentsList',
+        'preSelectedDepartment'
+    ])
     const emit = defineEmits(['close'])
 
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
@@ -370,7 +388,7 @@ import { useSharingDataStore } from '@/store/sharingData'
     const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
     const processing = ref(false)
     const calendarRemark = ref(null)
- 
+    const department_id = ref(props.preSelectedDepartment?.id ?? '')
     onMounted(() => {
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
             const repeats = props.editTarget.repeat_week.split(',').map(Number);
@@ -515,7 +533,8 @@ import { useSharingDataStore } from '@/store/sharingData'
             once_date: once_date.value,
             repeat_span: repeat_span.value,
             facility: convertableFacilities,
-            file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : []
+            file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [],
+            department_id: department_id.value
         }
         
         axios.post('/calendar_add_record',params)

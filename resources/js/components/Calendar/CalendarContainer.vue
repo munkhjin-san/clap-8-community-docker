@@ -10,6 +10,7 @@
                     :searching="searching"
                     className="newChatMemberSearch" 
                     :customPlaceHolder="`スケジュールを検索`"
+                    v-model="searchKey"
                 />
                 <SearchResult 
                     v-if="searchKey.length && menu.id == 26 && menu.name == 'calendarSearchResultWindow'" 
@@ -24,9 +25,12 @@
                     @updated="userUpdated"
                     @setFacility="setFacility"
                     @setActiveMembers="val => activeMembers = val"
+                    @setDepartment="setDepartment"
                     :facilitiesList="facilitiesList"
                     :selectedYear="selectedYear"
                     :selectedMonth="selectedMonth"
+                    :departmentsList="departmentsList"
+                    :selectedDepartment="selectedDepartment"
                 />
                 <div style="margin: 0 15px 0 auto;">
                     <DayPicker
@@ -144,7 +148,9 @@
             <CalendarCreate 
                 v-if="createWindow"   
                 :editTarget="editTarget"   
-                :facilitiesList="facilitiesList"  
+                :facilitiesList="facilitiesList"
+                :departmentsList="departmentsList"
+                :preSelectedDepartment="preSelectedDepartment"  
                 :preSelected="preSelected"
                 :edit_all_record="edit_all_record"
                 :preSelectedMembers="preSelectedMembers"
@@ -178,6 +184,7 @@ import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { useSharingDataStore } from '@/store/sharingData'
 import { useTempRecord } from '@/store/tempRecord';
+import axios from 'axios';
     const viewMenu = [
         {title: '月（スケジュール）', value: 1},
         {title: '月（時間）', value: 0},
@@ -210,6 +217,8 @@ import { useTempRecord } from '@/store/tempRecord';
     const searchResult = ref([])
     const searchFetch = ref(0)
     const facilitiesList = ref([])
+    const departmentsList = ref([])
+    const selectedDepartment = ref([])
     const searching = ref(false)
     const preSelected = ref(null)
     const prevScrollTop = ref(0)
@@ -257,7 +266,8 @@ import { useTempRecord } from '@/store/tempRecord';
                      
             
         }
-        getFacilities()        
+        getFacilities()  
+        getDepartments()      
         window.addEventListener("keydown", onKeyDown);
         if(sharingData.active){
             createWindow.value = true
@@ -266,7 +276,11 @@ import { useTempRecord } from '@/store/tempRecord';
             preSelectedMembers.value.push(auth.activeUser)
         }
     })
-   
+    const preSelectedDepartment = computed(() => {
+        return departmentsList.value.find(dep => dep.members.some(
+            member => member.id === auth.id
+        ))
+    })
     const selectedDate = computed(() => {
         return moment([selectedYear.value, selectedMonth.value, selectedDay.value]).format('YYYY-MM-DD')
     })
@@ -302,6 +316,16 @@ import { useTempRecord } from '@/store/tempRecord';
     
 
     })
+    const setDepartment = (department) => {
+        const index = selectedDepartment.value.indexOf(department);
+        if (index === -1) {
+            selectedDepartment.value.push(department);
+        } else {
+            selectedDepartment.value.splice(index, 1);
+        }
+        const dateInstance = moment([ selectedYear.value, selectedMonth.value, 1 ]).format('YYYY-MM-DD');
+        getCalendar(dateInstance, 'updated')
+    }
     const setListView = (data) => {
         const day = moment(data).date()
         selectedDay.value = day
@@ -426,9 +450,9 @@ import { useTempRecord } from '@/store/tempRecord';
     const getFacilities = () => {
         axios.post('/get_all_facilities').then(response => facilitiesList.value = response.data)
     }
-    const searchStart = (val) => {
+    const searchStart = () => {
         menu.setMenu( {id : 26, name: 'calendarSearchResultWindow'})
-        searchKey.value = val            
+        let val = searchKey.value            
         if(val && val.length){
             searching.value = true
             axios.post('/get_calendar_search',{key: val}).then(response => {                      
@@ -647,7 +671,7 @@ import { useTempRecord } from '@/store/tempRecord';
 
             
         }
-        axios.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType.value}).then(response => {  
+        axios.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType.value, departments: selectedDepartment.value}).then(response => {  
             
             if(method == 'updated'){
                 const valid_id = response.data.map(ob => ob.id)
@@ -703,9 +727,17 @@ import { useTempRecord } from '@/store/tempRecord';
             else notify('エラーが発生しました。')                        
         });
     }
+    const getDepartments = async() => {
+        try {
+            await axios.get('/get_departments_calendar').then(res => departmentsList.value = res.data)
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
+    }
     provide('deleteCalendar', deleteRecord)
     provide('editRecord', editRecord)
     provide('facilities', facilitiesList)
+    provide('selectedDepartment', selectedDepartment)
     provide('dropFinish', dropFinish)
     provide('draggingCalendar', draggingCalendar)
 

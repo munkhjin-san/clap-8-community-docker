@@ -1,6 +1,6 @@
 <template>
 
-    <div :class="['formFileUploadArea', {dropHereArea: entered}]"
+    <div :class="['formFileUploadArea', {dropHereArea: entered}, {focused: uploadFiles.length}]"
         @click="triggerUploader"
         @dragenter="setEnter(true)"
         @dragleave="setEnter(false)"
@@ -9,13 +9,13 @@
         style="position: relative;">   
 
         <div class="uploadMask" v-if="uploadingProgress"><div>アップロード中</div><div> {{uploadingProgress }}%</div></div>
-        <div :class="['form-plc', 'smallPlc']">
+        <div :class="['form-plc']">
             <label for="file" class="file-label">
                 <span style="font-size: 14px;">ファイルアップロード</span>
             </label>
             <input accept="image/*, video/*" type="file" ref="formUploader" name="file" id="file" @change="fileSelected" style="display: none;">
         </div> 
-        <div class="file-area-content" v-if="uploadFiles" style="padding: 20px 10px 10px 10px;margin:0">
+        <div class="file-area-content" v-if="uploadFiles" style="padding: 30px 10px 10px 10px;margin:0">
             <div class="file-wrap" v-for="(file, index) in uploadFiles" @click.stop>   
                 <div class="file-area-container">
                     <div class="flex-centered">             

@@ -1,7 +1,6 @@
 <template>
-    <div style="position: relative;background:inherit">
-        <div style="background:inherit" class="grow-wrap" ref="growRef">
-            <span v-if="placeHolder" class="form-plc smallPlc">{{placeHolder}}</span> 
+    <div>
+        <div class="grow-wrap" ref="growRef" :class="{focused: modelValue}">
             <textarea 
                 :style="{width: `${width - 30}px`, maxWidth:`${width - 30}px`}"
                 @input="validate(true, $event)"
@@ -9,6 +8,8 @@
                 :name="name" 
                 :class="['g-text-long', customClass, {'date-color' : theme.dark }]"                 
             ></textarea>
+            <label v-if="placeHolder" :class="['form-plc', {centerLabel: !modelValue}]">{{placeHolder}}</label> 
+
         </div>
         <p v-if="error" class="i-error">{{ error }}</p>
         {{ size }}
@@ -58,19 +59,31 @@
     defineExpose({validate})
 </script>
 <style scoped>
+.centerLabel{
+    top: 50%;
+    transform: translateY(-50%);
+}
 .g-text-long{
     color: inherit;
     font-size: 16px;
-    min-height: 150px;
+    min-height: 80px;
     display: inline-block;
+}
+textarea:focus + label{
+    font-size: 11px;
+    top: 15px;
+    left: 15px;
+    color: var(--primary-color);
+    transform: translateY(-50%);
 }
 .grow-wrap {
   display: grid;
   line-height: 1.6;
   border: 1px solid var(--primary-color);
-  padding: 20px 0;
+  padding: 25px 0 20px;
   transition: border 0.3s ease;
   max-width: 100%;
+  position: relative;
 }
 .grow-wrap::after {
   content: attr(data-replicated-value) " ";

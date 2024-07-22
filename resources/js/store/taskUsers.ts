@@ -1,3 +1,4 @@
+import { Task } from '@/interface/globalInterface';
 import { defineStore } from 'pinia'
 interface State {
   active: boolean
@@ -7,11 +8,8 @@ interface State {
     icon_id: number;
   }[];
   title: string | null;
-  task: {
-    id: number;
-    approver_id: number;
-    end_at: string | Date;
-  }
+  task: Task | null
+  siblings: Task[]
 }
 
 export const useTaskUsers = defineStore('taskUsers', {
@@ -19,11 +17,8 @@ export const useTaskUsers = defineStore('taskUsers', {
     active: false,
     title: null,
     userList: [],
-    task: {
-        id: 0,
-        approver_id: 0,
-        end_at: ''
-    },
+    task: null,
+    siblings: []
   }),
   actions: {
     setTaskUsers(payload: any){
@@ -31,6 +26,9 @@ export const useTaskUsers = defineStore('taskUsers', {
         this.title = payload.title
         this.userList = payload.userList
         this.task = payload.task
+        if(payload?.siblings){
+            this.siblings = payload.siblings
+        }
     }
   }
 })

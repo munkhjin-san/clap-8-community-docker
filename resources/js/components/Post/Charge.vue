@@ -20,18 +20,20 @@
                 <span v-else>{{`${possibleAmount}円`}}</span>
             </div>
             
-            <div style="position:relative;background:inherit">
+            <div :class="['form-wrapper', {focused: value.length || charge_bet || focus}]">
 
             
-                <span style="z-index: 5;" :class="{smallPlc : (value.length) || charge_bet}" class="form-plc">チャージ金額を選択</span> 
+                <span style="z-index: 5;" class="form-plc">チャージ金額を選択</span> 
                 <drop-selector
                     @input="value = $event.target.value"
                     :class="['taskUserSelecArea']"   
-                    style="background-image: unset; margin:0px;" 
+                    style="background-image: unset; margin:0px;width: 100%;border: 1px solid var(--primary-color);" 
                     v-model="charge_bet" 
                     name="charge" 
                     :options="chargeOptions"
                     inputId="chargeSelector"
+                    @search:focus="focus = true"
+                    @search:blur="focus = false"
                 > 
                     <template v-slot:no-options="{ search, searching }">                    
                         <div style="font-size: 13px;opacity: 0.5;padding: 10px 0">お探しのチャージ額は見つかりません。</div>
@@ -63,6 +65,7 @@ import { inject } from 'vue';
     const chargeLock = ref(false)
     const value = ref('')
     const fetched = ref(false)
+    const focus = ref(false)
     const { notify } = inject('dialog')
     onMounted(() => {
         getMyCharge()

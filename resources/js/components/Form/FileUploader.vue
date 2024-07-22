@@ -1,21 +1,22 @@
 <template>
 
-    <div :class="['formFileUploadArea', {dropHereArea: entered}]"
+    <div :class="['formFileUploadArea', {dropHereArea: entered}, {focused: uploadFiles.length}]"
         @click="triggerUploader"
         @dragenter="setEnter(true)"
         @dragleave="setEnter(false)"
         @dragover.prevent
         @drop.prevent="dropFile"
-        style="position: relative;">   
+        style="position: relative;"
+        >   
 
         <div class="uploadMask" v-if="uploadingProgress"><div>アップロード中</div><div> {{uploadingProgress }}%</div></div>
-        <div class="form-plc smallPlc" style="z-index: 6;">
+        <div class="form-plc" style="z-index: 6;">
             <label for="file" class="file-label">
-                <span style="font-size: 14px;">ファイルアップロード</span>
+                <span>ファイル</span>
             </label>
             <input type="file" ref="formUploader" name="file" id="file" @change="fileSelected" style="display: none;" multiple>
         </div> 
-        <div class="file-area-content" v-if="uploadFiles" style="padding: 20px 10px 10px 10px;margin:0">
+        <div class="file-area-content" v-if="uploadFiles" style="padding: 30px 10px 10px 10px;margin:0">
             <div class="file-wrap" v-for="(file, index) in uploadFiles" @click.stop>   
                 <div class="file-area-container">
                     <div class="flex-centered">             
@@ -149,6 +150,8 @@ import { useSharingDataStore } from '@/store/sharingData'
     background: inherit;
     min-height: 60px;
     box-sizing: border-box;
+    display: flex;
+    align-items: center;
 }
 .dropHereArea{
     border: 1px dashed var(--primary-color)!important; 

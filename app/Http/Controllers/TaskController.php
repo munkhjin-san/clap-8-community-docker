@@ -2,19 +2,27 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CalendarRecord;
 use App\Models\taskRecord;
 use App\Models\taskUser;
+use App\Models\TaskRepeat;
 use App\Models\boardRecord;
-use App\Models\messageRecord;
-use App\Models\boardToUser;
-use App\Events\MessageSent;
+use App\Services\SharedService;
+use App\Jobs\TaskCreated;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
+use DB;
 class TaskController extends Controller
 {
+    protected $sharedService;
+    public function __construct(SharedService $sharedService) {
+        $this->sharedService = $sharedService;
+    }
     private function active_user(){
         $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
         if($sub){
@@ -28,29 +36,73 @@ class TaskController extends Controller
         
         $active_user = $this->active_user();
         $auth_user_id = $active_user->id;
+        $which = $request->which;
         if(!empty($request) && !empty($auth_user_id)){      
-            if($request->flag == 0){
-                $list1 = taskRecord::where('board_id', $request->record_id)
-                ->whereNotNull('end_at')
-                ->with('to_users')
-                ->with('files')
-                ->with('approve_user')
-                ->orderBy('created_at', 'desc')->get();
+            $once_tasks = taskRecord::where('board_id', $request->record_id)
+            ->whereNotNull('end_at')
+            ->where(function ($query) use ($auth_user_id, $which) {
+                $query->whereHas('executors', function($q) use ($auth_user_id, $which) {
+                    $q->where('user_id', $auth_user_id)
+                        ->where('comp_flag', $which);
+                })->orWhereHas('supervisors', function ($q) use ($auth_user_id, $which) {
+                    $q->where('user_id', $auth_user_id)
+                        ->where('comp_flag', $which);
+                });
+            })
+            ->with('executors')
+            ->with('files')
+            ->with('supervisors')
+            ->orderBy('created_at', 'desc')->get();
 
-                $list2 = taskRecord::where('board_id', $request->record_id)
-                ->whereNull('end_at')
-                ->with('to_users')
-                ->with('files')
-                ->with('approve_user')
-                ->when($request->which == 1, function($q){
-                    $q->onlyTrashed();                    
-                })
-                ->orderBy('created_at', 'desc')->get();
-                $list = $list1->concat($list2);
-                $order = $request->which == 1 ? 'updated_at' : 'created_at';
-                $list3 = $list->sortByDesc($order)->values();
-                return response()->json($list3);
-            }     
+
+            $memos = taskRecord::where('board_id', $request->record_id)
+            ->whereNull('end_at')
+            ->with('executors')
+            ->with('files')
+            ->with('supervisors')
+            ->when($request->which == 1, function($q){
+                $q->onlyTrashed();                    
+            })
+            ->orderBy('created_at', 'desc')->get();
+            $categorized = [];
+            // $board_id = $request->record_id;
+            // $types = ['uncategorized', 'once', 'weekly', 'monthly', 'yearly'];
+            // $categorized = TaskRecord::where('board_id', $board_id)
+            //                         ->whereHas('repeat')
+            //                         ->where(function ($query) use ($auth_user_id, $which) {
+            //                             $query->whereHas('executors', function($q) use ($auth_user_id, $which) {
+            //                                 $q->where('user_id', $auth_user_id)
+            //                                     ->where('comp_flag', $which);
+            //                             })->orWhereHas('supervisors', function ($q) use ($auth_user_id, $which) {
+            //                                 $q->where('user_id', $auth_user_id)
+            //                                     ->where('comp_flag', $which);
+            //                             });
+            //                         })
+            //                         ->with(['supervisors', 'executors', 'files', 'repeat'])
+            //                         ->get()
+            //                         ->groupBy(function($task) use ($types) {
+            //                             $index = $task->repeat->repeat_type ?? 0; 
+            //                             return $types[$index]; 
+            //                         });
+            // $categorized = $categorized->map(function ($tasks, $category) {
+            //     return $tasks->groupBy('repeat_id');
+            // });
+            // $grouped = TaskRepeat::whereHas('tasks', function($q) use($board_id){
+            //     $q->where('board_id', $board_id);
+            // })->with('tasks')->get();
+            // $categorized = $grouped->groupBy(function($item) {
+            //     $types = ['uncategorized', 'once', 'weekly', 'monthly', 'yearly'];
+            //     $index = $item->repeat_type ?? 0; 
+            //     return $types[$index]; 
+            // });
+            if(count($once_tasks)){
+                $categorized['once'] = $once_tasks;
+            }
+            if(count($memos)){
+                $categorized['memos'] = $memos;
+            }
+            return response()->json($categorized);
+                
             
                   
         
@@ -64,9 +116,11 @@ class TaskController extends Controller
         $active_user = $this->active_user();
         $auth_user_id = $active_user->id;
         
-        if(!empty($request) && !empty($auth_user_id)){            
-            $list = taskUser::where('record_id', $request->task_id)->where('user_id', $auth_user_id)->first();
+        if(!empty($request) && !empty($auth_user_id)){   
+            $taskUser = taskUser::where('record_id', $request->task_id)->get();         
+            $list = $taskUser->where('user_id', $auth_user_id)->first();
             $list->comp_flag = $request->comp_flag;
+            $list->status_flag = $request->status_flag ?? 0;
             if($request->late_answer){
                 $list->late_answer = $request->late_answer;
             }
@@ -75,14 +129,18 @@ class TaskController extends Controller
             }
             $list->save();
             
-            $allCount = taskUser::where('record_id', $request->task_id)->count();
+            $allCount = $taskUser->count();
             if($allCount > 0){
-                $completedCount = taskUser::where('record_id', '=', $request->task_id)->where('comp_flag', '=', 1)->count();
+                $completedCount = $taskUser->where('comp_flag', 1)->count();
                 $task = taskRecord::find($request->task_id);
+                $allCount == $completedCount ? $task->comp_flag = 1 : $task->comp_flag = 0;
                 if($allCount == $completedCount){
-                    $task->comp_flag = 1;
+                    $task->sync_to_schedule = 0;
+                    CalendarRecord::where('task', $task->id)->delete();
                 }else{
-                    $task->comp_flag = 0;
+                    taskUser::where('record_id', $request->task_id)
+                            ->where('supervisor', 1)
+                            ->update(['comp_flag' => 0]);
                 }
                 $task->save();
             }
@@ -146,21 +204,21 @@ class TaskController extends Controller
     }
     public function get_task_badge(Request $request){
         $active_user = $this->active_user();
-        $result = [];
-        
         $allBoard = boardRecord::whereHas('board_to_users', function($q) use($active_user){
             $q->where('user_id', $active_user->id)->where('deleted_status','=', 0);
         })->pluck('id')->toArray();
-        if(!empty($allBoard)){
-            foreach($allBoard as $id){
-                $allTasks = taskRecord::where('comp_flag', '=', 0)->whereNotNull('end_at')->where('board_id', '=', $id)->whereHas('task_users', function($q) use($active_user){
-                    $q->where('user_id', $active_user->id)->where('comp_flag', '=', 0);
-                })->count();
-                $result[$id] = $allTasks;
-            }
-            
-        }
-        return response()->json($result);
+        $taskCounts = taskRecord::where('comp_flag', 0)
+        ->whereNotNull('end_at')
+        ->whereIn('board_id', $allBoard)
+        ->whereHas('executors', function($q) use($active_user) {
+            $q->where('users.id', $active_user->id)->where('comp_flag', 0);
+        })
+        ->select('board_id', DB::raw('count(*) as total_task_number'))
+        ->groupBy('board_id')
+        ->get()
+        ->pluck('total_task_number', 'board_id')
+        ->toArray();
+        return response()->json($taskCounts);
     }
 
     public function taskEdit(Request $request){
@@ -177,14 +235,8 @@ class TaskController extends Controller
                 }
                 $combinedDT = date('Y-m-d H:i:s', strtotime("$request->task_end_date $end_time"));
                 $minutes = intval(date('i', strtotime($combinedDT))); // Get the minutes from the combined datetime
-
-                if ($minutes > 30) {
-                    // Increment the hour by 1
-                    $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT . '+1 hour'));
-                } else {
-                    // Set the minutes to 0
-                    $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT));
-                }
+                $minutes > 30 ? $combinedDT = date('Y-m-d H:00:00', strtotime("{$combinedDT}+1 hour")) : $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT));
+                
 
                 if($task->task_end !== $combinedDT){
                     $task_info_edit_trigger = 1;
@@ -230,80 +282,247 @@ class TaskController extends Controller
     }
     public function taskDelete(Request $request){
         $task = taskRecord::find($request->task_id);
-        if($task){
+        if($request->all_delete){
+            $tasks = taskRecord::where('repeat_id', $task->repeat_id)->get();
+            foreach($tasks as $task){
+                if($task->sync_to_schedule){
+                    $this->sharedService->deleteTaskFromCalendar($task);
+                }
+                $task->delete();
+            }
+        } else {
+            if($task->sync_to_schedule){
+                $this->sharedService->deleteTaskFromCalendar($task);
+            }
             $task->delete();
-            boardRecord::findOrFail($task->board_id);
-            return response()->json($task);
         }
+        return response()->json($task);
+        
     }
+    // private function insertItemBuilder(Request $request, $endDate, $rId){
+    //     $active_user = $request->override_user ?? $this->active_user();
+
+    //     return [
+    //         "user_id" => $active_user->id,
+    //         "updated_user" => $active_user->id,
+    //         "repeat_id" => $rId,
+    //         "board_id" => $request->board_id,
+    //         "end_at" => $endDate,
+    //         "remarks" => $request->remarks,
+    //         "end_time" => $request->task_end_time ?? null,
+    //         "sync_to_schedule" => $request->sync_to_schedule,
+    //         "title" => $request->title
+    //     ];
+    // }
+    private function insertItemBuilder(Request $request, $endDate){
+        $active_user = $request->override_user ?? $this->active_user();
+        $time = $request->response_time['hours'] * 60 + $request->response_time['minutes'];
+        return [
+            "user_id" => $active_user->id,
+            "updated_user" => $active_user->id,
+            "board_id" => $request->board_id,
+            "end_at" => $endDate,
+            "remarks" => $request->remarks,
+            "response_time" => $time ?? null,
+            "sync_to_schedule" => $request->sync_to_schedule,
+            "title" => $request->title
+        ];
+    }
+    // private function byWeekDays(Request $request){
+        
+    //     $weekDays = $request['repeat']['day_of_week'];
+    //     $today = Carbon::now()->startOfDay();
+    //     $endDate = Carbon::parse($request->task_end_date);
+    //     if (!$endDate->gte($today)) {
+    //         return [];
+    //     }
+
+    //     $isAllowedDay = function (Carbon $date) use ($weekDays) {
+    //         return in_array($date->dayOfWeekIso, $weekDays);
+    //     };
+    //     $days = [];
+    //     $rId =  uniqid();
+    //     for ($date = $today->clone(); $date->lte($endDate); $date->addDay()) {
+    //         if ($isAllowedDay($date)) {
+    //             array_push($days, $this->insertItemBuilder($request, $date->format('Y-m-d'), $rId));
+    //         }
+    //     }
+    //     return $days;
+    // }
+    // public function byMonthDays(Request $request)
+    // {
+       
+    //     $today = Carbon::now()->startOfDay();
+    //     $nthDay =  $request['repeat']['day_of_month'];
+    //     $endDate = Carbon::parse($request->task_end_date);
+    //     if (!$endDate->gte($today)) {
+    //         return [];
+    //     }
+    //     $occurrences = [];
+    //     $rId =  uniqid();
+    //     while ($today->lte($endDate)) {
+    //         if ($today->dayOfMonth === $nthDay || ($nthDay > 29 && $today->isLastOfMonth())) {
+    //             array_push($occurrences, $this->insertItemBuilder($request, $today->format('Y-m-d'), $rId));
+    //         }
+    //         $today->addDay();
+    //     }
+
+    //     return $occurrences;
+    // }
+    // public function byYearMonth(Request $request)
+    // {
+    //     $today = Carbon::now()->startOfDay();
+    //     $endDate = Carbon::parse($request->task_end_date);
+    //     $nthMonth = $request['repeat']['month'];
+    //     $nthDay =  $request['repeat']['day_of_month'];
+    //     if (!$endDate->gte($today)) {
+    //         return [];
+    //     }
+    //     $occurrences = [];
+    //     $rId =  uniqid();
+    //     while ($today->lte($endDate)) {
+    //         if ($today->month === $nthMonth && 
+    //             ($today->dayOfMonth === $nthDay || ($nthDay > 29 && $today->isLastOfMonth()))) {
+    //                 array_push($occurrences, $this->insertItemBuilder($request, $today->format('Y-m-d'), $rId));
+    //         }
+    //         $today->addDay();
+    //     }
+
+    //     return $occurrences;
+    // }
 
     public function addTask(Request $request){
-        $active_user = $request->override_user ? $request->override_user : $this->active_user();
+        
+        $active_user = $this->active_user();
         $request->validate([
             'qualified_users' => 'required',
             'board_id' => 'required',
         ]);
-        if(!$request->edit_id){
-            $infoMessage = new messageRecord;
-            $infoMessage->user_id = $active_user->id;
-            $infoMessage->info_flag = 2;
-            $infoMessage->record_id = $request->board_id;
-            $infoMessage->message = '新しいタスクが追加されました。';
-            $infoMessage->message_text = '新しいタスクが追加されました。';
-            $infoMessage->save();
-        }
-
-        $end_time = '23:59:59';
+    
+        $endDate = $request['task_end_date'];
+        // $repeat_type = $request['repeat']['repeat_type'];
+        // $repeat_id = $request->repeat_id;
+        $edit_id = $request->edit_id;
         
-        if($request->edit_id){
-            $task = taskRecord::findOrFail($request->edit_id);
-        }else{
-            $task = new taskRecord;
+        if ($edit_id) {
+            $this->updateSingleTask($edit_id, $this->insertItemBuilder($request, $endDate), $request);
+            return response()->json(['status' => 'success']);
         }
+    
+        // $createQuery = $this->generateCreateQuery($request, $repeat_type, $endDate);
+        $createQuery = $this->insertItemBuilder($request, $endDate);
+        if (empty($createQuery)) {
+            throw ValidationException::withMessages(['message' => '繰り返し設定をもう一度確認し、有効期間を入力してください。']);
+        }
+    
+        // if ($repeat_id) {
+        //     $this->updateRepeatedTasks($repeat_id, $createQuery, $request);
+        // } else {
+        $this->createTasks($createQuery, $request);
+        // }
+        // $types = ['', '1回のみ', '毎週', '毎月', '毎年'];
+        if(!$edit_id && $endDate){
+            $after = [
+                "user_id" => $active_user->id,
+                "text" => $request->remarks,
+                "board_id" => $request->board_id,
+            ];
+            TaskCreated::dispatchAfterResponse($after);
+        }
+        $socket = [];
         
-
-        $task->user_id = $active_user->id;
-        $task->updated_user = $active_user->id;
-        if($request->task_end_date){
-            $combinedDT = date('Y-m-d H:i:s', strtotime("$request->task_end_date $end_time"));
-            $minutes = intval(date('i', strtotime($combinedDT))); // Get the minutes from the combined datetime
-
-            if ($minutes > 30) {
-                $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT . '+1 hour'));
-            } else {
-                $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT));
-            }
-            $task->end_at = $combinedDT;
-        }else{
-            $task->end_at = null;
-        }
-        
-        if(!$request->edit_id){
-            $task->message_id = $infoMessage->id;
-        }
-        $task->approver_id = $request->approver;
-        $task->remarks = $request->remarks;
-        $task->board_id = $request->board_id;
-
-        $task->save();
-       
-
-        $task->to_users()->syncWithPivotValues($request->qualified_users, ['updated_at' => now()]);
-        $related_members = boardToUser::where('record_id','=', $request->board_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $active_user->id)->pluck('user_id');
-        if(!$request->edit_id){
-            boardToUser::where('record_id','=', $request->board_id)->where('user_id', '=', $active_user->id)->update(["last_message" => $infoMessage->id]);
-        }
-        $rebound = array(
-            "type" => "new_message",
-            "board_members" => $related_members,
-            "board_id" => $request->record_id,
-            "sender" => $active_user->id
-        );                      
-        event(new MessageSent($rebound)); 
-                      
-        return response()->json($task->id);
+        array_push($socket, ["event" => "task:{$request->board_id}", "data" => []]);
+        // array_push($socket, ["event" => 'refresh:badge', "data" => $request->qualified_users]);
+        // array_push($socket, ["event" => 'refresh:board', "data" => $request->qualified_users]);           
+        return response()->json(['socket' =>  $socket]);
 
     }
+    private function updateSingleTask($taskId, $data, $request) {
+        $task = taskRecord::findOrFail($taskId);
+        $task->update($data);
+        $executors = $request->qualified_users;
+        if($request->sync_to_schedule){
+            $this->sharedService->syncTaskToCalendar($task, $executors);
+        }else{
+            $this->sharedService->deleteTaskFromCalendar($task);
+        }
+        
+    }
+    // private function generateCreateQuery(Request $request, $repeat_type, $endDate) {
+    //     return match ($repeat_type) {
+    //         1 => [$this->insertItemBuilder($request, $endDate, null)],
+    //         2 => $this->byWeekDays($request),
+    //         3 => $this->byMonthDays($request),
+    //         4 => $this->byYearMonth($request),
+    //         default => [],
+    //     };
+    // }
+    // private function updateRepeatedTasks($repeat_id, $createQuery, $request) {
+    //     $tasks = taskRecord::where('repeat_id', $repeat_id)->get();
+    //     $createQuery = collect($createQuery)->sortBy('end_at')->values();
+    //     $tasks = $tasks->sortBy('end_at')->values();
+    //     $taskCount = $tasks->count();
+    //     $queryCount = $createQuery->count();
+    //     $minCount = min($taskCount, $queryCount);
+    //     $executors = $request->qualified_users;
+    //     for ($i = 0; $i < $minCount; $i++) {
+    //         $tasks[$i]->update($createQuery[$i]);
+    //         if($request->sync_to_schedule){
+    //             $this->sharedService->syncTaskToCalendar($tasks[$i], $executors);
+    //         }else{
+    //             $this->sharedService->deleteTaskFromCalendar($tasks[$i]);
+    //         }
+    //         $this->syncTaskUsers($tasks[$i], $request);
+    //     }
+    //     if($taskCount > $queryCount){
+    //         $tasks[$taskCount - 1]->delete();
+    //     }
+    //     for ($i = $minCount; $i < $queryCount; $i++) {
+    //         $newTask = taskRecord::create($createQuery[$i]);
+    //         if($request->sync_to_schedule){
+    //             $this->sharedService->syncTaskToCalendar($newTask, $executors);
+    //         }else{
+    //             $this->sharedService->deleteTaskFromCalendar($newTask);
+    //         }
+    //         $this->syncTaskUsers($newTask, $request);
+    //     }
+    //     if ($request['repeat']['repeat_type'] > 1) {
+    //         $this->createRepeatPattern($request, $createQuery[0]['repeat_id']);
+    //     }
+    // }
+    private function createTasks($data, $request) {
+        // foreach ($createQuery as $data) {
+            $fresh = taskRecord::create($data);
+            if($request->sync_to_schedule){
+                $executors = $request->qualified_users;
+                $this->sharedService->syncTaskToCalendar($fresh, $executors);
+            }
+            $this->syncTaskUsers($fresh, $request);
+        // }
+    
+        // if ($request['repeat']['repeat_type'] > 1) {
+        //     $this->createRepeatPattern($request, $createQuery[0]['repeat_id']);
+        // }
+    }
+    private function syncTaskUsers($task, $request) {
+        $task->executors()->sync($request->qualified_users);
+        $task->supervisors()->syncWithPivotValues($request->supervisors, ['supervisor' => 1]);
+    }
+    // private function createRepeatPattern($request, $repeatId) {
+    //     $basic = [
+    //         "repeat_type" => $request['repeat']['repeat_type'],
+    //         "repeat_until" => $request['task_end_date'],
+    //         "record_id" => $repeatId,
+    //     ];
+    //     $repeat_patterns = [
+    //         "2" => ["day_of_week" => $request['repeat']['day_of_week']],
+    //         "3" => ["day_of_month" => $request['repeat']['day_of_month']],
+    //         "4" => ["month" => $request['repeat']['month'], "day_of_month" => $request['repeat']['day_of_month']],
+    //     ];
+    //     $selected_pattern = $repeat_patterns[$request['repeat']['repeat_type']];
+    //     $data = array_merge($basic, $selected_pattern);
+    //     TaskRepeat::create($data);
+    // }
 
     public function task_approve_request(Request $request){
         $request->validate([
@@ -329,27 +548,43 @@ class TaskController extends Controller
     }
 
     public function task_approve(Request $request){
+        $active_user = $this->active_user();
         $request->validate([
             'user_id' => 'required',
             'task_id' => 'required',
         ]);
+        
         $task_user = taskUser::where('record_id', $request->task_id)
                               ->where('user_id', $request->user_id)
                               ->update([
                                 'status_flag' => $request->status_flag,
                                 'comp_flag' => $request->comp_flag,
                               ]);
+        $allCompleted = taskUser::where('record_id', $request->task_id)
+                            ->where('comp_flag', '!=', 1)
+                            ->where('supervisor', '!=', 0)
+                            ->doesntExist();
+        if ($allCompleted) {
+            taskUser::where('record_id', $request->task_id)
+                    ->where('supervisor', 1)
+                    ->update(['comp_flag' => 1]);
+            taskRecord::findOrFail($request->task_id)->update(['sync_to_schedule' => 0]);
+            CalendarRecord::where('task', $request->task_id)->delete();
+        }
         return response()->json($task_user);
     }
 
     public function task_not_approved(){
         $active_user = $this->active_user();
-        $tasks = taskRecord::where('approver_id', $active_user->id)
-                            ->where('comp_flag', 0)
-                            ->whereHas('task_users', function ($q) {
+        $tasks = taskRecord::where('comp_flag', 0)
+                            ->whereHas('supervisors', function ($q) use($active_user) {
+                                $q->where('users.id', $active_user->id)
+                                    ->where('supervisor', 1);
+                            })
+                            ->whereHas('executors', function ($q) {
                                 $q->where('status_flag', 1);
                             })
-                            ->with(['task_users' => function ($q) {
+                            ->with(['executors' => function ($q) {
                                 $q->where('status_flag', 1);
                             }])
                             ->get();

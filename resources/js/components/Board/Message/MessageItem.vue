@@ -4,14 +4,14 @@
         class="messageBoxRoot" 
         :class="{infoMessage : message.info_flag == 1, selfMessage: message.user_id == auth.activeUser.id}"
         :style="{marginBottom: editing && mIndex == 0 ? '25px' : '0'}">
-        <div class="infoMessageInner" v-if="message.info_flag == 1">   
+        <div class="infoMessageInner" v-if="message.info_flag > 0">   
             <p v-if="showDate">{{momentMessage}}</p>       
             <p style="cursor:pointer" @click="showDate = !showDate" v-html="infoMessage"></p>        
         </div>
-        <div class="infoMessageInner" v-if="message.info_flag == 2">   
+        <!-- <div class="infoMessageInner" v-if="message.info_flag == 2">   
             <p v-if="showDate">{{momentMessage}}</p>       
             <p style="cursor:pointer" @click="showDate = !showDate" v-html="taskInfoMessage"></p>        
-        </div>
+        </div> -->
          <div 
             v-else-if="message.info_flag == 0" 
             :style="{

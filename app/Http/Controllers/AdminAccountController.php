@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LessonPortfolio;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\boardRecord;
@@ -11,10 +10,7 @@ use App\Models\positionRecord;
 use App\Models\officeRecord;
 use App\Models\workGroup;
 use App\Models\workGroupUser;
-use App\Models\NiceRecord;
-use App\Models\KnowledgeRecord;
-use App\Models\ChallengeRecord;
-use App\Models\ClapRecord;
+use App\Models\userDetail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use App\Services\SharedService;
@@ -47,8 +43,8 @@ class AdminAccountController extends Controller
                             ->with('work_groups')
                             ->with('linked')
                             ->get();
-        $position_list_label = positionRecord::select('id AS value', 'name AS label')->orderBy('sort_flag', 'asc')->get();
-        $office_list_label = officeRecord::select('id AS value', 'name AS label')->get();
+        $position_list_label = positionRecord::select('name', 'id')->orderBy('sort_flag', 'asc')->get();
+        $office_list_label = officeRecord::select('name', 'id')->get();
         $linkable_accounts = User::where('linkable', 1)->select('id', 'name', 'icon_id')->get();
         $work_groups = workGroup::select('name', 'id')
         ->whereHas('members')
@@ -62,13 +58,13 @@ class AdminAccountController extends Controller
             }]);
         })
         ->get();
-        $data = array(
+        $data = [
             "u" => $user_list,
             "p" => $position_list_label,
             "o" => $office_list_label,
             "l" => $linkable_accounts,
             "w" => $work_groups
-        );
+        ];
 
         return response()->json($data);
     }
@@ -118,6 +114,7 @@ class AdminAccountController extends Controller
         $user->user_code = $user_params['user_code'];
         $user->work_type = $user_params['work_type'];
         $user->on_leave = $user_params['on_leave'];
+        
         $user->work_time_day = $user_params['work_time_day'];
         $user->hide_flag = $user_params['hide_flag'];
         if($user_params['position_id'] == 6){
@@ -126,6 +123,19 @@ class AdminAccountController extends Controller
             $user->work_authority = 0;
         }
         $user->save();
+        if($user->on_leave === 1){
+            userDetail::firstOrCreate([
+                "user_id" => $user->id,
+                "leave_start" => Carbon::now()->isoFormat('YYYY-MM-DD')
+            ]);
+        }else{
+            $userDetail = userDetail::firstWhere("user_id", $user->id);
+            if ($userDetail && $userDetail->leave_start) {
+                $userDetail->update([
+                    "leave_end" => Carbon::now()->isoFormat('YYYY-MM-DD')
+                ]);
+            }
+        }
         if(!$request->id){
             try {
                 $createIcon = $this->sharedService->createUserDefaultIcon($user);             

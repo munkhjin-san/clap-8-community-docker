@@ -12,7 +12,6 @@ class userDetail extends Model
     protected $casts = [
         'user_id'    => 'int',   
     ];
-    protected $fillable = [
-        'profession', 'occupation', 'company', 'intro'
-    ];
+
+    protected $guarded = [];
 }

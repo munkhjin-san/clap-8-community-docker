@@ -7,6 +7,9 @@
             <IncompleteFeedBack v-if="taskFeedBack.active"/>
         </Transition>
         <Transition name="modalFade">
+            <TaskRequest v-if="taskRequest.active"/>
+        </Transition>
+        <Transition name="modalFade">
             <MessageUsers v-if="messageUsers.active"/>
         </Transition>
         <Teleport to="body">
@@ -21,6 +24,9 @@
         <Transition name="modalFade">
             <CheckWork v-if="auth.user" />
         </Transition>
+        <Transition name="modalFade">
+            <TaskUsers v-if="taskUsers.active"/>
+        </Transition>
     </div>
 </template>
 
@@ -33,6 +39,7 @@
     import SharingData from '../Global/SharingData.vue'
     import FilePreview from '../Board/Tray/File/FilePreview.vue'
     import CheckWork from '../Global/CheckWork.vue'
+    import TaskRequest from '../Board/Tray/Task/TaskRequest.vue'
     import { inject, onBeforeMount, onMounted, provide, ref, watch } from 'vue'
     import { useRoute } from 'vue-router'
     import { useFilePreview } from "@/store/filePreview"
@@ -41,9 +48,14 @@
     import { useMessageUsers } from '@/store/messageUsers'
     import { useSharingDataStore } from '@/store/sharingData'
     import { useTaskFeedback } from '@/store/taskFeedback'
+    import TaskUsers from '../Board/Tray/Task/TaskUsers.vue'
+    import { useTaskUsers } from '@/store/taskUsers'
+    import { useTaskRequest } from '@/store/taskRequest'
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
+    const taskUsers = useTaskUsers()
     const taskFeedBack = useTaskFeedback()
+    const taskRequest = useTaskRequest()
     const route = useRoute()
     const themeStore = useTheme()
     const viewIncompleteWindow = ref(false)
@@ -121,8 +133,8 @@
         } 
     }
     const getIncompleteMessage = () => {
-        if(incompleteRef.value && incompleteRef.value.get_incomplete){
-            incompleteRef.value.get_incomplete()
+        if(incompleteRef.value && incompleteRef.value.getUnsignedMessages){
+            incompleteRef.value.getUnsignedMessages()
         }else{
             refresh()
         }

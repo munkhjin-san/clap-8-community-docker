@@ -8,9 +8,9 @@
                     <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                 </svg>
             </div>
-            <div class="shift-submitted-masonry" v-if="notapprovedTimecards.length" style="padding: 0 25px; margin-top:50px;">
-                <div class="shift-submitted-masonry-inner" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;">
-                    <div><strong>承認漏れがあります</strong></div>
+            <div class="shift-submitted-masonry" v-if="notapprovedTimecards.length || notapprovedTasks.length" style="padding: 0 25px; margin-top:50px;display: flex; gap: 30px;">
+                <div v-if="notapprovedTimecards.length" class="shift-submitted-masonry-inner" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
+                    <div><strong>タイムシート承認漏れがあります</strong></div>
                     <div v-for="item in notapprovedTimecards">
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
@@ -38,7 +38,16 @@
                         </div>
                     </div>
                 </div>
-                
+                <div v-if="notapprovedTasks.length" class="shift-submitted-masonry-inner" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content; max-width: 313px;">
+                    <div><strong>タスク承認漏れがあります</strong></div>
+                    <div v-for="item in notapprovedTasks" class="notapproved-wrap">
+                        <div style="font-size:14px; line-height: 1.5;word-break: break-all;" v-html="urlCheck(item.remarks, 100)"></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 13px; font-weight: 600;">承認待ち : {{ item.executors.length }}</div>                                        
+                            <button class="shift-button" @click="taskResponsed(item)" style="white-space: nowrap;">対応</button>
+                        </div> 
+                    </div>
+                </div>
             </div>
             <div v-if="planShift" style="padding: 0 10px;">
                 <div class="incompleted-title">計画有給を入力してください</div>
@@ -114,21 +123,12 @@
             
         
         </div>
-        <!--<Transition name="modalFade">
-            <IncompleteFeedBack 
-                v-if="selectedComplete.status && selectedComplete.record" 
-                :task="selectedComplete"
-                @taskCompleted="taskCompleted"
-                @closeMe="closeFeedBack"
-            />
-        </Transition>-->
     </div>
     </Transition>
 </template>
 
 <script setup>
 import TaskBoxpreload from "./Tray/Task/TaskBox.vue"
-import IncompleteFeedBack from "./IncompleteFeedBack.vue"
 import WorkMessage from "../Work/WorkMessage.vue"
 import UncheckedMessageItem from "./Message/UncheckedMessageItem.vue"
 import { ref, onMounted, watch, computed, inject, provide } from 'vue';
@@ -137,6 +137,9 @@ import { useTaskFeedback } from '@/store/taskFeedback'
 import UserIcon from "./Mixed/UserIcon.vue"
 import { useRoute, useRouter } from "vue-router";
 import { useCheckApproval } from "../../store/checkApproval";
+import axios from "axios";
+import { useTaskRequest } from "@/store/taskRequest";
+import Autolinker from 'autolinker';
     const route = useRoute()
     const router = useRouter()
     const auth = useAuthUserStore()
@@ -156,7 +159,9 @@ import { useCheckApproval } from "../../store/checkApproval";
     const tempData = ref([])
     const remainingDays = ref(0)
     const notapprovedTimecards = ref([])
+    const notapprovedTasks = ref([])
     const checkApproval = useCheckApproval()
+    const taskRequest = useTaskRequest()
     const closePopupIfNeeded = () => {
         if(!incompleteShow.value){
             closeOverRide()
@@ -170,7 +175,8 @@ import { useCheckApproval } from "../../store/checkApproval";
                 getRemindMessages(),
                 getUncheckedMessages(),
                 getPlannedShifts(),
-                getNotApproved()
+                getNotApproved(),
+                getTaskNotApproved()
             ]);
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
@@ -192,17 +198,27 @@ import { useCheckApproval } from "../../store/checkApproval";
         (after) => {
             if(after) {
                 getNotApproved();
+                getIncompletedTasks();
             }
         }
     )
-       
+    const urlCheck = (text, limit) => {
+        if(text){                
+            var linkedText = Autolinker.link(text, {stripPrefix: false}); 
+            if(linkedText.length > limit){
+                return linkedText.slice(0, limit) + "...";
+            }             
+            return linkedText;                
+        }            
+    }
     const incompleteShow = computed(() =>{
         const hasItems =
             incompletedTasksList.value.length ||
             unsignedMessages.value.length ||
             remindMessages.value.length ||
             uncheckedMessages.value.length ||
-            notapprovedTimecards.value.length
+            notapprovedTimecards.value.length ||
+            notapprovedTasks.value.length
         const hasPlanShift = planShift.value
 
         return hasItems || hasPlanShift       
@@ -235,7 +251,7 @@ import { useCheckApproval } from "../../store/checkApproval";
         if(authorized_user){
             await auth.setActiveUser(authorized_user.id)
         }
-        router.push({name: 'work', query: {user_id: user.id}})
+        router.push({name: 'timesheet', query: {user_id: user.id}})
     }
     const getNotApproved = async() => {
 
@@ -249,6 +265,13 @@ import { useCheckApproval } from "../../store/checkApproval";
             }
         }
 
+    }
+    const getTaskNotApproved = async() => {
+        try {
+            notapprovedTasks.value = await axios.get('/task_not_approved').then(res => res.data)
+        } catch (e) {
+
+        }
     }
     const getPlannedShifts = async() => {
         const currentDate = new Date();
@@ -314,6 +337,10 @@ import { useCheckApproval } from "../../store/checkApproval";
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')  
         }
     }
+    const taskResponsed = (task) => {
+        const url = '/board/' + task.board_id + '?t='+ task.id + '&action=true'
+        window.open(url, '_blank').focus();
+    }
     const editTask = (task) => {
         const url = '/board/' + task.board_id + '?t='+ task.id + '&task_edit=true'
         window.open(url, '_blank').focus();
@@ -335,9 +362,14 @@ import { useCheckApproval } from "../../store/checkApproval";
         }     
     }
     const completeTaskBefore = (task) => {
+        const userData = task.executors.find(obj => obj.id == auth.activeUser.id);
         const data = {
             active: true,
-            data : task
+            data: task,
+        }
+        if(task.supervisors.length && userData.pivot.comp_flag == 0) {
+            taskRequest.setTaskRequest(data)
+            return
         }
         taskFeedback.setTaskFeedback(data)
     }
@@ -357,7 +389,17 @@ import { useCheckApproval } from "../../store/checkApproval";
     margin: 20px auto 0;
     text-align: center;
 }
-
+.notapproved-wrap{
+    display: flex; 
+    gap: 10px; 
+    flex-direction: column;
+    padding: 10px;
+    cursor: pointer;
+}
+.notapproved-wrap:hover{
+    background: var(--bg2);
+    color: var(--primary-color);
+}
 
 </style>
 
