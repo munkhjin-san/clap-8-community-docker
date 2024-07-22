@@ -58,7 +58,17 @@
     })
     const timeCardAdd = (item) => {
         if(item.day){
-            const { value, shiftStartTime, shiftEndTime, shiftOverTimeRequest, shiftStatus } = item;
+            const { 
+                value, 
+                shiftStartTime, 
+                shiftEndTime, 
+                shiftOverTimeRequest, 
+                shiftStatus,
+                customData,
+                costs,
+                work_group_id,
+                user_id
+            } = item;
             if(shiftStatus === 2) {
                 notify('勤怠予定は承認されていません。') 
                 return
@@ -73,7 +83,10 @@
                     overtime_request: shiftOverTimeRequest
                 },
                 time_card: {
-                    custom_field_data_records: customFieldData.value
+                    custom_field_data_records: customData,
+                    work_group_id: work_group_id,
+                    timecard_costs: costs,
+                    user_id: user_id
                 },
                 total_break_time: 0
             }

@@ -1411,6 +1411,8 @@ class WorkController extends Controller
                                     'shiftStatus' => $value2['status'],
                                     'costs' => $timecard->timecard_costs,
                                     'customData' => $timecard->custom_field_data_records,
+                                    'department' => $timecard->department,
+                                    'user_id' => $timecard->user_id,
                                     'work_group_id' => $timecard->work_group_id,
                                     'shiftEndTime' => $timecard->edit_end_time,
                                     'shiftStartTime' => $timecard->edit_start_time,
