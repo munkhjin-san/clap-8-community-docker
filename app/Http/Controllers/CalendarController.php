@@ -279,37 +279,43 @@ class CalendarController extends Controller
         $departments = $request->departments;
         $records = CalendarRecord::query();
         $filter = $records
-        ->when($facility_check, function ($query) use ($facilities, $list) {
-            $query->where(function ($query) use ($facilities, $list) {
-                foreach ($facilities as $index => $value) {
-                    $query->orWhereIn($index, $value);
-                }
-                $query->orWhereHas('calendar_users', function ($query) use ($list) {
+        ->where(function ($query) use ($facility_check, $facilities, $department_check, $departments, $list) {
+            if ($facility_check || $department_check) {
+                $query->where(function ($query) use ($facilities, $facility_check, $department_check, $departments, $list) {
+                    if ($facility_check) {
+                        foreach ($facilities as $index => $value) {
+                            $query->orWhereIn($index, $value)
+                                ->orWhereHas('calendar_users', function ($query) use ($list) {
+                                    $query->whereIn('user_id', $list);
+                                });
+                        }
+                    }
+                    if ($department_check) {
+                        foreach ($departments as $value) {
+                            $query->orWhere('department_id', $value)
+                                ->orWhereHas('calendar_users', function ($query) use ($list) {
+                                    $query->whereIn('user_id', $list);
+                                });
+                        }
+                    }
+                });
+            } else {
+                $query->whereHas('calendar_users', function ($query) use ($list) {
                     $query->whereIn('user_id', $list);
                 });
-            });
-        }, function ($query) use ($list) {
-            $query->whereHas('calendar_users', function ($query) use ($list) {
-                $query->whereIn('user_id', $list);
-            });
+            }
         })
-        ->when($department_check, function ($query) use ($departments, $list) {
-            $query->where(function ($query) use ($departments, $list) {
-                foreach ($departments as $department) {
-                    $query->orWhere('department_id', $department);
-                }
-                $query->orWhereHas('calendar_users', function ($query) use ($list) {
-                    $query->whereIn('user_id', $list);
-                });
-            });
-        }, function ($query) use ($list) {
-            $query->whereHas('calendar_users', function ($query) use ($list) {
-                $query->whereIn('user_id', $list);
-            });
-        })
-        ->whereBetween('date_start', [$previousMonday, $nextSunday])    
-        ->with(['calendar_users', 'updated_by', 'created_by', 'files', 'task', 'department'])
+        ->whereBetween('date_start', [$previousMonday, $nextSunday])
+        ->with('calendar_users')
+        ->with('department')
+        ->with('updated_by')
+        ->with('created_by')
+        ->with('files')
         ->get();
+
+
+        
+        
 
 
         return response()->json($filter);
