@@ -290,7 +290,7 @@ import { reactive } from 'vue';
         const params = {            
             qualified_users: qualified_users.value.map(ob => ob.id),
             remarks: content.value,
-            task_end_date: taskEndDate.value,
+            task_end_date: isTask.value ? taskEndDate.value : '',
             board_id: board.value.id,
             edit_id: props.editTaskData ? props.editTaskData.id : null,
             // repeat_id: props.editTaskData && props.editTaskData.repeat_id ? props.editTaskData.repeat_id : '',
