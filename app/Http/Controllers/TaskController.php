@@ -41,9 +41,8 @@ class TaskController extends Controller
             $once_tasks = taskRecord::where('board_id', $request->record_id)
             ->whereNotNull('end_at')
             ->where(function ($query) use ($auth_user_id, $which) {
-                $query->whereHas('executors', function($q) use ($auth_user_id, $which) {
-                    $q->where('user_id', $auth_user_id)
-                        ->where('comp_flag', $which);
+                $query->whereHas('executors', function($q) use ($which) {
+                    $q->where('comp_flag', $which);
                 })->orWhereHas('supervisors', function ($q) use ($auth_user_id, $which) {
                     $q->where('user_id', $auth_user_id)
                         ->where('comp_flag', $which);
