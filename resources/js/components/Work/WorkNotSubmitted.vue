@@ -83,7 +83,7 @@
                     overtime_request: shiftOverTimeRequest
                 },
                 time_card: {
-                    custom_field_data_records: customData,
+                    custom_field_data_records: customData ?? [],
                     work_group_id: work_group_id,
                     timecard_costs: costs,
                     user_id: user_id
