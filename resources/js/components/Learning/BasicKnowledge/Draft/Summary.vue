@@ -6,13 +6,13 @@
                 <p><strong>ディスカッション用ポートフォリオタイトル</strong></p>
                 <p>{{ portfolio?.portfolio_title }}</p>
             </div>
-            <div class="si-box" v-if="portfolio?.status < 1">
-                <p><strong>ディスカッション用ポートフォリオエピソード</strong></p>
-                <p>{{ portfolio?.episode }}</p>
-            </div>
             <div class="si-box">
                 <p><strong>ディスカッション用ポートフォリオ内容</strong></p>
                 <p>{{ portfolio?.content }}</p>
+            </div>
+            <div class="si-box" v-if="portfolio?.status < 1">
+                <p><strong>ディスカッション用ポートフォリオエピソード</strong></p>
+                <p>{{ portfolio?.episode }}</p>
             </div>
             <div class="si-box" v-if="portfolio?.status < 1">
                 <LoaderButton @triggered="finishPortfolio()" :loading="loading[0]" :content="'作成完了'"/>               
