@@ -44,7 +44,7 @@
                 v-if="selectedTopic && portfolio && selectedTopic.assistant_id" 
                 :assistand-id="selectedTopic.assistant_id" 
                 :soure-text="portfolio?.ai_review_pre" 
-                :message="portfolio?.episode + portfolio?.content"
+                :message="portfolio?.content + portfolio?.episode"
                 :confirm-text="'発表用ポートフォリオは、研修テーマに沿った内容であり、発表時間が５分程度の内容にまとめられている。'"
                 ref="reviewEl"
             />
