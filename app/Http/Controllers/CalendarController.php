@@ -1230,7 +1230,7 @@ class CalendarController extends Controller
 
     }
     public function get_departments_calendar(){
-        $departments = workGroup::with('members')->get();
+        $departments = workGroup::whereHas('members')->with('members')->get();
         return response()->json($departments);
     }
 
