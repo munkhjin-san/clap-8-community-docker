@@ -480,6 +480,8 @@ class CalendarController extends Controller
             ];
             $this->delete_zoom_meeting($params);
         }
+        $ids[] = $new_record->id;            
+        $this->execute_main_data($ids, $request, null, $record);
         $record->delete();
         return $new_record;
     }

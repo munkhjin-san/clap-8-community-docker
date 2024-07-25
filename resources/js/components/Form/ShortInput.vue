@@ -13,8 +13,9 @@
                 :style="customStyle"              
             />
             <label v-if="placeHolder" class="form-plc">{{placeHolder}}</label>
-            <p v-if="error" class="i-error">{{ error }}</p>
+            
         </div>
+        <p v-if="error" class="i-error">{{ error }}</p>
     </div> 
 </template>
   
