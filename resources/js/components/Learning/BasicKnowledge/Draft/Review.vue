@@ -15,19 +15,6 @@
                 <p v-else><strong>ディスカッション用ポートフォリオタイトル<br></strong>{{ portfolio?.portfolio_title }}</p>
             </div>
             <div class="si-box">
-                <LongInput 
-                    v-if="portfolio?.status < 1" 
-                    :placeHolder="`ディスカッション用ポートフォリオエピソード`"
-                    ref="episodeRef"
-                    rules="required"
-                    name="episode"
-                    v-model="episodeContent"
-                    :initialValue="portfolio ? portfolio.episode : episodeContent" 
-                    :key="`${portfolio ? portfolio.episode : 0}_${route.fullPath}_${portfolio?.updated_at}`"
-                />
-                <p v-else><strong>ディスカッション用ポートフォリオエピソード<br></strong>{{ portfolio?.episode }}</p>
-            </div>
-            <div class="si-box">
                 <LongInput
                     v-if="portfolio?.status < 1"
                     :placeHolder="`ディスカッション用ポートフォリオ内容`"
@@ -40,6 +27,20 @@
                 />
                 <p v-else><strong>ディスカッション用ポートフォリオ内容<br></strong>{{ portfolio?.content }}</p>
             </div>
+            <div class="si-box">
+                <LongInput 
+                    v-if="portfolio?.status < 1" 
+                    :placeHolder="`ディスカッション用ポートフォリオエピソード`"
+                    ref="episodeRef"
+                    rules="required"
+                    name="episode"
+                    v-model="episodeContent"
+                    :initialValue="portfolio ? portfolio.episode : episodeContent" 
+                    :key="`${portfolio ? portfolio.episode : 0}_${route.fullPath}_${portfolio?.updated_at}`"
+                />
+                <p v-else><strong>ディスカッション用ポートフォリオエピソード<br></strong>{{ portfolio?.episode }}</p>
+            </div>
+            
             <OpenAiReview 
                 v-if="selectedTopic && portfolio && selectedTopic.assistant_id" 
                 :assistand-id="selectedTopic.assistant_id" 
