@@ -53,7 +53,7 @@
 
         <div @click.stop="menu.setMenu( { id: 6, name: 'calendarMemberSelector', parent: 'calendarMemberSelector'})" v-if="!auth.isRegistered" class="c-bar-button" style="margin-left: 15px;">メンバー</div>
         <div @click.stop="menu.setMenu( { id: 7, name: 'calendarFacilitySelector', parent: 'calendarFacilitySelector'})" :style="{marginLeft : auth.isRegistered ? '15px' : '0'}" class="c-bar-button">施設</div>
-        <div @click.stop="menu.setMenu( { id: 8, name: 'departmentSelector', parent: 'departmentSelector'})" :style="{marginLeft : auth.isRegistered ? '15px' : '0'}" class="c-bar-button">部門</div>
+        <div @click.stop="menu.setMenu( { id: 8, name: 'departmentSelector', parent: 'departmentSelector'})" class="c-bar-button">部門</div>
         <div @click="emit('jumpToday')" class="c-bar-button">本日</div>
         <Transition name="modalFade">
             <div v-if="menu.parent == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menuId = null">
