@@ -444,6 +444,7 @@ class TaskController extends Controller
     private function updateSingleTask($taskId, $data, $request) {
         $task = taskRecord::findOrFail($taskId);
         $task->update($data);
+        $this->syncTaskUsers($task, $request);
         $executors = $request->qualified_users;
         if($request->sync_to_schedule){
             $this->sharedService->syncTaskToCalendar($task, $executors);
