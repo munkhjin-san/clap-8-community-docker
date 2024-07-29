@@ -388,7 +388,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
     const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
     const processing = ref(false)
     const calendarRemark = ref(null)
-    const department_id = ref(props.preSelectedDepartment?.id ?? '')
+    const department_id = ref(props.editTarget?.department_id ?? props.preSelectedDepartment?.id ?? '')
     onMounted(() => {
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
             const repeats = props.editTarget.repeat_week.split(',').map(Number);
