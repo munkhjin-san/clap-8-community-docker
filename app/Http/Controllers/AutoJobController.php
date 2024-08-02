@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 use App\Models\boardRecord;
 use App\Models\boardToUser;
+use App\Models\KnowledgeRecord;
+use App\Models\NiceRecord;
+use App\Models\PostRecord;
 use App\Models\User;
 use App\Models\timecardCostRecord;
 use App\Models\Icons;
@@ -21,6 +24,7 @@ use App\Models\NoticeRecords;
 use App\Models\AppFileRecord;
 use App\Models\taskUser;
 use App\Models\shiftRecord;
+use App\Models\CommentRecord;
 use App\Models\shiftType;
 use App\Models\FileRecord;
 use App\Models\UserAlbum;
@@ -411,5 +415,83 @@ class AutoJobController extends Controller
             Storage::disk('local')->delete('timecard_files/' . $file->file_path);        
         }
         return response()->json($unused_files);
+    }
+
+    public function united_posts(){
+        $knowledges = KnowledgeRecord::get();
+        $nices = NiceRecord::get();
+        foreach($knowledges as $knowledge){
+            $attributesToCreate = [
+                'user_id' => $knowledge->user_id,
+                'title' => $knowledge->title,
+                'content' => $knowledge->content,
+                'referrer' => $knowledge->referrer,
+                'key_users' => $knowledge->key_users,
+                'key_tags' => $knowledge->key_tags,
+                'app_type' => $knowledge->app_type,
+                'updated_at' => $knowledge->updated_at,
+                'created_at' => $knowledge->created_at,
+            ];
+            $post = PostRecord::create($attributesToCreate);
+            foreach ($knowledge->comments as $comment) {
+                $commentData = $comment->toArray();
+                unset($commentData['id']);
+                $commentData['record_id'] = $post->id;
+                $commentData['app_name'] = 'post';
+                CommentRecord::create($commentData);
+            }
+    
+            $post->files()->sync($knowledge->files->pluck('id')->toArray());
+    
+            $post->tags()->sync($knowledge->tags->pluck('id')->toArray());
+    
+            foreach ($knowledge->claps as $clap) {
+                $clapData = $clap->toArray();
+                unset($clapData['id']); 
+                $clapData['record_id'] = $post->id;
+                $clapData['app_name'] = 'post';
+                $clapData['app_id'] = 2;
+                ClapRecord::create($clapData);
+            }
+    
+            // $post->to_users()->sync($knowledge->to_users->pluck('id')->toArray());
+        }
+        foreach($nices as $nice) {
+            $attributesToCreate = [
+                'user_id' => $nice->user_id,
+                'title' => $nice->title,
+                'content' => $nice->content,
+                'referrer' => $nice->referrer,
+                'key_users' => $nice->key_users,
+                'key_tags' => $nice->key_tags,
+                'app_type' => $nice->app_type,
+                'updated_at' => $nice->updated_at,
+                'created_at' => $nice->created_at
+            ];
+            $post = PostRecord::create($attributesToCreate);
+            foreach ($nice->comments as $comment) {
+                $commentData = $comment->toArray();
+                unset($commentData['id']);
+                $commentData['record_id'] = $post->id;
+                $commentData['app_name'] = 'post';
+                CommentRecord::create($commentData);
+            }
+    
+            $post->files()->sync($nice->files->pluck('id')->toArray());
+    
+            $post->tags()->sync($nice->tags->pluck('id')->toArray());
+    
+            foreach ($nice->claps as $clap) {
+                $clapData = $clap->toArray();
+                unset($clapData['id']); 
+                $clapData['app_name'] = 'post';
+                $clapData['record_id'] = $post->id;
+                $clapData['app_id'] = 2;
+                ClapRecord::create($clapData);
+            }
+    
+            $post->to_users()->sync($nice->to_users->pluck('id')->toArray());
+        }
+        return response()->json(['message' => 'Posts created successfully']);
     }
 }
