@@ -117,7 +117,7 @@
         </div>
         <div class="clear-both"></div>
         
-        <div v-bind="unreadLineVisible(unreadMessages)" v-if="unreadMessages.id == message.id" :id="'unread_line_' + message.id" style="user-select:none;width:100%;border-bottom:solid thin #a09f9f;position: absolute;bottom:10px;font-size:12px;">
+        <div v-bind="unreadLineVisible(unreadMessages)" @click="refresh" v-if="unreadMessages.id == message.id" :id="'unread_line_' + message.id" class="cursor-pointer" style="user-select:none;width:100%;border-bottom:solid thin #a09f9f;position: absolute;bottom:10px;font-size:12px;">
             <p class="unread-inner" style="margin-bottom: -12px;">新しいメッセージ</p>
         </div>
     </div>
@@ -128,7 +128,6 @@
 import MessageQuoteReply from "./MessageQuoteReply.vue";
 import MessageFiles from "./MessageFiles.vue";
 import moment from 'moment';
-import Autolinker from 'autolinker';
 import UserIconPreLoad from '../Mixed/UserIcon.vue'
 import { computed, inject, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from "vue-router";
@@ -164,7 +163,7 @@ import { mentionFormatter } from "@/utils/tools";
     const boardMessageMenu = ref(null)
     const messageBoxBody = ref(null)
     const board = inject('openedBoard')
-    const { refreshMessages, close, reload } = inject('boardItem')    
+    const { refreshMessages, close, reload, messageLoader } = inject('boardItem')    
     const { copy, remind, check } = inject('messageItem')
     const { notify, confirm, info } = inject('dialog')
     const pushInstantUser = inject('pushInstantUser')
@@ -176,6 +175,10 @@ import { mentionFormatter } from "@/utils/tools";
             setTimeout(() => { urlMessage.setUrlMessageId(null)}, 2500);  
         }       
     })
+    const refresh = () => {
+        messageLoader(true)
+        refreshMessages()
+    }
     const messageMenuItems = computed(() => {
         const canConfirm = props.message.emoji_flag == 0 && board?.value.private_flag !== 3
         const list= []; 

@@ -56,13 +56,13 @@
         <div @click.stop="menu.setMenu( { id: 8, name: 'departmentSelector', parent: 'departmentSelector'})" class="c-bar-button">部門</div>
         <div @click="emit('jumpToday')" class="c-bar-button">本日</div>
         <Transition name="modalFade">
-            <div v-if="menu.parent == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menuId = null">
+            <div v-if="menu.parent == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menu.name = ''">
                 <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);min-height: 150px;">       
                     <div v-if="myGroups.length">
                         <div v-for="group in myGroups">  
-                            <div style="display: flex;align-items: center;white-space: nowrap;padding: 0 15px;gap: 15px;position:relative;">
+                            <div style="display: flex;align-items: center;white-space: nowrap;padding: 0 15px;gap: 15px;position:relative;justify-content: space-between;">
                                 <div>
-                                    <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
+                                    <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;justify-content: space-between;">
                                         <input @change="selectAll(group, 'byGroup')" :checked="group.selected" name="memberRadioBox" type="checkbox">
                                         <span class="cal-check-mark" style="top: 13px;"></span>
                                         <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
@@ -71,6 +71,7 @@
                                         </div>                                        
                                     </label>  
                                 </div>
+                                
                                 <ItemMenu :items="[
                                     {title: '編集する', action: () => editGroupStart(group)},
                                     {title: '削除する', action: () => deleteConfirm(group)}
@@ -299,6 +300,8 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
         addUsersWindow.value = false
         createWindow.value = false
         tempGroup.value = null
+        title.value = ''
+        editingUserList.value = []
         menu.setMenu( {name: 'calendarMemberSelector', id: 6})
     }
     

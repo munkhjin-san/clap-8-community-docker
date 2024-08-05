@@ -1,4 +1,4 @@
-type ValidationRule = 'required' | 'max' | 'min' | 'halfspace';
+type ValidationRule = 'required' | 'max' | 'min' | 'halfspace' | 'email';
 
 interface ValidationResult {
   isValid: boolean;
@@ -27,6 +27,12 @@ function validateRule(rule: ValidationRule, value: any | any[], params?: number)
         isValid: !/[\u3000]/.test(value),
         errorMessage: `半角スペースのみ入力してください。`,
       };
+    case 'email':
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return {
+        isValid: emailRegex.test(value),
+        errorMessage: '有効なメールアドレスを入力してください。'
+      }
     default:
       return { isValid: true };
   }

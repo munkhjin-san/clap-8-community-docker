@@ -47,7 +47,7 @@
                     <ShortInput 
                         name="email" 
                         placeHolder="メール（必須）" 
-                        :rules="'required'"
+                        :rules="'required|email'"
                         customClass="full"
                         ref="emailRef"
                         type="text"

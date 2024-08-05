@@ -13,7 +13,11 @@ class Comment extends Mailable
 {
     use Queueable, SerializesModels;
 
-
+    public $subject;
+    public $content;
+    public $comment_id;
+    public $app_name;
+    public $record_id;
     /**
      * Create a new message instance.
      *

@@ -13,7 +13,11 @@ class Mention extends Mailable
 {
     use Queueable, SerializesModels;
 
-
+    public $subject;
+    public $content;
+    public $blocked;
+    public $board_id;
+    public $message_id;
     /**
      * Create a new message instance.
      *

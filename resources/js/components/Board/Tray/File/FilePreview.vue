@@ -284,15 +284,21 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
 
     }
     const direcDownload = () => {                 
-    
-        const link = document.createElement('a');
-        link.href = currentFile.value.file_path;
-        link.download = '';
-        link.setAttribute('download', currentFile.value.name);
-        document.body.appendChild(link);            
-        link.click();  
-        document.body.removeChild(link); 
+        fetch(currentFile.value.file_path)
+        .then(response => response.blob())
+        .then(blob => {
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
 
+            link.href = url;
+            link.download = currentFile.value.name;
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            URL.revokeObjectURL(url);
+        })
     }
     const shareTo = (to, file) => {
         const shareData = {

@@ -43,14 +43,11 @@ class TaskController extends Controller
             ->where(function ($query) use ($auth_user_id, $which) {
                 $query->whereHas('executors', function($q) use ($auth_user_id, $which) {
                     $q->where('comp_flag', $which)
-                      ->where('user_id', $auth_user_id);
+                        ->where('user_id', $auth_user_id);
                 })->orWhere(function ($query) use ($auth_user_id, $which) {
                     $query->whereDoesntHave('executors', function($q) use ($auth_user_id) {
                         $q->where('user_id', $auth_user_id);
                     })->where('comp_flag', $which);
-                })->orWhereHas('supervisors', function ($q) use ($auth_user_id, $which) {
-                    $q->where('user_id', $auth_user_id)
-                        ->where('comp_flag', $which);
                 });
             })
             ->with('executors')
@@ -133,18 +130,13 @@ class TaskController extends Controller
             }
             $list->save();
             
-            $allCount = $taskUser->count();
+            $allCount = $taskUser->where('supervisor', 0)->count();
             if($allCount > 0){
                 $completedCount = $taskUser->where('comp_flag', 1)->count();
                 $task = taskRecord::find($request->task_id);
                 $allCount == $completedCount ? $task->comp_flag = 1 : $task->comp_flag = 0;
                 if($allCount == $completedCount){
-                    $task->sync_to_schedule = 0;
-                    CalendarRecord::where('task', $task->id)->delete();
-                }else{
-                    taskUser::where('record_id', $request->task_id)
-                            ->where('supervisor', 1)
-                            ->update(['comp_flag' => 0]);
+                    $this->sharedService->deleteTaskFromCalendar($task);
                 }
                 $task->save();
             }
@@ -567,14 +559,13 @@ class TaskController extends Controller
                               ]);
         $allCompleted = taskUser::where('record_id', $request->task_id)
                             ->where('comp_flag', '!=', 1)
-                            ->where('supervisor', '!=', 0)
+                            ->where('supervisor', '!=', 1)
                             ->doesntExist();
         if ($allCompleted) {
-            taskUser::where('record_id', $request->task_id)
-                    ->where('supervisor', 1)
-                    ->update(['comp_flag' => 1]);
-            taskRecord::findOrFail($request->task_id)->update(['sync_to_schedule' => 0]);
-            CalendarRecord::where('task', $request->task_id)->delete();
+            $task = taskRecord::findOrFail($request->task_id);
+            $task->comp_flag = 1;
+            $this->sharedService->deleteTaskFromCalendar($task);
+            $task->save();
         }
         return response()->json($task_user);
     }

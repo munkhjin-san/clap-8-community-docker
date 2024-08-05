@@ -11,7 +11,9 @@ class Calendar extends Mailable
 {
     use Queueable, SerializesModels;
 
-
+    public $details;
+    public $subject;
+    public $type;
     /**
      * Create a new message instance.
      *

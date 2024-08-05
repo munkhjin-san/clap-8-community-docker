@@ -12,7 +12,12 @@ use Illuminate\Queue\SerializesModels;
 class Confirm extends Mailable
 {
     use Queueable, SerializesModels;
-
+    public $content;
+    public $blocked;
+    public $board_id;
+    public $type;
+    public $message_id;
+    public $subject;
 
     /**
      * Create a new message instance.

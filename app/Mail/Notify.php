@@ -11,7 +11,13 @@ class Notify extends Mailable
 {
     use Queueable, SerializesModels;
 
-
+    public $url;
+    public $content;
+    public $msg_id;
+    public $language;
+    public $chat_title;
+    public $from_name;
+    public $pattern;
     /**
      * Create a new message instance.
      *

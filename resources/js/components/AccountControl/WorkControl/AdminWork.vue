@@ -66,7 +66,7 @@
                         <td style="white-space: nowrap;" v-html="hasIncident(item)"></td>
                         <td style="white-space: nowrap;" v-html="hasShokkai(item)"></td>
                         <td>
-                            <img v-if="weather_average[item.id]" :src="'/images/icon_' + weather_average[item.id].current_value + '.svg'" alt="Weather Icon" width="30" height="17" />
+                            <WeatherIcon v-if="weather_average[item.id]" :which="weather_average[item.id].current_value" :size="15"/>
                         </td>                        
                         <td v-html="item.shift_records.length ? '済' : ''"></td>
                         <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15,16]" v-html="computedHoliday(item.id, number)"></td>
@@ -86,6 +86,7 @@
     import { useResponsive } from '@/store/responsive';
     import { mkConfig, generateCsv, download } from "export-to-csv";
     import PostSearchBar from '../../Post/PostSearchBar.vue';
+    import WeatherIcon from '@/components/Global/WeatherIcon.vue';
     const keywords = ref('')
     const selectedYear = ref(moment().year())
     const selectedMonth = ref(moment().month())

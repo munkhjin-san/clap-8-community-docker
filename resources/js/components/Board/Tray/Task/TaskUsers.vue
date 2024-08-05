@@ -11,8 +11,8 @@
                     </div> 
                 </div>
             </div>
-            <div style="position:relative;">
-                <div v-if="userList.length" class="suggested-list" style="margin-top: 20px;">
+            <div style="position:relative; margin-top: 20px;">
+                <div v-if="userList.length" class="suggested-list">
                     <div :key="user.id" v-for="user in userList">
                         <div class="user-wrapper">
                             <div>

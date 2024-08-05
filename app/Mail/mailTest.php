@@ -13,6 +13,9 @@ class mailTest extends Mailable
 
     protected $title;
     protected $text;
+    public $msg_id;
+    public $content;
+    public $block_flag;
     /**
      * Create a new message instance.
      *

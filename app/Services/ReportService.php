@@ -22,11 +22,6 @@ class ReportService
 
     public function sendMessage($override_user_id, $board_id, $type)
     {
-        $mention_users = boardToUser::where('record_id', $board_id)
-                                    ->whereNot('user_id', $override_user_id)
-                                    ->pluck('user_id')
-                                    ->toArray();
-
         $override_user = User::select('id', 'name', 'icon_id')
                              ->findOrFail($override_user_id);
         

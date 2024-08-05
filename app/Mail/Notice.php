@@ -13,7 +13,8 @@ class Notice extends Mailable
 {
     use Queueable, SerializesModels;
 
-
+    public $title;
+    public $notice_id;
     /**
      * Create a new message instance.
      *

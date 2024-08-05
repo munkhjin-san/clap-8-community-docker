@@ -729,7 +729,8 @@ import { instance } from '@/utils/broadcaster'
         pin: (item) => pinBoard(item.id),
         leave: (item) => leaveBoard(item),
         refreshMessages: () => getMessageList(),
-        privateSearch: () => startPrivateSearch()
+        privateSearch: () => startPrivateSearch(),
+        messageLoader: (item) => messageLoader.value = item
     })
 
     provide('messageItem', {
