@@ -18,7 +18,7 @@
                     <div id="weekdayhead" class="weekday-header" style="position: sticky;top: 0;">
                         <div class="weekday-header-item" v-for="num in 7">{{ weekDay(num) }}</div>
                     </div>
-                    <div style="height:calc(100% - 40px);color: var(--primary-color);">
+                    <div id="cal_month_inner" style="height:calc(100% - 40px);color: var(--primary-color);">
                         <div v-for="(week, index) in calendarData" :key="index" class="calendar-week-wrapper" ref="weekHeader">                
                             <DayBlock                                
                                 v-for="(day, index) in week"
