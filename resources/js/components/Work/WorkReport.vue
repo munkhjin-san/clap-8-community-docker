@@ -14,7 +14,7 @@
                 <div class="report-field">
                     <p class="report-header">部門を選択</p>
                     <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="todayWorkGroup">
-                        <option v-for="group in workGroupAsOptions.filteredgroups" :value="group.id">{{ group.name }}</option>
+                        <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
                     </select>
                 </div>
                 <div class="report-field">
@@ -52,7 +52,7 @@
                         v-model:type="cost.type"
                         v-model:expenses="cost.expenses"
                         v-model:file_path="cost.file_path"
-                        :workGroupAsOptions="workGroupAsOptions.mappedgroups"
+                        :workGroupAsOptions="workGroupAsOptions.map(ob => ob.name)"
                         :fieldIndex="index"
                         :isRegistered="item.position_id === 15"
                         @addCostField="addCostField"
@@ -76,7 +76,7 @@
     </div>
 </template>
 <script setup>
-    import { computed, inject, onMounted, ref, reactive } from 'vue';
+    import { computed, inject, onMounted, ref, reactive, watch } from 'vue';
     import LoaderButton from '../Global/LoaderButton.vue';
     import { useTheme } from '@/store/theme';
     import moment from 'moment';
@@ -120,7 +120,7 @@
             filteredgroups = workGroups.value
             mappedgroups = workGroups.value.map(group => group.name)
         }
-        return {filteredgroups, mappedgroups}
+        return filteredgroups
     })
     const costs = reactive([])
     const incentives = ref(timeCard.value?.timecard_incentives?.length ? timeCard.value.timecard_incentives : [
@@ -140,14 +140,22 @@
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
     const { confirm, notify, info } = inject('dialog')
     const customValues = ref({})
-    const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : workGroupAsOptions.value.filteredgroups[0]?.id ?? '')
+    const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : workGroupAsOptions.value[0]?.id ?? '')
+    const costDepartment = computed(() => {
+        return workGroupAsOptions.value.find(group => group.id === todayWorkGroup.value)?.name
+    })
+    watch(todayWorkGroup, (newWorkGroup) => {
+        costs.forEach(cost => {
+            cost.department = workGroupAsOptions.value.find(group => group.id === newWorkGroup)?.name
+        })
+    })
     const addCostField = () => {
         if(costs.length >= 10){
             notify('上限は10個です。')
             return
         }
         costs.push({
-            department: workGroupAsOptions.value.mappedgroups[0] ?? '',
+            department: costDepartment.value ?? '',
             content: '',
             type: props.item.position_id == 15 ? 1 : 4,
             expenses: null,

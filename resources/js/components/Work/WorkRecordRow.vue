@@ -57,7 +57,14 @@
                 <div @click="menu.close()" ref="costBox" class="comment-box" id="costBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'costBox' && menu.id == item.time_card?.id">
                     <div v-for="cost in item.time_card?.timecard_costs" :key="cost.id">
                         <div style="word-break: break-word;" v-html="formatCostString(cost)"></div>
-                        <img @click="workFilePreview(cost.file_path)" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="`/cdn/timecard_files/${cost?.file_path}`"/>
+                        <div v-if="cost.file_path.split('.').pop() == 'webp'">
+                            <img @click="workFilePreview(cost.file_path, 'image')" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="`/cdn/timecard_files/${cost?.file_path}`"/>
+                        </div>
+                        <div v-else>
+                            <div class="cursor-pointer" style="position:relative;" @click="workFilePreview(cost.file_path, 'application')">
+                                <FileIcon ext="pdf"/>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -110,6 +117,7 @@ import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from "@/store/menu";
 import CommandButton from '../Global/CommandButton.vue';
 import { workFilePreview } from '../../utils/workApi';
+import FileIcon from '../Board/Mixed/FileIcon.vue';
 const menu = useMenuStore()
 const responsive = useResponsive()
 const costOptions = [{label: '交通費', value: 1},

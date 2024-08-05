@@ -55,16 +55,26 @@ export const getShiftWithWorkGroup = async(yearMonth: string, checkedUsers: numb
     return fetchData('/get_shift_with_work_group', yearMonth, checkedUsers)
 }
 
-export const workFilePreview = (file: string) => {
+export const workFilePreview = (file: string, type: string) => {
     const filePreview = useFilePreview()
     const file_path = `/cdn/timecard_files/${file}`
-
-    let target_data = {
-        extension: 'webp',
-        mime_type: 'image',
-        file_path: file_path,
-        name: file
+    let target_data: any
+    if(type == 'image'){
+        target_data = {
+            extension: 'webp',
+            mime_type: 'image',
+            file_path: file_path,
+            name: file
+        }
+    } else {
+        target_data = {
+            extension: 'pdf',
+            mime_type: 'application',
+            file_path: file_path,
+            name: file
+        }
     }
+    
     const data = {
         active: true,
         files: [target_data],

@@ -24,6 +24,7 @@ use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class WorkController extends Controller
@@ -1673,18 +1674,26 @@ class WorkController extends Controller
         $mime_type = $fileContent->getMimeType();
         $mime_type_array = explode('/',$mime_type);
         $file_type = $mime_type_array[0];           
-    
         
         if($file_type == 'image' && $file_extension !== 'svg'){
             $img = Image::read($fileContent);
-            
+            $file_extension = 'webp';
             $img->scale(640);
             $file_path .= '.webp';
             File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . $path, 0755, true, true);                      
             $img->toWebp(80)->save(storage_path('app') . $path .'/'. $file_path);  
+        } else {
+            $file_path .= ".{$file_extension}";
+            Storage::disk('local')->putFileAs(
+                $path, $fileContent, $file_path
+            );
         }
-    
-        return response()->json($file_path); 
+        $data = [
+            "file_path" => $file_path,
+            "file_type" => $file_type,
+            "file_extension" => $file_extension
+        ];
+        return response()->json($data); 
     }
     public function work_cost_delete(Request $request){
         $request->validate([
@@ -1793,7 +1802,7 @@ class WorkController extends Controller
                     $costFormatted = ($travelCost ? "旅費交通費 : $travelCost" . '円 ' : '') . ($communicationCost ? "通信費 : $communicationCost" . '円' : "") . ($suppliesCost ? "消耗品費 : $suppliesCost" . '円' : "") . ($entertainmentCost ? "交際費 : $entertainmentCost" . '円' : "") . ($commissionCosts ? "支払手数料 : $commissionCosts" . '円' : "");
                 }
                
-                $data = array(
+                $data = [
                     '日付' => $date->format('Y-m-d'),
                     'メンバー' => $user->name,
                     '予定' => empty($shift) || $isRegistered ? '' : $shift->shiftType->name,
@@ -1808,7 +1817,7 @@ class WorkController extends Controller
                     'コンディション' => $condition_index ? $conditions[$condition_index] : '',
                     'コメント' => $comment ? $comment->value_text : '',
                     '経費' => $costFormatted,
-                );
+                ];
                 if($insentive_exists){
                     
                     $incentives = $isRegistered && !empty($time_card_record) ? $time_card_record->timecard_incentives : [];
