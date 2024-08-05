@@ -110,21 +110,24 @@
         
         nextTick(() => {
             const el = document.getElementById(`m_rec_${props.record.id}`)
-            const el_wrapper = document.getElementById('cal_month_inner')
+            const parentEl = document.getElementById('cal_month_inner')
             if(el){                    
                 if(from == 'auto'){
                     el.scrollIntoView({block: 'center', behavior: 'instant'})                        
                 }                    
-                const rect = el.getBoundingClientRect();   
-                const wrapper_rect = el_wrapper.getBoundingClientRect()                 
+                const rect = el.getBoundingClientRect();                    
                 const right_check = rect.x + rect.width
                 if(right_check > window.innerWidth){
                     shiftRight.value = window.innerWidth - right_check - 5
-                }    
+                }
                 const bottom_check = rect.y + rect.height
                 const value = responsive.mobile && auth.user.footer_view ? 45 : 0
-                if(rect.height > wrapper_rect.height - value){
-                    shiftBottom.value = wrapper_rect.y - rect.y
+                if(bottom_check > window.innerHeight - value){
+                    shiftBottom.value = window.innerHeight - value - bottom_check - 10
+                }
+                const parentRect = parentEl.getBoundingClientRect();
+                if (rect.height > parentRect.height) {
+                    shiftBottom.value = parentRect.y - rect.y + 10;
                 }
             }
             
