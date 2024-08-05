@@ -122,7 +122,7 @@
                 const bottom_check = rect.y + rect.height
                 const value = responsive.mobile && auth.user.footer_view ? 45 : 0
                 if(bottom_check > window.innerHeight - value){
-                    shiftBottom.value = window.innerHeight - value - bottom_check - 10
+                    shiftBottom.value = 100 - rect.y
                 }
             }
             
