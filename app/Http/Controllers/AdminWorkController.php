@@ -42,11 +42,13 @@ class AdminWorkController extends Controller{
         [$currentYear, $currentMonth] = explode('-', $request->month);
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント', '研修サポート'];
         $ids = [608, 610];
-        $all_users = User::where('partner_flag', '=', 0)
-        ->where('retire', 0)
+        $all_users = User::where('partner_flag', 0)
         ->whereNotIn('name', $ng_list)
         ->whereNotIn('id', $ids)
-        ->orWhere('retire_date', '>=', Carbon::now())
+        ->where(function ($query) {
+            $query->where('retire', 0)
+                  ->orWhere('retire_date', '>=', Carbon::now());
+        })
         ->with(['shift_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('shift_day', $currentYear)
               ->whereMonth('shift_day', $currentMonth)
