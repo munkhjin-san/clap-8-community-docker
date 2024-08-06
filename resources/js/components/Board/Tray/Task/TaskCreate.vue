@@ -189,7 +189,7 @@ import { reactive } from 'vue';
     const { refreshMessages } = inject('boardItem')
     const dateErrors = ref([])
     const tasktime = ref({
-        hours: props.editTaskData && props.editTaskData.response_time ? props.editTaskData.response_time / 60 : 1,
+        hours: props.editTaskData && props.editTaskData.response_time ? Math.floor(props.editTaskData.response_time / 60) : 1,
         minutes: props.editTaskData && props.editTaskData.response_time ? props.editTaskData.response_time % 60 : 0
     })
     const repeatData = reactive({
