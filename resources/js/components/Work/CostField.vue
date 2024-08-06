@@ -24,7 +24,7 @@
                 name="content" 
                 placeholder="内容"
                 type="text"
-                style="padding:0 10px; height:38px;border:1px solid var(--primary-color);"
+                style="padding:0 10px; height:38px;border:1px solid var(--primary-color);color:var(--primary-color);"
                 v-model="content"
             />
             <!-- <ShortInput 
@@ -39,7 +39,7 @@
                     name="expenses"
                     placeholder="経費"
                     type="number"
-                    style="padding: 0px 25px 0 10px; height:38px; width: 50px;border:1px solid var(--primary-color);"
+                    style="padding: 0px 25px 0 10px; height:38px; width: 50px;border:1px solid var(--primary-color);color:var(--primary-color);"
                     v-model="expenses"
                 />
                 <!-- <ShortInput 
