@@ -26,7 +26,7 @@ class Kernel extends ConsoleKernel
         
         $schedule->job(new RemoveFile('temp'))->cron('15 9 * * *');
         $schedule->job(new ResetCharge())->cron('15 9 10 3,6,9,12 *'); 
-        $schedule->job(new RemoveFile('cost'))->cron('15 9 * * 1');
+        // $schedule->job(new RemoveFile('cost'))->cron('15 9 * * 1');
         $schedule->job(new SendReport(610, 3532, 'incident'))->cron('15 9 * * *');
         $schedule->job(new SendReport(610, 3599, 'weekly'))->cron('15 9 * * 1');
         $schedule->job(new SendReport(610, 1056, 'monthly_3S'))->cron('15 9 20 * *');
