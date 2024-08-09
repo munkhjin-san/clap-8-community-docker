@@ -37,7 +37,7 @@
                         名前: {{ editUser.name }}
                     </div>
                     <div>
-                        当年度有休付与日: {{ editUser.work_temps ? editUser.work_temps.date : null }}
+                        当年度有休付与日: {{ editUser.work_temps ? formatDate(editUser.work_temps.date) : null }}
                     </div>
                     <div>
                         計画消化日数: {{ editUser.work_temps ? editUser.work_temps.planned_days : null }}
@@ -78,7 +78,7 @@
                 <tbody>
                     <tr v-for="user in filteredData" :key="user.id">
                         <td>{{ user.name }}</td>
-                        <td>{{ user.work_temps ? user.work_temps.date : null}}</td>
+                        <td>{{ user.work_temps ? formatDate(user.work_temps.date) : null}}</td>
                         <td>{{ user.work_temps ? user.work_temps.planned_days : null }}</td>
                         <td>{{ user.shift_records ? user.shift_records.length : null }}</td>
                         <td>
@@ -104,6 +104,7 @@
     import { computed, inject, onMounted, ref } from 'vue';
     import { useTheme } from '@/store/theme';
     import PostSearchBar from '../../Post/PostSearchBar.vue';
+    import moment from 'moment';
     const keywords = ref('')
     const plannedShifts = ref([])
     const year = ref(new Date().getFullYear())
@@ -137,6 +138,11 @@
         open.value = true
         editUser.value = val
     }
+    const formatDate = (givenDate) => {
+        const date = moment(givenDate, 'YYYY-MM-DD');
+        const newDate = date.year(year.value)
+        return newDate.format('YYYY-MM-DD')
+    }
     const getShift = (val, id) => {
         const existingShiftIndex = changedShifts.value.findIndex(s => s.id === id);
 
@@ -148,6 +154,16 @@
     }
     const saveShift = async() => {
         processing.value = true
+        const startDate = formatDate(editUser.value?.work_temps?.date);
+        const endDate = moment(startDate).add(1, 'year').subtract(1, 'day').format('YYYY-MM-DD');
+        const allShiftsValid = changedShifts.value.every(shift => 
+            isShiftDayInRange(shift.shift_day, startDate, endDate)
+        );
+        if (!allShiftsValid) {
+            notify(`${startDate}から${endDate}の間で選択してください。`);
+            processing.value = false;
+            return;
+        }
         try {
             await axios.post('/change_planned_shifts', {shifts: changedShifts.value, userId: editUser.value.id})
             getPlannedShifts()
@@ -159,6 +175,12 @@
         processing.value = false
         
     }
+    const isShiftDayInRange = (shiftDay, startDate, endDate) => {
+        const shiftDate = moment(shiftDay, 'YYYY-MM-DD');
+        const start = moment(startDate, 'YYYY-MM-DD');
+        const end = moment(endDate, 'YYYY-MM-DD');
+        return shiftDate.isBetween(start, end, 'day', '[]'); 
+    };
 </script>
 <style scoped>
 
