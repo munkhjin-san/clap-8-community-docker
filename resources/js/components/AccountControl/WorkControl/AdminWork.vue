@@ -109,7 +109,8 @@
                     {label: '旅費交通費', value: 4},
                     {label:'消耗品費', value: 5},
                     {label:'交際費', value: 6},
-                    {label:'支払手数料', value: 7}]
+                    {label:'支払手数料', value: 7},
+                    {label:'福利厚生費', value: 8}]
     onMounted(async() => {
         await getData()
         fetch.value ++

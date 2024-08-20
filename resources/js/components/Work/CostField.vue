@@ -133,7 +133,8 @@ import { workFilePreview } from '../../utils/workApi';
                     {label:'通信費', value: 2},
                     {label:'消耗品費', value: 5},
                     {label:'交際費', value: 6},
-                    {label:'支払手数料', value: 7}]
+                    {label:'支払手数料', value: 7},
+                    {label:'福利厚生費', value: 8}]
         return props.isRegistered ? registered_options : fulltime_options
     })
     

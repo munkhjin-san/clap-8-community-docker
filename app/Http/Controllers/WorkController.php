@@ -948,20 +948,23 @@ class WorkController extends Controller
                 $cost['file_path'] === null
             );
         });
-        $is_exist->timecard_costs()->delete();
         $this->validateCost($filteredCosts);
-        foreach($filteredCosts as $move){
-            $cost_exist = new timecardCostRecord;
-            $cost_exist->record_id = $is_exist->id;
-            $cost_exist->user_id = $request->userId;
-            $cost_exist->file_path = $move['file_path'];
-            $cost_exist->type = $move['type'];
-            $cost_exist->date_month = $yearMonth;
-            $cost_exist->content = $move['content'];
-            $cost_exist->expenses = $move['expenses'];
-            $cost_exist->department = $move['department'];
-            $cost_exist->save();
-        }
+        $is_exist->timecard_costs()->delete();
+        $costRecords = array_map(function ($cost) use ($is_exist, $request, $yearMonth) {
+            return [
+                'record_id' => $is_exist->id,
+                'user_id' => $request->userId,
+                'file_path' => $cost['file_path'],
+                'type' => $cost['type'],
+                'date_month' => $yearMonth,
+                'content' => $cost['content'],
+                'expenses' => $cost['expenses'],
+                'department' => $cost['department'],
+                'created_at' => now(),
+                'updated_at' => now()
+            ];
+        }, $filteredCosts);
+        timecardCostRecord::insert($costRecords);
     }
     private function validateCost($costs){
         foreach($costs as $move){
@@ -1799,7 +1802,13 @@ class WorkController extends Controller
                     $suppliesCost = collect($costs)->where('type', 5)->sum('expenses');
                     $entertainmentCost = collect($costs)->where('type', 6)->sum('expenses');
                     $commissionCosts = collect($costs)->where('type', 7)->sum('expenses');
-                    $costFormatted = ($travelCost ? "旅費交通費 : $travelCost" . '円 ' : '') . ($communicationCost ? "通信費 : $communicationCost" . '円' : "") . ($suppliesCost ? "消耗品費 : $suppliesCost" . '円' : "") . ($entertainmentCost ? "交際費 : $entertainmentCost" . '円' : "") . ($commissionCosts ? "支払手数料 : $commissionCosts" . '円' : "");
+                    $welfareExpense = collect($costs)->where('type', 8)->sum('expenses');
+                    $costFormatted = ($travelCost ? "旅費交通費 : $travelCost'円'": '') . 
+                                    ($communicationCost ? "通信費 : $communicationCost'円'" : "") . 
+                                    ($suppliesCost ? "消耗品費 : $suppliesCost'円'" : "") . 
+                                    ($entertainmentCost ? "交際費 : $entertainmentCost'円'" : "") . 
+                                    ($commissionCosts ? "支払手数料 : $commissionCosts'円'" : "") . 
+                                    ($welfareExpense ? "福利厚生費 : $welfareExpense'円'" : "" );
                 }
                
                 $data = [
