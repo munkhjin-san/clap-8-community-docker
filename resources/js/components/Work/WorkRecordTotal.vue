@@ -22,7 +22,12 @@
     <td v-if="!responsive.mobile"></td>
     <td v-if="!responsive.mobile"></td>
     <td>{{ data?.month_achievement_average }}</td>
-    <td v-html="hasCondition"></td>
+    <td>
+        <div v-if="data?.month_weather_average !== null" class="conidtion-area">
+            <div>{{ responsive.mobile ? 'コンディション : ' : '' }}</div>
+            <WeatherIcon :which="data?.month_weather_average" :size="17"/>
+        </div>
+    </td>
     <td v-if="!responsive.mobile"></td>
     <td v-if="!responsive.mobile && hasHeader('経費')">{{ data?.mont_total_costs ? `${data?.mont_total_costs}円` : ''}}</td>
     <td v-if="!responsive.mobile && hasHeader('インセンティブ')">{{ data?.mont_total_incentive ? `${data?.mont_total_incentive}件` : ''}}</td>
@@ -33,6 +38,7 @@
 <script setup>
 import { useResponsive } from '@/store/responsive';
 import { computed } from 'vue';
+import WeatherIcon from '../Global/WeatherIcon.vue';
 const props = defineProps({
     data: {type: Object, default: null},
     hasHeader: {type: Function},

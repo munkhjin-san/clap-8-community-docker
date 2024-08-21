@@ -39,7 +39,12 @@
         <td style="word-break: auto-phrase;">{{ hasAllowance }}</td>
         <td>{{ incidentFormatted }}</td>
         <td>{{ satisfyFormatted }}</td>
-        <td v-html="hasCondition"></td> 
+        <td>
+            <div v-if="item.weather !== null" class="condition-area">
+                <div>{{ responsive.mobile ? 'コンディション : ' : '' }}</div>
+                <WeatherIcon :which="item.weather" :size="17"/>
+            </div>
+        </td> 
         <td>
             <div style="position: relative;">
                 <div class="text-wrap" @click.stop="boxPosition('commentBox')"> 
@@ -118,6 +123,7 @@ import { useMenuStore } from "@/store/menu";
 import CommandButton from '../Global/CommandButton.vue';
 import { workFilePreview } from '../../utils/workApi';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
+import WeatherIcon from '../Global/WeatherIcon.vue';
 const menu = useMenuStore()
 const responsive = useResponsive()
 const costOptions = [{label: '交通費', value: 1},
@@ -292,7 +298,7 @@ const hasCondition = computed(() => {
     const index = props.item.weather
     const mobileTitle = responsive.mobile ? 'コンディション : ' : ''
     if(index !== null){
-        return `<div class="condition-area"><div>${mobileTitle}</div><img class="condition-img" src="images/icon_${index}.svg" width="17" height="17"/></div>`
+        return `<div class="condition-area"><div>${mobileTitle}</div><WeatherIcon :which="${index}" size="17"/></div>`
     }
     return ''
     

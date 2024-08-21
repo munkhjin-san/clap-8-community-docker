@@ -792,7 +792,7 @@ class WorkController extends Controller
         if ($workTimeMinutes >= 360 && $breakTime < 60) {
             throw ValidationException::withMessages(['message' => '6時間以上の勤務の場合、最低でも60分間の休憩を取る必要があります。']);
         } elseif ($workTimeMinutes >= 180 && $workTimeMinutes < 360 && $breakTime < 30) {
-            throw ValidationException::withMessages(['message' => '30時間以上の勤務の場合、最低でも30分間の休憩を取る必要があります。']);
+            throw ValidationException::withMessages(['message' => '3時間以上の勤務の場合、最低でも30分間の休憩を取る必要があります。']);
         }
     }
     private function overTimeCheck($request, $calculatedMinute){
