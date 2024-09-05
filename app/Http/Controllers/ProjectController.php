@@ -343,7 +343,7 @@ class ProjectController extends Controller
         // });
         $mentors = $userList->filter(function ($user) {
             $evaluation = $user->evaluation ?? null;
-            return (!empty($evaluation->general_position) && $evaluation->general_position > 0) 
+            return (!empty($evaluation->general_position) && $evaluation->general_position !== '一般職') 
                     || ($user->position_id !== null && $user->position_id <= 6);
         })->values(); 
         
