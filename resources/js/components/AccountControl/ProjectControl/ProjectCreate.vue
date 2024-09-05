@@ -137,11 +137,11 @@ const createProject = async() => {
     console.log(manager.value)
     const params = {
         id: props.editData?.id,
-        manager_ids: manager.value.id,
+        manager_ids: manager.value?.id,
         member_ids: member.value.map(ob => ob.id),
         params: {
            name: name.value,
-           director_id: director.value.id,
+           director_id: director.value?.id,
            date_start: dateStart.value,
            date_end: dateEnd.value,
            overview: overview.value,
