@@ -187,4 +187,22 @@ class User extends Authenticatable
     public function shift_overtime(){
         return $this->hasMany(ShiftOvertimeRequest::class, 'user_id');
     }
+    public function comment(){
+        return $this->hasMany(CommentRecord::class, 'user_id');
+    }
+    public function post(){
+        return $this->hasMany(PostRecord::class, 'user_id');
+    }
+    public function post_recieved(){
+        return $this->belongsToMany(PostRecord::class, 'post_to_users', 'user_id', 'record_id');
+    }
+    public function evaluation(){
+        return $this->hasOne(ProjectEvaluation::class);
+    }
+    public function outcome_goals(){
+        return $this->hasMany(ProjectGoal::class);
+    }
+    public function salary_issues(){
+        return $this->hasMany(SalaryIssue::class);
+    }
 }

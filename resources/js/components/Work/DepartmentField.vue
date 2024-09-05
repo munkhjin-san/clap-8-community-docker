@@ -15,6 +15,7 @@
                     placeHolder="部門を選択"
                     :multiple="false"
                     :clearable="false"
+                    :close-on-select="true"
                     :options="workGroupAsOptions.filteredgroups"
                     v-model="todayWorkGroup"
                 />

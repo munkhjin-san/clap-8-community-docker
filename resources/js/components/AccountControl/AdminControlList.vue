@@ -9,6 +9,7 @@
                 <div class="admin-tab-item" @click="router.push({name: 'attendance'})" :class="{'selected-tab' : route.path.includes('workcontrol')}">ワーク管理</div>
                 <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div>
                 <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修管理</div>
+                <div class="admin-tab-item" @click="router.push({name: 'projectlist'})" :class="{'selected-tab' : route.path.includes('projectcontrol')}">プロジェクト管理</div>
             </div>
         </div>
         <div style="width: 100%;flex:1;overflow: hidden;background: var(--background-color);" v-if="[608, 610].includes(auth.activeUser.id)">

@@ -1,3 +1,5 @@
+import { Evaluation } from "./projectInterface"
+
 export type DialogMethods = {
     confirm: (message: string, options?: ConfirmOptions) => Promise<boolean>
     notify: (message: string) => void
@@ -34,6 +36,8 @@ export interface User{
     name: string,
     icon_id: number
     pivot?: TaskUserPivot
+    position_id: number;
+    evaluation: Evaluation
 }
 export interface TaskUserPivot{
     comment: string | null
@@ -41,4 +45,10 @@ export interface TaskUserPivot{
     late_answer: number
     late_answer_custom: string | null
     status_flag: number
+}
+
+export type Dialog = {
+    confirm: (question: string, options?: any) => Promise<Answer>;
+    notify: (message: string) => void;
+    info: (message: string) => void;
 }

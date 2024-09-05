@@ -26,7 +26,7 @@
                     rules=""
                     name="workgroup_pm"
                     :closeOnSelect="true"
-                    :limit="1"
+                    :multiple="false"
                 />
             </div>
             <div class="si-box">
@@ -37,6 +37,7 @@
                     rules=""
                     name="workgroup_users"
                     :closeOnSelect="false"
+                    :multiple="true"
                 />
             </div>
             <div class="si-box" style="margin-top: auto; margin-bottom: 30px;">
@@ -61,12 +62,12 @@
         return props.editWorkGroupData ? props.editWorkGroupData.members.filter(ob => ob.pivot.authority == 0) : []
     })
     const pm = computed(() => {
-        return props.editWorkGroupData ? props.editWorkGroupData.members.filter(ob => ob.pivot.authority == 1) : []
+        return props.editWorkGroupData ? props.editWorkGroupData.members.find(ob => ob.pivot.authority == 1) : null
     })
     const work_group_name = ref(props.editWorkGroupData ? props.editWorkGroupData.name : '')
     const processing = ref(false)
     const workgroup_users = ref(users.value ? users.value : [])
-    const workgroup_pm = ref(pm.value ? pm.value : [])
+    const workgroup_pm = ref(pm.value ?? null)
     const { notify, info } = inject('dialog')
     const workGroupName = ref(null)
     const optionUsers = computed(() => {
@@ -93,7 +94,7 @@
                 work_group_id : props.editWorkGroupData ? props.editWorkGroupData.id : null,
                 work_group_name : work_group_name.value,
                 work_group_users : workgroup_users.value.map(ob => ob.id),
-                work_group_pm : workgroup_pm.value.map(ob => ob.id)
+                work_group_pm : workgroup_pm.value.id
             }
             try {
                 await axios.post('/work_group_add', params)

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\boardRecord;
 use App\Models\boardToUser;
+use App\Models\ChallengeRecord;
 use App\Models\KnowledgeRecord;
 use App\Models\NiceRecord;
 use App\Models\PostRecord;
@@ -32,6 +33,9 @@ use App\Models\LessonPortfolio;
 use App\Models\LessonSection;
 use App\Models\LessonMaterial;
 use App\Models\ClapRecord;
+use App\Models\workGroup;
+use App\Models\ProjectRecord;
+use App\Models\ProjectMember;
 use App\Mail\Warning;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -49,6 +53,7 @@ use App\Jobs\GenerateThumbnailJob;
 use App\Jobs\GeneratePostThumbnail;
 use League\Csv\Reader;
 use League\Csv\Statement;
+use Illuminate\Support\Facades\Http;
 class AutoJobController extends Controller
 
 {
@@ -418,6 +423,60 @@ class AutoJobController extends Controller
     }
 
     public function united_posts(){
+        $challenges = ChallengeRecord::get();
+        foreach($challenges as $challenge){
+            $attributesToCreate = [
+                'user_id' => $challenge->user_id,
+                'title' => $challenge->title,
+                'content' => $challenge->content,
+                'content_rule' => $challenge->content_rule,
+                'content_goal' => $challenge->content_goal,
+                'result' => $challenge->result,
+                'date_start' => $challenge->date_start,
+                'date_end' => $challenge->date_end,
+                'status_flag' => $challenge->status_flag,
+                'award_entry' => $challenge->award_entry,
+                'chargeable' => 1,
+                'referrer' => $challenge->referrer,
+                'key_users' => $challenge->key_users,
+                'key_tags' => $challenge->key_tags,
+                'app_type' => 2,
+                'updated_at' => $challenge->updated_at,
+                'created_at' => $challenge->created_at,
+            ];
+            $post = PostRecord::create($attributesToCreate);
+            foreach ($challenge->comments as $comment) {
+                $commentData = $comment->toArray();
+                unset($commentData['id']);
+                $commentData['record_id'] = $post->id;
+                $commentData['app_name'] = 'post';
+                CommentRecord::create($commentData);
+            }
+    
+            $post->files()->sync($challenge->files->pluck('id')->toArray());
+    
+            $post->tags()->sync($challenge->tags->pluck('id')->toArray());
+    
+            foreach ($challenge->claps as $clap) {
+                $clapData = $clap->toArray();
+                unset($clapData['id']); 
+                $clapData['record_id'] = $post->id;
+                $clapData['app_name'] = 'post';
+                $clapData['app_id'] = 2;
+                ClapRecord::create($clapData);
+            }
+            $post->to_users()->sync($challenge->to_users->pluck('id')->toArray());
+
+            $challengeAwards = $challenge->challenge_awards->pluck('id')->toArray();
+
+            $post->awards()->sync($challengeAwards);
+
+            $syncData = $challenge->challenge_awards->mapWithKeys(function ($award) {
+                return [$award->id => ['award_bet' => $award->pivot->award_bet]]; // Add other necessary pivot data if required
+            })->toArray();
+
+            $post->awards()->sync($syncData);
+        }
         $knowledges = KnowledgeRecord::get();
         $nices = NiceRecord::get();
         foreach($knowledges as $knowledge){
@@ -428,7 +487,7 @@ class AutoJobController extends Controller
                 'referrer' => $knowledge->referrer,
                 'key_users' => $knowledge->key_users,
                 'key_tags' => $knowledge->key_tags,
-                'app_type' => $knowledge->app_type,
+                'app_type' => 1,
                 'updated_at' => $knowledge->updated_at,
                 'created_at' => $knowledge->created_at,
             ];
@@ -454,7 +513,7 @@ class AutoJobController extends Controller
                 ClapRecord::create($clapData);
             }
     
-            // $post->to_users()->sync($knowledge->to_users->pluck('id')->toArray());
+            
         }
         foreach($nices as $nice) {
             $attributesToCreate = [
@@ -464,7 +523,7 @@ class AutoJobController extends Controller
                 'referrer' => $nice->referrer,
                 'key_users' => $nice->key_users,
                 'key_tags' => $nice->key_tags,
-                'app_type' => $nice->app_type,
+                'app_type' => 0,
                 'updated_at' => $nice->updated_at,
                 'created_at' => $nice->created_at
             ];
@@ -494,4 +553,95 @@ class AutoJobController extends Controller
         }
         return response()->json(['message' => 'Posts created successfully']);
     }
+    public function creating_projects(){
+        $work_groups = workGroup::has('work_group_user')->with('work_group_user')->get();
+        foreach($work_groups as $group) {
+            $project = new ProjectRecord();
+            $project->name = $group->name;
+            $project->save();
+            foreach($group->work_group_user as $user) {
+                $projectMember = new ProjectMember();
+                $projectMember->project_id = $project->id;
+                $projectMember->user_id = $user->user_id;
+                $projectMember->authority = $user->authority;
+                $projectMember->save();
+            }
+        }
+        return response()->json($work_groups);
+    }
+
+    // public function creating_projects(){
+    //     $queryParams = [
+    //         'app' => '916',
+    //         'query' => '日付_0 = LAST_MONTH()',
+    //     ];
+    //     $queryString = http_build_query($queryParams);
+    //     $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
+    //     $user_name = env('KINTONE_USER_NAME');
+    //     $password = env('KINTONE_PASSWORD');
+    //     $string = "{$user_name}:{$password}";
+    //     $x_token = base64_encode($string);
+    //     $headers = [
+    //         'Authorization' => 'Basic', 
+    //         'X-Cybozu-Authorization' => $x_token
+    //     ];
+    //     $response = Http::withHeaders($headers)->get($url);
+        
+    //     $records = $response->json()['records'];
+
+    //     $lookupData = [];
+    //     foreach ($records as $record) {
+    //         if (isset($record['ルックアップ_1']['value']) && !empty($record['ルックアップ_1']['value'])) {
+    //             $department = $record['ルックアップ_1']['value'];
+    //             if (!isset($lookupData[$department])) {
+    //                 $lookupData[$department] = [];
+    //             }
+    //             if (isset($record['テーブル']['value']) && is_array($record['テーブル']['value'])) {
+    //                 foreach ($record['テーブル']['value'] as $user) {
+    //                     if (isset($user['value']['氏名']['value']) && !empty($user['value']['氏名']['value'])) {
+    //                         $lookupData[$department][] = $user['value']['氏名']['value'];
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     $relatedRecords = $this->getRelatedRecords($lookupData);
+    //     return response()->json($relatedRecords);
+    // }
+    // protected function getRelatedRecords(array $lookupData) {
+    //     $relatedRecords = [];
+    //     $user_name = env('KINTONE_USER_NAME');
+    //     $password = env('KINTONE_PASSWORD');
+    //     $string = "{$user_name}:{$password}";
+    //     $x_token = base64_encode($string);
+    //     $headers = [
+    //         'Authorization' => 'Basic', 
+    //         'X-Cybozu-Authorization' => $x_token
+    //     ];
+    //     foreach ($lookupData as $department => $users) {
+    //         $departmentQueryParams = [
+    //             'app' => '26',
+    //             'query' => "部門 = \"{$department}\"",
+    //         ];
+    //         $departmentQueryString = http_build_query($departmentQueryParams);
+    //         $departmentUrl = "https://glowd-hldgs.cybozu.com/k/v1/records.json?" . $departmentQueryString;
+
+            
+
+    //         $departmentResponse = Http::withHeaders($headers)->get($departmentUrl);
+    //         $relatedRecords[$department]['department'] = $departmentResponse->json()['records'];
+    //         foreach ($users as $user) {
+    //             $userQueryParams = [
+    //                 'app' => '9', // Replace with the actual related app ID
+    //                 'query' => "氏名 = \"{$user}\"",
+    //             ];
+    //             $userQueryString = http_build_query($userQueryParams);
+    //             $userUrl = "https://glowd-hldgs.cybozu.com/k/v1/records.json?" . $userQueryString;
+
+    //             $userResponse = Http::withHeaders($headers)->get($userUrl);
+    //             $relatedRecords[$department]['users'][$user] = $userResponse->json()['records'];
+    //         }
+    //     }
+    //     return $relatedRecords;
+    // }
 }

@@ -38,6 +38,7 @@
                         :exclude="[auth.id]"
                         :closeOnSelect="chatType == 1 ? true : false"
                         :limit="chatType == 1 ? 1 : null"
+                        :multiple="true"
                         v-model="board_users"
                     />
                 </div>               

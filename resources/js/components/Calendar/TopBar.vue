@@ -38,6 +38,7 @@
                                 placeHolder="メンバー選択"
                                 rules="required"
                                 v-model="editingUserList"
+                                :multiple="true"
                                 name="groupUsers"
                                 ref="groupUsers"
                                 path="calendar_more_users"
@@ -57,7 +58,30 @@
         <div @click="emit('jumpToday')" class="c-bar-button">本日</div>
         <Transition name="modalFade">
             <div v-if="menu.parent == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menu.name = ''">
-                <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);min-height: 150px;">       
+                <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);min-height: 150px;">   
+                    <!-- <div v-if="allMembers.length">
+                        <div style="padding:0 15px 0 30px;display:flex;"> 
+                            <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
+                                <input @change="selectAll(group, 'byMember')" :checked="allSelected(group)" name="memberCheckBox" type="checkbox">
+                                <span class="cal-check-mark" style="top: 13px;"></span>
+                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
+
+                                    <p class="userName" style="line-height: 30px;margin-left: 0;">全員選択</p>                                    
+                                </div>
+                            </label> 
+                        </div>
+                        <div :key="user.id" v-for="user in group.users" style="padding:0 15px 0 30px;display:flex;">                                
+                            <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
+                                <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member" :value="user.id" name="memberCheckBox" type="checkbox">
+                                <span class="cal-check-mark" style="top: 10px;"></span>
+                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
+                                    <UserIcon :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
+                                    <p class="userName">{{user.name}}</p>                                    
+                                </div>
+                            </label>  
+                            
+                        </div>
+                    </div>     -->
                     <div v-if="myGroups.length">
                         <div v-for="group in myGroups">  
                             <div style="display: flex;align-items: center;white-space: nowrap;padding: 0 15px;gap: 15px;position:relative;justify-content: space-between;">
@@ -189,6 +213,7 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
     const title = ref('')
     const workGroupList = ref([])
     const myWorkGroupList = ref([])
+    const allMembers = ref([])
     const createWindow = ref(false) 
     const menuId = ref(null)
     const groupTitle = ref(null)
@@ -315,7 +340,7 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
             selectedUsers.value = response.data.my_groups
             workGroupList.value = response.data.work_groups
             myWorkGroupList.value = response.data.my_work_groups
-
+            allMembers.value = response.data.all_members
             const uniqueUserIds = new Set();
             const memberList = [];
             selectedUsers.value.forEach((group) => {

@@ -5,6 +5,7 @@ import { useFilePreview } from "@/store/filePreview"
 import { useResponsive } from '@/store/responsive'
 import { useSideMenuView } from '@/store/sideMenuView'
 import { useAuthUserStore } from './store/auth'
+import { useProjectUsers } from '@/store/projectUsers'
 import axios from 'axios'
 const routes = [
     { 
@@ -106,37 +107,48 @@ const routes = [
                     }
                 },
             },
-            // {
-            //     path: 'performance-goals',
-            //     component: () => import('./components/Profile/Issue/Performance.vue'),
-            //     name: 'performance-goals',
-            //     props: true,
-            //     meta: {
-            //         title: 'CLAP - 成果目標',
-            //     },
-            //     beforeEnter: (to, from, next) => {
-            //         const rootElement = document.getElementById('app');
-            //         const userId = rootElement.getAttribute('data-user-id');
+            {
+                path: 'performance-goals',
+                component: () => import('./components/Profile/Issue/Performance.vue'),
+                name: 'performance-goals',
+                props: true,
+                meta: {
+                    title: 'CLAP - 成果目標',
+                },
+                beforeEnter: (to, from, next) => {
+                    const rootElement = document.getElementById('app');
+                    const userId = rootElement.getAttribute('data-user-id');
 
-            //         if (to.params.userId !== userId) {
-            //             const currentUserIdRoute = `/user/${userId}/salary-issue`;
+                    if (to.params.userId !== userId) {
+                        const currentUserIdRoute = `/user/${userId}/salary-issue`;
                         
-            //             if (to.path !== currentUserIdRoute) {
-            //                 next(currentUserIdRoute);
-            //             } else {
-            //                 next();
-            //             }
-            //         } else {
-            //             next();
-            //         }
-            //     },
+                        if (to.path !== currentUserIdRoute) {
+                            next(currentUserIdRoute);
+                        } else {
+                            next();
+                        }
+                    } else {
+                        next();
+                    }
+                },
 
-            // }
+            }
 
         ],
         beforeEnter: (to, from, next) => {
             resolveBeforeEnter(to, next, from);
         },
+    },
+    {
+        path: '/post',
+        name: 'post',
+        meta: {
+            title: 'CLAP - ポスト',
+        },
+        component: () => import('./components/Post/PostContainer.vue'),
+        beforeEnter: (to, from, next) => {
+            fetchPosts(to, next, from, 'post');
+        }
     },
     {
         path: '/knowledge',
@@ -170,6 +182,42 @@ const routes = [
         beforeEnter: (to, from, next) => {
             fetchPosts(to, next, from, 'challenge');
         },
+    },
+    {
+        path: '/project',
+        name: 'project',
+        meta: {
+            title: 'CLAP - プロジェクト'
+        },
+        component: () => import('./components/Project/ProjectContainer.vue'),
+        children: [
+            {
+                path: ':projectId',
+                name: 'projectdetail',
+                props: true,
+                component: () => import('./components/Project/ProjectDetail.vue'),
+                children: [
+                    {
+                        path: 'outcomegoal/:memberId',
+                        name: 'outcomegoal',
+                        props: true,
+                        meta: {
+                            nameJp: '成果目標・昇給課題'
+                        },
+                        component: () => import('./components/Project/ProjectGoalDetail.vue'),
+                    },
+                    {
+                        path: 'evaluation/:memberId',
+                        name: 'evaluation',
+                        props: true,
+                        meta: {
+                            nameJp: '人事考課'
+                        },
+                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationDetail.vue'),
+                    }
+                ]
+            }
+        ]
     },
     {
         path: '/schedule',
@@ -257,6 +305,32 @@ const routes = [
                         name: 'paidholiday',
                         props: true,
                         component: () => import('./components/AccountControl/WorkControl/WorkPlannedPaid.vue')
+                    }
+                ]
+            },
+            {
+                path: 'projectcontrol',
+                props: true,
+                name: 'projectcontrol',
+                component: () => import('./components/AccountControl/ProjectControl/ProjectControl.vue'),
+                children: [
+                    {
+                        path: 'projectlist',
+                        name: 'projectlist',
+                        props: true,
+                        component: () => import('./components/AccountControl/ProjectControl/ProjectList.vue')
+                    },
+                    {
+                        path: 'targetperiod',
+                        name: 'targetperiod',
+                        props: true,
+                        component: () => import('./components/AccountControl/ProjectControl/EvaluationPeriod.vue')
+                    },
+                    {
+                        path: 'mentorcontrol',
+                        name: 'mentorcontrol',
+                        props: true,
+                        component: () => import('./components/AccountControl/ProjectControl/EvaluationMentor.vue')
                     }
                 ]
             }
@@ -525,7 +599,6 @@ function fetchPosts(to, next, from, path) {
         next()
     });
 }
-
 const router = createRouter({
     history: createWebHistory(),
     routes
@@ -541,6 +614,12 @@ router.afterEach(() => {
   function cleanUp(){
     const messageUsers = useMessageUsers()
     const filePreview = useFilePreview()
+    const projectUsers = useProjectUsers()
+    projectUsers.setProjectUsers({
+        active: false,
+        userList: [],
+        title: ''
+    })
     messageUsers.setMessageUsers({
         active: false,
         userList: [],

@@ -1,7 +1,7 @@
 <template>
     <div>        
         <div>
-            <div style="border: 1px solid var(--primary-color);" class="form-wrapper" :class="{focused: modelValue.length || focus}">
+            <div style="border: 1px solid var(--primary-color);" class="form-wrapper" :class="{focused: (multiple ? modelValue.length : modelValue) || focus}">
                 <label style="z-index:5" class="form-plc">{{ placeHolder }}</label>
                  
                 <drop-selector 
@@ -10,7 +10,7 @@
                     v-model="qualified_users" 
                     name="qualified_users" 
                     :options="options"
-                    :multiple="true"
+                    :multiple="multiple"
                     :noDrop="noDrop"
                     :inputId="'taskUserSelector'"
                     :components="{Deselect}"
@@ -62,7 +62,7 @@ import { validator } from '@/validation/validator'
         'multiple', 
         'options',
         'exclude',
-        'modelValue'
+        'modelValue',
     ])
     const error = ref('')
     const trigger = ref(false)
@@ -83,6 +83,10 @@ import { validator } from '@/validation/validator'
     })  
 
     const qualified_users = defineModel()
+
+    watch(() => props.path, () => {
+        getPossibleMembers()
+    })
 
     watch(() => props.selectAll, (after) => {
         if (after) {

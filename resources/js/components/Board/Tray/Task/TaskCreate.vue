@@ -41,6 +41,7 @@
                     name="taskMembers"
                     ref="taskMembers"
                     :closeOnSelect="false"
+                    :multiple="true"
                     v-model="setExecutor"  
                     :options="boardMembers"
                 />
@@ -137,6 +138,7 @@
                     name="taskApprover"
                     ref="taskApprover"
                     :closeOnSelect="false"
+                    :multiple="true"
                     v-model="setSupervisor"  
                     :options="boardMembers"                  
                 />

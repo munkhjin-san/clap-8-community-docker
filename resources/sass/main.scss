@@ -3261,7 +3261,7 @@ div.recordFormTitle > p{
 #email, #login , #name, #password, #verification_code, #email_or_phone, #password-confirm {
   width: -webkit-fill-available;
   width: -moz-available;
-  height: 30px;
+  height: 40px;
   line-height: 25px;
   text-indent: 12px;
 
@@ -3276,7 +3276,13 @@ div.recordFormTitle > p{
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
 input:-webkit-autofill:active{
-    -webkit-box-shadow: 0 0 0 30px var(--background-color) inset !important;
+    -webkit-box-shadow: 0 0 0 50px var(--background-color) inset !important;
+}
+#password:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active{
+    -webkit-box-shadow: 0 0 0 50px var(--background-color) inset !important;
 }
 .login-btn{
   margin: 0 auto;
@@ -5783,10 +5789,9 @@ input:autofill {
         white-space: nowrap;
         flex-wrap: wrap; 
         gap: 15px;
-        min-height: 65px;
+        min-height: fit-content;
         padding: 20px;    
         overflow: hidden;    
-        justify-content: space-between;
         transition: max-height 0.3s ease;
     }
     .p-tag-expand{
@@ -5852,6 +5857,24 @@ input:autofill {
     color: var(--link-color);
     text-decoration: underline;
     font-weight: 600;
+}
+
+.pt-selector {
+  padding: 5px;
+  box-sizing: border-box;
+  border: solid thin transparent;
+  color: var(--primary-color);
+  background: var(--background-color);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.ptSelected {
+  background-color: var(--bg3);
+  border: solid thin var(--primary-color);
 }
 @media screen and (max-width: 959px) {
     .ls-video{

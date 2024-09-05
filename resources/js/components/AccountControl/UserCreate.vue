@@ -78,6 +78,7 @@
                         :multiple="false"
                         :clearable="true"
                         :options="positions"
+                        :close-on-select="true"
                         v-model="userParams.position_id"
                     />
                 </div>
@@ -87,6 +88,7 @@
                         :multiple="false"
                         :clearable="true"
                         :options="offices"
+                        :close-on-select="true"
                         v-model="userParams.office_id"
                     />
                     
@@ -177,6 +179,7 @@
                         rules=""
                         name="workgroup_users"
                         :closeOnSelect="false"
+                        :multiple="true"
                     />
                     
                     <div class="si-box" v-if="editUserData" style="flex-direction:column">

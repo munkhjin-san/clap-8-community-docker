@@ -17,15 +17,18 @@
                 <FilePreview v-if="filePreview.active"/>
             </Transition> 
         </Teleport>
-        <Transition name="modalFade">
+        <!-- <Transition name="modalFade">
             <WeatherComponent v-if="auth.user"/>
-        </Transition> 
+        </Transition>  -->
         <SharingData v-if="sharingData.active && (route.name == 'board' || route.name == 'room')"/>
         <Transition name="modalFade">
             <CheckWork v-if="auth.user" />
         </Transition>
         <Transition name="modalFade">
             <TaskUsers v-if="taskUsers.active"/>
+        </Transition>
+        <Transition name="modalFade">
+            <ProjectUsers v-if="projectUsers.active"/>
         </Transition>
     </div>
 </template>
@@ -51,9 +54,12 @@
     import TaskUsers from '../Board/Tray/Task/TaskUsers.vue'
     import { useTaskUsers } from '@/store/taskUsers'
     import { useTaskRequest } from '@/store/taskRequest'
+    import ProjectUsers from '../AccountControl/ProjectControl/ProjectUsers.vue'
+    import { useProjectUsers } from '@/store/projectUsers'
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()
+    const projectUsers = useProjectUsers()
     const taskFeedBack = useTaskFeedback()
     const taskRequest = useTaskRequest()
     const route = useRoute()

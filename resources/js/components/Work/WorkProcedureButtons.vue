@@ -89,7 +89,7 @@
     import moment from 'moment';
     import { useAuthUserStore } from '../../store/auth';
     import LoaderButton from '../Global/LoaderButton.vue';
-    import { inject, ref, computed } from 'vue';
+    import { inject, ref, computed, onMounted, onUnmounted } from 'vue';
     import OverTimeRequest from './OverTimeRequest.vue';
     import { useCheckApproval } from '../../store/checkApproval';
     const overtimeRequestData = ref(null)
@@ -99,6 +99,19 @@
     const auth = useAuthUserStore()
     const { edit, stampDelete, addDepartmentOnly } = inject('stamps')
     const checkApproval = useCheckApproval()
+    onMounted(() => {
+        if(props.item.ability.daily_report_approve){
+            window.addEventListener('keydown', handleEnterPress);
+        }
+    })
+    onUnmounted(() => {
+        window.removeEventListener('keydown', handleEnterPress)
+    })
+    const handleEnterPress = (event) =>{
+        if (event.key === 'Enter') {
+            emit('dailyButtons', 0, props.item)
+        }
+    }
     const respondOvertime = async(data, status, action) => {
         if(status == 0){
             const answer = await confirm(`${data?.overtime_day}申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。`)

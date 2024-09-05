@@ -59,6 +59,9 @@
     defineExpose({validate})
 </script>
 <style scoped>
+.height-adjust {
+    min-height: 40px !important;
+}
 .centerLabel{
     top: 50%;
     transform: translateY(-50%);
