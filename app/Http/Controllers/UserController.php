@@ -338,32 +338,27 @@ class UserController extends Controller{
                 'portfolio' => function ($q) {
                     $q->withCount('claps');
                 },
-                'knowledge' => function ($q) {
-                    $q->where('deleted_flag', 0)->withCount('claps');
+                'post' => function ($q) {
+                    $q->withCount('claps');
                 },
-                'nice' => function ($q) {
-                    $q->where('deleted_flag', 0)->withCount('claps');
+                'post_recieved' => function ($q) {
+                    $q->withCount('claps');
                 },
-                'nice_recieved' => function ($q) {
-                    $q->where('nice_records.deleted_flag', 0)->withCount('claps');
-                },
-                'challenge' => function ($q) {
-                    $q->where('challenge_records.deleted_flag', 0)->withCount('claps');
-                },
+                'comment' => function ($q) {
+                    $q->withCount('claps');
+                }
             ])->findOrFail($request->id);
-            $nice_from = $user->nice->sum('claps_count');
+            $post = $user->post->sum('claps_count');
 
-            $nice_to = $user->nice_recieved->sum('claps_count');
+            $post_to = $user->post_recieved->sum('claps_count');
 
-            $knowledge_claps = $user->knowledge->sum('claps_count');
-
-            $challenge_claps = $user->challenge->sum('claps_count');
-
-            $nice_from_claps = $nice_from + $nice_to;
+            $post_claps = $post + $post_to;
             
             $portfolio_claps = $user->portfolio->sum('claps_count');
 
-            $sum = $nice_from_claps + $challenge_claps + $knowledge_claps + $portfolio_claps;
+            $comment_claps = $user->comment->sum('claps_count');
+
+            $sum = $post_claps + $portfolio_claps + $comment_claps;
 
             $claps = [
                 "sum" => $sum,
