@@ -12,7 +12,7 @@
         
      
     const dateConverted = computed(() => {
-        if(props.record.app_type == 4){
+        if(props.record.app_type == 2){
             const startYear = moment(props.record.date_start).format('YYYY')
             const endYear = moment(props.record.date_end).format('YYYY')
             const thisYear = moment().format('YYYY')

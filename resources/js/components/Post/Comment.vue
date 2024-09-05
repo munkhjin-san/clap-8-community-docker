@@ -14,7 +14,7 @@
                     ]"/>
                 </div>
             </div>
-            <div class="commentBox">
+            <div class="commentBox" style="margin-bottom: 10px;">
                 <Editor v-if="editing" :comment="comment" :urlCheck="urlCheck" @cancel="editing = false"/>
                 <p  
                     v-else
@@ -23,14 +23,16 @@
                     v-html="urlCheck(comment.messages)">
                 </p>
                 
-            </div>                                           
-        </div>                                            
+            </div>  
+            <ClapButton :item="comment" @updateClap="reload()" appName="comment"/>                                                                                     
+        </div>
         <div class="clearBoth"></div>
     </div> 
 </template>
 <script setup>
 import UserIcon from '../Board/Mixed/UserIcon.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import ClapButton from './ClapButton.vue';
 import moment from 'moment';
 import { computed, defineAsyncComponent, ref, inject } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
@@ -43,6 +45,7 @@ import { urlCheck } from '@/utils/tools';
     const emit = defineEmits(['deleteComment', 'editComment', 'editCancel', 'editSend'])
     const editing = ref(false)
     const pushInstantUser = inject('pushInstantUser')
+    const reload = inject('reload')
     const momentMessage = computed(() => {
         moment.locale('ja')
         const date = props.comment.created_at

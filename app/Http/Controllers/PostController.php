@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\KnowledgeRecord;
 use App\Models\NiceRecord;
 use App\Models\ChallengeRecord;
+use App\Models\PostRecord;
 use App\Models\TagRecord;
 use App\Models\FileRecord;
 use App\Models\ClapRecord;
@@ -86,32 +87,33 @@ class PostController extends Controller
         $target_users = $user ? [$user->id] : [];
         $records = $model::query();
         $path = $request->path;
-        $qr = $records->where('deleted_flag', 0)
-        ->when($params, function ($query) use($params, $search_tags, $target_users, $path) {
+        $app_type = $params['app_type'] ?? null;
+        $qr = $records->when($params, function ($query) use($params, $search_tags, $target_users, $path, $app_type) {
             $query->when(array_key_exists('id', $params) && $params['id'], function ($query) use($params) {
                 $query->where('id', $params['id']);
             });
             $query->when($target_users, function($query) use ($target_users, $path) {
-                $query->when($path == 'knowledge', function($q) use($target_users){
-                    $q->whereHas('user', function ($query) use ($target_users) {
-                        $query->whereIn('id', $target_users);
-                    });  
-                });          
-                $query->when($path == 'challenge', function($q) use($target_users){
-                    foreach($target_users as $user_id){
-                        $q->whereHas('to_users', function ($query) use ($user_id) {
-                            $query->where('users.id', $user_id);
-                        });
-                    }  
-                }); 
-                $query->when($path == 'nice', function($q) use($target_users){
-                    foreach($target_users as $user_id){
-                        $q->whereHas('to_users', function ($query) use ($user_id) {
-                            $query->where('users.id', $user_id);
-                        });
-                    }
-                    $q->orWhereIn('user_id', $target_users);
-                });   
+                $query->when($path == 'post', function ($q) use ($target_users) {
+                    $q->where(function ($q) use ($target_users) {
+                        foreach($target_users as $user_id){
+                            $q->where(function ($q) use ($user_id) {
+                                $q->where(function ($q) {
+                                    $q->where('app_type', 0)
+                                      ->orWhere('app_type', 2);
+                                })->whereHas('to_users', function ($query) use ($user_id) {
+                                    $query->where('users.id', $user_id);
+                                });
+                            })
+                            ->orWhere(function ($q) use ($target_users) {
+                                $q->where('app_type', 1)
+                                  ->whereHas('user', function ($query) use ($target_users) {
+                                      $query->whereIn('id', $target_users);
+                                  });
+                            });
+                            $q->orWhereIn('user_id', $target_users);
+                        }
+                    });
+                });           
             });
             $query->when($search_tags, function ($query) use ($search_tags) {
                 $query->whereHas('tags', function ($query) use ($search_tags) {
@@ -121,6 +123,10 @@ class PostController extends Controller
                     }
                 });
             });
+
+            $query->when(!is_null($app_type), function ($query) use ($app_type) {
+                $query->where('app_type', $app_type);
+            });
             
         })
         
@@ -129,12 +135,9 @@ class PostController extends Controller
         ->with('files')
         ->withCount('comments')
         ->with('claps')
-        ->when($request->path == 'challenge' || $request->path == 'nice', function ($query) {
-            $query->with('to_users');
-        })
-        ->when($request->path == 'challenge', function ($query) {
-            $query->with('challenge_awards')->with('result_files')->orderBy('status_flag', 'asc');
-        })
+        ->with('to_users')
+        ->with('awards')
+        
         ->orderBy('created_at', 'desc')
         ->when(!$has_id, function ($query) use($skip) {
             $query->skip($skip);
@@ -174,7 +177,7 @@ class PostController extends Controller
     public function post_get_tags(Request $request){
         $super = $request->super;
         $key = $request->key;
-        $special = $request->special ? $request->special : [];
+        $special = $request->special ?? [];
         $tag_text = TagRecord::where('deleted_flag','=', 0)
         ->when(!$super, function ($query) use ($key) {
             $query->where('text', 'LIKE', '%' . $key . '%');
@@ -312,7 +315,7 @@ class PostController extends Controller
 
         if(!empty($request->title)){
 
-            $validatedData = $request->validate([
+            $request->validate([
                 'path' => 'required',
             ]);
             $nameSpace = '\\App\\Models\\'. ucfirst($request->path) . 'Record'; 
@@ -320,18 +323,20 @@ class PostController extends Controller
             $record = $request->edit_id ? $nameSpace::findOrFail($request->edit_id) : new $nameSpace; 
             $record->user_id = Auth::id();
             $record->title = $request->title;
-            if($request->path == 'challenge'){
+            if($request->app_type == 2){
                 $record->content_rule = $request->content_rule;
                 $record->content_goal = $request->content_goal;
                 $record->date_start = $request->date_start;
                 $record->date_end = $request->date_end;
                 $record->award_entry = $request->award_entry;
+                $record->chargeable = $request->chargeable;
             }else{
                 $record->content = $request->content;
             }            
-            $record->referrer = $request->referrer;          
+            $record->referrer = $request->referrer; 
+            $record->app_type = $request->app_type;         
             $record->save();
-            if($request->path !== 'knowledge'){
+            if($request->app_type == 2 || $request->app_type == 0){
                 $record->to_users()->sync($request->to_users);
             }            
             $tagIds = [];
@@ -383,8 +388,8 @@ class PostController extends Controller
         ]);
 
 
-        $record = ChallengeRecord::findOrFail($request->record_id);
-        $record->challenge_awards()->attach(Auth::id(), ['award_bet' => $request->charge_bet, 'created_at' => now(), 'updated_at' => now()]);
+        $record = PostRecord::findOrFail($request->record_id);
+        $record->awards()->attach(Auth::id(), ['award_bet' => $request->charge_bet, 'created_at' => now(), 'updated_at' => now()]);
         Auth::user()->update(['award_charge' => Auth::user()->award_charge - $request->charge_bet]);
         return response()->json();        
 
@@ -394,7 +399,12 @@ class PostController extends Controller
             'app_name' => 'required',
             'record_id' => 'required'
         ]);
-        $comments = CommentRecord::where('record_id', $request->record_id)->where('app_name', $request->app_name)->where('deleted_flag', 0)->with('user')->get();
+        $comments = CommentRecord::where('record_id', $request->record_id)
+                                ->where('app_name', $request->app_name)
+                                ->where('deleted_flag', 0)
+                                ->with('user')
+                                ->with('claps')
+                                ->get();
         return response()->json($comments);  
     }
     public function post_comment_add(Request $request){
@@ -422,7 +432,7 @@ class PostController extends Controller
                 $current_commenters_id_unique[] = $id;
             }
         }
-        if($request->app_name == 'challenge' || $request->app_name == 'nice'){           
+        if($request->app_name == 'post'){           
             
             $to_users = $owner->to_users()->get();
             foreach($to_users as $to_user){
@@ -436,9 +446,7 @@ class PostController extends Controller
             $current_commenters_id_unique[] = $owner_id;
         }    
         $app_name_list = [
-            "nice" => 'ナイス',
-            "knowledge" => 'ナレッジ',
-            "challenge" => 'チャレンジ'
+            "post" => 'ポスト'
         ];
         $app_name_title = $app_name_list[$request->app_name];
         $from_name = Auth::user()->name . 'さんから、' . $app_name_title .'へコメントが届きました。'; 
@@ -464,9 +472,8 @@ class PostController extends Controller
         ]);
         $app_ids = [
             "portfolio" => 6,
-            "challenge" => 4,
-            "nice" => 3,
-            "knowledge" => 2
+            "post" => 2,
+            "comment" => 5,
         ];
         $app_id = $app_ids[$request->app_name];
         $existingRecord = ClapRecord::where([
@@ -513,6 +520,7 @@ class PostController extends Controller
         $comment = CommentRecord::findOrFail($request->id)->update([
             "deleted_flag" => 1
         ]);
+        $comment->delete();
         return response()->json();  
     }
     public function post_status_update(Request $request){
@@ -545,7 +553,7 @@ class PostController extends Controller
         $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
         return response()->json($other_users); 
     }
-    public function post_get_nice_users(Request $request){
+    public function post_get_post_users(Request $request){
         $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '!=', Auth::id())->where('id', '>', 99)->select('id', 'name', 'icon_id')->get();
         return response()->json($other_users); 
     }
@@ -556,9 +564,7 @@ class PostController extends Controller
         if(!empty($auth_user_id)){
             $list = $request->last_update ? $request->last_update : UserLastRecord::where('user_id', '=', $auth_user_id)->where('deleted_flag', '=', 0)->first();
             $recordTypes = [
-                'knowledge' => KnowledgeRecord::class,
-                'challenge' => ChallengeRecord::class,
-                'nice' => NiceRecord::class,
+                'post' => PostRecord::class,
             ];
             
             foreach ($recordTypes as $type => $modelClass) {
@@ -571,39 +577,21 @@ class PostController extends Controller
             if(empty($list)){
                 $newls = new UserLastRecord;
                 $newls->user_id = $auth_user_id;
-                $newls->last_knowledge = $knowledge->id;
-                $newls->last_nice = $nice->id;
-                $newls->last_challenge = $challenge->id;
+                $newls->last_post = $post->id;
                 $newls->save();
                 $list = $newls;
             }
             
-            $kn_from = $list->last_knowledge;            
-            $kn_to = $knowledge->id;
-            $kn_difference = KnowledgeRecord::whereBetween('id', [$kn_from, $kn_to])->count(); 
-            if($kn_difference > 0){
-                $kn_difference = $kn_difference - 1;
+            $post_from = $list->last_post;            
+            $post_to = $post->id;
+            $post_difference = PostRecord::whereBetween('id', [$post_from, $post_to])->count(); 
+            if($post_difference > 0){
+                $post_difference -= 1 ;
             }
-            $result[0] =  $kn_difference;
+            $result[0] =  $post_difference;
 
             
             
-            $nc_from = $list->last_nice;            
-            $nc_to = $nice->id;
-            $nc_difference = NiceRecord::whereBetween('id', [$nc_from, $nc_to])->count(); 
-            if($nc_difference > 0){
-                $nc_difference = $nc_difference - 1;
-            }
-            $result[1] =  $nc_difference;
-
-            
-            $ch_from = $list->last_challenge;            
-            $ch_to = $challenge->id;
-            $ch_difference = ChallengeRecord::whereBetween('id', [$ch_from, $ch_to])->count(); 
-            if($ch_difference > 0){
-                $ch_difference = $ch_difference - 1;
-            }
-            $result[2] =  $ch_difference;
 
             return response()->json($result);
         }
@@ -636,22 +624,28 @@ class PostController extends Controller
         
     }
     public function get_top_tags(Request $request){
-        // $nameSpace = '\\App\\Models\\'; 
-        // $model = $nameSpace . ucfirst($request->app_name) . 'UseTag';     
-        $occurence_type = $request->app_name . 'Occurence';
-        $sort_value = $request->app_name . '_occurence_count';
-        // $use_tags = $model::where('deleted_flag', 0)
-        // ->whereHas('app_record', function($q){
-        //     $q->where('deleted_flag', 0);
-        // })
-        // ->pluck('tag_id')->toArray();
-        // $unique_list = array_unique($use_tags);
-        $model = $request->app_name . 'Records';
-        $tags = TagRecord::where('deleted_flag', 0)
+        
+        $current_tag = $request->current_tag;     
+        $occurence_type = "{$request->app_name}Occurence";
+        $sort_value = "{$request->app_name}_occurence_count";
+        
+        $model = "{$request->app_name}Records";
+        $tagsQuery = TagRecord::where('deleted_flag', 0)
         ->whereHas($model)
         ->withCount($occurence_type)
-        ->orderBy($sort_value, 'desc')
-        ->get();
+        ->orderBy($sort_value, 'desc');
+        if($current_tag) {
+            $relatedTagIds = TagRecord::where('deleted_flag', 0)
+            ->whereHas($model, function ($query) use ($current_tag) {
+                $query->whereHas('tags', function ($query) use ($current_tag) {
+                    $query->where('text', $current_tag);
+                });
+            })
+            ->pluck('id');
+            $tagsQuery->whereIn('id', $relatedTagIds)
+                      ->where('text', '!=', $current_tag);
+        }
+        $tags = $tagsQuery->get();
         return response()->json($tags);       
 
     }
@@ -660,10 +654,7 @@ class PostController extends Controller
         $model = $nameSpace . ucfirst($request->app_name) . 'UseTag';     
         if($request->pattern === 'first' || $request->pattern === 'reset'){
             
-            $use_tags = $model::where('deleted_flag', 0)
-            ->whereHas('app_record', function($q){
-                $q->where('deleted_flag', 0);
-            })
+            $use_tags = $model::whereHas('app_record')
             ->pluck('tag_id')->toArray();
             $unique_list = array_unique($use_tags);
             $tags = TagRecord::where('deleted_flag', 0)->whereIn('id', $unique_list)->orderBy('hits', 'desc')->take($request->offset * 50)->get();
@@ -682,22 +673,16 @@ class PostController extends Controller
             $nameSpace = '\\App\\Models\\'; 
             $model = $nameSpace . ucfirst($request->app_name) . 'Record';  
             $tag_list = $request->tags;
-
-            $query = $model::query()->whereRaw('deleted_flag = ?', ['0']); 
+            $query = $model::query(); 
             $target_users = $request->target_users;
             if(count($target_users)){    
-       
-                $query->when(($request->app_name == 'knowledge'), function($q) use($target_users){
-                    $q->whereHas('user', function ($query) use ($target_users) {
-                        $query->whereIn('id', $target_users);
-                    });  
-                });          
-                $query->when(($request->app_name == 'nice') || ($request->app_name == 'challenge'), function($q) use($target_users){
+                $query->when(function($q) use($target_users){
                     $q->whereHas('to_users', function ($query) use ($target_users) {
                         $query->whereIn('users.id', $target_users);
+                    })->orWhereHas('user', function ($query) use ($target_users) {
+                        $query->whereIn('id', $target_users);
                     });  
-                });               
-               
+                });                 
             }          
             $to = $request->to;
             $from = $request->from;
@@ -710,13 +695,7 @@ class PostController extends Controller
             });
             if(!empty($request->key_list)){
                 foreach($request->key_list as $key){ 
-                    if($request->app_name == 'challenge'){
-                        $query->whereRaw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
-                    }else if($request->app_name == 'nice'){
-                        $query->whereRaw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags) LIKE ?", ['%' . $key . '%']);
-                    }else if($request->app_name == 'knowledge'){
-                        $query->whereRaw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags) LIKE ?", ['%' . $key . '%']);
-                    }
+                    $query->whereRaw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
                     
                 }
             }
@@ -795,27 +774,29 @@ class PostController extends Controller
         }       
         $target_users = $request->target_users;
         if(count($target_users)){    
-       
-            $query->when(($path == 'knowledge'), function($q) use($target_users){
-                $q->whereHas('user', function ($query) use ($target_users) {
-                    $query->whereIn('id', $target_users);
-                });  
-            });          
-            $query->when(($path == 'challenge'), function($q) use($target_users){
-                foreach($target_users as $user_id){
-                    $q->whereHas('to_users', function ($query) use ($user_id) {
-                        $query->where('users.id', $user_id);
-                    });
-                }  
+            $query->when($path == 'post', function ($q) use ($target_users) {
+                $q->where(function ($q) use ($target_users) {
+                    foreach($target_users as $user_id){
+                        $q->where(function ($q) use ($user_id) {
+                            $q->where(function ($q) {
+                                $q->where('app_type', 0)
+                                  ->orWhere('app_type', 2);
+                            })->whereHas('to_users', function ($query) use ($user_id) {
+                                $query->where('users.id', $user_id);
+                            });
+                        })
+                        ->orWhere(function ($q) use ($target_users) {
+                            $q->where('app_type', 1)
+                              ->whereHas('user', function ($query) use ($target_users) {
+                                  $query->whereIn('id', $target_users);
+                              });
+                        });
+                        $q->orWhereIn('user_id', $target_users);
+                    }
+                });
             }); 
-            $query->when(($path == 'nice'), function($q) use($target_users){
-                foreach($target_users as $user_id){
-                    $q->whereHas('to_users', function ($query) use ($user_id) {
-                        $query->where('users.id', $user_id);
-                    });
-                }
-                $q->orWhereIn('user_id', $target_users);
-            });               
+                      
+                          
            
         }          
         $to = $request->to;
@@ -828,18 +809,14 @@ class PostController extends Controller
             $q->whereDate('created_at', '<=', $to);
         });
         foreach($request->key_list as $key){ 
-            $query->when(($path == 'knowledge' || $path == 'nice'), function($q) use($key){
-                $q->whereRaw("CONCAT_WS('', title, ' ', content, ' ', key_users, ' ', key_tags) LIKE ?", ['%' . $key . '%']);
-            });
-            $query->when($path == 'challenge', function($q) use($key){
+            $query->when(($path == 'post'), function($q) use($key){
                 $q->whereRaw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
-            });           
+            });
+                    
         }                   
             
         $q_result = $query->with('user')
-        ->when($path == 'challenge' || $path == 'nice', function ($query) {
-            $query->with('to_users');
-        })
+        ->with('to_users')
         ->with('tags')
         ->with('files')
         ->orderBy('created_at', $request->order)

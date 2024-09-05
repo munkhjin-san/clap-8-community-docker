@@ -161,7 +161,10 @@ import { instance as socket } from '@/utils/broadcaster'
             // });                    
             beamsInit()
         }
-
+        const condition = sessionStorage.getItem('condition_for_session')
+        if(condition){
+            saveWeather(condition)
+        }
         addEventListener()
         badge.getBoardBadge('mounted');
         
@@ -171,6 +174,21 @@ import { instance as socket } from '@/utils/broadcaster'
         }
         
     })
+    const saveWeather = async (index) => {
+        let today = moment().local().format('YYYY-MM-DD')
+        try {
+            await axios.post('/save_weather', { today, value: index })
+            const user = await axios.post('/profile_get_update_user', {id: auth.id}).then(res => res.data)
+            if(user && Object.hasOwn(user, 'id')){
+                auth.setUser(user)           
+            } 
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            sessionStorage.removeItem('condition_for_session')
+        }
+
+    }
     const postHandler = () => {
         if(!auth.isPartner){
             badge.getPostBadge()

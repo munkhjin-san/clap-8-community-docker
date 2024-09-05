@@ -107,32 +107,6 @@ const routes = [
                     }
                 },
             },
-            {
-                path: 'performance-goals',
-                component: () => import('./components/Profile/Issue/Performance.vue'),
-                name: 'performance-goals',
-                props: true,
-                meta: {
-                    title: 'CLAP - 成果目標',
-                },
-                beforeEnter: (to, from, next) => {
-                    const rootElement = document.getElementById('app');
-                    const userId = rootElement.getAttribute('data-user-id');
-
-                    if (to.params.userId !== userId) {
-                        const currentUserIdRoute = `/user/${userId}/salary-issue`;
-                        
-                        if (to.path !== currentUserIdRoute) {
-                            next(currentUserIdRoute);
-                        } else {
-                            next();
-                        }
-                    } else {
-                        next();
-                    }
-                },
-
-            }
 
         ],
         beforeEnter: (to, from, next) => {

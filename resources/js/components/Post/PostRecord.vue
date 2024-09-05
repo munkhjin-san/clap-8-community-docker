@@ -1,18 +1,21 @@
 <template>
     <div class="post-item-outer" v-if="record">
         <div class="post-item-header-wrap">
-            <div v-html="title" class="post-title"></div>
-            <ItemMenu v-if="isOwner" :items="postMenu"/> 
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <PostIcon v-if="appName == 'post'" :which="record.app_type" size="20"/>
+                <div v-html="title" class="post-title"></div>
+            </div>
+            <ItemMenu v-if="isOwner || auth.id === 516" :items="postMenu"/> 
         </div>
         <div class="post-second-wrap">
             <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers}]">
-                <RouterLink class="user-link" :to="`${route.name}?member=${record.user.name}`" v-if="record.app_type == 2 || record.app_type == 3" style="display:flex;align-items: center;cursor: pointer;">
+                <RouterLink class="user-link" :to="`${route.name}?member=${record.user.name}`" v-if="record.app_type !== 2" style="display:flex;align-items: center;cursor: pointer;">
                     <UserIcon :user="record.user" :disableInstant="true" imgClass="userNormalIcon" size="30"/>
                     <p class="userName">{{ record.user ? record.user.name : '' }}</p>
                 </RouterLink>              
-                <div v-if="record.app_type == 4 || record.app_type == 3" style="position: relative;">
+                <div v-if="record.app_type == 2 || record.app_type == 0" style="position: relative;">
                     <div style="display: flex;align-items: center;">
-                        <svg v-if="record.app_type == 3" version="1.1" xmlns="http://www.w3.org/2000/svg" class="nice-arrow" viewBox="0 0 47 32" style="margin-right: 15px;">
+                        <svg v-if="record.app_type == 0" version="1.1" xmlns="http://www.w3.org/2000/svg" class="nice-arrow" viewBox="0 0 47 32" style="margin-right: 15px;">
                             <path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path>
                         </svg>
                         <div ref="toUsersRef" :class="['toUserListContainer', {expandToUserListContainer : expand}]">   
@@ -33,7 +36,7 @@
             </div>
             <div style="display: flex;align-items: center;gap: 15px;flex: 1;flex-wrap: wrap;justify-content: flex-end;">            
                 <PostDate :record="record" dateClass="dateText"/> 
-                <div @click="updateStatus" v-if="appName == 'challenge'" style="font-size: 14px;white-space:nowrap;cursor:pointer">{{ status }}</div>
+                <div @click="updateStatus" v-if="record.app_type == 2" style="font-size: 14px;white-space:nowrap;cursor:pointer">{{ status }}</div>
             </div>
         </div>
         <div>
@@ -71,11 +74,11 @@
                 <button v-else class="chargeFormeAddButton" disabled="">{{canNotCharge}}</button>
             </div>  
         </div>
-        <div class="post-footer" v-if="record.app_type == 4" style="margin-bottom: 10px;font-size: 14px;">
+        <div class="post-footer" v-if="record.app_type == 2 && record.chargeable" style="margin-bottom: 10px;font-size: 14px;">
             <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
         </div>
         <div class="post-footer">
-            <div v-if="record.app_type == 4" class="post-footer-wrap">
+            <div v-if="record.app_type == 2 && record.chargeable" class="post-footer-wrap">
                 <div style="font-size: 14px;cursor:pointer" @click="viewSupporters" v-if="supporters.length">サポーター {{ supporters.length }}人</div>
             </div>
             <div class="post-footer-wrap">
@@ -115,11 +118,12 @@ import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { useMessageUsers } from '@/store/messageUsers'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import PostIcon from './PostIcon.vue';
     const messageUsers = useMessageUsers()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
-    const props = defineProps(['record', 'appNameJp', 'appName'])
+    const props = defineProps(['record', 'appNameJp', 'appName', 'apps'])
     const emit = defineEmits(['setChargeTarget', 'setCommentCount', 'setClap', 'editRecord', 'updateStatus', 'deleteRecord'])
     const route = useRoute()
     const maxLength = ref(200)
@@ -144,10 +148,10 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
     })  
     const postMenu = computed(() => {
         const items = [    
-            {title: `${props.appNameJp}を編集する`, action: () => emit('editRecord', props.record)},
-            {title: `${props.appNameJp}を削除する`, action: () => emit('deleteRecord', props.record)}
+            {title: `${props.apps[props.record.app_type]}を編集する`, action: () => emit('editRecord', props.record)},
+            {title: `${props.apps[props.record.app_type]}を削除する`, action: () => emit('deleteRecord', props.record)}
         ]
-        if(props.appName == 'challenge'){
+        if(props.record.app_type == 2){
             items.push({
                 title: 'ステータスを変更する', action: () => updateStatus()
             })
@@ -158,7 +162,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
         return responsive.mobile && props.record && props.record.to_users && props.record.to_users.length > 1
     })
     const status = computed(() => {
-        if(props.record.app_type == 4){
+        if(props.record.app_type == 2){
             var todayDate = (moment().format("YYYY-MM-DD"));
                                 
             if(todayDate <= props.record.date_end && props.record.status_flag == 0){
@@ -186,15 +190,15 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
         }
     })
     const supporters = computed(() => {
-        if(props.record.app_type == 4){
-            const amounts = props.record.challenge_awards
+        if(props.record.app_type == 2){
+            const amounts = props.record.awards
             return amounts
         }
         return []
     })
     const totalChargeAmmount = computed(() => {
-        if(props.record.app_type == 4){
-            const amounts = props.record.challenge_awards.map(ob => {
+        if(props.record.app_type == 2){
+            const amounts = props.record.awards.map(ob => {
                 return ob.pivot ? ob.pivot.award_bet : 0
             })
             const sum = amounts.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
@@ -204,7 +208,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
     })
     const challengeButtonSwitch = computed(() => {
         var todayDate = (moment().format("YYYY-MM-DD"));                
-        var charged_user = props.record.challenge_awards.filter(obj => obj.id == auth.id);
+        var charged_user = props.record.awards.filter(obj => obj.id == auth.id);
         if(todayDate <= props.record.date_end && props.record.status_flag == 0 && charged_user.length == 0){
             return true
         }                
@@ -214,7 +218,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
         if(props.record.status_flag > 0){
             return 'チャレンジの結果が確定しました'
         }else{
-            const charged_user = props.record.challenge_awards.filter(obj => obj.id == auth.id);
+            const charged_user = props.record.awards.filter(obj => obj.id == auth.id);
             if(charged_user.length){
                 return '既にチャージしています'
             }else if(todayDate > props.record.date_end){
@@ -223,7 +227,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
         }
     })
     const challengeButtonView = computed(() => {
-        if(props.record.app_type == 4){
+        if(props.record.app_type == 2 && props.record.chargeable){
             let flag = props.record.to_users.filter(obj => obj.id == auth.id);  
             return !flag.length ? true : false   
         }
@@ -231,7 +235,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
     })
     const isOwner = computed(() => {
         if(props.record && auth.user){
-            if(props.record.app_type == 4){
+            if(props.record.app_type == 2){
                 const player = props.record.to_users.filter(ob => ob.id == auth.id)
                 return player && player.length ? true : false
             }else {
@@ -246,20 +250,20 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
         return props.record && props.record.title ? props.record.title : ''
     })
     const body = computed(() => {           
-        const text = props.record.app_type == 4 ? props.record.content_rule : props.record.content
+        const text = props.record.app_type == 2 ? props.record.content_rule : props.record.content
         const truncate = cutter(text, maxLength.value)
         const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
         return urlParse          
         
     })
     const goal = computed(() => {
-        const text = props.record.app_type == 4 ? props.record.content_goal : ''
+        const text = props.record.app_type == 2 ? props.record.content_goal : ''
         const truncate = cutter(text, maxLength.value)
         const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
         return urlParse    
     })
     const result = computed(() => {
-        const text = props.record.app_type == 4 ? props.record.result : props.record.result
+        const text = props.record.app_type == 2 ? props.record.result : props.record.result
         const truncate = cutter(text, maxLength.value)
         const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
         return urlParse    

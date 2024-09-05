@@ -118,11 +118,11 @@ class BoardController extends Controller
                 $date = Carbon::parse($find->date_start)->format('Y-m-d');
             }
         }
-        $no_partner_zone = ['knowledge', 'nice', 'challenge', 'work', 'support'];
+        $no_partner_zone = ['post', 'work', 'support', 'project'];
         if(in_array($name, $no_partner_zone) && Auth::user()->partner_flag == 1){
             return redirect('board');
         }
-        $no_registered_zone = ['knowledge', 'nice', 'challenge', 'learning'];
+        $no_registered_zone = ['post', 'learning', 'project'];
         if(in_array($name, $no_registered_zone) && Auth::user()->position_id == 15){
             return redirect('board');
         } 
@@ -605,7 +605,7 @@ class BoardController extends Controller
     public function get_messages(Request $request){
         $id = $request->message_id ?? null;
         $pagenate = 30 * $request->page_index;       
-        $active_user = $this->active_user();
+        $active_user = $request->override_user ?? $this->active_user();
         $auth_user_id = $active_user->id;
         $usercheck = boardToUser::where('user_id','=', $auth_user_id)->where('record_id', '=', $request->record_id)->first();       
         $timeLimit = $usercheck->created_at;    
@@ -645,8 +645,8 @@ class BoardController extends Controller
     public function chatAdd(Request $request){
 
 
-      
-        $active_user = $request->override_user ? $request->override_user : $this->active_user();
+        
+        $active_user = $request->override_user ?? $this->active_user();
         $auth_user_id = $active_user->id;
         if($request->quot_flag == 1 && $request->reply_flag == 1){
             throw ValidationException::withMessages(['message' => 'commonError']);            
@@ -823,7 +823,7 @@ class BoardController extends Controller
             if(!$request->override_user_id){
                 $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
             }    
-            $messageRecord = $this->get_messages(new Request(['page_index' => 1, 'record_id' => $request->record_id, 'message_id' => $chat->id]));          
+            $messageRecord = $this->get_messages(new Request(['page_index' => 1, 'record_id' => $request->record_id, 'message_id' => $chat->id, 'override_user' => $request->override_user]));          
             // SendPusher::dispatchAfterResponse($rebound);  
             $socket = array();
             array_push($socket, ["event" => "board:{$request->record_id}", "data" => $messageRecord->original ]);
@@ -1009,8 +1009,7 @@ class BoardController extends Controller
     }
     
     public function sendMail($request){
-
-        $active_user = $request['override_user'] ? $request['override_user'] : $this->active_user();
+        $active_user = $request['override_user'] ?? $this->active_user();
         $auth_user_id = $active_user->id;
 
         if(!empty($request['send_list']) && !empty($auth_user_id) && !empty($request['msg_id'])){
@@ -1056,7 +1055,9 @@ class BoardController extends Controller
             }
             $mails = User::whereIn('id', $request['send_list'])->where('retire', 0)->whereNotNull('email')->pluck('email')->toArray();
             foreach($mails as $to){
-                Mail::to($to)->send(new Confirm($b_title, $content, $block_flag, $request['board_id'], $request['msg_id'], $type));
+                if (filter_var($to, FILTER_VALIDATE_EMAIL)){
+                    Mail::to($to)->send(new Confirm($b_title, $content, $block_flag, $request['board_id'], $request['msg_id'], $type));
+                }
             }
      
             
@@ -1150,7 +1151,7 @@ class BoardController extends Controller
             $message->check_request_at = Carbon::now();
             $message->checkUsers()->sync($request->users);
             $message->save();
-            $board = boardRecord::where('id', '=', $message->record_id)->first(); 
+            $board = boardRecord::where('id', $message->record_id)->first(); 
             $req = [
                 "send_list" => $request->users,
                 "board_id" => $board->id,
@@ -1161,26 +1162,24 @@ class BoardController extends Controller
             $this->sendMail($req);
             
         }else if($request->type == 'sign'){
-            $path_shared_files = 'shared_files/' . $request->board_id;
+            $path_shared_files = "shared_files/{$request->board_id}";
             $messageFile = messageFile::findOrFail($request->msg_file_id);
             $messageFile->sign_flag = 1;
             $messageFile->signUsers()->sync($request->users);
             $messageFile->save();
             $record_id = $messageFile->board_id;
             $message_id = $messageFile->message_id;
-            $content = messageRecord::findOrFail($message_id)->message_text;
             $req = [
                 "send_list" => $request->users,
                 "board_id" => $record_id,
                 "msg_id" => $message_id,
                 "send_condition" => 3,              
-                "override_user" => []
             ];
             $this->sendMail($req);
             if($request->prepare == true){
                 $original_name = $messageFile->name;
                 $messageFile->multiple_flag = 1;
-                $existed_path = $messageFile->id . '_' . $messageFile->user_id . '_' . $messageFile->message_id . '.' . $messageFile->extension;
+                $existed_path = "{$messageFile->id}_{$messageFile->user_id}_{$messageFile->message_id}.{$messageFile->extension}";
                 
                 $other_users = $request->users;
                 foreach($other_users as $user){
@@ -1199,7 +1198,7 @@ class BoardController extends Controller
                     $messageFile_loop->original_file_id = $messageFile->id;
                     $messageFile_loop->save();
                     $messageFile_loop->signUsers()->attach($user);
-                    $new_path = $messageFile_loop->id . '_' . $messageFile_loop->user_id . '_' . $messageFile_loop->message_id . '.' . $messageFile_loop->extension;
+                    $new_path = "{$messageFile_loop->id}_{$messageFile_loop->user_id}_{$messageFile_loop->message_id}.{$messageFile_loop->extension}";
                     File::copy(storage_path('app/') . $path_shared_files . '/' . $existed_path , storage_path('app/') . $path_shared_files . '/' . $new_path ); 
                 }
                 $messageFile->save();

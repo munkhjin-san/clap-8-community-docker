@@ -3,22 +3,28 @@ import axios from "axios";
 interface State {
   tags: number[],
   appName: String | '',
-  expanded: boolean
+  expanded: boolean,
+  currentTag: null,
 }
 
 export const useTopTags = defineStore('tags', {
   state: (): State => ({
     tags: [],
     appName: '',
-    expanded: false
+    expanded: false,
+    currentTag: null,
   }),
   actions: {
     async getTags(payload: any){
         if(payload.reset){
             this.expanded = false
         }
-        this.appName = payload.appName        
-        const data = await axios.get(`/get_top_tags?app_name=${payload.appName}`).then( response => response.data)
+        this.appName = payload.appName
+        const params = {
+          app_name: payload.appName,
+          current_tag: payload.currentTag || ''
+        }        
+        const data = await axios.get('/get_top_tags', { params }).then( response => response.data)
         this.tags = data
     },
     setExpanded(){

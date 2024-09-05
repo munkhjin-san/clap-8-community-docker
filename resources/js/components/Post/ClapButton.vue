@@ -21,15 +21,14 @@ import { useAuthUserStore } from '@/store/auth'
         return clapped.value || props.item.user_id == auth.id ? 'var(--primary-color)' : 'rgb(169, 169, 169)'
     })
     const canClap = computed(() => {
-        if(props.appName == 'knowledge' || props.appName == 'nice' || props.appName == 'portfolio'){
-            return props.item.user_id == auth.id ? false : true                    
-        }else if(props.appName == 'challenge'){
+        if(props.appName == 'post' || props.appName == 'portfolio' || props.appName == 'comment'){
             if(props.item.award_entry == 1){
                 const player = props.item.to_users.filter(ob => ob.id == auth.id)
                 return player.length ? false : true
-            }else{
-                return true
-            }
+            } else if (props.item.user_id == auth.id) {
+                return false
+            } 
+            return true
         }
     })
     const clapped = computed(() => {

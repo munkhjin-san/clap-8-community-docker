@@ -19,7 +19,8 @@
         <div id="commentSendArea" style="position:relative;width:100%;box-sizing: border-box;display:inline-block;transform: translate(0, 15px);">                                
             <div 
                 @keyup="caretPos" 
-                @click="caretPos" 
+                @click="caretPos"
+                @keydown.enter="enterSend" 
                 ref="typeArea"
                 style="visibility:visible;font-size:16px;max-height:185px;width:calc(100% - 70px);display:inline-block;padding: 5px 10px 5px 10px !important;" 
                 contenteditable="plaintext-only" 
@@ -160,6 +161,11 @@ import { useMenuStore } from "@/store/menu";
             sendLoader.value = false;    
         }       
                            
+    }
+    const enterSend = (event) => {
+        if(event.altKey){
+            commentSend(props.record.id)
+        }
     }
 
 </script>

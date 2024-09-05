@@ -29,22 +29,34 @@
                 :sharedFrom="sharedFrom"
                 @postFinish="postFinish"
                 :filesToShare="filesToShare"  
+                :getQuery="getQuery"
                 :appName="appName"
                 :appNameJp="appNameJp"                
             />            
-        </Transition>  
+        </Transition>
+          
         <div class="post-container scrollable" @scroll="scrollListen">
+            
             <div v-if="hasQuery" style="height: auto;margin: 0 20px;display: flex;gap: 20px;">
-                <div v-if="getQuery()?.member" class="active-query">
-                    <div>{{ getQuery()?.member }}</div>
+                <div v-if="getQuery?.app_type" class="active-query">
+                    <PostIcon :which="getQuery?.app_type" size="20"/>
+                    {{ apps[getQuery?.app_type] }}
                     <div @click="router.push({name: appName})" style="cursor:pointer">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width: 10px;height:10px" class="modalWindowCloseButton" viewBox="0 0 32 32">
                             <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                         </svg>
                     </div>
                 </div>
-                <div v-if="getQuery()?.search_tags" class="active-query"> 
-                    <div>#{{ sanitized(getQuery()?.search_tags) }}</div>
+                <div v-if="getQuery?.member" class="active-query">
+                    <div>{{ getQuery?.member }}</div>
+                    <div @click="router.push({name: appName})" style="cursor:pointer">
+                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width: 10px;height:10px" class="modalWindowCloseButton" viewBox="0 0 32 32">
+                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
+                        </svg>
+                    </div>
+                </div>
+                <div v-if="getQuery?.search_tags" class="active-query"> 
+                    <div>#{{ sanitized(getQuery.search_tags) }}</div>
                     <div @click="router.push({name: appName})" style="cursor:pointer">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width: 10px;height:10px" class="modalWindowCloseButton" viewBox="0 0 32 32">
                             <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
@@ -52,14 +64,39 @@
                     </div>
                 </div>
             </div>
-            <div v-else class="p-tag-container">
+            <div v-else>
+                <div v-if="appName == 'post'" style="display: flex; gap: 20px;font-size: 14px;flex-wrap: wrap;margin: 0 20px">
+                    <router-link :to="`/${appName}?app_type=0`" :class="['pt-selector']">
+                        <PostIcon which="0" size="20"/>
+                        {{ apps[0] }}
+                    </router-link>
+                    <router-link :to="`/${appName}?app_type=1`" :class="['pt-selector']">
+                        <PostIcon which="1" size="20"/>
+                        {{ apps[1] }}
+                    </router-link>
+                    <router-link :to="`/${appName}?app_type=2`" :class="['pt-selector']">
+                        <PostIcon which="2" size="20"/>
+                        {{ apps[2] }}
+                    </router-link>
+                    <router-link :to="`/${appName}?app_type=3`" :class="['pt-selector']">
+                        <PostIcon which="3" size="20"/>
+                        {{ apps[3] }}
+                    </router-link>
+                    <router-link :to="`/${appName}?app_type=4`" :class="['pt-selector']">
+                        <PostIcon which="4" size="20"/>
+                        {{ apps[4] }}
+                    </router-link>
+                </div>
+                
+            </div>
+            <div class="p-tag-container">
                 <div v-if="tagLoading == 0" :class="['p-tag-wrap']">
                     <div class="tag-skeleton" :style="{width: randomWidth()}" :index="num" v-for="num in 30"></div>                    
                 </div> 
                 <div v-else :class="['p-tag-wrap', {'p-tag-expand' : topTags.expanded}]">
                     <router-link :to="`/${appName}?search_tags=${tag.text}`" class="jump-link" v-for="tag in topTags.tags">#{{ sanitized(tag.text) }} ({{ tag[`${appName}_occurence_count`] }})</router-link>
                 </div>  
-                  
+                
                 <div style="padding: 0px 20px 10px 20px;display: flex;justify-content: center;gap: 10px;align-items: center;" @click="topTags.setExpanded()">                                      
                     <div title="すべて表示する" class="selector-accordion-el">
                         <svg v-show="tagLoading > 0" class="dot-menu" version="1.1" width="11" height="11" :class="['selector-accordion-inactive' , {'selector-accordion-active' : topTags.expanded}]" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
@@ -68,13 +105,15 @@
                     </div>
                 </div>          
             </div>
+            
             <transition-group name="slidePop" tag="div" style="display: flex;flex-direction: column;gap: 20px;">
                 <PostRecord 
                     v-for="(record, index) in records"
                     :key="`${record?.id}_${index}`"
                     :record="record"
                     :appName="appName"
-                    :appNameJp="appNameJp"  
+                    :appNameJp="appNameJp"
+                    :apps="apps"  
                     @setChargeTarget=" val => chargeTarget = val"
                     @setCommentCount="setCommentCount"
                     @setClap="setClap"
@@ -133,7 +172,8 @@ import PostSearchBar from './PostSearchBar.vue'
 import Charge from './Charge.vue';
 import Status from './Status.vue';
 import PostSearchWindow from './PostSearchWindow.vue'
-import { computed, inject, onMounted, ref } from 'vue';
+import PostIcon from './PostIcon.vue';
+import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router'
 import { provide } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
@@ -165,6 +205,7 @@ import { onUnmounted } from 'vue';
     const tagsList = ref([])
     const tagLoading = ref(0)
     const topTags = useTopTags()
+    const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ']
     const records = computed(() =>{
         return postList.value && postList.value.length ? postList.value : []
     })
@@ -172,15 +213,14 @@ import { onUnmounted } from 'vue';
         return route.name
     })
     const appNameJp = computed(() => {
-        return appName.value == 'challenge' ? 'チャレンジ' : appName.value == 'knowledge' ? 'ナレッジ' : appName.value == 'nice' ? 'ナイス' : ''
+        return appName.value == 'challenge' ? 'チャレンジ' : appName.value == 'post' ? 'ポスト' : ''
     })
     const viewAccordian = ref(false)
     onMounted(() => {
         if(route.meta.data && route.meta.data.length){
             postList.value = route.meta.data;
         }else{
-                
-            const query = getQuery()
+            const query = getQuery.value
             fetchPosts(query, null)
         }
         instance.on('post:new', postSocketHandler)
@@ -189,7 +229,7 @@ import { onUnmounted } from 'vue';
     
 
         setTimeout(() => {
-            if(route.name.includes('challenge') || route.name.includes('knowledge') || route.name.includes('nice') && !auth.isPartner){
+            if(route.name.includes('challenge') || route.name.includes('post') && !auth.isPartner){
                 badge.updatePostBadge(appName.value)
             }            
         }, 2000);
@@ -214,16 +254,7 @@ import { onUnmounted } from 'vue';
             fetchPosts(query, payload.record_id)
         }
     }
-    const getTopTags = async() => {
-        if(topTags.appName == appName.value) {
-            tagLoading.value ++
-            return
-        }
-        await topTags.getTags({appName: appName.value, reset: true})
-        setTimeout(() => {
-            tagLoading.value ++
-        }, 300);
-    }
+    
     const deleteRecordConfirm = async(record) => {
         const answer = await confirm(`${appNameJp.value}を削除しますか。`)
         if(!answer) return
@@ -251,14 +282,14 @@ import { onUnmounted } from 'vue';
                 return;
             }                       
             infiniteLoader.value = true;
-            let query = getQuery()
+            let query = getQuery.value
             fetchPosts(query)                                   
         }
     }
     const closeStatus = (id) => {
         updateTarget.value = false
         if(id){
-            let query = getQuery()
+            let query = getQuery.value
             if(!query.hasOwnProperty('id') || !query.id){
                 query['id'] = id
             }
@@ -272,7 +303,7 @@ import { onUnmounted } from 'vue';
     const closeCharge = (id) => {
         chargeTarget.value = null
         if(id){                
-            let query = getQuery()
+            let query = getQuery.value
             if(!query.hasOwnProperty('id') || !query.id){
                 query['id'] = id
             }
@@ -280,17 +311,31 @@ import { onUnmounted } from 'vue';
         }
         
     }
-    const getQuery = () => {
+    const getQuery = computed(() => {
         const id = route.query.hasOwnProperty('id') && route.query.id ? route.query.id : null
         const search_tags = route.query.hasOwnProperty('search_tags') && route.query.search_tags ? route.query.search_tags : null
         const search_member = route.query.hasOwnProperty('member') && route.query.member ? route.query.member : null
+        const search_type = route.query.hasOwnProperty('app_type') && route.query.app_type ? route.query.app_type : null
         const query = {
             id: id,
             search_tags: search_tags,
-            member: search_member
+            member: search_member,
+            app_type: search_type,
         }
         return query
+    })
+    
+    const getTopTags = async() => {
+        // if(topTags.appName == appName.value) {
+        //     tagLoading.value ++
+        //     return
+        // }
+        await topTags.getTags({appName: appName.value, reset: true, currentTag: getQuery.value?.search_tags})
+        setTimeout(() => {
+            tagLoading.value ++
+        }, 300);
     }
+    
     const postFinish = (flag, id) => {
         create.value = false
         editTarget.value = null
@@ -311,8 +356,7 @@ import { onUnmounted } from 'vue';
         axios.post('/get_posts', {
             path: appName.value,
             query: query,
-            skip: postList.value.length
-            
+            skip: postList.value.length,
         })
         .then(response => {
             if(replace ){
@@ -348,7 +392,7 @@ import { onUnmounted } from 'vue';
     }
     const setClap = (val, id) => {
         if(id){
-            let query = getQuery()
+            let query = getQuery.value
             if(!query.hasOwnProperty('id') || !query.id){
                 query['id'] = id
             }
@@ -365,7 +409,8 @@ import { onUnmounted } from 'vue';
 
     }
     provide('postComment', {
-        commentCount: (num, id) => setCommentCount(num, id)
+        commentCount: (num, id) => setCommentCount(num, id),
+        setClap: (val, id) => setClap(val, id)
     })
 
 </script>

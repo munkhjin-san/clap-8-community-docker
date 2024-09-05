@@ -9,8 +9,30 @@
                     </svg>                        
                 </div> 
             </div>
-        
-            <div class="si-box" style="margin-top: 10px">
+            
+            <div v-if="appName == 'post'" style="display: flex; gap: 15px;font-size: 14px;flex-wrap: wrap;">
+                <div @click="app_type = 0" :class="['pt-selector', { ptSelected: app_type == 0}]">
+                    <PostIcon which="0" size="20"/>
+                    ナイス
+                </div>
+                <div @click="app_type = 1" :class="['pt-selector', { ptSelected: app_type == 1}]">
+                    <PostIcon which="1" size="20"/>
+                    ナレッジ
+                </div>
+                <div @click="app_type = 2" :class="['pt-selector', { ptSelected: app_type == 2}]">
+                    <PostIcon which="2" size="20"/>
+                    チャレンジ
+                </div>
+                <div @click="app_type = 3" :class="['pt-selector', { ptSelected: app_type == 3}]">
+                    <PostIcon which="3" size="20"/>
+                    ツィート
+                </div>
+                <div @click="app_type = 4" :class="['pt-selector', { ptSelected: app_type == 4}]">
+                    <PostIcon which="4" size="20"/>
+                    ヘルプ
+                </div>
+            </div>
+            <div class="si-box">
                 <TagSelector 
                     placeHolder="タグ選択（＃なし）"
                     :suggestion="tagSuggestionText"
@@ -30,20 +52,21 @@
                 />
             </div>
                     
-
-            <div class="si-box" v-if="appName == 'challenge' || appName == 'nice'">
+            
+            <div class="si-box" v-if="appName == 'challenge' || app_type == 0 || app_type == 2">
                 <MemberSelector 
-                    :placeHolder="appName == 'challenge' ?  'プレイヤー選択（必須）' : appName == 'nice' ? '宛先選択（必須）' : ''"
+                    :placeHolder="app_type == 2 ?  'プレイヤー選択（必須）' : appName == 'post' ? '宛先選択（必須）' : ''"
                     rules="required"
                     name="recordUsers"
+                    :multiple="true"
                     ref="recordUsers"
-                    :path="`post_get_${appName}_users`"
+                    :path="possiblePath"
                     :closeOnSelect="false"
                     v-model="to_users"
                 />
             </div>
 
-            <div v-if="appName == 'challenge'" class="si-box">   
+            <div v-if="appName == 'challenge' || app_type == 2" class="si-box">   
                 <LongInput
                     v-model="content_rule"  
                     ref="contentRuleRef"
@@ -64,7 +87,7 @@
             </div>
         
         
-            <div class="si-box" v-if="appName == 'challenge'">    
+            <div class="si-box" v-if="appName == 'challenge' || app_type == 2">    
                 <LongInput
                     v-model="content_goal"  
                     ref="contentGoalRef"
@@ -74,7 +97,7 @@
                 /> 
             </div>
 
-            <div class="si-box" v-if="appName == 'challenge'">
+            <div class="si-box" v-if="appName == 'challenge' || app_type == 2">
                 <p class="form-lbl" style="font-size: 14px;">実施期間（必須）</p>
                 <div style="display:flex;margin-top: 10px;position: relative;width:100%">
                     <ShortInput 
@@ -99,7 +122,18 @@
                 </div>
                 <span v-if="dateComparsionError.hasError" class="form-error" style="font-size: 12px;color:tomato;position: absolute; bottom: -15px">{{ dateComparsionError.message }}</span>       
             </div>
+            <div class="si-box" v-if="app_type == 2">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">チャージ</p>
+                </div>
+                <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top: 10px;">    
+                    <input v-model="chargeable" type="checkbox" id="charge">
+                    <label for="charge" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
                     
+                </div> 
+            </div>       
             
             
             <div class="si-box">
@@ -141,17 +175,19 @@ import MemberSelector from '../Form/MemberSelector.vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useSharingDataStore } from '@/store/sharingData'
 import FileUploader from '../Form/FileUploader.vue'
+import PostIcon from './PostIcon.vue'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
-    const props = defineProps(['appNameJp', 'appName', 'editTarget'])
+    const props = defineProps(['appNameJp', 'appName', 'editTarget', 'getQuery'])
     const emit = defineEmits('postFinish')
     const { notify, info } = inject('dialog')
+    const app_type = ref(props.editTarget && props.editTarget.app_type ? props.editTarget.app_type : props.getQuery?.app_type ? props.getQuery?.app_type : 0)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
     const content = ref(props.editTarget && props.editTarget.content ? props.editTarget.content : "")
     const content_rule = ref(props.editTarget && props.editTarget.content_rule ? props.editTarget.content_rule : "")
     const content_goal = ref(props.editTarget && props.editTarget.content_goal ? props.editTarget.content_goal : "")
-    const to_users = ref(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : props.appName == 'challenge' ? [auth.user] : [])
+    const to_users = ref(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : app_type.value === 2 ? [auth.user] : [])
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     
     const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])    
@@ -167,7 +203,7 @@ import FileUploader from '../Form/FileUploader.vue'
     const contentGoalRef = ref(null)
     const recordDateEnd = ref(null)
     const recordDateStart = ref(null)
-
+    const chargeable = ref(true)
     const validateTargets = computed(() => {
         return [
             recordTitle.value,
@@ -179,7 +215,9 @@ import FileUploader from '../Form/FileUploader.vue'
             recordDateStart.value,
         ]
     })
-
+    const possiblePath = computed(() => {
+        return app_type.value === 2 ? 'post_get_challenge_users' : `post_get_post_users`
+    })
     const dateComparsionError = computed(() =>{
         if(date_start.value && date_end.value){
             const wrongDuration = moment(date_start.value).isAfter(date_end.value, 'day');                    
@@ -197,7 +235,7 @@ import FileUploader from '../Form/FileUploader.vue'
     })
     onMounted(() => {
         if(!props.editTarget && sharingData.active){
-            if(props.appName == 'challenge'){
+            if(props.editTarget.app_type == 2){
                 content_rule.value = sharingData.text
             }else{
                 content.value = sharingData.text
@@ -239,7 +277,9 @@ import FileUploader from '../Form/FileUploader.vue'
                 referrer: referrer.value, 
                 path: props.appName,
                 content: content.value,
-                award_entry: 0
+                award_entry: 0,
+                app_type: app_type.value,
+                chargeable: chargeable.value
             }
     
             axios.post('post_add_record',params)

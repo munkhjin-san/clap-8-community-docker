@@ -83,13 +83,14 @@
                         <p style="font-size: 14px;">メンバーを含む</p>
                     </div>
                     <MemberSelector 
-                        :placeHolder="appName == 'challenge' ?  'プレイヤー名' : appName == 'nice' ? '投稿者名または宛先名' : '投稿者名'"
+                        :placeHolder="appName == '' ?  'プレイヤー名' : appName == 'post' ? '投稿者名または宛先名' : '投稿者名'"
                         rules=""
                         name="recordUsers"
                         ref="recordUsers"
                         :path="'post_get_all_possible_users'"
                         v-model="targetUsers"
                         :closeOnSelect="false"
+                        :multiple="true"
                     />
                 </div>
                 <div style="margin-top: 20px;margin-bottom: 10px;">
@@ -123,16 +124,17 @@
         <div id="searchScrollOn" class="post-search-result-window" v-if="result.length && !searchMiniLoader">
          
             <div @click="jumpToRecord(item)" :key="item.id" v-for="item in result" class="" style="padding: 15px;background: var(--background-color);">
-                <div class="recordBox-inner">        
+                <div class="recordBox-inner">
+                    <PostIcon v-if="appName == 'post'" :which="item.app_type" size="20"/>        
                     <div class="post-second-wrap" style="gap: 10px">
                         <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers(item)}]">
-                            <div v-if="item.app_type == 2 || item.app_type == 3" style="display:flex;align-items: center;">
+                            <div v-if="item.app_type !== 2" style="display:flex;align-items: center;">
                                 <UserIcon :disableInstant="true" :user="item.user" imgClass="toUsersIcon" size="30"/>
                                 <p class="userName" v-html="item.user ? nameHighlight(item.user.name) : ''"></p>
                             </div>                
-                            <div v-if="item.app_type == 4 || item.app_type == 3" style="position: relative;">
+                            <div v-if="item.app_type == 2 || item.app_type == 0" style="position: relative;">
                                 <div style="display: flex;align-items: center;">
-                                    <svg v-if="item.app_type == 3" version="1.1" xmlns="http://www.w3.org/2000/svg" class="nice-arrow" viewBox="0 0 47 32" style="margin-right: 15px;">
+                                    <svg v-if="item.app_type == 0" version="1.1" xmlns="http://www.w3.org/2000/svg" class="nice-arrow" viewBox="0 0 47 32" style="margin-right: 15px;">
                                         <path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path>
                                     </svg>
                                     <div :ref="`to_users_${item.id}`" :class="['toUserListContainer']">
@@ -146,23 +148,23 @@
                         </div>
                         
                         <PostDate :record="item" dateClass="dateText"/> 
-                        <div @click="updateStatus" v-if="appName == 'challenge'" style="font-size: 14px;margin-left: 10px;cursor:pointer">{{ status(item) }}</div>
+                        <div @click="updateStatus" v-if="item.app_type == 2" style="font-size: 14px;margin-left: 10px;cursor:pointer">{{ status(item) }}</div>
                     </div>                     
 
-                    <div v-if="appName == 'knowledge' || appName == 'nice'" class="recordContents" style="margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
+                    <div v-if="appName == 'post'" class="recordContents" style="margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                         <div class="recordContents-inner">        
                             <p v-html="searchMessageBody(item.content)"></p>
 
                         </div>                                           
                     </div>
-                    <div v-if="appName == 'challenge'">
+                    <div v-if="item.app_type == 2">
                         <div class="recordContents" style="margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                             <div class="recordContents-inner">        
                                 <p v-html="searchMessageBody(item.content_rule)"></p>
                             </div>                                           
                         </div>
                         <div style="border-bottom: 1px dashed rgb(89, 86, 86); display: flex; width: 100%;">
-                            <p style="margin: 0px auto -13px; font-size: 13px; padding: 5px 10px; background: rgb(255, 255, 255); height: fit-content; line-height: 1.2; border-radius: 5px;">達 成 条 件</p>
+                            <p style="margin: 0px auto -13px; font-size: 13px; padding: 5px 10px; background: var(--background-color); height: fit-content; line-height: 1.2; border-radius: 5px;">達 成 条 件</p>
                         </div>
                         <div class="recordContents" style="margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
                             <div class="recordContents-inner">        
@@ -212,6 +214,7 @@ import ShortInput from '../Form/ShortInput.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { urlCheck } from '@/utils/tools';
+import PostIcon from './PostIcon.vue';
     const props = defineProps(['appName', 'appTitle'])
     const emit = defineEmits(['closePostSearch'])
     const keyword = ref('')
@@ -484,7 +487,7 @@ import { urlCheck } from '@/utils/tools';
         emit('closePostSearch')
     }
     const searchMessageBody = (text) => {                
-        const a = text.replace(keyword.value, "<span style='background: yellow;color:var(--primary-button)'>" + keyword.value + "</span>");           
+        const a = text?.replace(keyword.value, "<span style='background: yellow;color:var(--primary-button)'>" + keyword.value + "</span>");           
         let r = urlCheck(a);                
         return r
     }
@@ -526,25 +529,9 @@ import { urlCheck } from '@/utils/tools';
     }
     const jumpToRecord = (item) => {
         let appName;
-        switch (true) {
-            case (item.app_type == 0):
-                appName = "home";
-                break;
-            case (item.app_type == 1):
-                appName = "board";
-                break;
-            case (item.app_type == 2):
-                appName = "knowledge";
-                break;
-            case (item.app_type == 3):
-                appName = "nice";
-                break;
-            case (item.app_type == 4):
-                appName = "challenge";
-                break;
-            default:
-                appName = null;
-        }
+        
+        appName = "post";
+        
         const url = '/app/public/' + appName + '?id=' + item.id;
         const link = document.createElement('a');
         link.href = url;
