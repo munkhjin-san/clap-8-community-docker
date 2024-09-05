@@ -33,12 +33,14 @@
                         <tr style="position: sticky;top: 0;">
                             <th>氏名</th>
                             <th>ポスト</th>
+                            <th>コメント</th>
                             <th>ポートフォリオ</th>
                             <th>合計</th>
                         </tr>
                         <tr v-for="data in clapData">
                             <td>{{data.name}}</td>
                             <td>{{data.post}}</td>
+                            <td>{{data.comment}}</td>
                             <td>{{data.portfolio}}</td>
                             <td>{{data.sum}}</td>
                         </tr>
@@ -79,6 +81,7 @@ import { mkConfig, generateCsv, download } from "export-to-csv";
             const v = {
                 "氏名" : data.name,
                 "ポスト" : data.post,
+                "コメント": data.comment,
                 "ポートフォリオ" : data.portfolio,
                 "合計" : data.sum
             }

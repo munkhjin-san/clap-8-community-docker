@@ -212,8 +212,8 @@ class AdminAccountController extends Controller
             ->where('partner_flag', 0)
             ->whereNotIn('name', $ng_list)
             ->with([
-                'portfolio' => function ($q) {
-                    $q->withCount('claps');
+                'portfolio' => function ($q) use ($from, $to) {
+                    $q->whereBetween('created_at', [$from, $to])->withCount('claps');
                 },
                 'post' => function ($q) use ($from, $to) {
                     $q->whereBetween('created_at', [$from, $to])->withCount('claps');
