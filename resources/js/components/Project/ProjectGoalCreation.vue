@@ -212,6 +212,7 @@ const situationRef = ref<InstanceType<typeof LongInput> | null>(null)
 const expectedRef = ref<InstanceType<typeof LongInput> | null>(null)
 const { notify, confirm, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
+const getProjects = inject('getProjects') as Function
 onMounted(() => {
     if(props.selectedDate && !props.editGoalData) {
         
@@ -316,6 +317,7 @@ const saveOutcomeGoal = async() => {
     const params = {
         goal_id: props.editGoalData?.id ?? null,
         checked_items: checkedItems.value,
+        date: props.selectedDate.evaluationDate,
         params: {
             project_id: chosenProject.value.id,
             user_id: auth.activeUser.id,
@@ -329,7 +331,7 @@ const saveOutcomeGoal = async() => {
             criteria: checkedCriteria.value,
             ai_review: content_review.value,
             expected_effect: expectedEffect.value,
-            action_plan: actionPlan.value,
+            action_plan: actionPlan.value
         }
         
     }
@@ -338,6 +340,7 @@ const saveOutcomeGoal = async() => {
         info('保存しました。')
         emit('close')
         refresh()
+        getProjects()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

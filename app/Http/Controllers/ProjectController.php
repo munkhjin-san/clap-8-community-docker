@@ -194,7 +194,14 @@ class ProjectController extends Controller
         // ]);
         $id = $request->goal_id;
         $params = $request->params;
+        $date = $request->date;
         $projectGoal = ProjectGoal::updateOrCreate(['id' => $id], $params);
+        $projectEvaluation = ProjectEvaluation::firstOrCreate(
+            ['user_id' => $params['user_id'], 'date' => $date]
+        );
+        $projectEvaluation->current_level = $params['criteria'];
+        $projectEvaluation->employment_type = $params['employment_type'];
+        $projectEvaluation->save();
         // $project = ProjectRecord::find($projectGoal->project_id);
         // $user_name = env('KINTONE_USER_NAME');
         // $password = env('KINTONE_PASSWORD');
