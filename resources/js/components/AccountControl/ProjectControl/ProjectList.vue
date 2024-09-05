@@ -44,18 +44,18 @@
                 </div>
                 <div class="project-cell">
                     <div>
-                        <UserIcon v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="20"/>
+                        <UserIcon v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="30"/>
                     </div>
                 </div>
                 <div class="project-cell">
-                    <div @click="viewUsers(project.manager)">
-                        <UserIcon v-for="member in project.manager" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
+                    <div style="display: flex;" @click="viewUsers(project.manager)">
+                        <UserIcon v-for="member in project.manager" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
                     </div>
                 </div>
                 <div class="project-cell">
                     <div style="display: flex;" @click="viewUsers(project.members)">
                         <div style="display: flex;" >
-                            <UserIcon v-for="member in project.members.slice(0, 5)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
+                            <UserIcon v-for="member in project.members.slice(0, 5)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
                         </div>
                         <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 5">...({{project.members.length}})</span>
                     </div>

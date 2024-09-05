@@ -130,7 +130,7 @@ const directorOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id < 6 && user.position_id !== null)
 })
 const managerOptions = computed(() => {
-    return props.userList.filter((user: { position_id: number; }) => user.position_id === 6)
+    return props.userList.filter((user: { position_id: number; }) => user.position_id <= 6)
 })
 
 const createProject = async() => {
