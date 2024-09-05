@@ -193,9 +193,9 @@ class AdminAccountController extends Controller
         $work_group = $request->work_group_id ? workGroup::findOrFail($request->work_group_id) : new workGroup;        
         $work_group->name = $request->work_group_name;
         $work_group->save();
-        $userIds = array_unique(array_merge($request->work_group_users, $request->work_group_pm));
+        $userIds = array_unique(array_merge($request->work_group_users, (array) $request->work_group_pm));
         $pivotData = collect($userIds)->mapWithKeys(function ($userId) use ($request) {
-            $authority = in_array($userId, $request->work_group_pm) ? 1 : 0;
+            $authority = $userId === $request->work_group_pm ? 1 : 0;
             return [$userId => ['authority' => $authority, 'updated_at' => now()]];
         });
 
@@ -215,18 +215,15 @@ class AdminAccountController extends Controller
                 'portfolio' => function ($q) {
                     $q->withCount('claps');
                 },
-                'knowledge' => function ($q) use ($from, $to) {
-                    $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->withCount('claps');
+                'post' => function ($q) use ($from, $to) {
+                    $q->whereBetween('created_at', [$from, $to])->withCount('claps');
                 },
-                'nice' => function ($q) use ($from, $to) {
-                    $q->where('deleted_flag', 0)->whereBetween('created_at', [$from, $to])->withCount('claps');
+                'post_recieved' => function ($q) use ($from, $to) {
+                    $q->whereBetween('post_records.created_at', [$from, $to])->withCount('claps');
                 },
-                'nice_recieved' => function ($q) use ($from, $to) {
-                    $q->where('nice_records.deleted_flag', 0)->whereBetween('nice_records.created_at', [$from, $to])->withCount('claps');
-                },
-                'challenge' => function ($q) use ($from, $to) {
-                    $q->where('challenge_records.deleted_flag', 0)->whereBetween('challenge_records.created_at', [$from, $to])->withCount('claps');
-                },
+                'comment' => function ($q) use ($from, $to) {
+                    $q->whereBetween('created_at', [$from, $to])->withCount('claps');
+                }
             ])
             ->select('id', 'name')
             ->get();
@@ -235,25 +232,23 @@ class AdminAccountController extends Controller
 
         $all_users->each(function ($user) use (&$clap_data) {
 
-            $nice_from = $user->nice->sum('claps_count');
+            $post = $user->post->sum('claps_count');
 
-            $nice_to = $user->nice_recieved->sum('claps_count');
+            $post_to = $user->post_recieved->sum('claps_count');
 
-            $knowledge_claps = $user->knowledge->sum('claps_count');
 
-            $challenge_claps = $user->challenge->sum('claps_count');
-
-            $nice_from_claps = $nice_from + $nice_to;
+            $post_from_claps = $post + $post_to;
             
             $portfolio_claps = $user->portfolio->sum('claps_count');
 
-            $sum = $nice_from_claps + $challenge_claps + $knowledge_claps + $portfolio_claps;
+            $comment_claps = $user->comment->sum('claps_count');
+
+            $sum = $post_from_claps + $portfolio_claps + $comment_claps;
 
             $claps = [
-                "nice" => $nice_from_claps,
-                "challenge" => $challenge_claps,
-                "knowledge" => $knowledge_claps,
+                "post" => $post_from_claps,
                 "portfolio" => $portfolio_claps,
+                "comment" => $comment_claps,
                 "sum" => $sum,
                 "name" => $user->name,
                 "id" => $user->id

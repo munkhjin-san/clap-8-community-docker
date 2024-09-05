@@ -32,17 +32,13 @@
                     <table id="customers">
                         <tr style="position: sticky;top: 0;">
                             <th>氏名</th>
-                            <th>ナレッジ</th>
-                            <th>ナイス</th>
-                            <th>チャレンジ</th>
+                            <th>ポスト</th>
                             <th>ポートフォリオ</th>
                             <th>合計</th>
                         </tr>
                         <tr v-for="data in clapData">
                             <td>{{data.name}}</td>
-                            <td>{{data.knowledge}}</td>
-                            <td>{{data.nice}}</td>
-                            <td>{{data.challenge}}</td>
+                            <td>{{data.post}}</td>
                             <td>{{data.portfolio}}</td>
                             <td>{{data.sum}}</td>
                         </tr>
@@ -82,9 +78,7 @@ import { mkConfig, generateCsv, download } from "export-to-csv";
         clapData.value.forEach(data => {
             const v = {
                 "氏名" : data.name,
-                "ナレッジ" : data.knowledge,
-                "ナイス" : data.nice,
-                "チャレンジ" : data.challenge,
+                "ポスト" : data.post,
                 "ポートフォリオ" : data.portfolio,
                 "合計" : data.sum
             }
