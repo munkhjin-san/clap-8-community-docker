@@ -138,7 +138,7 @@ const saveGrade = async() => {
         id: props.editData?.id ?? null,
         params : {
             user_id: props.user.id,
-            mentor_id: mentor.value.id,
+            mentor_id: mentor.value?.id,
             date: props.selectedDate,
             current_salary_rank: current_salary.value,
             after_salary_rank: after_salary.value,

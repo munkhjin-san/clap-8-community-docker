@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -57,6 +58,8 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/create_thumbnails', [AutoJobController::class, 'createThumbnails']);
 // Route::get('/board_files_thumbnail', [AutoJobController::class, 'board_files_thumbnail']);
 // Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
+Route::get('/united_posts', [AutoJobController::class, 'united_posts']);
+Route::get('/creating_projects', [AutoJobController::class, 'creating_projects']);
 // temp_routes
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
 // Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
@@ -111,7 +114,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         
     Route::get('/employee', function () {return redirect("/members");});
 
-    Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'knowledge', 'nice', 'members', 'schedule', 'timesheet', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning'])->where('any', '.*')->name('board');
+    Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'post', 'knowledge', 'nice', 'members', 'schedule', 'timesheet', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning', 'project'])->where('any', '.*')->name('board');
     
 
     
@@ -245,7 +248,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/post_comment_edit', [PostController::class, 'post_comment_edit']);
         Route::post('/post_comment_delete', [PostController::class, 'post_comment_delete']);
         Route::post('/post_status_update', [PostController::class, 'post_status_update']);
-        Route::post('/post_get_nice_users', [PostController::class, 'post_get_nice_users']);
+        Route::post('/post_get_post_users', [PostController::class, 'post_get_post_users']);
         Route::post('/post_get_all_possible_users', [PostController::class, 'post_get_all_possible_users']);
         Route::post('/post_get_challenge_users', [PostController::class, 'post_get_challenge_users']);
         Route::get('/post_badge', [PostController::class, 'get_post_badge']);
@@ -370,4 +373,30 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/section_update', [LessonController::class, 'section_update']);
         Route::put('/update_portfolio_status', [LessonController::class, 'update_portfolio_status']);
         // Lessons
+
+        // Project
+        Route::get('/get_projects', [ProjectController::class, 'get_projects']);
+        Route::get('/update_projects', [ProjectController::class, 'update_projects']);
+        Route::post('/get_outcome_goals', [ProjectController::class, 'get_outcome_goals']);
+        Route::get('/api/project/{projectId}/member/{memberId}', [ProjectController::class, 'get_member']);
+        Route::post('/get_project_criteria', [ProjectController::class, 'get_project_criteria']);
+        Route::post('/save_project_goal', [ProjectController::class, 'save_project_goal']);
+        Route::post('/get_applied_goals', [ProjectController::class, 'get_applied_goals']);
+        Route::put('/update_project_progress', [ProjectController::class, 'update_project_progress']);
+        Route::put('/apply_kadai', [ProjectController::class, 'apply_kadai']);
+        Route::post('/get_selectable_users', [ProjectController::class, 'get_selectable_users']);
+        Route::post('/create_project', [ProjectController::class, 'create_project']);
+        Route::get('/get_salary_options', [ProjectController::class, 'get_salary_options']);
+        Route::post('/get_evaluations', [ProjectController::class, 'get_evaluations']);
+        Route::post('/save_evaluation_grade', [ProjectController::class, 'save_evaluation_grade']);
+        Route::put('/save_member_role', [ProjectController::class, 'save_member_role']);
+        Route::post('/get_current_evaluation', [ProjectController::class, 'get_current_evaluation']);
+        Route::post('/set_increase_request', [ProjectController::class, 'set_increase_request']);
+        Route::post('/get_set_increase', [ProjectController::class, 'get_set_increase']);
+        Route::post('/approve_increase_request', [ProjectController::class, 'approve_increase_request']);
+        Route::delete('/delete_project_goal', [ProjectController::class, 'delete_project_goal']);
+        Route::put('/approve_salary_issue', [ProjectController::class, 'approve_salary_issue']);
+        Route::post('/get_salary_issues', [ProjectController::class, 'get_salary_issues']);
+        Route::post('/save_evaluation', [ProjectController::class, 'save_evaluation']);
+        Route::delete('/delete_evaluation', [ProjectController::class, 'delete_evaluation']);
 });

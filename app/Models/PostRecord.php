@@ -32,6 +32,8 @@ class PostRecord extends Model
     public function claps(){
         return $this->hasMany(ClapRecord::class, 'record_id')->where('app_name', 'post')->where('deleted_flag', 0)->select('record_id', 'from_user');;
     }
-
+    public function awards(){
+        return $this->belongsToMany(User::class, 'post_awards', 'record_id', 'user_id')->withPivot('award_bet')->select(['users.id as id', 'users.name','users.icon_id']);
+    }
     protected $guarded = [];
 }

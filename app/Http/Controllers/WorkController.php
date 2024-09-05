@@ -984,6 +984,9 @@ class WorkController extends Controller
                                     ->whereNotNull('table_record_id')
                                     ->where('user_id', $request->userId)
                                     ->where('value_int', 2)
+                                    ->whereHas('time_card_records', function ($query) {
+                                        $query->where('status_flag', '!=', 0);
+                                    })
                                     ->whereYear('date', $currentYear)
                                     ->whereMonth('date', $currentMonth)
                                 ->count();

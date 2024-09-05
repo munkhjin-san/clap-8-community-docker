@@ -48,10 +48,10 @@ class RemoveFile implements ShouldQueue
                 }
             }
         } else if ($this->type == 'cost') {
-            $line = Carbon::now()->subDays(7)->format('Y:m:d H:i:s');
+            $line = Carbon::now()->subMonth()->format('Y:m:d H:i:s');
             $unused_files = timecardCostRecord::where('deleted_at', '<=', $line)->onlyTrashed()->get();
             foreach($unused_files as $file){           
-                Storage::disk('local')->delete('timecard_files/' . $file->file_path);        
+                Storage::disk('local')->delete("timecard_files/{$file->file_path}");        
             }
         }
     }

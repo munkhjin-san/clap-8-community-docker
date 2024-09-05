@@ -255,12 +255,18 @@ class CalendarController extends Controller
             ]);
             $newMyGroup->users()->syncWithPivotValues([$active_user->id], ['selected_as_calendar_member' => 1, "created_at" => now()]); 
         }        
-        $gr = MyGroup::where('user_id', $active_user->id)->where('selected', true)->latest()->first();
+        $gr = MyGroup::where('user_id', $active_user->id)
+                    ->where('selected', true)
+                    ->with('selected_users')
+                    ->get()
+                    ->pluck('selected_users.*.id')
+                    ->flatten()
+                    ->toArray();
         // $myWorkGroups = MyWorkGroup::where('user_id', $this->active_user()->id)->pluck('work_group_id')->toArray();
 
         $work_group_users_id = [];
         
-        $my_group_ids = $gr ? $gr->selected_users()->pluck('id')->toArray() : [];
+        $my_group_ids = $gr ?? [];
 
         $list = array_merge($my_group_ids, $work_group_users_id);
         $date = $request["day"];
@@ -308,6 +314,7 @@ class CalendarController extends Controller
         ->whereBetween('date_start', [$previousMonday, $nextSunday])
         ->with('calendar_users')
         ->with('department')
+        ->with('task')
         ->with('updated_by')
         ->with('created_by')
         ->with('files')
@@ -939,10 +946,13 @@ class CalendarController extends Controller
     }
     public function get_my_groups(Request $request){
 
-
+        $members = User::where('retire', 0)
+                        ->where('deleted_flag', 0)
+                        ->get();
         $groups = MyGroup::where('user_id', $this->active_user()->id)->where('deleted_flag', 0)->with('users')->get();
         $res = [
             "my_groups" => $groups,
+            "all_members" => $members,
             "work_groups" => [],
             "my_work_groups" => []
         ];
@@ -969,7 +979,7 @@ class CalendarController extends Controller
            
             if($request->by == 'byGroup'){
                 $user->update(['selected' => $request->value]);
-                $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
+                // $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
             }
             
             return response()->json($user);
@@ -979,7 +989,7 @@ class CalendarController extends Controller
                 'updated_at' => now(),
                 'selected_as_calendar_member' => $request->value
             ]);
-            $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
+            // $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
             return response()->json($rec); 
         }
         

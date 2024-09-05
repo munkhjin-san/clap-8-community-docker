@@ -292,7 +292,7 @@ class ReportService
         
         成果目標の確認責任は各案件の執行役員（プロジェクトマネージャー）となります。
         ▶成果目標アプリ
-        https://glowd-hldgs.cybozu.com/k/954
+        https://glowd-hldgs.cybozu.com/k/954/?view=5787086
         
         ＊転籍社員の方には別途上長の方から、ご連絡をお願い致します。
         

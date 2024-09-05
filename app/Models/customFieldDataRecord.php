@@ -20,7 +20,7 @@ class customFieldDataRecord extends Model
     }
 
     public function time_card_records(){
-        return $this->belongsTo(timecardRecord::class, 'id');
+        return $this->belongsTo(timecardRecord::class, 'table_record_id');
     }
 
 

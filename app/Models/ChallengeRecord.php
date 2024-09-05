@@ -33,7 +33,7 @@ class ChallengeRecord extends Model
         return $this->belongsToMany(User::class, 'challenge_awards', 'record_id', 'user_id')->withPivot('award_bet')->select(['users.id as id', 'users.name','users.icon_id']);
     }
     public function claps(){
-        return $this->hasMany(ClapRecord::class, 'record_id')->where('app_id', 4)->where('deleted_flag', 0)->select('record_id', 'from_user')->with('user');
+        return $this->hasMany(ClapRecord::class, 'record_id')->where('app_id', 4)->where('deleted_flag', 0)->select('record_id', 'from_user');
     }
     protected $fillable = [
         'deleted_flag', 'status_flag'

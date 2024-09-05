@@ -137,7 +137,7 @@ import { urlCheck } from '@/utils/tools';
 
   
     const searchTitle = computed(() => {       
-        return board.value ? `<strong style="text-overflow: ellipsis;overflow: hidden;white-space: nowrap;">${boardTitle.value}</strong>ボード内で検索`: 'すべてのボードで検索'                
+        return '検索結果'                
     })
     const boardTitle = computed(() => {       
         if(!board.value) return ''     
@@ -187,7 +187,7 @@ import { urlCheck } from '@/utils/tools';
             keyword.value = props.advancedSearchWord
         }
         // targetedSearch.value = props.privateSearch
-        targetedSearch.value = board.value ? true : false
+        targetedSearch.value = false
         setTimeout(() =>{
             document.getElementById('advancedSearchInput').value = props.advancedSearchWord;
         },0)
@@ -209,7 +209,7 @@ import { urlCheck } from '@/utils/tools';
             searchLoader.value = true
         
             searchMiniLoader.value = true
-            const record_id = targetBoards.value.length ? targetBoards.value[0].id : board.value ? board.value.id : null
+            const record_id = targetBoards.value.length ? targetBoards.value[0].id : null
         if(val == -1){
             const reset = {
                 data: [],

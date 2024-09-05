@@ -118,7 +118,11 @@ class TaskController extends Controller
         $auth_user_id = $active_user->id;
         
         if(!empty($request) && !empty($auth_user_id)){   
-            $taskUser = taskUser::where('record_id', $request->task_id)->get();         
+            $taskUser = taskUser::where('record_id', $request->task_id)
+                                ->whereHas('user', function ($q) {
+                                    $q->where('retire', 0);
+                                })
+                                ->get();         
             $list = $taskUser->where('user_id', $auth_user_id)->first();
             $list->comp_flag = $request->comp_flag;
             $list->status_flag = $request->status_flag ?? 0;

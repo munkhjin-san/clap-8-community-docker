@@ -419,12 +419,14 @@ class MemberController extends Controller
         }
         
         $record->user_id = Auth::id();
+        $record->project_goal_id = $request->goal_id;
         $record->title = $request->title;
         $record->theme = $request->theme;
         $record->date = $request->date;
         $record->content = $request->content;
         $record->review = $request->review;
-        $record->ability = $request->ability;    
+        $record->ability = $request->ability;
+        $record->target_period = $request->target_period;
         $record->save();
         return response()->json($record);
     }
@@ -486,6 +488,7 @@ class MemberController extends Controller
     public function check_kadai_record(Request $request){
 
         
+
         $user_name = env('KINTONE_USER_NAME');
         $password = env('KINTONE_PASSWORD');
         $string = $user_name. ':'. $password;
@@ -503,7 +506,7 @@ class MemberController extends Controller
             'X-Cybozu-Authorization' => $x_token
         ];
 
-
+        
 
 
         $response = Http::withHeaders($headers)->get($multi_url);
@@ -521,7 +524,7 @@ class MemberController extends Controller
 
 
 
-            $templates = SalaryIssue::whereIn('id', $request->record_ids)->get();
+            $template = SalaryIssue::find($request->record_id);
           
             $queryParams = [
                 'app' => '928',
@@ -543,23 +546,20 @@ class MemberController extends Controller
                 $prep = [ "id" => $kadai['id']];
                 array_push($exists, $prep);
             }       
-            foreach($templates as $template){
-                if (in_array($template['theme'], $existing_themes)) {
-                    throw ValidationException::withMessages(['message' => 'このテーマで既に昇給課題が作られています。<br>' . $template['theme']]);
-                }
-                $add = [
-                    'value' => [
-                        'ChatGPT添削結果' => [ 'value' => $template->review ],
-                        '昇給課題タイトル' => [ 'value' => $template->title ],
-                        '昇給課題内容・詳細' => [ 'value' => $template->content ],
-                        '課題達成による取得能力' => [ 'value' => $template->ability ],
-                        '評価課題' => [ 'value' => $template->theme ],
-                    ]
-                ];
-                array_push($exists, $add);
+            if (in_array($template['theme'], $existing_themes)) {
+                throw ValidationException::withMessages(['message' => 'このテーマで既に昇給課題が作られています。<br>' . $template['theme']]);
             }
-
-
+            $add = [
+                'value' => [
+                    'ChatGPT添削結果' => [ 'value' => $template->review ],
+                    '昇給課題タイトル' => [ 'value' => $template->title ],
+                    '昇給課題内容・詳細' => [ 'value' => $template->content ],
+                    '課題達成による取得能力' => [ 'value' => $template->ability ],
+                    '評価課題' => [ 'value' => $template->theme ],
+                ]
+            ];
+            array_push($exists, $add);
+            
             $data = [
                 "app" => 928,
                 "id" => $record_id,
@@ -576,9 +576,8 @@ class MemberController extends Controller
             if (array_key_exists('revision', $responseData)) {
 
                 $add_comment = $this->add_issue_comment($record_id, ': 昇給課題追加しました。');                
-                foreach($templates as $template){
-                    $template->delete();
-                }
+                $template->delete();
+                
                 // status_updade
                 $status_url = 'https://glowd-hldgs.cybozu.com/k/v1/record/status.json';
                 $status_data = [
