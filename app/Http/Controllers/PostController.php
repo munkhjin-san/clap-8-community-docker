@@ -136,8 +136,11 @@ class PostController extends Controller
         ->withCount('comments')
         ->with('claps')
         ->with('to_users')
+        ->when($app_type == 2, function ($query) {
+            $query->orderBy('status_flag', 'asc');
+        })
         ->with('awards')
-        
+        ->with('result_files')
         ->orderBy('created_at', 'desc')
         ->when(!$has_id, function ($query) use($skip) {
             $query->skip($skip);
