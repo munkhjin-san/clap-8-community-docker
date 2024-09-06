@@ -58,8 +58,6 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/create_thumbnails', [AutoJobController::class, 'createThumbnails']);
 // Route::get('/board_files_thumbnail', [AutoJobController::class, 'board_files_thumbnail']);
 // Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
-Route::get('/united_posts', [AutoJobController::class, 'united_posts']);
-Route::get('/creating_projects', [AutoJobController::class, 'creating_projects']);
 // temp_routes
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
 // Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
