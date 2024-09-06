@@ -106,10 +106,13 @@
                         </div>
                     </div>
                     <div class="project-cell" data-label="メンバー" style="overflow: hidden">
-                        <div style="display: flex;" @click="viewUsers(project.members)">
-                            <UserIcon v-for="member in project.members.slice(0, 15)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
+                        <div style="display: flex;">
+                            <div style="display: flex;" @click="viewUsers(project.members)">
+                                <UserIcon v-for="member in project.members.slice(0, 15)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
+                            </div>
+                            <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 15">...({{project.members.length}})</span>
                         </div>
-                        <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 15">...({{project.members.length}})</span>
+                        
                     </div>
                     
                 </div>
