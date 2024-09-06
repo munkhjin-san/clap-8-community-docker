@@ -98,7 +98,7 @@
                                 <div>{{ newPosition?.name }}</div>
                             </div>
                         </div>
-                        <div v-if="memberData && (auth.id === memberData.id || auth.id === memberData?.evaluation?.mentor?.id)" style="position: absolute;right: 10px;top: 10px;">                                            
+                        <div v-if="memberData && (auth.id === memberData.id || auth.id === memberData?.evaluation?.mentor?.id || auth.id === 612)" style="position: absolute;right: 10px;top: 10px;">                                            
                             <ItemMenu :items="[
                                 {title: '編集する', action: () => handleClick(0)},
                                 {title: '削除する', action: () => deleteEvaluation()}
