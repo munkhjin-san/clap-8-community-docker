@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ProjectRecord;
 use Illuminate\Http\Request;
 use App\Models\CalendarRecord;
 use App\Models\CalendarGroup;
@@ -1242,7 +1243,11 @@ class CalendarController extends Controller
 
     }
     public function get_departments_calendar(){
-        $departments = workGroup::whereHas('members')->with('members')->get();
+        $departments = ProjectRecord::whereHas('members')
+                                    ->with('members')
+                                    ->with('manager')
+                                    ->with('director')
+                                    ->get();
         return response()->json($departments);
     }
 

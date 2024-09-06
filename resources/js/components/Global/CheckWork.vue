@@ -37,16 +37,21 @@
     import WorkNotSubmitted from '../Work/WorkNotSubmitted.vue';
     import { useRoute } from 'vue-router';
     import { useAuthUserStore } from '../../store/auth';
+    import { getCustomFields, getWorkGroup } from '../../utils/workApi';
+
     import moment from 'moment';
     const auth = useAuthUserStore()
     const shiftNotSubmittedList = ref([])
     const nextShiftNotSubmittedList = ref([])
     const timecardNotSubmittedList = ref([])
+    const workGroups = ref([])
+    const customFieldData = ref([])
     const route = useRoute()
     onMounted(() => {
         if(!auth.isRegistered && !auth.isOnLeave){
             getNotSubmitted()
             checkDay() 
+            fetchDatas()
         }        
     })
     const checkDay = () => {
@@ -75,7 +80,14 @@
     const checkQuery = computed(() => {
         return route.query && route.query.user_id
     })
-
+    const fetchDatas = async() => {
+        try{
+            workGroups.value = await getWorkGroup()
+            customFieldData.value = await getCustomFields()
+        }catch (e){
+            notify(e?.message || 'エラーが発生しました。') 
+        }
+    } 
     const getNotSubmitted = async() => {
         try{
             const data = await axios.post('/not_submitted').then(res => res.data)
@@ -89,4 +101,6 @@
         nextMonthShift: () => checkNextMonthShift(),
         notSubmitted: () => getNotSubmitted()
     })
+    provide('customInfo', customFieldData)
+    provide('workGroups', workGroups)
 </script>

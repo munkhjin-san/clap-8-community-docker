@@ -172,8 +172,8 @@ const canCreateIssue = computed(() => {
     const start = props.goal?.start_date ? moment(props.goal.start_date) : null;
     const end = props.goal?.end_date ? moment(props.goal.end_date) : null
     if (start && end) {
-        const differenceInMonths = end.diff(start, 'month', true)
-        if (differenceInMonths >= 3) {
+        const differenceInDays = end.diff(start, 'days')
+        if (differenceInDays >= 90) {
             return true
         }
     }

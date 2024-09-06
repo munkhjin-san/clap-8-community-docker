@@ -41,21 +41,17 @@
     import { onMounted, ref, inject, computed, provide } from 'vue';
     import moment from 'moment';
     import { useAuthUserStore } from '@/store/auth'
-    import { getCustomFields, getWorkGroup } from '../../utils/workApi';
     const auth = useAuthUserStore()
     const { notify } = inject('dialog')
     const props = defineProps(['item'])
-    const workGroups = ref([])
+    
     const selectedYear = ref(props.item ? props.item.year : moment().year())
     const selectedMonth = ref(props.item ? props.item.month - 1 : moment().month())
     const reportModal = ref(false)
-    const customFieldData = ref([])
+    
     const { notSubmitted, nextMonthShift } = inject('checkWork')
     const shiftModal = ref(false)
     const editData = ref(null)
-    onMounted(() => {
-        fetchDatas()
-    })
     const timeCardAdd = (item) => {
         if(item.day){
             const { 
@@ -95,19 +91,11 @@
             shiftModal.value = true
         }
     }
-    const fetchDatas = async() => {
-        try{
-            workGroups.value = await getWorkGroup()
-            customFieldData.value = await getCustomFields()
-        }catch (e){
-            notify(e?.message || 'エラーが発生しました。') 
-        }
-    }   
+      
     const reload = () => {
         notSubmitted()
         nextMonthShift()
         reportModal.value = false
     }
-    provide('customInfo', customFieldData)
-    provide('workGroups', workGroups)
+    
 </script>
