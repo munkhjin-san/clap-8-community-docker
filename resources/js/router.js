@@ -132,7 +132,7 @@ const routes = [
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
-            fetchPosts(to, next, from, 'knowledge');
+            next({ path: '/post', query: { app_type: 1 } });
         },
     },
     {
@@ -143,7 +143,7 @@ const routes = [
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
-            fetchPosts(to, next, from, 'nice');
+            next({ path: '/post', query: { app_type: 0 } });
         },
     },
     {
@@ -154,7 +154,7 @@ const routes = [
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
-            fetchPosts(to, next, from, 'challenge');
+            next({ path: '/post', query: { app_type: 2 } });
         },
     },
     {
