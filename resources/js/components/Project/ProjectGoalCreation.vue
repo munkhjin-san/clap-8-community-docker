@@ -92,7 +92,7 @@
                 </div> -->
                 <div class="si-box">
                     <LongInput 
-                        placeHolder="期待せれる効果"
+                        placeHolder="期待される効果"
                         type="text"
                         v-model="expectedEffect"
                         :initialValue="expectedEffect"
