@@ -81,7 +81,7 @@
                         </div>
                         <div class="si-box">
                             <ItemSelector 
-                                place-holder="職務"
+                                place-holder="新職務"
                                 :options="criteriaMaster"
                                 v-model="checkedLevel"
                                 label="level"
