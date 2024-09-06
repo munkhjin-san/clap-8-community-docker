@@ -92,14 +92,14 @@
 import FloatButton from '@/components/Global/FloatButton.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import UserIcon from '@/components/Board/Mixed/UserIcon.vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 
 import { Project } from '@/interface/projectInterface';
 import { useMenuStore } from '@/store/menu';
 import ProjectCreate from './ProjectCreate.vue';
 import axios from 'axios';
 import { useProjectUsers } from '@/store/projectUsers';
-import { User } from '@/interface/globalInterface';
+import { Dialog, User } from '@/interface/globalInterface';
 const projects = ref<Project[]>([])
 const menu = useMenuStore()
 const createWindow = ref(false)
@@ -107,6 +107,7 @@ const createWindow = ref(false)
 const editData = ref<Project | null>(null)
 const projectUsers = useProjectUsers()
 const props = defineProps(['keywords', 'userList'])
+const { confirm } = inject<Dialog>('dialog')!
 onMounted(async() => {
     getProjects() 
 })
@@ -139,8 +140,15 @@ const editProject = (project: Project) => {
     editData.value = project
     createWindow.value = true
 }
-const deleteProject = (project: Project) => {
+const deleteProject = async(project: Project) => {
+    const answer = await confirm('プロジェクトを削除しますよろしいでか？')
+    if (!answer) return
+    try {
+        await axios.delete(`/delete_project?id=${project?.id}`)
+        getProjects()
+    } catch (e) {
 
+    }
 }
 const viewUsers = (members: User[]) => {
     const data = {

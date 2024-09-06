@@ -569,4 +569,13 @@ class ProjectController extends Controller
         ProjectSetIncrease::findOrFail($id)->delete();
         return response()->json(['message' => 'Successfully deleted!']);
     }
+    public function delete_project(Request $request) {
+        $request->validate([
+            'id' => 'required',
+        ]);
+        $id = $request->id;
+        ProjectRecord::findOrFail($id)->delete();
+       
+        return response()->json(['message' => 'Successfully deleted!']);
+    }
 } 

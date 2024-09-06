@@ -374,7 +374,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         // Project
         Route::get('/get_projects', [ProjectController::class, 'get_projects']);
-        Route::get('/update_projects', [ProjectController::class, 'update_projects']);
         Route::post('/get_outcome_goals', [ProjectController::class, 'get_outcome_goals']);
         Route::get('/api/project/{projectId}/member/{memberId}', [ProjectController::class, 'get_member']);
         Route::post('/get_project_criteria', [ProjectController::class, 'get_project_criteria']);
@@ -397,4 +396,5 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_salary_issues', [ProjectController::class, 'get_salary_issues']);
         Route::post('/save_evaluation', [ProjectController::class, 'save_evaluation']);
         Route::delete('/delete_evaluation', [ProjectController::class, 'delete_evaluation']);
+        Route::delete('/delete_project', [ProjectController::class, 'delete_project']);
 });
