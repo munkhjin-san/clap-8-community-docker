@@ -106,10 +106,10 @@
                         </div>
                     </div>
                     <div class="project-cell" data-label="メンバー" style="overflow: hidden">
-                        <div style="display: flex;" >
-                            <UserIcon v-for="member in project.members" imgClass="u_icon_20" :user="member" size="30"/>
+                        <div style="display: flex;" @click="viewUsers(project.members)">
+                            <UserIcon v-for="member in project.members.slice(0, 15)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
                         </div>
-                        
+                        <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 15">...({{project.members.length}})</span>
                     </div>
                     
                 </div>
@@ -137,12 +137,12 @@ import PostSearchBar from '../Post/PostSearchBar.vue';
 import { useMenuStore } from '@/store/menu';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
-import { User } from '@/interface/workInterface';
 import HamBurger from '../Global/HamBurger.vue';
 import { useResponsive } from '@/store/responsive';
 import moment from 'moment';
-import { Dialog } from '@/interface/globalInterface';
+import { Dialog, User } from '@/interface/globalInterface';
 import { detailedDateOptions } from '@/utils/tools';
+import { useProjectUsers } from '@/store/projectUsers';
 const projects = ref<Project[]>([])
 const keywords = ref('')
 const initialLoader = ref(true)
@@ -157,6 +157,7 @@ const evaluationDate = ref('')
 const { notify } = inject<Dialog>('dialog')!
 const options = detailedDateOptions()
 const sortType = ref(0)
+const projectUsers = useProjectUsers()
 const sortOptions = [
     {
         value: 1,
@@ -272,6 +273,15 @@ const authProjects = computed(() => {
             || managerArray.some((member: { id: number | null; }) => member && member.id === auth.activeUser.id);
     });
 })
+const viewUsers = (members: User[]) => {
+    const data = {
+        active: true,
+        userList: members,
+        title: 'プロジェクトメンバー'
+    }
+    projectUsers.setProjectUsers(data)
+    
+}
 provide('authProjects', authProjects)
 provide('selectedDate', selectedDate)
 provide('evaluationDate', evaluationDate)
