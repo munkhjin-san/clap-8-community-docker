@@ -200,7 +200,7 @@
                 :selectedDate="selectedDate"
                 :edit-data="projectEvaluations"
                 :step="step"
-                @getEvaluations="getEvaluations"
+                @reload="reload"
                 @search="search"
                 @close="createWindow = false"
                 @next="step = 1"
@@ -259,13 +259,11 @@ watch(() => evaluationDate.value, async(newValue) => {
     if(newValue) {
         initialLoader.value = true
         await getProjects()
-        await getEvaluations()
-        firstFetch()
+        reload()
     }
 })
 onMounted(async() => {
-    await getEvaluations()
-    firstFetch()
+    reload()
     setDates()
     
 })
@@ -281,6 +279,10 @@ const handleClick = (num: number) => {
     // }
     step.value = num
     createWindow.value = true
+}
+const reload = async() => {
+    await getEvaluations()
+    firstFetch()
 }
 const goalPercentage = computed(() => {
     return projectEvaluations.value?.outcome_goals?.reduce((acc, element) => acc + element.achievement_rate, 0)

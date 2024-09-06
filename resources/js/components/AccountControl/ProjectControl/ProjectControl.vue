@@ -8,7 +8,7 @@
             </div>  
             <PostSearchBar 
                     className="newChatMemberSearch" 
-                    :customPlaceHolder="`プロジェクト検索`" 
+                    :customPlaceHolder="route.name === 'projectlist' ? `プロジェクト検索` : `メンバーとメンター検索`" 
                     v-model="keywords"
                 /> 
         </div>

@@ -219,7 +219,7 @@ const props = defineProps([
 ])
 const emit = defineEmits([
     'close', 
-    'getEvaluations', 
+    'reload', 
     'search',
     'next',
 ])
@@ -259,6 +259,7 @@ const current_salary = ref(props.editData?.evaluation?.current_salary_rank ?? ''
 const after_salary = ref(props.editData?.evaluation?.after_salary_rank ?? '')
 const grade = ref(props.editData?.evaluation?.grade ?? '')
 const { notify } = inject<Dialog>('dialog')!
+const getProjects = inject('getProjects') as Function
 onMounted(() => {
     getSalaryOptions()
 })
@@ -301,7 +302,8 @@ const saveIncrease = async() => {
     try {
         await axios.post('/save_evaluation', params)
         emit('close')
-        emit('getEvaluations')
+        emit('reload')
+        getProjects()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     } finally {
@@ -326,7 +328,7 @@ const setIncrease = async() => {
     try {
         await axios.post('/set_increase_request', params)
         emit('close')
-        emit('getEvaluations')
+        emit('reload')
     } catch(e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     } finally {

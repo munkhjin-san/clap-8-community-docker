@@ -17,7 +17,7 @@
                 <div class="project-cell">異動後の号俸</div>
                 <div class="project-cell">アクション</div>
             </div>
-            <div class="project-cell-row" v-for="user in userList">
+            <div class="project-cell-row" v-for="user in searchResults">
                 <div class="project-cell">
                     <span>{{user.name}}</span>
                 </div>
@@ -54,12 +54,12 @@
 </template>
 <script lang="ts" setup>
 import { evaluationDateOptions, parseDate } from '@/utils/tools';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import EvaluationCreation from './EvaluationCreation.vue'
 import axios from 'axios';
 import { Evaluation } from '@/interface/projectInterface';
-defineProps(['userList', 'mentorList'])
+const props = defineProps(['userList', 'mentorList', 'keywords'])
 
 const targetDates = evaluationDateOptions()
 const selectedDate = defineModel()
@@ -70,7 +70,23 @@ const editData = ref<Evaluation>()
 onMounted(() => {
     getSalaryOptions()
 })
-
+const searchResults = computed(() => {
+    if(props.keywords){
+        const lowSearch = props.keywords.toLowerCase()
+        const deepSearch = (obj) => {
+            if (typeof obj === 'string' || typeof obj === 'number') {
+                return String(obj).toLowerCase().includes(lowSearch);
+            } else if (Array.isArray(obj)) {
+                return obj.some(item => deepSearch(item));
+            } else if (typeof obj === 'object' && obj !== null) {
+                return Object.values(obj).some(val => deepSearch(val));
+            }
+            return false;
+        }
+        return props.userList.filter(project => deepSearch(project))
+    }
+    return props.userList 
+})
 const addEvaluation = (user) => {
     createWindow.value = true
     selectedUser.value = user
