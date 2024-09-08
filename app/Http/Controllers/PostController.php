@@ -527,11 +527,11 @@ class PostController extends Controller
         return response()->json();  
     }
     public function post_status_update(Request $request){
-        $validatedData = $request->validate([
+        $request->validate([
             'id' => 'required',
             'status' => 'required'
         ]);
-        $record = ChallengeRecord::findOrFail($request->id);
+        $record = PostRecord::findOrFail($request->id);
         
         $fileIds = $request->resultFiles;
         $pivotValues = [];
