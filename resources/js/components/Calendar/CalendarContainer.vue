@@ -277,11 +277,9 @@ import axios from 'axios';
         }
     })
     const preSelectedDepartment = computed(() => {
-        return departmentsList.value.find(dep => 
-            dep.members?.some(member => member.id === auth.id) || 
-            dep.manager?.some(manager => manager.id === auth.id) || 
-            dep.director?.id === auth.id
-        );
+        return departmentsList.value.find(dep => dep.members.some(
+            member => member.id === auth.id
+        ))
     })
     const selectedDate = computed(() => {
         return moment([selectedYear.value, selectedMonth.value, selectedDay.value]).format('YYYY-MM-DD')

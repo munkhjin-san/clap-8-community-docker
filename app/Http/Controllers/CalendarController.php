@@ -1243,10 +1243,8 @@ class CalendarController extends Controller
 
     }
     public function get_departments_calendar(){
-        $departments = ProjectRecord::whereHas('members')
+        $departments = workGroup::whereHas('members')
                                     ->with('members')
-                                    ->with('manager')
-                                    ->with('director')
                                     ->get();
         return response()->json($departments);
     }

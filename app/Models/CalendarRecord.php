@@ -26,7 +26,7 @@ class CalendarRecord extends Model
         return $this->hasOne(taskRecord::class, 'id', 'task')->select('id', 'response_time');
     }
     public function department(){
-        return $this->hasOne(ProjectRecord::class, 'id', 'department_id');
+        return $this->hasOne(workGroup::class, 'id', 'department_id');
     }
     protected $hidden = [
         'color', 
