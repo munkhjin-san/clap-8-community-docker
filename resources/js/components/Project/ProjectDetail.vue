@@ -118,7 +118,7 @@
                         <div class="project-header-row">
                             <div class="project-cell cell-width">メンバー</div>
                             <div class="project-cell cell-width">雇用形態</div>
-                            <div class="project-cell cell-width">職務</div>
+                            <div class="project-cell cell-width">職階</div>
                             <div class="project-cell cell-width">メンター</div>
                             <div class="project-cell cell-width">職務評価基準</div>
                             

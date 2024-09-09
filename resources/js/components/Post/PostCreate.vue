@@ -23,10 +23,10 @@
                     <PostIcon which="2" size="20"/>
                     チャレンジ
                 </div>
-                <div @click="app_type = 3" :class="['pt-selector', { ptSelected: app_type == 3}]">
+                <!-- <div @click="app_type = 3" :class="['pt-selector', { ptSelected: app_type == 3}]">
                     <PostIcon which="3" size="20"/>
                     ツィート
-                </div>
+                </div> -->
                 <div @click="app_type = 4" :class="['pt-selector', { ptSelected: app_type == 4}]">
                     <PostIcon which="4" size="20"/>
                     ヘルプ

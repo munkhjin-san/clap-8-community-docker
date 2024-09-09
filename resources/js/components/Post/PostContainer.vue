@@ -78,10 +78,10 @@
                         <PostIcon which="2" size="20"/>
                         {{ apps[2] }}
                     </router-link>
-                    <router-link :to="`/${appName}?app_type=3`" :class="['pt-selector']">
+                    <!-- <router-link :to="`/${appName}?app_type=3`" :class="['pt-selector']">
                         <PostIcon which="3" size="20"/>
                         {{ apps[3] }}
-                    </router-link>
+                    </router-link> -->
                     <router-link :to="`/${appName}?app_type=4`" :class="['pt-selector']">
                         <PostIcon which="4" size="20"/>
                         {{ apps[4] }}

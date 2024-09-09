@@ -322,6 +322,10 @@ provide('setDates', setInitialDates)
     .project-header-row {
 
         display: table-row;
+        position: sticky;
+        top: -1px;
+        background-color: var(--background-color);
+        z-index: 1;
     }
     .project-cell-row {
         display: table-row;
