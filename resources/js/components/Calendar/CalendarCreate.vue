@@ -40,6 +40,7 @@
                     :multiple="false"
                     :clearable="false"
                     :options="departmentsList"
+                    :close-on-select="true"
                     v-model="department_id" 
                 />
             </div>

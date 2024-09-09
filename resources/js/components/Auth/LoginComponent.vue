@@ -48,26 +48,21 @@
                         <label class="form-plc">パスワード</label>
                     </div>
                 </div>
-                <!-- <div class="login-group row" style="margin-top: 30px;">                         
-                    <div class="form-wrapper">
-                        <div @click="viewCondition = true" v-if="!viewCondition" style="border:1px solid var(--primary-color); padding: 23px 10px; color:gray; font-size: 14px;width: 100%;">コンディション</div>
-                        
-                            
-                        </div>
-                    </div>
-                </div> -->
                 <div class="form-group row mb-0">
-                    <div class="si-box">
+                    <div class="si-box" v-if="!tempNum">
                         
                         <div @click="viewCondition = true" v-if="!viewCondition" class="btn btn-primary login-btn-change">コンデイションを選択してログイン</div>
                         <div class="list-wrapper focused" v-if="viewCondition">
                             <label class="form-plc">コンデイションを選択してログイン</label>
                             <button class="list-item" type="submit" :style="{background: tempNum === num ? '#efefef' : 'transparent'}" @click="saveWeather(num)" v-for="num in [0,1,2,3,4,5]">
-                                <input type="hidden" name="_token" :value="csrfToken">
                                 <WeatherIcon :which="num" size="25"/>
                             </button>
                         </div>
                     </div>
+                    <div v-else class="si-box">
+                        <button class="btn btn-primary login-btn-change" type="submit">ログイン</button>
+                    </div>
+                    <input type="hidden" name="_token" :value="csrfToken">
                 </div>
                 <div class="login-group" v-if="errorMessage">
                     <p class="valid-error">{{ errorMessage }}</p>
@@ -84,7 +79,7 @@
     const props = defineProps(['message'])
     const viewCondition = ref(false)
     const errorMessage = ref(null)
-    const tempNum = ref(null)
+    const tempNum = ref('')
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content
     const loginForm = ref(null)
     onMounted(() => {
@@ -96,13 +91,15 @@
             sessionStorage.removeItem('loginError')    
         }
         localStorage.removeItem('hiding_alerts')
+        tempNum.value = sessionStorage.getItem('condition_for_session')
     })     
     const saveWeather = (num) => {
         tempNum.value = num
         sessionStorage.setItem('condition_for_session', num)
+        handleSubmit()
     }  
     const handleSubmit = () => {
-        if (tempNum.value == null) {
+        if (!tempNum.value) {
             errorMessage.value = 'コンディションを教えてください'
         } else {
             loginForm.value.submit()

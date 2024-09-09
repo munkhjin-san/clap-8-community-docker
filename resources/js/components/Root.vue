@@ -184,8 +184,6 @@ import { instance as socket } from '@/utils/broadcaster'
             } 
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            sessionStorage.removeItem('condition_for_session')
         }
 
     }

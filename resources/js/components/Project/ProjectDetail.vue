@@ -40,7 +40,7 @@
             <!-- <RouterView 
                 :selectedProject="selectedProject"
             /> -->
-            <div class="project-detail" v-if="route.name === 'projectdetail'">
+            <div class="project-detail" style="position: relative;" v-if="route.name === 'projectdetail'">
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">プロジェクト名</div> 
                     <div>
@@ -70,7 +70,9 @@
                 
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">期間</div>
-                    <div v-if="selectedProject?.date_start">{{ selectedProject?.date_start }} ～ {{ selectedProject?.date_end }}</div>
+                    <div v-if="selectedProject?.date_start">
+                        {{ selectedProject?.date_start }} ～ {{ selectedProject?.date_end }}
+                    </div>
                 </div>
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">取締役</div>
@@ -78,41 +80,6 @@
                         <div>{{ selectedProject?.director.name }}</div>                    
                     </div>
                 </div>
-                <!-- <div class="project-detail-header">
-                    <div style="margin-bottom: 10px">管理者</div>
-                    <div class="project-table">
-                        <div class="project-header-row">
-                            <div class="project-cell cell-width">名前</div>
-                            <div class="project-cell cell-width">雇用形態</div>
-                            <div class="project-cell cell-width">職務</div>
-                            <div class="project-cell cell-width">メンター</div>
-                            <div class="project-cell cell-width">職務評価基準</div>
-                            <div class="project-cell cell-width">人事考課</div>
-                            <div class="project-cell cell-width">成果目標／昇給課題</div>
-                        </div>
-                        <div class="project-cell-row" v-for="member in selectedProject?.manager">
-                            <div class="project-cell cell-width">{{ member.name }}</div>
-                            <div class="project-cell cell-width">{{ member?.evaluation?.employment_type }}</div>
-                            <div class="project-cell cell-width">{{ member?.evaluation?.general_position }}</div>
-                            <div class="project-cell cell-width">{{ member?.evaluation?.mentor?.name }}</div>
-                            <div class="project-cell cell-width">{{ member?.evaluation?.current_level }}</div>
-                            <div class="project-cell cell-width">
-                                <CommandButton 
-                                    :buttons="[
-                                        { title: '設定', action: () => jumpToGoal(member)},
-                                    ]"
-                                />
-                            </div>
-                            <div class="project-cell cell-width">
-                                <CommandButton 
-                                    :buttons="[
-                                        { title: '設定', action: () => jumpToGoal(member)},
-                                    ]"
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div> -->
                 <div class="project-detail-header" style="margin-bottom: 0;">
                     <div class="project-table">
                         <div class="project-header-row">
@@ -120,7 +87,7 @@
                             <div class="project-cell cell-width">雇用形態</div>
                             <div class="project-cell cell-width">職階</div>
                             <div class="project-cell cell-width">メンター</div>
-                            <div class="project-cell cell-width">職務評価基準</div>
+                            <div class="project-cell cell-width">担当業務</div>
                             
                             <div class="project-cell cell-width">成果目標・昇給課題</div>
                             <div class="project-cell cell-width">人事考課</div>
@@ -153,8 +120,21 @@
                         </div>
                     </div>
                 </div>
+                <div v-if="isManagerOrDirector" style="position: absolute; top: 20px; right: 20px;">
+                    <ItemMenu :items="[
+                        {title: '編集する', action: () => editWindow = true}
+                    ]"/>
+                </div>
             </div>
         </div>
+        <Transition name="modalFade">
+            <ProjectEdit 
+                v-if="editWindow"
+                :userList="userList"
+                :edit-data="selectedProject"
+                @close="editWindow = false"
+            />
+        </Transition>
     </div>
 </template>
 <script setup lang="ts">
@@ -163,11 +143,14 @@ import { useRoute, useRouter } from 'vue-router';
 import CommandButton from '../Global/CommandButton.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { RouteLocationMatched } from 'vue-router';
-    const props = defineProps(['selectedProject'])
+import ItemMenu from '../Global/ItemMenu.vue';
+import ProjectEdit from './ProjectEdit.vue';
+    const props = defineProps(['selectedProject', 'userList'])
     const router = useRouter()
     const route = useRoute()
     const initialLoader = ref(false)
     const auth = useAuthUserStore()
+    const editWindow = ref(false)
     const isManagerOrDirector = computed(() => {
         return props.selectedProject?.manager?.some(manager => manager.id === auth.id) || (auth?.user?.position_id && auth.user.position_id < 6)
     })
@@ -204,7 +187,7 @@ import { RouteLocationMatched } from 'vue-router';
             }
         });
         return items;
-    });
+    }); 
 </script>
 <style lang="scss">
 .project-nav-bar{
@@ -315,6 +298,7 @@ import { RouteLocationMatched } from 'vue-router';
         line-height: 1.5;
     }
     @media screen and (max-width: 959px) {
+        
         .kadaiCreate{
             width: 100% !important;
             height: calc(100% - 20px) !important;
@@ -325,6 +309,14 @@ import { RouteLocationMatched } from 'vue-router';
         }
         .project-path {
             font-size: 14px;
+        }
+        .cell-width::before {
+            content: attr(data-label);
+            // font-weight: bold;
+            flex: 1;
+            color: var(--secondary-color);
+            margin-right: 10px;
+            text-transform: capitalize;
         }
     }
 </style>
