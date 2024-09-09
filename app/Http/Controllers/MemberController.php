@@ -426,7 +426,6 @@ class MemberController extends Controller
         $record->content = $request->content;
         $record->review = $request->review;
         $record->ability = $request->ability;
-        $record->target_period = $request->target_period;
         $record->save();
         return response()->json($record);
     }
