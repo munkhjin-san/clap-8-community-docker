@@ -25,7 +25,7 @@ const saveWeather = async (value) => {
     try {
         await axios.post('/save_weather', { today, value: value })
         const user_id = auth.id
-        localStorage.setItem('weather_' + user_id, today)
+        sessionStorage.setItem('condition_for_session', value)
         emit('reload')
         menu.setMenu({ id: null, name: '' })
     } catch (e) {
