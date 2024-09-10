@@ -184,6 +184,9 @@ import { instance as socket } from '@/utils/broadcaster'
             } 
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            localStorage.setItem('weather_' + today, index)
+            sessionStorage.removeItem('condition_for_session')
         }
 
     }

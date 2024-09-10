@@ -76,6 +76,7 @@
     import Logo from '../Global/Logo.vue'
     import { onMounted, ref } from 'vue';
     import WeatherIcon from '../Global/WeatherIcon.vue';
+    import moment from 'moment';
     const props = defineProps(['message'])
     const viewCondition = ref(false)
     const errorMessage = ref(null)
@@ -90,8 +91,9 @@
             errorMessage.value = sessionStorage.getItem('loginError')
             sessionStorage.removeItem('loginError')    
         }
+        const today = moment().local().format('YYYY-MM-DD')
         localStorage.removeItem('hiding_alerts')
-        tempNum.value = sessionStorage.getItem('condition_for_session')
+        tempNum.value = localStorage.getItem('weather_' + today)
     })     
     const saveWeather = (num) => {
         tempNum.value = num
