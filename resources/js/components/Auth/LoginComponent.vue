@@ -49,7 +49,7 @@
                     </div>
                 </div>
                 <div class="form-group row mb-0">
-                    <div class="si-box" v-if="!tempNum">
+                    <div class="si-box" v-if="tempNum == null">
                         
                         <div @click="viewCondition = true" v-if="!viewCondition" class="btn btn-primary login-btn-change">コンデイションを選択してログイン</div>
                         <div class="list-wrapper focused" v-if="viewCondition">
@@ -79,7 +79,7 @@
     const props = defineProps(['message'])
     const viewCondition = ref(false)
     const errorMessage = ref(null)
-    const tempNum = ref('')
+    const tempNum = ref(null)
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content
     const loginForm = ref(null)
     onMounted(() => {
@@ -99,7 +99,7 @@
         handleSubmit()
     }  
     const handleSubmit = () => {
-        if (!tempNum.value) {
+        if (tempNum.value == null) {
             errorMessage.value = 'コンディションを教えてください'
         } else {
             loginForm.value.submit()
