@@ -71,8 +71,8 @@
                     </div>
 
                     <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( auth?.user?.position_id && auth.user.position_id < 6)) && goal?.status <= 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(0)" :content="'差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'承認'"/>
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(0)" :content="'成果目標差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'成果目標承認'"/>
                     </div>
                 </div>
                 <div style="display:flex; gap: 20px; flex-direction: column;" v-if="goal?.salary_issue && sub_tab === 1">
@@ -103,9 +103,13 @@
                     <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData.id || memberData?.evaluation?.mentor.id === auth.id)">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'昇給課題変更'"/>
                     </div>
-                    <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'昇給課題棄却'"/>
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 6)" :content="'昇給課題承認'"/>
+                    <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status <= 2">
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'昇給課題差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'昇給課題承認'"/>
+                    </div>
+                    <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'昇給課題未達成'"/>
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 6)" :content="'昇給課題達成'"/>
                     </div>
                 </div>
                 <div v-else-if="canCreateIssue && sub_tab === 1">
