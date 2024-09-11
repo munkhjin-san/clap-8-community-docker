@@ -257,17 +257,17 @@ const saveTemplateConfirm = async() => {
         if(editRecord && editRecord.content !== content.value && editRecord.review && editRecord.review == content_review.value){
             const answer = await confirm('昇給課題の内容に変更がある場合、再度AI分析を行ってください。<br>このまま保存すると現在の添削結果は削除されます。')
             if(!answer) return
-            saveTemplate('empty_review')
+            saveTemplate('empty_review', 0)
         }else{
-            saveTemplate(null)
+            saveTemplate(null, 0)
         }
     }
     else{
-        saveTemplate(null)
+        saveTemplate(null, 0)
         
     }
 }
-const saveTemplate = async(action) => {
+const saveTemplate = async(action, status) => {
     const result = await checkFields()
     if (!result) return
     try{
@@ -281,6 +281,7 @@ const saveTemplate = async(action) => {
             ability: content_goal.value,
             theme: props.selectedTheme.title_full,
             date: props.selectedDate.evaluationDate,
+            status: status,
         }
         await axios.post('/save_kadai_template', params)
             info('保存しました。')
@@ -303,9 +304,7 @@ const applyToManagementConfirm = async() => {
     
     const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
     if(!answer) return
-    await saveTemplate(null)
-    applyToManagement()
-
+    await saveTemplate(null, 2)
 }
 const applyToManagement = async() => {
     try{
