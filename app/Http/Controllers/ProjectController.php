@@ -418,6 +418,9 @@ class ProjectController extends Controller
                     'base_salary'=>$record['基本給']['value'],
                 ];
             }
+            usort($recieve, function ($a, $b) {
+                return $b['base_salary'] <=> $a['base_salary'];
+            });
         }
         return response()->json($recieve);
     }
