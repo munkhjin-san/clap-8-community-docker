@@ -263,7 +263,7 @@ class WorkController extends Controller
                     // 'timecard_break_records',
                     'total_break_time',
                     'department' => function ($q) {
-                        $q->with('members');
+                        $q->with('members')->with('manager');
                     }
                 ])
                 ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id');
@@ -316,10 +316,11 @@ class WorkController extends Controller
                 $department = $time_card?->department;
                 $authority = false;  
                 if($department) {
+                    $currentUserAuthority = $department->manager;
+                    // $currentUserAuthority = $members->first(function ($member) {
+                    //     return $member->pivot->user_id == Auth::id() && $member->pivot->authority == 1;
+                    // });
                     $members = $department->members;
-                    $currentUserAuthority = $members->first(function ($member) {
-                        return $member->pivot->user_id == Auth::id() && $member->pivot->authority == 1;
-                    });
                     if($currentUserAuthority){
                         $otherMembers = $members->filter(function ($member) {
                             return $member->id !== Auth::id();
@@ -486,12 +487,23 @@ class WorkController extends Controller
         $user = $this->active_user();
         $authenticatedUserId = Auth::id();
         if($user->id == 608 || $user->id == 610){
-            $workGroups = workGroup::whereHas('members', function ($q) use ($year, $month){
+            $workGroups = ProjectRecord::whereHas('members', function ($q) use ($year, $month){
                                             $q->whereHas('shift_records', function ($q) use($year, $month) {
                                                 $q->whereYear('shift_day', $year)
                                                     ->whereMonth('shift_day', $month);
                                             });
+                                    })->orWhereHas('manager', function ($q) use ($year, $month){
+                                        $q->whereHas('shift_records', function ($q) use($year, $month) {
+                                            $q->whereYear('shift_day', $year)
+                                                ->whereMonth('shift_day', $month);
+                                        });
                                     })
+                                    ->with(['manager' => function ($q) use ($year, $month) {
+                                        $q->whereHas('shift_records', function ($q) use($year, $month) {
+                                                $q->whereYear('shift_day', $year)
+                                                    ->whereMonth('shift_day', $month);
+                                            });
+                                    }])
                                     ->with(['members' => function ($q) use ($year, $month) {
                                         $q->whereHas('shift_records', function ($q) use($year, $month) {
                                                 $q->whereYear('shift_day', $year)
@@ -499,26 +511,28 @@ class WorkController extends Controller
                                             });
                                     }])->get();
         } else {
-            $workGroups = workGroup::whereHas('members', function ($q) use($year, $month){
-                $q->whereNot('user_id', Auth::id())->whereHas('shift_records', function ($q) use($year, $month) {
+            $workGroups = ProjectRecord::whereHas('members', function ($q) use($year, $month){
+                $q->whereNot('users.id', Auth::id())->whereHas('shift_records', function ($q) use($year, $month) {
                     $q->whereYear('shift_day', $year)
                         ->whereMonth('shift_day', $month);
                 });
-            })->whereHas('members', function ($q) {
-                $q->where('user_id', Auth::id())
-                    ->where('authority', 1);
+            })->whereHas('manager', function ($q) {
+                $q->where('users.id', Auth::id());
             })->with(['members' => function ($q) use ($year, $month) {
-                $q->whereNot('user_id', Auth::id())->whereHas('shift_records', function ($q) use($year, $month) {
+                $q->whereNot('users.id', Auth::id())->whereHas('shift_records', function ($q) use($year, $month) {
                         $q->whereYear('shift_day', $year)
                             ->whereMonth('shift_day', $month);
                     });
             }])->get();
             
         }
-        $work_group_users = $workGroups->flatMap(function ($work_group_list_value) {
+        $members = $workGroups->flatMap(function ($work_group_list_value) {
             return $work_group_list_value->members;
-        })->unique('id')->values()->all();
-
+        })->unique('id')->values();
+        $manager = $workGroups->flatMap(function ($work_group_list_value) {
+            return $work_group_list_value->manager;
+        })->unique('id')->values();
+        $work_group_users = $members->merge($manager)->unique('id')->values()->all();
         usort($work_group_users, function ($a, $b) use ($authenticatedUserId) {
             if ($a->id == $authenticatedUserId) {
                 return -1;
@@ -1524,25 +1538,20 @@ class WorkController extends Controller
                         ->where('on_leave', 0)
                         ->pluck('id')->toArray();
             $target_users = $pms;
-            $workGroupIds = workGroup::pluck('id')->unique()->values()->toArray();
+            $workGroupIds = ProjectRecord::pluck('id')->unique()->values()->toArray();
         }
         if($active_user->position_id == 6){
-            $workGroups = workGroup::whereHas('work_group_user', function ($q) use($active_user, $ids) {
-                $q->whereIn('user_id', [$active_user->id])->whereNotIn('user_id', $ids)->where('authority', 1);
-            })->with(['work_group_user' => function($q) use ($ids, $active_user) {
-                $q->whereNotIn('user_id', [$active_user->id])->whereNotIn('user_id', $ids)
-                ->whereHas('user', function ($q) {
-                    $q->where('work_authority', 0);
-                });
-            }])->get();
-
+            $workGroups = ProjectRecord::whereHas('manager', function ($q) use($active_user, $ids) {
+                $q->where('users.id', $active_user->id)->whereNotIn('users.id', $ids);
+            })->with('members')->get();
             
             $workGroupIds = $workGroups->unique()->pluck('id')->toArray();
+        
             $workGroups = $workGroups->flatMap(function ($workGroup) {
-                return $workGroup->work_group_user;
-            })->unique('user_id')->values()->pluck('user_id')->toArray();
+                return $workGroup->members;
+            })->unique('id')->values()->pluck('id')->toArray();
             $target_users = array_merge($target_users, $workGroups);
-            
+
         }
         $user_list = User::whereIn('id', $target_users)
                         ->with([
