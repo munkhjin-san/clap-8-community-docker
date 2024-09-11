@@ -316,10 +316,10 @@ class WorkController extends Controller
                 $department = $time_card?->department;
                 $authority = false;  
                 if($department) {
-                    $currentUserAuthority = $department->manager;
-                    // $currentUserAuthority = $members->first(function ($member) {
-                    //     return $member->pivot->user_id == Auth::id() && $member->pivot->authority == 1;
-                    // });
+                    $manager = $department->manager;
+                    $currentUserAuthority = $manager->first(function ($member) {
+                        return $member->id == Auth::id();
+                    });
                     $members = $department->members;
                     if($currentUserAuthority){
                         $otherMembers = $members->filter(function ($member) {
