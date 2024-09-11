@@ -1,5 +1,5 @@
 <template>
-    <div class="post-root" v-if="auth.id == auth.activeUser.id">
+    <div class="post-root">
         
         <div class="post-header" v-if="route.name === 'project'">
             <HamBurger v-if="responsive.mobile"/>
@@ -122,15 +122,7 @@
         </div>
         
     </div>
-    <div v-else style="height: 100%;width: 100%;">
-        <div v-if="responsive.mobile" style="min-height: 60px;display: flex;align-items: center">
-            <HamBurger/>
-        </div>        
-        <div style="color:var(--primary-color);height: 100%;width: 100%;text-align: center;justify-content: center;display: flex;align-items: center;flex-direction: column;">
-            <p>アクセス権限ありません。</p>
-            <router-link class="l-button" style="margin: 30px 0 70px 0;" to="/board">ボードへ戻る</router-link>
-        </div>        
-    </div>
+    
 </template>
 <script lang="ts" setup>
 import { Project } from '@/interface/projectInterface';
