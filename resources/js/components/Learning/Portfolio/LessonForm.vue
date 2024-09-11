@@ -101,7 +101,7 @@
                 answer3: answers3.value[question3.value],
                 lesson_theme_id: route.params.lessonThemeId,
                 status: 3,
-                content: content.value ? content.value : ''
+                form_content: content.value ? content.value : ''
             }
             try{
                 const response = await axios.post('/save_lesson_form', params)

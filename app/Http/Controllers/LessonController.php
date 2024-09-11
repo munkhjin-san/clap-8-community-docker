@@ -54,7 +54,7 @@ class LessonController extends Controller
     public function lesson_add_record(Request $request){
         if($request->edit_id){
             $lesson = LessonMaterial::findOrFail($request->edit_id)->update([
-                "content" => $request->content,
+                "content" => $request->lesson_content,
                 "content_detailed" => $request->content_detailed,
                 "title" => $request->title,
                 "has_feedback" => $request->has_feedback,
@@ -65,7 +65,7 @@ class LessonController extends Controller
         }
         else{
             $lesson = LessonMaterial::create([
-                "content" => $request->content,
+                "content" => $request->lesson_content,
                 "content_detailed" => $request->content_detailed,
                 "title" => $request->title,
                 "has_feedback" => $request->has_feedback,
@@ -106,7 +106,7 @@ class LessonController extends Controller
             "portfolio_id" => $portfolio->id,
             "user_id" => Auth::id(),
             "status" => $request->section_status,
-            "content" => $request->content,
+            "content" => $request->update_content,
         ]);         
         return response()->json();
     }
@@ -166,7 +166,7 @@ class LessonController extends Controller
             "answer2" => $request->answer2,
             "question3" => $request->question3,
             "answer3" => $request->answer3,
-            "content" => $request->content,
+            "content" => $request->form_content,
         ]);
 
         return response()->json($lesson_form);

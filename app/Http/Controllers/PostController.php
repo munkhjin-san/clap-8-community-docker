@@ -334,7 +334,7 @@ class PostController extends Controller
                 $record->award_entry = $request->award_entry;
                 $record->chargeable = $request->chargeable;
             }else{
-                $record->content = $request->content;
+                $record->content = $request->post_content;
             }            
             $record->referrer = $request->referrer; 
             $record->app_type = $request->app_type;         

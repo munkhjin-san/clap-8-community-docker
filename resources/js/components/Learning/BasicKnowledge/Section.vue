@@ -115,7 +115,7 @@
         }
 
         const params = {
-            content: content,
+            update_content: content,
             lesson_theme_id: route.params.lessonThemeId,
             title: props.selectedTopic.title,
             material_id: route.params.materialId,

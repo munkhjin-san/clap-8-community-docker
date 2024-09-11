@@ -276,7 +276,7 @@ import PostIcon from './PostIcon.vue'
                 file_ids : uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
                 referrer: referrer.value, 
                 path: props.appName,
-                content: content.value,
+                post_content: content.value,
                 award_entry: 0,
                 app_type: app_type.value,
                 chargeable: chargeable.value

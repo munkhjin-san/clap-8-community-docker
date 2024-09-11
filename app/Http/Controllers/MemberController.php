@@ -423,7 +423,7 @@ class MemberController extends Controller
         $record->title = $request->title;
         $record->theme = $request->theme;
         $record->date = $request->date;
-        $record->content = $request->content;
+        $record->content = $request->issue_content;
         $record->review = $request->review;
         $record->ability = $request->ability;
         $record->status = $request->status;

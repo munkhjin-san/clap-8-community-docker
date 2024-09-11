@@ -275,7 +275,7 @@ const saveTemplate = async(action, status) => {
         const params = {
             editId: props.editData?.id ?? null,
             title: title.value,
-            content: content.value,
+            issue_content: content.value,
             goal_id: props.chosenGoal?.id,
             review: action && action == 'empty_review' ? null : content_review.value,
             ability: content_goal.value,

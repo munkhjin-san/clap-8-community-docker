@@ -129,7 +129,7 @@ const send = async() => {
     }
     const params = {
         record_id: props.data.shift.id,
-        content: remarks.value,
+        overtime_content: remarks.value,
         minutes: minutes,        
         created_by: auth.activeUser.id,
         status: 1,

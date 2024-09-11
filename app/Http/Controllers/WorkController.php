@@ -1599,7 +1599,7 @@ class WorkController extends Controller
             "record_id" => $request->record_id
         ])->update([
             "minutes" => $request->minutes,
-            "content" => $request->content,
+            "content" => $request->overtime_content,
             "status" => $request->status,
             "user_id" => $shift->user_id,
             "created_by" => $request->created_by ? $request->created_by : null,

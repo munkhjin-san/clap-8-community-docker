@@ -98,7 +98,7 @@ import { useRoute } from 'vue-router';
                     edit_id: props.editTarget ? props.editTarget.id : null,
                     lesson_theme_id: route.params.themeId,
                     title: title.value,
-                    content: richContent,
+                    lesson_content: richContent,
                     content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
                     has_feedback: hasFeedBack.value,
                     priority: selectedPriority.value
