@@ -54,12 +54,12 @@
                     />
                 </div> -->
                 <div v-if="memberData?.id === auth.id" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
-                    <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(2)" :loading="loading[2]"/>
+                    <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(4)" :loading="loading[0]"/>
                     <!-- <LoaderButton style="margin: 0;" content="申請" @triggered="progressReport(2)" :loading="loading[2]"/> -->
                 </div>
-                <div v-if="isManagerOrMember" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
-                    <LoaderButton style="margin: 0;" content="進行" @triggered="progressReport(1)" :loading="loading[1]"/>
-                    <LoaderButton style="margin: 0;" content="完了" @triggered="progressReport(3)" :loading="loading[3]"/>
+                <div v-if="isManagerOrMember || (auth?.user?.position_id && auth.user.position_id < 6)" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
+                    <LoaderButton style="margin: 0;" content="未達成" @triggered="progressReport(5)" :loading="loading[1]"/>
+                    <LoaderButton style="margin: 0;" content="達成" @triggered="progressReport(6)" :loading="loading[2]"/>
                 </div>
             </div>
         </div>
@@ -79,7 +79,7 @@ const result = ref(props.chosenGoal?.result ?? '')
 const report = ref(props.chosenGoal?.report ?? '')
 const reportRef = ref<InstanceType<typeof LongInput> | null>(null)
 const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
-const loading = ref(['', false, false, false])
+const loading = ref([false, false, false])
 const addResult = ref(result.value ? true : false)
 const auth = useAuthUserStore()
 const refresh = inject('refresh') as Function
@@ -95,10 +95,10 @@ const progressReport = async(status: number) => {
         validate = validate && val.valid
     }
     if(!validate) return
-    
+    const loadstatus = status === 4 ? 0 : status === 5 ? 1 : 2
     try {
         let info_message = '報告'
-        loading.value[status] = true
+        loading.value[loadstatus] = true
         const params = {
             id: props.chosenGoal.id,
             params: {
@@ -109,7 +109,7 @@ const progressReport = async(status: number) => {
             }
         }
         await axios.put('/update_project_progress', params)
-        loading.value[status] = false
+        loading.value[loadstatus] = false
         info(`${info_message}しました`)
         emit('reload')
         refresh()

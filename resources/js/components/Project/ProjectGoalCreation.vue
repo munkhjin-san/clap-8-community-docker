@@ -133,8 +133,9 @@
                     <div style="margin-bottom: 20px" v-html="content_review"></div> 
                     <LoaderButton style="margin: 0" @triggered="getReview" :loading="reviewLoading" :content="'AI判定とフィードバック'"/>                               
                 </div>
-                <div class="si-box" v-if="content_review">
-                    <LoaderButton @triggered="saveOutcomeGoal" content="保存" :loading="loading"/>
+                <div class="si-box" v-if="content_review" style="justify-content: center;display: flex;gap:15px;flex-wrap: wrap;">
+                    <LoaderButton style="margin: 0;" @triggered="saveOutcomeGoal(0)" content="保存" :loading="loading"/>
+                    <LoaderButton style="margin: 0;" @triggered="saveOutcomeGoal(2)" content="申請" :loading="loading"/>
                 </div>
             </div>
         </div>
@@ -193,7 +194,7 @@ const goalContent = ref(props.editGoalData?.outcome_goal ?? '')
 const impact = ref('')
 const progress = ref('')
 const chosenProject = ref(props.selectedProject ?? null)
-const criteriaMaster = ref([])
+const criteriaMaster = ref<any>([])
 const checkedCriteria = ref(props.memberData?.evaluation?.current_level ?? '')
 const content_review = ref(props.editGoalData?.ai_review ?? '')
 const aiAdvice = ref('')
@@ -309,11 +310,14 @@ const checkFields = async() => {
     }
     return result
 }
-const saveOutcomeGoal = async() => {
+const saveOutcomeGoal = async(status: number) => {
     const result = await checkFields()
     if(!result) return
     if(!checkedCriteria.value) return
-    
+    if(status == 2) {
+        const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
+        if(!answer) return
+    }
     const params = {
         goal_id: props.editGoalData?.id ?? null,
         checked_items: checkedItems.value,
@@ -331,7 +335,8 @@ const saveOutcomeGoal = async() => {
             criteria: checkedCriteria.value,
             ai_review: content_review.value,
             expected_effect: expectedEffect.value,
-            action_plan: actionPlan.value
+            action_plan: actionPlan.value,
+            status: status
         }
         
     }

@@ -112,8 +112,10 @@
         let mappedgroups
         if(auth.activeUser.id == 608 || auth.activeUser.id == 610){
             filteredgroups = workGroups.value
-            .filter(group => group.members.some(member => member.id === props.item.user_id))
-            
+            .filter(group => 
+                group.members.some(member => member.id === props.item.user_id) || 
+                group.manager?.some(manager => manager.id === props.item.user_id)
+            )            
             mappedgroups = filteredgroups.map(group => group.name);
 
         } else {

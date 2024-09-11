@@ -295,12 +295,6 @@ const routes = [
                         component: () => import('./components/AccountControl/ProjectControl/ProjectList.vue')
                     },
                     {
-                        path: 'targetperiod',
-                        name: 'targetperiod',
-                        props: true,
-                        component: () => import('./components/AccountControl/ProjectControl/EvaluationPeriod.vue')
-                    },
-                    {
                         path: 'mentorcontrol',
                         name: 'mentorcontrol',
                         props: true,

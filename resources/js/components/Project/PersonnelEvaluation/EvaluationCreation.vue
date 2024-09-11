@@ -138,14 +138,14 @@
                                 :reduce="option => option['standard']"
                                 label="standard"
                                 :multiple="true"
-                                :options="criteriaMaster"
+                                :options="criteriaMaster?.[0]?.standards"
                                 v-model="checkedCriteria"
                                 :closeOnSelect="false"
                             />
                         </div>
                         <div class="si-box">
                             <div style="margin-bottom: 10px;">能力保有数</div>
-                            <div>{{ checkedCriteria?.length }}／{{ criteriaMaster.length }}</div>
+                            <div>{{ checkedCriteria?.length }}／{{ criteriaMaster?.[0]?.standards.length }}</div>
                         </div>
                         <!-- <div class="si-box">
                             <div style="margin-bottom: 10px;">項目数</div>
@@ -157,7 +157,7 @@
                         </div> -->
                         <div class="si-box">
                             <div style="margin-bottom: 10px;">能力保有率</div>
-                            <div>{{ Math.round(checkedCriteria.length / criteriaMaster.length * 100) }}%</div>
+                            <div>{{ Math.round(checkedCriteria.length / criteriaMaster?.[0]?.standards.length * 100) }}%</div>
                         </div>
                         <div class="si-box">
                             <ItemSelector 

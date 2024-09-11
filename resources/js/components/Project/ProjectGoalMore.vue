@@ -63,11 +63,16 @@
                         <div>成果結果</div>
                         <div class="kadai-content">{{ goal?.result }}</div>
                     </div>
-                    <div v-if="memberData && auth.id === memberData.id" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="memberData && auth.id === memberData.id && goal?.status > 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告"/>
                     </div>
-                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( auth?.user?.position_id && auth.user.position_id < 6))" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( auth?.user?.position_id && auth.user.position_id < 6)) && goal?.status > 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="openReport = true" style="margin: 0;" content="成果目標レビュー"/>
+                    </div>
+
+                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( auth?.user?.position_id && auth.user.position_id < 6)) && goal?.status <= 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(0)" :content="'差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'承認'"/>
                     </div>
                 </div>
                 <div style="display:flex; gap: 20px; flex-direction: column;" v-if="goal?.salary_issue && sub_tab === 1">
@@ -99,8 +104,8 @@
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'昇給課題変更'"/>
                     </div>
                     <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 4)" :content="'昇給課題棄却'"/>
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'昇給課題承認'"/>
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'昇給課題棄却'"/>
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 6)" :content="'昇給課題承認'"/>
                     </div>
                 </div>
                 <div v-else-if="canCreateIssue && sub_tab === 1">
@@ -160,10 +165,11 @@ const props = defineProps([
     'selectedProject', 
     'isManagerOrMember', 
     'themeRecords',
-    'selectedDate'
+    'selectedDate',
+    'statuses'
 ])
 const emit = defineEmits(['close'])
-const statuses = ['作成中', '進行中', '申請中', '完了済', '未達成', '達成']
+// const statuses = ['作成中', '差戻中', '申請中', '承認済', '未達成', '達成']
 const auth = useAuthUserStore()
 const openReport = ref(false)
 const sub_tab = ref(0)
@@ -190,6 +196,18 @@ const selectThemeConfirm = (level, theme) => {
 const evalutionsValues = computed(() => {
     return props.themeRecords
 })
+const approveOutComeGoal = async(status: number) => {
+    const content = status === 3 ? 'この成果目標を承認してもよろしいですか？' : 'この成果目標を差し戻してもよろしいですか?'
+    const answer = await confirm(content)
+    if(!answer) return
+    try {
+        await axios.put('/approve_outcome_goal', {id: props.goal.id, status: status})
+        refresh()
+        emit('close')
+    } catch (e) {
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    }
+}
 const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
     const content = status === 4 ? 'この昇給課題を棄却してもよろしいですか？' : 'この昇給課題を承認してもよろしいですか？'
     if(!issue) return

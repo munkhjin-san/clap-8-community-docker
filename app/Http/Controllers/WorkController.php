@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\ProjectRecord;
 use App\Models\timecardBreakRecord;
 use App\Models\timecardIncentive;
 use DateTime;
@@ -680,7 +681,7 @@ class WorkController extends Controller
         $auth_user_id = $user->id;
         $ids = [608, 610];
         if($auth_user_id == 608 || $auth_user_id == 610){
-            $work_group_users = workGroup::whereHas('members')
+            $work_group_users = ProjectRecord::whereHas('members')
                 ->with(['members' => function($q) use($ids) {
                 $q->whereNotIn('users.id', $ids)
                     ->where('users.partner_flag', 0)
@@ -698,7 +699,9 @@ class WorkController extends Controller
             }])
             ->get();
         }else{
-            $work_group_users = workGroup::whereHas('members', function($q) use($auth_user_id) {
+            $work_group_users = ProjectRecord::whereHas('members', function($q) use($auth_user_id) {
+                                $q->whereIn('users.id', [$auth_user_id]);
+                            })->orWhereHas('manager', function($q) use($auth_user_id) {
                                 $q->whereIn('users.id', [$auth_user_id]);
                             })->with(['members' => function($q) use($ids) {
                                 $q->whereNotIn('users.id', $ids)
@@ -713,7 +716,7 @@ class WorkController extends Controller
                                         'users.position_id',
                                         'users.on_leave'
                                     ]);
-                            }])
+                            }])->with('manager', 'director')
                             ->get();
         }   
         

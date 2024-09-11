@@ -7,6 +7,7 @@ use App\Models\ChallengeRecord;
 use App\Models\KnowledgeRecord;
 use App\Models\NiceRecord;
 use App\Models\PostRecord;
+use App\Models\timecardRecord;
 use App\Models\User;
 use App\Models\timecardCostRecord;
 use App\Models\Icons;
@@ -420,5 +421,18 @@ class AutoJobController extends Controller
             Storage::disk('local')->delete('timecard_files/' . $file->file_path);        
         }
         return response()->json($unused_files);
+    }
+
+    public function timecard_update(){
+        $timecards = timecardRecord::whereHas('department')->with('department')->get();
+        $projects = ProjectRecord::pluck('id', 'name');
+        foreach ($timecards as $tc) {
+            $projectId = $projects[$tc->department->name] ?? null;
+            if ($projectId) {
+                $tc->work_group_id = $projectId;
+                $tc->save();
+            }
+        }
+        return response()->json(['success']);
     }
 }

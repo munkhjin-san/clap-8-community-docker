@@ -76,6 +76,7 @@
                     :isManagerOrMember="isManagerOrMember"
                     :themeRecords="themeRecords"
                     :selectedDate="selectedDate"
+                    :statuses="statuses"
                     @close="chosenGoal = null"
                 />
             </Transition>
@@ -131,7 +132,7 @@ const goalDate = ref('')
 const projectGoals = ref<ProjectGoal[]>([])
 const chosenGoal = ref<ProjectGoal | null>(null)
 const { notify, info, confirm } = inject<Dialog>('dialog')!;
-const statuses = ['作成中', '進行中', '申請中', '承認済', '未達成', '達成']
+const statuses = ['作成中', '差戻中', '申請中', '承認済', '報告中', '未達成', '達成']
 
 watch(goalDate, (newValue) => {
     if(newValue){

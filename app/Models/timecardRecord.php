@@ -34,10 +34,10 @@ class timecardRecord extends Model
             ->groupBy('record_id');
     }
     public function department(){
-        return $this->hasOne(workGroup::class, 'id', 'work_group_id');
+        return $this->hasOne(ProjectRecord::class, 'id', 'work_group_id');
     }
     public function department_members(){
-        return $this->hasMany(workGroupUser::class, 'record_id', 'work_group_id');
+        return $this->hasMany(ProjectMember::class, 'record_id', 'work_group_id');
     }
     protected $casts = [
         'record_id' => 'int',

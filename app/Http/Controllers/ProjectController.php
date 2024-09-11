@@ -155,11 +155,17 @@ class ProjectController extends Controller
             'Authorization' => 'Basic', 
             'X-Cybozu-Authorization' => $x_token,
         ];
-        $appId = '948';
-        $fields = ['文字列__1行__1', '職務遂行のための基準', '職務'];
+        $appId = '1272';
+        $fields = ['文字列__1行__1', 'テーブル'];
+        $limit = 30;
         $query = $request->first
-        ? "limit 15"
-        : ($request->keywords ? "文字列__1行__1 like \"" . addslashes($request->keywords) . "\" limit 15" : "limit 15");
+            ? "limit $limit"
+            : ($request->keywords ? "文字列__1行__1 like \"" . addslashes($request->keywords) . "\" limit $limit" : "limit $limit");
+
+        if (!$request->keywords) {
+            $limit = 20;
+            $query = "limit $limit";
+        }
         $queryParams = [
             'app' => $appId,
             'query' => $query,
@@ -172,18 +178,29 @@ class ProjectController extends Controller
         $response = Http::withHeaders($headers)->get($url);
         $responseData = $response->json();
         $recieve = [];
-        if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])) {
-            $records = $responseData['records'];
-            foreach ($records as $record) {
-                $recieve[] = [
-                    'level'=>$record['文字列__1行__1']['value'], 
-                    'job'=>$record['職務']['value'],
-                    'standard'=>$record['職務遂行のための基準']['value'],
-                ];
+        $levels = [];
+        if (array_key_exists('records', $responseData) && !empty($responseData['records'])) {
+            foreach ($responseData['records'] as $record) {
+                $standards = [];
+                if (isset($record['テーブル']['value'])) {
+                    foreach ($record['テーブル']['value'] as $standard) {
+                        if (isset($standard['value']['職務遂行のための基準']['value'])) {
+                            $standards[] = [
+                                'standard' => $standard['value']['職務遂行のための基準']['value'],
+                            ];
+                        }
+                    }
+                }
+                if (isset($record['文字列__1行__1']['value'])) {
+                    $levels[] = [
+                        'level' => $record['文字列__1行__1']['value'],
+                        'standards' => $standards, 
+                    ];
+                }
             }
         }
-        
-        return response()->json($recieve);
+
+        return response()->json($levels);
     }
 
     public function save_project_goal(Request $request){
@@ -577,5 +594,15 @@ class ProjectController extends Controller
         ProjectRecord::findOrFail($id)->delete();
        
         return response()->json(['message' => 'Successfully deleted!']);
+    }
+    public function approve_outcome_goal(Request $request){
+        $request->validate([
+            'id' => 'required',
+            'status' => 'required'
+        ]);
+        $id = $request->id;
+        $status = $request->status;
+        ProjectGoal::findOrFail($id)->update(['status' => $status]);
+        return response()->json(['message' => 'Successfully approved!']); 
     }
 } 

@@ -58,6 +58,7 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
 // Route::get('/create_thumbnails', [AutoJobController::class, 'createThumbnails']);
 // Route::get('/board_files_thumbnail', [AutoJobController::class, 'board_files_thumbnail']);
 // Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
+Route::get('/timecard_update', [AutoJobController::class, 'timecard_update']);
 // temp_routes
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
 // Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
@@ -397,4 +398,5 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/save_evaluation', [ProjectController::class, 'save_evaluation']);
         Route::delete('/delete_evaluation', [ProjectController::class, 'delete_evaluation']);
         Route::delete('/delete_project', [ProjectController::class, 'delete_project']);
+        Route::put('/approve_outcome_goal', [ProjectController::class, 'approve_outcome_goal']);
 });

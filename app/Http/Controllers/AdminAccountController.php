@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ProjectRecord;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\boardRecord;
@@ -58,12 +59,16 @@ class AdminAccountController extends Controller
             }]);
         })
         ->get();
+        $projects = ProjectRecord::select('name', 'id')
+        ->whereHas('members')
+        ->orWhereHas('manager')
+        ->get();
         $data = [
             "u" => $user_list,
             "p" => $position_list_label,
             "o" => $office_list_label,
             "l" => $linkable_accounts,
-            "w" => $work_groups
+            "w" => $projects
         ];
 
         return response()->json($data);

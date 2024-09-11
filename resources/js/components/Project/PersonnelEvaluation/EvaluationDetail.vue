@@ -126,7 +126,7 @@
                             
                             <div>
                                 <div style="margin-bottom: 10px;">能力保有数</div>
-                                <div>{{ projectEvaluations?.checklist?.length }}／{{ criteriaMaster.length }}</div>
+                                <div>{{ projectEvaluations?.checklist?.length }}／{{ criteriaMaster?.[0]?.standards.length }}</div>
                             </div>
                             <!-- <div>
                                 <div style="margin-bottom: 10px;">保有数</div>
@@ -134,7 +134,7 @@
                             </div> -->
                             <div>
                                 <div style="margin-bottom: 10px;">能力保有率</div>
-                                <div>{{ Math.round(projectEvaluations?.checklist?.length / criteriaMaster.length * 100) }}%</div>
+                                <div>{{ Math.round(projectEvaluations?.checklist?.length / criteriaMaster?.[0]?.standards.length * 100) }}%</div>
                             </div>
                             <div> 
                                 <div style="margin-bottom: 10px;">人事計画</div>
@@ -240,7 +240,7 @@ interface Date {
 const selectedDate = inject('selectedDate') as Date
 const evaluationDate = inject('evaluationDate') as Date
 const metricDate = inject('metricDate') as Date
-const criteriaMaster = ref([])
+const criteriaMaster = ref<any>([])
 const route = useRoute()
 const createWindow = ref(false)
 const step = ref(0)

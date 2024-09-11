@@ -67,7 +67,7 @@
     const responsive = useResponsive()
     const auth = useAuthUserStore()
     interface Props {
-        workGroups: Array<User>
+        workGroups: any;
         selectedMonth: number
     }
     const props = defineProps<Props>()
@@ -84,13 +84,17 @@
         let groups : any
        
         groups = props.workGroups
-        .flatMap(workGroup => workGroup.members)
-        .reduce((acc: User[], member: User) => {
+        .flatMap(workGroup => [
+            ...workGroup.members, // Add members
+            ...workGroup.manager || [], // Add manager if it exists
+        ])
+        .filter(Boolean).reduce((acc: User[], member: User) => {
             if (!acc.some(m => m.id === member.id)) {
-            acc.push(member);
+                acc.push(member);
             }
             return acc;
         }, [])
+
         
         const uniqueMemberObjects: User[] = groups.sort((a: User, b: User) => {
             if (a.id === auth.id) return -1;

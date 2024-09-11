@@ -18,13 +18,6 @@
                             <div class="suggested-wrap">
                                 <UserIcon :user="user" imgClass="userNormalIcon" size="30"/>
                                 <router-link :to="`/user/${user.id}`" class="suggested-user-name user-link" style="margin:0">{{ user.name }}</router-link>
-                                <!-- <div style="margin-left: auto;">
-                                    <CommandButton 
-                                        :buttons="[
-                                            {title: '役割設定', action:() => addRole(user)}, 
-                                        ]" 
-                                    />
-                                </div> -->
                             </div>
                         </div>
                         
@@ -32,13 +25,6 @@
                 </div>
                 <span v-else>現在いません</span>                 
             </div>
-            <Transition name="modalFade">
-                <ProjectRole 
-                    v-if="roleSelect"
-                    :editRole="editRole"
-                    @close="roleSelect = false"
-                />
-            </Transition>
         </div>
         
     </div>
@@ -48,11 +34,7 @@
 import { computed, ref } from 'vue';
 import UserIcon from '@/components/Board/Mixed/UserIcon.vue';
 import { useProjectUsers } from '@/store/projectUsers';
-import CommandButton from '@/components/Global/CommandButton.vue';
-import ProjectRole from './ProjectRole.vue';
     const projectUsers = useProjectUsers()
-    const roleSelect = ref(false)
-    const editRole = ref('')
     const userList = computed(() => {
         return projectUsers.userList
     })
@@ -66,10 +48,6 @@ import ProjectRole from './ProjectRole.vue';
             title: ''
         }
         projectUsers.setProjectUsers(data)
-    }
-    const addRole = (user) => {
-        roleSelect.value = true
-        editRole.value = user?.pivot
     }
 </script>
 <style scoped lang="scss">   

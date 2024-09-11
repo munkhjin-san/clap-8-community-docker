@@ -49,6 +49,7 @@
                         :is="Component"
                         :selectedProject="selectedProject"
                         :selectedDate="selectedDate"
+                        :userList="userList"
                         :key="selectedProject?.id"
                     />
                 </transition>
@@ -65,12 +66,12 @@
                     
                 </div>
                 <div class="project-cell-row" v-for="project in searchResults">
-                    <div class="project-cell" data-label="プロジェクト名" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
+                    <div class="project-cell" style="border-bottom: none;" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
                         <div class="user-link">
                             {{ project.name }}
                         </div>
                     </div>
-                    <div class="project-cell" data-label="概要">
+                    <div class="project-cell pc">
                         <div style="position: relative;">
                             <div class="text-wrap" @click.stop="menu.setMenu({name: 'overviewBox', id: project?.id})">
                                 {{ project.overview }}
@@ -81,7 +82,7 @@
                         </div>
                         
                     </div>
-                    <div class="project-cell" data-label="戦略">
+                    <div class="project-cell pc">
                         <div style="position: relative">
                             <div class="text-wrap" @click.stop="menu.setMenu({name: 'strategyBox', id: project?.id})">
                                 {{ project.strategy }}
@@ -92,25 +93,25 @@
                         </div>
                         
                     </div>
-                    <div class="project-cell" data-label="期間">
+                    <div class="project-cell pc">
                         <div v-if="project?.date_start">{{ project.date_start }} ～ {{ project.date_end }}</div>
                     </div>
-                    <div class="project-cell" data-label="取締役">
+                    <div class="project-cell pc">
                         <div>
                             <UserIcon v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="30"/>
                         </div>
                     </div>
-                    <div class="project-cell" data-label="管理者">
+                    <div class="project-cell pc">
                         <div>
                             <UserIcon v-for="member in project.manager" imgClass="u_icon_20" :user="member" size="30"/>
                         </div>
                     </div>
-                    <div class="project-cell" data-label="メンバー" style="overflow: hidden">
+                    <div class="project-cell pc" style="overflow: hidden">
                         <div style="display: flex;">
                             <div style="display: flex;" @click="viewUsers(project.members)">
-                                <UserIcon v-for="member in project.members.slice(0, 15)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
+                                <UserIcon v-for="member in project.members.slice(0, 10)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
                             </div>
-                            <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 15">...({{project.members.length}})</span>
+                            <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 10">...({{project.members.length}})</span>
                         </div>
                         
                     </div>
@@ -161,6 +162,7 @@ const { notify } = inject<Dialog>('dialog')!
 const options = detailedDateOptions()
 const sortType = ref(0)
 const projectUsers = useProjectUsers()
+const userList = ref([])
 const sortOptions = [
     {
         value: 1,
@@ -182,6 +184,7 @@ const sortOptions = [
 onMounted(async() => {
     setInitialDates()
     await getProjects();
+    getSelectableUsers()
 })
 
 const toggleRadio = (value: number) => {
@@ -249,6 +252,14 @@ const sortedProjects = computed(() => {
     }
     
 })
+const getSelectableUsers = async() => {
+    try {
+        const data = await axios.post('/get_selectable_users').then(res => res.data)
+        userList.value = data.users
+    } catch (e) {
+
+    }
+}
 const getProjects = async() => {
     const params = { 
         evaluation_date: evaluationDate.value
@@ -381,14 +392,7 @@ provide('setDates', setInitialDates)
         .project-cell:last-child {
             border-bottom: none; /* Remove bottom border for the last item */
         }
-
-        .project-cell::before {
-            content: attr(data-label);
-            // font-weight: bold;
-            flex: 1;
-            color: var(--secondary-color);
-            margin-right: 10px;
-            text-transform: capitalize;
-        }
+        
+        
     }
 </style>
