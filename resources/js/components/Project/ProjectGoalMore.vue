@@ -103,7 +103,7 @@
                     <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData.id || memberData?.evaluation?.mentor.id === auth.id)">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'昇給課題変更'"/>
                     </div>
-                    <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status <= 2">
+                    <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status <= 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'昇給課題差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'昇給課題承認'"/>
                     </div>
@@ -213,7 +213,24 @@ const approveOutComeGoal = async(status: number) => {
     }
 }
 const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
-    const content = status === 4 ? 'この昇給課題を棄却してもよろしいですか？' : 'この昇給課題を承認してもよろしいですか？'
+    let content = ''
+    switch (status) {
+        case 1: 
+            content = 'この昇給課題を差し戻してもよろしいですか'
+            break
+        case 3: 
+            content = 'この昇給課題を承認してもよろしいですか？'
+            break
+        case 5: 
+            content = 'この昇給課題は未達成でよろしいですか？'
+            break
+        case 6: 
+            content = 'この昇給課題は達成でよろしいですか？'
+            break
+        default:
+            content = 'エラーが発生しました'
+            break
+    }
     if(!issue) return
     const answer = await confirm(content)
     if(!answer) return
