@@ -710,7 +710,7 @@ class WorkController extends Controller
                         'users.position_id',
                         'users.on_leave'
                     ]);
-            }])
+            }])->with('manager', 'director')
             ->get();
         }else{
             $work_group_users = ProjectRecord::whereHas('members', function($q) use($auth_user_id) {
