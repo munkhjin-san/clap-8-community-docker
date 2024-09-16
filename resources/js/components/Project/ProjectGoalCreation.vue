@@ -324,7 +324,7 @@ const saveOutcomeGoal = async(status: number) => {
         date: props.selectedDate.evaluationDate,
         params: {
             project_id: chosenProject.value.id,
-            user_id: auth.activeUser.id,
+            user_id: props.memberData?.id,
             employment_type: goal_status.value,
             start_date: startDate.value,
             end_date: endDate.value,

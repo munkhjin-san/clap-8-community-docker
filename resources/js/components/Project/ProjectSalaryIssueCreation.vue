@@ -37,6 +37,7 @@
                     :getIssues="getIssues"
                     :evaluation="evaluation"
                     :selectedDate="selectedDate"
+                    :memberData="memberData"
                     @next="next"
                     @close="emit('close')"
                     @goback="emit('goback')"
