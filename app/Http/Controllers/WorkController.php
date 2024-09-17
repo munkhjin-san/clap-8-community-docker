@@ -866,15 +866,16 @@ class WorkController extends Controller
         $is_exist->work_group_id = $request->department;
         $is_exist->start_time = $request->start_time;
         $is_exist->end_time = $request->end_time;
-        
-        if ($time_difference_seconds >= $shift_time_difference_seconds) {                
-            $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
-            $overtimeMinutes = floor($overtimeSeconds / 60);
-            $is_exist->over_time = $overtimeMinutes;
-        } else {
-            $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
-            $latetimeMinutes = floor($latetimeSeconds / 60);
-            $is_exist->late_time = $latetimeMinutes;
+        if ($user->work_type === 1) {
+            if ($time_difference_seconds >= $shift_time_difference_seconds) {                
+                $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
+                $overtimeMinutes = floor($overtimeSeconds / 60);
+                $is_exist->over_time = $overtimeMinutes;
+            } else {
+                $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
+                $latetimeMinutes = floor($latetimeSeconds / 60);
+                $is_exist->late_time = $latetimeMinutes;
+            }
         }
         if (isset($night_difference_seconds) && $night_difference_seconds > 0) {
             $nighttimeMinutes = floor($night_difference_seconds / 60);
