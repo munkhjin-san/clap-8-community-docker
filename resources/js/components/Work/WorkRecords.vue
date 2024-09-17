@@ -318,11 +318,7 @@ import { useCheckApproval } from '../../store/checkApproval';
         justify-content: center;
         margin-top: 10px;
     }
-    .condition-area{
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
+    
     .workButton-wrapper{
         justify-content: flex-start;
     }

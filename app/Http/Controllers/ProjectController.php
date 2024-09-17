@@ -94,7 +94,9 @@ class ProjectController extends Controller
         $project_goals = ProjectGoal::where('target_period', $request->target_period)
                                     ->where('user_id', $request->user_id)
                                     ->with('project')
-                                    ->with('salaryIssue')
+                                    ->with(['salaryIssue' => function ($q) {
+                                        $q->with('files');
+                                    }])
                                     ->get();
         return response()->json($project_goals);
         // $members = $request->members ?? [];
@@ -607,5 +609,20 @@ class ProjectController extends Controller
         $status = $request->status;
         ProjectGoal::findOrFail($id)->update(['status' => $status]);
         return response()->json(['message' => 'Successfully approved!']); 
+    }
+    public function update_issue_report(Request $request) {
+        $request->validate([
+            'id' => 'required'
+        ]);
+        $id = $request->id;
+        $result = $request->result;
+        $status = $request->status;
+        $issue_report = SalaryIssue::findOrFail($id);
+        $issue_report->update([
+            'result' => $result,
+            'status' => $status
+        ]);
+        $issue_report->files()->sync($request->file_ids);
+        return response()->json($issue_report);
     }
 } 

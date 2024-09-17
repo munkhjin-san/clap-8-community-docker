@@ -44,7 +44,7 @@
                         <div class="kadai-content">{{ statuses[goal?.status] }}</div>
                     </div>
                     <div>
-                        <div>成果評価</div>
+                        <div>期待される効果</div>
                         <div class="kadai-content">{{ goal?.expected_effect }}</div>
                     </div>
                     <div>
@@ -66,12 +66,12 @@
                     <div v-if="memberData && auth.id === memberData.id && goal?.status > 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告"/>
                     </div>
-                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( auth?.user?.position_id && auth.user.position_id < 6)) && goal?.status > 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton @click="openReport = true" style="margin: 0;" content="成果目標レビュー"/>
+                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( selectedProject?.director?.id === auth.id)) && goal?.status > 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告レビュー"/>
                     </div>
 
-                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( auth?.user?.position_id && auth.user.position_id < 6)) && goal?.status <= 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(0)" :content="'成果目標差戻'"/>
+                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( (selectedProject?.director?.id === auth.id) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && goal?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'成果目標差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'成果目標承認'"/>
                     </div>
                 </div>
@@ -100,16 +100,27 @@
                         <div>AI添削結果</div>
                         <div class="kadai-content">{{ goal?.salary_issue.review }}</div>
                     </div>
+                    <div v-if="goal?.salary_issue?.status == 8">
+                        <div>昇給課題結果</div>
+                        <div class="kadai-content">{{ goal?.salary_issue.result }}</div>
+                        <Files style="margin-top: 15px;" v-if="goal?.salary_issue?.files.length" :items="goal?.salary_issue?.files" :path="'project_files'"/>
+                    </div>
                     <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData.id || memberData?.evaluation?.mentor.id === auth.id)">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'昇給課題変更'"/>
                     </div>
-                    <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status <= 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'昇給課題差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'昇給課題承認'"/>
                     </div>
                     <div v-if="631 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'昇給課題未達成'"/>
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 6)" :content="'昇給課題達成'"/>
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'人事差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 6)" :content="'人事承認'"/>
+                    </div>
+                    <div v-if="goal?.salary_issue?.status == 6 && (auth.id === memberData.id || memberData?.evaluation?.mentor.id === auth.id)">
+                        <LoaderButton style="margin: 0;" :content="'結果報告'" @click="issueReport = goal?.salary_issue"/>
+                    </div>
+                    <div v-if="goal?.salary_issue?.status == 4 && (memberData?.evaluation?.mentor.id === auth.id)">
+                        <LoaderButton style="margin: 0;" :content="'成果報告レビュー'" @click="issueReport = goal?.salary_issue"/>
                     </div>
                 </div>
                 <div v-else-if="canCreateIssue && sub_tab === 1">
@@ -131,6 +142,7 @@
                 v-if="openReport"
                 :chosenGoal="goal"
                 :memberData="memberData"
+                :selectedProject="selectedProject"
                 :isManagerOrMember="isManagerOrMember"
                 @close="openReport = false"
                 @reload="openReport = false, emit('close')"
@@ -151,16 +163,29 @@
                 :evaluation="memberData.evaluation"
             />
         </Transition>
+        <Transition name="modalFade">
+            <Report 
+                v-if="issueReport"
+                :chosenIssue="issueReport"
+                :member-data="memberData"
+                :is-manager-or-member="isManagerOrMember"
+                @close="issueReport = null"
+                @reload="issueReport = null, emit('close')"
+            />
+        </Transition>
     </div>
 </template>
 <script setup lang="ts">
 import { useAuthUserStore } from '@/store/auth';
-import { computed, inject, onMounted, provide, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 import moment from 'moment';
 import LoaderButton from '../Global/LoaderButton.vue';
 import ProjectReport from './ProjectReport.vue';
 import ProjectSalaryIssueCreation from './ProjectSalaryIssueCreation.vue';
-import { Increase, SalaryIssue } from '@/interface/projectInterface';
+import PostFiles from '../Post/PostFiles.vue';
+import Files from '../Global/Files.vue';
+import Report from './SalaryIssue/Report.vue';
+import { SalaryIssue } from '@/interface/projectInterface';
 import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
 const props = defineProps([
@@ -173,7 +198,6 @@ const props = defineProps([
     'statuses'
 ])
 const emit = defineEmits(['close'])
-// const statuses = ['作成中', '差戻中', '申請中', '承認済', '未達成', '達成']
 const auth = useAuthUserStore()
 const openReport = ref(false)
 const sub_tab = ref(0)
@@ -182,7 +206,7 @@ const selectedTheme = ref(null)
 const editData = ref({})
 const { confirm, notify } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
-
+const issueReport = ref(null)
 const canCreateIssue = computed(() => {
     const start = props.goal?.start_date ? moment(props.goal.start_date) : null;
     const end = props.goal?.end_date ? moment(props.goal.end_date) : null

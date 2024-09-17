@@ -45,6 +45,11 @@
     display: flex;
     flex-direction: column;
 }
+.condition-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 .workButtons-wrapper{
     display: flex;
     height: 60px;
@@ -786,6 +791,11 @@
     transform: rotate(180deg);
   }
   @media screen and (max-width: 959px) {
+    .condition-area{
+        align-items: center;
+        justify-content: unset;
+        gap: 10px;
+    }
     .condition-img{
         margin: 0;
     }

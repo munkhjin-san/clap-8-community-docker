@@ -152,7 +152,7 @@ import ProjectEdit from './ProjectEdit.vue';
     const auth = useAuthUserStore()
     const editWindow = ref(false)
     const isManagerOrDirector = computed(() => {
-        return props.selectedProject?.manager?.some(manager => manager.id === auth.id) || (auth?.user?.position_id && auth.user.position_id < 6)
+        return props.selectedProject?.manager?.some(manager => manager.id === auth.id) || props.selectedProject?.director?.id === auth.id
     })
     const memberData = computed(() => {
         const memberId = route.params.memberId

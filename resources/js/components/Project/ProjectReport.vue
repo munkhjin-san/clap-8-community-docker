@@ -57,9 +57,9 @@
                     <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(4)" :loading="loading[0]"/>
                     <!-- <LoaderButton style="margin: 0;" content="申請" @triggered="progressReport(2)" :loading="loading[2]"/> -->
                 </div>
-                <div v-if="isManagerOrMember || (auth?.user?.position_id && auth.user.position_id < 6)" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
-                    <LoaderButton style="margin: 0;" content="未達成" @triggered="progressReport(5)" :loading="loading[1]"/>
-                    <LoaderButton style="margin: 0;" content="達成" @triggered="progressReport(6)" :loading="loading[2]"/>
+                <div v-if="isManagerOrMember || (selectedProject?.director?.id === auth.id)" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
+                    <LoaderButton style="margin: 0;" content="未達成" @triggered="progressReport(7)" :loading="loading[1]"/>
+                    <LoaderButton style="margin: 0;" content="達成" @triggered="progressReport(8)" :loading="loading[2]"/>
                 </div>
             </div>
         </div>
@@ -72,7 +72,12 @@ import LoaderButton from '../Global/LoaderButton.vue';
 import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
-const props = defineProps(['chosenGoal', 'memberData', 'isManagerOrMember'])
+const props = defineProps([
+    'chosenGoal', 
+    'memberData', 
+    'isManagerOrMember',
+    'selectedProject'
+])
 const emit = defineEmits(['close', 'fetchMemberData', 'reload'])
 const sliderValue = ref(props.chosenGoal?.achievement_rate ?? 0)
 const result = ref(props.chosenGoal?.result ?? '')
@@ -95,9 +100,9 @@ const progressReport = async(status: number) => {
         validate = validate && val.valid
     }
     if(!validate) return
-    const loadstatus = status === 4 ? 0 : status === 5 ? 1 : 2
+    const loadstatus = status === 4 ? 0 : status === 7 ? 1 : 2
+    let info_message = status === 4 ? '報告' : status === 7 ? '未達成' : '達成'
     try {
-        let info_message = '報告'
         loading.value[loadstatus] = true
         const params = {
             id: props.chosenGoal.id,

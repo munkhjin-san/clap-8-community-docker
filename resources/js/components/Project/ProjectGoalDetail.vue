@@ -36,7 +36,7 @@
                                 <div class="kadai-content">{{ goal?.salary_issue?.title }}</div>
                             </div>
                             
-                            <div v-if="memberData && (auth.id === memberData.id || isManagerOrMember) && goal?.status < 2" style="position: absolute;right: 10px;top: 10px;">                                            
+                            <div v-if="memberData && (auth.id === memberData.id || isManagerOrMember || auth.activeUser.id === 610 || auth.activeUser.id === 608) && goal?.status < 2" style="position: absolute;right: 10px;top: 10px;">                                            
                                 <ItemMenu :items="[
                                     {title: '編集する', action: () => editGoal(goal)},
                                     {title: '削除する', action: () => deleteGoal(goal)}
@@ -132,8 +132,17 @@ const goalDate = ref('')
 const projectGoals = ref<ProjectGoal[]>([])
 const chosenGoal = ref<ProjectGoal | null>(null)
 const { notify, info, confirm } = inject<Dialog>('dialog')!;
-const statuses = ['作成中', '差戻中', '申請中', '承認済', '報告中', '未達成', '達成']
-
+const statuses = [
+    '作成中', 
+    '差戻中', 
+    '申請中', 
+    '承認済', 
+    '報告中', 
+    '人事棄却', 
+    '人事承認済', 
+    '未達成', 
+    '達成'
+]
 watch(goalDate, (newValue) => {
     if(newValue){
         initialLoader.value = true
@@ -170,7 +179,6 @@ const isManagerOrMember = computed(() => {
     } 
     return props.selectedProject?.manager.some((ob: { id: number | null; }) => ob.id === auth.id)
 })
-
 const fetchMemberData = async () => {
     try {
         const params = {

@@ -399,4 +399,5 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/delete_evaluation', [ProjectController::class, 'delete_evaluation']);
         Route::delete('/delete_project', [ProjectController::class, 'delete_project']);
         Route::put('/approve_outcome_goal', [ProjectController::class, 'approve_outcome_goal']);
+        Route::put('/update_issue_report', [ProjectController::class, 'update_issue_report']);
 });

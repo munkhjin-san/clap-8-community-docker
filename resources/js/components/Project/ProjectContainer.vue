@@ -275,8 +275,10 @@ const authProjects = computed(() => {
     return projects.value.filter(project => {
         const membersArray = Array.isArray(project.members) ? project.members : Object.values(project.members) as User[];
         const managerArray = Array.isArray(project.manager) ? project.manager : Object.values(project.manager) as User[]
-        return membersArray.some((member: { id: number | null; }) => member && member.id === auth.activeUser.id) 
-            || managerArray.some((member: { id: number | null; }) => member && member.id === auth.activeUser.id);
+        const director = project?.director
+        return membersArray.some((member: { id: number | null; }) => member && member.id === auth.id) 
+            || managerArray.some((member: { id: number | null; }) => member && member.id === auth.id)
+            || director?.id === auth.id;
     });
 })
 const viewUsers = (members: User[]) => {

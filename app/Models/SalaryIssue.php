@@ -12,4 +12,8 @@ class SalaryIssue extends Model
     use SoftDeletes;
 
     protected $guarded = [];
+
+    public function files(){
+        return $this->belongsToMany(FileRecord::class, 'project_use_files', 'record_id', 'file_id')->where('file_records.deleted_flag', 0);
+    }
 }

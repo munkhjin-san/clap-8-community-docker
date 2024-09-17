@@ -23,7 +23,7 @@
     <td v-if="!responsive.mobile"></td>
     <td>{{ data?.month_achievement_average }}</td>
     <td>
-        <div v-if="data?.month_weather_average !== null" class="conidtion-area">
+        <div v-if="data?.month_weather_average !== null" class="condition-area">
             <div>{{ responsive.mobile ? 'コンディション : ' : '' }}</div>
             <WeatherIcon :which="data?.month_weather_average" :size="17"/>
         </div>
