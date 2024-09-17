@@ -31,7 +31,7 @@
                     </div>
                     
                     <div>
-                        <div>状況分析</div>
+                        <div>現状分析</div>
                         <div class="kadai-content">{{ goal?.situation_analysis }}</div>
                     </div>
                     
