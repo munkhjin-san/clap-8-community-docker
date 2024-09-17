@@ -321,7 +321,7 @@
             transfer_leave: attendanceData.value.transfer_leave,
             oda_leave: attendanceData.value.oda_leave,
             worked_hours: attendanceData.value.worked_time,
-            worked_hours_no_over_time: attendanceData.value.worked_time - attendanceData.value.over_time,
+            worked_hours_no_over_time: attendanceData.value.worked_time - attendanceData.value.month_over_time,
             over_time: attendanceData.value.month_over_time,
             night_work_time: attendanceData.value.night_over_time,
             stay_pay: attendanceData.value.month_stay_allowance_count,
