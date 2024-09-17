@@ -158,7 +158,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
             {name: 'knowledge', name_jp: 'ナレッジ'},
             {name: 'nice', name_jp: 'ナイス'},
             {name: 'challenge', name_jp: 'チャレンジ'},
-            {name: 'calendar', name_jp: 'スケジュール'}
+            {name: 'schedule', name_jp: 'スケジュール'}
         ]
         
         const shareChildren = [];
@@ -175,7 +175,13 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
         }
     }      
     const canView = computed(() => {
-        return source.value == 'post' || source.value == 'message' || source.value == 'calendar' || source.value == 'user' || source.value == 'notice' || source.value == 'work'
+        return source.value == 'post' || 
+            source.value == 'message' || 
+            source.value == 'calendar' || 
+            source.value == 'user' || 
+            source.value == 'notice' || 
+            source.value == 'work' ||
+            source.value == 'project'
     })
     const source = computed(() => {
         return filePreview.source

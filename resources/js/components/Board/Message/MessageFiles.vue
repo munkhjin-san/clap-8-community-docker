@@ -99,7 +99,7 @@
             {name: 'knowledge', name_jp: 'ナレッジ'},
             {name: 'nice', name_jp: 'ナイス'},
             {name: 'challenge', name_jp: 'チャレンジ'},
-            {name: 'calendar', name_jp: 'スケジュール'}
+            {name: 'schedule', name_jp: 'スケジュール'}
         ]
         
         const shareChildren = [];
