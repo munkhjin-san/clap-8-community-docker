@@ -224,12 +224,12 @@ const emit = defineEmits([
     'next',
 ])
 const increaseOptions = [
+    '異動なし',
     '昇給（号俸）',
     '昇格（職階）',
     '正社員登用',
     '降給',
     '降格',
-    '異動なし'
 ]
 const employmentStatuses = ([
     '正社員',
