@@ -94,7 +94,7 @@
                                 <div>{{ newPosition?.value }}</div>
                             </div>
                             <div v-if="newPosition">
-                                <div style="margin-bottom: 10px;">新職階</div>
+                                <div style="margin-bottom: 10px;">次期職階</div>
                                 <div>{{ newPosition?.name }}</div>
                             </div>
                         </div>
