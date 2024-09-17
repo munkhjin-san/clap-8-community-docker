@@ -70,7 +70,7 @@
                         </div>
                         <div class="si-box">
                             <ItemSelector 
-                                place-holder="新職階"
+                                place-holder="次期職階"
                                 :options="positions"
                                 v-model="general_position"
                                 :reduce="option => option.name"
@@ -81,7 +81,7 @@
                         </div>
                         <div class="si-box">
                             <ItemSelector 
-                                place-holder="新職務"
+                                place-holder="時期職務"
                                 :options="criteriaMaster"
                                 v-model="checkedLevel"
                                 label="level"
@@ -228,7 +228,8 @@ const increaseOptions = [
     '昇格（職階）',
     '正社員登用',
     '降給',
-    '降格'
+    '降格',
+    '異動なし'
 ]
 const employmentStatuses = ([
     '正社員',
