@@ -6,13 +6,13 @@
   "lang": "ja",
   "icons": [
     {
-      "src": "/maskable_icon.png",
+      "src": "/maskable_512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/maskable_icon.png",
+      "src": "/maskable_512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
