@@ -32,11 +32,10 @@
                 <thead style="background:#363636;color:#fff;position:sticky; top:0px;">
                     <tr style="border:1px solid rgb(102, 102, 102);">
                         <td class="admin-table-data" rowspan="2">社員名</td>
-                        <td class="admin-table-data" rowspan="2">勤怠確定</td>
+                        <td class="admin-table-data" colspan="2">勤怠</td>
                         <td class="admin-table-data" rowspan="2">インシデント</td>
                         <td class="admin-table-data" rowspan="2">職階</td>
-                        <td class="admin-table-data" rowspan="2">天気（3日連続）</td>
-                        <td class="admin-table-data" rowspan="2">勤怠予定入力</td>
+                        <td class="admin-table-data" rowspan="2">天気<span style="font-size: 11px;">（3日連続）</span></td>
                         <td class="admin-table-data" rowspan="2">計画有給</td>
                         <td class="admin-table-data" colspan="9">年休</td>
                         <td class="admin-table-data" colspan="3">休暇</td>
@@ -45,7 +44,9 @@
                         <td class="admin-table-data" rowspan="2">労働時間</td>
                     </tr>
                     <tr>
-                        <td class="admin-table-data" style="border-left: none;">1日</td>
+                        <td class="admin-table-data" style="border-left: none;">確定</td>
+                        <td class="admin-table-data">予定</td>
+                        <td class="admin-table-data">1日</td>
                         <td class="admin-table-data">半日</td>
                         <td class="admin-table-data">1時間</td>
                         <td class="admin-table-data">2時間</td>
@@ -63,12 +64,12 @@
                     <tr :style="{backgroundColor : item.attendance_records.length ? 'var(--complete)' : 'unset'}" v-for="(item, index) in filteredUsers" :key="index">
                         <td>{{ item.name }}</td>
                         <td>{{ item.attendance_records.length ? item.attendance_records[0].month_petition : ''}}</td>
+                        <td v-html="item.shift_records.length ? '済' : ''"></td>
                         <td style="white-space: nowrap;" v-html="hasIncident(item)"></td>
                         <td style="white-space: nowrap;" v-html="hasShokkai(item)"></td>
                         <td>
                             <WeatherIcon v-if="weather_average[item.id]" :which="weather_average[item.id].current_value" :size="15"/>
                         </td>                        
-                        <td v-html="item.shift_records.length ? '済' : ''"></td>
                         <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15,16]" v-html="computedHoliday(item.id, number)"></td>
                         <td style="white-space: nowrap;">{{ monthly_expenses[item.id] ? `${monthly_expenses[item.id]}円` : '' }}</td>
                         <td style="white-space: nowrap;">{{ monthly_incentive[item.id] }}</td>
