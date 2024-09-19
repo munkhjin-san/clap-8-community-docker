@@ -23,13 +23,13 @@ class ProjectController extends Controller
                         $q->with(['evaluation' => function ($q) use ($evaluation_date) {
                             $q->whereDate('date', $evaluation_date)
                                 ->with('mentor');
-                        }]);
+                        }])->where('retire', 0);
                     }])
                     ->with(['manager' => function ($q) use ($evaluation_date) {
                         $q->with(['evaluation' => function ($q) use ($evaluation_date) {
                             $q->whereDate('date', $evaluation_date)
                                 ->with('mentor');
-                        }]);
+                        }])->where('retire', 0);
                     }])
                     ->with('director')
                     ->get();
