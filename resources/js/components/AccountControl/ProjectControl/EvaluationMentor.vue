@@ -21,7 +21,7 @@
                 <div class="project-cell">
                     <span>{{user.name}}</span>
                 </div>
-                <div class="project-cell">{{ user?.evaluation?.employment_type }}</div>
+                <div class="project-cell">{{ user?.positions?.name }}</div>
                 <div class="project-cell">{{ user?.evaluation?.mentor?.name }}</div>
                 <div class="project-cell">{{ user?.evaluation?.general_position }}</div>
                 <div class="project-cell">{{ user?.evaluation?.current_level }}</div>

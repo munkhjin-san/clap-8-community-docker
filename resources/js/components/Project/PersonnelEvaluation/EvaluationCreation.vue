@@ -53,7 +53,7 @@
                                 v-model="increased"
                             />
                         </div>
-                        <div class="si-box">
+                        <!-- <div class="si-box">
                             <ItemSelector 
                                 place-holder="雇用形態"
                                 v-model="chosenStatus"
@@ -63,11 +63,11 @@
                                 :multiple="false"
                                 :close-on-select="true"
                             />
-                            <!-- <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">雇用形態</p>
+                            <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">雇用形態</p>
                             <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="chosenStatus">
                                 <option v-for="status in employmentStatuses" :value="status">{{ status }}</option>
-                            </select> -->
-                        </div>
+                            </select>
+                        </div> -->
                         <div class="si-box">
                             <ItemSelector 
                                 place-holder="次期職階"
@@ -292,7 +292,7 @@ const saveIncrease = async() => {
         candidates: current_increase.value,
         evaluations: {
             new_position: general_position.value,
-            employment_type: chosenStatus.value,
+            // employment_type: chosenStatus.value,
             date: props.evaluationDate,
             grade: grade.value,
             current_salary_rank: current_salary.value,

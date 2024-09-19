@@ -9,12 +9,12 @@
                     </svg>                        
                 </div>
             </div>
-            <div class="si-box">
+            <!-- <div class="si-box">
                 <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">雇用形態（必須）</p>
                 <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="chosenStatus">
                     <option v-for="status in employmentStatuses" :value="status">{{ status }}</option>
                 </select>
-            </div>
+            </div> -->
             <div class="si-box">
                 <MemberSelector 
                     placeHolder="メンター選択"
@@ -143,7 +143,7 @@ const saveGrade = async() => {
             current_salary_rank: current_salary.value,
             after_salary_rank: after_salary.value,
             current_level: checkedCriteria.value,
-            employment_type: chosenStatus.value,
+            // employment_type: chosenStatus.value,
             grade: grade.value,
             general_position: general_position.value,
         }

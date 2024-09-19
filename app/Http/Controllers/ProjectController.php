@@ -340,6 +340,7 @@ class ProjectController extends Controller
                             $q->where('date', $date)
                                 ->with('mentor');
                         }])
+                        ->with('positions')
                         ->get();
         // $user_list = $userList->whereNotNull('user_code')->pluck('user_code')->toArray();
         // $strings = array_map('strval', $user_list);

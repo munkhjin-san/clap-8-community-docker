@@ -14,7 +14,7 @@
                     <div style="display: flex; gap: 20px;">
                         <div>
                             <div style="margin-bottom: 10px;">雇用形態</div>
-                            <div>{{ projectEvaluations?.evaluation?.employment_type }}</div>
+                            <div>{{ memberData?.positions?.name }}</div>
                         </div>
                         <div>
                             <div style="margin-bottom: 10px;">等級</div>
