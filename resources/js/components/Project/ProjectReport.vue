@@ -54,7 +54,7 @@
                     />
                 </div> -->
                 <div v-if="memberData?.id === auth.id" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
-                    <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(4)" :loading="loading[0]"/>
+                    <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(6)" :loading="loading[0]"/>
                     <!-- <LoaderButton style="margin: 0;" content="申請" @triggered="progressReport(2)" :loading="loading[2]"/> -->
                 </div>
                 <div v-if="isManagerOrMember || (selectedProject?.director?.id === auth.id)" class="si-box" style="display: flex; gap: 20px; justify-content: center;">

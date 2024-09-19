@@ -745,12 +745,13 @@ class BoardController extends Controller
             $mentioned_targets = $matches[1];
             $mentioned_all = in_array('全員', $mentioned_targets);
     
-            
-            $mentioned_users = $boardRecord->members()
+            $query = $boardRecord->members()
             ->whereNot('users.id', Auth::id())
             ->when(!$mentioned_all, function($q) use($mentioned_targets) {
                 $q->whereIn('users.name', $mentioned_targets);
-            })->get();
+            });
+            $mentioned_users = $query->get();
+            $notified_users = $query->wherePivot('notification', 1)->get();
 
             if(!empty($mentioned_users)){     
                 $emails = collect($mentioned_users)->filter(function($user){
@@ -783,10 +784,10 @@ class BoardController extends Controller
                 );                
                 SendEmail::dispatchAfterResponse($mail_payload);               
 
-
+                $notify_ids = $notified_users->pluck('id')->toArray();
                 $members = array_map(function ($userId) {
                     return (string) $userId;
-                }, $mention_ids);
+                }, $notify_ids);
                 
                 $deep_link = url('board/' . $request->record_id);
                 $icon = url('content_api/profile_icon/' . $active_user->icon_id . '_' . $active_user->id . '_200.jpg');
@@ -1007,7 +1008,23 @@ class BoardController extends Controller
         
         }
     }
-    
+    public function notification_board(Request $request) {
+        $active_user = $this->active_user();
+        $auth_user_id = $active_user->id;
+        if(!empty($auth_user_id) && !empty($request->group_id)){
+            $record = boardToUser::where('record_id', $request->group_id)->where('user_id', $auth_user_id)->first();
+            if(!empty($record)){
+                $record->notification = match ($record->notification) {
+                    0 => 1,
+                    1 => 0,
+                };
+                $record->save();                
+                
+                return response()->json($record);
+            }
+        
+        }
+    }
     public function sendMail($request){
         $active_user = $request['override_user'] ?? $this->active_user();
         $auth_user_id = $active_user->id;

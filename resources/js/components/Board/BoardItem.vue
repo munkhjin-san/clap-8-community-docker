@@ -61,7 +61,7 @@ import { mentionFormatter } from '@/utils/tools';
     const auth = useAuthUserStore()
     const props = defineProps(['item', 'hasFailedMessage'])
     const openedBoard = inject('openedBoard')
-    const { open, edit, detail, members, pin, leave, remove } = inject('boardItem')  
+    const { open, edit, detail, members, pin, leave, remove, setNotification } = inject('boardItem')  
     const isOpened = computed(() => {
         return openedBoard && openedBoard.value && openedBoard.value.id == props.item.id ? true : false
     })
@@ -76,12 +76,13 @@ import { mentionFormatter } from '@/utils/tools';
             addItem('メンバー管理', () => members(props.item))
         }
         addItem('詳細情報', () => detail(props.item))
-        addItem(selfMember.value?.pin_flag == 1 ? 'ピン留めを外す' : 'ピン留めする', () => pin(props.item))
+        addItem(selfMember.value?.pin_flag == 1 ? 'ピン留めを外す' : 'ピン留め', () => pin(props.item))
+        addItem(selfMember.value?.notification == 1 ? '通知オフ' : '通知オン', () => setNotification(props.item))
         if(props.item.private_flag == 0){
-            addItem('退出する', () => leave(props.item))
+            addItem('ボード退出', () => leave(props.item))
         }
         if(editable || props.item.private_flag == 1){
-            addItem('削除する', () => remove(props.item))
+            addItem('ボード削除', () => remove(props.item))
         }
         return list
     })

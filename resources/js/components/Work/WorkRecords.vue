@@ -129,7 +129,7 @@ import { useCheckApproval } from '../../store/checkApproval';
             { title: 'コメント'},
             { title: '経費'},
             { title: 'ステータス'},
-            { title: '手続き'},
+            { title: '報告'},
         ];
         if(auth.user.position_id !== 15){
             headersArray.splice(2, 0, {title: '予定'})

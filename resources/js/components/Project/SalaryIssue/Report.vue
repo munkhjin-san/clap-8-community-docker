@@ -29,7 +29,7 @@
                     <LoaderButton style="margin: 0;" content="達成" @triggered="progressReport(8)" :loading="loading[2]"/>
                 </div>
                 <div v-else class="si-box">
-                    <LoaderButton content="報告する" @triggered="progressReport(4)" :loading="loading[0]"/>
+                    <LoaderButton content="報告する" @triggered="progressReport(6)" :loading="loading[0]"/>
                 </div>
             </div>
         </div>
@@ -59,9 +59,9 @@ const progressReport = async(status: number) => {
 
     if(!val.valid) return
 
-    const loadstatus = status === 4 ? 0 : status === 7 ? 1 : 2
+    const loadstatus = status === 6 ? 0 : status === 7 ? 1 : 2
     try {
-        let info_message = status === 4 ? '報告' : status === 7 ? '未達成' : '達成'
+        let info_message = status === 6 ? '報告' : status === 7 ? '未達成' : '達成'
         loading.value[loadstatus] = true
         const params = {
             id: props.chosenIssue.id,

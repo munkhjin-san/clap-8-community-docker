@@ -109,7 +109,7 @@
         <td>
             <div class="w-hover-button center-mobile">
                 
-                <CommandButton v-if="hasAction" :buttons="[{title: '手続き', action:() => emit('procedureStart', item)}]"/>
+                <CommandButton v-if="hasAction" :buttons="[{title: '報告', action:() => emit('procedureStart', item)}]"/>
                 
             </div>
         </td>

@@ -154,6 +154,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/check_request_api', [BoardController::class, 'checkRequest']);
     Route::post('/remind_add', [BoardController::class, 'remindRequest']); 
     Route::post('/send_reaction_api', [BoardController::class, 'sendReaction']); 
+    Route::post('/notification_board', [BoardController::class, 'notification_board']);
     
     Route::post('/message_search', [BoardController::class, 'messageSearch']);
     Route::post('/get_target_message', [BoardController::class, 'getTargetMessage']); 

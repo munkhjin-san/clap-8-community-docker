@@ -129,10 +129,10 @@ class AdminAccountController extends Controller
         }
         $user->save();
         if($user->on_leave === 1){
-            userDetail::firstOrCreate([
-                "user_id" => $user->id,
-                "leave_start" => Carbon::now()->isoFormat('YYYY-MM-DD')
-            ]);
+            userDetail::updateOrCreate(
+                ['user_id' => $user->id],
+                ['leave_start' => Carbon::now()->isoFormat('YYYY-MM-DD')]
+            );
         }else{
             $userDetail = userDetail::firstWhere("user_id", $user->id);
             if ($userDetail && $userDetail->leave_start) {

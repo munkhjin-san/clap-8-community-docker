@@ -680,6 +680,10 @@ import { instance } from '@/utils/broadcaster'
         await axios.post('/pin_board_api', {group_id: id})
         getBoardList()
     }
+    const setNotification = async(id) => {
+        await axios.post('/notification_board', {group_id: id})
+        getBoardList()
+    }
     const leaveBoard = async(board) => {
         try {
             const confirmed = await confirm(`<strong>${board.title}</strong> ボードを退出します。よろしいですか?`)
@@ -730,7 +734,8 @@ import { instance } from '@/utils/broadcaster'
         leave: (item) => leaveBoard(item),
         refreshMessages: () => getMessageList(),
         privateSearch: () => startPrivateSearch(),
-        messageLoader: (item) => messageLoader.value = item
+        messageLoader: (item) => messageLoader.value = item,
+        setNotification: (item) => setNotification(item.id)
     })
 
     provide('messageItem', {

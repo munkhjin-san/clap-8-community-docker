@@ -135,7 +135,7 @@
     }
     const formatedDay = computed(() => {
         const date = new Date(props.item?.day_full)
-        return `${date.getMonth() + 1}月${date.getDate()}日の手続き`
+        return `${date.getMonth() + 1}月${date.getDate()}日の報告`
     })
 </script>
 <style scoped>

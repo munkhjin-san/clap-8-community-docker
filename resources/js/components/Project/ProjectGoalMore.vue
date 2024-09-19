@@ -63,16 +63,20 @@
                         <div>成果結果</div>
                         <div class="kadai-content">{{ goal?.result }}</div>
                     </div>
-                    <div v-if="memberData && auth.id === memberData.id && goal?.status > 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="memberData && auth.id === memberData.id && goal?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告"/>
                     </div>
-                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( selectedProject?.director?.id === auth.id)) && goal?.status > 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( auth.user?.position_id && auth.user?.position_id < 6)) && goal?.status == 6" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告レビュー"/>
                     </div>
 
-                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( (selectedProject?.director?.id === auth.id) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && goal?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="(selectedProject.id === goal?.project.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && goal?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'成果目標差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'成果目標承認'"/>
+                    </div>
+                    <div v-if="631 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'人事差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(5)" :content="'人事承認'"/>
                     </div>
                 </div>
                 <div style="display:flex; gap: 20px; flex-direction: column;" v-if="goal?.salary_issue && sub_tab === 1">
@@ -114,12 +118,12 @@
                     </div>
                     <div v-if="631 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'人事差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 6)" :content="'人事承認'"/>
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'人事承認'"/>
                     </div>
-                    <div v-if="goal?.salary_issue?.status == 6 && (auth.id === memberData.id || memberData?.evaluation?.mentor.id === auth.id)">
+                    <div v-if="goal?.salary_issue?.status == 5 && (auth.id === memberData.id || memberData?.evaluation?.mentor.id === auth.id)">
                         <LoaderButton style="margin: 0;" :content="'結果報告'" @click="issueReport = goal?.salary_issue"/>
                     </div>
-                    <div v-if="goal?.salary_issue?.status == 4 && (memberData?.evaluation?.mentor.id === auth.id)">
+                    <div v-if="goal?.salary_issue?.status == 6 && (memberData?.evaluation?.mentor.id === auth.id)">
                         <LoaderButton style="margin: 0;" :content="'成果報告レビュー'" @click="issueReport = goal?.salary_issue"/>
                     </div>
                 </div>

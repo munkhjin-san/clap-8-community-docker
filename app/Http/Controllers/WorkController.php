@@ -1306,7 +1306,6 @@ class WorkController extends Controller
             $attendance_record->month_petition = '済';
             $attendance_record->prescribed_working_hours = $request->shift_working_hours / 60;
             $attendance_record->work_type = $request->user['work_type'] == 0 ? 'フレックス' : '通常';
-            $attendance_record->month_petition = '済';
             $attendance_record->working_days_shift = $request->shift_working_days;
             $attendance_record->normal_working_days = $request->worked_days;
             $attendance_record->holiday_working_days = $request->holiday_worked_days;

@@ -13,7 +13,7 @@
 <br>
 @foreach($details as $detail)
 {{$detail['start_at']}}<br><br>
-<a href="{{url('calendar?id=' . $detail['id'])}}">{{url('calendar?id=' . $detail['id'])}}</a>
+<a href="{{url('schedule?id=' . $detail['id'])}}">{{url('schedule?id=' . $detail['id'])}}</a>
 <br>
 @endforeach
 <br>

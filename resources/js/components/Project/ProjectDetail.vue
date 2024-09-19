@@ -1,5 +1,5 @@
 <template>
-    <div class="routeposition">
+    <div class="routeposition" style="z-index: 24;">
         <Transition name="modalFade">
             <div class="cal-month-loader" style="height: calc(100% - 60px); top: 60px;" v-if="initialLoader">
                 <div id="loaderMini">
@@ -109,13 +109,15 @@
                                 <div v-else class="user-link" @click="jumpToGoal(member)">閲覧</div>
                             </div>
                             <div class="project-cell cell-width" data-label="人事考課">
-                                <CommandButton
-                                    v-if="auth.id === member.id || auth.id === member?.evaluation?.mentor?.id" 
-                                    :buttons="[
-                                        { title: '編集', action: () => jumpToEvaluation(member)},
-                                    ]"
-                                />
-                                <div v-else class="user-link" @click="jumpToEvaluation(member)">閲覧</div>
+                                <div v-if="member?.evaluation?.mentor">
+                                    <CommandButton
+                                        v-if="auth.id === member.id || auth.id === member?.evaluation?.mentor?.id" 
+                                        :buttons="[
+                                            { title: '編集', action: () => jumpToEvaluation(member)},
+                                        ]"
+                                    />
+                                    <div v-else class="user-link" @click="jumpToEvaluation(member)">閲覧</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -152,7 +154,7 @@ import ProjectEdit from './ProjectEdit.vue';
     const auth = useAuthUserStore()
     const editWindow = ref(false)
     const isManagerOrDirector = computed(() => {
-        return props.selectedProject?.manager?.some(manager => manager.id === auth.id) || props.selectedProject?.director?.id === auth.id
+        return props.selectedProject?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id > 6)
     })
     const memberData = computed(() => {
         const memberId = route.params.memberId

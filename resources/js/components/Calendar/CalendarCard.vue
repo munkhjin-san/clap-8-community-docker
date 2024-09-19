@@ -73,7 +73,7 @@
             <ItemMenu :items="[
                 {title: '編集する', action: () => edit(record)},
                 {title: '削除する', action: () => removeItem(record)},
-                {title: '詳細情報', action: () => viewDetails = true}
+                {title: '最終更新者', action: () => viewDetails = true}
             ]"/>
         </div>  
         <div v-if="record.task" @click.stop="toTask" style="position: absolute; top: 5px; right: 5px;">
