@@ -74,7 +74,7 @@
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'成果目標差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'成果目標承認'"/>
                     </div>
-                    <div v-if="765 === auth.id && goal?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="631 === auth.id && goal?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'人事差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(5)" :content="'人事承認'"/>
                     </div>
@@ -116,7 +116,7 @@
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'昇給課題差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'昇給課題承認'"/>
                     </div>
-                    <div v-if="765 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="631 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'人事差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'人事承認'"/>
                     </div>
