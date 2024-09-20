@@ -49,7 +49,7 @@
                                         <p style="margin-top: 5px">{{ user?.name }}</p>
                                         <div style="display:flex;flex-direction: column;gap:5px;margin-top: 10px;">
                                             <div class="number-chip" v-if="user.outcome_goals.length">成果目標 : <strong style="color:var(--primary-color)">{{ user.outcome_goals.length }}件</strong></div>
-                                            <div class="number-chip" v-if="user.salary_issues.length">残業申請 : <strong style="color:var(--primary-color)">{{ user.salary_issues.length }}件</strong></div>
+                                            <div class="number-chip" v-if="user.salary_issues.length">昇給課題 : <strong style="color:var(--primary-color)">{{ user.salary_issues.length }}件</strong></div>
                                         </div>
                                     </div>                                        
                                 </div>                                  
