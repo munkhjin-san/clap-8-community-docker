@@ -38,6 +38,29 @@
                         </div>
                     </div>
                 </div>
+                <div v-if="notapprovedProjects.length" class="shift-submitted-masonry-inner" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
+                    <div><strong>プロジェクト人事承認漏れがあります</strong></div>
+                    <div v-for="user in notapprovedProjects">
+                        <div style="display: grid; gap: 20px;">
+                            <div style="display:flex;gap:35px;position:relative">
+                                <div style="display:flex;gap: 10px">
+                                    <UserIcon :disableInstant="true" size="30" :user="user" imgClass="userNormalIcon"/>
+                                    <div >
+                                        <p style="margin-top: 5px">{{ user?.name }}</p>
+                                        <div style="display:flex;flex-direction: column;gap:5px;margin-top: 10px;">
+                                            <div class="number-chip" v-if="user.outcome_goals.length">成果目標 : <strong style="color:var(--primary-color)">{{ user.outcome_goals.length }}件</strong></div>
+                                            <div class="number-chip" v-if="user.salary_issues.length">残業申請 : <strong style="color:var(--primary-color)">{{ user.salary_issues.length }}件</strong></div>
+                                        </div>
+                                    </div>                                        
+                                </div>                                  
+                                
+                                <div style="margin-left: auto">                                        
+                                    <button class="shift-button" @click="goals = user.outcome_goals" style="white-space: nowrap;">対応</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div v-if="notapprovedTasks.length" class="shift-submitted-masonry-inner" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content; max-width: 313px;">
                     <div><strong>タスク承認漏れがあります</strong></div>
                     <div v-for="item in notapprovedTasks" class="notapproved-wrap">
@@ -123,6 +146,14 @@
             
         
         </div>
+        <Transition name="modalFade">
+            <CheckGoal
+                v-if="goals.length" 
+                :projectGoals="goals"
+                :key="goals.length"
+                @close="goals = []"
+            />
+        </Transition>
     </div>
     </Transition>
 </template>
@@ -131,6 +162,7 @@
 import TaskBoxpreload from "./Tray/Task/TaskBox.vue"
 import WorkMessage from "../Work/WorkMessage.vue"
 import UncheckedMessageItem from "./Message/UncheckedMessageItem.vue"
+import CheckGoal from "../Global/CheckGoal.vue";
 import { ref, onMounted, watch, computed, inject, provide } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useTaskFeedback } from '@/store/taskFeedback'
@@ -140,6 +172,7 @@ import { useCheckApproval } from "../../store/checkApproval";
 import axios from "axios";
 import { useTaskRequest } from "@/store/taskRequest";
 import Autolinker from 'autolinker';
+import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
     const route = useRoute()
     const router = useRouter()
     const auth = useAuthUserStore()
@@ -162,6 +195,8 @@ import Autolinker from 'autolinker';
     const notapprovedTasks = ref([])
     const checkApproval = useCheckApproval()
     const taskRequest = useTaskRequest()
+    const notapprovedProjects = ref([])
+    const goals = ref([])
     const closePopupIfNeeded = () => {
         if(!incompleteShow.value){
             closeOverRide()
@@ -176,7 +211,8 @@ import Autolinker from 'autolinker';
                 getUncheckedMessages(),
                 getPlannedShifts(),
                 getNotApproved(),
-                getTaskNotApproved()
+                getTaskNotApproved(),
+                getProjectNotApproved()
             ]);
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
@@ -253,6 +289,16 @@ import Autolinker from 'autolinker';
         }
         router.push({name: 'timesheet', query: {user_id: user.id}})
     }
+    const getProjectNotApproved = async() => {
+        if(auth && auth.activeUser.id == 765) {
+            try {
+                const data = await axios.get('/project_not_approved').then(res => res.data)
+                notapprovedProjects.value = data
+            } catch (e) {
+                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
+            }
+        }
+    }
     const getNotApproved = async() => {
 
         if(auth && auth.user.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608){
@@ -261,7 +307,7 @@ import Autolinker from 'autolinker';
                 notapprovedTimecards.value = Object.values(response.data)
                 checkApproval.setCheckApproval(false)
             } catch (e) {
-                
+                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
             }
         }
 
@@ -270,7 +316,7 @@ import Autolinker from 'autolinker';
         try {
             notapprovedTasks.value = await axios.get('/task_not_approved').then(res => res.data)
         } catch (e) {
-
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
         }
     }
     const getPlannedShifts = async() => {
@@ -377,6 +423,7 @@ import Autolinker from 'autolinker';
         getIncompletedTasks()
     }
     provide('getUncheckedMessages', getUncheckedMessages)
+    provide('refresh', getProjectNotApproved)
     defineExpose({getUnsignedMessages})
 </script>
 <style lang="scss">

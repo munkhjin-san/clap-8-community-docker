@@ -35,6 +35,10 @@
                                 <div>昇給課題</div>
                                 <div class="kadai-content">{{ goal?.salary_issue?.title }}</div>
                             </div>
+                            <div v-if="goal?.salary_issue">
+                                <div>ステータス</div>
+                                <div class="kadai-content">{{ statuses[goal?.salary_issue?.status] }}</div>
+                            </div>
                             
                             <div v-if="memberData && (auth.id === memberData.id || isManagerOrMember || auth.activeUser.id === 610 || auth.activeUser.id === 608) && goal?.status < 2" style="position: absolute;right: 10px;top: 10px;">                                            
                                 <ItemMenu :items="[

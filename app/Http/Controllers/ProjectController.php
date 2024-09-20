@@ -626,4 +626,21 @@ class ProjectController extends Controller
         $issue_report->files()->sync($request->file_ids);
         return response()->json($issue_report);
     }
+    public function project_not_approved() {
+        $members = User::whereHas('outcome_goals', function ($q) {
+                            $q->where('status', 3);
+                        })
+                        ->orWhereHas('salary_issues', function ($q) {
+                            $q->where('status', 3);
+                        })
+                        ->with([
+                            'outcome_goals' => function ($q) {
+                                $q->where('status', 3)->with('salaryIssue');
+                            },
+                            'salary_issues' => function ($q) {
+                                $q->where('status', 3);
+                            }
+                        ])->get();
+        return response()->json($members);
+    }
 } 
