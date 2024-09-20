@@ -41,19 +41,20 @@
                 </div>
             </div>
         </Transition>
+        <router-view v-slot="{ Component }">
+            <transition name="lessonShift">
+                <component
+                    v-if="selectedProject"
+                    :is="Component"
+                    :selectedProject="selectedProject"
+                    :selectedDate="selectedDate"
+                    :userList="userList"
+                    :key="selectedProject?.id"
+                />
+            </transition>
+        </router-view>
         <div class="post-container scrollable">
-            <router-view v-slot="{ Component }">
-                <transition name="lessonShift">
-                    <component
-                        v-if="selectedProject"
-                        :is="Component"
-                        :selectedProject="selectedProject"
-                        :selectedDate="selectedDate"
-                        :userList="userList"
-                        :key="selectedProject?.id"
-                    />
-                </transition>
-            </router-view>
+            
             <div class="project-table" v-if="route.name === 'project'">
                 <div class="project-header-row">
                     <div class="project-cell">プロジェクト名</div>
