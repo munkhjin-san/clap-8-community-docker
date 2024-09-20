@@ -254,7 +254,8 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
             remindMessages.value.length ||
             uncheckedMessages.value.length ||
             notapprovedTimecards.value.length ||
-            notapprovedTasks.value.length
+            notapprovedTasks.value.length || 
+            notapprovedProjects.value.length
         const hasPlanShift = planShift.value
 
         return hasItems || hasPlanShift       
