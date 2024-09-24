@@ -48,7 +48,7 @@
                 v-if="chosenGoal" 
                 :goal="chosenGoal"
                 :statuses="statuses"
-                @close="chosenGoal = null"
+                @close="chosenGoal = null, emit('close')"
             />
         </Transition>
     </div>

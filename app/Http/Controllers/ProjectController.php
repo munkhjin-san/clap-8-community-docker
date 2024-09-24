@@ -628,14 +628,18 @@ class ProjectController extends Controller
     }
     public function project_not_approved() {
         $members = User::whereHas('outcome_goals', function ($q) {
-                            $q->where('status', 3);
+                            $q->where('status', 3)->orWhereHas('salaryIssue', function ($q) {
+                                $q->where('status', 3);
+                            });
                         })
                         ->orWhereHas('salary_issues', function ($q) {
                             $q->where('status', 3);
                         })
                         ->with([
                             'outcome_goals' => function ($q) {
-                                $q->where('status', 3)->with('salaryIssue');
+                                $q->where('status', 3)->orWhereHas('salaryIssue', function ($q) {
+                                    $q->where('status', 3);
+                                })->with('salaryIssue');
                             },
                             'salary_issues' => function ($q) {
                                 $q->where('status', 3);
