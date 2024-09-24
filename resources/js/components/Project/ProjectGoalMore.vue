@@ -229,7 +229,24 @@ const evalutionsValues = computed(() => {
     return props.themeRecords
 })
 const approveOutComeGoal = async(status: number) => {
-    const content = status === 3 ? 'この成果目標を承認してもよろしいですか？' : 'この成果目標を差し戻してもよろしいですか?'
+    let content = ''
+    switch (status) {
+        case 1: 
+            content = 'この成果目標を差し戻してもよろしいですか'
+            break
+        case 3: 
+            content = 'この成果目標を承認してもよろしいですか？'
+            break
+        case 5: 
+            content = 'この成果目標を人事承認でよろしいですか？'
+            break
+        case 6: 
+            content = 'この昇給課題は達成でよろしいですか？'
+            break
+        default:
+            content = 'エラーが発生しました'
+            break
+    }
     const answer = await confirm(content)
     if(!answer) return
     try {
