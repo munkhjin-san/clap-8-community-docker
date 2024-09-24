@@ -95,7 +95,7 @@
                         <div class="project-cell-row" v-for="member in [...(selectedProject?.manager || []), ...(selectedProject?.members || [])]">
                             <div class="project-cell cell-width" data-label="メンバー">{{ member.name }}</div>
                             <div class="project-cell cell-width" data-label="雇用形態">{{ member?.positions?.name }}</div>
-                            <div class="project-cell cell-width" data-label="職務">{{ member?.evaluation?.general_position }}</div>
+                            <div class="project-cell cell-width" data-label="職階">{{ member?.evaluation?.general_position }}</div>
                             <div class="project-cell cell-width" data-label="メンター">{{ member?.evaluation?.mentor?.name }}</div>
                             <div class="project-cell cell-width" data-label="職務評価基準">{{ member?.evaluation?.current_level }}</div>
                             
@@ -252,7 +252,7 @@ import ProjectEdit from './ProjectEdit.vue';
     }
     .kadai-content{
         white-space: break-spaces;
-        line-height: 1.5;
+        line-height: 2;
     }
     .kadai-active{
         background: var(--bg3);

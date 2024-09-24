@@ -104,7 +104,7 @@ const sliceGoal = (content: string) => {
 }
 .kadai-content{
     white-space: break-spaces;
-    line-height: 1.5;
+    line-height: 2;
 }
 .kadai-active{
     background: var(--bg3);
