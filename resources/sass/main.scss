@@ -5877,6 +5877,9 @@ input:autofill {
   border: solid thin var(--primary-color);
 }
 @media screen and (max-width: 959px) {
+    .login-plc{
+        padding: 25px 0 15px 3px !important;
+    }
     .ls-video{
         max-width: 100%;
         width: 100%;

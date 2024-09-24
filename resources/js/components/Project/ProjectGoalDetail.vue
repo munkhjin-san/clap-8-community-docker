@@ -24,7 +24,7 @@
                                 <div class="kadai-content">{{ goal?.start_date }} ～ {{ goal?.end_date }}</div>
                             </div>
                             <div>
-                                <div>ステータス</div>
+                                <div>成果目標ステータス</div>
                                 <div class="kadai-content">{{ statuses[goal?.status] }}</div>
                             </div>
                             <div v-if="goal?.achievement_rate">
@@ -36,7 +36,7 @@
                                 <div class="kadai-content">{{ goal?.salary_issue?.title }}</div>
                             </div>
                             <div v-if="goal?.salary_issue">
-                                <div>ステータス</div>
+                                <div>昇給課題ステータス</div>
                                 <div class="kadai-content">{{ statuses[goal?.salary_issue?.status] }}</div>
                             </div>
                             
