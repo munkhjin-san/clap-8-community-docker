@@ -18,12 +18,12 @@
                 <div style="margin-top: 10px;">
                     {{ selectedDate.name }}
                 </div>
-                <div class="si-box">
+                <!-- <div class="si-box">
                     <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">雇用形態（必須）</p>
                     <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="goal_status">
                         <option v-for="status in employementStatus" :value="status">{{ status }}</option>
                     </select>
-                </div>
+                </div> -->
                 <div class="si-box">
                     <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">該当部門選択（必須）</p>
                     <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="chosenProject">
@@ -325,7 +325,7 @@ const saveOutcomeGoal = async(status: number) => {
         params: {
             project_id: chosenProject.value.id,
             user_id: props.memberData?.id,
-            employment_type: goal_status.value,
+            // employment_type: goal_status.value,
             start_date: startDate.value,
             end_date: endDate.value,
             target_period: props.selectedDate.value,

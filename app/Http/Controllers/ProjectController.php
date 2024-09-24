@@ -219,7 +219,7 @@ class ProjectController extends Controller
             ['user_id' => $params['user_id'], 'date' => $date]
         );
         $projectEvaluation->current_level = $params['criteria'];
-        $projectEvaluation->employment_type = $params['employment_type'];
+        // $projectEvaluation->employment_type = $params['employment_type'];
         $projectEvaluation->save();
         // $project = ProjectRecord::find($projectGoal->project_id);
         // $user_name = env('KINTONE_USER_NAME');
