@@ -78,6 +78,9 @@
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'人事差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(5)" :content="'人事承認'"/>
                     </div>
+                    <div v-if="631 === auth.id && goal?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'人事承認取消'"/>
+                    </div>
                 </div>
                 <div style="display:flex; gap: 20px; flex-direction: column;" v-if="goal?.salary_issue && sub_tab === 1">
                     <div>
@@ -119,6 +122,9 @@
                     <div v-if="631 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'人事差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'人事承認'"/>
+                    </div>
+                    <div v-if="631 === auth.id && goal?.salary_issue?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'人事承認取消'"/>
                     </div>
                     <div v-if="goal?.salary_issue?.status == 5 && (auth.id === memberData?.id || memberData?.evaluation?.mentor.id === auth.id)">
                         <LoaderButton style="margin: 0;" :content="'結果報告'" @click="issueReport = goal?.salary_issue"/>
