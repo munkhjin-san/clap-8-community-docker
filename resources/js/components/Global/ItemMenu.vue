@@ -49,7 +49,9 @@ const action = (item: MenuList) => {
         align()
     }else{
         item.action()
-        menu.close()
+        if(!menu.parent){
+            menu.close()
+        }   
     }
    
 }

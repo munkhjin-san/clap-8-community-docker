@@ -73,7 +73,7 @@
             <ItemMenu :items="[
                 {title: '編集する', action: () => edit(record)},
                 {title: '削除する', action: () => removeItem(record)},
-                {title: '最終更新者', action: () => viewDetails = true}
+                {title: '最終更新者', action: () => viewDetails = !viewDetails}
             ]"/>
         </div>  
         <div v-if="record.task" @click.stop="toTask" style="position: absolute; top: 5px; right: 5px;">
@@ -247,8 +247,8 @@
         }
     })
     const openOrClose = (event) => {
-        if(menu.id == props.record.id){
-            menu.setMenu({name: '', id: null})
+        if(menu.parent === props.uniqueId){
+            menu.close()
         }else{
             truncate.value = true
             emit('selectRecord',event, props.record, null)

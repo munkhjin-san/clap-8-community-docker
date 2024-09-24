@@ -1,6 +1,6 @@
 <template>
-    <div class="overlay" @mousedown="emit('close')">
-        <div class="chatCreate scrollable" @mousedown.stop>
+    <div class="overlay">
+        <div class="chatCreate scrollable">
             <div class="recordFormTitle" style="display:flex;">
                 <p>プロジェクト作成</p>
                 <div class="cursor-pointer" @click="emit('close')" style="position:unset; margin:auto 0 auto auto">
