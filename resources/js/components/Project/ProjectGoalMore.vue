@@ -250,7 +250,7 @@ const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
             content = 'この昇給課題を承認してもよろしいですか？'
             break
         case 5: 
-            content = 'この昇給課題は未達成でよろしいですか？'
+            content = 'この昇給課題は人事承認でよろしいですか？'
             break
         case 6: 
             content = 'この昇給課題は達成でよろしいですか？'
