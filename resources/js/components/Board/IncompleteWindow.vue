@@ -290,7 +290,7 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
         router.push({name: 'timesheet', query: {user_id: user.id}})
     }
     const getProjectNotApproved = async() => {
-        if(auth && auth.activeUser.id == 631) {
+        if(auth && (auth.activeUser.id == 631 || auth.activeUser.id == 608)) {
             try {
                 const data = await axios.get('/project_not_approved').then(res => res.data)
                 notapprovedProjects.value = data
