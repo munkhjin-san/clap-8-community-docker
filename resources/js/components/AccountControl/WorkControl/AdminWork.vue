@@ -8,7 +8,7 @@
         <div class="admin-sub-c-bar">
             <PostSearchBar 
                 className="newChatMemberSearch" 
-                style="width:auto;" 
+                style="width:auto;min-width: 300px;" 
                 :searching="false"  
                 v-model="keywords"
             />   
