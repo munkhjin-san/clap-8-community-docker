@@ -658,8 +658,13 @@ class ProjectController extends Controller
     }
     
     private function getUserMembers($userId) {
-        return User::whereHas('outcome_goals', function ($query) {
-                    $query->where('status', 2);
+        return User::whereHas('outcome_goals', function ($query) use($userId) {
+                    $query->where('status', 2)
+                    ->whereHas('project', function ($q) use($userId) {
+                        $q->whereHas('manager', function ($q) use($userId) {
+                            $q->where('users.id', $userId);
+                        });
+                      });
         })
         ->with([
             'outcome_goals' => function ($query) use($userId) {
