@@ -327,9 +327,9 @@ const deleteIssue = async(issue: SalaryIssue) => {
     try {
         axios.delete(`/delete_issue?id=${issue.id}`)
         refresh()
+        emit('close')
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        emit('close')
     }
 }
 </script>
