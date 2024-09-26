@@ -112,8 +112,9 @@
                         <div class="kadai-content">{{ goal?.salary_issue.result }}</div>
                         <Files style="margin-top: 15px;" v-if="goal?.salary_issue?.files.length" :items="goal?.salary_issue?.files" :path="'project_files'"/>
                     </div>
-                    <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData?.id || memberData?.evaluation?.mentor.id === auth.id)">
+                    <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData?.id || memberData?.evaluation?.mentor.id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'変更'"/>
+                        <LoaderButton style="margin: 0;" @click="deleteIssue(goal.salary_issue)" :content="'削除'"/>
                     </div>
                     <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'差戻'"/>
@@ -319,6 +320,17 @@ const editIssue = (issue: SalaryIssue) => {
         }
     }
     salaryIssue.value = true    
+}
+const deleteIssue = async(issue: SalaryIssue) => {
+    const answer = await confirm('昇給課題を削除します。よろしいですか？')
+    if(!answer) return
+    try {
+        axios.delete(`/delete_issue?id=${issue.id}`)
+        refresh()
+    } catch (e) {
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        emit('close')
+    }
 }
 </script>
 <style>
