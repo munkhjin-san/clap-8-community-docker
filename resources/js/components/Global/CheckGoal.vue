@@ -47,8 +47,10 @@
             <ProjectGoalMore 
                 v-if="chosenGoal" 
                 :goal="chosenGoal"
+                :selectedProject="chosenGoal?.project"
+                :isManagerOrMember="true"
                 :statuses="statuses"
-                @close="chosenGoal = null, emit('close')"
+                @close="chosenGoal = null"
             />
         </Transition>
     </div>
@@ -57,7 +59,8 @@
 import { useResponsive } from '@/store/responsive';
 import { ref } from 'vue';
 import ProjectGoalMore from '../Project/ProjectGoalMore.vue';
-const chosenGoal = ref(null)
+import { ProjectGoal } from '@/interface/projectInterface';
+const chosenGoal = ref<ProjectGoal | null>(null)
 const props = defineProps(['projectGoals'])
 const statuses = [
     '作成中', 

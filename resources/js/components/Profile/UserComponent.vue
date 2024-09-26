@@ -26,7 +26,7 @@
                     <div class="user-three-menu">
                         <ItemMenu :items="[
                             {title: 'プロフィール編集', action:() => router.push({name: 'personal-info-settings'})},
-                            {title: '昇給課題', action:() => router.push({name: 'salary-issue'})}
+                            // {title: '昇給課題', action:() => router.push({name: 'salary-issue'})}
                         ]"/>
                     </div>    
                     <UserIconEdit 

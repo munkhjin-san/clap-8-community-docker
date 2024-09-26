@@ -197,7 +197,7 @@ import { useCheckApproval } from '../../store/checkApproval';
         const members = props.usersData.map(user => user.id)
         const today = moment().format('YYYYMMDDHHmmss')
         const response = await axios(`/work_generate_csv?year=${props.selectedYear}&month=${props.selectedMonth}&users=${members}`)
-        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `ワーク${props.selectedMonth + 1}月_${today}`});
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `タイムシート${props.selectedMonth + 1}月_${today}`});
         const data = response.data        
         const csv = generateCsv(csvConfig)(data);
         download(csvConfig)(csv);

@@ -1,6 +1,6 @@
 <template>
     <Transition name="modalFade">
-    <div v-if="incompleteShow && !isEdit && !isJumpToMessage && !(route.name == 'work' && route.query.user_id)" class="overlay">
+    <div v-if="incompleteShow && !isEdit && !isJumpToMessage && !(route.name == 'timesheet' && route.query.user_id)" class="overlay">
             
         <div style="display:flex;flex-direction:column;width:100%;height:100%; margin: 20px 0;overflow: hidden auto;">
             <div @click="emit('closePopup')" class="modalCloseButton cursor-pointer">
@@ -39,7 +39,7 @@
                     </div>
                 </div>
                 <div v-if="notapprovedProjects.length" class="shift-submitted-masonry-inner" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
-                    <div><strong>プロジェクト人事承認漏れがあります</strong></div>
+                    <div><strong>プロジェクト承認漏れがあります</strong></div>
                     <div v-for="user in notapprovedProjects">
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
@@ -48,14 +48,14 @@
                                     <div >
                                         <p style="margin-top: 5px">{{ user?.name }}</p>
                                         <div style="display:flex;flex-direction: column;gap:5px;margin-top: 10px;">
-                                            <div class="number-chip" v-if="user.outcome_goals.filter(goal => goal.status === 3).length">成果目標 : <strong style="color:var(--primary-color)">{{ user.outcome_goals.filter(goal => goal.status === 3).length }}件</strong></div>
-                                            <div class="number-chip" v-if="user.salary_issues.length">昇給課題 : <strong style="color:var(--primary-color)">{{ user.salary_issues.length }}件</strong></div>
+                                            <div class="number-chip" v-if="getGoals(user.outcome_goals).length">成果目標 : <strong style="color:var(--primary-color)">{{ getGoals(user.outcome_goals).length }}件</strong></div>
+                                            <div class="number-chip" v-if="user.salary_issues?.length">昇給課題 : <strong style="color:var(--primary-color)">{{ user.salary_issues.length }}件</strong></div>
                                         </div>
                                     </div>                                        
                                 </div>                                  
                                 
                                 <div style="margin-left: auto">                                        
-                                    <button class="shift-button" @click="goals = user.outcome_goals" style="white-space: nowrap;">対応</button>
+                                    <button class="shift-button" @click="openCheckGoal(user.outcome_goals, user.id)" style="white-space: nowrap;">対応</button>
                                 </div>
                             </div>
                         </div>
@@ -150,7 +150,7 @@
             <CheckGoal
                 v-if="goals.length" 
                 :projectGoals="goals"
-                @close="goals = []"
+                @close="closeCheckGoal"
             />
         </Transition>
     </div>
@@ -196,6 +196,7 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
     const taskRequest = useTaskRequest()
     const notapprovedProjects = ref([])
     const goals = ref([])
+    const currentUserId = ref(null)
     const closePopupIfNeeded = () => {
         if(!incompleteShow.value){
             closeOverRide()
@@ -237,6 +238,28 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
             }
         }
     )
+    const openCheckGoal = (outcome_goals, userId) => {
+        goals.value = outcome_goals;
+        currentUserId.value = userId;
+    }
+    const closeCheckGoal = () => {
+        goals.value = []
+        currentUserId.value = null
+    }
+    const updateGoalsAfterFetch = () => {
+        if (currentUserId.value !== null) {
+            const userProjects = notapprovedProjects.value.filter(project => project.id === currentUserId.value);
+            const updatedGoals = userProjects.flatMap(project => project.outcome_goals);
+            goals.value = updatedGoals;
+        }
+    };
+    const getGoals = (outcome_goals) => {
+        if ( auth.user.position_id == 6 ) {
+            return outcome_goals.filter(goal => goal.status == 2)
+        } else {
+            return outcome_goals.filter(goal => goal.status == 3)
+        }
+    }
     const urlCheck = (text, limit) => {
         if(text){                
             var linkedText = Autolinker.link(text, {stripPrefix: false}); 
@@ -290,10 +313,11 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
         router.push({name: 'timesheet', query: {user_id: user.id}})
     }
     const getProjectNotApproved = async() => {
-        if(auth && (auth.activeUser.id == 631 || auth.activeUser.id == 608)) {
+        if(auth && (auth.activeUser.id == 631 || auth.activeUser.id == 608 || auth.user.position_id == 6)) {
             try {
                 const data = await axios.get('/project_not_approved').then(res => res.data)
                 notapprovedProjects.value = data
+                updateGoalsAfterFetch()
             } catch (e) {
                 notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
             }

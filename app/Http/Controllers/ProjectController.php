@@ -627,24 +627,64 @@ class ProjectController extends Controller
         return response()->json($issue_report);
     }
     public function project_not_approved() {
-        $members = User::whereHas('outcome_goals', function ($q) {
-                            $q->where('status', 3)->orWhereHas('salaryIssue', function ($q) {
-                                $q->where('status', 3);
-                            });
-                        })
-                        ->orWhereHas('salary_issues', function ($q) {
-                            $q->where('status', 3);
-                        })
-                        ->with([
-                            'outcome_goals' => function ($q) {
-                                $q->where('status', 3)->orWhereHas('salaryIssue', function ($q) {
-                                    $q->where('status', 3);
-                                })->with('salaryIssue');
-                            },
-                            'salary_issues' => function ($q) {
-                                $q->where('status', 3);
-                            }
-                        ])->get();
+        $user = Auth::user();
+        $user->id === 631 ? $members = $this->getAdminMembers() : $members = $this->getUserMembers($user->id);
         return response()->json($members);
+    }
+    
+    private function getAdminMembers() {
+        return User::whereHas('outcome_goals', function ($query) {
+                $query->where('status', 3)
+                      ->orWhereHas('salaryIssue', function ($query) {
+                          $query->where('status', 3);
+                      });
+            })
+            ->orWhereHas('salary_issues', function ($query) {
+                $query->where('status', 3);
+            })
+            ->with([
+                'outcome_goals' => function ($query) {
+                    $query->where('status', 3)
+                          ->orWhereHas('salaryIssue', function ($query) {
+                              $query->where('status', 3);
+                          })
+                          ->with(['salaryIssue', 'project']);
+                },
+                'salary_issues' => function ($query) {
+                    $query->where('status', 3);
+                }
+            ])
+            ->get();
+    }
+    
+    private function getUserMembers($userId) {
+        return ProjectRecord::whereHas('manager', function ($query) use ($userId) {
+                $query->where('users.id', $userId);
+            })
+            ->with([
+                'members' => function ($query) {
+                    $query->whereHas('outcome_goals', function ($query) {
+                        $query->where('status', 2);
+                    })
+                    ->with([
+                        'outcome_goals' => function ($query) {
+                            $query->where('status', 2)->with('project');
+                        }
+                    ]);
+                }
+            ])
+            ->get()
+            ->flatMap(function ($project) {
+                return $project->members;
+            });
+    }
+    public function delete_issue(Request $request) {
+        $request->validate([
+            'id' => 'required',
+        ]);
+        $id = $request->id;
+        SalaryIssue::findOrFail($id)->delete();
+       
+        return response()->json(['message' => 'Successfully deleted!']);
     }
 } 

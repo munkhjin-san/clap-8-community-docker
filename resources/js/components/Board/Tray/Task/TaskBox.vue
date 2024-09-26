@@ -266,7 +266,7 @@ import { dateDetail } from '@/utils/workApi';
         return buttons
     })
     const untilTomorrow = () => {
-        const today = moment().startOf('day').add(1, 'days').format('YYYY-MM-DD HH:mm:ss');
+        const today = moment().startOf('day').add(1, 'days').format('YYYY-MM-DD');
         updateDate(props.item.id, today)
     }
     const updateDate = (id, date) => {

@@ -154,6 +154,14 @@ class TaskController extends Controller
     public function updateTask(Request $request){
         $active_user = $this->active_user();
         $task = taskRecord::findOrFail($request->task_id);
+        $newStartDate = Carbon::createFromFormat('Y-m-d', $request->date)->startOfDay();
+        $newEndDate = Carbon::createFromFormat('Y-m-d', $request->date)->endOfDay();
+        $calendar = CalendarRecord::where('task', $request->task_id)->first();
+        if($calendar){
+            $calendar->date_start = $newStartDate;
+            $calendar->date_end = $newEndDate;
+            $calendar->save();
+        }
         $task->update(['end_at' => $request->date, 'updated_user' => $active_user->id]);
         return response()->json($request);
     }
@@ -296,7 +304,11 @@ class TaskController extends Controller
             }
             $task->delete();
         }
-        return response()->json($task);
+        $socket = [];
+        
+        array_push($socket, ["event" => "task:{$task->board_id}", "data" => []]);
+       
+        return response()->json(['socket' =>  $socket]);
         
     }
     // private function insertItemBuilder(Request $request, $endDate, $rId){

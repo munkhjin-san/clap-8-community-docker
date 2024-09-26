@@ -136,10 +136,10 @@ class PostController extends Controller
         ->withCount('comments')
         ->with('claps')
         ->with('to_users')
-        ->orderBy('created_at', 'desc')
         ->when($app_type == 2, function ($query) {
             $query->orderBy('status_flag', 'asc');
         })
+        ->orderBy('created_at', 'desc')
         ->with('awards')
         ->with('result_files')
         
