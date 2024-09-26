@@ -658,25 +658,40 @@ class ProjectController extends Controller
     }
     
     private function getUserMembers($userId) {
-        return ProjectRecord::whereHas('manager', function ($query) use ($userId) {
-                $query->where('users.id', $userId);
-            })
-            ->with([
-                'members' => function ($query) {
-                    $query->whereHas('outcome_goals', function ($query) {
-                        $query->where('status', 2);
-                    })
-                    ->with([
-                        'outcome_goals' => function ($query) {
-                            $query->where('status', 2)->with('project');
-                        }
-                    ]);
-                }
-            ])
-            ->get()
-            ->flatMap(function ($project) {
-                return $project->members;
-            });
+        return User::whereHas('outcome_goals', function ($query) {
+                    $query->where('status', 2);
+        })
+        ->with([
+            'outcome_goals' => function ($query) use($userId) {
+                $query->where('status', 2)
+                      ->whereHas('project', function ($q) use($userId) {
+                        $q->whereHas('manager', function ($q) use($userId) {
+                            $q->where('users.id', $userId);
+                        });
+                      })
+                      ->with('project');
+            },
+        ])
+        ->get();
+        // return ProjectRecord::whereHas('manager', function ($query) use ($userId) {
+        //         $query->where('users.id', $userId);
+        //     })
+        //     ->with([
+        //         'members' => function ($query) {
+        //             $query->whereHas('outcome_goals', function ($query) {
+        //                 $query->where('status', 2);
+        //             })
+        //             ->with([
+        //                 'outcome_goals' => function ($query) {
+        //                     $query->where('status', 2)->with('project');
+        //                 }
+        //             ]);
+        //         }
+        //     ])
+        //     ->get()
+        //     ->flatMap(function ($project) {
+        //         return $project->members;
+        //     });
     }
     public function delete_issue(Request $request) {
         $request->validate([
