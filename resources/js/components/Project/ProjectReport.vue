@@ -100,8 +100,8 @@ const progressReport = async(status: number) => {
         validate = validate && val.valid
     }
     if(!validate) return
-    const loadstatus = status === 4 ? 0 : status === 7 ? 1 : 2
-    let info_message = status === 4 ? '報告' : status === 7 ? '未達成' : '達成'
+    const loadstatus = status === 6 ? 0 : status === 7 ? 1 : 2
+    let info_message = status === 6 ? '報告' : status === 7 ? '未達成' : '達成'
     try {
         loading.value[loadstatus] = true
         const params = {
