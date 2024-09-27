@@ -126,7 +126,7 @@ class AdminWorkController extends Controller{
         ->get();
         $monthly_incentive = $incentives->pluck('totalCount', 'user_id');
 
-        $sevenDaysAgo = now()->subDays(7);
+        $sevenDaysAgo = now()->subDays(3);
         if (in_array($today->day, range(1, 6))) {
             $currentMonth -= 1;
         }
