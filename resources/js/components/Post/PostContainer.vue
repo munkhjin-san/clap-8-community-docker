@@ -393,7 +393,7 @@ import { onUnmounted } from 'vue';
     const setClap = (val, id) => {
         if(id){
             let query = getQuery.value
-            if(!query.hasOwnProperty('id') || !query.id){
+            if(!query.hasOwnProperty('id') || query.id !== id){
                 query['id'] = id
             }
             fetchPosts(query, id)
