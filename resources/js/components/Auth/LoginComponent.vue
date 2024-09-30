@@ -91,9 +91,8 @@
             errorMessage.value = sessionStorage.getItem('loginError')
             sessionStorage.removeItem('loginError')    
         }
-        const today = moment().local().format('YYYY-MM-DD')
         localStorage.removeItem('hiding_alerts')
-        tempNum.value = localStorage.getItem('weather_' + today)
+        tempNum.value = getFromLocalStorage('condition');
     })     
     const saveWeather = (num) => {
         tempNum.value = num
@@ -107,6 +106,21 @@
             loginForm.value.submit()
         }
     }
+    const getFromLocalStorage = (key) => {
+        const dataString = localStorage.getItem(key);
+        if (!dataString) return null;
+
+        const data = JSON.parse(dataString);
+        const now = moment();
+        const expirationTime = moment(data.expiration);
+
+        if (now.isAfter(expirationTime)) {
+            localStorage.removeItem(key); 
+            return null;
+        }
+
+        return data.value; 
+    };
 
 </script>
 

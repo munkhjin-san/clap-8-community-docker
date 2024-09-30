@@ -185,11 +185,21 @@ import { instance as socket } from '@/utils/broadcaster'
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {
-            localStorage.setItem('weather_' + today, index)
+            saveToLocalStorage('condition', index, 1);
             sessionStorage.removeItem('condition_for_session')
         }
 
     }
+    const saveToLocalStorage = (key, value, expirationInDays) => {
+        const now = moment();
+        const expirationTime = now.add(expirationInDays, 'days').toISOString();
+        
+        const data = {
+            value: value,
+            expiration: expirationTime
+        };
+        localStorage.setItem(key, JSON.stringify(data));
+    };
     const postHandler = () => {
         if(!auth.isPartner){
             badge.getPostBadge()
