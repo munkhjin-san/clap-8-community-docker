@@ -127,13 +127,16 @@ class AdminWorkController extends Controller{
         $monthly_incentive = $incentives->pluck('totalCount', 'user_id');
 
         $sevenDaysAgo = now()->subDays(3);
-        if (in_array($today->day, range(1, 6))) {
-            $currentMonth -= 1;
-        }
+        now()->day >= 1 && now()->day <= 6 ? $previousMonth = $currentMonth - 1 : $previousMonth = null;  
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $userIds)
             ->where('date', '>=', $sevenDaysAgo)
             ->whereYear('date', $currentYear)
-            ->whereMonth('date', $currentMonth)
+            ->where(function ($query) use ($currentMonth, $previousMonth) {
+                $query->whereMonth('date', $currentMonth);
+                if ($previousMonth) {
+                    $query->orWhereMonth('date', $previousMonth);
+                }
+            })
             ->where('type_id', 43)
             ->where('deleted_flag', 0)
             ->orderBy('user_id')
@@ -241,7 +244,8 @@ class AdminWorkController extends Controller{
                 'monthly_expenses' => $monthly_expenses,
                 'monthly_incentive' => $monthly_incentive,
                 'timecard_costs' => $time_card_costs,
-                'departments' => $allDepartmentCountsArray
+                'departments' => $allDepartmentCountsArray,
+                'test' => $custom_weather_data
             ];
 
         return response()->json($responseArray);
