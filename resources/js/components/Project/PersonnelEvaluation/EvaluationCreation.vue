@@ -81,7 +81,7 @@
                         </div>
                         <div class="si-box">
                             <ItemSelector 
-                                place-holder="時期職務"
+                                place-holder="次期職務"
                                 :options="criteriaMaster"
                                 v-model="checkedLevel"
                                 label="level"
@@ -259,7 +259,7 @@ const salary_options = ref<any>([])
 const current_salary = ref(props.editData?.evaluation?.current_salary_rank ?? '')
 const after_salary = ref(props.editData?.evaluation?.after_salary_rank ?? '')
 const grade = ref(props.editData?.evaluation?.grade ?? '')
-const { notify } = inject<Dialog>('dialog')!
+const { notify, info } = inject<Dialog>('dialog')!
 const getProjects = inject('getProjects') as Function
 onMounted(() => {
     getSalaryOptions()
@@ -305,6 +305,7 @@ const saveIncrease = async() => {
         emit('close')
         emit('reload')
         getProjects()
+        info('保存しました。')
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     } finally {
@@ -330,6 +331,7 @@ const setIncrease = async() => {
         await axios.post('/set_increase_request', params)
         emit('close')
         emit('reload')
+        info('保存しました。')
     } catch(e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     } finally {
