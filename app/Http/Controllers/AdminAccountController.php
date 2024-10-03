@@ -102,7 +102,7 @@ class AdminAccountController extends Controller
         $user->partner_flag = $user_params['position_id'] == 14 ? 1 : 0;
         $user->retire = $user_params['retire'];
         if($user_params['retire'] == 1){
-            $user->retire_date = Carbon::now()->addMonthNoOverflow();
+            $user->retire_date = Carbon::now()->addWeek();
             $user->login = $user_params['login'] . '_r_' . Carbon::now()->isoFormat('YYYY-MM-DD') . '_' . rand(1000,9999);
             $user->email = $user_params['login'] . Carbon::now()->isoFormat('YYYY-MM-DD') . $this->generateRandomString();
             $user->password = bcrypt('glowd0802');
