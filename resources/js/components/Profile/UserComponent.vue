@@ -149,22 +149,22 @@ import { urlCheck } from '@/utils/tools';
         }
         editingPortfolio.value = null
     }
-    // watch(() => route.params.userId, (newUserId, oldUserId) => {
-    //     if (newUserId !== oldUserId) {
-    //       updateUser(newUserId);
-    //       getClaps(newUserId);
-    //     }
-    //   },
-    //   { immediate: true } 
-    // )
-
-    onMounted(() => {
-        UserAllData.value = route.meta.data && Object.hasOwn(route.meta.data, 'id') ? route.meta.data : null;
-        const newUserId = route.params.userId
-        if (route.params.userId !== UserAllData.value.id) {
+    watch(() => route.params.userId, (newUserId, oldUserId) => {
+        if (newUserId !== oldUserId) {
           updateUser(newUserId);
           getClaps(newUserId);
         }
+      },
+      { immediate: true } 
+    )
+
+    onMounted(() => {
+        UserAllData.value = route.meta.data && Object.hasOwn(route.meta.data, 'id') ? route.meta.data : null;
+        // const newUserId = route.params.userId
+        // if (route.params.userId !== UserAllData.value.id) {
+        //   updateUser(newUserId);
+        //   getClaps(newUserId);
+        // }
     })  
 </script>
 <style lang="scss" scoped>
