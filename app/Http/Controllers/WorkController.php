@@ -187,6 +187,8 @@ class WorkController extends Controller
                     $all_work_hours = $annual_leave[$user->id] + $month_work_time[$user->id];
                     $month_over_time[$user->id] = $all_work_hours - $shift_work_hours; 
                 }  
+            } elseif ($shift_work_hours < (($month_work_time[$user->id] ?? 0) - ($month_over_time[$user->id] ?? 0))) {
+                $month_over_time[$user->id] = ($month_work_time[$user->id] ?? 0) - $shift_work_hours;
             }
 
             $month_average_data[] = [
@@ -1171,7 +1173,9 @@ class WorkController extends Controller
         }else{
             $month_over_time = $over_time;
         }
-        
+        if ($shift_work_hours < $worked_time - $month_over_time) {
+            $month_over_time = $worked_time - $shift_work_hours;
+        }
         $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
         $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
         $month_waiting_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 2)->count();
