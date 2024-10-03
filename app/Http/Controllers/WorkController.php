@@ -1313,7 +1313,6 @@ class WorkController extends Controller
             $attendance_record->condolence_holiday = $request->condolence_leave;
             $attendance_record->special_holiday = $request->transfer_leave;
             $attendance_record->oda_holiday = $request->oda_leave;
-            $attendance_record->closed_day = 0;
             $attendance_record->working_hours = $request->worked_hours;
             $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
             $attendance_record->over_time = $request->over_time;
