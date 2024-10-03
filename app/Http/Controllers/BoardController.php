@@ -15,6 +15,7 @@ use App\Models\taskUser;
 use App\Models\CalendarRecord;
 use App\Models\messageRemindUser;
 use App\Models\messageSignUser;
+use App\Models\userDetail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -148,7 +149,11 @@ class BoardController extends Controller
             $q->whereHas('user')
             ->with('user');
         }])
-        ->with('last_message')->orderBy('updated_at', 'desc')
+        ->with('last_message')
+        ->when($active_user->on_leave === 1, function ($query) {
+            return $query->where('private_flag', '!=', 0);
+        })
+        ->orderBy('updated_at', 'desc')
         ->get()
         ->values(); 
 
@@ -602,11 +607,18 @@ class BoardController extends Controller
            
         }
     }
+    private function user_onleave($user_id){
+        return userDetail::where('user_id', $user_id)
+        ->whereNotNull('leave_start')
+        ->whereNotNull('leave_end')
+        ->first();
+    }
     public function get_messages(Request $request){
         $id = $request->message_id ?? null;
         $pagenate = 30 * $request->page_index;       
         $active_user = $request->override_user ?? $this->active_user();
         $auth_user_id = $active_user->id;
+        $leavePeriod = $this->user_onleave($auth_user_id);
         $usercheck = boardToUser::where('user_id','=', $auth_user_id)->where('record_id', '=', $request->record_id)->first();       
         $timeLimit = $usercheck->created_at;    
         $targetBoard = boardRecord::findOrFail($request->record_id);
@@ -619,6 +631,9 @@ class BoardController extends Controller
         })
         ->when($time_condition, function ($query) use ($timeLimit) {
             $query->where('created_at', '>=',  $timeLimit );
+        })
+        ->when($leavePeriod && $targetBoard->private_flag != 1, function ($query) use ($leavePeriod) {
+            $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
         })
         ->when($targetBoard->private_flag !== 3, function ($query) {
             $query->withTrashed();
@@ -941,6 +956,7 @@ class BoardController extends Controller
         $linked = Auth::user()->linked()->get()->pluck('id')->toArray();
         array_push($linked, Auth::id());
         // return response()->json($linked); 
+        $leavePeriod = $this->user_onleave(Auth::id());
         $list = [];
         foreach($linked as $user_id){
             $savedLastMessages = boardToUser::where('user_id', $user_id)
@@ -950,6 +966,14 @@ class BoardController extends Controller
             ->whereHas('board', function ($q) {
                 $q->where('deleted_flag', 0)->where('deleted_at', null);
             })
+            ->where(function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('on_leave', 0);
+                })
+                ->orWhereHas('board', function ($q) {
+                    $q->where('private_flag', 1); 
+                });
+            })
             ->orderBy('record_id', 'desc')
             ->get();
 
@@ -957,12 +981,23 @@ class BoardController extends Controller
             foreach($savedLastMessages as $record){
                 $last = $record->last_message;
                 if(!empty($last)){
-                    $unread_count = $record->messageRecords()->where('info_flag', '!=', 1)
+                    $unread_count = $record->messageRecords()
+                    ->where(function ($query) {
+                        $query->where('info_flag', '!=', 1)
+                              ->where('info_flag', '!=', 2);
+                    })
                     ->when($last, function ($q) use ($last) {
                         $q->where('id', '>', $last);
                     })
                     ->when($record->created_at, function ($q) use ($record) {
                         $q->where('created_at', '>=', $record->created_at);
+                    })->when($leavePeriod, function ($query) use ($leavePeriod) {
+                        $query->where(function ($q) use ($leavePeriod) {
+                            $q->whereHas('board_record', function ($q) {
+                                $q->where('private_flag', 1);
+                            })
+                            ->orWhereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
+                        });
                     })->count();
 
                     if($unread_count > 0) {
