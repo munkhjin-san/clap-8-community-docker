@@ -6,7 +6,8 @@
                 <p class="userName" style="margin-left:10px;">{{ item.notification_user.name }}</p>
             </div>
             <div>
-                <p style="line-height:2;">{{ item.date }}から{{ item.endDate }}までの計画有給を入れてください。<br>期間：2024年1月31日</p>
+                <p style="line-height:2;">{{ item.date }}から{{ item.endDate }}までの計画有給を入れてください。</p> 
+                <!-- <br>期間：2024年1月31日 -->
                 <div style="width:100%;margin-top:10px;">
                     <button class="shift-button" @click="shiftPlannedLeave()">計画有給を入力</button>
                 </div>
@@ -52,7 +53,7 @@
 
     const shiftPlannedLeave = () => {
         const { date } = props.item
-        router.push({name: `work` as RouteRecordName, query: { startDate: date }})
+        router.push({name: `timesheet` as RouteRecordName, query: { startDate: date }})
         emit('close')
     }
 </script>
