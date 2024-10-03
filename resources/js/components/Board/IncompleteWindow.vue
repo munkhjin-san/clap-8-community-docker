@@ -55,7 +55,7 @@
                                 </div>                                  
                                 
                                 <div style="margin-left: auto">                                        
-                                    <button class="shift-button" @click="openCheckGoal(user.outcome_goals, user.id)" style="white-space: nowrap;">対応</button>
+                                    <button class="shift-button" @click="openCheckGoal(user)" style="white-space: nowrap;">対応</button>
                                 </div>
                             </div>
                         </div>
@@ -150,6 +150,7 @@
             <CheckGoal
                 v-if="goals.length" 
                 :projectGoals="goals"
+                :memberData="memberData"
                 @close="closeCheckGoal"
             />
         </Transition>
@@ -197,6 +198,7 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
     const notapprovedProjects = ref([])
     const goals = ref([])
     const currentUserId = ref(null)
+    const memberData = ref(null)
     const closePopupIfNeeded = () => {
         if(!incompleteShow.value){
             closeOverRide()
@@ -238,13 +240,15 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
             }
         }
     )
-    const openCheckGoal = (outcome_goals, userId) => {
-        goals.value = outcome_goals;
-        currentUserId.value = userId;
+    const openCheckGoal = (user) => {
+        goals.value = user?.outcome_goals;
+        currentUserId.value = user?.id;
+        memberData.value = user
     }
     const closeCheckGoal = () => {
         goals.value = []
         currentUserId.value = null
+        memberData.value = null
     }
     const updateGoalsAfterFetch = () => {
         if (currentUserId.value !== null) {
@@ -254,10 +258,15 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
         }
     };
     const getGoals = (outcome_goals) => {
-        if ( auth.user.position_id == 6 ) {
-            return outcome_goals.filter(goal => goal.status == 2)
-        } else {
+        if ( auth.user.position_id <= 6 ) {
+            return outcome_goals.filter(goal => 
+                    (goal.status == 2 || goal.status == 4) && 
+                    (goal.project.manager.some(manager => manager.id === auth.id) ||
+                    goal.project.director_id === auth.id))
+        } else if (auth.id == 631) {
             return outcome_goals.filter(goal => goal.status == 3)
+        } else {
+            return []
         }
     }
     const urlCheck = (text, limit) => {
@@ -313,15 +322,15 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
         router.push({name: 'timesheet', query: {user_id: user.id}})
     }
     const getProjectNotApproved = async() => {
-        if(auth && (auth.activeUser.id == 631 || auth.user.position_id == 6)) {
-            try {
-                const data = await axios.get('/project_not_approved').then(res => res.data)
-                notapprovedProjects.value = data
-                updateGoalsAfterFetch()
-            } catch (e) {
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
-            }
+        
+        try {
+            const data = await axios.get('/project_not_approved').then(res => res.data)
+            notapprovedProjects.value = data
+            updateGoalsAfterFetch()
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
         }
+        
     }
     const getNotApproved = async() => {
 

@@ -15,6 +15,7 @@ interface Project {
     members: User[];
     manager: User[];
     director: User;
+    director_id: number;
 }
 interface ProjectGoal {
     id: number;
@@ -36,7 +37,8 @@ interface ProjectGoal {
     result: string;
     project: Project;
     salary_issue: SalaryIssue;
-    evaluation: Evaluation
+    evaluation: Evaluation;
+    edit_flag: number;
 }
 
 interface SalaryIssue {

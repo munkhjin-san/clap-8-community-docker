@@ -419,6 +419,7 @@ class MemberController extends Controller
         }
         
         $record->user_id = $request->user_id;
+        $record->mentor_id = $request->mentor_id;
         $record->project_goal_id = $request->goal_id;
         $record->title = $request->title;
         $record->theme = $request->theme;

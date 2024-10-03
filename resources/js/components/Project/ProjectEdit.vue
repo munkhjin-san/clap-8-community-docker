@@ -99,7 +99,7 @@
                 </div>
                 
                 <div class="si-box">
-                    <LoaderButton @triggered="createProject" :loading="loading" content="作成する"/>
+                    <LoaderButton @triggered="createProject" :loading="loading" content="編集する"/>
                 </div>
             </div>
         </div>
@@ -112,7 +112,7 @@ import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { computed, inject, ref } from 'vue';
 import axios from 'axios';
-import { User } from '@/interface/globalInterface';
+import { DialogMethods, User } from '@/interface/globalInterface';
 const emit = defineEmits(['close'])
 const props = defineProps(['userList', 'editData'])
 const name = ref(props.editData?.name ?? '')
@@ -127,6 +127,7 @@ const loading = ref(false)
 const dateStart = ref(props.editData?.date_start ?? '')
 const dateEnd = ref(props.editData?.date_end ?? '')
 const getProjects = inject('getProjects') as Function
+const { info } = inject<DialogMethods>('dialog')!
 const directorOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id < 6 && user.position_id !== null)
 })
@@ -157,6 +158,7 @@ const createProject = async() => {
         loading.value = false
         emit('close')
         getProjects()
+        info('編集しました。')
     } catch (e) {
         
     }

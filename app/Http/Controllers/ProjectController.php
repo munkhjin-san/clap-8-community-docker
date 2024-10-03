@@ -10,6 +10,7 @@ use App\Models\SalaryIssue;
 use App\Models\ProjectGoal;
 use App\Models\User;
 use Carbon\Carbon;
+use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
@@ -628,7 +629,16 @@ class ProjectController extends Controller
     }
     public function project_not_approved() {
         $user = Auth::user();
-        $user->id === 631 ? $members = $this->getAdminMembers() : $members = $this->getUserMembers($user->id);
+        if ($user->id === 631) {
+            $members = $this->getAdminMembers();
+        } elseif ($user->position_id == 6) {
+            $members = $this->getUserMembers($user->id);
+        } elseif ($user->position_id < 6) {
+            $members = $this->getUserManagers($user->id);
+        } else {
+            $members = $this->getUserMentors($user->id);
+        }
+        
         return response()->json($members);
     }
     
@@ -658,45 +668,100 @@ class ProjectController extends Controller
     }
     
     private function getUserMembers($userId) {
-        return User::whereHas('outcome_goals', function ($query) use($userId) {
-                    $query->where('status', 2)
+        return User::where(column: function ($query) use ($userId) {
+            $query->whereHas('salary_issues', function ($q) use ($userId) {
+                    $q->where('mentor_id', $userId)->where('status', 2);
+                });
+                
+            
+            $query->orWhereHas('outcome_goals', function ($q) use ($userId) {
+                    $q->where(function ($subQuery) {
+                        $subQuery->where('status', 2)
+                                ->orWhere('status', 4);
+                    })
+                    ->whereHas('project', function ($projectQuery) use ($userId) {
+                        $projectQuery->whereHas('manager', function ($directorQuery) use ($userId) {
+                            $directorQuery->where('users.id', $userId);
+                        });
+                    });
+                });
+        })
+        ->with([
+            'outcome_goals' => function ($query) use($userId) {
+                $query->where(function ($subQuery) {
+                        $subQuery->where('status', 2)
+                                ->orWhere('status', 4);
+                    })
+                    
                     ->whereHas('project', function ($q) use($userId) {
                         $q->whereHas('manager', function ($q) use($userId) {
                             $q->where('users.id', $userId);
                         });
-                      });
-        })
-        ->with([
-            'outcome_goals' => function ($query) use($userId) {
-                $query->where('status', 2)
-                      ->whereHas('project', function ($q) use($userId) {
-                        $q->whereHas('manager', function ($q) use($userId) {
-                            $q->where('users.id', $userId);
-                        });
-                      })
-                      ->with('project');
+                    })
+                    ->orWhereHas('salaryIssue', function ($query) {
+                        $query->where('status', 2);
+                    })
+                    ->with(['salaryIssue', 'project.manager']);
             },
+            'salary_issues' => function ($query) use($userId) {
+                $query->where('status', 2)
+                    ->where('mentor_id', $userId);
+            }
         ])
         ->get();
-        // return ProjectRecord::whereHas('manager', function ($query) use ($userId) {
-        //         $query->where('users.id', $userId);
-        //     })
-        //     ->with([
-        //         'members' => function ($query) {
-        //             $query->whereHas('outcome_goals', function ($query) {
-        //                 $query->where('status', 2);
-        //             })
-        //             ->with([
-        //                 'outcome_goals' => function ($query) {
-        //                     $query->where('status', 2)->with('project');
-        //                 }
-        //             ]);
-        //         }
-        //     ])
-        //     ->get()
-        //     ->flatMap(function ($project) {
-        //         return $project->members;
-        //     });
+    }
+    
+    private function getUserManagers($userId) {
+        return User::where(column: function ($query) use ($userId) {
+                    $query->whereHas('salary_issues', function ($q) use ($userId) {
+                        $q->where('mentor_id', $userId)->where('status', 2);
+                    });
+                    $query->orWhere('position_id', 6)
+                        ->whereHas('outcome_goals', function ($q) use ($userId) {
+                            $q->where('status', 2)
+                            ->whereHas('project', function ($projectQuery) use ($userId) {
+                                $projectQuery->whereHas('director', function ($directorQuery) use ($userId) {
+                                    $directorQuery->where('id', $userId);
+                                });
+                            });
+                        });
+                })
+                ->with([
+                    'outcome_goals' => function ($query) use($userId) {
+                        $query->where('status', 2)
+                            
+                            ->whereHas('project', function ($q) use($userId) {
+                                $q->whereHas('director', function ($q) use($userId) {
+                                    $q->where('id', $userId);
+                                });
+                            })
+                            ->orWhereHas('salaryIssue', function ($query) {
+                                $query->where('status', 2);
+                            })
+                            ->with(['salaryIssue', 'project.manager']);
+                    },
+                    'salary_issues' => function ($query) use($userId) {
+                        $query->where('status', 2)
+                              ->where('mentor_id', $userId);
+                    }
+                ])
+                ->get();
+    }
+    private function getUserMentors($userId) {
+        return User::whereHas('salary_issues', function ($query) use($userId) {
+                    $query->where('mentor_id', $userId)
+                        ->where('status', 2);
+                })->with([
+                    'outcome_goals' => function ($query) {
+                        $query->whereHas('salaryIssue', function ($q) {
+                            $q->where('status', 2);
+                        })->with(['salaryIssue', 'project']);
+                    },
+                    'salary_issues' => function ($query) {
+                        $query->where('status', 2);
+                    },
+                ])
+                ->get();
     }
     public function delete_issue(Request $request) {
         $request->validate([
@@ -706,5 +771,44 @@ class ProjectController extends Controller
         SalaryIssue::findOrFail($id)->delete();
        
         return response()->json(['message' => 'Successfully deleted!']);
+    }
+
+    public function get_project_badge() {
+        $user = Auth::user();
+        $query = ProjectRecord::whereHas('manager', function ($q) use($user) {
+            $q->where('users.id', $user->id);
+        })->whereHas('goals', function ($q) {
+            $q->where('status', 2)->orWhere('status', 4);
+        })
+        ->with(['goals' => function ($q) {
+            $q->where('status', 2)->orWhere('status', 4);
+        }]);
+
+        $projects = $query->get();
+        $goalCounts = [];
+        foreach ($projects as $project) {
+            foreach ($project->goals as $goal) {
+                if (!isset($goalCounts[$project->id])) {
+                    $goalCounts[$project->id] = [];
+                }
+                if (!isset($goalCounts[$project->id][$goal->user_id])) {
+                    $goalCounts[$project->id][$goal->user_id] = 0;
+                }
+                $goalCounts[$project->id][$goal->user_id]++;
+            }
+        }
+        $projectCounts = $query
+        ->select('id', DB::raw('count(*) as total_project'))
+        ->groupBy('id')
+        ->get()
+        ->pluck('total_project', 'id')
+        ->toArray();
+        $totalSum = array_sum($projectCounts);
+        $response = [
+            'total_sum' => $totalSum,
+            'project_counts' => $projectCounts,
+            'goal_counts' => $goalCounts    
+        ];
+        return response()->json($response);
     }
 } 

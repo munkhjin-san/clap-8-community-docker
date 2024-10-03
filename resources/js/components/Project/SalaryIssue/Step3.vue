@@ -94,7 +94,8 @@ const props = defineProps([
     'selectedTheme',
     'chosenGoal',
     'selectedDate',
-    'memberData'
+    'memberData',
+    'evaluation'
 ])
 interface Date {
     value: string;
@@ -283,10 +284,11 @@ const saveTemplate = async(action, status) => {
             theme: props.selectedTheme.title_full,
             date: props.selectedDate.evaluationDate,
             status: status,
-            user_id: props.memberData?.id
+            user_id: props.memberData?.id,
+            mentor_id: props.evaluation?.mentor_id
         }
         await axios.post('/save_kadai_template', params)
-            info('保存しました。')
+            info(status == 2 ? '申請しました。' : '保存しました。')
             title.value = content.value = content_goal.value = ''
             refresh()
             emit('close')

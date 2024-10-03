@@ -592,7 +592,7 @@ class PostController extends Controller
             if($post_difference > 0){
                 $post_difference -= 1 ;
             }
-            $result[0] =  $post_difference;
+            $result =  $post_difference;
 
             
             

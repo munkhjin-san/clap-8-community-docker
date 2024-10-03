@@ -63,16 +63,16 @@
                         <div>成果結果</div>
                         <div class="kadai-content">{{ goal?.result }}</div>
                     </div>
-                    <div v-if="memberData && auth.id === memberData.id && goal?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="(memberData && auth.id === memberData.id || isManagerOrMember) && goal?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告"/>
                     </div>
                     <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( auth.user?.position_id && auth.user?.position_id < 6)) && goal?.status == 6" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告レビュー"/>
                     </div>
 
-                    <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && goal?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && (goal?.status == 2 || goal?.status == 4)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'承認'"/>
+                        <LoaderButton v-if="goal?.status == 2" style="margin: 0;" @click="approveOutComeGoal(3)" :content="'承認'"/>
                     </div>
                     <div v-if="631 === auth.id && goal?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'人事差戻'"/>
@@ -110,13 +110,13 @@
                     <div v-if="goal?.salary_issue?.status == 8">
                         <div>昇給課題結果</div>
                         <div class="kadai-content">{{ goal?.salary_issue.result }}</div>
-                        <Files style="margin-top: 15px;" v-if="goal?.salary_issue?.files.length" :items="goal?.salary_issue?.files" :path="'project_files'"/>
+                        <Files style="margin-top: 15px;" v-if="goal?.salary_issue?.files?.length" :items="goal?.salary_issue?.files" :path="'project_files'"/>
                     </div>
-                    <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData?.id || memberData?.evaluation?.mentor.id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData?.id || goal?.salary_issue?.mentor_id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'変更'"/>
                         <LoaderButton style="margin: 0;" @click="deleteIssue(goal.salary_issue)" :content="'削除'"/>
                     </div>
-                    <div v-if="memberData?.evaluation?.mentor.id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="goal?.salary_issue?.mentor_id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'承認'"/>
                     </div>
@@ -127,15 +127,15 @@
                     <div v-if="610 === auth.activeUser.id && goal?.salary_issue?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'人事承認取消'"/>
                     </div>
-                    <div v-if="goal?.salary_issue?.status == 5 && (auth.id === memberData?.id || memberData?.evaluation?.mentor.id === auth.id)">
+                    <div v-if="goal?.salary_issue?.status == 5 && (auth.id === memberData?.id || goal?.salary_issue?.mentor_id === auth.id)">
                         <LoaderButton style="margin: 0;" :content="'結果報告'" @click="issueReport = goal?.salary_issue"/>
                     </div>
-                    <div v-if="goal?.salary_issue?.status == 6 && (memberData?.evaluation?.mentor.id === auth.id)">
+                    <div v-if="goal?.salary_issue?.status == 6 && (goal?.salary_issue?.mentor_id === auth.id)">
                         <LoaderButton style="margin: 0;" :content="'成果報告レビュー'" @click="issueReport = goal?.salary_issue"/>
                     </div>
                 </div>
                 <div v-else-if="canCreateIssue && sub_tab === 1">
-                    <div v-if="(auth.id === memberData?.id || memberData?.evaluation?.mentor.id === auth.id)">
+                    <div v-if="(auth.id === memberData?.id || goal?.salary_issue?.mentor_id === auth.id)">
                         <LoaderButton style="margin: 0;" @click="salaryIssue = true" :content="'作成'"/>
                     </div>
                     <div v-else>
@@ -215,7 +215,7 @@ const sub_tab = ref(0)
 const salaryIssue = ref(false)
 const selectedTheme = ref(null)
 const editData = ref({})
-const { confirm, notify } = inject<Dialog>('dialog')!
+const { confirm, notify, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const issueReport = ref(null)
 const canCreateIssue = computed(() => {
@@ -237,15 +237,19 @@ const evalutionsValues = computed(() => {
 })
 const approveOutComeGoal = async(status: number) => {
     let content = ''
+    let info_message = ''
     switch (status) {
         case 1: 
             content = 'この成果目標を差し戻してもよろしいですか'
+            info_message = '差戻しました。'
             break
         case 3: 
             content = 'この成果目標を承認してもよろしいですか？'
+            info_message = '承認しました。'
             break
         case 5: 
             content = 'この成果目標を人事承認でよろしいですか？'
+            info_message = '人事承認しました。'
             break
         case 6: 
             content = 'この昇給課題は達成でよろしいですか？'
@@ -260,21 +264,26 @@ const approveOutComeGoal = async(status: number) => {
         await axios.put('/approve_outcome_goal', {id: props.goal.id, status: status})
         refresh()
         emit('close')
+        info(info_message)
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
 const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
     let content = ''
+    let info_message = ''
     switch (status) {
         case 1: 
             content = 'この昇給課題を差し戻してもよろしいですか'
+            info_message = '差戻しました。'
             break
         case 3: 
             content = 'この昇給課題を承認してもよろしいですか？'
+            info_message = '承認しました。'
             break
         case 5: 
             content = 'この昇給課題は人事承認でよろしいですか？'
+            info_message = '人事承認しました。'
             break
         case 6: 
             content = 'この昇給課題は達成でよろしいですか？'
@@ -290,6 +299,7 @@ const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
         await axios.put('/approve_salary_issue', { id: issue.id, status: status})
         refresh()
         emit('close')
+        info(info_message)
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
@@ -328,6 +338,7 @@ const deleteIssue = async(issue: SalaryIssue) => {
         axios.delete(`/delete_issue?id=${issue.id}`)
         refresh()
         emit('close')
+        info('削除しました。')
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

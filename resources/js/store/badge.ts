@@ -3,7 +3,7 @@ import { useAuthUserStore } from "./auth";
 import axios from "axios";
 interface State {
     board: any[]
-    post: number[]
+    post: number
     task: number[]
     notice: number
 }
@@ -11,9 +11,9 @@ interface State {
 export const useBadgeStore = defineStore('badge', {
     state: (): State => ({
         board: [],
-        post: [0,0,0],
+        post: 0,
         task: [],
-        notice: 0
+        notice: 0,
     }),
     actions: {
         setTaskBadge(payload: number[]){
@@ -82,7 +82,7 @@ export const useBadgeStore = defineStore('badge', {
                     }                    
                 }
                 if(auth.id == userId){
-                    const postBadge = state.post.reduce((accumulator, currentValue) => accumulator + currentValue, 0); 
+                    const postBadge = state.post
                     value = value + postBadge
                 }
                 return value
@@ -96,7 +96,7 @@ export const useBadgeStore = defineStore('badge', {
                     sum = sum + p.list[i];
                 }
             });
-            const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : this.post.reduce((accumulator, currentValue) => accumulator + currentValue, 0);     
+            const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : this.post; 
             sum = sum + postBadge
             return sum
         }

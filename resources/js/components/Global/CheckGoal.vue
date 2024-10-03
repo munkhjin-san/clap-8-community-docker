@@ -15,7 +15,7 @@
                 </div> 
             </div>
             <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">            
-                <div class="goal-detail cursor-pointer" @click="chosenGoal = goal" style="position: relative;gap:10px;margin-bottom: 20px;">
+                <div class="goal-detail cursor-pointer" @click="pickGoal(goal)" style="position: relative;gap:10px;margin-bottom: 20px;">
                     <div>
                         <div>成果目標</div>
                         <div class="kadai-content">{{ sliceGoal(goal?.outcome_goal) }}</div>
@@ -25,7 +25,7 @@
                         <div class="kadai-content">{{ goal?.start_date }} ～ {{ goal?.end_date }}</div>
                     </div>
                     <div>
-                        <div>ステータス</div>
+                        <div>成果目標ステータス</div>
                         <div class="kadai-content">{{ statuses[goal?.status] }}</div>
                     </div>
                     <div v-if="goal?.achievement_rate">
@@ -37,7 +37,7 @@
                         <div class="kadai-content">{{ goal?.salary_issue?.title }}</div>
                     </div>
                     <div v-if="goal?.salary_issue">
-                        <div>ステータス</div>
+                        <div>昇給課題ステータス</div>
                         <div class="kadai-content">{{ statuses[goal?.salary_issue?.status] }}</div>
                     </div>
                 </div>
@@ -47,9 +47,10 @@
             <ProjectGoalMore 
                 v-if="chosenGoal" 
                 :goal="chosenGoal"
-                :selectedProject="chosenGoal?.project"
-                :isManagerOrMember="true"
+                :selectedProject="selectedProject"
+                :isManagerOrMember="isManagerOrMember"
                 :statuses="statuses"
+                :memberData="memberData"
                 @close="chosenGoal = null"
             />
         </Transition>
@@ -57,29 +58,40 @@
 </template>
 <script lang="ts" setup>
 import { useResponsive } from '@/store/responsive';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import ProjectGoalMore from '../Project/ProjectGoalMore.vue';
-import { ProjectGoal } from '@/interface/projectInterface';
+import { Project, ProjectGoal } from '@/interface/projectInterface';
+import { useAuthUserStore } from '@/store/auth';
 const chosenGoal = ref<ProjectGoal | null>(null)
-const props = defineProps(['projectGoals'])
+const props = defineProps(['projectGoals', 'memberData'])
+const auth = useAuthUserStore()
 const statuses = [
     '作成中', 
     '差戻中', 
     '申請中', 
     '人事申請中', 
-    '人事棄却', 
+    '変更申請中', 
     '人事承認済', 
     '報告中',
     '未達成', 
     '達成'
 ]
 const responsive = useResponsive()
+const selectedProject = ref<Project | null>(null)
 const emit = defineEmits(['close'])
 const sliceGoal = (content: string) => {
     const truncatedGoal = content.length > 100 
     ? content.slice(0, 100) + '...' 
     : content;
     return truncatedGoal
+}
+const isManagerOrMember = computed(() => {
+    return selectedProject.value?.director_id === auth.id ||
+           selectedProject.value?.manager?.some(user => user.id === auth.id)
+})
+const pickGoal = (goal: ProjectGoal) => {
+    chosenGoal.value = goal
+    selectedProject.value = goal?.project
 }
 </script>
 <style>

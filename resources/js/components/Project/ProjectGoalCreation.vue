@@ -312,10 +312,12 @@ const checkFields = async() => {
 }
 const saveOutcomeGoal = async(status: number) => {
     const result = await checkFields()
+    let info_message = '保存しました。'
     if(!result) return
     if(!checkedCriteria.value) return
     if(status == 2) {
         const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
+        info_message = '申請しました。'
         if(!answer) return
     }
     const params = {
@@ -342,10 +344,10 @@ const saveOutcomeGoal = async(status: number) => {
     }
     try {
         await axios.post('/save_project_goal', params).then(res => res.data)
-        info('保存しました。')
         emit('close')
         refresh()
         getProjects()
+        info(info_message)
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

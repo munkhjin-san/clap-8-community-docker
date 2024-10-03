@@ -185,18 +185,18 @@ import { instance as socket } from '@/utils/broadcaster'
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {
-            saveToLocalStorage('condition', index, 1);
+            saveToLocalStorage('condition', index);
             sessionStorage.removeItem('condition_for_session')
         }
 
     }
-    const saveToLocalStorage = (key, value, expirationInDays) => {
+    const saveToLocalStorage = (key, value) => {
         const now = moment();
-        const expirationTime = now.add(expirationInDays, 'days').toISOString();
+        const endOfDay = now.clone().endOf('day').toISOString();
         
         const data = {
             value: value,
-            expiration: expirationTime
+            expiration: endOfDay
         };
         localStorage.setItem(key, JSON.stringify(data));
     };

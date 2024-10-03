@@ -14,7 +14,10 @@
                     <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">
                         
                         <div class="goal-detail cursor-pointer" @click="chosenGoal = goal" style="position: relative;gap:10px;margin-bottom: 20px;">
-                            
+                            <div>
+                                <div>該当部門</div>
+                                <div class="kadai-content">{{ goal?.project?.name }}</div>
+                            </div>
                             <div>
                                 <div>成果目標</div>
                                 <div class="kadai-content">{{ sliceGoal(goal?.outcome_goal) }}</div>
@@ -45,6 +48,9 @@
                                     {title: '編集する', action: () => editGoal(goal)},
                                     {title: '削除する', action: () => deleteGoal(goal)}
                                 ]"/> 
+                            </div>
+                            <div v-else-if="memberData && auth.id === memberData.id && goal?.status >= 2 && goal?.status < 7 && goal?.status != 4" style="position: absolute;right: 10px;top: 10px;">
+                                <ItemMenu :items="[{title: '変更申請', action: () => applyEdit(goal)}]"/> 
                             </div>
                             <!-- <div>
                                 <CommandButton 
@@ -141,7 +147,7 @@ const statuses = [
     '差戻中', 
     '申請中', 
     '人事申請中', 
-    '人事棄却', 
+    '変更申請中', 
     '人事承認済', 
     '報告中',
     '未達成', 
@@ -207,6 +213,7 @@ const deleteGoal = async (goal: ProjectGoal) => {
     try {
         await axios.delete(`/delete_project_goal?id=${goal.id}`)
         fetchMemberData()
+        info('削除しました。')
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
@@ -222,7 +229,15 @@ const getThemes = async() => {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
-
+const applyEdit = async (goal: ProjectGoal) => {
+    try {
+        await axios.put('/approve_outcome_goal', {id: goal.id, status: 4})
+        fetchMemberData()
+        info('変更申請しました。')
+    } catch (e) {
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    }
+}
 provide('refresh', fetchMemberData)
 </script>
 <style>

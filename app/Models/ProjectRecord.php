@@ -22,6 +22,8 @@ class ProjectRecord extends Model
     public function director(){
         return $this->hasOne(User::class, 'id', 'director_id')->select('id', 'name', 'icon_id');
     }
-
+    public function goals() {
+        return $this->hasMany(ProjectGoal::class, 'project_id', 'id');
+    }
     protected $guarded = [];
 }

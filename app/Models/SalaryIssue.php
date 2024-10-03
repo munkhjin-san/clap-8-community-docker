@@ -16,4 +16,8 @@ class SalaryIssue extends Model
     public function files(){
         return $this->belongsToMany(FileRecord::class, 'project_use_files', 'record_id', 'file_id')->where('file_records.deleted_flag', 0);
     }
+
+    public function mentor() {
+        return $this->hasOne(User::class, 'id', 'mentor_id')->select('id', 'name', 'icon_id');
+    }
 }

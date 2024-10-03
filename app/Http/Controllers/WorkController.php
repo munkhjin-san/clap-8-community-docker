@@ -1341,6 +1341,8 @@ class WorkController extends Controller
     public function notSubmitted(Request $request){
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
+        $user_detail = $auth_user->user_detail;
+        
         $yesterday = date("Y-m-d",strtotime('-1 day'));
         $today = date("Y-m");
         $year = date("Y");
@@ -1380,7 +1382,10 @@ class WorkController extends Controller
         $shiftSubmittedList = [];
         $timecardNotSubmittedList = [];
         $numberOfDays = cal_days_in_month(CAL_GREGORIAN, $month, $year);
-
+        if($user_detail) {
+            $leave_start = $user_detail->leave_start;
+            $leave_end = $user_detail->leave_end;
+        }
         if(count($shift_record) < $numberOfDays){
             $shiftNotSubmittedList[] = [
                 'year' => $year, 
@@ -1404,50 +1409,55 @@ class WorkController extends Controller
                     }
                 }
                 foreach($shiftSubmittedList as $date => $value2){
-                    if(is_array($value2) && $value2['type'] == 1){
-                        if($date <= $yesterday){
-                            $timecard = timecardRecord::where('deleted_at', null)
-                                                      ->where('user_id', $auth_user_id )
-                                                      ->where('day', $date)
-                                                      ->with('timecard_costs')
-                                                      ->with('custom_field_data_records')
-                                                      ->with('department')
-                                                      ->first();
-                            if($timecard === null){
-                                $dateExplode = explode("-",$date);
-                                $timecardNotSubmittedList[] = [
-                                    'year' => (int) $dateExplode[0],
-                                    'month' => (int) $dateExplode[1],
-                                    'day' =>  (int) $dateExplode[2],
-                                    'value' => $date,
-                                    'shiftStatus' => $value2['status'],
-                                    'shiftEndTime' => $shift_record && count($shift_record) > 0 ? $shift_record[0]->end_time : '18:00:00',
-                                    'shiftStartTime' => $shift_record && count($shift_record) > 0 ? $shift_record[0]->start_time : '09:00:00',
-                                    'shiftOverTimeRequest' => $shift_overtime_requests->where('overtime_day', $date)->first()
-                                ];
+                    if (!is_array($value2) || $value2['type'] != 1) {
+                        continue;
+                    }
+                    if (isset($leave_start, $leave_end) && $date >= $leave_start && $date <= $leave_end) {
+                        continue;
+                    }
+                    if($date <= $yesterday){
+                        $timecard = timecardRecord::where('deleted_at', null)
+                                                    ->where('user_id', $auth_user_id )
+                                                    ->where('day', $date)
+                                                    ->with('timecard_costs')
+                                                    ->with('custom_field_data_records')
+                                                    ->with('department')
+                                                    ->first();
+                        if($timecard === null){
+                            $dateExplode = explode("-",$date);
+                            $timecardNotSubmittedList[] = [
+                                'year' => (int) $dateExplode[0],
+                                'month' => (int) $dateExplode[1],
+                                'day' =>  (int) $dateExplode[2],
+                                'value' => $date,
+                                'shiftStatus' => $value2['status'],
+                                'shiftEndTime' => $shift_record && count($shift_record) > 0 ? $shift_record[0]->end_time : '18:00:00',
+                                'shiftStartTime' => $shift_record && count($shift_record) > 0 ? $shift_record[0]->start_time : '09:00:00',
+                                'shiftOverTimeRequest' => $shift_overtime_requests->where('overtime_day', $date)->first()
+                            ];
 
-                            }else if($timecard->status_flag == 0){
-                                $dateExplode = explode("-",$date);
-                                $timecardNotSubmittedList[] = [
-                                    'year' => (int) $dateExplode[0],
-                                    'month' => (int) $dateExplode[1],
-                                    'day' =>  (int) $dateExplode[2],
-                                    'value' => $date,
-                                    'shiftStatus' => $value2['status'],
-                                    'costs' => $timecard->timecard_costs,
-                                    'customData' => $timecard->custom_field_data_records,
-                                    'department' => $timecard->department,
-                                    'user_id' => $timecard->user_id,
-                                    'work_group_id' => $timecard->work_group_id,
-                                    'shiftEndTime' => $timecard->edit_end_time,
-                                    'shiftStartTime' => $timecard->edit_start_time,
-                                    'shiftOverTimeRequest' => $shift_overtime_requests->where('overtime_day', $date)->first()
-                                ];
-                            }
-
+                        }else if($timecard->status_flag == 0){
+                            $dateExplode = explode("-",$date);
+                            $timecardNotSubmittedList[] = [
+                                'year' => (int) $dateExplode[0],
+                                'month' => (int) $dateExplode[1],
+                                'day' =>  (int) $dateExplode[2],
+                                'value' => $date,
+                                'shiftStatus' => $value2['status'],
+                                'costs' => $timecard->timecard_costs,
+                                'customData' => $timecard->custom_field_data_records,
+                                'department' => $timecard->department,
+                                'user_id' => $timecard->user_id,
+                                'work_group_id' => $timecard->work_group_id,
+                                'shiftEndTime' => $timecard->edit_end_time,
+                                'shiftStartTime' => $timecard->edit_start_time,
+                                'shiftOverTimeRequest' => $shift_overtime_requests->where('overtime_day', $date)->first()
+                            ];
                         }
 
                     }
+
+                    
                 }
             }
         }
