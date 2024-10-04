@@ -1116,7 +1116,7 @@ class WorkController extends Controller
         $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
         $shift_workdays = $user->shift_records->where('shift_type', 1)->pluck('shift_day');
         $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->count();
-        $workedday_count = $user->time_card_records->whereIn('day', $shift_workdays)->count();
+        $user->position_id === 15 ? $workedday_count = $user->time_card_records->count() : $workedday_count = $user->time_card_records->whereIn('day', $shift_workdays)->count();
         $worked_time = $user->time_card_records->sum('work_time');
         $holiday_worked_time = $user->time_card_records->whereIn('day', $shift_holidays)->sum('work_time');
         $approved_count = $user->time_card_records->where('status_flag', 2)->count();
