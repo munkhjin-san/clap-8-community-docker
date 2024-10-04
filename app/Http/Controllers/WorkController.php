@@ -1174,7 +1174,7 @@ class WorkController extends Controller
             $month_over_time = $over_time;
         }
         if ($shift_work_hours < $worked_time - $month_over_time) {
-            $month_over_time = $worked_time - $shift_work_hours;
+            $month_over_time = $worked_time - $shift_work_hours - $night_over_time;
         }
         $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
         $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
