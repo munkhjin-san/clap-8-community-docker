@@ -20,7 +20,7 @@
                 maxWidth: message.message == null || !message.message || !message.message.length ? '50%' : '80%',
                 width: 'fit-content'
             }" 
-            :class="['mobileMessageBody', { 'reached' : urlMessage.id == message.id}, { emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:editing}]"
+            :class="['mobileMessageBody', { 'reached' : urlMessage.id == message.id}, { emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id}]"
         >
             <div class="message-top-block">
                 <div style="display: flex;align-items: center;gap:10px">
