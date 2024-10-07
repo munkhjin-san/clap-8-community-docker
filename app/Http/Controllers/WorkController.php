@@ -1282,7 +1282,6 @@ class WorkController extends Controller
             $petitionType2_count = $shift_records->where('shift_type', 8)->count();
             $petitionType1_count = $shift_records->where('shift_type', 7)->count();
             $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
-            $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
             $hours_count = collect($shiftTypes)->sum(function ($type) use ($shift_records) {
                 $count = $shift_records->where('shift_type', $type)->count();
                 return $type === 6 ? $count * 0.5 : $count;
