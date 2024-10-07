@@ -1281,9 +1281,11 @@ class WorkController extends Controller
             $petitionType3_count = $shift_records->where('shift_type', 9)->count();
             $petitionType2_count = $shift_records->where('shift_type', 8)->count();
             $petitionType1_count = $shift_records->where('shift_type', 7)->count();
-            $shiftTypes = [13, 12, 11, 10, 9, 8, 7];
+            $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
+            $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
             $hours_count = collect($shiftTypes)->sum(function ($type) use ($shift_records) {
-                return $shift_records->where('shift_type', $type)->count();
+                $count = $shift_records->where('shift_type', $type)->count();
+                return $type === 6 ? $count * 0.5 : $count;
             });
             $closed_day = $shift_records->where('shift_type', 2)->count();
             $working_hour_low = $shift_records->whereIn('shift_type', [13, 12, 11, 10, 9, 8, 7])->count();
@@ -1315,7 +1317,7 @@ class WorkController extends Controller
             $attendance_record->prescribed_working_hours = $request->shift_working_hours / 60;
             $attendance_record->work_type = $request->user['work_type'] == 0 ? 'フレックス' : '通常';
             $attendance_record->working_days_shift = $request->shift_working_days;
-            $attendance_record->normal_working_days = $request->worked_days + $hours_count + ($half_day_holiday / 2);
+            $attendance_record->normal_working_days = $request->worked_days + $hours_count;
             $attendance_record->holiday_working_days = $request->holiday_worked_days;
             $attendance_record->paid_holiday_hours = $request->annual_leave;
             $attendance_record->condolence_holiday = $request->condolence_leave;
