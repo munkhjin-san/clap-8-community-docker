@@ -803,37 +803,39 @@ class BoardController extends Controller
                 $members = array_map(function ($userId) {
                     return (string) $userId;
                 }, $notify_ids);
-                
-                $deep_link = url('board/' . $request->record_id);
-                $icon = url('content_api/profile_icon/' . $active_user->icon_id . '_' . $active_user->id . '_200.jpg');
-                $badge = url('/96x96.png');
-                if(!empty($boardRecord) && $boardRecord->private_flag == 1){
-                    $push_title = $active_user->name;
-                    if($request->attached_temp_files && $chat->message_text == null){
-                        $body = 'ファイルメッセージ';
+                if(!empty($members)){
+                    $deep_link = url('board/' . $request->record_id);
+                    $icon = url('content_api/profile_icon/' . $active_user->icon_id . '_' . $active_user->id . '_200.jpg');
+                    $badge = url('/96x96.png');
+                    if(!empty($boardRecord) && $boardRecord->private_flag == 1){
+                        $push_title = $active_user->name;
+                        if($request->attached_temp_files && $chat->message_text == null){
+                            $body = 'ファイルメッセージ';
+                        }else{
+                            $body = $chat->message_text;
+                        }
                     }else{
-                        $body = $chat->message_text;
+                        $push_title = $boardRecord->title;
+                        if($request->attached_temp_files && $chat->message_text == null){
+                            $body = $active_user->name . ':' . 'ファイルメッセージ';
+                        }else{
+                            $body = $active_user->name . ':' . $chat->message_text;
+                        }
                     }
-                }else{
-                    $push_title = $boardRecord->title;
-                    if($request->attached_temp_files && $chat->message_text == null){
-                        $body = $active_user->name . ':' . 'ファイルメッセージ';
-                    }else{
-                        $body = $active_user->name . ':' . $chat->message_text;
-                    }
+                    $payload = [
+                        "body" => $body,
+                        "title" => $push_title,
+                        "link" => $deep_link,
+                        "members" => $members,
+                        "icon" => $icon,
+                        "badge" => $badge,
+                        "user_id" => $auth_user_id,
+                        "user_name" => $active_user->name,
+                        "message" => $chat->message_text,
+                    ];
+                    SendNotification::dispatchAfterResponse($payload);
                 }
-                $payload = [
-                    "body" => $body,
-                    "title" => $push_title,
-                    "link" => $deep_link,
-                    "members" => $members,
-                    "icon" => $icon,
-                    "badge" => $badge,
-                    "user_id" => $auth_user_id,
-                    "user_name" => $active_user->name,
-                    "message" => $chat->message_text,
-                ];
-                SendNotification::dispatchAfterResponse($payload);
+                
             }
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
             if(!$request->override_user_id){
