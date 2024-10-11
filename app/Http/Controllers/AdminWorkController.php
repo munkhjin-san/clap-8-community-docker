@@ -129,47 +129,52 @@ class AdminWorkController extends Controller{
         $sevenDaysAgo = now()->subDays(3);
         now()->day >= 1 && now()->day <= 6 ? $previousMonth = $currentMonth - 1 : $previousMonth = null;  
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $userIds)
-            ->where('date', '>=', $sevenDaysAgo)
-            ->whereYear('date', $currentYear)
-            ->where(function ($query) use ($currentMonth, $previousMonth) {
-                $query->whereMonth('date', $currentMonth);
-                if ($previousMonth) {
-                    $query->orWhereMonth('date', $previousMonth);
-                }
-            })
-            ->where('type_id', 43)
-            ->where('deleted_flag', 0)
-            ->orderBy('user_id')
-            ->orderBy('date')
-            ->get(['user_id', 'value_int', 'date']);
+        ->whereYear('date', $currentYear)
+        ->where(function ($query) use ($currentMonth, $previousMonth) {
+            $query->whereMonth('date', $currentMonth);
+            if ($previousMonth) {
+                $query->orWhereMonth('date', $previousMonth);
+            }
+        })
+        ->where('type_id', 43)
+        ->where('deleted_flag', 0)
+        ->orderBy('user_id')
+        ->orderBy('date')
+        ->get(['user_id', 'value_int', 'date'])
+        ->groupBy('user_id')
+        ->map(function ($userRecords) {
+            return $userRecords->sortByDesc('date')->take(3);
+        });
+
 
         $streakDataPerUser = [];
         $mostCommonValuesPerUser = [];
-        foreach ($custom_weather_data as $record) {
-            $user_id = $record->user_id;
-            $value_int = $record->value_int;
-            if (!isset($streakDataPerUser[$user_id])) {
-                $streakDataPerUser[$user_id] = [
-                    'current_streak' => 0,
-                    'max_streak' => 0,
-                ];
-            }
-            if (in_array($value_int, [3, 4, 5])) {
-                $streakData = &$streakDataPerUser[$user_id];
-                $streakData['current_streak']++;
-                $streakData['max_streak'] = max($streakData['max_streak'], $streakData['current_streak']);
-        
-                if ($streakData['current_streak'] >= 3) {
-                    $mostCommonValuesPerUser[$user_id] = [
-                        'current_streak' => $streakData['current_streak'],
-                        'max_streak' => $streakData['max_streak'],
-                        'current_value' => $value_int,
+        $custom_weather_data->each(function ($records, $userId) use (&$streakDataPerUser, &$mostCommonValuesPerUser) {
+            foreach ($records as $record) {
+                $value_int = $record->value_int;
+                if (!isset($streakDataPerUser[$userId])) {
+                    $streakDataPerUser[$userId] = [
+                        'current_streak' => 0,
+                        'max_streak' => 0,
                     ];
                 }
-            } else {
-                $streakDataPerUser[$user_id]['current_streak'] = 0;
+                if (in_array($value_int, [3, 4, 5])) {
+                    $streakData = &$streakDataPerUser[$userId];
+                    $streakData['current_streak']++;
+                    $streakData['max_streak'] = max($streakData['max_streak'], $streakData['current_streak']);
+        
+                    if ($streakData['current_streak'] >= 3) {
+                        $mostCommonValuesPerUser[$userId] = [
+                            'current_streak' => $streakData['current_streak'],
+                            'max_streak' => $streakData['max_streak'],
+                            'current_value' => $value_int,
+                        ];
+                    }
+                } else {
+                    $streakDataPerUser[$userId]['current_streak'] = 0;
+                }
             }
-        }
+        });
             
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
