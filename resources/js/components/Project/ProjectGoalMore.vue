@@ -63,7 +63,7 @@
                         <div>成果結果</div>
                         <div class="kadai-content">{{ goal?.result }}</div>
                     </div>
-                    <div v-if="(memberData && auth.id === memberData.id || isManagerOrMember) && goal?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="(memberData && auth.id === memberData.id || isManagerOrMember) && (goal?.status == 5 || goal?.status == 6)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告"/>
                     </div>
                     <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( auth.user?.position_id && auth.user?.position_id < 6)) && goal?.status == 6" style="display: flex; gap: 20px;margin-bottom: 10px;">
