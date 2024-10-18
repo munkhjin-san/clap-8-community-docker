@@ -904,7 +904,10 @@ class CalendarController extends Controller
                 [ 'label' => '福岡480わ3206 クリッパー', 'value' => 3, 'selected' => false ],
                 [ 'label' => '福岡480ね5019 バン', 'value' => 4, 'selected' => false ],
                 [ 'label' => '福岡480ね5020 バン', 'value' => 5, 'selected' => false ],
-                [ 'label' => '鹿児島582そ6650 ミライース', 'value' => 6, 'selected' => false ]
+                [ 'label' => '鹿児島582そ6650 ミライース', 'value' => 6, 'selected' => false ],
+                [ 'label' => '福岡582ち7350', 'value' => 7, 'selected' => false ],
+                [ 'label' => 'なにわ502の1116', 'value' => 8, 'selected' => false ],
+                [ 'label' => '大阪581わ707（ﾚﾝﾀｶｰ）', 'value' => 9, 'selected' => false ]
             ]
         ];
         if( $type == 'all' ){
