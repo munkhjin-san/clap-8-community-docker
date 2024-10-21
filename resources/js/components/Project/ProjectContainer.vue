@@ -352,7 +352,7 @@ provide('setDates', setInitialDates)
         //     scrollbar-width: none;
         // }
         .project-search-wrap {
-            width: calc(100% - 140px);
+            width: calc(100% - 65px);
             margin-left: unset;
         }
         .project-table {

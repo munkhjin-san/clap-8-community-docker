@@ -40,11 +40,12 @@
                         :close-on-select="true"
                         @search="search"
                         :multiple="false"
+                        :clearable="true"
                     />
                 </div>
                 <div class="si-box">
                     <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">AI アドバイス</p>
-                    <div v-html="aiAdvice"></div> 
+                    <div style="white-space: break-spaces;" v-html="aiAdvice"></div> 
                 </div>
                 <div class="si-box" style="margin-bottom: 10px;">
                     目標設定フォーム

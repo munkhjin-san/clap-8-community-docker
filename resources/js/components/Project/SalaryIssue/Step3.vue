@@ -23,7 +23,7 @@
             </div>
             <div class="si-box">
                 <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">AI アドバイス</p>
-                <div v-html="aiAdvice"></div> 
+                <div style="white-space: break-spaces" v-html="aiAdvice"></div> 
             </div>
             <div class="si-box" style="background: var(--background-color);">
                 <ShortInput

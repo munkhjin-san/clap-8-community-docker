@@ -50,6 +50,7 @@
                                 :options="increaseOptions"
                                 :close-on-select="false"
                                 :multiple="true"
+                                :clearable="true"
                                 v-model="increased"
                             />
                         </div>
@@ -76,6 +77,7 @@
                                 :reduce="option => option.name"
                                 :close-on-select="true"
                                 :multiple="false"
+                                :clearable="true"
                                 label="name"
                             />
                         </div>
@@ -87,6 +89,7 @@
                                 label="level"
                                 :reduce="option => option['level']"
                                 :close-on-select="true"
+                                :clearable="true"
                                 @search="handleSearch"
                                 :multiple="false"
                             />
@@ -100,6 +103,7 @@
                                 label="salary_grade"
                                 :close-on-select="true"
                                 :multiple="false"
+                                :clearable="true"
                             />
                         </div>
                         <div class="si-box">
@@ -110,6 +114,7 @@
                                 :reduce="option => option['basic_salary']"
                                 label="basic_salary"
                                 :close-on-select="true"
+                                :clearable="true"
                                 :multiple="false"
                             />
                         </div>
@@ -121,6 +126,7 @@
                                 label="basic_salary"
                                 v-model="after_salary"
                                 :close-on-select="true"
+                                :clearable="true"
                                 :multiple="false"
                             />
                         </div>
@@ -140,6 +146,7 @@
                                 :multiple="true"
                                 :options="criteriaMaster?.[0]?.standards"
                                 v-model="checkedCriteria"
+                                :clearable="true"
                                 :closeOnSelect="false"
                             />
                         </div>
@@ -166,6 +173,7 @@
                                 label="candidate"
                                 :options="increaseOptions"
                                 :close-on-select="false"
+                                :clearable="true"
                                 :multiple="true"
                                 v-model="current_increase"
                             />
