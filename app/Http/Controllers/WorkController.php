@@ -75,7 +75,10 @@ class WorkController extends Controller
 
         $month_work_time = $time_card_record->pluck('total_work_time', 'user_id');
 
-        $user_record = User::whereIn('id', $users_list)->select('name', 'id', 'work_type', 'work_time_day', 'work_authority', 'icon_id', 'position_id', 'user_code')->get();
+    
+        $user_record = User::whereIn('id', $users_list)
+                            ->select('name', 'id', 'work_type', 'work_time_day', 'work_authority', 'icon_id', 'position_id', 'user_code')
+                            ->get();
 
         $custom_weather_data = customFieldDataRecord::selectRaw(
             'user_id,
@@ -432,9 +435,15 @@ class WorkController extends Controller
     public function get_shift_data(Request $request){
         $users_list = $request->work_group ?? [Auth::id()];
         [$currentYear, $currentMonth] = explode('-', $request->current_date);
-        $user = User::select('user_code', 'position_id')->findOrFail($users_list[0]);
+
+        $currentMonth >= 2 && $currentMonth <= 7 ? $evaluationDate = "$currentYear-02-01" : $evaluationDate = "$currentYear-08-01";
+
+        $user = User::with(['evaluation' => function ($query) use($evaluationDate) {
+                        $query->where('date', $evaluationDate);
+                    }])
+                    ->select('user_code', 'position_id', 'id')->findOrFail($users_list[0]);
         $user_code = $user->user_code;
-               
+        $general_position = $user->evaluation->general_position;
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->where('user_id', $users_list[0])
@@ -468,15 +477,18 @@ class WorkController extends Controller
             $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $work_temp->planned_days - $between_records;
         }
         $shift_type = $user->position_id <= 11 || $user->position_id == 16
-                      ? shiftType::where('deleted_flag', 0)->get()
-                      : shiftType::where('id','!=', 14)->where('id','!=', 15)->where('id','!=', 16)->get();
+                      ? $general_position > 'B' ? 
+                      shiftType::where('deleted_flag', 0)->get()
+                      : shiftType::where('deleted_flag', 0)->whereNot('id', 17)->get()
+                      : shiftType::whereNot('id', 14)->whereNot('id', 15)->whereNot('id', 16)->get();
+
         $data = [
             "shift_record" => $shift_record,
             "shift_type" => $shift_type,
             "workTemp" => $work_temp ? $work_temp : null,
             "consumed_days" => $remaining_days > 0 ? $between_records : 0,
             "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
-            "odaCheck" => $odaCheck
+            "odaCheck" => $odaCheck,
         ];
         
 
@@ -1282,12 +1294,16 @@ class WorkController extends Controller
             $petitionType2_count = $shift_records->where('shift_type', 8)->count();
             $petitionType1_count = $shift_records->where('shift_type', 7)->count();
             $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
-            $hours_count = collect($shiftTypes)->sum(function ($type) use ($shift_records) {
+            $hours_count = 0;
+            $working_hour_low = 0;
+            foreach ($shiftTypes as $type) {
                 $count = $shift_records->where('shift_type', $type)->count();
-                return $type === 6 ? $count * 0.5 : $count;
-            });
+                $hours_count += $type === 6 ? $count * 0.5 : $count;
+                if ($type !== 6) {
+                    $working_hour_low += $count;
+                }
+            }
             $closed_day = $shift_records->where('shift_type', 2)->count();
-            $working_hour_low = $shift_records->whereIn('shift_type', [13, 12, 11, 10, 9, 8, 7])->count();
             $condolence_hours = $user_work_time_day * $request->condolence_leave;
             $transfer_hours = $user_work_time_day * $request->transfer_leave;
             $closed_hours = $user_work_time_day * $closed_day;
