@@ -477,10 +477,10 @@ class WorkController extends Controller
             $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $work_temp->planned_days - $between_records;
         }
         $shift_type = $user->position_id <= 11 || $user->position_id == 16
-                      ? $general_position > 'B' ? 
+                      ? $general_position > 'B' && $general_position != '一般職' ? 
                       shiftType::where('deleted_flag', 0)->get()
                       : shiftType::where('deleted_flag', 0)->whereNot('id', 17)->get()
-                      : shiftType::whereNot('id', 14)->whereNot('id', 15)->whereNot('id', 16)->get();
+                      : shiftType::whereNotIn('id', [14, 15, 16])->get();
 
         $data = [
             "shift_record" => $shift_record,
