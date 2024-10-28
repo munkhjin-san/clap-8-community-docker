@@ -443,7 +443,7 @@ class WorkController extends Controller
                     }])
                     ->select('user_code', 'position_id', 'id')->findOrFail($users_list[0]);
         $user_code = $user->user_code;
-        $general_position = $user->evaluation->general_position;
+        $general_position = $user->evaluation->general_position ?? null;
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->where('user_id', $users_list[0])
