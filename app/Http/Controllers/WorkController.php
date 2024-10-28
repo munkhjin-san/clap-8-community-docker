@@ -480,7 +480,7 @@ class WorkController extends Controller
                       ? $general_position > 'B' && $general_position != '一般職' ? 
                       shiftType::where('deleted_flag', 0)->get()
                       : shiftType::where('deleted_flag', 0)->whereNot('id', 17)->get()
-                      : shiftType::whereNotIn('id', [14, 15, 16])->get();
+                      : shiftType::whereNotIn('id', [14, 15, 16, 17])->get();
 
         $data = [
             "shift_record" => $shift_record,
