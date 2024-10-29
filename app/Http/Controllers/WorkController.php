@@ -731,7 +731,7 @@ class WorkController extends Controller
                                 $q->whereIn('users.id', [$auth_user_id]);
                             })->orWhereHas('manager', function($q) use($auth_user_id) {
                                 $q->whereIn('users.id', [$auth_user_id]);
-                            })->with(['members' => function($q) use($ids) {
+                            })->orWhere('director_id', $auth_user_id)->with(['members' => function($q) use($ids) {
                                 $q->whereNotIn('users.id', $ids)
                                     ->where('users.partner_flag', 0)
                                     ->where('users.retire', 0)
