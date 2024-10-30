@@ -1250,7 +1250,20 @@ class CalendarController extends Controller
                                     ->orWhereHas('manager')
                                     ->with(['members', 'manager', 'director'])
                                     ->get();
-        return response()->json($departments);
+        $sortedProjects = $departments->sortByDesc(function ($project) {
+            $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
+            $isManager = in_array(Auth::id(), $project->manager->pluck('id')->toArray());
+            $isDirector = $project->director && $project->director->id == Auth::id();
+            if ($isMember) {
+                return 3;
+            } elseif ($isManager) {
+                return 2;
+            } elseif ($isDirector) {
+                return 1;
+            }
+            return 0;
+        })->values();
+        return response()->json($sortedProjects);
     }
 
     
