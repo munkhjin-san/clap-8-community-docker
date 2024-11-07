@@ -32,6 +32,7 @@
                     :reduce="option => option.name"
                     :close-on-select="true"
                     :multiple="false"
+                    :clearable="true"
                     label="name"
                 />
             </div>
@@ -45,6 +46,7 @@
                     :close-on-select="true"
                     @search="search"
                     :multiple="false"
+                    :clearable="true"
                 />
             </div>
             <div class="si-box">
@@ -56,6 +58,7 @@
                     label="salary_grade"
                     :close-on-select="true"
                     :multiple="false"
+                    :clearable="true"
                 />
             </div>
             <div class="si-box">
@@ -67,6 +70,7 @@
                     label="basic_salary"
                     :close-on-select="true"
                     :multiple="false"
+                    :clearable="true"
                 />
             </div>
             <div class="si-box">
@@ -78,6 +82,7 @@
                     v-model="after_salary"
                     :close-on-select="true"
                     :multiple="false"
+                    :clearable="true"
                 />
             </div>
             <div class="si-box">

@@ -76,7 +76,7 @@ import { useAuthUserStore } from '@/store/auth'
     const targetUsers = computed(() => {
         let users = board.value && board.value.board_to_users ? board.value.board_to_users.map(ob => ob.user) : []
         if(props.requestType == 'confirm'){
-            users = users.filter(ob => ob.id !== auth.activeUser.id)
+            users = users.filter(ob => ob.id !== auth.activeUser.id && ob.on_leave === 0)
         }
         return users
     })

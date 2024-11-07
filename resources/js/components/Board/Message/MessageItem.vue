@@ -3,7 +3,8 @@
         ref="messageBox"
         class="messageBoxRoot" 
         :class="{infoMessage : message.info_flag == 1, selfMessage: message.user_id == auth.activeUser.id}"
-        :style="{marginBottom: editing && mIndex == 0 ? '25px' : '0'}">
+        :style="{marginBottom: editing && mIndex == 0 ? '25px' : '0'}"
+        v-if="!message.save_flag || (message.save_flag && message.user_id === auth.activeUser.id)">
         <div class="infoMessageInner" v-if="message.info_flag > 0">   
             <p v-if="showDate">{{momentMessage}}</p>       
             <p style="cursor:pointer" @click="showDate = !showDate" v-html="infoMessage"></p>        
@@ -27,16 +28,24 @@
                     <UserIconPreLoad size="30" :user="message.user" imgClass="userNormalIcon"/>                   
                     <div @click.stop="pushInstantUser($event, message.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ messageUserName }}</div>     
                 </div>                                     
-                <div class="m-date">{{momentMessage}}</div>  
+                <div class="m-date">{{message.save_flag ? '下書き' : momentMessage}}</div>  
                 <div class="messageIconContainer">
-                    <div class="bell-icon cursor-pointer" v-if="reminded" @click="remind(message)">
+                    
+                    <div class="boardMenuContainer" v-if="reminded" @click="remind(message)">
                         <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/" style="margin:auto;fill:var(--kebab-icon)" version="1.1" x="0px" y="0px" height="13" viewBox="0 0 26 29" enable-background="new 0 0 26 29" xml:space="preserve">
                             <defs>
                             </defs>
                             <path d="M25.469,20.171c-0.7-0.206-1.325-0.619-1.875-1.108c-0.156-0.436-0.258-1.137-0.337-1.714  c-0.223-1.772-0.337-3.599-0.568-5.4c-0.225-1.931-0.658-4.1-1.937-5.683c-1.059-1.357-2.512-2.479-4.189-2.918  c-0.066-0.017-0.112-0.075-0.112-0.143c0.001-0.889,0.002-1.944,0.002-1.944C16.452,0.563,15.887,0,15.19,0  c-0.003,0.001-3.967,0-3.97,0.001c-0.696,0.001-1.261,0.566-1.26,1.262l0.002,1.943c0,0.068-0.046,0.126-0.111,0.143  c-1.678,0.44-3.13,1.561-4.189,2.918c-1.867,2.38-1.902,5.581-2.224,8.422c-0.086,0.902-0.167,1.799-0.277,2.661  c-0.085,0.601-0.146,1.16-0.335,1.698c-0.004,0.01-0.008,0.021-0.012,0.029c-0.19,0.17-0.688,0.562-0.969,0.706  c-0.289,0.167-0.585,0.305-0.9,0.394c0.041-0.03-0.948,1.155-0.945,1.155c0.001,0.015,0.017,2.729,0.019,2.741  c0.004,0.636,0.522,1.147,1.159,1.143c2.012-0.012,5.394-0.045,8.306-0.076c-0.027,0.112-0.038,0.231-0.025,0.354  c0.007,0.051,0.015,0.156,0.024,0.206c0.131,0.869,0.464,1.659,1.089,2.321c1.045,1.095,2.678,1.354,4.108,0.914  c1.402-0.504,2.303-2.001,2.318-3.443c0.008-0.115-0.001-0.222-0.02-0.32c2.899,0.021,6.253,0.041,8.257,0.053  c0.642,0.004,1.165-0.513,1.168-1.154c0.003-0.012,0.012-2.726,0.016-2.737C26.423,21.332,25.428,20.14,25.469,20.171   M23.537,19.014c0,0,0.002,0.002,0.003,0.002c-0.006-0.005-0.012-0.01-0.012-0.01C23.52,18.998,23.533,19.01,23.537,19.014   M4.502,20.775c0.779-0.735,0.893-2.135,1.055-3.106c0.127-0.933,0.216-1.84,0.31-2.74c0.187-1.71,0.342-3.536,0.779-5.15  c0.507-1.773,1.895-3.339,3.644-3.939c0.332-0.112,0.729-0.203,1.012-0.277c0.796-0.209,1.008-0.459,1.009-1.151  c0,0,0.001-1.216,0.002-2.071c0-0.092,0.074-0.167,0.168-0.167h1.491c0.093,0,0.168,0.075,0.168,0.168  c0.001,0.854,0.002,2.07,0.002,2.07c0,0.693,0.302,1.014,1.031,1.188c2.149,0.252,4.041,2.189,4.595,4.18  c0.653,2.528,0.717,5.269,1.085,7.892c0.083,0.588,0.178,1.231,0.356,1.842c0.126,0.409,0.271,0.817,0.612,1.182  c0.651,0.607,1.407,1.135,2.236,1.486c0.002,0.307,0.002,0.365,0.004,0.714c-3.2,0.019-8.211,0.051-10.854,0.078  c-0.094,0.004-0.181,0.019-0.263,0.038c-2.706-0.032-7.499-0.083-10.598-0.105c0.002-0.355,0.003-0.416,0.005-0.728  C3.143,21.84,3.866,21.341,4.502,20.775 M14.984,25.282c-0.001-0.019-0.008,0.005-0.012,0.012l-0.017,0.036  c-0.16,0.356-0.385,0.793-0.687,1.014c-0.139,0.112-0.296,0.146-0.448,0.225c-0.31,0.149-0.857,0.176-1.188,0.07  c-0.591-0.15-0.941-0.739-1.098-1.311l-0.01-0.037c-0.003-0.007-0.007-0.03-0.006-0.011c-0.006-0.057-0.018-0.11-0.031-0.162  c0.529-0.006,1.019-0.012,1.455-0.017c0.082,0.021,0.169,0.034,0.263,0.038c0.521,0.005,1.132,0.012,1.802,0.017  C14.999,25.197,14.99,25.238,14.984,25.282"/>
                         </svg>
                     </div>
-                    <ItemMenu v-if="message.deleted_at == null" :items="messageMenuItems" fit="boardListInner"/>
+                    <!-- <div :class="['boardMenuContainer', {'active': active} ]">
+                        <svg style="margin:auto;fill:var(--kebab-icon)" xmlns="http://www.w3.org/2000/svg" height="13" id="Layer_2" data-name="Layer 2" viewBox="0 0 18.46 18.25">
+                            <path class="cls-1" d="m18.28,15.09c-.02-.07-.06-.13-.09-.19-.03-.06-.06-.12-.1-.18l-.05-.09-.03-.04-.04-.05c-.05-.07-.11-.14-.16-.2l-.07-.08s0,0,0,0c-.04-.03-.08-.06-.11-.09l-.05-.04-.04-.03-.09-.05c-.06-.04-.12-.07-.18-.1-.06-.03-.12-.06-.19-.09-.26-.11-.55-.17-.84-.18-.56-.02-1.14.2-1.57.58-.02.02-.05.02-.08.01-.49-.25-.99-.5-1.48-.75l-1.73-.86-1.73-.85-1.74-.83c-.58-.28-1.17-.54-1.75-.82-.51-.23-1.01-.47-1.52-.7-.05-.02-.08-.08-.07-.13,0-.07.01-.14.02-.21,0-.08,0-.16,0-.23,0-.05.02-.1.07-.12.5-.23,1.01-.46,1.51-.69.58-.27,1.17-.54,1.75-.82l1.74-.83,1.73-.85,1.73-.86c.49-.25.99-.5,1.48-.75.03-.01.06,0,.08.01.42.39,1,.6,1.57.58.3,0,.58-.07.84-.18.07-.02.13-.06.19-.09.06-.03.12-.06.18-.1l.09-.05.04-.03.05-.04s.08-.06.11-.09c0,0,0,0,0,0l.07-.08c.06-.06.11-.13.16-.2l.04-.05.03-.04.05-.09c.04-.06.07-.12.1-.18.03-.06.06-.12.09-.19.11-.26.18-.55.18-.84.02-.59-.21-1.2-.64-1.63-.21-.21-.46-.39-.74-.51C16.8.06,16.5,0,16.2,0c-.3,0-.6.06-.87.16-.27.1-.52.25-.73.41l-.07.05-.05.07c-.16.22-.31.46-.41.73-.1.27-.16.57-.16.87,0,.07,0,.13,0,.2,0,.03-.01.06-.04.07-.5.23-1,.46-1.49.69l-1.75.82-1.74.83-1.73.85c-.58.28-1.15.58-1.73.86-.48.24-.96.49-1.44.73-.09.04-.19.03-.27-.03-.16-.13-.34-.24-.54-.33-.28-.12-.58-.18-.88-.18-.3,0-.6.06-.87.16-.27.1-.52.25-.73.41l-.07.05-.05.07c-.16.22-.31.46-.41.73C.06,8.52,0,8.81,0,9.11c0,.61.26,1.21.69,1.63.43.42,1.04.66,1.63.64.3,0,.58-.07.84-.18.07-.02.13-.06.19-.09.06-.03.12-.06.18-.1l.09-.05.04-.03.05-.04s.01,0,.02-.01c.06-.04.13-.05.2-.02.5.26,1,.51,1.5.76.58.29,1.15.58,1.73.86l1.73.85,1.74.83,1.75.82c.49.23.99.46,1.48.68.04.02.06.05.05.09,0,.06,0,.12,0,.18,0,.3.06.6.16.87.1.27.25.52.41.73l.05.07.07.05c.22.16.46.31.73.41.27.1.57.16.87.16.3,0,.61-.06.88-.18.28-.12.53-.29.74-.51.42-.43.65-1.04.64-1.63,0-.3-.08-.58-.18-.84Z"/>
+                        </svg>
+                    </div> -->
+                    
+                    <ItemMenu v-if="message.deleted_at == null" type="share" :items="shareMenuItems" fit="boardListInner"/>
+                    <ItemMenu v-if="message.deleted_at == null" ref="itemMenuRef" :items="messageMenuItems" fit="boardListInner"/>
                 </div>                                           
             </div>    
             
@@ -68,12 +77,12 @@
                 <div class="normal-body">
                     <div
                         v-if="!editing"
-                        @mousedown="menu.setMenu( {id: null, name: ''})"
-                        @touchstart="menu.setMenu( {id: null, name: ''})"
-                        @mousedown.stop="menuClick"
                         @click.stop="mentionClick"
                         @dragstart.prevent
-                        v-touch:hold="longTapAction" 
+                        @dblclick="showItemMenu"
+                        @touchstart="startTouch"
+                        @touchend="endTouch"
+                        @touchmove="cancelTouch"
                         @blur.prevent
                         ref="messageBoxBody" 
                         :style="{display: messageBody  ? 'inline-block' : 'none', marginBottom: message.message_files && message.message_files.length && !messageBody ? '10px' : '0'}" 
@@ -91,7 +100,10 @@
                         :list="message.message_files"
                         :message="message"
                         :mIndex="mIndex"
-                    />                                 
+                    />
+                    <!-- <div v-if="message.save_flag === 1" style="text-align: right;"> 
+                        （下書き保存）
+                    </div>                                  -->
                 </div>                           
             </div>
             <div v-if="message.deleted_at == null" class="message-foot-area">
@@ -167,7 +179,10 @@ import { mentionFormatter } from "@/utils/tools";
     const { copy, remind, check } = inject('messageItem')
     const { notify, confirm, info } = inject('dialog')
     const pushInstantUser = inject('pushInstantUser')
-
+    const itemMenuRef = ref(null)
+    const longPressDuration = ref(500)
+    const longPressTimer = ref(null)
+    const isLongPress = ref(false)
     onMounted(() => {
         if((props.message.id == props.searchTargetId && props.messageListType == 'search') || urlMessage.id == props.message.id){
             messageBox.value?.scrollIntoView({block: 'center' }); 
@@ -179,6 +194,44 @@ import { mentionFormatter } from "@/utils/tools";
         messageLoader(true)
         refreshMessages()
     }
+    const startTouch = (event) => {
+        isLongPress.value = false
+
+        longPressTimer.value = setTimeout(() => {
+            isLongPress.value = true
+            onLongPress(event)
+        }, longPressDuration.value)
+    }
+    const endTouch = () => {
+        if (!isLongPress.value) {
+            clearTimeout(longPressTimer.value)
+        }
+    }
+    const cancelTouch = () => {
+        clearTimeout(longPressTimer.value)
+    }
+    const onLongPress = (event) => {
+        showItemMenu(event)
+    }
+    const shareMenuItems = computed(() => {
+        const list= []; 
+        function addItem(title, action) {
+            list.push({ title, action });
+        }
+        const builtInApps = [
+            {name: 'board', name_jp: 'ボード'}, 
+            {name: 'knowledge', name_jp: 'ナレッジ'},
+            {name: 'nice', name_jp: 'ナイス'},
+            {name: 'challenge', name_jp: 'チャレンジ'},
+            {name: 'schedule', name_jp: 'スケジュール'},
+            {name: 'task', name_jp: 'タスク'}
+        ] 
+        builtInApps.forEach(app => {
+            addItem(app.name_jp, () => shareTo(app.name))
+        });
+
+        return list
+    })
     const messageMenuItems = computed(() => {
         const canConfirm = props.message.emoji_flag == 0 && board?.value.private_flag !== 3
         const list= []; 
@@ -193,21 +246,20 @@ import { mentionFormatter } from "@/utils/tools";
         }
         addItem('引用する', () => replyQuotStart('quot'))          
         addItem('コピー', () => copyTextStart())       
-        const builtInApps = [
-            {name: 'board', name_jp: 'ボード'}, 
-            {name: 'knowledge', name_jp: 'ナレッジ'},
-            {name: 'nice', name_jp: 'ナイス'},
-            {name: 'challenge', name_jp: 'チャレンジ'},
-            {name: 'schedule', name_jp: 'スケジュール'},
-            {name: 'task', name_jp: 'タスク'}
-        ]        
-        const shareChildren = [];
-        const share = { title: 'シェア', action: () => false, children: shareChildren}
-        builtInApps.forEach(app => {
-            share.children.push({ title: app.name_jp, action: () => shareTo(app.name)})
-        });
-        list.push(share)
-        addItem('リマインド', () => remind(props.message))     
+        // const builtInApps = [
+        //     {name: 'board', name_jp: 'ボード'}, 
+        //     {name: 'knowledge', name_jp: 'ナレッジ'},
+        //     {name: 'nice', name_jp: 'ナイス'},
+        //     {name: 'challenge', name_jp: 'チャレンジ'},
+        //     {name: 'schedule', name_jp: 'スケジュール'},
+        //     {name: 'task', name_jp: 'タスク'}
+        // ]        
+        // const shareChildren = [];
+        // const share = { title: 'シェア', action: () => false, children: shareChildren}
+        // builtInApps.forEach(app => {
+        //     share.children.push({ title: app.name_jp, action: () => shareTo(app.name)})
+        // });
+        // list.push(share)
         if(authorized.value){
             if(!props.message.check_flag && canConfirm){
                 addItem('確認依頼', () => check(props.message, 'confirm'))
@@ -219,8 +271,12 @@ import { mentionFormatter } from "@/utils/tools";
         }
         
         addItem('未読にする', () => markUnread(props.message.id))
-        
+        addItem('リマインド', () => remind(props.message))     
+
         return list
+    })
+    const active = computed(() => {
+        return menu.name == 'share-menu' && menu.id && menu.id == 19
     })
     const authorized = computed(() => {
         return props.message.user_id == auth.activeUser.id
@@ -277,6 +333,11 @@ import { mentionFormatter } from "@/utils/tools";
     const reactButtonView = computed(() => {
         return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users.length)
     })
+    const showItemMenu = (event) => {
+        if(itemMenuRef.value && itemMenuRef.value.show){
+            itemMenuRef.value.longTapAction(event)
+        }
+    }
     const menuClick = () => {
         if(menu.name == 'boardMessageMenu' && menu.id == props.message.id){
             const cont = boardMessageMenu.value;   
@@ -350,24 +411,7 @@ import { mentionFormatter } from "@/utils/tools";
     }
   
 
-    const longTapAction = (event) => {
-        event.stopPropagation()
-        const xPos = event.type === 'touchstart' ? Math.ceil(event.touches[0].clientX) : Math.ceil(event.clientX);
-        const yPos = event.type === 'touchstart' ? Math.ceil(event.touches[0].clientY) : Math.ceil(event.clientY);        
-        menu.setMenu( {name: 'boardMessageMenu', id: props.message.id})                
-        nextTick(() => {
-            const a = boardMessageMenu.value;                 
-            if(a){
-                const offset = responsive.mobile ? 40 : 10
-                let l = xPos - 50 < 0 ? 10 : xPos - 50; 
-                let t = yPos - a.clientHeight - offset < 0 ? yPos + offset : yPos - a.clientHeight - offset;
-                a.style.position = 'fixed'
-                a.style.top = t + 'px';
-                a.style.left = l + 'px'; 
-            }
-        })   
-            
-    }  
+      
     
     const copyTextStart = (id) => {   
         copy({

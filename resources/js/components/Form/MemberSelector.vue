@@ -87,7 +87,6 @@ import { validator } from '@/validation/validator'
     watch(() => props.path, () => {
         getPossibleMembers()
     })
-
     watch(() => props.selectAll, (after) => {
         if (after) {
             qualified_users.value = options.value
