@@ -185,15 +185,13 @@ class WorkController extends Controller
             }
             $workdayNum = $lastDay - $holidayNum;
             $shift_work_hours = $workdayNum * $user->work_time_day;
-            if($user->work_type == 0 && $month_over_time && $month_work_time){
-                if(isset($month_work_time[$user->id]) && isset($month_over_time[$user->id]) && isset($annual_leave[$user->id])){
-                    $all_work_hours = $annual_leave[$user->id] + $month_work_time[$user->id];
-                    $month_over_time[$user->id] = $all_work_hours - $shift_work_hours; 
-                }  
-            } elseif ($shift_work_hours < (($month_work_time[$user->id] ?? 0) - ($month_over_time[$user->id] ?? 0))) {
+            if (isset($annual_leave[$user->id])  && isset($month_work_time[$user->id])) {
+                $month_work_time[$user->id] += $annual_leave[$user->id];
+            }
+            if ($shift_work_hours < (($month_work_time[$user->id] ?? 0) - ($month_over_time[$user->id] ?? 0))) {
                 $month_over_time[$user->id] = ($month_work_time[$user->id] ?? 0) - $shift_work_hours;
             }
-
+            
             $month_average_data[] = [
                 'month_over_time' => (isset($month_over_time[$user->id]) && $month_over_time[$user->id] >= 0) ? $month_over_time[$user->id] : null,
                 'month_work_time' => $month_work_time[$user->id] ?? null,
@@ -305,7 +303,7 @@ class WorkController extends Controller
         // $workGroupUserIds = $workGroups->flatMap(function ($workGroup) {
         //     return $workGroup->members->pluck('id');
         // })->unique()->values()->all();
-        $timeCardRecords = $users->flatMap->time_card_records->groupBy('user_id')->map->keyBy('day');
+        $timeCardRecords = $users->flatMap->time_card_records->groupBy('user_id');
         $shiftRecords = $users->flatMap->shift_records->groupBy('user_id')->map->keyBy('shift_day');
         $customFieldData = $users->flatMap->custom_field_data_records->groupBy('user_id')->map->keyBy('date');
         $attendanceRecords = $users->flatMap->attendance_records->groupBy('user_id')->map->keyBy('date_year_month');
@@ -316,7 +314,9 @@ class WorkController extends Controller
             foreach ($users as $index => $user) {
                 $userId = $user->id;
                 $attendance = $attendanceRecords[$userId][$targetShiftMonth]->id ?? false;
-                $time_card = $timeCardRecords[$userId][$targetShiftDay] ?? null;
+                $time_card = isset($timeCardRecords[$userId])
+                            ? $timeCardRecords[$userId]->firstWhere('day', $targetShiftDay)
+                            : null;
                 $shift = $shiftRecords[$userId][$targetShiftDay] ?? null;
                 $department = $time_card?->department;
                 $authority = false;  
