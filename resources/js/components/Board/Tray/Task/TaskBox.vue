@@ -28,7 +28,7 @@
                 <div :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease', marginTop: '10px'}">
                     <p ref="taskBody" style="line-height: 1.5;white-space: pre-line;" v-html="truncatedRemarks"></p>
                 </div>  
-                <div @click="setTruncate" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '55px' ? '続きを表示する' : '閉じる' }}</div>
+                <div @click="setTruncate" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '54px' ? '続きを表示する' : '閉じる' }}</div>
 
               
                 <div v-if="item.end_at" style="margin-top: 10px;">
@@ -120,7 +120,7 @@ import { dateDetail } from '@/utils/workApi';
         }    
         if(taskBody.value){
             if(taskBody.value?.clientHeight > 42){
-                dynamicHeight.value = '55px'
+                dynamicHeight.value = '54px'
             }
         }  
     })
@@ -136,7 +136,7 @@ import { dateDetail } from '@/utils/workApi';
         // }
     })
     const setTruncate = () => {
-        dynamicHeight.value = dynamicHeight.value == '55px' ? `${taskBody.value?.clientHeight}px` : '55px'
+        dynamicHeight.value = dynamicHeight.value == '54px' ? `${taskBody.value?.clientHeight}px` : '54px'
     }
     const dueDetail = computed(() => {
         if(props.item?.repeat){
