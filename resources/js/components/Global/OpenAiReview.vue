@@ -20,9 +20,9 @@
 import {marked} from 'marked'
 import DOMPurify from 'dompurify';
 import OpenAI from "openai";
-import { ref, computed } from 'vue';
+import { ref, computed, inject } from 'vue';
 import LoaderButton from './LoaderButton.vue';
-const props = defineProps(['soureText', 'assistandId', 'message', 'confirmText'])
+const props = defineProps(['soureText', 'assistandId', 'message', 'confirmText', 'answer'])
 const reviewResultRaw = ref(props.soureText ? props.soureText : '')
 const loading = ref(false)
 const markedResponse = computed(() => {
@@ -33,7 +33,8 @@ const sanitizedResponse = computed(() => {
 })
 const checked = ref(false)
 const validateCounter = ref(0)
-const validate = () => {
+const { notify } = inject('dialog')
+const validate = async() => {
     validateCounter.value ++
     return checked.value
 }
@@ -42,7 +43,7 @@ const openAiReview = async() => {
     try{      
 
         loading.value = true 
-        const full = `ポートフォリオ内容："""${props.message}"""`
+        const full = props.answer ? `質問に関する回答内容：${props.message}` : `ポートフォリオ内容："""${props.message}"""`
 
         reviewResultRaw.value = ''
         const openai = new OpenAI({

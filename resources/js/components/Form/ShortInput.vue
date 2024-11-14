@@ -9,6 +9,7 @@
                 :type="type" 
                 :max="max ? max : ''"
                 :min="min ? min : ''"
+                :step="step ? step : ''"
                 :class="['g-text', customClass, {'date-color' : theme.dark }]"   
                 :style="customStyle"              
             />
@@ -36,6 +37,7 @@
         initialValue: String,
         max: String,
         min: String,
+        step: String,
     })
     onMounted(() => {
         if(props.initialValue){

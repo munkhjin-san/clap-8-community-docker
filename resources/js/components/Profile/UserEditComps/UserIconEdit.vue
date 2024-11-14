@@ -104,11 +104,12 @@
                             <div class="swiper-wrapper vertical-wrapper">
                                 <div class="swiper-slide" style="background: none;flex-direction: column;margin-bottom: 30px;" v-for="(mov, index) in movExist" :key="index">
                                     <div style="width: 100%;">
-                                        <div class="gn-img-container cursor-pointer" style="background-color: var(--bg3); max-height: 160px;" @click="previewImage(mov, index)">
-                                            <img class="gn-image" v-if="mov.mime_type == 'image'" :src="`/cdn/user_album/${targetId}/${mov.id}_${targetId}_${mov.path}.${mov.extension}`"/>
+                                        <div class="gn-img-container cursor-pointer" style="background-color: var(--bg3); max-height: 160px; min-width: 200px;" @click="previewImage(mov, index)">
+                                            <img ref="imageRef" @error="handleImgError(index)" class="gn-image" v-if="mov.mime_type == 'image' && !imageError.includes(index)" :src="`/cdn/user_album/${targetId}/${mov.id}_${targetId}_${mov.path}.${mov.extension}`"/>
                                             <video class="gn-image" preload="metadata" v-else-if="isMov(mov.mime_type)" controls="controls" style="pointer-events: none;max-height: 290px;">
                                                 <source v-bind:src="movSrc(mov)">
                                             </video>
+                                            <p class="i-error" ref="errorRef" v-if="imageError.includes(index)" style="top: 50%">ファイル読み込みに失敗しました。</p>
                                         </div>
                                         <p class="gn-title">{{ mov.title }}</p>
                                         <div v-if="mov.tags.length" style="display: flex;gap: 5px 10px;flex-wrap: wrap;margin-top:10px;">
@@ -177,7 +178,7 @@
     import UserAlbumByTags from '../UserAlbumByTags.vue';
     import WeatherUpdater from '../../Global/WeatherUpdater.vue';
     import WeatherIcon from '@/components/Global/WeatherIcon.vue';
-    import { computed, inject, ref } from 'vue';
+    import { computed, inject, onMounted, ref } from 'vue';
     import { useFilePreview } from '@/store/filePreview';
     import { useAuthUserStore } from '@/store/auth'
     import { useMenuStore } from "@/store/menu";
@@ -202,6 +203,10 @@
     const editData = ref(null)
     const filePreview = useFilePreview()
     const introUpload = ref(false)
+    const imageError = ref([])
+    const handleImgError = (index) => {
+        imageError.value.push(index)
+    }
     const icon = computed(() => {
         return props.UserAllData.icons
     })

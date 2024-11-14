@@ -49,11 +49,11 @@
                     <p :class="['form-title-small', 'form-title-active']">編集許可</p>
                 </div>
                 <div class="selectSwitchArea" style="width: fit-content;">    
-                    <input @change="setEditAllDefault" type="checkbox" id="edit_all" v-model="edit_all" :disabled="release_flag ? true : false">
-                    <label for="edit_all" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer', {'disabled-toggle' : release_flag}]"><span></span>
+                    <input @change="setEditAllDefault" type="checkbox" id="edit_all" v-model="edit_all" :disabled="release_flag || members_only ? true : false">
+                    <label for="edit_all" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer', {'disabled-toggle' : release_flag || members_only}]"><span></span>
                         <div class="switch-toggle"></div>
                     </label>
-                    <span v-if="release_flag" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">非公開設定ONのため設定できません</span>
+                    <span v-if="release_flag || members_only" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">非公開設定またはメンバー限定ONのため設定できません</span>
                 </div>  
             </div> 
             <div class="si-box" style="position:relative;">
@@ -61,14 +61,40 @@
                     <p :class="['form-title-small', 'form-title-active']">非公開設定</p>
                 </div>
                 <div class="selectSwitchArea" style="width: fit-content;">    
-                    <input type="checkbox" id="release_flag" v-model="release_flag" :disabled="edit_all ? true : false">
-                    <label for="release_flag" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer', {'disabled-toggle' : edit_all}]"><span></span>
+                    <input type="checkbox" id="release_flag" v-model="release_flag" :disabled="edit_all || members_only ? true : false">
+                    <label for="release_flag" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer', {'disabled-toggle' : edit_all || members_only}]"><span></span>
                         <div class="switch-toggle"></div>
                     </label>
-                    <span v-if="edit_all" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">編集許可ONのため設定できません</span>
+                    <span v-if="edit_all || members_only" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">非公開設定または編集許可ONのため設定できません</span>
                 </div>  
             </div>  
-
+            <div class="si-box" style="position: relative">
+                <div>
+                    <p :class="['form-title-small', 'form-title-active']">メンバー限定</p>
+                </div>
+                <div class="selectSwitchArea" style="width: fit-content;">    
+                    <input type="checkbox" id="members_only" v-model="members_only" :disabled="release_flag || edit_all ? true : false">
+                    <label for="members_only" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer', {'disabled-toggle' : release_flag || edit_all}]"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    <span v-if="release_flag || edit_all" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">編集許可または非公開設定ONのため設定できません</span>
+                </div>
+            </div>
+            <div v-if="members_only">
+                <GroupSelector v-model="calendar_view_users"/>
+            </div>
+            <div class="si-box" v-if="members_only">
+                <MemberSelector 
+                    placeHolder="メンバー限定選択"
+                    rules="required"
+                    name="calendarUsers"
+                    ref="calendarUsers"
+                    path="calendar_more_users"
+                    :multiple="true"
+                    :closeOnSelect="false"
+                    v-model="calendar_view_users"
+                />
+            </div>
              
             <div style="margin: 30px 0 -10px 0;">
                 <p :class="['form-title-small', 'form-title-active']">繰り返し設定</p>
@@ -338,6 +364,7 @@ import LongInput from '../Form/LongInput.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import { useSharingDataStore } from '@/store/sharingData'
 import ItemSelector from '../Form/ItemSelector.vue';
+import ChipSelector from '../Form/ChipSelector.vue';
     const sharingData = useSharingDataStore()
 
     const props = defineProps([
@@ -354,6 +381,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
     const remarks = ref(props.editTarget && props.editTarget.remarks ? props.editTarget.remarks : sharingData.active ? sharingData.text : '')
     const calendar_users = ref(props.editTarget && props.editTarget.calendar_users ? props.editTarget.calendar_users : props.preSelectedMembers)
+    const calendar_view_users = ref(props.editTarget && props.editTarget.calendar_view_users ? props.editTarget.calendar_view_users : [])
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     const release_flag = ref(props.editTarget && props.editTarget.release_flag ? true : false)
     const edit_all = ref(props.editTarget && props.editTarget.edit_all ? true : false)
@@ -391,6 +419,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
     const processing = ref(false)
     const calendarRemark = ref(null)
     const department_id = ref(props.editTarget?.department_id ?? props.preSelectedDepartment?.id ?? '')
+    const members_only = ref(false)
     onMounted(() => {
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
             const repeats = props.editTarget.repeat_week.split(',').map(Number);
@@ -536,7 +565,9 @@ import ItemSelector from '../Form/ItemSelector.vue';
             repeat_span: repeat_span.value,
             facility: convertableFacilities,
             file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [],
-            department_id: department_id.value
+            department_id: department_id.value,
+            view_users: calendar_view_users.value.map(ob => ob.id),
+            members_only: members_only.value
         }
         
         axios.post('/calendar_add_record',params)

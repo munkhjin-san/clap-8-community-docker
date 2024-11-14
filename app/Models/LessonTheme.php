@@ -14,4 +14,7 @@ class LessonTheme extends Model
     public function lesson_portfolio(){
         return $this->hasOne(LessonPortfolio::class, 'lesson_theme_id')->select('lesson_theme_id', 'status', 'understand');
     }
+    public function materials() {
+        return $this->hasMany(LessonMaterial::class, 'lesson_theme_id');
+    }
 }

@@ -18,7 +18,7 @@
                         <div ref="swiperContainer" class="swiper-container" style="background:none;border:none;width:100%;overflow: hidden;">
                             <div class="swiper-wrapper" > 
                                 <div class="swiper-slide" style="background:none;border:none;width:100%" :key="file.id" v-for="(file, index) in filePreview.files">
-                                    <div class="swiper-zoom-container width90">                                        
+                                    <div class="swiper-zoom-container">                                        
                                         <img
                                             v-if="file.mime_type == 'image'"
                                             style="max-width: 100%; margin: auto; max-height: 100%;"
@@ -72,11 +72,11 @@
                                 </div>
 
                             </div>
-                            <div class="swiper-button-prev" style="top:40%;"></div>
-                            <div class="swiper-button-next" style="top:40%;"></div>                  
+                            <div class="swiper-button-prev" style="top:50%;"></div>
+                            <div class="swiper-button-next" style="top:50%;"></div>                  
                         </div>                  
                     </div>
-                    <div class="second-swiper-wrapper" ref="secondswiper">                     
+                    <!-- <div class="second-swiper-wrapper" ref="secondswiper">                     
                         <div thumbsSlider="" class="swiper gallery-thumbs" style="background:none;border:none;">
                             <div class="swiper-wrapper"> 
                                 <div class="swiper-slide ssliderItem" :key="file.id" v-for="(file) in filePreview.files">
@@ -87,7 +87,7 @@
                                 </div>
                             </div>                           
                         </div>
-                    </div>
+                    </div> -->
                 </div>                
             </div> 
                
@@ -105,7 +105,7 @@ import { Navigation, Zoom, Thumbs } from 'swiper/modules';
 import 'swiper/css/navigation'
 import 'swiper/css/thumbs'
 import FileIcon from '../../Mixed/FileIcon.vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useFilePreview } from "@/store/filePreview";
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
@@ -115,6 +115,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const router = useRouter()
+    const route = useRoute()
     const f_index = ref(0)
     const fileKey = ref(Math.floor(Math.random() * 1000))
     const docUrl = ref('')
@@ -136,7 +137,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
         swiperCreate()
         if(canView.value){
             topSwiper.value.slideTo(f_index.value, false)
-            thumbsSwiper.value.slideTo(f_index.value, false)
+            // thumbsSwiper.value.slideTo(f_index.value, false)
         }
         const firstFile = currentFile.value
         
@@ -211,12 +212,12 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
     })
 
     const swiperCreate = () => {
-        thumbsSwiper.value = new Swiper('.gallery-thumbs', {
-            spaceBetween: 10,
-            slidesPerView: 'auto',
-            freeMode: true,
-            watchSlidesProgress: true
-        })
+        // thumbsSwiper.value = new Swiper('.gallery-thumbs', {
+        //     spaceBetween: 10,
+        //     slidesPerView: 'auto',
+        //     freeMode: true,
+        //     watchSlidesProgress: true
+        // })
         topSwiper.value = new Swiper('.swiper-container', {
             // Optional parameters
             direction: 'horizontal',
@@ -225,9 +226,9 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
             navigation: true,
             centeredSlides: true,
             modules: [Navigation, Zoom, Thumbs],
-            thumbs: {
-                swiper: thumbsSwiper.value 
-            },
+            // thumbs: {
+            //     swiper: thumbsSwiper.value 
+            // },
             on: {
                 slideChange: (swiper) => {
                     changeSwiperIndex(swiper)
@@ -307,11 +308,12 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
         })
     }
     const shareTo = (to, file) => {
+        let path = route.name == 'room' ? `/cdn/shared_files/${file.board_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}` : file.file_path
         const shareData = {
             active: true,
             title: '',
             text: '',
-            files: [{path :`/cdn/shared_files/${file.board_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`, record: file}],
+            files: [{path :path, record: file}],
             from: 'message',
             to: to,
             drag: false,
@@ -411,8 +413,8 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
         flex-direction: column;
     }
     .file-preview-container{
-        width: 90%;
-        height: 90%;
+        width: calc(100% - 20px);
+        height: calc(100% - 20px);
         background: var(--background-color);
         padding: 20px;
         display:flex;
@@ -517,7 +519,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
         background: var(--background-color);
     }
     .mySwiper-container{ 
-        height: calc(100% - 37px);
+        height: 100%;
         display: flex;
         flex-direction: column;
         position:relative;
@@ -525,7 +527,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
     }
     .mySwiper-wrapper{
         display:flex;
-        height:calc(100% - 82px);
+        height:100%;
     }
     
     #docViewer{

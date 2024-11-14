@@ -311,21 +311,7 @@ class TaskController extends Controller
         return response()->json(['socket' =>  $socket]);
         
     }
-    // private function insertItemBuilder(Request $request, $endDate, $rId){
-    //     $active_user = $request->override_user ?? $this->active_user();
-
-    //     return [
-    //         "user_id" => $active_user->id,
-    //         "updated_user" => $active_user->id,
-    //         "repeat_id" => $rId,
-    //         "board_id" => $request->board_id,
-    //         "end_at" => $endDate,
-    //         "remarks" => $request->remarks,
-    //         "end_time" => $request->task_end_time ?? null,
-    //         "sync_to_schedule" => $request->sync_to_schedule,
-    //         "title" => $request->title
-    //     ];
-    // }
+   
     private function insertItemBuilder(Request $request, $endDate){
         $active_user = $request->override_user ?? $this->active_user();
         $time = $request->response_time['hours'] * 60 + $request->response_time['minutes'];
@@ -337,71 +323,11 @@ class TaskController extends Controller
             "remarks" => $request->remarks,
             "response_time" => $time ?? null,
             "sync_to_schedule" => $request->sync_to_schedule,
-            "title" => $request->title
+            "title" => $request->title,
+            "glowd_nine" => $request->glowd_nine
         ];
     }
-    // private function byWeekDays(Request $request){
-        
-    //     $weekDays = $request['repeat']['day_of_week'];
-    //     $today = Carbon::now()->startOfDay();
-    //     $endDate = Carbon::parse($request->task_end_date);
-    //     if (!$endDate->gte($today)) {
-    //         return [];
-    //     }
-
-    //     $isAllowedDay = function (Carbon $date) use ($weekDays) {
-    //         return in_array($date->dayOfWeekIso, $weekDays);
-    //     };
-    //     $days = [];
-    //     $rId =  uniqid();
-    //     for ($date = $today->clone(); $date->lte($endDate); $date->addDay()) {
-    //         if ($isAllowedDay($date)) {
-    //             array_push($days, $this->insertItemBuilder($request, $date->format('Y-m-d'), $rId));
-    //         }
-    //     }
-    //     return $days;
-    // }
-    // public function byMonthDays(Request $request)
-    // {
-       
-    //     $today = Carbon::now()->startOfDay();
-    //     $nthDay =  $request['repeat']['day_of_month'];
-    //     $endDate = Carbon::parse($request->task_end_date);
-    //     if (!$endDate->gte($today)) {
-    //         return [];
-    //     }
-    //     $occurrences = [];
-    //     $rId =  uniqid();
-    //     while ($today->lte($endDate)) {
-    //         if ($today->dayOfMonth === $nthDay || ($nthDay > 29 && $today->isLastOfMonth())) {
-    //             array_push($occurrences, $this->insertItemBuilder($request, $today->format('Y-m-d'), $rId));
-    //         }
-    //         $today->addDay();
-    //     }
-
-    //     return $occurrences;
-    // }
-    // public function byYearMonth(Request $request)
-    // {
-    //     $today = Carbon::now()->startOfDay();
-    //     $endDate = Carbon::parse($request->task_end_date);
-    //     $nthMonth = $request['repeat']['month'];
-    //     $nthDay =  $request['repeat']['day_of_month'];
-    //     if (!$endDate->gte($today)) {
-    //         return [];
-    //     }
-    //     $occurrences = [];
-    //     $rId =  uniqid();
-    //     while ($today->lte($endDate)) {
-    //         if ($today->month === $nthMonth && 
-    //             ($today->dayOfMonth === $nthDay || ($nthDay > 29 && $today->isLastOfMonth()))) {
-    //                 array_push($occurrences, $this->insertItemBuilder($request, $today->format('Y-m-d'), $rId));
-    //         }
-    //         $today->addDay();
-    //     }
-
-    //     return $occurrences;
-    // }
+    
 
     public function addTask(Request $request){
         
@@ -412,8 +338,7 @@ class TaskController extends Controller
         ]);
     
         $endDate = $request['task_end_date'];
-        // $repeat_type = $request['repeat']['repeat_type'];
-        // $repeat_id = $request->repeat_id;
+  
         $edit_id = $request->edit_id;
         
         if ($edit_id) {
@@ -421,18 +346,13 @@ class TaskController extends Controller
             return response()->json(['status' => 'success']);
         }
     
-        // $createQuery = $this->generateCreateQuery($request, $repeat_type, $endDate);
         $createQuery = $this->insertItemBuilder($request, $endDate);
         if (empty($createQuery)) {
             throw ValidationException::withMessages(['message' => '繰り返し設定をもう一度確認し、有効期間を入力してください。']);
         }
     
-        // if ($repeat_id) {
-        //     $this->updateRepeatedTasks($repeat_id, $createQuery, $request);
-        // } else {
         $this->createTasks($createQuery, $request);
-        // }
-        // $types = ['', '1回のみ', '毎週', '毎月', '毎年'];
+        
         if(!$edit_id && $endDate){
             $after = [
                 "user_id" => $active_user->id,
@@ -444,8 +364,7 @@ class TaskController extends Controller
         $socket = [];
         
         array_push($socket, ["event" => "task:{$request->board_id}", "data" => []]);
-        // array_push($socket, ["event" => 'refresh:badge', "data" => $request->qualified_users]);
-        // array_push($socket, ["event" => 'refresh:board', "data" => $request->qualified_users]);           
+       
         return response()->json(['socket' =>  $socket]);
 
     }
@@ -461,81 +380,28 @@ class TaskController extends Controller
         }
         
     }
-    // private function generateCreateQuery(Request $request, $repeat_type, $endDate) {
-    //     return match ($repeat_type) {
-    //         1 => [$this->insertItemBuilder($request, $endDate, null)],
-    //         2 => $this->byWeekDays($request),
-    //         3 => $this->byMonthDays($request),
-    //         4 => $this->byYearMonth($request),
-    //         default => [],
-    //     };
-    // }
-    // private function updateRepeatedTasks($repeat_id, $createQuery, $request) {
-    //     $tasks = taskRecord::where('repeat_id', $repeat_id)->get();
-    //     $createQuery = collect($createQuery)->sortBy('end_at')->values();
-    //     $tasks = $tasks->sortBy('end_at')->values();
-    //     $taskCount = $tasks->count();
-    //     $queryCount = $createQuery->count();
-    //     $minCount = min($taskCount, $queryCount);
-    //     $executors = $request->qualified_users;
-    //     for ($i = 0; $i < $minCount; $i++) {
-    //         $tasks[$i]->update($createQuery[$i]);
-    //         if($request->sync_to_schedule){
-    //             $this->sharedService->syncTaskToCalendar($tasks[$i], $executors);
-    //         }else{
-    //             $this->sharedService->deleteTaskFromCalendar($tasks[$i]);
-    //         }
-    //         $this->syncTaskUsers($tasks[$i], $request);
-    //     }
-    //     if($taskCount > $queryCount){
-    //         $tasks[$taskCount - 1]->delete();
-    //     }
-    //     for ($i = $minCount; $i < $queryCount; $i++) {
-    //         $newTask = taskRecord::create($createQuery[$i]);
-    //         if($request->sync_to_schedule){
-    //             $this->sharedService->syncTaskToCalendar($newTask, $executors);
-    //         }else{
-    //             $this->sharedService->deleteTaskFromCalendar($newTask);
-    //         }
-    //         $this->syncTaskUsers($newTask, $request);
-    //     }
-    //     if ($request['repeat']['repeat_type'] > 1) {
-    //         $this->createRepeatPattern($request, $createQuery[0]['repeat_id']);
-    //     }
-    // }
+    
     private function createTasks($data, $request) {
-        // foreach ($createQuery as $data) {
             $fresh = taskRecord::create($data);
             if($request->sync_to_schedule){
                 $executors = $request->qualified_users;
                 $this->sharedService->syncTaskToCalendar($fresh, $executors);
             }
             $this->syncTaskUsers($fresh, $request);
-        // }
-    
-        // if ($request['repeat']['repeat_type'] > 1) {
-        //     $this->createRepeatPattern($request, $createQuery[0]['repeat_id']);
-        // }
+       
     }
     private function syncTaskUsers($task, $request) {
         $task->executors()->sync($request->qualified_users);
         $task->supervisors()->syncWithPivotValues($request->supervisors, ['supervisor' => 1]);
+        $pivotData = [];
+        foreach ($request->qualified_users as $qualified_user) {
+            $pivotData[$qualified_user] = [
+                'glowd_nine' => in_array($qualified_user, $request->glowd_nine_users) ? 1 : 0
+            ];
+        }
+        $task->executors()->sync($pivotData);
     }
-    // private function createRepeatPattern($request, $repeatId) {
-    //     $basic = [
-    //         "repeat_type" => $request['repeat']['repeat_type'],
-    //         "repeat_until" => $request['task_end_date'],
-    //         "record_id" => $repeatId,
-    //     ];
-    //     $repeat_patterns = [
-    //         "2" => ["day_of_week" => $request['repeat']['day_of_week']],
-    //         "3" => ["day_of_month" => $request['repeat']['day_of_month']],
-    //         "4" => ["month" => $request['repeat']['month'], "day_of_month" => $request['repeat']['day_of_month']],
-    //     ];
-    //     $selected_pattern = $repeat_patterns[$request['repeat']['repeat_type']];
-    //     $data = array_merge($basic, $selected_pattern);
-    //     TaskRepeat::create($data);
-    // }
+   
 
     public function task_approve_request(Request $request){
         $request->validate([
@@ -601,5 +467,36 @@ class TaskController extends Controller
                             }])
                             ->get();
         return response()->json($tasks);
+    }
+    public function task_update_prize(Request $request) {
+        $request->validate([
+            'task_id' => 'required',
+        ]);
+        $active_user = $this->active_user();
+        
+        
+        $taskUser = taskUser::where('record_id', $request->task_id)
+                    ->where('user_id', $active_user->id)
+                    ->first();
+        $params = $request->params;
+        if ($taskUser) {
+            $taskUser->update($params);
+        }
+        return response()->json(['message' => 'データが保存されました。']);
+    }
+    public function task_update_flag(Request $request) {
+        $request->validate([
+            'task_id' => 'required'
+        ]);
+        $active_user = $this->active_user();
+        $taskUser = taskUser::where('record_id', $request->task_id)
+                    ->where('user_id', $active_user->id)
+                    ->first();
+        if ($taskUser) {
+            $taskUser->update([
+                'try_flag' => 1
+            ]);
+        }
+        return response()->json(['message' => 'データが保存されました。']);
     }
 }

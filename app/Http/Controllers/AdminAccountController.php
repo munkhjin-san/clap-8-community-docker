@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProjectRecord;
+use DB;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\boardRecord;
@@ -263,5 +264,25 @@ class AdminAccountController extends Controller
 
         return response()->json($clap_data);
 
+    }
+    public function getMonthlyPrizes(Request $request)
+    {   
+        $year = $request->year ?? now()->year;
+        $users = User::with(['task_users' => function ($q) use($year) {
+                    $q->select('user_id',
+                                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month"),
+                                DB::raw("SUM(prize) as total_prize")
+                            )
+                            ->whereYear('created_at', $year)
+                            ->where('glowd_nine', 1)
+                            ->groupBy('user_id', 'month');
+                }])
+                ->where('retire', 0)
+                ->where('hide_flag', 0)
+                ->where('deleted_flag', 0)
+                ->where('partner_flag', 0)
+                ->get();
+       
+        return response()->json($users);
     }
 }

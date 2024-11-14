@@ -183,7 +183,8 @@ import { mentionFormatter } from '@/utils/tools';
                     imported_files: [],
                     forwarded_files: [],
                     u_id: props.message.u_id,
-                    sharing_files: props.message.sharing_files
+                    sharing_files: props.message.sharing_files,
+                    draft_flag: props.message.draft_flag
                 };       
                 let u_list = []
                 u_list.push(props.message.u_id);

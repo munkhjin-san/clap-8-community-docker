@@ -20,7 +20,7 @@
                     v-model="content"
                 />                    
             </div>
-
+            
             <div class="si-box">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">全員選択</p>
@@ -94,7 +94,30 @@
                         v-model="tasktime.minutes"
                     />
                 </div>
-            </div>  
+            </div>
+            <div class="si-box" v-if="isTask && (auth.user.position_id <= 6 || auth.activeUser.id === 610)">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">グラウドナイン</p>
+                </div>
+                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                    <input v-model="glowdNine" type="checkbox" id="glowdNine">
+                    <label for="glowdNine" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    
+                </div>  
+            </div> 
+            <div class="si-box" v-if="glowdNine">
+                <MemberSelector 
+                    placeHolder="グラウドナインメンバー"
+                    name="nineMembers"
+                    :closeOnSelect="false"
+                    :multiple="true"
+                    v-model="glowdNineUsers"  
+                    :options="filterUsers"
+                    :key="filterUsers.length"
+                />
+            </div> 
             <div class="si-box" v-if="isTask">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">スケジュールで表示させますか</p>
@@ -159,7 +182,7 @@ import LoaderButton from '../../../Global/LoaderButton.vue';
 import LongInput from '../../../Form/LongInput.vue';
 import MemberSelector from '../../../Form/MemberSelector.vue';
 import ShortInput from '../../../Form/ShortInput.vue';
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useSharingDataStore } from '@/store/sharingData'
 import OptionSelector from '@/components/Form/OptionSelector.vue';
@@ -181,11 +204,13 @@ import { reactive } from 'vue';
     const supervisorSelected = ref(props.editTaskData && props.editTaskData.supervisors.length ? true : false)
     const taskMembers = ref(null)
     const taskApprover = ref(null)
+    const glowdNine = ref(props.editTaskData?.glowd_nine ? true : false)
     // const taskEndTime = ref(props.editTaskData && props.editTaskData.end_time ? props.editTaskData.end_time : '')
     const syncToSchedule = ref(props.editTaskData?.sync_to_schedule ? true : false)
     const isTask = ref(props.editTaskData && props.editTaskData.end_at ? true : false)
     const taskTitle = ref(props.editTaskData?.title ? props.editTaskData.title : '')
     const taskTitleRef = ref(null)
+    
     const board = inject('openedBoard')
     const {notify, info} = inject('dialog')
     const { refreshMessages } = inject('boardItem')
@@ -233,6 +258,8 @@ import { reactive } from 'vue';
     })
     const avialAbleHours =  Array.from({ length: 11 }, (_, index) => index)
     const avialAbleMinutes = [0, 15, 30, 45]
+    
+    const glowdNineUsers = ref(props.editTaskData?.executors?.filter(member => member.pivot.glowd_nine === 1) ?? [])
     const setTaskTitle = () => {
         syncToSchedule.value ? taskTitle.value = content.value.slice(0, 10) : taskTitle.value = ''
     }
@@ -249,6 +276,7 @@ import { reactive } from 'vue';
     const avialableDay = computed(() => {       
         return Array.from({ length: 31 }, (_, index) => index + 1);   
     })
+    
     const setExecutor = computed({
         get(){
             return qualified_users.value
@@ -273,10 +301,21 @@ import { reactive } from 'vue';
     })
     const boardMembers = computed(() => {
         if(board.value){
+            
             return board.value.board_to_users.map(ob => ob.user)
+            
         }
         return []
     })
+    const filterUsers = computed(() => {
+       return qualified_users.value.filter(user => (user.position_id < 13 || user.position_id === 16) 
+       && user.id !== auth.activeUser.id) 
+    })
+
+    watch(qualified_users, (newVal, oldVal) => {
+        const updatedUsers = filterUsers.value;
+        glowdNineUsers.value = glowdNineUsers.value.filter(user => updatedUsers.some(updatedUser => updatedUser.id === user.id));
+    });
     const allSelected = computed(() => {
         return boardMembers.value.length == qualified_users.value.length
     }) 
@@ -300,7 +339,9 @@ import { reactive } from 'vue';
             // repeat: repeatData,
             response_time: tasktime.value,
             sync_to_schedule: syncToSchedule.value,
-            title: taskTitle.value
+            title: taskTitle.value,
+            glowd_nine: glowdNine.value,
+            glowd_nine_users: glowdNineUsers.value ? glowdNineUsers.value.map(ob => ob.id) : [],
         };
         try{
             loading.value = true

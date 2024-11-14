@@ -34,7 +34,7 @@
                         path="/task_files"
                     />
                 </div>
-                <div class="si-box" v-if="overdue" style="position:relative">
+                <!-- <div class="si-box" v-if="overdue" style="position:relative">
                     <p style="font-weight:600;margin-bottom:10px;">期限内に完了しなかった理由選んでください</p>
                     <div v-for="answer in answers" style="padding: 10px 0px;display: flex;">
                         <input class="fish-eye" @change="selectedAnswer = answer.value" type="radio" :id="answer.id" name="answer" :value="answer.value">
@@ -47,7 +47,7 @@
                             <span v-if="validationFailed && isValid.inputRequired" class="valid-error post-error" style="bottom: -15px;">必須です</span>
                         </div>    
                     </Transition>   
-                </div>
+                </div> -->
                 <div class="si-box">
                     <LoaderButton @triggered="approveRequest" :loading="loading" content="申請する"/>
                 </div>
@@ -107,8 +107,8 @@ import { dateDetail } from '@/utils/workApi';
             notify('ファイルを 1 つだけアップロードしてください。')
             return
         }
-        validationFailed.value = !isValid.value.status || isValid.value.inputRequired
-        if(validationFailed.value && overdue.value) return 
+        // validationFailed.value = !isValid.value.status || isValid.value.inputRequired
+        // if(validationFailed.value && overdue.value) return 
         const answer = await confirm('タスクを申請しますか。')
         if(!answer) return
         try {

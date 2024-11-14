@@ -53,11 +53,17 @@ import { useResponsive } from '@/store/responsive';
             return Math.abs(moment(props.record.date_start).diff(moment(props.record.date_end), 'hours')) >= 23
         })   
         const viewable = computed(() => {
-            return props.record.release_flag == 0 || editable.value
+            return (props.record.release_flag == 0 && props.record.members_only == 0) || editable.value
         })
         const editable = computed(() => {
             const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
-            return (me.length || props.record.edit_all) && props.record.shift == 0
+            return (me.length || props.record.edit_all || canview.value) && props.record.shift == 0
+        })
+        const canview = computed(() => {
+            const me = props.record.calendar_view_users.some(user => 
+                user.id === auth.activeUser.id
+            );      
+            return me && props.record.shift == 0
         })
         const unique = computed(() => {
             const u = Math.floor(100000 + Math.random() * 900000).toString()

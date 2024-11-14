@@ -177,7 +177,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/addable_board_members', [BoardController::class, 'addable_board_members']);
     Route::post('/get_file_list', [FileController::class, 'fetchFileList']); 
     Route::get('/incomplete_check', [BoardController::class, 'incomplete_check']);
-
+    Route::put('/draft_send', [BoardController::class, 'draftSend']);
+    Route::put('/set_message_schedule', [BoardController::class, 'set_message_schedule']);
+    Route::put('/update_view_from', [BoardController::class, 'update_view_from']);
     // Task
     Route::post('/get_task_api', [TaskController::class, 'getTask']); 
     Route::post('/complete_task_api', [TaskController::class, 'completeTask']); 
@@ -190,10 +192,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::put('/task_approve_request', [TaskController::class, 'task_approve_request']);
     Route::put('/task_approve', [TaskController::class, 'task_approve']);
     Route::get('/task_not_approved', [TaskController::class, 'task_not_approved']);
+    Route::put('/task_update_prize', [TaskController::class, 'task_update_prize']);
+    Route::put('/task_update_flag', [TaskController::class, 'task_update_flag']);
     
         // Admin Panel User:
         Route::get('/get_controllable_users', [AdminAccountController::class, 'get_controllable_users']);
         Route::post('/user_add', [AdminAccountController::class, 'addUser']);
+        Route::get('/get_monthly_prizes', [AdminAccountController::class, 'getMonthlyPrizes']);
         // Admin Panel Work Group
         Route::post('/work_group_add', [AdminAccountController::class, 'workgroupAdd']);
         Route::post('/work_group_edit', [AdminAccountController::class, 'workgroupEdit']);
@@ -372,6 +377,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::post('/section_update', [LessonController::class, 'section_update']);
         Route::put('/update_portfolio_status', [LessonController::class, 'update_portfolio_status']);
+        Route::post('/update_lesson_answer', [LessonController::class, 'update_lesson_answer']);
         // Lessons
 
         // Project

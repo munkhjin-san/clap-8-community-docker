@@ -4,7 +4,7 @@
         class="messageBoxRoot" 
         :class="{infoMessage : message.info_flag == 1, selfMessage: message.user_id == auth.activeUser.id}"
         :style="{marginBottom: editing && mIndex == 0 ? '25px' : '0'}"
-        v-if="!message.save_flag || (message.save_flag && message.user_id === auth.activeUser.id)">
+        v-if="!message.draft_flag || (message.draft_flag && message.user_id === auth.activeUser.id)">
         <div class="infoMessageInner" v-if="message.info_flag > 0">   
             <p v-if="showDate">{{momentMessage}}</p>       
             <p style="cursor:pointer" @click="showDate = !showDate" v-html="infoMessage"></p>        
@@ -28,7 +28,7 @@
                     <UserIconPreLoad size="30" :user="message.user" imgClass="userNormalIcon"/>                   
                     <div @click.stop="pushInstantUser($event, message.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ messageUserName }}</div>     
                 </div>                                     
-                <div class="m-date">{{message.save_flag ? '下書き' : momentMessage}}</div>  
+                <div class="m-date">{{messageKind}}</div>  
                 <div class="messageIconContainer">
                     
                     <div class="boardMenuContainer" v-if="reminded" @click="remind(message)">
@@ -95,16 +95,21 @@
                         :message="message" 
                         @cancel="editing = false"
                     />
+                    <div class="commentEditButton" style="margin-top: 10px;"v-if="ttsStore.active && ttsStore.id == message.id" @click="stopPlay">
+                        止める
+                    </div>
                     <MessageFiles 
                         v-if="message.message_files && message.message_files.length"
                         :list="message.message_files"
                         :message="message"
                         :mIndex="mIndex"
                     />
-                    <!-- <div v-if="message.save_flag === 1" style="text-align: right;"> 
-                        （下書き保存）
-                    </div>                                  -->
-                </div>                           
+                                                 
+                </div>  
+                <div v-if="message.draft_flag" style="margin-top: 15px; display: flex;">
+                    <div class="commentEditButton" @click="draftSend">送信</div>
+                    <div v-if="message.reserved_at == null" class="commentEditButton" @click="setSchedule">予約送信</div>        
+                </div>                         
             </div>
             <div v-if="message.deleted_at == null" class="message-foot-area">
                 <div style="display:flex;width: fit-content;">                    
@@ -154,6 +159,9 @@ import { useBadgeStore } from '@/store/badge'
 import MessageEditor from './MessageEditor.vue'
 import ItemMenu from "@/components/Global/ItemMenu.vue";
 import { mentionFormatter } from "@/utils/tools";
+import { useMessageSchedule } from "@/store/messageSchedule"
+import { convertToSpeech, stopPlay } from "@/utils/tts";
+import { useTtsStore } from "@/store/ttsStore";
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const quoteReply = useQuoteReply()
@@ -183,6 +191,8 @@ import { mentionFormatter } from "@/utils/tools";
     const longPressDuration = ref(500)
     const longPressTimer = ref(null)
     const isLongPress = ref(false)
+    const messageSchedule = useMessageSchedule()
+    const ttsStore = useTtsStore()
     onMounted(() => {
         if((props.message.id == props.searchTargetId && props.messageListType == 'search') || urlMessage.id == props.message.id){
             messageBox.value?.scrollIntoView({block: 'center' }); 
@@ -224,7 +234,8 @@ import { mentionFormatter } from "@/utils/tools";
             {name: 'nice', name_jp: 'ナイス'},
             {name: 'challenge', name_jp: 'チャレンジ'},
             {name: 'schedule', name_jp: 'スケジュール'},
-            {name: 'task', name_jp: 'タスク'}
+            {name: 'task', name_jp: 'タスク'},
+            {name: 'external', name_jp: 'その他'}
         ] 
         builtInApps.forEach(app => {
             addItem(app.name_jp, () => shareTo(app.name))
@@ -234,6 +245,7 @@ import { mentionFormatter } from "@/utils/tools";
     })
     const messageMenuItems = computed(() => {
         const canConfirm = props.message.emoji_flag == 0 && board?.value.private_flag !== 3
+        const isDraft = props.message.draft_flag
         const list= []; 
         function addItem(title, action) {
             list.push({ title, action });
@@ -241,37 +253,32 @@ import { mentionFormatter } from "@/utils/tools";
         if(authorized.value){
             addItem('編集する', () => editing.value = true )
         }
-        if(!authorized.value){
+        if(!authorized.value && !isDraft){
             addItem('返信する', () => replyQuotStart('reply'))
         }
-        addItem('引用する', () => replyQuotStart('quot'))          
+        if (!isDraft) {
+            addItem('引用する', () => replyQuotStart('quot')) 
+        }
+                 
         addItem('コピー', () => copyTextStart())       
-        // const builtInApps = [
-        //     {name: 'board', name_jp: 'ボード'}, 
-        //     {name: 'knowledge', name_jp: 'ナレッジ'},
-        //     {name: 'nice', name_jp: 'ナイス'},
-        //     {name: 'challenge', name_jp: 'チャレンジ'},
-        //     {name: 'schedule', name_jp: 'スケジュール'},
-        //     {name: 'task', name_jp: 'タスク'}
-        // ]        
-        // const shareChildren = [];
-        // const share = { title: 'シェア', action: () => false, children: shareChildren}
-        // builtInApps.forEach(app => {
-        //     share.children.push({ title: app.name_jp, action: () => shareTo(app.name)})
-        // });
-        // list.push(share)
+        addItem('AIに読ませる', () => convertToSpeech(props.message.message, props.message.id))
         if(authorized.value){
-            if(!props.message.check_flag && canConfirm){
-                addItem('確認依頼', () => check(props.message, 'confirm'))
-            }else if(props.message.check_flag){
-                addItem('再確認依頼', () => resendConfrim() )
+            if (!isDraft) {
+                if(!props.message.check_flag && canConfirm){
+                    addItem('確認依頼', () => check(props.message, 'confirm'))
+                }else if(props.message.check_flag){
+                    addItem('再確認依頼', () => resendConfrim() )
+                }
             }
+            
             addItem('削除する', () => deleteMessage(props.message.id) )
             
         }
-        
-        addItem('未読にする', () => markUnread(props.message.id))
-        addItem('リマインド', () => remind(props.message))     
+        if (!isDraft) {
+            addItem('未読にする', () => markUnread(props.message.id))
+            addItem('リマインド', () => remind(props.message))   
+        }
+          
 
         return list
     })
@@ -321,6 +328,24 @@ import { mentionFormatter } from "@/utils/tools";
         return false
         
     })
+    const messageKind = computed(() => {
+        if (props.message.draft_flag && props.message.reserved_at !== null) {
+            return reservedMessage.value + 'に送信予定'
+        } else if (props.message.draft_flag) {
+            return '下書き'
+        } else {
+            return momentMessage.value
+        }
+    })
+    const reservedMessage = computed(() => {
+        moment.locale('ja')
+        const date = props.message.reserved_at
+        return moment(props.message.reserved_at).isSame(moment(), 'day') ? 
+        moment(date).format('HH:mm') : 
+        moment(date).isSame(moment(), 'year') ? 
+        moment(date).format('M / D (ddd) HH:mm') : 
+        moment(date).format('YYYY / M / D (ddd) HH:mm')  
+    })
     const momentMessage = computed(() => {
         moment.locale('ja')
         const date = props.message.created_at
@@ -338,6 +363,9 @@ import { mentionFormatter } from "@/utils/tools";
             itemMenuRef.value.longTapAction(event)
         }
     }
+    
+
+   
     const menuClick = () => {
         if(menu.name == 'boardMessageMenu' && menu.id == props.message.id){
             const cont = boardMessageMenu.value;   
@@ -497,41 +525,67 @@ import { mentionFormatter } from "@/utils/tools";
     }           
     const {shareToTask} = inject('taskItem')
     const shareTo = (to, flag, single_file) => {
-        let files = []
-        props.message.message_files.forEach(element => {
-            const file = {
-                path: `/cdn/shared_files/${props.message.record_id}/${element.id}_${element.user_id}_${element.message_id}.${element.extension}`,
-                record: element
+        if(to == 'external'){
+            navigator.share({
+                text: props.message.message,
+                files:[]
+            })
+
+        }else{
+            let files = []
+            props.message.message_files.forEach(element => {
+                const file = {
+                    path: `/cdn/shared_files/${props.message.record_id}/${element.id}_${element.user_id}_${element.message_id}.${element.extension}`,
+                    record: element
+                }
+                files.push(file)
+            });
+            const shareData = {
+                active: true,
+                message: props.message,
+                title: '',
+                text: props.message.message_text,
+                files: files,
+                from: 'message',
+                to: to,
+                drag: false,
+                instruction: to == 'board' ? '送る先のボードを選択してください' : ''
             }
-            files.push(file)
-        });
-        const shareData = {
-            active: true,
-            message: props.message,
-            title: '',
-            text: props.message.message_text,
-            files: files,
-            from: 'message',
-            to: to,
-            drag: false,
-            instruction: to == 'board' ? '送る先のボードを選択してください' : ''
-        }
-        sharingData.setSharingData(shareData)
-        if(to == 'task'){
-            if(responsive.mobile){
-                setTimeout(() =>{
-                    router.push({name: to})
-                },0) 
-            }else{             
-                
-                shareToTask()                       
+            sharingData.setSharingData(shareData)
+            if(to == 'task'){
+                if(responsive.mobile){
+                    setTimeout(() =>{
+                        router.push({name: to})
+                    },0) 
+                }else{             
+                    
+                    shareToTask()                       
+                }
+            }else if(to !== 'board'){
+                router.push({name: to})
             }
-        }else if(to !== 'board'){
-            router.push({name: to})
+            else if(to == 'board' && responsive.mobile){
+                router.push({name: 'board'})
+            }
         }
-        else if(to == 'board' && responsive.mobile){
-            router.push({name: 'board'})
-        }
+        
         closeMenu()
+    }
+    const draftSend = async() => {
+        try{
+            await axios.put('/draft_send', {id: props.message.id, draft_flag: 0})
+            await refreshMessages()
+            info('保存しました。')
+        }catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            sending.value = false
+        }
+    }
+    const setSchedule = () => {
+        const data = {
+            active: true,
+            message_id: props.message.id
+        }
+        messageSchedule.setMessageSchedule(data)
     }
 </script>

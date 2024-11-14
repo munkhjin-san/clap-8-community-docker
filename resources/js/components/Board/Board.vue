@@ -600,7 +600,7 @@ import { instance } from '@/utils/broadcaster'
                 unreadMessages.value = data
             }
             listType.value = 'normal' 
-            messageList.value = response.data;                    
+            messageList.value = response.data.messages;
             if(source == 'infiniteLoader'){                        
                 setTimeout(() => { 
                     pageLimiter.value = false

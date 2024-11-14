@@ -61,14 +61,20 @@ import { useTempRecord } from '@/store/tempRecord';
     })
 
     const viewable = computed(() => {
-        return props.record.release_flag == 0 || editable.value
+        return (props.record.release_flag == 0 && props.record.members_only == 0) || editable.value
     })
     const opacity = computed(() => {
         return draggingCalendar.value && draggingCalendar.value.id == props.record.id ? '0.5' : '1'
     })
     const editable = computed(() => {
         const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
-        return (me.length || props.record.edit_all) && props.record.shift == 0
+        return (me.length || props.record.edit_all || canview.value) && props.record.shift == 0
+    })
+    const canview = computed(() => {
+        const me = props.record.calendar_view_users.some(user => 
+            user.id === auth.activeUser.id
+        );      
+        return me && props.record.shift == 0
     })
     const maxHeight = computed(() => {
         return expanded.value ? '100vh' : '60px'

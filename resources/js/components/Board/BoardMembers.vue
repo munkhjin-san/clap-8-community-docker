@@ -26,12 +26,12 @@
                         <div class="suggested-list">
                             <div :key="admin.id" v-for="admin in filteredAdmins">
                                 <div class="suggested-wrap">
-                                    <UserIcon :user="admin" imgClass="userNormalIcon" size="30"/>
-                                    <router-link :to="`/user/${admin.id}`" class="suggested-user-name user-link">{{ admin.name }}</router-link>
+                                    <UserIcon :user="admin.user" imgClass="userNormalIcon" size="30"/>
+                                    <router-link :to="`/user/${admin.user.id}`" class="suggested-user-name user-link">{{ admin.user.name }}</router-link>
                                     <ItemMenu 
                                         v-if="checkAdminAccess"
                                         style="margin-left: auto;"
-                                        :items="[{title: '管理者から外す', action: () => setAdmin(admin, 0)}]"
+                                        :items="[{title: '管理者から外す', action: () => setAdmin(admin.user, 0)}]"
                                         :fit="'createModal'"
                                     />
                                 </div>
@@ -42,15 +42,31 @@
                         <div style="font-weight: 600;margin: 15px 0;">メンバー ({{ filteredMembers.length }})</div>
                         <div class="suggested-list">
                             <div :key="member.id" v-for="member in filteredMembers">
-                                <div class="suggested-wrap">
-                                    <UserIcon :user="member" imgClass="userNormalIcon" size="30"/>
-                                    <router-link :to="`/user/${member.id}`" class="suggested-user-name user-link">{{ member.name }}</router-link>
+                                <div class="suggested-wrap">                                    
+                                    <UserIcon :user="member.user" imgClass="userNormalIcon" size="30"/>
+                                    <div>
+                                        <router-link :to="`/user/${member.user.id}`" class="suggested-user-name user-link">{{ member.user.name }}</router-link>
+                                        <div v-if="checkAdminAccess" style="font-size: 11px;color: gray;margin: 5px 0 0 5px;">閲覧制限日付:{{ viewFrom(member) }}</div>
+                                        <div v-if="editingMember && editingMember.id == member.id" style="margin-top: 10px;">
+                                            <input @change="validateDate(member)" style="border: solid thin var(--primary-color);padding: 5px;" type="date" :min="setMin(member)" :max="setMax()" v-model="editingMember.view_from"/>
+                                            <p v-if="invalidDate" class="i-error" style="position: static;">{{ `日付は${setMin(member)}以上${setMax()}以下である必要があります。` }}</p>
+                                            <div style="display: flex;gap: 10px;margin-top: 10px;">
+                                                <CommandButton :buttons="[
+                                                    {title: '保存', action: () => {updateViewFrom()}},
+                                                    {title: 'キャンセル', action: () => editingMember = null}
+                                                ]"/>
+                                            </div>
+                                            
+                                        </div>
+                                    </div>
+
                                     <ItemMenu 
                                         v-if="checkAdminAccess"
                                         style="margin-left: auto;"
                                         :items="[
-                                            {title: '管理者として追加', action: () => setAdmin(member, 1)},
-                                            {title: 'メンバーから外す', action: () => removeMember(member)}
+                                            {title: '管理者として追加', action: () => setAdmin(member.user, 1)},
+                                            {title: 'メンバーから外す', action: () => removeMember(member.user)},
+                                            {title: '閲覧制限設定', action: () => startEditViewFrom(member)}
                                         ]"
                                         :fit="'createModal'"
                                     />
@@ -77,6 +93,10 @@ import UserIcon from './Mixed/UserIcon.vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import ItemMenu from '@/components/Global/ItemMenu.vue';
+import moment from 'moment';
+import ShortInput from '../Form/ShortInput.vue';
+import CommandButton from '../Global/CommandButton.vue';
+import axios from 'axios';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const props = defineProps(['board'])
@@ -86,25 +106,26 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
     const lock = ref(false)
     const { invite, reload } = inject('boardItem')
     const { notify, info, confirm } = inject('dialog')
-
+    const editingMember = ref(null)
+    const invalidDate = ref(false)
     const headTitle = computed (() => {
         return `<strong>${props.board.title}</strong>ボードメンバー`
     })
     const admins = computed (() => {
         return props.board && props.board.board_to_users && props.board.board_to_users.length ? 
-        props.board.board_to_users.filter(ob => ob.admin_flag == 1).map(ob => ob.user) : []
+        props.board.board_to_users.filter(ob => ob.admin_flag == 1) : []
     })
     const filteredAdmins = computed (() => {
         const searchText = keyword.value.toLowerCase();
-        return admins.value.filter(user => user.name.toLowerCase().includes(searchText));
+        return admins.value.filter(adm => adm.user.name.toLowerCase().includes(searchText));
     })
     const members = computed (() => {
         return props.board && props.board.board_to_users && props.board.board_to_users.length ? 
-        props.board.board_to_users.filter(ob => ob.admin_flag == 0).map(ob => ob.user) : []
+        props.board.board_to_users.filter(ob => ob.admin_flag == 0) : []
     })
     const filteredMembers = computed (() => {
         const searchText = keyword.value.toLowerCase();
-        return members.value.filter(user => user.name.toLowerCase().includes(searchText));
+        return members.value.filter(mem => mem.user.name.toLowerCase().includes(searchText));
     })
     const checkAdminAccess  = computed (() => {
         return props.board && props.board.board_to_users && props.board.board_to_users.length ? 
@@ -145,4 +166,35 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
             emit('close')
         }
     }   
+    const viewFrom = (member) => {
+        return moment(member.view_from ?? member.created_at).format('YYYY-MM-DD')
+    }
+    const startEditViewFrom = (member) => {
+        editingMember.value = member
+    }
+    const setMin = (member) => {
+        const min =  moment(member.created_at).subtract(1, 'year').format('YYYY-MM-DD')
+        return min
+    }
+    const setMax = () => {
+        return moment().format('YYYY-MM-DD')
+    }
+    const updateViewFrom = async() => {
+        if (invalidDate.value) return
+        try {
+            await axios.put('/update_view_from', {id: editingMember.value.id, view_from: editingMember.value.view_from})
+        } catch (e) {
+
+        } 
+    }
+    const validateDate = (member) => {
+        const selectedDate = editingMember.value.view_from
+        const minDate = setMin(member)
+        const maxDate = setMax()
+        if (moment(selectedDate).isBetween(minDate, maxDate, undefined, [])) {
+            invalidDate.value = false
+        } else {
+            invalidDate.value = true
+        }
+    }
 </script>

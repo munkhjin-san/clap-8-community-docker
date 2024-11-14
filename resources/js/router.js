@@ -221,6 +221,7 @@ const routes = [
         children: [
             { path: 'account',props: true, name: 'account', component: () => import('./components/AccountControl/AdminAccount.vue') },
             { path: 'clapcount',props: true, name: 'clapcount', component: () => import('./components/AccountControl/AdminClapCount.vue') },
+            { path: 'glowdnine', props:true, name: 'glowdnine', component: () => import('./components/AccountControl/GlowdNine.vue')},
             { 
                 path: 'learningcontrol',
                 props: true, name: 'learningcontrol', 

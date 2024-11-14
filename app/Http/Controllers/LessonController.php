@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LessonAnswer;
 use Illuminate\Http\Request;
 use App\Models\LessonMaterial;
 use App\Models\LessonPortfolio;
@@ -17,7 +18,9 @@ class LessonController extends Controller
 {
     public function get_lessons(Request $request){
         
-        $lessons = LessonMaterial::where('lesson_theme_id', $request->lesson_theme_id)->get();
+        $lessons = LessonMaterial::where('lesson_theme_id', $request->lesson_theme_id)
+                                ->with('answer')
+                                ->get();
 
      
         return response()->json($lessons);
@@ -33,9 +36,14 @@ class LessonController extends Controller
         return response()->json($themes);
     }
     public function get_lesson_themes(){
-        $themes_portfolio = LessonTheme::with(['lesson_portfolio' => function ($q){
-            $q->where('user_id', Auth::id());
-        }])->get();
+        $themes_portfolio = LessonTheme::with([
+            'lesson_portfolio' => function ($q){
+                $q->where('user_id', Auth::id());
+            }, 
+            'materials' => function ($q) {
+                $q->whereHas('answer')->with('answer');
+            }
+        ])->get();
         return response()->json($themes_portfolio);
     }
     public function delete_learning_theme(Request $request){
@@ -52,30 +60,16 @@ class LessonController extends Controller
         return response()->json($theme);
     }
     public function lesson_add_record(Request $request){
-        if($request->edit_id){
-            $lesson = LessonMaterial::findOrFail($request->edit_id)->update([
-                "content" => $request->lesson_content,
-                "content_detailed" => $request->content_detailed,
-                "title" => $request->title,
-                "has_feedback" => $request->has_feedback,
-                "lesson_theme_id" => $request->lesson_theme_id,
-                "updated_by" => Auth::id(),
-                "priority" => $request->priority
-            ]);
+        $id = $request->edit_id ?? null;
+        $params = $request->params;
+        $userId = auth()->id();
+        if ($id) {
+            $params['updated_by'] = $userId;
+        } else {
+            $params['user_id'] = $userId;
         }
-        else{
-            $lesson = LessonMaterial::create([
-                "content" => $request->lesson_content,
-                "content_detailed" => $request->content_detailed,
-                "title" => $request->title,
-                "has_feedback" => $request->has_feedback,
-                "lesson_theme_id" => $request->lesson_theme_id,
-                "updated_by" => Auth::id(),
-                "user_id" => Auth::id(),
-                "priority" => $request->priority
-
-            ]);
-        }
+        $lesson = LessonMaterial::updateOrCreate(['id' => $id], $params);
+        
         return response()->json($lesson);
     }
     public function check_portfolio($theme_id, $user_id){
@@ -232,5 +226,12 @@ class LessonController extends Controller
         ->withCount('claps')
         ->orderByDesc('claps_count')->get();
         return response()->json($portfolio_list);
+    }
+    public function update_lesson_answer(Request $request) {
+        $id = $request->id ?? null;
+        $params = $request->params;
+        $params['user_id'] = auth()->id();
+        $lesson_answer = LessonAnswer::updateOrCreate(['id' => $id], $params);
+        return response()->json($lesson_answer);
     }
 }

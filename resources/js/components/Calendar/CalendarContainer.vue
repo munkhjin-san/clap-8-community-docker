@@ -1,7 +1,7 @@
 <template>
 
     <div id="calendarOuterContainer" class="post-root">
-        <div class="calendar-root-header">
+        <div class="calendar-root-header" v-if="viewType !== 4">
             <HamBurger v-if="responsive.mobile"/>
             <div class="calendar-search-wrap" id="calendarSearchResultWindow" >
                 <PostSearchBar 
@@ -115,6 +115,7 @@
             @resetFastCreate="resetFastCreate"
             ref="memberHourLayoutRef"
         />
+        <GanttLayout v-if="viewType == 4"/>
         <Transition name="modalFade">
             <div id="calendarViewMenu" class="boxMenu boardMenuIcon viewSwitchMenu" v-if="menu.name == 'calendarViewMenu' && menu.id == 79">   
                 <div v-for="menuItem in viewMenu" class="boxMenuItems cursor-pointer" @click.stop="switchView(menuItem.value)">
@@ -172,6 +173,7 @@ import TopBar from './TopBar.vue'
 import NormalMonthLayout from './NormalMonth/NormalMonthLayout.vue'
 import MemberMonth from './MemberMonth/MemberMonthLayout.vue'
 import MemberHourLayout from './MemberHour/MemberHourLayout.vue'
+import GanttLayout from './Gantt/GanttLayout.vue'
 import DayPicker from './DayPicker.vue';
 import SearchResult from './SearchResult.vue';
 import DragItem from './DragItem.vue';
@@ -189,7 +191,8 @@ import axios from 'axios';
         {title: '月（スケジュール）', value: 1},
         {title: '月（時間）', value: 0},
         {title: '月（メンバー別）', value: 2},
-        {title: '日（メンバー別）', value: 3}
+        {title: '日（メンバー別）', value: 3},
+        {title: 'Gantt', value: 4}
     ]
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()

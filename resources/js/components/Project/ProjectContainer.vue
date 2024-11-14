@@ -61,12 +61,12 @@
                     <div class="project-cell">概要</div>
                     <div class="project-cell">戦略</div>
                     <div class="project-cell">期間</div>
-                    <div class="project-cell">取締役</div>
-                    <div class="project-cell">管理者</div>
-                    <div class="project-cell">メンバー</div>
+                    <div class="project-cell cursor-pointer" @click="sortType = 2">取締役<span v-if="sortType === 2">▲</span></div>
+                    <div class="project-cell cursor-pointer" @click="sortType = 3">管理者<span v-if="sortType === 3">▲</span></div>
+                    <div class="project-cell cursor-pointer" @click="sortType = 1">メンバー<span v-if="sortType === 1">▲</span></div>
                     
                 </div>
-                <div class="project-cell-row" v-for="project in searchResults">
+                <div class="project-cell-row" v-for="project in sortedProjects">
                     <div class="project-cell" style="border-bottom: none;" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
                         <div class="user-link">
                             {{ project.name }}
@@ -157,10 +157,7 @@ const sortType = ref(0)
 const projectUsers = useProjectUsers()
 const userList = ref([])
 const sortOptions = [
-    {
-        value: 1,
-        name: 'プロジェクトメンバー'
-    },
+    
     {
         value: 2,
         name: 'プロジェクト取締役'
@@ -172,7 +169,11 @@ const sortOptions = [
     {
         value: 4,
         name: 'プロジェクトメンター'
-    }
+    },
+    {
+        value: 1,
+        name: 'プロジェクトメンバー'
+    },
 ]
 onMounted(async() => {
     setInitialDates()
@@ -225,24 +226,39 @@ const searchResults = computed(() => {
     return sortByPosition.value
 })
 const sortedProjects = computed(() => {
-    switch (sortType.value) {
-        case 1: 
-            return searchResults.value.filter(
-                project => project?.members.some(member => member.id === auth.id))
-        case 2: 
-            return searchResults.value.filter(
-                project => project?.director?.id === auth.id)
-        case 3:
-            return searchResults.value.filter(
-                project => project?.manager.some(manager => manager.id === auth.id))
-        case 4:
-            return searchResults.value.filter(
-                project => project.members.some(
-                    member => member?.evaluation?.mentor?.id === auth.id)
-            )
-        default:
-            return searchResults.value
-    }
+    const authId = auth.id;
+
+    return [...searchResults.value].sort((a, b) => {
+        let priorityA = 0;
+        let priorityB = 0;
+
+        switch (sortType.value) {
+            case 1:
+                priorityA = a.members?.some(member => member.id === authId) ? -1 : 0;
+                priorityB = b.members?.some(member => member.id === authId) ? -1 : 0;
+                break;
+            case 2:
+                priorityA = a.director?.id === authId ? -1 : 0;
+                priorityB = b.director?.id === authId ? -1 : 0;
+                break;
+            case 3:
+                priorityA = a.manager?.some(manager => manager.id === authId) ? -1 : 0;
+                priorityB = b.manager?.some(manager => manager.id === authId) ? -1 : 0;
+                break;
+            case 4:
+                priorityA = a.members?.some(
+                    member => member.evaluation?.mentor?.id === authId
+                ) ? -1 : 0;
+                priorityB = b.members?.some(
+                    member => member.evaluation?.mentor?.id === authId
+                ) ? -1 : 0;
+                break;
+            default:
+                return 0;
+        }
+
+        return priorityA - priorityB;
+    });
     
 })
 const getSelectableUsers = async() => {

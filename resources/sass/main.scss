@@ -468,15 +468,28 @@ progress {
     width: -moz-fit-content;
 }
 .boardTypeArea{
-    width:calc(100% - 150px);
-    margin-left:39px;
+    width:calc(100% - 161px);
+    // margin-left:39px;
     visibility:visible;
-    padding: 5px 60px 5px 10px !important;
+    padding: 5px 110px 5px 10px !important;
 }
 .form-lbl{
     font-size: 16px;
 }
-
+.attach-area{
+  display:inline-block;
+  vertical-align: super;
+  position: absolute;
+  bottom: 18px;
+  right:115px;
+}
+.temp-save{
+  display:inline-block;
+  vertical-align: super;
+  position: absolute;
+  bottom: 18px;
+  right:60px;
+}
 .mobileMessageWrap{
     position:fixed;
     left:0;
@@ -1362,7 +1375,25 @@ img {
   height: 0;
   width: 0;
 }
-
+.selector-accordion-inactive{
+  transform: rotate(270deg);
+  transition: transform 0.2s;
+}
+.selector-accordion-active{
+  transform: rotate(90deg);
+}
+.selector-accordion-el{
+  min-width: 35px;
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50px;    
+  cursor: pointer;
+}
+.selector-accordion-el:hover{
+  background: var(--bg3); 
+}
 /* Create a custom checkbox */
 .checkmark {
   position: absolute;
@@ -4099,6 +4130,10 @@ display: none !important;
 .clap-icon {
     width: 26px;
 }
+.commentClap {
+    width: 22px;
+    margin-left: auto;
+}
 .comment-icon {
     width: 27px;
     height: 25px;
@@ -4224,6 +4259,9 @@ font-size: 13px;
     transition: transform 0.3s;
 
 }
+.music-player {
+  margin-top: 10px;
+}
 .left-panel-inner{  
     position: relative;
 }
@@ -4348,6 +4386,7 @@ font-size: 13px;
     display: flex;
     min-width: 50px;
     justify-content: end;
+    gap: 5px;
 }
 .bell-icon{
     display: flex;
@@ -4834,6 +4873,9 @@ font-size: 13px;
 .rotate-gtp {
     animation: gptRotate 1s linear infinite; 
     fill: var(--primary-color);
+}
+.reply-rotate {
+  animation: gptRotate 1s linear infinite; 
 }
 .selected-list{
     display: flex;
@@ -5988,9 +6030,9 @@ input:autofill {
         height: calc(100% - 20px);
         padding-top: 0;
     }
-    .ai-loader-button{
-        right: 60px;
-    }
+    // .ai-loader-button{
+    //     right: 60px;
+    // }
     .ai-edit-window{
         width: 80%;
     }
@@ -6201,11 +6243,17 @@ input:autofill {
     }
     // #20220119_0016 Tumurボード入力アリア調整
     .boardTypeArea{
-        width:calc(100% - 130px);
-        margin-left:39px;
+        width:calc(100% - 141px);
+        // margin-left:39px;
         visibility:visible;  
-        padding: 5px 35px 5px 10px !important;
+        padding: 5px 85px 5px 10px !important;
     }
+    // .attach-area{
+    //   right:90px;
+    // }
+    // .temp-save {
+    //   right: 115px;
+    // }
     .copyareaTitle{
         font-size: 13px;
     }

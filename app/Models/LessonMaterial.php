@@ -13,6 +13,9 @@ class LessonMaterial extends Model
     {
         return $this->hasOne(LessonSection::class, 'material_id');
     }
+    public function answer(){
+        return $this->hasOne(LessonAnswer::class, 'material_id');
+    }
     protected $fillable = [
         'lesson_theme_id',
         'user_id',
@@ -21,6 +24,8 @@ class LessonMaterial extends Model
         'content',
         'has_feedback',
         'updated_by',
-        'priority'
+        'priority',
+        'has_question',
+        'has_understand'
     ];
 }

@@ -68,6 +68,7 @@ import { useTitle } from '@vueuse/core'
 import { io } from "socket.io-client";
 import axios from 'axios';
 import { instance as socket } from '@/utils/broadcaster'
+import { stopPlay } from '@/utils/tts';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -260,12 +261,16 @@ import { instance as socket } from '@/utils/broadcaster'
 
     watch(() => [route.fullPath], () => {
             resetInstantUser()
+            stopPlay()
         }
     )
     const setActiveUser = async(id) => {
         if(id == auth.activeUser.id){
             if(id == auth.id){
-                router.push(`/user/${auth.activeUser.id}`)
+                router.push({
+                    path: `/user/${auth.activeUser.id}`,
+                    query: { t: Date.now() } 
+                });
             }
             return            
         }

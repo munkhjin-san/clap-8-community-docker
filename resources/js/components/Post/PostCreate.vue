@@ -235,7 +235,7 @@ import PostIcon from './PostIcon.vue'
     })
     onMounted(() => {
         if(!props.editTarget && sharingData.active){
-            if(props.editTarget.app_type == 2){
+            if(app_type.value == 2){
                 content_rule.value = sharingData.text
             }else{
                 content.value = sharingData.text

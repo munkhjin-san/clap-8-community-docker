@@ -319,6 +319,7 @@ class CalendarController extends Controller
         ->with('updated_by')
         ->with('created_by')
         ->with('files')
+        ->with('calendar_view_users')
         ->get();
 
 
@@ -456,6 +457,7 @@ class CalendarController extends Controller
             "referrer" => $request['referrer'],
             "release_flag" => $request['release_flag'],
             "edit_all" => $request['edit_all'],
+            "members_only" => $request['members_only'],
             "updated_user" => $this->active_user()->id,
             "date_start" => $date_start_ready,
             "date_end" => $date_end_ready,
@@ -464,6 +466,7 @@ class CalendarController extends Controller
 
         $new_record->save();
         $new_record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now(),"updated_at" => now()]);
+        $new_record->calendar_view_users()->sync($request['view_users']);
         if($request['facility']['qualified_institution'] !== null){            
             $new_record->update([
                 "qualified_institution" => $request['facility']['qualified_institution']
@@ -601,6 +604,7 @@ class CalendarController extends Controller
             ]);
         }
         $record->calendar_users()->syncWithPivotValues($request['users'], ["created_at" => now(), "updated_at" => now()]);
+        $record->calendar_view_users()->sync($request['view_users']);
         $record->files()->syncWithPivotValues($request['file_ids'], ["created_at" => now(), "updated_at" => now()]);
         if($request['facility']['qualified_institution'] !== null){
             
@@ -705,6 +709,7 @@ class CalendarController extends Controller
             "referrer" => $request['referrer'],
             "release_flag" => $request['release_flag'],
             "edit_all" => $request['edit_all'],
+            "members_only" => $request['members_only'],
             "repetition_type" => $request['repetition_type'],
             "department_id" => $request['department_id'],
             "updated_user" => $active_user->id,
@@ -1238,9 +1243,23 @@ class CalendarController extends Controller
         }])
         ->orderBy('updated_at', 'desc')
         ->get();
+        $projects = ProjectRecord::with(['members', 'manager', 'director'])->get();
+
+        $projects = $projects->map(function ($project) {
+            $users = collect()
+                ->merge($project->members)
+                ->merge($project->manager)
+                ->when($project->director, function ($collection) use ($project) {
+                    return $collection->push($project->director);
+                });
+
+            $project->users = $users;
+
+            return $project;
+        });
         $groups = MyGroup::where('user_id', $active_user->id)->where('deleted_flag', 0)->with('users')->get();
         return response()->json([
-            "board" => $list,
+            "project" => $projects,
             "group" => $groups
         ]); 
 

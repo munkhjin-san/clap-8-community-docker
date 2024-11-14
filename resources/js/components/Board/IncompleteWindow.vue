@@ -74,7 +74,7 @@
             </div>
             <div v-if="planShift" style="padding: 0 10px;">
                 <div class="incompleted-title">計画有給を入力してください</div>
-                <masonry-wall :items="[tempData]" :column-width="360" :gap="30">
+                <masonry-wall :items="[tempData]" :column-width="360" :gap="responsive.mobile ? 0 : 30">
                     <template v-slot:default="{item}">
                     <WorkMessage 
                         v-if="item"
@@ -87,7 +87,7 @@
             <div v-if="incompletedTasksList.length" style="padding: 0 10px;">
                 <div class="incompleted-title">{{ `${incompletedTasksList.length} 件の期限を過ぎたタスクがあります`}}</div>
 
-            <masonry-wall :items="incompletedTasksList" :column-width="360" :gap="30">
+            <masonry-wall :items="incompletedTasksList" :column-width="360" :gap="responsive.mobile ? 0 : 30">
                 <template v-slot:default="{item}">
                     <TaskBoxpreload 
                         boxClass="incompleted-task-box-container"
@@ -104,7 +104,7 @@
             </div>
             <div v-if="uncheckedMessages.length" style="padding: 0 10px;">
                 <div class="incompleted-title" style="">未確認メッセージが{{uncheckedMessages.length}}件あります</div>
-                <masonry-wall :items="uncheckedMessages" :column-width="360" :gap="30">
+                <masonry-wall :items="uncheckedMessages" :column-width="360" :gap="responsive.mobile ? 0 : 30">
                     <template v-slot:default="{item}">
                         <UncheckedMessageItem 
                             boxClass="incompleted-task-box-container"
@@ -117,7 +117,7 @@
             </div>
             <div v-if="unsignedMessages.length" style="padding: 0 10px;">
                 <div class="incompleted-title" style="">{{ `${unsignedMessages.length}件の文書にサインする必要があります`}}</div>
-                <masonry-wall :items="unsignedMessages" :column-width="360" :gap="30">
+                <masonry-wall :items="unsignedMessages" :column-width="360" :gap="responsive.mobile ? 0 : 30">
                     <template v-slot:default="{item}">
                         <UncheckedMessageItem 
                             boxClass="incompleted-task-box-container"
@@ -131,7 +131,7 @@
             </div>
             <div v-if="remindMessages.length" style="padding: 0 10px;">
                 <div class="incompleted-title" style="">リマインドメッセージが{{remindMessages.length}}件あります</div>
-                <masonry-wall :items="remindMessages" :column-width="360" :gap="30">
+                <masonry-wall :items="remindMessages" :column-width="360" :gap="responsive.mobile ? 0 : 30">
                     <template v-slot:default="{item}">
                         <UncheckedMessageItem 
                             boxClass="incompleted-task-box-container"
@@ -169,15 +169,18 @@ import { useTaskFeedback } from '@/store/taskFeedback'
 import UserIcon from "./Mixed/UserIcon.vue"
 import { useRoute, useRouter } from "vue-router";
 import { useCheckApproval } from "../../store/checkApproval";
+import { useResponsive } from "@/store/responsive"
 import axios from "axios";
 import { useTaskRequest } from "@/store/taskRequest";
 import Autolinker from 'autolinker';
+import moment from "moment";
 import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
     const route = useRoute()
     const router = useRouter()
     const auth = useAuthUserStore()
     const taskFeedback = useTaskFeedback()
     const emit = defineEmits(['closePopup'])
+    const props = defineProps(['canGetRemind'])
     const incompletedTasksList = ref([])
     const unsignedMessages = ref([])
     const selectedComplete = ref({
@@ -185,7 +188,7 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
                     record: null
                 })
     const reminder = 'reminder'
-    const { notify } = inject('dialog')
+    const { notify, info } = inject('dialog')
     const remindMessages = ref([])
     const uncheckedMessages = ref([])
     const planShift = ref(false)
@@ -199,6 +202,7 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
     const goals = ref([])
     const currentUserId = ref(null)
     const memberData = ref(null)
+    const responsive = useResponsive()
     const closePopupIfNeeded = () => {
         if(!incompleteShow.value){
             closeOverRide()
@@ -209,7 +213,6 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
             await Promise.all([
                 getIncompletedTasks(),
                 getUnsignedMessages(),
-                getRemindMessages(),
                 getUncheckedMessages(),
                 getPlannedShifts(),
                 getNotApproved(),
@@ -222,7 +225,12 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
             closePopupIfNeeded()
         }
     }
-    onMounted(performTasksOnMounted)
+    onMounted(() => {
+        performTasksOnMounted()
+        if (props.canGetRemind) {
+            getRemindMessages()
+        }
+    })
     watch(
         () => taskFeedback.active,
         (after, before) => {
@@ -374,14 +382,16 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
             }
         }
     }
-    const remindRequest = async(data) => {
-        const response = await axios.post('/remind_add', { id: data.id })
-        if(response.data == true){
-            notify('リマインドしました。')
-        }else{
-            notify('リマインドを取り消しました。')
-        }
-        getRemindMessages()
+    const remindRequest = async (data) => {
+        try {
+            const response = await axios.post('/remind_add', { id: data.id }).then(res => res.data)
+            const message = response ? 'リマインドしました。' : 'リマインドを取り消しました。'
+            info(message)
+        } catch (e) { 
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            getRemindMessages()
+        }     
     }
 
     const reload = () => {
@@ -440,23 +450,47 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }     
     }
-    const completeTaskBefore = (task) => {
+    const completeTaskBefore = (task) => {        
         const userData = task.executors.find(obj => obj.id == auth.activeUser.id);
+        const today = moment().format('YYYY-MM-DD')
+        const end = moment(task.end_at).format('YYYY-MM-DD')
+        const overdue = today > end
+
+        
+        if(task.supervisors.length && userData.pivot.comp_flag == 0) {
+            
+            taskRequest.setTaskRequest(data)
+            return
+        }
+        
         const data = {
             active: true,
             data: task,
         }
-        if(task.supervisors.length && userData.pivot.comp_flag == 0) {
-            taskRequest.setTaskRequest(data)
-            return
+        
+        const canPlayNine = task.executors.some(member => member.id === auth.activeUser.id && member.pivot.glowd_nine === 1)
+        if (canPlayNine && !overdue) {
+            playNineWindow.value = true
+        } else if (canPlayNine && overdue) {
+            notify('期限内にタスクを完了しなかったため、グラウドナインは適用されませんでした。')
         }
-        taskFeedback.setTaskFeedback(data)
+        completeTask(task.id, 1, 0);       
+       
+    }
+    const completeTask = (task_id, compFlag, statusFlag) => {
+        
+        axios.post("/complete_task_api", { task_id: task_id, comp_flag: compFlag, status_flag: statusFlag }).then(response => {
+            getIncompletedTasks();
+        })
     }
     const taskDeleted = () => {
         getIncompletedTasks()
     }
     provide('getUncheckedMessages', getUncheckedMessages)
     provide('refresh', getProjectNotApproved)
+    // provide('boardItem', {
+    //     refreshMessages: () => getRemindMessages(),
+    // })
     defineExpose({getUnsignedMessages})
 </script>
 <style lang="scss">
@@ -480,6 +514,5 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
     background: var(--bg2);
     color: var(--primary-color);
 }
-
 </style>
 

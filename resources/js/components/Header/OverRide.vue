@@ -1,11 +1,15 @@
 <template>
     <div id="override">
             
-        <IncompleteWindow ref="incompleteRef" v-if="auth.user && viewIncompleteWindow" 
-        @closePopup="closePopup"/> 
-        <Transition name="modalFade">
+        <IncompleteWindow 
+            ref="incompleteRef" 
+            v-if="auth.user && viewIncompleteWindow"
+            :canGetRemind="canGetRemind" 
+            @closePopup="closePopup"
+        /> 
+        <!-- <Transition name="modalFade">
             <IncompleteFeedBack v-if="taskFeedBack.active"/>
-        </Transition>
+        </Transition> -->
         <Transition name="modalFade">
             <TaskRequest v-if="taskRequest.active"/>
         </Transition>
@@ -29,6 +33,9 @@
         </Transition>
         <Transition name="modalFade">
             <ProjectUsers v-if="projectUsers.active"/>
+        </Transition>
+        <Transition name="modalFade">
+            <DateTimeSelect v-if="messageSchedule.active"/>
         </Transition>
     </div>
 </template>
@@ -55,7 +62,9 @@
     import { useTaskUsers } from '@/store/taskUsers'
     import { useTaskRequest } from '@/store/taskRequest'
     import ProjectUsers from '../AccountControl/ProjectControl/ProjectUsers.vue'
+    import DateTimeSelect from '../Global/DateTimeSelect.vue'
     import { useProjectUsers } from '@/store/projectUsers'
+    import { useMessageSchedule } from '@/store/messageSchedule'
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()
@@ -69,6 +78,8 @@
     const refresh = inject('refreshMessage')
     const filePreview = useFilePreview()
     const auth = useAuthUserStore()
+    const messageSchedule = useMessageSchedule()
+    const canGetRemind = ref(false)
     onBeforeMount(() => {
         const customTheme = localStorage.getItem('dark')
         if(customTheme == 0 || customTheme == '0' || !customTheme){
@@ -91,34 +102,52 @@
         } 
     })
     watch(() => route.fullPath, (newVal, oldVal) => {
+        
         if(!newVal.includes(oldVal) && !oldVal.includes(newVal)){
             incompleteCall()
         }        
     }) 
     onMounted(() => {
         incompleteCall()
+        
     })
     const incompleteCall = () => {
         if(auth.id){
+            const remind = route.query.remind
             const string = '/user/' + auth.id
-            if(window.location.pathname == string){
-                viewIncompleteWindow.value = true
-            }else{
-                viewIncompleteWindow.value = false
-            }
-            if (hasOneHourPassed(auth.activeUser.id)) {
-                viewIncompleteWindow.value = true
-            }
+            canGetRemind.value = shouldCallRemindMessagesNextMorning(auth.activeUser.id) || window.location.pathname == string;
+            viewIncompleteWindow.value = hasOneHourPassed(auth.activeUser.id) || canGetRemind.value
         }
         
+    }
+    const shouldCallRemindMessagesNextMorning = (user_id) => {
+        const lastCloseTime = localStorage.getItem('remindPopupCloseTime_' + user_id);
+        const nextMorning9am = getNextMorning9AM();
+
+        if (!lastCloseTime) {
+            return true;
+        }
+
+        return new Date().getTime() >= nextMorning9am.getTime();
+    } 
+    const getNextMorning9AM = () => {
+        const now = new Date();
+        const nextMorning = new Date(now);
+        nextMorning.setHours(9, 0, 0, 0);
+        
+        if (now.getHours() >= 9) {
+            nextMorning.setDate(now.getDate() + 1);
+        }
+
+        return nextMorning;
     }
     const hasOneHourPassed = (user_id) => {
         const lastCloseTime = localStorage.getItem('popupCloseTime_' + user_id);
         if (!lastCloseTime) {
-            return true; // If no timestamp found, treat it as an hour has passed
+            return true;
         }
 
-        const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+        const oneHour = 60 * 60 * 1000;
         const currentTime = new Date().getTime();
         const elapsedTime = currentTime - parseInt(lastCloseTime, 10);
 
@@ -129,11 +158,17 @@
             const user_id = auth.activeUser.id
             const string = '/user/' + user_id
             const currentUrl = window.location.href;
+            // const { remind, ... updatedQuery } = route.query
+            // router.replace({
+            //     path: route.fullPath,
+            //     query: updatedQuery
+            // })
             if(currentUrl.includes(string)){
                 viewIncompleteWindow.value = false
             }else{
                 const currentTime = new Date().getTime();
                 localStorage.setItem('popupCloseTime_' + user_id, currentTime);
+                localStorage.setItem('remindPopupCloseTime_' + user_id, currentTime);
                 viewIncompleteWindow.value = false
             }
         } 

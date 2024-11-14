@@ -37,6 +37,35 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="si-box">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">「理解」依頼</p>
+                </div>
+            
+
+                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                    <input v-model="has_understand" type="checkbox" id="for_understand" :disabled="has_question">
+                    <label for="for_understand" style="min-width: 80px;" :class="['cursor-pointer', {'disabled-toggle' : has_question}]"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    <span v-if="has_question" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">「質問」依頼ONのため設定できません</span>
+                </div>  
+            </div>
+            <div class="si-box">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">「質問」依頼</p>
+                </div>
+            
+
+                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                    <input v-model="has_question" type="checkbox" id="for_question" :disabled="has_understand">
+                    <label for="for_question" style="min-width: 80px;" :class="['cursor-pointer', {'disabled-toggle' : has_understand}]"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    <span v-if="has_understand" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">「理解」依頼ONのため設定できません</span>
+                </div>  
+            </div>
             <!-- <div class="si-box" style="position:relative;">
                 <div>
                     <p :class="['form-title-small', {'form-title-active' : hasFeedBack}]">「理解」依頼</p>
@@ -60,6 +89,7 @@
 </template>
 
 <script setup>      
+import { useAuthUserStore } from '@/store/auth';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
 import RichEditor from '../../Global/RichEditor.vue';
@@ -75,8 +105,11 @@ import { useRoute } from 'vue-router';
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
     const hasFeedBack =  ref(props.editTarget && props.editTarget.has_feedback ? props.editTarget.has_feedback : false)
+    const has_question = ref(props.editTarget?.has_question === 1 ? true : false)
+    const has_understand = ref(props.editTarget?.has_understand === 0 ? false : true)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : '')
     const richEdit = ref(null)
+    const auth = useAuthUserStore()
     const richEditDetailed = ref(null)
     const selectedPriority = ref(props.editTarget ? props.editTarget.priority : null)
     const initialValue = computed(() => {
@@ -96,12 +129,17 @@ import { useRoute } from 'vue-router';
                 
                 const params = {
                     edit_id: props.editTarget ? props.editTarget.id : null,
-                    lesson_theme_id: route.params.themeId,
-                    title: title.value,
-                    lesson_content: richContent,
-                    content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
-                    has_feedback: hasFeedBack.value,
-                    priority: selectedPriority.value
+                    params: {
+                        lesson_theme_id: route.params.themeId,
+                        title: title.value,
+                        content: richContent,
+                        content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
+                        has_feedback: hasFeedBack.value,
+                        priority: selectedPriority.value,
+                        has_question: has_question.value,
+                        has_understand: has_understand.value,
+                    }
+                    
                 }
         
                 axios.post('/lesson_add_record',params)

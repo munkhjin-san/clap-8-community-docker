@@ -22,31 +22,46 @@
                         v-model="title"
                     />
                 </div>
-                <div class="si-box" style="height: 30%;">
+                <div class="si-box">
+                    <div class="switchLabel">
+                        <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">ポートフォリオ</p>
+                    </div>
+                
+
+                    <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                        <input v-model="portfolio" type="checkbox" id="portfolio_create">
+                        <label for="portfolio_create" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                        
+                    </div>  
+                </div>
+               
+                <div class="si-box" style="height: 30%;" v-if="portfolio">
                     <div style="font-size: 14px;margin-bottom: 15px;">ポートフォリオに関する説明</div>
                     <RichEditor ref="portfolioGuidance" :initilaValue="initialPortfolioGuidance"/>
                 </div>
-                <div class="si-box" style="height: 30%;">
+                <div class="si-box" style="height: 30%;" v-if="portfolio">
                     <div style="font-size: 14px;margin-bottom: 15px;">エピソードに関する説明</div>
                     <RichEditor ref="episodeGuidance" :initilaValue="initialEpisodeGuidance"/>
                 </div>
-                <div class="si-box" style="height: 30%;">
+                <div class="si-box" style="height: 30%;" v-if="portfolio">
                     <div style="font-size: 14px;margin-bottom: 15px;">タイトルに関する説明</div>
                     <RichEditor ref="titleGuidance" :initilaValue="initialTitleGuidance"/>
                 </div>
                 <div class="si-box">
                     <div class="switchLabel">
-                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">アクティブ</p>
-                </div>
+                        <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">アクティブ</p>
+                    </div>
                 
 
-                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
-                    <input v-model="active" type="checkbox" id="edit_all">
-                    <label for="edit_all" style="min-width: 80px;" class="cursor-pointer"><span></span>
-                        <div class="switch-toggle"></div>
-                    </label>
-                    
-                </div>  
+                    <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                        <input v-model="active" type="checkbox" id="edit_all">
+                        <label for="edit_all" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                        
+                    </div>  
                 </div>
                 <div class="si-box">
                     <div style="font-size: 13px;margin-bottom: 15px;">グループディスカッション日付（任意）</div>
@@ -83,6 +98,7 @@ const episodeGuidance = ref(null)
 const portfolioGuidance = ref(null)
 const titleGuidance = ref(null)
 const theme = useTheme()
+const portfolio = ref(props.editTarget?.portfolio === 1 ? true : false);
 const initialPortfolioGuidance = computed(() => {
     return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
 })
@@ -93,10 +109,16 @@ const initialTitleGuidance = computed(() => {
     return props.editTarget && props.editTarget.title_guidance ? props.editTarget.title_guidance : ''
 })
 const create = () => {
-    const episodeGuidanceContent = episodeGuidance.value.editor.getHTML()
-    const portfolioGuidanceContent = portfolioGuidance.value.editor.getHTML()
-    const titleGuidanceContent = titleGuidance.value.editor.getHTML()
-    if(!titleGuidanceContent || !episodeGuidanceContent || !portfolioGuidanceContent || !title.value) return
+    let episodeGuidanceContent = ''
+    let portfolioGuidanceContent = ''
+    let titleGuidanceContent = 's'
+    if (portfolio.value) {
+        episodeGuidanceContent = episodeGuidance.value?.editor.getHTML()
+        portfolioGuidanceContent = portfolioGuidance.value?.editor.getHTML()
+        titleGuidanceContent = titleGuidance.value?.editor.getHTML()
+        if(!titleGuidanceContent || !episodeGuidanceContent || !portfolioGuidanceContent) return
+    }
+    if (!title.value) return
     loader.value = true
     axios.post('/create_learning_theme', { 
     
@@ -108,6 +130,7 @@ const create = () => {
             episode_guidance: episodeGuidanceContent,
             guidance: portfolioGuidanceContent,
             title_guidance: titleGuidanceContent,
+            portfolio: portfolio.value
         }
 
     }).then(response => {

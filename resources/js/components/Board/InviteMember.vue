@@ -25,9 +25,25 @@
                     <div v-if="filteredMembers.length">
                         <div class="suggested-list">
                             <div :key="user.id" v-for="user in filteredMembers">
-                                <div @click="selectToUser(user)" class="suggested-wrap">
+                                <div @click="selectedMember = user.id" class="suggested-wrap" :style="{backgroundColor: selectedMember === user.id ? 'var(--bg2)' : ''}">
                                     <UserIcon :user="user" imgClass="userNormalIcon" size="30"/>
-                                    <div class="suggested-user-name">{{ user.name }}</div>
+                                    <div class="suggested-user-name">
+                                        <div>{{ user.name }}</div>
+                                        <div v-if="selectedMember === user.id" style="margin-top: 10px;">
+                                            <div style="font-size: 11px;color: gray;margin: 5px 0;">閲覧制限設定</div>
+                                            <input @change="validateDate(user)" style="border: solid thin var(--primary-color);padding: 5px;" type="date" :min="setMin()" :max="setMax()" v-model="view_from"/>
+                                            <p v-if="invalidDate" class="i-error" style="position: static;">{{ `日付は${setMin()}以上${setMax()}以下である必要があります。` }}</p>
+                                            <div style="display: flex;gap: 10px;margin-top: 10px;">
+                                                <CommandButton :buttons="[
+                                                    {title: '追加', action: () => {selectToUser(user)}},
+                                                ]"/>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                                <div style="margin-top: 10px;">
+                                    
                                 </div>
                             </div>
                         </div>
@@ -40,7 +56,9 @@
 <script setup>
 import PostSearchBar from '../Post/PostSearchBar.vue'
 import { computed, inject, nextTick, onMounted, ref } from 'vue'
+import CommandButton from '../Global/CommandButton.vue';
 import UserIcon from './Mixed/UserIcon.vue';
+import moment from 'moment';
     const props = defineProps(['item'])
     const emit = defineEmits(['close'])    
     const possibleMemberList = ref([])
@@ -50,6 +68,9 @@ import UserIcon from './Mixed/UserIcon.vue';
     const { reload } = inject('boardItem') 
     const { confirm, notify, info } = inject('dialog')
     const inviteModal = ref(null)
+    const view_from = ref(moment().format('YYYY-MM-DD'))
+    const invalidDate = ref(false)
+    const selectedMember = ref(null)
     onMounted(() => {
         getMembers();
     })
@@ -65,10 +86,11 @@ import UserIcon from './Mixed/UserIcon.vue';
         return `<strong>"${props.item.title}"</strong>ボードにメンバーを追加する`
     })
     const selectToUser = async(user) => {
-        const confirmed = await confirm(`<strong>${user.name}</strong>さんをボードメンバーに追加しますか。`)
+        if(invalidDate.value) return
+        const confirmed = await confirm(`<strong>${user.name}</strong>さんをボードメンバーに追加しますか。<br><strong>${moment(view_from.value).format('YYYY/M/D')} 0時</strong>から閲覧可能になります。`)
         if(lock.value || !confirmed) return
         lock.value = true
-        const params = { record_id : props.item.id, user_id: user.id }
+        const params = { record_id : props.item.id, user_id: user.id, view_from: view_from.value }
         try{
             await axios.post('/group_add_member', params)
             reload(props.item.id)
@@ -100,7 +122,23 @@ import UserIcon from './Mixed/UserIcon.vue';
             emit('close')
         }
     }      
-    
+    const setMin = () => {
+        const min =  moment().subtract(1, 'year').format('YYYY-MM-DD')
+        return min
+    }
+    const setMax = () => {
+        return moment().format('YYYY-MM-DD')
+    }
+    const validateDate = (member) => {
+        const selectedDate = view_from.value
+        const minDate = setMin(member)
+        const maxDate = setMax()
+        if (moment(selectedDate).isBetween(minDate, maxDate, undefined, [])) {
+            invalidDate.value = false
+        } else {
+            invalidDate.value = true
+        }
+    }
         
     
 </script>

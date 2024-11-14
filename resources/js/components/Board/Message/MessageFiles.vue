@@ -21,6 +21,7 @@
                         <p style="font-size: 12px !important;font-weight: 600;" v-if="file.sign_flag == 1 && canSign(file)" class="shared-file-name">サイン依頼</p>
                         <p style="font-size: 12px !important;font-weight: 600;" v-if="file.multiple_flag == 1 && (canSign(file) || file.user_id == auth.id)" class="shared-file-name">原本(確認用)</p>                   
                     </div>
+                    <!-- <ItemMenu style="align-self: flex-start;" :items="shareMenuItems(file)" type="share" fit="boardListInner"/> -->
                     <ItemMenu style="align-self: flex-start;" :items="fileMenuItems(file)" fit="boardListInner"/>
                 </div>   
                 <div v-if="file.sign_flag == 1" style="display:flex;margin-top:10px;align-items:center;height: 15px;justify-content:space-between;">
@@ -55,7 +56,7 @@
     const messageUsers = useMessageUsers()    
     const menu = useMenuStore()
     const auth = useAuthUserStore()
-    const props = defineProps(['list', 'message', 'mIndex'])
+    const props = defineProps(['list', 'message', 'mIndex', 'unchecked'])
     const fileMenuLayer = ref(0)
     const confirmWindow = ref(false)
     const currentFile = ref(null)
@@ -84,6 +85,23 @@
         }
         return filteredFiles
     })
+    const shareMenuItems = (file) => {
+        const list = [];
+        function addItem(title, action) {
+            list.push({ title, action });
+        }
+        const builtInApps = [
+            {name: 'board', name_jp: 'ボード'}, 
+            {name: 'knowledge', name_jp: 'ナレッジ'},
+            {name: 'nice', name_jp: 'ナイス'},
+            {name: 'challenge', name_jp: 'チャレンジ'},
+            {name: 'schedule', name_jp: 'スケジュール'}
+        ]
+        builtInApps.forEach(app => {
+            addItem(app.name_jp, () => shareTo(app.name, file))
+        });
+        return list
+    }
     const fileMenuItems = (file) => {
         const list = []; 
         function addItem(title, action) {
@@ -107,7 +125,10 @@
         builtInApps.forEach(app => {
             share.children.push({ title: app.name_jp, action: () => shareTo(app.name, file)})
         });
-        list.push(share)
+        if (!props.unchecked) {
+            list.push(share)
+        }
+        
         return list
     }
     const downloadFile = (file) => {

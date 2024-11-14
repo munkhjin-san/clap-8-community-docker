@@ -116,7 +116,7 @@
             notify('基礎知識研修を完了する前、AI分析してください。')
             return
         }
-        const valid = reviewEl.value?.validate()
+        const valid = await reviewEl.value?.validate()
         if(props.selectedTopic.assistant_id && !valid){
             return
         }

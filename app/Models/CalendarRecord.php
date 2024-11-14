@@ -28,6 +28,9 @@ class CalendarRecord extends Model
     public function department(){
         return $this->hasOne(ProjectRecord::class, 'id', 'department_id');
     }
+    public function calendar_view_users(){
+        return $this->belongsToMany(User::class, 'calendar_view_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_id']);
+    }
     protected $hidden = [
         'color', 
         'comp_flag', 

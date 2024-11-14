@@ -425,25 +425,7 @@ import { onUnmounted } from 'vue';
     gap: 15px;
     align-items: center;
 }
-.selector-accordion-inactive{
-    transform: rotate(270deg);
-    transition: transform 0.2s;
-}
-.selector-accordion-active{
-    transform: rotate(90deg);
-}
-.selector-accordion-el{
-    min-width: 35px;
-    min-height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50px;    
-    cursor: pointer;
-}
-.selector-accordion-el:hover{
-    background: var(--bg3); 
-}
+
 .tag-skeleton{
     overflow: hidden;
     height: 18px;

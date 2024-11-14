@@ -32,9 +32,12 @@ class FileController extends Controller
         $timeLimit = $usercheck->created_at; 
         // $messageFrom = $targetBoard->message_from;     
         $time_condition = $timeLimit;
-
+        $view_from = $usercheck->view_from;
 
         $allFiles = messageFile::where('board_id', $request->board_id)
+        ->when($view_from, function ($query) use ($view_from) {
+            $query->where('created_at', '>=', $view_from);
+        })
         ->when($time_condition, function ($query) use ($timeLimit) {
             $query->where('created_at', '>=',  $timeLimit );
         })->with('user')->orderBy('created_at', 'desc')

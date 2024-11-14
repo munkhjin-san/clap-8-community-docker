@@ -3,10 +3,12 @@
         <template #main>        
             <div style="background:inherit">
                 <div>
+                    <div class="lesson-play" v-if="ttsStore.active && ttsStore.id === material.id" @click="stopPlay">止める</div>
+                    <div class="lesson-play" v-else @click="convertToSpeech(getTextContent(filteredContent), material.id)">AIに読ませる</div>
                     <p v-html="filteredContent"></p>
                 </div>
                 <div class="post-separetor"></div>
-                <div v-if="sectionStatus != 2">
+                <div v-if="sectionStatus != 2 && material.has_understand">
                     <p><strong>基礎知識の内容を理解しましたか？</strong></p>
                     <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
                         <input class="fish-eye" v-model="selectedAnswer" type="radio" :id="answer.value" name="answer" :value="answer.value" >
@@ -34,14 +36,45 @@
                     </div>
                     
                 </div>
-                
-                <div v-if="sectionStatus != 2" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                <div v-if="material.has_question">
+                    <LongInput 
+                        v-if="material?.answer?.status < 2" 
+                        :initialValue="material?.answer?.answer ? material?.answer?.answer : answer" 
+                        :placeHolder="`質問に関する答え`"
+                        ref="answerComment"
+                        rules="required|max:2000"
+                        name="recordBody"
+                        label="タイトル"
+                        v-model="answer"
+                    />
+                    <p v-else><strong>質問に関する回答内容<br></strong>{{ topic?.answer?.answer }}</p>
+                    <OpenAiReview 
+                        :assistand-id="selectedTopic.assistant_id" 
+                        :soure-text="material?.answer?.ai_review" 
+                        :message="answer"
+                        :confirm-text="'業務リスク管理の基礎を効果的に理解し、実務で活用できる視点を身につけている。'"
+                        :answer="true"
+                        ref="reviewEl"
+                    />
+                </div>
+                <div v-if="sectionStatus != 2 && material.has_understand" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <div v-if="selectedAnswer == 1">
                         <LoaderButton @triggered="validate('save')" :loading="processing_save" :content="'一時保存'"/>
                     </div> 
                     <div>
                         <LoaderButton @triggered="nextStage" :loading="processing" :content="selectedAnswer == 0  ? '次へ' : '完了'"/>
                     </div>
+                </div>
+                <div v-else-if="material.has_question" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                    <div>
+                        <LoaderButton @triggered="emit('finish', 1, material)" :loading="processing_save" :content="'一時保存'"/>
+                    </div>
+                    <div>
+                        <LoaderButton @triggered="emit('finish', 2, material)" :loading="processing" :content="'完了'"/>
+                    </div>
+                </div>
+                <div v-else style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                    <LoaderButton @triggered="nextStage" :loading="processing" :content="'完了'"/>
                 </div>
             </div>
             
@@ -61,11 +94,17 @@
     import LoaderButton from '../../Global/LoaderButton.vue'
     import { ref, computed, inject } from 'vue'
     import DraftLayout from './DraftLayout.vue';
+    import axios from 'axios';
+    import OpenAI from 'openai';
+    import OpenAiReview from '@/components/Global/OpenAiReview.vue';
+    import { convertToSpeech, stopPlay } from '@/utils/tts';
+    import { useTtsStore } from '@/store/ttsStore';
     const router = useRouter()
     const route = useRoute()
+    const ttsStore = useTtsStore()
     const { notify, info } = inject('dialog')
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
-
+    const emit = defineEmits(['finish'])
     const getLessonPortfolios = inject('getLessonPortfolios')
 
     const filteredContent = computed(() => {
@@ -84,15 +123,16 @@
         return props.sections_status && props.sections_status.length ? props.sections_status.find(val => val.material_id === material.value?.id)?.content : ''
     })
     const understandComment = ref(null)
-    
+    const answer = ref("")
+    const answerComment = ref(null)
     const comment = ref("")
     const processing = ref(false)
     const list = [
         { value: 1, content: '理解した'},
         { value: 0, content: '理解できなかった'}        
     ]
-    const selectedAnswer = ref('')
- 
+    const selectedAnswer = ref(null)
+    
     const radioError = ref("")
     const processing_save = ref(false) 
 
@@ -139,17 +179,73 @@
                 
     }
     const nextStage = async() => {
-        if(selectedAnswer.value == 1){
-            const checkValidate = await validate('next')
-            if(checkValidate){
-                router.push({name: 'basic'})
+        if (material.value.has_understand) {
+            if(selectedAnswer.value == 1){
+                const checkValidate = await validate('next')
+                if(checkValidate){
+                    router.push({name: 'basic'})
+                }
+            }else if(selectedAnswer.value == 0){
+                router.push({name: 'more'})
+            }else{
+                radioError.value = '必須です'
+                return
             }
-        }else if(selectedAnswer.value == 0){
-            router.push({name: 'more'})
-        }else{
-            radioError.value = '必須です'
-            return
+        } else if (!material.value.has_question){
+            updateAnswerStatus()
+        } else {
+            router.push({name: 'basic'})
         }
         
+        
     }
+    const updateAnswerStatus = async() => {
+        try {
+            const params = {
+                id: material?.value?.answer?.id,
+                params: {
+                    material_id: material.value?.id,
+                    status: 2
+                },
+            }
+            await axios.post('/update_lesson_answer', params)
+            router.push({name: 'basic'})
+        } catch (e) {
+
+        }
+    }
+    const getTextContent = (html) => {
+        // Create a temporary DOM element to extract text from HTML content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        return tempDiv.textContent || tempDiv.innerText; // Get plain text from HTML
+    };
+   
+    const audioUrl = ref('')
+    const audio = ref(null)
+    const prepareAudio = async() => {
+        const openai = new OpenAI({
+            apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+            dangerouslyAllowBrowser: true 
+        });
+        const response = await openai.audio.speech.create({
+            model: "tts-1",
+            voice: "nova",
+            input: "Today is a wonderful day to build something people love!",
+        });
+        const getReader = response.body.getReader()
+        const massive = []
+        while (true) {
+            const {
+                done, value
+            } = await getReader.read()
+            if (done === true) {
+                break
+            }
+            massive.push(value)
+        }
+        const audioBlob = new Blob(massive, {type: 'audio/mp3'})
+        audioUrl.value  = URL.createObjectURL(audioBlob)
+    }
+    
 </script>

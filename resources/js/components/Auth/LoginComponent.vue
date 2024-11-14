@@ -54,8 +54,8 @@
                         <div @click="viewCondition = true" v-if="!viewCondition" class="btn btn-primary login-btn-change">コンデイションを選択してログイン</div>
                         <div class="list-wrapper focused" v-if="viewCondition">
                             <label class="form-plc">コンデイションを選択してログイン</label>
-                            <button class="list-item" type="submit" :style="{background: tempNum === num ? '#efefef' : 'transparent'}" @click="saveWeather(num)" v-for="num in [0,1,2,3,4,5]">
-                                <WeatherIcon :which="num" size="25"/>
+                            <button class="list-item" :style="{background: tempNum === num ? '#efefef' : 'transparent'}" @click="saveWeather(num)" v-for="num in [0,1,2,3,4,5]">
+                                <WeatherIcon :which="num" :size="responsive.mobile ? 20 : 25"/>
                             </button>
                         </div>
                     </div>
@@ -77,12 +77,14 @@
     import { onMounted, ref } from 'vue';
     import WeatherIcon from '../Global/WeatherIcon.vue';
     import moment from 'moment';
+    import { useResponsive } from '@/store/responsive';
     const props = defineProps(['message'])
     const viewCondition = ref(false)
     const errorMessage = ref(null)
     const tempNum = ref(null)
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content
     const loginForm = ref(null)
+    const responsive = useResponsive()
     onMounted(() => {
         window.document.title = `CLAP - ログイン`; 
         if(props.message){
@@ -97,7 +99,7 @@
     const saveWeather = (num) => {
         tempNum.value = num
         sessionStorage.setItem('condition_for_session', num)
-        handleSubmit()
+        // handleSubmit()
     }  
     const handleSubmit = () => {
         if (tempNum.value == null) {

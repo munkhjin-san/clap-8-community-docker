@@ -1,6 +1,13 @@
 <template>
     <div class="mobileFletty">
         <div style="height: 100%;position: relative;">
+            <Transition name="modalFade">
+                <div class="cal-month-loader" style="height: calc(100% - 60px); top: 60px;" v-if="initialLoader">
+                    <div id="loaderMini">
+                        <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                    </div>
+                </div>
+            </Transition>
             <div class="file-header-section" ref="memberHeader" :class="{ 'hiddenSearch': headerHidden }" >                
                 <div class="file-header__inner">
                     <div class="mem-search-area" style="width:100%;">
@@ -25,10 +32,10 @@
                 <div style="height: fit-content;max-width: 100%;" 
                 :key="'file_' + file.id"                                 
                 :id="'file_' + file.id"            
-                v-for="file in fileList" 
+                v-for="(file, index) in fileList" 
                 class="fletty mblist">
                     <div class="innerContainer">            
-                        <div name="fileContainer" @click="previewFile(file, 0)" class="listItem-mobile">                   
+                        <div name="fileContainer" @click="previewFile(file, index)" class="listItem-mobile">                   
                             <div style="display:flex;align-items: center;cursor:pointer;max-width:100%;overflow:hidden"> 
                                 
                                 <div v-if="file.mime_type == 'image'" class="">                                        
@@ -77,6 +84,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
     const timeout = ref(0)
     const { notify } = inject('dialog')
     const filePreview = useFilePreview()
+    const initialLoader = ref(true)
     onMounted(() => {
         if(board.value){
             getFileList()
@@ -121,12 +129,17 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
     const previewFile = (file, index) => {
         let target_data = file
         if(!target_data.removed_at){
-            target_data['source_board_id'] = file.board_id
-            target_data['doc_path'] = `/shared_files/${file.board_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`
-            target_data['file_path'] = `/cdn/shared_files/${file.board_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`
+            const files = fileList.value.map(fileData => ({
+                ...fileData,
+                source_board_id: fileData.board_id,
+                file_path: `/cdn/shared_files/${fileData.board_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`,
+                doc_path: `/shared_files/${fileData.board_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`
+            }));
+            
             const data = {
                 active: true,
-                files: [target_data],
+                files: files,
+                target: target_data,
                 source: 'message',
                 index: index,
                 message: {record_id: file.board_id},
@@ -161,7 +174,8 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
     const getFileList = async() => {
         try{
             const response = await axios.post('/get_file_list', {board_id: board.value.id})
-            fileListAll.value = response.data          
+            fileListAll.value = response.data
+            initialLoader.value = false          
         }catch (error){
             if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
             else if (error.request) notify('エラーが発生しました。')

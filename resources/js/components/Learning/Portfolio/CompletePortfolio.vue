@@ -133,7 +133,7 @@
     const nextStage = async() => {
         const result = await portfolioBody.value.validate()
         const title_result = await portfolioTitle.value.validate()
-        const valid = reviewElFinal.value?.validate()
+        const valid = await reviewElFinal.value?.validate()
         if(result.valid && title_result.valid && valid){
             const answer = await confirm('ポートフォリオを完了にしますか。\n完了後は編集ができません。')
                                       

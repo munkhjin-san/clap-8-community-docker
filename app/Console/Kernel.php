@@ -5,7 +5,10 @@ namespace App\Console;
 use App\Jobs\SendReport;
 use App\Jobs\RemoveFile;
 use App\Jobs\ResetCharge;
+use App\Jobs\ProcessMessage;
+use App\Models\messageRecord;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
@@ -33,6 +36,7 @@ class Kernel extends ConsoleKernel
         $schedule->job(new SendReport(610, 1056, 'monthly_performance'))->cron('15 9 15 * *');
         $schedule->job(new SendReport(610, 1056, 'monthly_shift'))->cron('15 9 20 * *');
         $schedule->job(new SendReport(610, 1056, 'monthly_mailing'))->cron('15 9 20 * *');
+        $schedule->job(new ProcessMessage())->hourly();
     }
 
     /**

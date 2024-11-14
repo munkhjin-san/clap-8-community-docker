@@ -22,7 +22,7 @@ class boardRecord extends Model
         ->wherePivot('deleted_status', 0)
         ->wherePivotNull('deleted_at')
         ->where('retire', 0)
-        ->select(['users.id', 'users.name','users.icon_id', 'users.email', 'users.name_kana']);
+        ->select(['users.id', 'users.name','users.icon_id', 'users.email', 'users.name_kana', 'users.on_leave']);
     }
     public function messages(){
         return $this->hasMany(messageRecord::class, 'record_id');
@@ -34,6 +34,7 @@ class boardRecord extends Model
         return $this->hasOne(messageRecord::class, 'record_id')
         ->latest('created_at')
         ->select('id', 'message', 'message_text', 'record_id')
+        ->where('draft_flag', 0)
         ->withExists('message_files');
     }
     public function icons(){

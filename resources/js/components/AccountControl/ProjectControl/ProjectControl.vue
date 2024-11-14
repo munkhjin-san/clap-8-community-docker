@@ -1,5 +1,5 @@
 <template>
-    <div class="post-root">
+    <div class="admin-window">
         <div class="admin-command-bar" style="margin: 20px">            
             <div class="sub-tab-container" style="margin-bottom: 20px;">
                 <div @click="router.push({name: 'projectlist'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'projectlist'}]">プロジェクト一覧</div>
