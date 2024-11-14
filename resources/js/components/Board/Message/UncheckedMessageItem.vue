@@ -37,7 +37,7 @@
                         />                         -->
                     </div>
                      
-                    <div @click="setTruncate" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
+                    <div @click="setTruncate" class="jump-link" style="margin-top:10px; font-size: 14px;" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
                    
                     <MessageFiles 
                         v-if="message.message_files && message.message_files.length"
