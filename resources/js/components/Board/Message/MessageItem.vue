@@ -261,7 +261,7 @@ import { useTtsStore } from "@/store/ttsStore";
         }
                  
         addItem('コピー', () => copyTextStart())       
-        addItem('AIに読ませる', () => convertToSpeech(props.message.message, props.message.id))
+        addItem('読み上げ', () => convertToSpeech(props.message.message, props.message.id))
         if(authorized.value){
             if (!isDraft) {
                 if(!props.message.check_flag && canConfirm){
@@ -575,7 +575,6 @@ import { useTtsStore } from "@/store/ttsStore";
         try{
             await axios.put('/draft_send', {id: props.message.id, draft_flag: 0})
             await refreshMessages()
-            info('保存しました。')
         }catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
             sending.value = false
