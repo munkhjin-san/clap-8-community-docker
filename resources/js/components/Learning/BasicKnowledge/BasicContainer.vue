@@ -29,7 +29,7 @@
                                 :answer="true"
                                 ref="reviewEl"
                             />
-                            <div v-if="topic?.answer?.status < 2" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                            <div v-if="(topic && (!topic.answer || topic.answer.status < 2))" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                                 <div>
                                     <LoaderButton @triggered="finish(1, topic)" :loading="processing[1]" :content="'一時保存'"/>
                                 </div>
