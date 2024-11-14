@@ -24,7 +24,7 @@
                 ref="typeArea"
                 style="visibility:visible;font-size:16px;max-height:185px;width:calc(100% - 70px);display:inline-block;padding: 5px 10px 5px 10px !important;" 
                 contenteditable="plaintext-only" 
-                class="typeBoxArea">
+                class="typeBoxArea commentTypeArea">
             </div>
             <div class="pc" style="position:absolute;right:60px;bottom:9px" @click.stop="menu.setMenu( {id: 1003, name: 'EmojiPicker'})">                               
                 <svg style="fill:#878787;" version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 30">
