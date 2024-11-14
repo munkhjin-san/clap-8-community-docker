@@ -198,7 +198,7 @@
         }
         let decision
         if (status == 2) {
-            decision = checkList()
+            decision = await checkList()
         }
         try {
             axios.post('/update_lesson_answer', params)
