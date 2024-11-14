@@ -268,6 +268,7 @@ class AdminAccountController extends Controller
     public function getMonthlyPrizes(Request $request)
     {   
         $year = $request->year ?? now()->year;
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
         $users = User::with(['task_users' => function ($q) use($year) {
                     $q->select('user_id',
                                 DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month"),
@@ -277,6 +278,7 @@ class AdminAccountController extends Controller
                             ->where('glowd_nine', 1)
                             ->groupBy('user_id', 'month');
                 }])
+                ->whereNotIn('name', $ng_list)
                 ->where('retire', 0)
                 ->where('hide_flag', 0)
                 ->where('deleted_flag', 0)
