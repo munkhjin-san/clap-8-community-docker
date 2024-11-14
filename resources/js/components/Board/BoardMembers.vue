@@ -48,9 +48,19 @@
                                         <router-link :to="`/user/${member.user.id}`" class="suggested-user-name user-link">{{ member.user.name }}</router-link>
                                         <div v-if="checkAdminAccess" style="font-size: 11px;color: gray;margin: 5px 0 0 5px;">閲覧制限日付:{{ viewFrom(member) }}</div>
                                         <div v-if="editingMember && editingMember.id == member.id" style="margin-top: 10px;">
-                                            <input @change="validateDate(member)" style="border: solid thin var(--primary-color);padding: 5px;" type="date" :min="setMin(member)" :max="setMax()" v-model="editingMember.view_from"/>
-                                            <p v-if="invalidDate" class="i-error" style="position: static;">{{ `日付は${setMin(member)}以上${setMax()}以下である必要があります。` }}</p>
-                                            <div style="display: flex;gap: 10px;margin-top: 10px;">
+                                            <div style="position: relative;">
+                                                <ShortInput 
+                                                    @change="validateDate(member)" 
+                                                    custom-class="date"
+                                                    type="date"
+                                                    :min="setMin(member)" 
+                                                    :max="setMax()" 
+                                                    v-model="editingMember.view_from"
+                                                />
+                                                <p v-if="invalidDate" class="i-error">{{ `日付は${setMin(member)}以上${setMax()}以下である必要があります。` }}</p>
+                                            </div>
+                                            
+                                            <div style="display: flex;gap: 10px;" :style="{marginTop: invalidDate ? '20px' : '10px'}">
                                                 <CommandButton :buttons="[
                                                     {title: '保存', action: () => {updateViewFrom()}},
                                                     {title: 'キャンセル', action: () => editingMember = null}

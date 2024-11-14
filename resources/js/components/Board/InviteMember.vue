@@ -31,9 +31,15 @@
                                         <div>{{ user.name }}</div>
                                         <div v-if="selectedMember === user.id" style="margin-top: 10px;">
                                             <div style="font-size: 11px;color: gray;margin: 5px 0;">閲覧制限設定</div>
-                                            <input @change="validateDate(user)" style="border: solid thin var(--primary-color);padding: 5px;" type="date" :min="setMin()" :max="setMax()" v-model="view_from"/>
-                                            <p v-if="invalidDate" class="i-error" style="position: static;">{{ `日付は${setMin()}以上${setMax()}以下である必要があります。` }}</p>
-                                            <div style="display: flex;gap: 10px;margin-top: 10px;">
+                                            <ShortInput 
+                                                @change="validateDate(user)" 
+                                                custom-class="date"
+                                                type="date" :min="setMin()" 
+                                                :max="setMax()" 
+                                                v-model="view_from"
+                                            />
+                                            <p v-if="invalidDate" class="i-error">{{ `日付は${setMin()}以上${setMax()}以下である必要があります。` }}</p>
+                                            <div style="display: flex;gap: 10px;" :style="{marginTop: invalidDate ? '20px' : '10px'}">
                                                 <CommandButton :buttons="[
                                                     {title: '追加', action: () => {selectToUser(user)}},
                                                 ]"/>
@@ -59,6 +65,7 @@ import { computed, inject, nextTick, onMounted, ref } from 'vue'
 import CommandButton from '../Global/CommandButton.vue';
 import UserIcon from './Mixed/UserIcon.vue';
 import moment from 'moment';
+import ShortInput from '../Form/ShortInput.vue';
     const props = defineProps(['item'])
     const emit = defineEmits(['close'])    
     const possibleMemberList = ref([])

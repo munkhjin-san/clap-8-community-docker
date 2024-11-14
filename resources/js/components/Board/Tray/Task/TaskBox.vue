@@ -119,7 +119,7 @@ import { dateDetail } from '@/utils/workApi';
             }
         }    
         if(taskBody.value){
-            if(taskBody.value?.clientHeight > 42){
+            if(taskBody.value?.clientHeight > 54){
                 dynamicHeight.value = '54px'
             }
         }  
