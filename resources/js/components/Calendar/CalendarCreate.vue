@@ -364,7 +364,6 @@ import LongInput from '../Form/LongInput.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import { useSharingDataStore } from '@/store/sharingData'
 import ItemSelector from '../Form/ItemSelector.vue';
-import ChipSelector from '../Form/ChipSelector.vue';
     const sharingData = useSharingDataStore()
 
     const props = defineProps([

@@ -173,7 +173,6 @@ import TopBar from './TopBar.vue'
 import NormalMonthLayout from './NormalMonth/NormalMonthLayout.vue'
 import MemberMonth from './MemberMonth/MemberMonthLayout.vue'
 import MemberHourLayout from './MemberHour/MemberHourLayout.vue'
-import GanttLayout from './Gantt/GanttLayout.vue'
 import DayPicker from './DayPicker.vue';
 import SearchResult from './SearchResult.vue';
 import DragItem from './DragItem.vue';
