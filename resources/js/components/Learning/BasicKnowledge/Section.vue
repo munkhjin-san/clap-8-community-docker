@@ -3,7 +3,7 @@
         <template #main>        
             <div style="background:inherit">
                 <div>
-                    <div class="lesson-play" v-if="ttsStore.active && ttsStore.id === material.id" @click="stopPlay">止める</div>
+                    <div class="lesson-play" v-if="ttsStore.active && ttsStore.id === material.id" @click="stopPlay">ストップ</div>
                     <div class="lesson-play" v-else @click="convertToSpeech(getTextContent(filteredContent), material.id)">読み上げ</div>
                     <p v-html="filteredContent"></p>
                 </div>

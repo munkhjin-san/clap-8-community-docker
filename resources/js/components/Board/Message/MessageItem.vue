@@ -96,7 +96,7 @@
                         @cancel="editing = false"
                     />
                     <div class="commentEditButton" style="margin-top: 10px;"v-if="ttsStore.active && ttsStore.id == message.id" @click="stopPlay">
-                        止める
+                        ストップ
                     </div>
                     <MessageFiles 
                         v-if="message.message_files && message.message_files.length"
@@ -246,6 +246,7 @@ import { useTtsStore } from "@/store/ttsStore";
     const messageMenuItems = computed(() => {
         const canConfirm = props.message.emoji_flag == 0 && board?.value.private_flag !== 3
         const isDraft = props.message.draft_flag
+        const textContent = messageBoxBody.value?.textContent
         const list= []; 
         function addItem(title, action) {
             list.push({ title, action });
@@ -261,7 +262,7 @@ import { useTtsStore } from "@/store/ttsStore";
         }
                  
         addItem('コピー', () => copyTextStart())       
-        addItem('読み上げ', () => convertToSpeech(props.message.message, props.message.id))
+        addItem('読み上げ', () => convertToSpeech(textContent, props.message.id))
         if(authorized.value){
             if (!isDraft) {
                 if(!props.message.check_flag && canConfirm){

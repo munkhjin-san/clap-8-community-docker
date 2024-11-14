@@ -3,7 +3,7 @@
         <div v-if="selectedTopic && selectedTopic.active == 1 && route.name == 'basic'" :style="{height: route.name == 'basic'  ? '100%' : '0'}">
             <div style="height: 100%; overflow: hidden auto;">
                 <div style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">
-                    <div class="lesson-play" v-if="ttsStore.active && ttsStore.id == selectedTopic.id" @click="stopPlay">止める</div>
+                    <div class="lesson-play" v-if="ttsStore.active && ttsStore.id == selectedTopic.id" @click="stopPlay">ストップ</div>
                     <div class="lesson-play" v-else @click="convertToSpeech(getTextContent(getAllContent()), selectedTopic.id)">読み上げ</div>              
                     <div class="lessons-topic" v-for="topic in headerMaterials">
                         <p v-html="filteredContent(topic.content)"></p>
