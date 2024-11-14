@@ -247,6 +247,7 @@ import { useTtsStore } from "@/store/ttsStore";
         const canConfirm = props.message.emoji_flag == 0 && board?.value.private_flag !== 3
         const isDraft = props.message.draft_flag
         const textContent = messageBoxBody.value?.textContent
+        const cleanedText = textContent?.replace(/https?:\/\/[^\s]+/g, '');
         const list= []; 
         function addItem(title, action) {
             list.push({ title, action });
@@ -262,7 +263,7 @@ import { useTtsStore } from "@/store/ttsStore";
         }
                  
         addItem('コピー', () => copyTextStart())       
-        addItem('読み上げる', () => convertToSpeech(textContent, props.message.id))
+        addItem('読み上げる', () => convertToSpeech(cleanedText, props.message.id))
         if(authorized.value){
             if (!isDraft) {
                 if(!props.message.check_flag && canConfirm){
