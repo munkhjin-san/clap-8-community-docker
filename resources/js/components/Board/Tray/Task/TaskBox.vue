@@ -142,7 +142,7 @@ import { dateDetail } from '@/utils/workApi';
         // }
     })
     const setTruncate = () => {
-        dynamicHeight.value = dynamicHeight.value == '55px' ? `${taskBody.value?.clientHeight}px` : '42px'
+        dynamicHeight.value = dynamicHeight.value == '55px' ? `${taskBody.value?.clientHeight}px` : '55px'
     }
     const dueDetail = computed(() => {
         if(props.item?.repeat){
