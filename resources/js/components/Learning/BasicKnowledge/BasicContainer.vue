@@ -10,7 +10,7 @@
                         <div v-if="topic.has_question">
                             <div class="post-separetor"></div>
                             <LongInput
-                                v-if="topic?.answer?.status < 2" 
+                                v-if="(topic && (!topic.answer || topic.answer.status < 2))"
                                 :initialValue="topic?.answer?.answer ? topic?.answer?.answer : answer" 
                                 :placeHolder="`質問に関する答え`"
                                 ref="answerComment"
