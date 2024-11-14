@@ -262,7 +262,7 @@ import { useTtsStore } from "@/store/ttsStore";
         }
                  
         addItem('コピー', () => copyTextStart())       
-        addItem('読み上げ', () => convertToSpeech(textContent, props.message.id))
+        addItem('読み上げる', () => convertToSpeech(textContent, props.message.id))
         if(authorized.value){
             if (!isDraft) {
                 if(!props.message.check_flag && canConfirm){

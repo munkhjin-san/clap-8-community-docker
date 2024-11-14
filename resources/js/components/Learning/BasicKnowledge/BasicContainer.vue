@@ -4,7 +4,7 @@
             <div style="height: 100%; overflow: hidden auto;">
                 <div style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">
                     <div class="lesson-play" v-if="ttsStore.active && ttsStore.id == selectedTopic.id" @click="stopPlay">ストップ</div>
-                    <div class="lesson-play" v-else @click="convertToSpeech(getTextContent(getAllContent()), selectedTopic.id)">読み上げ</div>              
+                    <div class="lesson-play" v-else @click="convertToSpeech(getTextContent(getAllContent()), selectedTopic.id)">読み上げる</div>              
                     <div class="lessons-topic" v-for="topic in headerMaterials">
                         <p v-html="filteredContent(topic.content)"></p>
                         <div v-if="topic.has_question">
