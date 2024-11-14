@@ -40,7 +40,7 @@
                 <p v-if="error" class="i-error" style="position: static;">{{ error }}</p>
             </div>
             <div class="si-box">
-                <LoaderButton @triggered="setSchedule" content="保存する"/>
+                <LoaderButton @triggered="setSchedule" content="予約する"/>
             </div>
         </div>
     </div>
