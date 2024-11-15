@@ -48,7 +48,7 @@
         :editTaskData="editTaskData"/>
     </Transition>
     <div style="height:100%;overflow: hidden scroll;position: relative;background:inherit">
-        <div class="no-comment-text" v-if="!sortedTasks?.once && !sortedTasks?.memos" style="font-size:14px;">
+        <div class="no-comment-text" v-if="!sortedTasks?.length" style="font-size:14px;">
             <p>現在アイテムはありません</p>
         </div>
         <div :class="{collapseTasks : !viewActiveTask}" class="task-list-wrap" style="margin-top: 40px;">                 
@@ -186,7 +186,7 @@ import axios from 'axios'
         const tasks = unorganizedTasks.value;
 
         if (!Array.isArray(tasks)) return [];
-
+        
         const filteredTasks = tasks.filter(task =>
             task.executors.some(executor => executor.id === auth.activeUser.id)
         );
