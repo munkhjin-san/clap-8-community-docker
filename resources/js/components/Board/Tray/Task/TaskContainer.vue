@@ -205,7 +205,6 @@ import axios from 'axios'
                 !task.executors.some(executor => executor.id === auth.activeUser.id)
                 && !task.supervisors.some(supervisor => supervisor.id === auth.activeUser.id)
             );
-            console.log(notMyTasks);
             return [...pinnedTasks, ...unpinnedTasks, ...notMyTasks];
         }
 
