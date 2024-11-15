@@ -192,15 +192,21 @@ import axios from 'axios'
         );
 
         if (!sortIs.value.myRecord) {
-            const pinnedTasks = filteredTasks.filter(task =>
+            const pinnedTasks = tasks.filter(task =>
                 task.executors.some(executor => executor.id === auth.activeUser.id && executor.pivot.pin_flag === 1)
+                || task.supervisors.some(supervisor => supervisor.id === auth.activeUser.id && supervisor.pivot.pin_flag === 1)
             );
 
-            const unpinnedTasks = filteredTasks.filter(task =>
+            const unpinnedTasks = tasks.filter(task =>
                 task.executors.some(executor => executor.id === auth.activeUser.id && executor.pivot.pin_flag !== 1)
+                || task.supervisors.some(supervisor => supervisor.id === auth.activeUser.id && supervisor.pivot.pin_flag !== 1)
             );
-
-            return [...pinnedTasks, ...unpinnedTasks];
+            const notMyTasks = tasks.filter(task =>
+                !task.executors.some(executor => executor.id === auth.activeUser.id)
+                && !task.supervisors.some(supervisor => supervisor.id === auth.activeUser.id)
+            );
+            console.log(notMyTasks);
+            return [...pinnedTasks, ...unpinnedTasks, ...notMyTasks];
         }
 
         return filteredTasks;

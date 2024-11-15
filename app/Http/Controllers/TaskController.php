@@ -38,7 +38,8 @@ class TaskController extends Controller
         $auth_user_id = $active_user->id;
         $which = $request->which;
         if(!empty($request) && !empty($auth_user_id)){      
-            $tasks = taskRecord::where('board_id', $request->record_id)
+            $list1 = taskRecord::where('board_id', '=', $request->record_id)
+            ->whereNotNull('end_at')
             ->where(function ($query) use ($auth_user_id, $which) {
                 $query->whereHas('executors', function($q) use ($auth_user_id, $which) {
                     $q->where('comp_flag', $which)
@@ -47,8 +48,18 @@ class TaskController extends Controller
                     $query->whereDoesntHave('executors', function($q) use ($auth_user_id) {
                         $q->where('user_id', $auth_user_id);
                     })->where('comp_flag', $which);
+                })->orWhereHas('supervisors', function ($q) use ($auth_user_id, $which) {
+                    $q->where('user_id', $auth_user_id)
+                        ->where('comp_flag', $which);
                 });
-            })
+            })->where('comp_flag', $which)
+            ->with('executors')
+            ->with('files')
+            ->with('supervisors')
+            ->orderBy('created_at', 'desc')->get();
+
+            $list2 = taskRecord::where('board_id', '=', $request->record_id)
+            ->whereNull('end_at')
             ->with('executors')
             ->with('files')
             ->with('supervisors')
@@ -56,9 +67,10 @@ class TaskController extends Controller
                 $q->onlyTrashed();                    
             })
             ->orderBy('created_at', 'desc')->get();
-
-            
-            return response()->json($tasks);
+            $list = $list1->concat($list2);
+            $order = $request->which == 1 ? 'updated_at' : 'created_at';
+            $list3 = $list->sortByDesc($order)->values();
+            return response()->json($list3);  
                 
             
                   

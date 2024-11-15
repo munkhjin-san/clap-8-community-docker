@@ -29,6 +29,7 @@
                             </svg>
                         </div> 
                         <ItemMenu 
+                            v-if="completeButtonFilter"
                             :items="itemsCollention"
                         />
                     </div> 
@@ -275,7 +276,7 @@ import axios from 'axios';
         return !taskIncomplete && !taskIncompleteforMe && expired
     })
     const selfMember = computed(() => {
-        return taskUsers.value.find(ob => ob.id == auth.activeUser.id);
+        return taskUsers.value.find(ob => ob.id == auth.activeUser.id) || supervisors.value.find(ob => ob.id == auth.activeUser.id);
     })
     const itemsCollention = computed(() => {
         const items = []
@@ -317,7 +318,9 @@ import axios from 'axios';
         try {
             await axios.put('/task_update_pin', {id: selfMember.value?.pivot.id})
             emit('getTask')
-            setTruncate()
+            if(taskBody.value?.clientHeight > 54){
+                setTruncate()
+            }
         } catch (e) {
 
         }

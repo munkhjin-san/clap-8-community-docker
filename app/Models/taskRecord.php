@@ -28,7 +28,7 @@ class taskRecord extends Model
                     ->where('users.retire', 0)
                     ->wherePivot('supervisor', 1)
                     ->wherePivotNull('deleted_at')
-                    ->withPivot('id', 'comp_flag', 'late_answer', 'late_answer_custom', 'status_flag', 'comment')
+                    ->withPivot('id', 'comp_flag', 'late_answer', 'late_answer_custom', 'status_flag', 'comment', 'pin_flag')
                     ->select(['users.id as id', 'users.name','users.icon_id']);
     }
     public function repeat(){
