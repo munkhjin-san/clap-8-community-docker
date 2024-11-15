@@ -98,6 +98,7 @@
                         @taskUserViewToggle="taskUserViewToggle"
                         @completeTaskBefore="completeTaskBefore"
                         @taskDeleted="taskDeleted"
+                        @getTask="getIncompletedTasks"
                     />
                 </template>
             </masonry-wall>

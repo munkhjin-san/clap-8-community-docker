@@ -53,9 +53,9 @@
         </div>
         <div :class="{collapseTasks : !viewActiveTask}" class="task-list-wrap" style="margin-top: 40px;">                 
             <div>
-                <div class="task-list-wrap" v-if="sortedTasks && sortedTasks?.once">     
+                <div class="task-list-wrap" v-if="sortedTasks.length">     
                     <TaskBox 
-                        v-for="item in sortedTasks?.once"
+                        v-for="item in sortedTasks"
                         :key="item.id" 
                         boxClass="task-box-container"
                         :item="item"
@@ -64,21 +64,10 @@
                         @completeTaskBefore="completeTaskBefore"
                         @taskDeleted="taskDeleted"
                         @approveTask="approveTask"
+                        @getTask="getTask"
                     />
                 </div>
-                <div class="task-list-wrap" v-if="sortedTasks && sortedTasks?.memos">     
-                    <TaskBox 
-                        v-for="item in sortedTasks?.memos"
-                        :key="item.id" 
-                        boxClass="task-box-container"
-                        :item="item"
-                        :inTrash="which"
-                        @editTask="editTask" 
-                        @completeTaskBefore="completeTaskBefore"
-                        @taskDeleted="taskDeleted"
-                        @approveTask="approveTask"
-                    />
-                </div>
+                
                 
             </div>
            
@@ -142,7 +131,7 @@ import axios from 'axios'
     const which = ref(0)
     const board = inject('openedBoard')
     const activeListeners = new Set();
-    const unorganizedTasks = ref({})
+    const unorganizedTasks = ref([])
     const { notify, confirm } = inject('dialog')
     onMounted(() => {
         if (urlTask.id) {
@@ -189,52 +178,32 @@ import axios from 'axios'
     const socketTaskHandler = () => {
         getTask()
     }
-    // const weeklyTasks = computed(() => {
-    //     if(unorganizedTasks.value &&unorganizedTasks.value?.weekly){
-    //         const data = []
-    //         const dayOfWeeks = ['月','火','水','木','金','土','日',]
-    //         unorganizedTasks.value.weekly.forEach(repeatData => {
-              
-                
-    //             data.push(item)
-    //         });
-    //         return data
-    //     }
-    //     return []
-    // })
-    const taskCategories = computed(() => {
-        const categorizedTasks = []
-        
-        for(const [address, data] of Object.entries(unorganizedTasks.value)){
-            categorizedTasks.push({
-                title: address,
-                tasks: data
-            })
-        }       
-    })
+   
     const allTasks = computed(() => {
         return taskList.value;
     })
     const sortedTasks = computed(() => {
-        const types = ['memos', 'once'];
-        if (sortIs.value.myRecord) {
-            const filteredTasks = {};
-            
-            types.forEach(type => {
-                const tasks = unorganizedTasks.value[type];
-                
-                if (Array.isArray(tasks)) {
-                    const filteredArray = tasks.filter(task => 
-                        task.executors.some(executor => executor.id === auth.activeUser.id)
-                    );
-                    if (filteredArray.length > 0) {
-                        filteredTasks[type] = filteredArray;
-                    }
-                }
-            });
-            return filteredTasks;
+        const tasks = unorganizedTasks.value;
+
+        if (!Array.isArray(tasks)) return [];
+
+        const filteredTasks = tasks.filter(task =>
+            task.executors.some(executor => executor.id === auth.activeUser.id)
+        );
+
+        if (!sortIs.value.myRecord) {
+            const pinnedTasks = filteredTasks.filter(task =>
+                task.executors.some(executor => executor.id === auth.activeUser.id && executor.pivot.pin_flag === 1)
+            );
+
+            const unpinnedTasks = filteredTasks.filter(task =>
+                task.executors.some(executor => executor.id === auth.activeUser.id && executor.pivot.pin_flag !== 1)
+            );
+
+            return [...pinnedTasks, ...unpinnedTasks];
         }
-        return unorganizedTasks.value
+
+        return filteredTasks;
     })
     const myTasks = computed(() => {
         let list = [];

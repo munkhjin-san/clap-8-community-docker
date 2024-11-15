@@ -194,6 +194,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::get('/task_not_approved', [TaskController::class, 'task_not_approved']);
     Route::put('/task_update_prize', [TaskController::class, 'task_update_prize']);
     Route::put('/task_update_flag', [TaskController::class, 'task_update_flag']);
+    Route::put('/task_update_pin', [TaskController::class, 'task_update_pin']);
     
         // Admin Panel User:
         Route::get('/get_controllable_users', [AdminAccountController::class, 'get_controllable_users']);

@@ -38,8 +38,8 @@ class TaskController extends Controller
         $auth_user_id = $active_user->id;
         $which = $request->which;
         if(!empty($request) && !empty($auth_user_id)){      
-            $once_tasks = taskRecord::where('board_id', $request->record_id)
-            ->whereNotNull('end_at')
+            $tasks = taskRecord::where('board_id', $request->record_id)
+            // ->whereNotNull(columns: 'end_at')
             ->where(function ($query) use ($auth_user_id, $which) {
                 $query->whereHas('executors', function($q) use ($auth_user_id, $which) {
                     $q->where('comp_flag', $which)
@@ -53,56 +53,13 @@ class TaskController extends Controller
             ->with('executors')
             ->with('files')
             ->with('supervisors')
-            ->orderBy('created_at', 'desc')->get();
-
-
-            $memos = taskRecord::where('board_id', $request->record_id)
-            ->whereNull('end_at')
-            ->with('executors')
-            ->with('files')
-            ->with('supervisors')
             ->when($request->which == 1, function($q){
                 $q->onlyTrashed();                    
             })
             ->orderBy('created_at', 'desc')->get();
-            $categorized = [];
-            // $board_id = $request->record_id;
-            // $types = ['uncategorized', 'once', 'weekly', 'monthly', 'yearly'];
-            // $categorized = TaskRecord::where('board_id', $board_id)
-            //                         ->whereHas('repeat')
-            //                         ->where(function ($query) use ($auth_user_id, $which) {
-            //                             $query->whereHas('executors', function($q) use ($auth_user_id, $which) {
-            //                                 $q->where('user_id', $auth_user_id)
-            //                                     ->where('comp_flag', $which);
-            //                             })->orWhereHas('supervisors', function ($q) use ($auth_user_id, $which) {
-            //                                 $q->where('user_id', $auth_user_id)
-            //                                     ->where('comp_flag', $which);
-            //                             });
-            //                         })
-            //                         ->with(['supervisors', 'executors', 'files', 'repeat'])
-            //                         ->get()
-            //                         ->groupBy(function($task) use ($types) {
-            //                             $index = $task->repeat->repeat_type ?? 0; 
-            //                             return $types[$index]; 
-            //                         });
-            // $categorized = $categorized->map(function ($tasks, $category) {
-            //     return $tasks->groupBy('repeat_id');
-            // });
-            // $grouped = TaskRepeat::whereHas('tasks', function($q) use($board_id){
-            //     $q->where('board_id', $board_id);
-            // })->with('tasks')->get();
-            // $categorized = $grouped->groupBy(function($item) {
-            //     $types = ['uncategorized', 'once', 'weekly', 'monthly', 'yearly'];
-            //     $index = $item->repeat_type ?? 0; 
-            //     return $types[$index]; 
-            // });
-            if(count($once_tasks)){
-                $categorized['once'] = $once_tasks;
-            }
-            if(count($memos)){
-                $categorized['memos'] = $memos;
-            }
-            return response()->json($categorized);
+
+            
+            return response()->json($tasks);
                 
             
                   
@@ -498,5 +455,14 @@ class TaskController extends Controller
             ]);
         }
         return response()->json(['message' => 'データが保存されました。']);
+    }
+    public function task_update_pin(Request $request) {
+        $request->validate([
+            'id' => 'required'
+        ]);
+        $taskUser = TaskUser::findOrFail($request->id);
+        $taskUser->pin_flag = !$taskUser->pin_flag;
+        $taskUser->save();
+        return response()->json($taskUser);
     }
 }

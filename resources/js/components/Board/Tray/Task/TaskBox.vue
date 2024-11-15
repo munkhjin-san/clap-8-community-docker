@@ -2,7 +2,7 @@
     <div :class="boxClass">
         <div style="display:flex; justify-content:space-between;">            
             <div :id="'task_box_' + item?.id" class="task-box-inner" :style="{backgroundColor: taskColor.mycolor, color: taskColor.color, position: 'relative', cursor: 'pointer'}" @dblclick.prevent="emit('editTask', item)">
-                <div class="task-box-header" :style="{display: 'flex', width: '100%', position: 'relative', marginTop: responsive.mobile ? '0' : '5px'}">
+                <div class="task-box-header" :style="{marginTop: responsive.mobile ? '0' : '5px'}">
                     <div @click="viewApprovalUsers('', taskUsers)" style="display:flex;width: fit-content;">
                         <div v-for="user in taskUsers.slice(0, 3)" style="position:relative;">
                             <div v-if="user" :title="user.name" class="column-01">
@@ -21,7 +21,18 @@
                                         
                         </div>                                                                                       
                         <p style="margin-top:2px;cursor:pointer;font-size: 12px;margin-left: 3px;" v-if="taskUsers && taskUsers.length > 3">({{taskUsers.length}})</p>                                            
+                    </div>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <div v-if="selfMember?.pivot?.pin_flag == 1">
+                            <svg version="1.1" class="dot-menu" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
+                                <path d="M19.713 28.513c0.045-0.043 0.121-0.125 0.187-0.193 0.067-0.070 0.128-0.148 0.192-0.22 0.122-0.151 0.236-0.306 0.34-0.466 0.414-0.641 0.679-1.346 0.817-2.061 0.137-0.716 0.151-1.449 0.033-2.176-0.062-0.386-0.164-0.773-0.311-1.149-0.037-0.095-0.022-0.198 0.040-0.277l3.236-4.041 3.276-4.116c0.070-0.089 0.184-0.134 0.297-0.121 0.133 0.013 0.267 0.022 0.401 0.022 0.466 0.005 0.925-0.055 1.364-0.169 0.44-0.115 0.861-0.282 1.258-0.502 0.397-0.221 0.773-0.489 1.117-0.834l0.008-0.008 0.005-0.006c0.427-0.434 0.42-1.131-0.013-1.559l-10.277-10.307c-0.44-0.44-1.152-0.441-1.593-0.001l-0.005 0.006c-0.347 0.347-0.618 0.728-0.837 1.129-0.217 0.404-0.38 0.829-0.489 1.269-0.143 0.567-0.191 1.16-0.141 1.75 0.010 0.109-0.034 0.218-0.12 0.286l-4.122 3.291-4.038 3.237c-0.078 0.062-0.184 0.076-0.277 0.040-0.376-0.147-0.762-0.247-1.148-0.31-0.727-0.117-1.46-0.103-2.176 0.033-0.716 0.138-1.42 0.405-2.062 0.818-0.16 0.104-0.316 0.218-0.467 0.339-0.072 0.065-0.149 0.125-0.22 0.193-0.068 0.065-0.15 0.142-0.193 0.187l-0.622 0.621c-0.486 0.485-0.487 1.271-0.001 1.756l0.001 0.002 5.901 5.914c0.058 0.058 0.059 0.15 0.004 0.21-0.199 0.217-0.399 0.433-0.6 0.648-0.394 0.424-0.787 0.852-1.185 1.27-0.796 0.843-1.596 1.679-2.387 2.528l-1.179 1.279-1.167 1.288c-0.775 0.862-1.555 1.722-2.321 2.593-0.333 0.378-0.325 0.964 0.053 1.333 0.365 0.355 0.955 0.347 1.338 0.008 0.863-0.758 1.714-1.529 2.567-2.297l1.288-1.169 1.279-1.179c0.847-0.79 1.685-1.592 2.527-2.386 0.419-0.401 0.846-0.792 1.271-1.186 0.216-0.199 0.431-0.399 0.647-0.6 0.061-0.055 0.153-0.053 0.211 0.005l5.916 5.901c0.484 0.485 1.269 0.484 1.753-0.001l0.625-0.623zM6.029 13.958c0.341-0.224 0.749-0.388 1.182-0.474 0.43-0.088 0.887-0.099 1.316-0.032 0.431 0.065 0.834 0.212 1.162 0.42l0.018 0.011c0.428 0.27 0.907 0.285 1.415-0.086l4.759-3.878 4.764-3.898c0.344-0.281 0.505-0.751 0.375-1.206-0.141-0.493-0.155-1.027-0.032-1.541 0.027-0.117 0.211-0.237 0.335-0.111l1.351 1.329 5.164 5.123 1.339 1.368c0.135 0.134-0.014 0.343-0.149 0.374-0.516 0.127-1.037 0.111-1.501-0.043-0.429-0.14-0.923-0.014-1.226 0.356l-0.013 0.018-3.894 4.744-3.88 4.759c-0.393 0.519-0.37 0.961-0.085 1.411l0.010 0.018c0.209 0.329 0.357 0.732 0.42 1.163 0.066 0.43 0.055 0.885-0.034 1.317-0.086 0.434-0.25 0.839-0.474 1.182 0 0.001-0.001 0.002-0.001 0.003-0.071 0.109-0.228 0.122-0.32 0.029l-6.010-6.024-6.022-6.010c-0.093-0.092-0.081-0.248 0.028-0.32 0.001 0 0.001 0 0.002-0.001z"></path>
+                            </svg>
+                        </div> 
+                        <ItemMenu 
+                            :items="itemsCollention"
+                        />
                     </div> 
+                    
                 </div>
 
                 
@@ -86,6 +97,8 @@ import { useTaskUsers } from '@/store/taskUsers';
 import { useMessageUsers } from '@/store/messageUsers';
 import { timeFormat, urlCheck } from '@/utils/tools';
 import { dateDetail } from '@/utils/workApi';
+import ItemMenu from '@/components/Global/ItemMenu.vue';
+import axios from 'axios';
     const taskUsersStore = useTaskUsers()
     const responsive = useResponsive()
     const menu = useMenuStore()
@@ -94,7 +107,7 @@ import { dateDetail } from '@/utils/workApi';
     const urlTaskEdit = useUrlTaskEdit()
     const messageUsers = useMessageUsers()
     const props = defineProps(['item', 'boxClass', 'inTrash'])
-    const emit = defineEmits(['taskDeleted', 'editTask', 'completeTaskBefore'])
+    const emit = defineEmits(['taskDeleted', 'editTask', 'completeTaskBefore', 'getTask'])
     const { confirm, info, notify } = inject('dialog')
     const dynamicHeight = ref('auto')
     const taskBody = ref(null)
@@ -118,22 +131,18 @@ import { dateDetail } from '@/utils/workApi';
                 props.item.color = "#F7D5D5"
             }
         }    
-        if(taskBody.value){
-            if(taskBody.value?.clientHeight > 54){
-                dynamicHeight.value = '54px'
-            }
-        }  
+        checkTruncate()
     })
+    const checkTruncate = () => {
+        if(taskBody.value && !selfMember.value?.pivot?.pin_flag){
+            if(taskBody.value?.clientHeight > 54){
+                setTruncate()
+            }
+        } 
+    }
     const truncatedRemarks = computed(() => {
         const remarks = urlCheck(props.item.remarks)
         return remarks
-        // if (menu.id === props.item.id) {
-        //     return remarks
-        // } else {
-        //     return remarks.length > 50 
-        //     ? remarks.slice(0, 50) + '...'
-        //     : remarks;
-        // }
     })
     const setTruncate = () => {
         dynamicHeight.value = dynamicHeight.value == '54px' ? `${taskBody.value?.clientHeight}px` : '54px'
@@ -265,6 +274,22 @@ import { dateDetail } from '@/utils/workApi';
 
         return !taskIncomplete && !taskIncompleteforMe && expired
     })
+    const selfMember = computed(() => {
+        return taskUsers.value.find(ob => ob.id == auth.activeUser.id);
+    })
+    const itemsCollention = computed(() => {
+        const items = []
+        if((props.inTrash == 0 && !supervisors.value.length) || canModify.value){
+            items.push(
+                { title: '編集', action:() => emit('editTask', props.item)}, 
+                { title: '削除', action:() => deleteTask()}
+            )
+        }
+        items.push(
+            { title: selfMember.value?.pivot?.pin_flag == 1 ? 'ピン留めを外す' : 'ピン留め', action:() => pinTask()}
+        )
+        return items
+    })
     const buttonsCollection = computed(() => {
         const buttons = []
         if(isTask.value){
@@ -273,12 +298,7 @@ import { dateDetail } from '@/utils/workApi';
                 action: () => emit('completeTaskBefore', props.item)
             })
         }
-        if((props.inTrash == 0 && !supervisors.value.length) || canModify.value){
-            buttons.push(
-                { title: '編集', action:() => emit('editTask', props.item)}, 
-                { title: '削除', action:() => deleteTask()}
-            )
-        }
+        
         if(isExpired.value && isTask.value && !supervisors.value.length){
             buttons.push({ title: '本日対応',action: () => untilTomorrow()})
         }
@@ -293,7 +313,15 @@ import { dateDetail } from '@/utils/workApi';
             emit('taskDeleted')
         });
     }
-    
+    const pinTask = async() => {
+        try {
+            await axios.put('/task_update_pin', {id: selfMember.value?.pivot.id})
+            emit('getTask')
+            setTruncate()
+        } catch (e) {
+
+        }
+    }
     const deleteTask = async() => {
         let question = props.item.repeat_id ? '繰り返しタスクすべて削除しますか。' : 'タスクを削除しますか。'
         let answers = [{label:'すべて', value:'all'}, {label:'このタスクのみ', value:'single'}, {label:'キャンセル', value:false}]
