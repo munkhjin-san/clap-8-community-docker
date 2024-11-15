@@ -19,7 +19,9 @@ class LessonController extends Controller
     public function get_lessons(Request $request){
         
         $lessons = LessonMaterial::where('lesson_theme_id', $request->lesson_theme_id)
-                                ->with('answer')
+                                ->with(['answer' => function ($q) {
+                                    $q->where('user_id', Auth::id());
+                                }])
                                 ->get();
 
      
@@ -41,7 +43,9 @@ class LessonController extends Controller
                 $q->where('user_id', Auth::id());
             }, 
             'materials' => function ($q) {
-                $q->whereHas('answer')->with('answer');
+                $q->whereHas('answer', function ($q) {
+                    $q->where('user_id', Auth::id());
+                })->with('answer');
             }
         ])->get();
         return response()->json($themes_portfolio);
