@@ -8,7 +8,7 @@
                             style="max-width:100%;margin:auto;max-height:100%;" 
                             v-if="file.mime_type == 'image'"
                             class="list-image-mobile" 
-                            :src="`/cdn/shared_files/${message.record_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`" 
+                            :src="`/shared_thumbnail/${message.record_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`" 
                             loading="lazy"
                         />
                     </div>

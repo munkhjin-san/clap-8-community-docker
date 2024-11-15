@@ -116,7 +116,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'post', 'knowledge', 'nice', 'members', 'schedule', 'timesheet', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning', 'project'])->where('any', '.*')->name('board');
     
 
-    
+    Route::get('/shared_thumbnail/{board_id}/{path}', [ContentController::class, 'sharedThumbnail']);
     Route::prefix('cdn')->group(function () {
         Route::get('/{any?}', [ContentController::class, 'fileTransferAll'])->where('any', '.*');
     });

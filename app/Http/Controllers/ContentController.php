@@ -6,7 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use App\Models\User;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
-
+use Illuminate\Support\Str;
+use Intervention\Image\Laravel\Facades\Image;
 class ContentController extends Controller
 {
 
@@ -67,5 +68,27 @@ class ContentController extends Controller
             abort(404);
         }       
 
+    }
+    public function sharedThumbnail(Request $request){
+       
+        try {     
+            $filePath = storage_path('app/shared_files/' . $request->board_id . '/' . $request->path);
+            $mimeType = Storage::mimeType('shared_files/' . $request->board_id . '/' . $request->path);
+            // return $filePath;
+            if (Str::startsWith($mimeType, 'image/')) {
+                $img = Image::read($filePath)->scaleDown(height: 35);
+                return $this->image_response($img);
+            } 
+            
+        } catch (FileNotFoundException $exception) {
+            abort(404);
+        }
+    }
+    private function image_response($img){
+        return response($img->toWebp(), 200, [
+            'Content-Type' => 'image/webp',
+            'Cache-Control' => 'public, max-age=2628000',
+            'Expires' => gmdate('D, d M Y H:i:s \G\M\T', time() + 2628000),
+        ]);
     }
 }

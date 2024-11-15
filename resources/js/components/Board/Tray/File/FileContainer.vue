@@ -39,7 +39,7 @@
                             <div style="display:flex;align-items: center;cursor:pointer;max-width:100%;overflow:hidden"> 
                                 
                                 <div v-if="file.mime_type == 'image'" class="">                                        
-                                    <img class="list-image-mobile" loading="lazy" :src="`/cdn/shared_files/${board.id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`"/>
+                                    <img class="list-image-mobile" loading="lazy" :src="`/shared_thumbnail/${board.id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`"/>
                                 </div>
                                 <div v-else>
                                     <FileIcon :ext="file.extension"/>
