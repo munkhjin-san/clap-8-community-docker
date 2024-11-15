@@ -206,7 +206,7 @@
             processing.value[status] = false
             if (decision) {
                 window.open(
-                'https://docs.google.com/forms/d/1ptWpZTLQiXzgKKnaDAUN8mEzFPwQk7Zveo_ZZZ-a_Tk/edit',
+                'https://docs.google.com/forms/d/e/1FAIpQLSclZ50A5MBYcx-Y_8_hLV3ARWgkJMX8Z6QRKdkl0XLKGDzhSg/viewform',
                 '_blank'
                 );
             }
