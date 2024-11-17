@@ -457,17 +457,17 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
         const end = moment(task.end_at).format('YYYY-MM-DD')
         const overdue = today > end
 
-        
+        const data = {
+            active: true,
+            data: task,
+        }
         if(task.supervisors.length && userData.pivot.comp_flag == 0) {
             
             taskRequest.setTaskRequest(data)
             return
         }
         
-        const data = {
-            active: true,
-            data: task,
-        }
+        
         
         const canPlayNine = task.executors.some(member => member.id === auth.activeUser.id && member.pivot.glowd_nine === 1)
         if (canPlayNine && !overdue) {
