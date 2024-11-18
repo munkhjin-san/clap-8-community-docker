@@ -418,7 +418,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
     const processing = ref(false)
     const calendarRemark = ref(null)
     const department_id = ref(props.editTarget?.department_id ?? props.preSelectedDepartment?.id ?? '')
-    const members_only = ref(false)
+    const members_only = ref(props.editTarget?.members_only ?? false)
     onMounted(() => {
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
             const repeats = props.editTarget.repeat_week.split(',').map(Number);
