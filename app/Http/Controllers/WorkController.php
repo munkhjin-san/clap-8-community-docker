@@ -1139,12 +1139,11 @@ class WorkController extends Controller
             $unapproved_shift_count = $user->shift_records->where('status_flag', 2)->count();
         }
         $night_over_time = $user->time_card_records->sum('night_over_time');
-        $annual_leave = 0;
-        foreach ($user->shift_records as $shift_record) {
-            $shiftType = $shift_record->shiftType;
-            $annual_leave += $shiftType->value;
-        }
-        $shift_work_hours = ($user->work_time_day * $workdayNum);
+        $annual_leave = $user->shift_records
+        ->whereNotIn('shift_type', [0, 1, 2, 14, 15, 16, 17]) 
+        ->sum(fn($shift_record) => $shift_record->shiftType->value);
+
+        $shift_work_hours = $user->work_time_day * $workdayNum;
         
         $condolence_leave = $user->shift_records->where('shift_type', 14)->count();
         $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
@@ -1179,14 +1178,10 @@ class WorkController extends Controller
             } 
         }
         $month_over_time = 0;
-        if($user->work_type == 0){
-            $all_worked_time = $worked_time + $annual_leave;
+        
+        $all_worked_time = $worked_time + $annual_leave + $condolence_leave * $user->work_time_day + $transfer_leave * $user->work_time_day;
+        if ($shift_work_hours < $all_worked_time - $month_over_time) {
             $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
-        }else{
-            $month_over_time = $over_time;
-        }
-        if ($shift_work_hours < $worked_time - $month_over_time) {
-            $month_over_time = $worked_time - $shift_work_hours - $night_over_time;
         }
         $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
         $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
