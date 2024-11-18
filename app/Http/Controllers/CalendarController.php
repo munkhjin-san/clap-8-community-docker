@@ -90,7 +90,7 @@ class CalendarController extends Controller
                     $carbonDate = Carbon::parse($start);
                     $instance = $carbonDate->setTimezone('Asia/Tokyo');
                     $start_at_mt = $instance->copy();
-                    $end_at_mt = $instance->copy()->add($meeting['duration'], 'minutes');
+                    $end_at_mt = $instance->copy()->add('minutes', $meeting['duration'], );
                     $start_at_ck = Carbon::parse($start_check);
                     $end_at_ck = Carbon::parse($end_check);
                     $overlap = !($end_at_ck <= $start_at_mt || $start_at_ck >= $end_at_mt);
@@ -482,17 +482,17 @@ class CalendarController extends Controller
                 "qualified_car" => $request['facility']['qualified_car']
             ]);
         }
-        if($record['zoom_id']){
-            $token = $this->zoomToken($record['zoom_value']);
-            $params = [
-                "zoom_id" => $record['zoom_value'],
-                "meetingId" => $record['zoom_id'],
-                "token" => $token
-            ];
-            $this->delete_zoom_meeting($params);
-        }
+        // if($record['zoom_id']){
+        //     $token = $this->zoomToken($record['zoom_value']);
+        //     $params = [
+        //         "zoom_id" => $record['zoom_value'],
+        //         "meetingId" => $record['zoom_id'],
+        //         "token" => $token
+        //     ];
+        //     $this->delete_zoom_meeting($params);
+        // }
         $ids[] = $new_record->id;            
-        $this->execute_main_data($ids, $request, null, $record);
+        $this->execute_main_data($ids, $request, null, $record, true);
         $record->delete();
         return $new_record;
     }
@@ -624,7 +624,7 @@ class CalendarController extends Controller
         }
         return $record;
     }
-    private function execute_main_data($ids, $request, $r_group_id, $has_prev_date){
+    private function execute_main_data($ids, $request, $r_group_id, $has_prev_date, $force_create = false){
 
         
         $zoom_values = array(
@@ -672,26 +672,26 @@ class CalendarController extends Controller
                     
                 ];
                 $z_index = (int) $request['facility']['zoom_value'] + 1; 
-                if($has_prev_date && $has_prev_date['zoom_id']){
+                if($has_prev_date && $has_prev_date['zoom_id'] && !$force_create){
                     $params['meetingId'] = $has_prev_date['zoom_id'];
                     $json_result = $this->update_zoom_meeting($params);
                     
-                    $zoom_values = array(
+                    $zoom_values = [
                         "zoom_url" => $has_prev_date['zoom_url'],
                         "zoom_id" => $has_prev_date['zoom_id'],
                         "zoom_pass" => $has_prev_date['zoom_pass'],
                         "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
                         "zoom_account_pass" => 'Glowd0802'
-                    );
+                    ];
                 }else{
                     $json_result = $this->create_zoom_meeting($params);
-                    $zoom_values = array(
+                    $zoom_values = [
                         "zoom_url" => $json_result['join_url'],
                         "zoom_id" => $json_result['id'],
                         "zoom_pass" => $json_result['password'],
                         "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
                         "zoom_account_pass" => 'Glowd0802'
-                    );
+                    ];
                 }                
 
                
@@ -1071,7 +1071,7 @@ class CalendarController extends Controller
         $new_diff = $new_start->diff($end_day);
         $new_diff_minute = ($new_diff->h * 60 + $new_diff->i);
 
-        $new_end_time = $new_start->copy()->add($record_duration_minute, 'minutes');
+        $new_end_time = $new_start->copy()->add( 'minutes', $record_duration_minute,);
         if($new_diff_minute < $record_duration_minute){
             $new_end_time = Carbon::createFromFormat('Y-m-d H:i:s', $end_day);
         }
