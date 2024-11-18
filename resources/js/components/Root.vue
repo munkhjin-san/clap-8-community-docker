@@ -96,77 +96,16 @@ import { stopPlay } from '@/utils/tts';
     onUnmounted(() => {
         removeEventListener()
     })
-    onMounted(async() => {
-        // const socket = instance
-        // console.log(socket)
-        // socket.value = io(import.meta.env.VITE_SOCKET_URL, {
-        //     auth: {
-        //         token: import.meta.env.VITE_SOCKET_TOKEN
-        //     },
-        //     withCredentials: true,
-        //     transports: ["websocket"],
-        //     reconnectionAttempts: 5 
-        // })
-        // socket.value.on("connect", () => {
-        //     console.log('Connected to socket Successfully')
-        // });
-        // socket.on("message", (e) => {
-        //     console.log('recieved', e)
-        //     console.log('rrrrr', auth.activeUser.id, focused.active)
-        //     // if(e && e.active_user_changed && e.active_user_changed.owner == auth.id && e.active_user_changed.target !== auth.activeUser.id){
-                
-        //     //     setAlert()
-        //     // }                
-        //     if(mainRef.value.onPusher){
-        //         const event = {message:e}
-        //         // mainRef.value.onPusher(event)
-        //     }
-        //     if(auth.user && e.board_id && e.sender !== auth.id && e.board_members && e.board_members.length && (e.board_members.includes(auth.activeUser.id) || e.board_members.includes(auth.id))){                
-        //         badge.getBoardBadge()
-        //     }
-        //     // if(e.new_post_from && e.new_post_from !== auth.id){
-        //     //     if(!auth.isPartner){
-        //     //         badge.getPostBadge()
-        //     //     }
-        //     // }   
-        // });
-        
-        if(props.auth_user && props.auth_user.id){
-            // const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-            // let pusher = new Pusher(import.meta.env.VITE_PUSHER_APP_KEY, {
-            //     cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
-            //     forceTLS: true,
-            //     channelAuthorization: { endpoint: "/pusher_subscribe", headers: { "X-CSRF-Token": csrfToken }},
-            //     userAuthentication: {
-            //         endpoint: "/pusher_authorizition", headers: { "X-CSRF-Token": csrfToken }
-            //     }
-            // });
-            // var channel = pusher.subscribe('private-chat');
-            // channel.bind("pusher:subscription_error", (error) => {console.log(error)});
-            // channel.bind('my-event', (e) => { 
-            //     if(e.message && e.message.active_user_changed && e.message.active_user_changed.owner == auth.id && e.message.active_user_changed.target !== auth.activeUser.id && !focused.active){
-            //         setAlert()
-            //     }                
-            //     if(mainRef.value.onPusher){
-            //         mainRef.value.onPusher(e)
-            //     }
-            //     if(auth.user && e.message.board_id && e.message.sender !== auth.id && e.board_members && e.board_members.length && (e.board_members.includes(auth.activeUser.id) || e.board_members.includes(auth.id))){                
-            //         badge.getBoardBadge()
-            //     }
-            //     if(e.message.new_post_from && e.message.new_post_from !== auth.id){
-            //         if(!auth.isPartner){
-            //             badge.getPostBadge()
-            //         }
-            //     }           
-
-            // });                    
+    onMounted(async() => {    
+        addEventListener()
+        if(props.auth_user && props.auth_user.id){                  
             beamsInit()
         }
         const condition = sessionStorage.getItem('condition_for_session')
         if(condition){
             saveWeather(condition)
         }
-        addEventListener()
+        
         badge.getBoardBadge('mounted');
         
         if(!auth.isPartner){
@@ -175,6 +114,7 @@ import { stopPlay } from '@/utils/tts';
         }
         
     })
+    
     const saveWeather = async (index) => {
         let today = moment().local().format('YYYY-MM-DD')
         try {
@@ -232,6 +172,7 @@ import { stopPlay } from '@/utils/tts';
         window.addEventListener('resize', handleResize);
         window.addEventListener("focus", handleFocus, false);
         window.addEventListener("blur", handleBlur, false);
+        document.addEventListener('visibilitychange', handleVisibilityChange)
         socket.on("post:badge", postHandler)
         socket.on(`switch:${auth.id}`, activeAccountHandler)
         socket.on("refresh:badge", boardBadgeHandler)
@@ -242,7 +183,10 @@ import { stopPlay } from '@/utils/tts';
         window.removeEventListener('blur', handleBlur, false)
         window.removeEventListener('click', onClick);
         window.removeEventListener('touchstart', onClick);
-        socket.removeAllListeners();
+        document.removeEventListener('visibilitychange', handleVisibilityChange)
+        socket.off("post:badge", postHandler);
+        socket.off(`switch:${auth.id}`, activeAccountHandler);
+        socket.off("refresh:badge", boardBadgeHandler);
     }
     const footerView = computed(() =>{
         const block_list = ['account-settings', 'personal-info-settings', 'salary-issue']
@@ -290,8 +234,15 @@ import { stopPlay } from '@/utils/tts';
         
 
     }
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+            handleFocus()
+        } else {
+            console.log('Window lost focus')
+        }
+    }
     const handleFocus = () => {
-        
+        console.log('focus getting called')
         checkActivity()
         focused.setFocused(true)
     }
