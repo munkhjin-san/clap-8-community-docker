@@ -23,7 +23,7 @@ class CalendarRecord extends Model
         return $this->belongsToMany(FileRecord::class, 'calendar_use_files', 'record_id', 'file_id')->where('file_records.deleted_flag', 0);
     }
     public function task(){
-        return $this->hasOne(taskRecord::class, 'id', 'task')->select('id', 'response_time');
+        return $this->hasOne(taskRecord::class, 'id', 'task')->select('id', 'response_time', 'board_id');
     }
     public function department(){
         return $this->hasOne(ProjectRecord::class, 'id', 'department_id');
