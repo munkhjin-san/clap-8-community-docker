@@ -1149,7 +1149,6 @@ class WorkController extends Controller
         $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
         $oda_leave = $user->shift_records->where('shift_type', 16)->count();
         $over_time = $user->time_card_records->sum('over_time');
-        $late_time = $user->time_card_records->sum('late_time');
         $annual_costs = 0;
         $annual_incentive = 0;
         $annual_costs = timecardCostRecord::where('user_id', $user->id)
@@ -1162,26 +1161,16 @@ class WorkController extends Controller
                                         ->select('count')
                                         ->sum('count');
         }
-        if($over_time >= $late_time){
-            switch($user->work_type) {
-                case 1:
-                    break;
-                default:
-                    $over_time -= $late_time;
-            }
-        }else{
-            switch($user->work_type) {
-                case 1:
-                    break;
-                default:
-                    $over_time = 0;
-            } 
-        }
+        
         $month_over_time = 0;
         
-        $all_worked_time = $worked_time + $annual_leave + $condolence_leave * $user->work_time_day + $transfer_leave * $user->work_time_day;
+        $all_worked_time = $worked_time + $annual_leave 
+            + ($condolence_leave + $transfer_leave) * $user->work_time_day;
         if ($shift_work_hours < $all_worked_time - $month_over_time) {
             $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
+        }
+        if ($user->work_type == 1) {
+            $month_over_time += $over_time;
         }
         $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
         $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
