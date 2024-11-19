@@ -479,7 +479,7 @@ progress {
     bottom: 5px;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 7px;
     cursor: pointer;
 }
 .hasText {
@@ -1563,8 +1563,9 @@ img {
 .typeAreaOuter{
     border: 1px solid var(--third-color);
     padding: 5px 0 5px 10px;
-    width: calc(100% - 55px);
-    position: relative;;
+    width: calc(100% - 94px);
+    position: relative;
+    margin-left: 39px;
 }
 .typeBoxArea{
   white-space: pre-line;

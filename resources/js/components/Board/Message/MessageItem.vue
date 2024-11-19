@@ -95,7 +95,10 @@
                         :message="message" 
                         @cancel="editing = false"
                     />
-                    <div class="commentEditButton" style="margin-top: 10px;"v-if="ttsStore.active && ttsStore.id == message.id" @click="stopPlay">
+                    <div class="commentEditButton" style="margin-top: 10px;" v-if="ttsStore.active && ttsStore.id == message.id" @click="stopPlay(message.id)">
+                        {{ ttsStore.play ? '一時停止' : '再開する' }}
+                    </div>
+                    <div class="commentEditButton" v-if="ttsStore.active && ttsStore.id == message.id" @click="endPlay">
                         ストップ
                     </div>
                     <MessageFiles 
@@ -160,7 +163,7 @@ import MessageEditor from './MessageEditor.vue'
 import ItemMenu from "@/components/Global/ItemMenu.vue";
 import { mentionFormatter } from "@/utils/tools";
 import { useMessageSchedule } from "@/store/messageSchedule"
-import { convertToSpeech, stopPlay } from "@/utils/tts";
+import { convertToSpeech, endPlay, stopPlay } from "@/utils/tts";
 import { useTtsStore } from "@/store/ttsStore";
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()

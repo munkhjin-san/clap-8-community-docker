@@ -316,6 +316,13 @@ import { reactive } from 'vue';
         const updatedUsers = filterUsers.value;
         glowdNineUsers.value = glowdNineUsers.value.filter(user => updatedUsers.some(updatedUser => updatedUser.id === user.id));
     });
+    watch(glowdNine, (newVal) => {
+        if(newVal){
+            glowdNineUsers.value = filterUsers.value;
+        } else {
+            glowdNineUsers.value = []
+        }
+    })
     const allSelected = computed(() => {
         return boardMembers.value.length == qualified_users.value.length
     }) 

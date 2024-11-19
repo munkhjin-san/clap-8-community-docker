@@ -3,7 +3,10 @@
         <template #main>        
             <div style="background:inherit">
                 <div>
-                    <div class="lesson-play" v-if="ttsStore.active && ttsStore.id === material.id" @click="stopPlay">ストップ</div>
+                    <div style="position:absolute; right: 50px; display: flex; gap: 10px;" v-if="ttsStore.active && ttsStore.id == selectedTopic.id">
+                        <div style="position: static" class="lesson-play" @click="stopPlay(selectedTopic.id)">{{ ttsStore.play ? '一時停止' : '再開する' }}</div>
+                        <div style="position: static" class="lesson-play" @click="endPlay">ストップ</div>
+                    </div>
                     <div class="lesson-play" v-else @click="convertToSpeech(getTextContent(filteredContent), material.id)">読み上げる</div>
                     <p v-html="filteredContent"></p>
                 </div>
@@ -97,7 +100,7 @@
     import axios from 'axios';
     import OpenAI from 'openai';
     import OpenAiReview from '@/components/Global/OpenAiReview.vue';
-    import { convertToSpeech, stopPlay } from '@/utils/tts';
+    import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
     import { useTtsStore } from '@/store/ttsStore';
     const router = useRouter()
     const route = useRoute()

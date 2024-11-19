@@ -3,7 +3,10 @@
         <div v-if="selectedTopic && selectedTopic.active == 1 && route.name == 'basic'" :style="{height: route.name == 'basic'  ? '100%' : '0'}">
             <div style="height: 100%; overflow: hidden auto;">
                 <div style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">
-                    <div class="lesson-play" v-if="ttsStore.active && ttsStore.id == selectedTopic.id" @click="stopPlay">ストップ</div>
+                    <div style="position:absolute; right: 50px; display: flex; gap: 10px;" v-if="ttsStore.active && ttsStore.id == selectedTopic.id">
+                        <div style="position: static" class="lesson-play" @click="stopPlay(selectedTopic.id)">{{ ttsStore.play ? '一時停止' : '再開する' }}</div>
+                        <div style="position: static" class="lesson-play" @click="endPlay">ストップ</div>
+                    </div>
                     <div class="lesson-play" v-else @click="convertToSpeech(getTextContent(getAllContent()), selectedTopic.id)">読み上げる</div>              
                     <div class="lessons-topic" v-for="topic in headerMaterials">
                         <p v-html="filteredContent(topic.content)"></p>
@@ -80,7 +83,7 @@
 </template>
 <script setup>
     import { useTtsStore } from '@/store/ttsStore';
-    import { convertToSpeech, stopPlay } from '@/utils/tts';
+    import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
     import { computed, ref, inject, provide, useTemplateRef } from 'vue';
     import { useRoute, useRouter } from 'vue-router';
     import LongInput from '@/components/Form/LongInput.vue';

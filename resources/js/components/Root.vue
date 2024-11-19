@@ -68,7 +68,7 @@ import { useTitle } from '@vueuse/core'
 import { io } from "socket.io-client";
 import axios from 'axios';
 import { instance as socket } from '@/utils/broadcaster'
-import { stopPlay } from '@/utils/tts';
+import { endPlay } from '@/utils/tts';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -205,7 +205,7 @@ import { stopPlay } from '@/utils/tts';
 
     watch(() => [route.fullPath], () => {
             resetInstantUser()
-            stopPlay()
+            endPlay()
         }
     )
     const setActiveUser = async(id) => {
