@@ -7,6 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Str;
 use App\Services\SharedService;
 class TaskCreated implements ShouldQueue
 {
@@ -28,7 +29,7 @@ class TaskCreated implements ShouldQueue
     public function handle(SharedService $sharedService): void
     {
         $data = $this->payload;
-        $trim = strlen($data['text']) > 20 ? substr($data['text'], 0, 50) . '...' : $data['text'];
+        $trim = Str::limit($data['text'], 50, '...');
         $sharedService->createInfoMessage("タスク", $data['board_id'], 'new_task', $data['user_id'], $trim);  
     }
 }
