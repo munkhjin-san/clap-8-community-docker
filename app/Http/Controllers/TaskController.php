@@ -414,6 +414,10 @@ class TaskController extends Controller
         if ($allCompleted) {
             $task = taskRecord::findOrFail($request->task_id);
             $task->comp_flag = 1;
+            taskUser::where('record_id', $request->task_id)
+                    ->where('user_id', $active_user->id)
+                    ->where('supervisor', 1)
+                    ->update(['comp_flag' => 1]);
             $this->sharedService->deleteTaskFromCalendar($task);
             $task->save();
         }
