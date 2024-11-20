@@ -52,7 +52,7 @@ class TaskController extends Controller
                     $q->where('user_id', $auth_user_id)
                         ->where('comp_flag', $which);
                 });
-            })->where('comp_flag', $which)
+            })
             ->with('executors')
             ->with('files')
             ->with('supervisors')
