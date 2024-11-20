@@ -39,9 +39,9 @@
                     </div>
                     
                 </div>
-                <div v-if="material.has_question">
+                <div v-if="material.has_question" style="position: relative;">
                     <LongInput 
-                        v-if="material?.answer?.status < 2" 
+                        v-if="(material.answer && material?.answer?.status < 2) || !material.answer" 
                         :initialValue="material?.answer?.answer ? material?.answer?.answer : answer" 
                         :placeHolder="`質問に関する答え`"
                         ref="answerComment"
@@ -50,9 +50,9 @@
                         label="タイトル"
                         v-model="answer"
                     />
-                    <p v-else><strong>質問に関する回答内容<br></strong>{{ topic?.answer?.answer }}</p>
+                    <p v-else><strong>質問に関する回答内容<br></strong>{{ material?.answer?.answer }}</p>
                     <OpenAiReview 
-                        :assistand-id="selectedTopic.assistant_id" 
+                        :assistand-id="selectedTopic?.assistant_id" 
                         :soure-text="material?.answer?.ai_review" 
                         :message="answer"
                         :confirm-text="'業務リスク管理の基礎を効果的に理解し、実務で活用できる視点を身につけている。'"
@@ -70,10 +70,10 @@
                 </div>
                 <div v-else-if="material.has_question" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <div>
-                        <LoaderButton @triggered="emit('finish', 1, material)" :loading="processing_save" :content="'一時保存'"/>
+                        <LoaderButton @triggered="finish(1, material)" :loading="questionsave[1]" :content="'一時保存'"/>
                     </div>
                     <div>
-                        <LoaderButton @triggered="emit('finish', 2, material)" :loading="processing" :content="'完了'"/>
+                        <LoaderButton @triggered="finish(2, material)" :loading="questionsave[2]" :content="'完了'"/>
                     </div>
                 </div>
                 <div v-else style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
@@ -95,7 +95,7 @@
     import { useRoute, useRouter } from 'vue-router';
     import LongInput from '../../Form/LongInput.vue';
     import LoaderButton from '../../Global/LoaderButton.vue'
-    import { ref, computed, inject } from 'vue'
+    import { ref, computed, inject, useTemplateRef } from 'vue'
     import DraftLayout from './DraftLayout.vue';
     import axios from 'axios';
     import OpenAI from 'openai';
@@ -107,9 +107,9 @@
     const ttsStore = useTtsStore()
     const { notify, info } = inject('dialog')
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
-    const emit = defineEmits(['finish'])
     const getLessonPortfolios = inject('getLessonPortfolios')
-
+    const reviewEl = useTemplateRef('reviewEl')
+    const { confirm } = inject('dialog')
     const filteredContent = computed(() => {
         
         return material.value.content.replace(/\[\[learning_video src="(.*?)" learning_video\]\]/g, (match, videoSrc) => {
@@ -138,7 +138,7 @@
     
     const radioError = ref("")
     const processing_save = ref(false) 
-
+    const questionsave = ref(['', false, false])
     const validate = async(status) => {
         const valid = await understandComment.value.validate()
         if(valid.valid){
@@ -223,32 +223,62 @@
         tempDiv.innerHTML = html;
         return tempDiv.textContent || tempDiv.innerText; // Get plain text from HTML
     };
-   
-    const audioUrl = ref('')
-    const audio = ref(null)
-    const prepareAudio = async() => {
-        const openai = new OpenAI({
-            apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-            dangerouslyAllowBrowser: true 
-        });
-        const response = await openai.audio.speech.create({
-            model: "tts-1",
-            voice: "nova",
-            input: "Today is a wonderful day to build something people love!",
-        });
-        const getReader = response.body.getReader()
-        const massive = []
-        while (true) {
-            const {
-                done, value
-            } = await getReader.read()
-            if (done === true) {
-                break
+       
+    const finish = async(status, material) => {
+        if (status === 2) {
+            if(props.selectedTopic.assistant_id && !reviewEl.value?.reviewResultRaw){
+                notify('基礎知識研修を完了する前、AI分析してください。')
+                return
             }
-            massive.push(value)
+            
+        }        
+        const aiVal = await reviewEl.value?.validate()
+        
+        const val = await answerComment.value?.validate() || {valid: false}
+        
+        if((props.selectedTopic.assistant_id && !aiVal) || !val.valid){
+            return
         }
-        const audioBlob = new Blob(massive, {type: 'audio/mp3'})
-        audioUrl.value  = URL.createObjectURL(audioBlob)
+        
+        questionsave.value[status] = true
+        const materialId = material?.id
+        const answerId = material?.answer?.id
+        const params = {     
+            id: answerId,           
+            params: {
+                status: status,
+                answer: answer.value,
+                ai_review: reviewEl.value?.reviewResultRaw,
+                material_id: materialId
+            }
+        }
+        // let decision
+        // if (status == 2) {
+        //     decision = await checkList()
+        // }
+        try {
+            axios.post('/update_lesson_answer', params)
+            info('保存しました。')
+            questionsave.value[status] = false
+            // if (decision) {
+            //     window.open(
+            //     'https://docs.google.com/forms/d/e/1FAIpQLSclZ50A5MBYcx-Y_8_hLV3ARWgkJMX8Z6QRKdkl0XLKGDzhSg/viewform',
+            //     '_blank'
+            //     );
+            // }
+            
+        } catch (e) {
+            notify(e)
+        } finally {
+            router.push({name : 'basic'})
+        }
+    }
+    const checkList = async() => {
+        const options = {
+            answers: [{ label: 'OK', value: true }]
+        };
+        const answer = await confirm("最後に業務リスク研修チェックリストの実施をお願い致します。", options);
+        return answer
     }
     
 </script>

@@ -2,7 +2,7 @@
     <div style="height: 100%;width: 100%;position: relative;overflow: hidden;">
         <div v-if="selectedTopic && selectedTopic.active == 1 && route.name == 'basic'" :style="{height: route.name == 'basic'  ? '100%' : '0'}">
             <div style="height: 100%; overflow: hidden auto;">
-                <div style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">
+                <div v-if="headerMaterials.length" style="background: var(--background-color);padding: 30px;word-wrap: break-word;white-space: break-spaces;line-height: 1.8;display: flex;flex-direction: column;gap: 30px;margin: 0 20px;">
                     <div style="position:absolute; right: 50px; display: flex; gap: 10px;" v-if="ttsStore.active && ttsStore.id == selectedTopic.id">
                         <div style="position: static" class="lesson-play" @click="stopPlay(selectedTopic.id)">{{ ttsStore.play ? '一時停止' : '再開する' }}</div>
                         <div style="position: static" class="lesson-play" @click="endPlay">ストップ</div>
@@ -13,7 +13,7 @@
                         <div v-if="topic.has_question">
                             <div class="post-separetor"></div>
                             <LongInput
-                                v-if="(topic && (!topic.answer || topic.answer.status < 2))"
+                                v-if="(!topic.answer || (topic.answer && topic.answer.status < 2))"
                                 :initialValue="topic?.answer?.answer ? topic?.answer?.answer : answer" 
                                 :placeHolder="`質問に関する答え`"
                                 ref="answerComment"
@@ -74,7 +74,6 @@
                     :selectedTopic="selectedTopic"
                     :filteredMaterials="filteredMaterials"
                     :sections_status="sections_status"
-                    @finish="finish"
                 />
             </transition>
         </router-view>

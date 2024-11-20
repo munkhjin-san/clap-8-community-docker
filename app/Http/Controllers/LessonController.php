@@ -43,9 +43,9 @@ class LessonController extends Controller
                 $q->where('user_id', Auth::id());
             }, 
             'materials' => function ($q) {
-                $q->whereHas('answer', function ($q) {
+                $q->with(['answer' => function ($q) {
                     $q->where('user_id', Auth::id());
-                })->with('answer');
+                }]);
             }
         ])->get();
         return response()->json($themes_portfolio);

@@ -51,6 +51,18 @@
                 </div>
                 <div class="si-box">
                     <div class="switchLabel">
+                        <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">ケーススタディ</p>
+                    </div>
+                    <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                        <input v-model="case_study" type="checkbox" id="has_case_study">
+                        <label for="has_case_study" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                        
+                    </div>  
+                </div>
+                <div class="si-box">
+                    <div class="switchLabel">
                         <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">アクティブ</p>
                     </div>
                 
@@ -99,6 +111,7 @@ const portfolioGuidance = ref(null)
 const titleGuidance = ref(null)
 const theme = useTheme()
 const portfolio = ref(props.editTarget?.portfolio === 1 ? true : false);
+const case_study = ref(props.editTarget?.has_case_study === 1 ? true : false);
 const initialPortfolioGuidance = computed(() => {
     return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
 })
@@ -130,7 +143,8 @@ const create = () => {
             episode_guidance: episodeGuidanceContent,
             guidance: portfolioGuidanceContent,
             title_guidance: titleGuidanceContent,
-            portfolio: portfolio.value
+            portfolio: portfolio.value,
+            has_case_study: case_study.value
         }
 
     }).then(response => {
