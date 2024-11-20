@@ -193,8 +193,10 @@ import axios from 'axios';
         if (invalidDate.value) return
         try {
             await axios.put('/update_view_from', {id: editingMember.value.id, view_from: editingMember.value.view_from})
+            editingMember.value = null
+            info('保存しました。')
         } catch (e) {
-
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } 
     }
     const validateDate = (member) => {
