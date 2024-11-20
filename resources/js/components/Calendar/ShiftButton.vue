@@ -2,19 +2,20 @@
 <div :class="['month-shifter', `to-${jumpTo}-month`]">{{ directions[jumpTo] }}</div>
 </template>
 <script setup>
-import { onMounted } from 'vue';
-    const directions = {
+import { onMounted, ref } from 'vue';
+
+    const props = defineProps(['jumpTo', 'viewType'])
+    const emit = defineEmits(['close'])
+    const directions = ref({
         up: '前月へ',
         down: '翌月へ',
-        left: '前月へ',
-        right: '翌月へ'
-    }
-    const props = defineProps(['jumpTo'])
-    const emit = defineEmits(['close'])
+        left:  props.viewType == 3 ? '前日へ' : '前月へ' ,
+        right: props.viewType == 3 ? '翌日へ' : '翌月へ'
+    })
     onMounted(() => {
-        // setTimeout(() => {
-        //     emit('close')
-        // }, 5000);
+        setTimeout(() => {
+            emit('close')
+        }, 5000);
     })
 
 

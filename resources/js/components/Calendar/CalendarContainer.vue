@@ -54,7 +54,7 @@
             </div>          
         </div>
         <Transition :name="`${jumpTo}ShiftPop`">
-            <ShiftButton @click="shiftToMonth(jumpTo)" v-if="jumpTo" :jumpTo="jumpTo" @close="jumpTo = null"/>
+            <ShiftButton @click="shiftToMonth(jumpTo)" v-if="jumpTo" :jumpTo="jumpTo" @close="jumpTo = null" :viewType="viewType"/>
         </Transition>
         <NormalHourLayout
             v-if="viewType == 0"
@@ -353,22 +353,18 @@ import axios from 'axios';
     }
 
     const shiftToMonth = (direction) => {
-        appendLock.value = true  
-        initialLoader.value = true                
-        const current = moment([activeYear.value, activeMonth.value])
+        appendLock.value = true                       
+        const current = moment([activeYear.value, activeMonth.value, selectedDay.value])
         const directions = { up: -1, down: 1, left: -1, right: 1 }
         const index = directions[direction]
-            
-        const new_month = current.clone().add(index, 'month').startOf('month').format('YYYY-MM-DD')                    
-        getCalendar(new_month, 'shift')
-        const m = current.clone().add(index, 'month').month()
-        const y = current.clone().add(index, 'month').year()
-        activeMonth.value = selectedMonth.value = m
-        activeYear.value = selectedYear.value = y
-        
-            
-                                    
-        
+        const unit = viewType.value == 3 ? 'day' : 'month'
+        const exec = current.clone().add(index, unit).format('YYYY-MM-DD')
+        const targetDate = moment(exec)
+        activeMonth.value = selectedMonth.value = targetDate.month() 
+        activeYear.value = selectedYear.value = targetDate.year()
+        selectedDay.value = targetDate.date()
+        initialLoader.value = true  
+        getCalendar(targetDate.startOf('month').format('YYYY-MM-DD'), 'shift')          
     }
 
     const addRecord = (type, value, user) => {

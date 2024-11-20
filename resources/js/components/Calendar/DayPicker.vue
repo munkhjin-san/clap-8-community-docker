@@ -49,12 +49,8 @@ import { useMenuStore } from "@/store/menu";
     const year = ref(props.selectedYear)
     const day = ref(props.selectedDay)
     const pickerIs = ref('day')        
-    watch(() => props.selectedMonth, (after) => {
-        if(after){
-            setTimeout(() => {
-                month.value = after + 1
-            }, 300);
-        }
+    watch(() => props.selectedMonth, (after) => { 
+        month.value = after + 1      
     })
         
     watch(() => props.selectedYear, (after) => {

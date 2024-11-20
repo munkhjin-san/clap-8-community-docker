@@ -142,7 +142,7 @@
                                     </svg>
                                 </div>  
                                 
-                                <div @click="commentSendConfirm(1)" title="下書き保存" class="message-icon-wrapper" style="margin-right: 3px;">
+                                <div @click="commentSendConfirm(1)" title="下書き保存" class="message-icon-wrapper" style="margin-right: 5px;">
                                     <svg xmlns="http://www.w3.org/2000/svg" id="Layer_2" data-name="Layer 2" width="20" height="20" viewBox="0 0 16.79 29.72" style="fill: var(--third-color);">
                                     
                                         <path class="cls-1" d="m1.15,29.52c2.42.14,4.85.2,7.28.2,2.43,0,4.85-.05,7.28-.25.56-.05,1.03-.5,1.08-1.08.06-.65-.43-1.23-1.08-1.29-4.84-.36-9.7-.31-14.55-.05-.61.04-1.11.53-1.15,1.15-.05.68.47,1.27,1.15,1.31Z"/>

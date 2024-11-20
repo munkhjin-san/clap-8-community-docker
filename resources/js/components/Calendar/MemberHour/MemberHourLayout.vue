@@ -21,7 +21,7 @@
         <div @mousedown="onMouseDown" @touchstart="handleTouchStart" @touchmove="handleTouchMove" class="calendar-container-outer-week" :style="{width: `calc((100% / ${responsive.mobile ? 4 : 13}) * ${24})`, height: '100%', background: 'var(--background-color)'}">
           
             <div class="calendar-header">  
-                <div id="listViewSpacer" ref="spacer" :style="{ width: hideName ? '45px' : `130px`}" class="left-member-tile"></div>
+                <div id="listViewSpacer" ref="spacer" :style="{ width: hideName ? '45px' : `130px`}" draggable="false" class="left-member-tile"></div>
                 <div :style="{display: 'flex',position: 'relative', width: hideName ? 'calc(100% - 45px)' : `calc(100% - 130px)`}">
                     <div :id="`w_day_${index}`" ref="hourMemberItems" v-for="(hour, index) in hoursOfDay" class="w-day-item" style="border-right: solid thin transparent;background: unset;">
                         <div :class="['top-list-tile']" ><div>{{ hour.hour == '0:00' ? '' : hour.hour }}</div></div> 

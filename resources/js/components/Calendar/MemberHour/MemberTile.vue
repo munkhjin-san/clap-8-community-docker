@@ -1,6 +1,6 @@
 <template>
 <div style="display: flex;">
-    <div @mousedown.stop @click="emit('viewFull', true)" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`, overflowX: 'unset'}">
+    <div draggable="false" @mousedown.stop @click="emit('viewFull', true)" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`, overflowX: 'unset'}">
         <div style="cursor: pointer;position: relative;width: -webkit-fill-available;overflow: hidden;">
               
             <UserIcon :disableInstant="hideName" :user="userData.user" imgClass="userMidIcon" size="25"/>

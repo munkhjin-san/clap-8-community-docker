@@ -482,7 +482,7 @@ progress {
 .message-icon-outer {
   display: flex; 
   align-items: center; 
-  gap: 5px;
+  gap: 8px;
 }
 .message-icon-wrapper {
   display: flex;
@@ -5657,6 +5657,7 @@ input:autofill {
     transition: width 0.3s;
     white-space: nowrap;
     cursor: default;
+    user-select: none;
 }
 .left-member-tile > div {
     display: flex;

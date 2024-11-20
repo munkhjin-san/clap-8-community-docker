@@ -40,7 +40,7 @@
             
             <div >
                 <div v-for="user in listMembers" style="display: flex;">
-                    <div @click="hideName = false" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`}">
+                    <div @click="hideName = false" class="left-member-tile" draggable="false" :style="{ width: hideName ? '45px' : `130px`}">
                         <div style="cursor: pointer;overflow: hidden;">
                             <UserIcon :disableInstant="hideName" :user="user" imgClass="userMidIcon" size="25"/>
                             <div @click.stop="pushInstantUser($event, user.id)" :style="{lineHeight: 1.5, visibility: hideName ? 'hidden' : 'visible'}">{{user.name}}</div>
