@@ -477,10 +477,19 @@ progress {
     position: absolute;
     right: 5px;
     bottom: 5px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
     cursor: pointer;
+}
+.message-icon-outer {
+  display: flex; 
+  align-items: center; 
+  gap: 5px;
+}
+.message-icon-wrapper {
+  display: flex;
+  width: 25px;
+  height: 25px;
+  align-items: center;
+  justify-content: center;
 }
 .hasText {
   margin-bottom: 35px;
@@ -5935,6 +5944,9 @@ input:autofill {
   border: solid thin var(--primary-color);
 }
 @media screen and (max-width: 959px) {
+    .message-icon-outer{
+      gap: 8px;
+    }
     .login-plc{
         padding: 25px 0 15px 3px !important;
     }
