@@ -715,7 +715,7 @@ class BoardController extends Controller
             if($request->forward_message_id){
                 $chat->forward_id = $request->forward_message_id;
             }
-            $chat->draft_flag = $request->draft_flag;
+            $chat->draft_flag = $request->draft_flag ?? 0;
             $chat->save();
             
             if($request->attached_temp_files){ 
