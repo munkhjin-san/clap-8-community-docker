@@ -170,6 +170,7 @@ import { useFocused } from '@/store/focused';
             lockScroll.value = true
         }            
         emit('resetFastCreate')
+        emit('scrollHorizontal', event)
     }
     const onMouseDown = (ev) => {
         cursorPos.value = [ev.pageX, ev.pageY];

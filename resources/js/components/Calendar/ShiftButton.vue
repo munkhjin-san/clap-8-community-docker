@@ -1,14 +1,60 @@
 <template>
-<div :class="['month-shifter', {'to-next-month' : jumpTo == 'down'}, {'to-prev-month' : jumpTo == 'up'}]">{{ jumpTo == 'down' ? '翌月へ' : '前月へ' }}</div>
+<div :class="['month-shifter', `to-${jumpTo}-month`]">{{ directions[jumpTo] }}</div>
 </template>
 <script setup>
 import { onMounted } from 'vue';
+    const directions = {
+        up: '前月へ',
+        down: '翌月へ',
+        left: '前月へ',
+        right: '翌月へ'
+    }
     const props = defineProps(['jumpTo'])
     const emit = defineEmits(['close'])
     onMounted(() => {
-        setTimeout(() => {
-            emit('close')
-        }, 5000);
+        // setTimeout(() => {
+        //     emit('close')
+        // }, 5000);
     })
 
+
 </script>
+<style scoped>
+.month-shifter{
+    z-index: 15;
+    margin: auto;
+    position: absolute;
+    color: var(--background-color);
+    background: var(--primary-color);
+    height: 25px;
+    width: fit-content;
+    padding: 0px 30px;
+    text-align: center;
+    border-radius: 13px;
+    font-size: 12px;
+    line-height: 2;
+    cursor: pointer;
+    user-select: none;
+
+}
+.to-up-month{
+    bottom: 20px;
+    left: 0;
+    right: 0;
+}
+.to-down-month{
+    top: 100px;
+    left: 0;
+    right: 0;
+}
+.to-left-month{
+    left: 50px;
+    top: 0;
+    bottom: 0;
+}
+.to-right-month{
+    right: 10px;
+    top: 0;
+    bottom: 0;
+}
+</style>

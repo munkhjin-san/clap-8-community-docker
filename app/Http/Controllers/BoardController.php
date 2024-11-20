@@ -634,7 +634,7 @@ class BoardController extends Controller
         ->when($view_from, function ($query) use ($view_from) {
             $query->where('created_at', '>=', $view_from);
         })
-        ->when($time_condition, function ($query) use ($timeLimit) {
+        ->when(!$view_from && $time_condition, function ($query) use ($timeLimit) {
             $query->where('created_at', '>=',  $timeLimit );
         })
         ->when($leavePeriod && $targetBoard->private_flag != 1, function ($query) use ($leavePeriod) {
@@ -1408,7 +1408,7 @@ class BoardController extends Controller
                 $q->where('user_id', $active_user->id)->where('deleted_status', '=', 0);
             })->get();
         }        
-        
+        $leavePeriod = $this->user_onleave($active_user->id);
         $result = new \Illuminate\Database\Eloquent\Collection;
         foreach($list as $board){
             if($board->private_flag == 0 || $board->private_flag == 3){
@@ -1416,8 +1416,15 @@ class BoardController extends Controller
                 $time_limit = $selfcheck->created_at;
                 $messageFrom = $board->message_from;     
                 $time_condition = $messageFrom == 0 && $time_limit;   
-                $comment_list_pre = messageRecord::when($time_condition, function ($query) use($time_limit) {
+                $view_from = $selfcheck->view_from;
+                $comment_list_pre = messageRecord::when($time_condition && !$view_from, function ($query) use($time_limit) {
                     $query->where('created_at', '>=',  $time_limit );
+                })
+                ->when($view_from, function ($query) use ($view_from) {
+                    $query->where('created_at', '>=', $view_from);
+                })
+                ->when($leavePeriod && $board->private_flag != 3, function ($query) use ($leavePeriod) {
+                    $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
                 })
                 ->where('record_id', $board->id)
                 ->where('message_text', 'LIKE', '%' . $request->keyword . '%')
@@ -1495,49 +1502,83 @@ class BoardController extends Controller
         $time_limit = $board_user->created_at;
             $messageFrom = $board->message_from;     
             $time_condition = $messageFrom == 0 && $time_limit;   
-
+            $view_from = $board_user->view_from;
+            $leavePeriod = $this->user_onleave($active_user->id);
             $pre = messageRecord::withTrashed()->where('record_id', '=', $target->record_id)->orderBy('created_at', 'desc')
-            ->when($time_condition, function ($query) use ($time_limit) {
+            ->when($time_condition && !$view_from, function ($query) use ($time_limit) {
                 $query->where('created_at', '>=',  $time_limit );
             })
+            ->when($view_from, function ($query) use ($view_from) {
+                $query->where('created_at', '>=', $view_from);
+            })
+            ->when($leavePeriod && ($board->private_flag != 3 || $board->private_flag != 1), function ($query) use ($leavePeriod) {
+                $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
+            })
             ->where('created_at', '<', $target->created_at)            
-            ->with('user')
-            ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
-            ->with('message_reply')
-            ->with('message_quot')
-            ->with('message_forward')
-            ->with('reactedUsers')
-            ->with('checkedUsers')
-            ->with('uncheckedUsers')
+            ->with([
+                'user',
+                'message_files.unsignedUsers',
+                'message_files.signedUsers',
+                'message_reply',
+                'message_quot',
+                'message_forward',
+                'reactedUsers',
+                'checkedUsers',
+                'uncheckedUsers',
+                'messageRemindUsers',
+                'task'
+            ])
             ->take(14)
             ->get();
 
             $next = messageRecord::withTrashed()->where('record_id', '=', $target->record_id)->orderBy('created_at', 'asc')->where('created_at', '>', $target->created_at)
-            ->when($time_condition, function ($query) use ($time_limit) {
+            ->when($time_condition && !$view_from, function ($query) use ($time_limit) {
                 $query->where('created_at', '>=',  $time_limit );
             })
-            ->with('user')
-            ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
-            ->with('message_reply')
-            ->with('message_quot')
-            ->with('message_forward')
-            ->with('reactedUsers')
-            ->with('checkedUsers')
-            ->with('uncheckedUsers')
+            ->when($view_from, function ($query) use ($view_from) {
+                $query->where('created_at', '>=', $view_from);
+            })
+            ->when($leavePeriod && ($board->private_flag != 3 || $board->private_flag != 1), function ($query) use ($leavePeriod) {
+                $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
+            })
+            ->with([
+                'user',
+                'message_files.unsignedUsers',
+                'message_files.signedUsers',
+                'message_reply',
+                'message_quot',
+                'message_forward',
+                'reactedUsers',
+                'checkedUsers',
+                'uncheckedUsers',
+                'messageRemindUsers',
+                'task'
+            ])
             ->take(15)->get()->reverse()->values();
     
             $target_q = messageRecord::withTrashed()->where('id', '=', $request->id)
-            ->when($time_condition, function ($query) use ($time_limit) {
+            ->when($time_condition && !$view_from, function ($query) use ($time_limit) {
                 $query->where('created_at', '>=',  $time_limit );
             })
-            ->with('user')
-            ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
-            ->with('message_reply')
-            ->with('message_quot')
-            ->with('message_forward')
-            ->with('reactedUsers')
-            ->with('checkedUsers')
-            ->with('uncheckedUsers')
+            ->when($view_from, function ($query) use ($view_from) {
+                $query->where('created_at', '>=', $view_from);
+            })
+            ->when($leavePeriod && ($board->private_flag != 3 || $board->private_flag != 1), function ($query) use ($leavePeriod) {
+                $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
+            })
+            ->with([
+                'user',
+                'message_files.unsignedUsers',
+                'message_files.signedUsers',
+                'message_reply',
+                'message_quot',
+                'message_forward',
+                'reactedUsers',
+                'checkedUsers',
+                'uncheckedUsers',
+                'messageRemindUsers',
+                'task'
+            ])
             ->get();
             $united = $next->merge($target_q)->merge($pre);
             
@@ -1552,29 +1593,48 @@ class BoardController extends Controller
         $board_user = boardToUser::where('record_id', $targetBoard->id)->where('user_id', $active_user->id)->first();
         $time_limit = $board_user->created_at;
         $messageFrom = $targetBoard->message_from;     
-        $time_condition = $messageFrom == 0 && $time_limit;   
+        $time_condition = $messageFrom == 0 && $time_limit;
+        $view_from = $board_user->view_from;
+        $leavePeriod = $this->user_onleave($active_user->id);
         if($request->direction === 'down'){
             $bottom_messages = messageRecord::withTrashed()->where('record_id', '=', $last_message->record_id)
             ->where('created_at', '>', $last_message->created_at)
-            ->when($time_condition, function ($query) use ($time_limit) {
+            ->when($time_condition && !$view_from, function ($query) use ($time_limit) {
                 $query->where('created_at', '>=',  $time_limit );
             })
-            ->with('user')
-            ->with('message_files')
-            ->with('message_reply')
-            ->with('message_quot')
-            ->with('message_forward')
-            ->with('reactedUsers')
-            ->with('checkedUsers')
-            ->with('uncheckedUsers')
+            ->when($view_from, function ($query) use ($view_from) {
+                $query->where('created_at', '>=', $view_from);
+            })
+            ->when($leavePeriod && ($targetBoard->private_flag != 3 || $targetBoard->private_flag != 1), function ($query) use ($leavePeriod) {
+                $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
+            })
+            ->with([
+                'user',
+                'message_files.unsignedUsers',
+                'message_files.signedUsers',
+                'message_reply',
+                'message_quot',
+                'message_forward',
+                'reactedUsers',
+                'checkedUsers',
+                'uncheckedUsers',
+                'messageRemindUsers',
+                'task'
+            ])
             ->take(30)->get()->reverse()->values();
 
 
         }else if($request->direction === 'up'){
             $bottom_messages = messageRecord::withTrashed()->where('record_id', '=', $last_message->record_id)
             ->where('created_at', '<', $last_message->created_at)->orderBy('created_at', 'desc')
-            ->when($time_condition, function ($query) use ($time_limit) {
+            ->when($time_condition && !$view_from, function ($query) use ($time_limit) {
                 $query->where('created_at', '>=',  $time_limit );
+            })
+            ->when($view_from, function ($query) use ($view_from) {
+                $query->where('created_at', '>=', $view_from);
+            })
+            ->when($leavePeriod && ($targetBoard->private_flag != 3 || $targetBoard->private_flag != 1), function ($query) use ($leavePeriod) {
+                $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
             })
             ->with('user')
             ->with('message_files')

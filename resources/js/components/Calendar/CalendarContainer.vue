@@ -82,7 +82,7 @@
             @fromMonth="fromMonth"
             @addRecord="addRecord"
             @jumpToDate="jumpToDate"
-            @scroll="scrollListen"
+            @scroll="scrollListen"            
             @create="createAtTime"
         />
         <MemberMonth 
@@ -104,6 +104,7 @@
             @setListView="setListView"
             @create="createAtTime"
             @resetFastCreate="resetFastCreate"
+            @scrollHorizontal="scrollListenHorizontal"
         />
         <MemberHourLayout 
             v-if="viewType == 3"
@@ -113,9 +114,9 @@
             :initialLoader="initialLoader"
             @create="createAtTime"
             @resetFastCreate="resetFastCreate"
+            @scrollHorizontal="scrollListenHorizontal"
             ref="memberHourLayoutRef"
         />
-        <GanttLayout v-if="viewType == 4"/>
         <Transition name="modalFade">
             <div id="calendarViewMenu" class="boxMenu boardMenuIcon viewSwitchMenu" v-if="menu.name == 'calendarViewMenu' && menu.id == 79">   
                 <div v-for="menuItem in viewMenu" class="boxMenuItems cursor-pointer" @click.stop="switchView(menuItem.value)">
@@ -191,7 +192,6 @@ import axios from 'axios';
         {title: '月（時間）', value: 0},
         {title: '月（メンバー別）', value: 2},
         {title: '日（メンバー別）', value: 3},
-        {title: 'Gantt', value: 4}
     ]
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
@@ -224,6 +224,7 @@ import axios from 'axios';
     const searching = ref(false)
     const preSelected = ref(null)
     const prevScrollTop = ref(0)
+    const prevScrollLeft = ref(0)
     const jumpTo = ref(null)
     const fastCreate = ref({
         x: 0,
@@ -355,8 +356,8 @@ import axios from 'axios';
         appendLock.value = true  
         initialLoader.value = true                
         const current = moment([activeYear.value, activeMonth.value])
-
-        const index = direction == 'down' ? 1 : -1
+        const directions = { up: -1, down: 1, left: -1, right: 1 }
+        const index = directions[direction]
             
         const new_month = current.clone().add(index, 'month').startOf('month').format('YYYY-MM-DD')                    
         getCalendar(new_month, 'shift')
@@ -650,6 +651,20 @@ import axios from 'axios';
         }       
         
     }
+    const scrollListenHorizontal = () => {
+        resetFastCreate()
+        if(!appendLock.value){
+            var percent = 100 * event.currentTarget.scrollLeft / (event.currentTarget.scrollWidth  - event.currentTarget.clientWidth);  
+            if(percent >= 97){   
+                jumpTo.value = 'right'                    
+            }else if(percent <= 3){
+                jumpTo.value = 'left'                   
+            }else{
+                jumpTo.value = null
+            }
+        }       
+        
+    }
     const jumpToRecord = (record) => {
         appendLock.value = true
         tempRecord.setTempRecord(record.id)
@@ -707,7 +722,7 @@ import axios from 'axios';
             if(method == 'shift'){
                 nextTick(() => {     
                     let create = moment(day).startOf('month').format('YYYY-MM-DD')   
-                    if(jumpTo.value == 'up'){
+                    if(jumpTo.value == 'up' || jumpTo.value == 'left'){
                         create = moment(day).endOf('month').format('YYYY-MM-DD')                            
                     }   
                     jumpExecute(create)                                               

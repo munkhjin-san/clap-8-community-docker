@@ -5399,31 +5399,9 @@ font-size: 13px;
     border-width: 0 2px 2px 0;
     transform: rotate(45deg);
 }
-.month-shifter{
-    z-index: 15;
-    left: 0;
-    right: 0;
-    margin: 0 auto;
-    position: absolute;
-    color: var(--background-color);
-    background: var(--primary-color);
-    height: 25px;
-    width: fit-content;
-    padding: 0px 30px;
-    text-align: center;
-    border-radius: 13px;
-    font-size: 12px;
-    line-height: 2;
-    cursor: pointer;
-    user-select: none;
 
-}
-.to-next-month{
-    bottom: 20px;
-}
-.to-prev-month{
-    top: 100px;
-}
+
+
 .calendar-search-result-window{
     position: absolute;
     left: 0;

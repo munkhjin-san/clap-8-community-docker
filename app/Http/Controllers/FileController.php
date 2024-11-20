@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Models\boardRecord;
 use App\Models\messageFile;
 use App\Models\User;
+use App\Models\userDetail;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Pusher\Pusher;
 class FileController extends Controller
@@ -25,7 +26,10 @@ class FileController extends Controller
             'board_id' => 'required',
         ]);
 
-    
+        $leavePeriod = userDetail::where('user_id', $active_user->id)
+        ->whereNotNull('leave_start')
+        ->whereNotNull('leave_end')
+        ->first();
            
         $targetBoard = boardRecord::findOrFail($request->board_id);
         $usercheck = $targetBoard->board_to_users()->where('user_id','=', $active_user->id)->first();
@@ -38,9 +42,13 @@ class FileController extends Controller
         ->when($view_from, function ($query) use ($view_from) {
             $query->where('created_at', '>=', $view_from);
         })
-        ->when($time_condition, function ($query) use ($timeLimit) {
+        ->when($time_condition && !$view_from, function ($query) use ($timeLimit) {
             $query->where('created_at', '>=',  $timeLimit );
-        })->with('user')->orderBy('created_at', 'desc')
+        })
+        ->when($leavePeriod && ($targetBoard->private_flag != 3 || $targetBoard->private_flag != 1), function ($query) use ($leavePeriod) {
+            $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
+        })
+        ->with('user')->orderBy('created_at', 'desc')
         ->with('unsignedUsers')
         ->get();
         return response()->json($allFiles);

@@ -169,6 +169,7 @@ import { useResponsive } from '@/store/responsive';
         }        
         scrollCount.value ++   
         emit('resetFastCreate')
+        emit('scrollHorizontal', event)
     }
     const shiftToListView = (event, date) => {
         if(Math.abs(event.pageX - beforeState.value) > 15) {
