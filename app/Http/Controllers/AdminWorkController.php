@@ -272,7 +272,9 @@ class AdminWorkController extends Controller{
                 }])
                 ->select('shift_type', 'shift_day', 'user_id', 'planned_year', 'id', 'descendant_of')
                 ->orderBy('shift_day', 'asc');
-            }])->with('workTemps')->select('id', 'name', 'position_id', 'user_code')->get();
+            }])->with(['workTemps' => function ($q) use($year){
+                $q->whereYear('date', $year);
+            }])->select('id', 'name', 'position_id', 'user_code')->get();
         
         return response()->json($all_users);
     }
