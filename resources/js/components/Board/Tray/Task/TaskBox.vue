@@ -40,7 +40,7 @@
                 <div :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease', marginTop: '10px'}">
                     <p ref="taskBody" style="line-height: 1.5;white-space: pre-line;word-break: break-all;" v-html="truncatedRemarks"></p>
                 </div>  
-                <div @click="setTruncate" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '54px' ? '続きを表示する' : '閉じる' }}</div>
+                <div @click="setTruncate" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '162px' ? '続きを表示する' : '閉じる' }}</div>
 
               
                 <div v-if="item.end_at" style="margin-top: 10px;">
@@ -136,7 +136,7 @@ import axios from 'axios';
     })
     const checkTruncate = () => {
         if(taskBody.value && !selfMember.value?.pivot?.pin_flag){
-            if(taskBody.value?.clientHeight > 54){
+            if(taskBody.value?.clientHeight > 162){
                 setTruncate()
             }
         } 
@@ -146,7 +146,7 @@ import axios from 'axios';
         return remarks
     })
     const setTruncate = () => {
-        dynamicHeight.value = dynamicHeight.value == '54px' ? `${taskBody.value?.clientHeight}px` : '54px'
+        dynamicHeight.value = dynamicHeight.value == '162px' ? `${taskBody.value?.clientHeight}px` : '162px'
     }
     const dueDetail = computed(() => {
         if(props.item?.repeat){
@@ -318,7 +318,7 @@ import axios from 'axios';
         try {
             await axios.put('/task_update_pin', {id: selfMember.value?.pivot.id})
             emit('getTask')
-            if(taskBody.value?.clientHeight > 54){
+            if(taskBody.value?.clientHeight > 162){
                 setTruncate()
             }
         } catch (e) {

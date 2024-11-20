@@ -37,7 +37,7 @@
                         />                         -->
                     </div>
                      
-                    <div @click="setTruncate" class="jump-link" style="margin-top:10px; font-size: 14px;" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
+                    <div @click="setTruncate" class="jump-link" style="margin-top:10px; font-size: 14px;" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '170px' ? '続きを表示する' : '閉じる' }}</div>
                    
                     <MessageFiles 
                         v-if="message.message_files && message.message_files.length"
@@ -106,13 +106,13 @@ import { useMenuStore } from "@/store/menu";
     const messageBodyRef = ref(null)
     onMounted(() => {
         if (messageBodyRef.value) {
-            if(messageBodyRef.value?.clientHeight > 42){
-                dynamicHeight.value = '42px'
+            if(messageBodyRef.value?.clientHeight > 170){
+                dynamicHeight.value = '170px'
             }
         }
     })
     const setTruncate = () => {
-        dynamicHeight.value = dynamicHeight.value == '42px' ? `${messageBodyRef.value?.clientHeight}px` : '42px'
+        dynamicHeight.value = dynamicHeight.value == '170px' ? `${messageBodyRef.value?.clientHeight}px` : '170px'
     }
     const authorized = computed(() => {
         return props.message.user_id == auth.activeUser.id
