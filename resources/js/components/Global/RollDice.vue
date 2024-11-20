@@ -2,7 +2,7 @@
     <div class="overlay">
       <div class="chatCreate" style="width: unset; height: unset;">
         <div class="recordFormTitle" style="display:flex;">
-              <p>グラウドナイン</p>
+              <p>グラウドナインに挑戦！</p>
               <div style="margin-left:auto;"> 
                   <div @click="emit('close', true)" class="cursor-pointer" style="position:unset;">
                       <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
