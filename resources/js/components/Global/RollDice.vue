@@ -257,6 +257,7 @@ import axios from 'axios';
     font-size: 20px;
     border-radius: 5px;
     border: 2px solid #000;
+    color: #000;
   }
   button {
     padding: 10px 20px;
