@@ -261,7 +261,7 @@ class AdminWorkController extends Controller{
     public function get_planned_shifts(Request $request){
         $year = $request->year;
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
-        $pos_list = [1, 2, 3, 4, 5, 13, 14, 15];    
+        $pos_list = [1, 2, 3, 4, 5, 14, 15];    
         $all_users = User::where('partner_flag', 0)->where('hide_flag', 0)
             ->where('retire', 0)
             ->whereNotIn('name', $ng_list)
