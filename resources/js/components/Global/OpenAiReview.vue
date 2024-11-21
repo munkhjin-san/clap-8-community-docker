@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div style="background: var(--bg3);padding: 20px;margin-top: 20px;">
+        <div style="background: var(--bg3);padding: 20px;margin-top: 20px; white-space: normal;">
             <div style="font-weight: 600;margin-bottom: 20px">AI分析</div>
 
             <div class="response-container" v-html="sanitizedResponse"></div> 
