@@ -109,7 +109,7 @@
                     />
                                                  
                 </div>  
-                <div v-if="message.draft_flag" style="margin-top: 15px; display: flex;">
+                <div v-if="message.draft_flag && !editing" style="margin-top: 15px; display: flex;">
                     <div class="commentEditButton" @click="draftSend">送信</div>
                     <div v-if="message.reserved_at == null" class="commentEditButton" @click="setSchedule">予約送信</div>        
                 </div>                         
