@@ -7,7 +7,7 @@
             <LoaderButton style="margin: 0" @triggered="openAiReview" :loading="loading" :content="'AI分析'"/>                               
         </div>
         <div style="margin: 15px 0;position:relative">
-            <label class="check-container" style="align-self: center;margin: 0">
+            <label class="check-container" style="align-self: center;margin: 20px 0 0;">
                 <input id="allMemberSelector" v-model="checked" value="" name="" type="checkbox">
                 <span class="checkmark-mini" style="margin: auto;bottom: 0;"></span>
                 <p style="line-height: 1.3;font-size: 16px;color: var(--primary-color);font-size:14px">{{ confirmText }}</p>        
