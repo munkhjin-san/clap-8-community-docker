@@ -30,7 +30,7 @@
                                 <div>成果目標ステータス</div>
                                 <div class="kadai-content">{{ statuses[goal?.status] }}</div>
                             </div>
-                            <div v-if="goal?.achievement_rate && goal?.status >= 6">
+                            <div v-if="goal?.achievement_rate !== null && goal?.status >= 6">
                                 <div>達成率</div>
                                 <div class="kadai-content">{{ goal?.achievement_rate }}%</div>
                             </div>
