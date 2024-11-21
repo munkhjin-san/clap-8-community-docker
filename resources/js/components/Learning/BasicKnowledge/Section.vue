@@ -139,6 +139,7 @@
     const radioError = ref("")
     const processing_save = ref(false) 
     const questionsave = ref(['', false, false])
+    const getThemes = inject('getThemes')
     const validate = async(status) => {
         const valid = await understandComment.value.validate()
         if(valid.valid){
@@ -260,6 +261,7 @@
             axios.post('/update_lesson_answer', params)
             info('保存しました。')
             questionsave.value[status] = false
+            getThemes()
             // if (decision) {
             //     window.open(
             //     'https://docs.google.com/forms/d/e/1FAIpQLSclZ50A5MBYcx-Y_8_hLV3ARWgkJMX8Z6QRKdkl0XLKGDzhSg/viewform',
