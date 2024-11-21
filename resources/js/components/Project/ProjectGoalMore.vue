@@ -51,7 +51,7 @@
                         <div>AI判定とフィードバック</div>
                         <div class="kadai-content">{{ goal?.ai_review }}</div>
                     </div>
-                    <div v-if="goal?.achievement_rate">
+                    <div v-if="goal?.achievement_rate && goal?.status >= 6">
                         <div>達成率</div>
                         <div class="kadai-content">{{ goal?.achievement_rate }}%</div>
                     </div>
