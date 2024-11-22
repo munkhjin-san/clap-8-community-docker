@@ -32,7 +32,7 @@
             </div> 
             <div class="si-box">
                 <p>モデル</p>
-                <select v-model="model" style="border: solid thin;padding: 5px 10px;">
+                <select v-model="model" style="border: solid thin var(--primary-color);padding: 5px 10px; color: var(--primary-color);">
                     <option value="gpt-3.5-turbo">GPT3.5</option>
                     <option value="gpt-4o-mini">GPT4o mini</option>
                 </select>
