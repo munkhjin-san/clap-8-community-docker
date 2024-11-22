@@ -134,12 +134,13 @@ import { useRoute } from 'vue-router';
             }
             try {
                 const params = {
-                    edit_id: props.editTarget ? props.editTarget.id : null,
+                    id: props.editTarget?.id,
                     params: {
                         lesson_theme_id: route.params.themeId,
                         title: title.value,
                         content: richContent,
                         content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
+                        assistant_id: props.editTarget?.assistant_id,
                         has_feedback: hasFeedBack.value,
                         priority: selectedPriority.value,
                         has_question: has_question.value,

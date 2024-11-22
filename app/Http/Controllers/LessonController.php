@@ -64,7 +64,7 @@ class LessonController extends Controller
         return response()->json($theme);
     }
     public function lesson_add_record(Request $request){
-        $id = $request->edit_id ?? null;
+        $id = $request->id ?? null;
         $params = $request->params;
         $userId = auth()->id();
         if ($id) {

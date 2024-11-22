@@ -42,7 +42,7 @@
                 @createFinish="createFinish"
                 :editTarget="editAssistantTarget"
                 :path="'/lesson_add_record'"
-                :editId="editTarget?.id"
+                :editId="editTarget.id"
             />
         </Transition>
     </div>  
@@ -91,8 +91,8 @@ const deleteConfirm = async(id) => {
     getLesson()              
 }
 const editAssistant = async(lesson) => {
+    editTarget.value = lesson
     if (lesson.assistant_id){
-        editTarget.value = lesson
         initialLoader.value = lesson.id
         try {
             const openai = new OpenAI({
