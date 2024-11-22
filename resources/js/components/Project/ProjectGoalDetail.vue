@@ -185,7 +185,7 @@ const selectedDate = computed(() => {
 
 const isManagerOrMember = computed(() => {
     if (props.memberData && props.memberData.pivot.authority === 1) {
-        return props.selectedProject?.director.id === auth.id
+        return props.selectedProject?.director_id === auth.id
     } 
     return props.selectedProject?.manager.some((ob: { id: number | null; }) => ob.id === auth.id)
 })
