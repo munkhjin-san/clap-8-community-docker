@@ -63,11 +63,9 @@
                         <div>成果結果</div>
                         <div class="kadai-content">{{ goal?.result }}</div>
                     </div>
-                    <div v-if="(memberData && auth.id === memberData.id || isManagerOrMember) && (goal?.status == 5 || goal?.status == 6)" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告"/>
-                    </div>
-                    <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( auth.user?.position_id && auth.user?.position_id < 6)) && goal?.status == 6" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton @click="openReport = true" style="margin: 0;" content="成果報告レビュー"/>
+                    <div v-if="reviewReport" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton @click="progressReport(false)" style="margin: 0;" :content="'成果報告'"/>
+                        <LoaderButton v-if="managerOrDirector" @click="progressReport(true)" style="margin: 0;" :content="'成果報告レビュー'"/>
                     </div>
 
                     <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && (goal?.status == 2 || goal?.status == 4)" style="display: flex; gap: 20px;margin-bottom: 10px;">
@@ -107,7 +105,7 @@
                         <div>AI添削結果</div>
                         <div class="kadai-content">{{ goal?.salary_issue.review }}</div>
                     </div>
-                    <div v-if="goal?.salary_issue?.status == 8">
+                    <div v-if="goal?.salary_issue?.status >= 6">
                         <div>昇給課題結果</div>
                         <div class="kadai-content">{{ goal?.salary_issue.result }}</div>
                         <Files style="margin-top: 15px;" v-if="goal?.salary_issue?.files?.length" :items="goal?.salary_issue?.files" :path="'project_files'"/>
@@ -127,11 +125,9 @@
                     <div v-if="610 === auth.activeUser.id && goal?.salary_issue?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'人事承認取消'"/>
                     </div>
-                    <div v-if="goal?.salary_issue?.status == 5 && (auth.id === memberData?.id || goal?.salary_issue?.mentor_id === auth.id)">
-                        <LoaderButton style="margin: 0;" :content="'結果報告'" @click="issueReport = goal?.salary_issue"/>
-                    </div>
-                    <div v-if="goal?.salary_issue?.status == 6 && (goal?.salary_issue?.mentor_id === auth.id)">
-                        <LoaderButton style="margin: 0;" :content="'成果報告レビュー'" @click="issueReport = goal?.salary_issue"/>
+                    <div v-if="salaryIssueReport" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" :content="'成果報告'" @click="addIssueReport(false, goal)"/>
+                        <LoaderButton style="margin: 0;" v-if="goal?.salary_issue?.mentor_id === auth.id" :content="'成果報告レビュー'" @click="addIssueReport(true, goal)"/>
                     </div>
                 </div>
                 <div v-else-if="canCreateIssue && sub_tab === 1">
@@ -155,6 +151,7 @@
                 :memberData="memberData"
                 :selectedProject="selectedProject"
                 :isManagerOrMember="isManagerOrMember"
+                :reviewing="reviewing"
                 @close="openReport = false"
                 @reload="openReport = false, emit('close')"
             />
@@ -180,6 +177,7 @@
                 :chosenIssue="issueReport"
                 :member-data="memberData"
                 :is-manager-or-member="isManagerOrMember"
+                :reviewing="reviewing"
                 @close="issueReport = null"
                 @reload="issueReport = null, emit('close')"
             />
@@ -215,6 +213,7 @@ const sub_tab = ref(0)
 const salaryIssue = ref(false)
 const selectedTheme = ref(null)
 const editData = ref({})
+const reviewing = ref(false)
 const { confirm, notify, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const issueReport = ref(null)
@@ -229,6 +228,18 @@ const canCreateIssue = computed(() => {
         }
     }
     return false
+})
+const reviewReport = computed(() => {
+    return (props.memberData && auth.id === props.memberData.id 
+            || managerOrDirector.value) 
+            && (props.goal?.status == 5 || props.goal?.status == 6)
+})
+const managerOrDirector = computed(() => {
+    return (auth.user?.position_id && auth.user?.position_id < 6) || props.isManagerOrMember
+})
+const salaryIssueReport = computed(() => {
+    return (props.goal?.salary_issue?.status == 5 || props.goal?.salary_issue?.status == 6) 
+        && (auth.id === props.memberData?.id || props.goal?.salary_issue?.mentor_id === auth.id)
 })
 const selectThemeConfirm = (level, theme) => {
     selectedTheme.value = getIssues(level, theme)[0]
@@ -343,6 +354,14 @@ const deleteIssue = async(issue: SalaryIssue) => {
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
+}
+const progressReport = (report: boolean) => {
+    reviewing.value = report
+    openReport.value = true
+}
+const addIssueReport = (report: boolean, goal: any) => {
+    reviewing.value = report
+    issueReport.value = goal?.salary_issue
 }
 </script>
 <style>

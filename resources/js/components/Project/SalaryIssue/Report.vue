@@ -24,7 +24,7 @@
                         path="/project_files"
                     />
                 </div>
-                <div v-if="memberData?.evaluation?.mentor.id === auth.id" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
+                <div v-if="reviewing" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
                     <LoaderButton style="margin: 0;" content="未達成" @triggered="progressReport(7)" :loading="loading[1]"/>
                     <LoaderButton style="margin: 0;" content="達成" @triggered="progressReport(8)" :loading="loading[2]"/>
                 </div>
@@ -44,7 +44,7 @@ import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { File } from '@/interface/trayInterface';
-const props = defineProps(['chosenIssue', 'memberData', 'isManagerOrMember'])
+const props = defineProps(['chosenIssue', 'memberData', 'isManagerOrMember', 'reviewing'])
 const emit = defineEmits(['close', 'reload'])
 const result = ref(props.chosenIssue?.result ?? '')
 const resultRef = ref<InstanceType<typeof LongInput> | null>(null)

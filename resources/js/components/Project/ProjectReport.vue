@@ -33,31 +33,10 @@
                         rules="required"
                     />
                 </div>
-                <!-- <div class="si-box">
-                    <div class="switchLabel">
-                        <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">結果設定</p>
-                    </div>
-                    <div class="selectSwitchArea" style="display: flex;width: 100%;">    
-                        <input v-model="addResult" type="checkbox" id="approver_select">
-                        <label for="approver_select" style="min-width: 80px;" class="cursor-pointer"><span></span>
-                            <div class="switch-toggle"></div>
-                        </label>
-                        
-                    </div>  
-                </div>
-                <div class="si-box" v-if="addResult">
-                    <LongInput 
-                        v-model="result"
-                        placeHolder="結果内容"
-                        ref="resultRef"
-                        rules="required"
-                    />
-                </div> -->
-                <div v-if="memberData?.id === auth.id" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
+                <div v-if="!reviewing" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
                     <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(6)" :loading="loading[0]"/>
-                    <!-- <LoaderButton style="margin: 0;" content="申請" @triggered="progressReport(2)" :loading="loading[2]"/> -->
                 </div>
-                <div v-if="isManagerOrMember || (selectedProject?.director?.id === auth.id)" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
+                <div v-if="reviewing" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
                     <LoaderButton style="margin: 0;" content="未達成" @triggered="progressReport(7)" :loading="loading[1]"/>
                     <LoaderButton style="margin: 0;" content="達成" @triggered="progressReport(8)" :loading="loading[2]"/>
                 </div>
@@ -76,7 +55,8 @@ const props = defineProps([
     'chosenGoal', 
     'memberData', 
     'isManagerOrMember',
-    'selectedProject'
+    'selectedProject',
+    'reviewing'
 ])
 const emit = defineEmits(['close', 'fetchMemberData', 'reload'])
 const sliderValue = ref(props.chosenGoal?.achievement_rate ?? 0)
