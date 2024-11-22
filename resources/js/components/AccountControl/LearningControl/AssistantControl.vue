@@ -1,7 +1,13 @@
 <template>
     <div class="admin-window" style="overflow: auto;">
         <Transition name="modalFade">
-            <AssistantCreate v-if="createWindow" :editTarget="assistant" @createFinish="createFinish"/>
+            <AssistantCreate 
+                v-if="createWindow" 
+                :editTarget="assistant" 
+                :path="'/create_learning_theme'"
+                :editId="props.theme.id"
+                @createFinish="createFinish"
+            />
         </Transition>
 
         <div v-if="assistant" style="padding: 15px;font-size: 16px;background: var(--background-color);margin: 20px;line-height: 1.8">

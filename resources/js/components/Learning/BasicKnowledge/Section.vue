@@ -52,7 +52,7 @@
                     />
                     <p v-else><strong>質問に関する回答内容<br></strong>{{ material?.answer?.answer }}</p>
                     <OpenAiReview 
-                        :assistand-id="selectedTopic?.assistant_id" 
+                        :assistand-id="material?.assistant_id" 
                         :soure-text="material?.answer?.ai_review" 
                         :message="answer"
                         :confirm-text="'業務リスク管理の基礎を効果的に理解し、実務で活用できる視点を身につけている。'"

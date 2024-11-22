@@ -2,11 +2,25 @@
     <div class="lcontrol">        
         <div style="padding: 0 20px">
             <div v-for="lesson in lessons" class="lesson-preview">
-                <div style="overflow: hidden;margin: 20px 40px 20px 20px;height: calc(100% - 40px);" v-html="lesson.title"></div>
+                <div style="overflow: hidden;margin: 20px 40px 20px 20px;height: calc(100% - 40px);position: relative;" >
+                    <div v-html="lesson.title"></div>
+                    <div style="font-size: 12px;color: gray;">
+                        <span>アシスタンID：{{ lesson.assistant_id }}</span>
+                    </div>
+                    <Transition name="modalFade">
+                        <div class="cal-month-loader" v-if="initialLoader == lesson.id" style="top: 50%;">
+                            <div id="loaderMini">
+                                <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                            </div>
+                        </div>
+                    </Transition>
+                </div>
+                
                 <div style="position: absolute;right: 10px;top: 10px;">                                            
                     <ItemMenu :items="[
                         {title: '編集する', action: () => editLesson(lesson)},
-                        {title: '削除する', action: () => deleteConfirm(lesson.id)}
+                        {title: '削除する', action: () => deleteConfirm(lesson.id)},
+                        {title: 'AIアシスタント', action: () => editAssistant(lesson)}
                     ]"/> 
                 </div>  
             </div>
@@ -22,6 +36,15 @@
             />
             
         </Transition>
+        <Transition name="modalFade">
+            <AssistantCreate
+                v-if="createAssistantWindow"
+                @createFinish="createFinish"
+                :editTarget="editAssistantTarget"
+                :path="'/lesson_add_record'"
+                :editId="editTarget?.id"
+            />
+        </Transition>
     </div>  
 </template>
 <script setup>
@@ -29,13 +52,18 @@ import { inject, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMenuStore } from '@/store/menu';
 import LessonCreate from './LessonCreate.vue';
+import AssistantCreate from './AssistantCreate.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import OpenAI from 'openai';
 const props = defineProps(['theme'])
 const { confirm } = inject('dialog')
 const route = useRoute()
 const menu = useMenuStore()
 const createWindow = ref(false)
+const createAssistantWindow = ref(false)
 const editTarget = ref(null)
+const editAssistantTarget = ref(null)
+const initialLoader = ref(null)
 onMounted(() => {
     getLesson()
 })
@@ -50,6 +78,7 @@ const editLesson = (lesson) => {
 
 const createFinish = (reload) => {
     createWindow.value = false
+    createAssistantWindow.value = false
     if(reload){
         getLesson()
     }
@@ -61,5 +90,24 @@ const deleteConfirm = async(id) => {
     await axios.delete(`/lesson_remove_record?id=${id}`) 
     getLesson()              
 }
-
+const editAssistant = async(lesson) => {
+    if (lesson.assistant_id){
+        editTarget.value = lesson
+        initialLoader.value = lesson.id
+        try {
+            const openai = new OpenAI({
+                apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+                dangerouslyAllowBrowser: true 
+            });
+            editAssistantTarget.value = await openai.beta.assistants.retrieve(lesson.assistant_id);
+            
+        }
+        catch(e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }finally{
+            initialLoader.value = null
+        }
+    }
+    createAssistantWindow.value = true
+}
 </script>

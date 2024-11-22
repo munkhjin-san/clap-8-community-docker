@@ -66,6 +66,8 @@
                     <span v-if="has_understand" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">「理解」依頼ONのため設定できません</span>
                 </div>  
             </div>
+            
+            
             <!-- <div class="si-box" style="position:relative;">
                 <div>
                     <p :class="['form-title-small', {'form-title-active' : hasFeedBack}]">「理解」依頼</p>
@@ -92,6 +94,7 @@
 import { useAuthUserStore } from '@/store/auth';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
+import LongInput from '../../Form/LongInput.vue';
 import RichEditor from '../../Global/RichEditor.vue';
 import { computed, inject, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -109,6 +112,8 @@ import { useRoute } from 'vue-router';
     const has_understand = ref(props.editTarget?.has_understand === 0 ? false : true)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : '')
     const richEdit = ref(null)
+   
+    
     const auth = useAuthUserStore()
     const richEditDetailed = ref(null)
     const selectedPriority = ref(props.editTarget ? props.editTarget.priority : null)
@@ -118,15 +123,16 @@ import { useRoute } from 'vue-router';
     const initialValueDetailed = computed(() => {
         return props.editTarget && props.editTarget.content_detailed ? props.editTarget.content_detailed : ''
     })
+    
     const createSend = async() => {
             const richContent = richEdit.value.editor.getHTML()
+            processing.value = true
             // const richContentDetailed = richEditDetailed.value.editor.getHTML()
             if(!richContent || !title.value || selectedPriority.value == null){
                 processing.value = false
                 return
             }
             try {
-                
                 const params = {
                     edit_id: props.editTarget ? props.editTarget.id : null,
                     params: {
@@ -160,9 +166,10 @@ import { useRoute } from 'vue-router';
             }
         }
     const closeModal = (flag, id) => {
-            processing.value = false
-            emit('createFinish',flag, id);              
-        }     
+        processing.value = false
+        emit('createFinish',flag, id);              
+    }     
+  
     
 </script>
 

@@ -26,6 +26,7 @@ class LessonMaterial extends Model
         'updated_by',
         'priority',
         'has_question',
-        'has_understand'
+        'has_understand',
+        'assistant_id'
     ];
 }

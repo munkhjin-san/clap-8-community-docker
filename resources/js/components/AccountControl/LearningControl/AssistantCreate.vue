@@ -55,7 +55,7 @@ import { useRoute } from 'vue-router';
 import OpenAI from "openai";
     const route = useRoute()
     const { notify, info } = inject('dialog')
-    const props = defineProps(['editTarget'])
+    const props = defineProps(['editTarget', 'path', 'editId'])
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
     const title = ref(props.editTarget && props.editTarget.name ? props.editTarget.name : '')
@@ -66,8 +66,8 @@ import OpenAI from "openai";
             processing.value = true
             const assistant = props.editTarget ? await updateAssistant() : await createAssistant()      
     
-            await axios.post('/create_learning_theme', {     
-                id: route.params.themeId,
+            await axios.post(props.path, {     
+                id: props.editId,
                 params: {
                     assistant_id: assistant.id
                 }
