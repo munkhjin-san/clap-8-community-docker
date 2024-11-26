@@ -806,7 +806,6 @@ class ProjectController extends Controller
         ->unique()
         ->values()
         ->toArray();
-
         $goals = ProjectGoal::whereIn('user_id', $memberIds)
             ->where(function ($query) use ($date) {
                 $query->whereIn('status', [2, 4])
@@ -818,8 +817,12 @@ class ProjectController extends Controller
                 $q->where('users.id', $user->id);
             })
             ->get();
+        $remindedGoal = ProjectGoal::where('user_id', $user->id)
+                                    ->where('status', 1)
+                                    ->get();
+        $allGoals = $goals->concat($remindedGoal);
 
-        return $this->calculateGoalStats($goals);
+        return $this->calculateGoalStats($allGoals);
     }
 
     private function getManagerBadges($user, $date)
