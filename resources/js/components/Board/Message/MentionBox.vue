@@ -22,18 +22,27 @@ import { inject, onMounted, onUnmounted, ref, computed } from 'vue';
 import BoardIcon from '../Mixed/BoardIcon.vue';
 import UserIcon from '../Mixed/UserIcon.vue';
     const props = defineProps(['mentionAbleList', 'forced'])
-    const emit = defineEmits(['mentionUser'])
+    const emit = defineEmits(['mentionUser', 'close'])
     const board = inject('openedBoard')
     const highlighted = ref(-1)
     const innerMention = ref(null)
     const keyboardHeight = inject('keyboardHeight')
     onUnmounted(() => {
         window.removeEventListener('keydown', mentionBoxNavigation);
+        window.removeEventListener('click', clickHandler)
+        window.removeEventListener('touchstart', clickHandler)
+        
     })
     onMounted(() => {
         window.addEventListener('keydown', mentionBoxNavigation);
-        console.log('fff')
+        window.addEventListener('click', clickHandler)
+        window.addEventListener('touchstart', clickHandler)
     })
+    const clickHandler = (event) => {
+        if(innerMention.value && !event.target.contains(innerMention.value)){
+            emit('close')
+        }
+    }
         const mentionBoxPosition = () => {
             if(props.forced){
                 return `bottom: 45px;right:50px;visibility:visible;width:fit-content`

@@ -40,6 +40,7 @@
                         :forced="true"
                         v-if="mentionBoxForced && !mentionBoxToggle" 
                         :mentionAbleList="mentionAbleList"
+                        @close="mentionBoxForced = false"
                         @mentionUser="mentionUser"
                         ref="mentionBoxForce"
                     />
@@ -50,6 +51,7 @@
                         v-if="keyCharacters.length || mentionBoxToggle" 
                         :mentionAbleList="mentionAbleList"
                         @mentionUser="mentionUser"
+                        @close="mentionBoxToggle = false;keyCharacters = ''"
                         ref="mentionBox"
                     />
                 </Transition>
