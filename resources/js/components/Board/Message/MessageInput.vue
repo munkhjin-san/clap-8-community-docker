@@ -35,9 +35,18 @@
                     class="download-area">ファイルドロップ
                 </span>
 
-               
                 <Transition name="modalFade">
                     <MentionBox 
+                        :forced="true"
+                        v-if="mentionBoxForced && !mentionBoxToggle" 
+                        :mentionAbleList="mentionAbleList"
+                        @mentionUser="mentionUser"
+                        ref="mentionBoxForce"
+                    />
+                </Transition>
+                <Transition name="modalFade">
+                    <MentionBox 
+                        :forced="false"
                         v-if="keyCharacters.length || mentionBoxToggle" 
                         :mentionAbleList="mentionAbleList"
                         @mentionUser="mentionUser"
@@ -126,6 +135,12 @@
                                         </label>
                                         <input multiple type="file" name="sharedfile" id="sharedfile" v-on:change="addAttachment" style="display: none;">
                                     </div>
+                                </div>
+                                <div class="message-icon-wrapper" style="position: relative;">
+                                    <svg @click.stop="mentionBoxForced = !mentionBoxForced"  height="19" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 32" style="fill: var(--third-color);">
+                                        <path d="M7.073 10.146c0.051 0.267 0.127 0.533 0.19 0.787 0.076 0.254 0.178 0.521 0.279 0.775 0.406 1.003 1.029 1.93 1.816 2.692 0.775 0.762 1.714 1.359 2.717 1.74 1.003 0.394 2.298 0.559 3.149 0.559 1.143 0 2.133-0.19 3.149-0.584 1.003-0.381 1.93-0.978 2.717-1.727 0.775-0.749 1.41-1.664 1.841-2.667s0.648-2.095 0.66-3.187c0.013-1.092-0.19-2.197-0.597-3.213-0.406-1.029-1.016-1.968-1.778-2.768-0.775-0.787-1.702-1.435-2.73-1.879s-2.146-0.673-3.264-0.673-2.222 0.229-3.251 0.673c-1.016 0.432-1.943 1.092-2.717 1.879-1.524 1.587-2.387 3.797-2.349 5.968l0.051 0.813c0.025 0.267 0.076 0.533 0.114 0.813zM10.197 6.438c0.292-0.648 0.711-1.232 1.232-1.727 0.508-0.483 1.117-0.864 1.765-1.117s1.333-0.381 2.032-0.381 1.384 0.14 2.032 0.394 1.244 0.635 1.752 1.117c0.508 0.483 0.927 1.067 1.219 1.714s0.444 1.359 0.457 2.070c0.025 1.435-0.559 2.857-1.549 3.924-0.495 0.533-1.105 0.952-1.765 1.27-0.673 0.305-1.537 0.47-2.146 0.47-0.432 0-1.473-0.203-2.133-0.495-0.66-0.305-1.27-0.724-1.765-1.244-0.99-1.041-1.625-2.451-1.6-3.898 0.025-0.737 0.178-1.448 0.47-2.095zM15.264 19.048c4.064 0 6.54 1.168 8.444 2.387 2.171 1.384 3.708 3.073 4.686 4.457s1.702 2.984 2.019 4.127c0.292 1.054 0 1.829-0.673 1.981-0.622 0.127-1.232-0.33-1.524-0.927-0.419-0.851-1.168-2.337-1.93-3.352-0.838-1.13-1.981-2.235-3.124-3.060-0.978-0.711-2.489-1.384-3.822-1.765-1.054-0.305-2.565-0.483-4.089-0.483-1.537 0-3.187 0.229-4.14 0.508-1.333 0.381-2.806 1.041-3.771 1.74-1.13 0.825-2.273 1.917-3.124 3.060-0.749 1.016-1.498 2.502-1.93 3.352-0.292 0.597-0.902 1.054-1.524 0.927-0.673-0.14-0.952-0.927-0.673-1.981 0.317-1.143 1.041-2.743 2.019-4.127s2.514-3.086 4.686-4.457c1.93-1.219 4.406-2.387 8.47-2.387z"></path>
+                                    </svg>
+
                                 </div>
                                 <div class="pc message-icon-wrapper" title="絵文字" @click.stop="menu.setMenu( {name: 'EmojiPicker', id: 1002})">                                          
                                     <svg style="fill: var(--third-color);" version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 30">
@@ -230,6 +245,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
     const {notify, info, confirm} = inject('dialog')
     const filePreview = useFilePreview()
     const keyboardHeight = inject('keyboardHeight')
+    const mentionBoxForced = ref(false)
     // watch(() => keyCharacters.value, (after) => {
     //     if(!after){
     //         resetMention()
@@ -494,6 +510,16 @@ import UserIcon from '../Mixed/UserIcon.vue'
                 }
                 mentionBoxToggle.value = false;
             }
+            else if(mentionBoxForced.value){
+                const position = caretPosition.value
+                const outputBeforeMention = text.slice(0, position)
+                const outputAfterMention = text.slice(caretPosition.value)
+                const output = outputBeforeMention + mentionSyntax + outputAfterMention
+                messageInputArea.value.textContent = output
+                const newPosition = position + mentionSyntax.length
+                setEndOfContenteditable(newPosition)
+                mentionBoxForced.value = false
+            }
             else if(keyCharacters.value.length && text){             
                 let searchText = keyCharacters.value
                 let replacement = mentionSyntax
@@ -517,6 +543,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
             keyCharacters.value = ''
             highlighted.value = 0
             mentionBoxToggle.value = true;
+            mentionBoxForced.value = false
         }else{
             keyCharacters.value = event.data
             if(!keyCharacters.value.length){
@@ -557,6 +584,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
             keyCharacters.value = ''
             highlighted.value = 0
             mentionBoxToggle.value = true;
+            mentionBoxForced.value = false
         }else{
             mentionBoxToggle.value = false;                   
             

@@ -21,7 +21,7 @@
 import { inject, onMounted, onUnmounted, ref, computed } from 'vue';
 import BoardIcon from '../Mixed/BoardIcon.vue';
 import UserIcon from '../Mixed/UserIcon.vue';
-    const props = defineProps(['mentionAbleList'])
+    const props = defineProps(['mentionAbleList', 'forced'])
     const emit = defineEmits(['mentionUser'])
     const board = inject('openedBoard')
     const highlighted = ref(-1)
@@ -32,33 +32,39 @@ import UserIcon from '../Mixed/UserIcon.vue';
     })
     onMounted(() => {
         window.addEventListener('keydown', mentionBoxNavigation);
+        console.log('fff')
     })
         const mentionBoxPosition = () => {
-            let x = 0,
-            y = 0;
-            const isSupported = typeof window.getSelection !== "undefined";
-            if (isSupported) {
-                const selection = window.getSelection();
-                if (selection.rangeCount !== 0) {
-                    const range = selection.getRangeAt(0).cloneRange();
-                    range.collapse(true);
-                    const rect = range.getClientRects()[0];
-                    if (rect) {
-                        x = rect.left;
-                        y = rect.top;
+            if(props.forced){
+                return `bottom: 45px;right:50px;visibility:visible;width:fit-content`
+            }else{
+                let x = 0,
+                y = 0;
+                const isSupported = typeof window.getSelection !== "undefined";
+                if (isSupported) {
+                    const selection = window.getSelection();
+                    if (selection.rangeCount !== 0) {
+                        const range = selection.getRangeAt(0).cloneRange();
+                        range.collapse(true);
+                        const rect = range.getClientRects()[0];
+                        if (rect) {
+                            x = rect.left;
+                            y = rect.top;
+                        }
                     }
                 }
+                var leftM = x - 80;      
+                leftM = leftM < 0 ? 10 : leftM      
+                var messagePanel = window.innerHeight;
+                var bottomM = messagePanel - y + 5 - keyboardHeight.value;  
+                const window_width = window.innerWidth
+                const pc = window_width > 959
+                const substract_from_left = pc ?  Math.floor(window_width * 0.2) : 0
+                leftM = leftM - substract_from_left
+                var result = 'left:' + leftM + 'px;' + 'bottom:' + bottomM + 'px;visibility:visible'     
+                return result
             }
-            var leftM = x - 80;      
-            leftM = leftM < 0 ? 10 : leftM      
-            var messagePanel = window.innerHeight;
-            var bottomM = messagePanel - y + 5 - keyboardHeight.value;  
-            const window_width = window.innerWidth
-            const pc = window_width > 959
-            const substract_from_left = pc ?  Math.floor(window_width * 0.2) : 0
-            leftM = leftM - substract_from_left
-            var result = 'left:' + leftM + 'px;' + 'bottom:' + bottomM + 'px;visibility:visible'     
-            return result
+
         }
         const mentionUser = (user, index) => {
             emit('mentionUser', user, index)
