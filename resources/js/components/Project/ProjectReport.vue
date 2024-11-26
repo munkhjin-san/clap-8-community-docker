@@ -51,6 +51,7 @@ import LoaderButton from '../Global/LoaderButton.vue';
 import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
+import { useBadgeStore } from '@/store/badge'
 const props = defineProps([
     'chosenGoal', 
     'memberData', 
@@ -69,7 +70,7 @@ const addResult = ref(result.value ? true : false)
 const auth = useAuthUserStore()
 const refresh = inject('refresh') as Function
 const { notify, info, confirm } = inject<Dialog>('dialog')!
-
+const badge = useBadgeStore()
 const progressReport = async(status: number) => {
     const validateTargets = [resultRef.value, reportRef.value]
     const targets = validateTargets.filter(ob => ob !== null)
@@ -98,6 +99,7 @@ const progressReport = async(status: number) => {
         info(`${info_message}しました`)
         emit('reload')
         refresh()
+        badge.getProjectBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

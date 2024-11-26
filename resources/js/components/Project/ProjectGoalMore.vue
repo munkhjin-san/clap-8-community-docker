@@ -197,6 +197,7 @@ import Report from './SalaryIssue/Report.vue';
 import { SalaryIssue } from '@/interface/projectInterface';
 import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
+import { useBadgeStore } from '@/store/badge'
 const props = defineProps([
     'goal', 
     'memberData', 
@@ -217,6 +218,7 @@ const reviewing = ref(false)
 const { confirm, notify, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const issueReport = ref(null)
+const badge = useBadgeStore()
 const canCreateIssue = computed(() => {
     const start = props.goal?.start_date ? moment(props.goal.start_date) : null;
     const end = props.goal?.end_date ? moment(props.goal.end_date) : null
@@ -277,6 +279,7 @@ const approveOutComeGoal = async(status: number) => {
         refresh()
         emit('close')
         info(info_message)
+        badge.getProjectBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

@@ -157,6 +157,7 @@ import OpenAI from 'openai';
 import { Stream } from 'openai/streaming.mjs';
 import { useAuthUserStore } from '@/store/auth';
 import ItemSelector from '../Form/ItemSelector.vue';
+import { useBadgeStore } from '@/store/badge'
 interface authProject {
     value: Project
 }
@@ -215,6 +216,7 @@ const expectedRef = ref<InstanceType<typeof LongInput> | null>(null)
 const { notify, confirm, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const getProjects = inject('getProjects') as Function
+const badge = useBadgeStore()
 onMounted(() => {
     if(props.selectedDate && !props.editGoalData) {
         
@@ -349,6 +351,7 @@ const saveOutcomeGoal = async(status: number) => {
         refresh()
         getProjects()
         info(info_message)
+        badge.getProjectBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
