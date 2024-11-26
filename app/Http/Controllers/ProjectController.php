@@ -18,6 +18,14 @@ use Illuminate\Support\Facades\Auth;
 class ProjectController extends Controller
 {
     //
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
     public function get_projects(Request $request) {
         $evaluation_date = $request->evaluation_date;
         $projects = ProjectRecord::with(['members' => function ($q) use ($evaluation_date) {
@@ -774,41 +782,106 @@ class ProjectController extends Controller
     }
 
     public function get_project_badge() {
-        $user = Auth::user();
-        $query = ProjectRecord::whereHas('manager', function ($q) use($user) {
-            $q->where('users.id', $user->id);
-        })->whereHas('goals', function ($q) {
-            $q->where('status', 2)->orWhere('status', 4);
-        })
-        ->with(['goals' => function ($q) {
-            $q->where('status', 2)->orWhere('status', 4);
-        }]);
-
-        $projects = $query->get();
-        $goalCounts = [];
-        foreach ($projects as $project) {
-            foreach ($project->goals as $goal) {
-                if (!isset($goalCounts[$project->id])) {
-                    $goalCounts[$project->id] = [];
-                }
-                if (!isset($goalCounts[$project->id][$goal->user_id])) {
-                    $goalCounts[$project->id][$goal->user_id] = 0;
-                }
-                $goalCounts[$project->id][$goal->user_id]++;
-            }
+        $user = $this->active_user();
+        $date = Carbon::now();
+        if ($user->position_id == 6) {
+            $response = $this->getMemberBadges($user, $date);
+        } elseif ($user->position_id < 6) {
+            $response = $this->getManagerBadges($user, $date);
+        } else {
+            $response = $this->remindedBadges($user);
         }
-        $projectCounts = $query
-        ->select('id', DB::raw('count(*) as total_project'))
-        ->groupBy('id')
+       
+        
+        return response()->json($response);
+    }
+    private function getMemberBadges($user, $date)
+    {
+
+        $memberIds = ProjectRecord::whereHas('manager', function ($q) use ($user) {
+            $q->where('users.id', $user->id);
+        })->with('members:id')
         ->get()
-        ->pluck('total_project', 'id')
+        ->flatMap(fn($project) => $project->members->pluck('id'))
+        ->unique()
+        ->values()
         ->toArray();
+
+        $goals = ProjectGoal::whereIn('user_id', $memberIds)
+            ->where(function ($query) use ($date) {
+                $query->whereIn('status', [2, 4])
+                    ->orWhere(function ($subQuery) use ($date) {
+                        $subQuery->where('end_date', '<', $date)->where('status', 6);
+                    });
+            })
+            ->whereHas('project.manager', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            })
+            ->get();
+
+        return $this->calculateGoalStats($goals);
+    }
+
+    private function getManagerBadges($user, $date)
+    {
+        
+
+        $managerIds = ProjectRecord::where('director_id', $user->id)
+            ->with('manager:id') 
+            ->get()
+            ->flatMap(fn($project) => $project->manager->pluck('id'))
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $goals = ProjectGoal::whereIn('user_id', $managerIds)
+            ->where(function ($query) use ($date) {
+                $query->whereIn('status', [2, 4])
+                    ->orWhere(function ($subQuery) use ($date) {
+                        $subQuery->where('end_date', '<', $date)->where('status', 6);
+                    });
+            })
+            ->whereHas('project', function ($q) use ($user) {
+                $q->where('director_id', $user->id);
+            })
+            ->get();
+
+        return $this->calculateGoalStats($goals);
+    }
+    private function remindedBadges($user) {
+        $goals = ProjectGoal::where('user_id', $user->id)
+            ->where(function ($query) {
+                $query->where('status', 1);
+            })
+            ->get();
+        return $this->calculateGoalStats($goals);
+    }
+
+    private function calculateGoalStats($goals)
+    {
+        $goalCounts = $goals->groupBy('project_id')
+            ->map(function ($projectGoals) {
+                return $projectGoals->groupBy('user_id')->map->count();
+            })
+            ->toArray();
+
+        $projectCounts = $goals->groupBy('project_id')
+            ->map->count()
+            ->all();
+
         $totalSum = array_sum($projectCounts);
-        $response = [
+
+        return [
             'total_sum' => $totalSum,
             'project_counts' => $projectCounts,
-            'goal_counts' => $goalCounts    
+            'goal_counts' => $goalCounts,
         ];
-        return response()->json($response);
+    }
+    private function getmentorBadges($user)
+    {   
+        $userIds = ProjectEvaluation::where('mentor_id', $user->id)
+                ->pluck('user_id')
+                ->unique()
+                ->toArray();
     }
 } 

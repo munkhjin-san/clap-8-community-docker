@@ -93,7 +93,13 @@
                             <div class="project-cell cell-width">人事考課</div>
                         </div>
                         <div class="project-cell-row" v-for="member in [...(selectedProject?.manager || []), ...(selectedProject?.members || [])]">
-                            <div class="project-cell cell-width" data-label="メンバー">{{ member.name }}</div>
+                            <div class="project-cell cell-width" data-label="メンバー">
+                                <div style="position: relative; width: fit-content;">
+                                    {{ member.name }}
+                                    <span class="side-notification" style="top: -5px; right: -20px; left: auto;" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
+                                </div>
+                                
+                            </div>
                             <div class="project-cell cell-width" data-label="雇用形態">{{ member?.positions?.name }}</div>
                             <div class="project-cell cell-width" data-label="職階">{{ member?.evaluation?.general_position }}</div>
                             <div class="project-cell cell-width" data-label="メンター">{{ member?.evaluation?.mentor?.name }}</div>
@@ -147,12 +153,14 @@ import { useAuthUserStore } from '@/store/auth';
 import { RouteLocationMatched } from 'vue-router';
 import ItemMenu from '../Global/ItemMenu.vue';
 import ProjectEdit from './ProjectEdit.vue';
+import { useBadgeStore } from '@/store/badge';
     const props = defineProps(['selectedProject', 'userList'])
     const router = useRouter()
     const route = useRoute()
     const initialLoader = ref(false)
     const auth = useAuthUserStore()
     const editWindow = ref(false)
+    const badge = useBadgeStore()
     const isManagerOrDirector = computed(() => {
         return props.selectedProject?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6)
     })
@@ -162,6 +170,9 @@ import ProjectEdit from './ProjectEdit.vue';
             return props.selectedProject?.members.find(ob => ob.id == memberId) || props.selectedProject?.manager.find(ob => ob.id == memberId)
         }
         
+    })
+    const goalBadge = computed(() => {
+        return badge.project.goal_counts || {}
     })
     const jumpToGoal = (member: any) => {
         router.push({name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}})

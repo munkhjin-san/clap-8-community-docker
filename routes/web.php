@@ -410,4 +410,5 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/update_issue_report', [ProjectController::class, 'update_issue_report']);
         Route::get('/project_not_approved', [ProjectController::class, 'project_not_approved']);
         Route::delete('/delete_issue', [ProjectController::class, 'delete_issue']);
+        Route::get('/project_badge', [ProjectController::class, 'get_project_badge']);
 });

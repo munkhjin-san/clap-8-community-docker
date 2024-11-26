@@ -111,6 +111,7 @@ import { endPlay } from '@/utils/tts';
         if(!auth.isPartner){
             badge.getNoticeBadge()
             badge.getPostBadge()
+            badge.getProjectBadge()
         }
         
     })

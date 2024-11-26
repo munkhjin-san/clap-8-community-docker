@@ -6,6 +6,7 @@ interface State {
     post: number
     task: number[]
     notice: number
+    project: any
 }
 
 export const useBadgeStore = defineStore('badge', {
@@ -14,6 +15,7 @@ export const useBadgeStore = defineStore('badge', {
         post: 0,
         task: [],
         notice: 0,
+        project: [],
     }),
     actions: {
         setTaskBadge(payload: number[]){
@@ -48,6 +50,10 @@ export const useBadgeStore = defineStore('badge', {
         async getTaskBadge(){
             const data = await axios.get('/task_badge').then(response => response.data)       
             this.task = data    
+        },
+        async getProjectBadge(){
+            const data = await axios.get('/project_badge').then(response => response.data)
+            this.project = data
         }
     },
     getters: {
@@ -96,8 +102,9 @@ export const useBadgeStore = defineStore('badge', {
                     sum = sum + p.list[i];
                 }
             });
+            const projectBadge = this.project.total_sum;  
             const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : this.post; 
-            sum = sum + postBadge
+            sum = sum + postBadge + projectBadge
             return sum
         }
     }

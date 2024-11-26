@@ -68,9 +68,11 @@
                 </div>
                 <div class="project-cell-row" v-for="project in sortedProjects">
                     <div class="project-cell" style="border-bottom: none;" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
-                        <div class="user-link">
+                        <div class="user-link" style="position: relative">
                             {{ project.name }}
+                            <span class="side-notification" style="top: -5px; right: -20px; left: auto;" v-if="projectBadge && projectBadge[project.id]">{{ projectBadge[project.id] }}</span>
                         </div>
+                        
                     </div>
                     <div class="project-cell pc">
                         <div style="position: relative;">
@@ -140,6 +142,7 @@ import moment from 'moment';
 import { Dialog, User } from '@/interface/globalInterface';
 import { detailedDateOptions } from '@/utils/tools';
 import { useProjectUsers } from '@/store/projectUsers';
+import { useBadgeStore } from '@/store/badge';
 const projects = ref<Project[]>([])
 const keywords = ref('')
 const initialLoader = ref(true)
@@ -156,6 +159,7 @@ const options = detailedDateOptions()
 const sortType = ref(0)
 const projectUsers = useProjectUsers()
 const userList = ref([])
+const badge = useBadgeStore()
 const sortOptions = [
     
     {
@@ -180,7 +184,9 @@ onMounted(async() => {
     await getProjects();
     getSelectableUsers()
 })
-
+const projectBadge = computed(() => {
+    return badge.project.project_counts
+})
 const toggleRadio = (value: number) => {
     if (sortType.value === value) {
         sortType.value = 0
