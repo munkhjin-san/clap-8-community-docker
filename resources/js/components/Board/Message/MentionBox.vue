@@ -30,13 +30,11 @@ import UserIcon from '../Mixed/UserIcon.vue';
     onUnmounted(() => {
         window.removeEventListener('keydown', mentionBoxNavigation);
         window.removeEventListener('click', clickHandler)
-        window.removeEventListener('touchstart', clickHandler)
         
     })
     onMounted(() => {
         window.addEventListener('keydown', mentionBoxNavigation);
         window.addEventListener('click', clickHandler)
-        window.addEventListener('touchstart', clickHandler)
     })
     const clickHandler = (event) => {
         if(innerMention.value && !event.target.contains(innerMention.value)){
