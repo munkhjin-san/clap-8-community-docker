@@ -56,7 +56,7 @@ import axios from 'axios'
 import { useTheme } from '@/store/theme'
 const theme = useTheme()
 const messageSchedule = useMessageSchedule()
-const selectedTime = ref(moment().format('H'))
+const selectedTime = ref(moment().add(1, 'hours').format('H'))
 const selectedDate = ref(moment().format('YYYY-MM-DD'))
 const error = ref('')
 const refreshMessage = inject('refreshMessage') as Function
