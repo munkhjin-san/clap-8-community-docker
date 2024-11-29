@@ -271,13 +271,10 @@ import { instance } from '@/utils/broadcaster'
             getBoardList()
         }
     }
-    const socketMessageHandler = (data) => {
-        const messages = data && data.length ? data[0] : []
-        const message = messages && messages.length ? messages[0] : null        
-        if(message && openedBoard.value && listType.value == 'normal'){
+    const socketMessageHandler = (data) => {        
+        if(openedBoard.value && listType.value == 'normal'){            
             getMessageList('pusher'); 
         }       
-        
     }
     const onPusher = (e) => {
 
