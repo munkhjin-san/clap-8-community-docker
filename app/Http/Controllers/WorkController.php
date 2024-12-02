@@ -1210,14 +1210,14 @@ class WorkController extends Controller
     public function remandTimeCard(Request $request){
         $user = $this->active_user();
         $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', '=' , $request->record_day )->first();
-        if($request->overTimeRequest){
-            $data = [
-                'id' => $request->overTimeRequest['id'],
-                'status' => 0,
-                'approved_by' => $user->id
-            ];
-            $this->respond_overtime(new Request ($data));
-        }
+        // if($request->overTimeRequest){
+        //     $data = [
+        //         'id' => $request->overTimeRequest['id'],
+        //         'status' => 0,
+        //         'approved_by' => $user->id
+        //     ];
+        //     $this->respond_overtime(new Request ($data));
+        // }
         if(!empty($time_card_record)){
             $time_card_record->status_flag = 10;
             $time_card_record->save();

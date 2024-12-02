@@ -148,7 +148,7 @@ import { useCheckApproval } from '../../store/checkApproval';
         const params = {
             user_id: item.user_id,
             record_day: item.day_full,
-            overTimeRequest: item?.shift?.overtime_request,
+            // overTimeRequest: item?.shift?.overtime_request,
         }
         try{
             await axios.post('/remand_time_card', params)
