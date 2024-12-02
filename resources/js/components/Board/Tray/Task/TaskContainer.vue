@@ -313,7 +313,10 @@ import axios from 'axios'
         const today = moment().format('YYYY-MM-DD')
         const end = moment(task.end_at).format('YYYY-MM-DD')
         const overdue = today > end
-
+        const data = {
+            active: true,
+            data: task,
+        }
         
         if(task.supervisors.length && userData.pivot.comp_flag == 0) {
             
@@ -321,10 +324,7 @@ import axios from 'axios'
             return
         }
         
-        const data = {
-            active: true,
-            data: task,
-        }
+        
         if (userData?.pivot.comp_flag === 1) {
             completeTask(task.id, 0, 0);
         } else {
