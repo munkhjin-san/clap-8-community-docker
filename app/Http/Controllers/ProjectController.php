@@ -445,6 +445,7 @@ class ProjectController extends Controller
     public function save_evaluation_grade(Request $request) {
         $id = $request->id ?? null;
         $params = $request->params;
+        User::find($params['user_id'])->update(['general_position' => $params['general_position']]);
         $update = ProjectEvaluation::updateOrCreate(['id' => $id], $params);
         return response()->json($update);
     }
@@ -798,29 +799,30 @@ class ProjectController extends Controller
     private function getMemberBadges($user, $date)
     {
 
-        $memberIds = ProjectRecord::whereHas('manager', function ($q) use ($user) {
-            $q->where('users.id', $user->id);
-        })->with('members:id')
+        $memberIds = ProjectRecord::whereHas('manager', fn($q) => $q->where('users.id', $user->id))
+        ->with('members:id')
         ->get()
         ->flatMap(fn($project) => $project->members->pluck('id'))
         ->unique()
-        ->values()
-        ->toArray();
-        $goals = ProjectGoal::whereIn('user_id', $memberIds)
+        ->values();
+
+        $allGoals = ProjectGoal::whereIn('user_id', $memberIds)
+            ->whereHas('project.manager', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            })
             ->where(function ($query) use ($date) {
                 $query->whereIn('status', [2, 4])
                     ->orWhere(function ($subQuery) use ($date) {
                         $subQuery->where('end_date', '<', $date)->where('status', 6);
                     });
             })
-            ->whereHas('project.manager', function ($q) use ($user) {
-                $q->where('users.id', $user->id);
+            ->orWhereHas('salaryIssue', function ($q) use ($user) {
+                $q->where('status', 2)->where('mentor_id', $user->id);
+            })
+            ->orWhere(function ($query) use ($user) {
+                $query->where('user_id', $user->id)->where('status', 1);
             })
             ->get();
-        $remindedGoal = ProjectGoal::where('user_id', $user->id)
-                                    ->where('status', 1)
-                                    ->get();
-        $allGoals = $goals->concat($remindedGoal);
 
         return $this->calculateGoalStats($allGoals);
     }
@@ -844,6 +846,9 @@ class ProjectController extends Controller
                         $subQuery->where('end_date', '<', $date)->where('status', 6);
                     });
             })
+            ->orWhereHas('salaryIssue', function ($q) use ($user) {
+                $q->where('status', 2)->where('mentor_id', $user->id);
+            })
             ->whereHas('project', function ($q) use ($user) {
                 $q->where('director_id', $user->id);
             })
@@ -852,11 +857,13 @@ class ProjectController extends Controller
         return $this->calculateGoalStats($goals);
     }
     private function remindedBadges($user) {
-        $goals = ProjectGoal::where('user_id', $user->id)
-            ->where(function ($query) {
-                $query->where('status', 1);
-            })
-            ->get();
+        $goals = ProjectGoal::where(function ($query) use ($user) {
+                    $query->where('user_id', $user->id)
+                        ->where('status', 1);
+                })->orWhereHas('salaryIssue', function ($q) use ($user) {
+                    $q->where('status', 2)->where('mentor_id', $user->id);
+                })
+                ->get();
         return $this->calculateGoalStats($goals);
     }
 

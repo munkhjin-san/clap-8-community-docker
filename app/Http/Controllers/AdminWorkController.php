@@ -74,7 +74,8 @@ class AdminWorkController extends Controller{
         }])->get([
             'id',
             'name',
-            'user_code'
+            'user_code',
+            'general_position'
         ]);
         $time_card_costs = timecardCostRecord::where('date_month', $request->month)
                                                 ->with(['user' => function ($q) {
@@ -86,27 +87,8 @@ class AdminWorkController extends Controller{
                                                 ->select('id', 'date_month', 'department', 'type', 'expenses', 'user_id', 'record_id')
                                                 ->get();
         $userIds = $all_users->pluck('id');
-        $user_list = $all_users->whereNotNull('user_code')->pluck('user_code')->toArray();
-        $strings = array_map('strval', $user_list);
-        $result = '(' . implode(', ', $strings) . ')';
-        $queryParams = [
-            'app' => '9',
-            "query" => "社員コード in $result limit 200",
-            'fields' => ['社員コード', '文字列__1行__15']
-        ];
         
-        $queryString = http_build_query($queryParams);
-        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
-        $headers = [
-            'Authorization' => 'Basic', 
-            'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
-        ];
-        $recieve = [];
-        $response = Http::withHeaders($headers)->get($url);
-        $responseData = $response->json();
-        foreach ($responseData['records'] as $data){
-            $recieve[] = ['user_code'=>$data['社員コード']['value'], 'general_position'=>$data['文字列__1行__15']['value']];
-        }
+        
         $attendance_record = attendanceRecord::where('date_year_month', $month)->get();
         
         $expenses = timecardCostRecord::selectRaw(
@@ -245,12 +227,10 @@ class AdminWorkController extends Controller{
                 'month_work_time' => $month_work_time_array2,
                 'users' => $all_users,
                 'weather_average' => $mostCommonValuesPerUser,
-                'kintone_data' => $recieve,
                 'monthly_expenses' => $monthly_expenses,
                 'monthly_incentive' => $monthly_incentive,
                 'timecard_costs' => $time_card_costs,
                 'departments' => $allDepartmentCountsArray,
-                'test' => $custom_weather_data
             ];
 
         return response()->json($responseArray);

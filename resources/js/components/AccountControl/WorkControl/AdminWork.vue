@@ -66,7 +66,7 @@
                         <td>{{ item.attendance_records.length ? item.attendance_records[0].month_petition : ''}}</td>
                         <td v-html="item.shift_records.length ? '済' : ''"></td>
                         <td style="white-space: nowrap;" v-html="hasIncident(item)"></td>
-                        <td style="white-space: nowrap;" v-html="hasShokkai(item)"></td>
+                        <td style="white-space: nowrap;">{{ item.general_position }}</td>
                         <td>
                             <WeatherIcon v-if="weather_average[item.id]" :which="weather_average[item.id].current_value" :size="15"/>
                         </td>                        
@@ -96,7 +96,6 @@
     const month_work_time = ref([])
     const users = ref([])
     const weather_average = ref([])
-    const kintone_data = ref([])
     const monthly_expenses = ref([])
     const monthly_incentive = ref([])
     const timecard_costs = ref([])
@@ -186,9 +185,8 @@
         const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `勤怠_${date}月`});
         const data = []
-        attendance_record_items.value.forEach(item => {            
-            const kintone = kintone_data.value.filter(ob => ob.user_code == item.user_code)
-            const shokkai = kintone && kintone.length ? kintone[0]['general_position'] : ''
+        attendance_record_items.value.forEach(item => {     
+            const shokkai = users.value.find(user => user.id == item.user_id).general_position
             const row = {
                 "社員コード" : item.user_code,
                 "社員名" : item.name,
@@ -251,7 +249,6 @@
             month_work_time.value = data.month_work_time,
             users.value = data.users,
             weather_average.value = data.weather_average,
-            kintone_data.value = data.kintone_data
             monthly_expenses.value = data.monthly_expenses
             monthly_incentive.value = data.monthly_incentive
             timecard_costs.value = data.timecard_costs
@@ -291,16 +288,6 @@
             });
         }
         return days
-    }
-    const hasShokkai = (user) => {
-        let shokkai = ''
-        if(user.user_code){
-            const matched = kintone_data.value.find(ob => parseInt(ob.user_code) == user.user_code)
-            if(matched && matched.general_position){
-                shokkai =  matched.general_position
-            }
-        }
-        return shokkai
     }
 </script>
 <style lang="scss" scoped>

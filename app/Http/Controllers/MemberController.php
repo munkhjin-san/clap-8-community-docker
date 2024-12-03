@@ -89,29 +89,6 @@ class MemberController extends Controller
         if(!$sort){
             return $list;
         }else{
-            $allEmployees = collect($list)->pluck('employees')->flatten()->filter(function ($employee) {
-                return $employee->user_code != null;
-            })->pluck('user_code')->toArray();
-    
-            $strings = array_map('strval', $allEmployees);
-            $result = '(' . implode(', ', $strings) . ')';
-            $queryParams = [
-                'app' => '9',
-                "query" => "社員コード in $result limit 200",
-                'fields' => ['$id', '社員コード', '氏名', '文字列__1行__15']
-            ];
-            
-            $queryString = http_build_query($queryParams);
-            $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
-            $headers = [
-                'Authorization' => 'Basic', 
-                'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
-            ];
-            $response = Http::withHeaders($headers)->get($url);
-            $responseContent = $response->body();
-            $responseData = $response->json();
-            $pre = [];
-            $pr = [];
             $sks = array(
                 array(
                     "id" => 61,
@@ -169,26 +146,23 @@ class MemberController extends Controller
                 ), 
             );
             $collection = collect($sks);
-            $s_list = $collection->map(function($sk) use ($responseData) {
-                $rs = collect($responseData['records']);
-                $filteredCollection = $rs->where('文字列__1行__15.value', '=', $sk['level']);
-                $filteredArray = $filteredCollection->values()->pluck('社員コード.value')->map(function ($item) {
-                    return (int) $item;
-                })->toArray();
+            $s_list = $collection->map(function($sk) {
                 $emp = User::where('hide_flag', 0)
-                ->where('position_id', '>', 5)
-                ->where('partner_flag', 0)
-                ->whereIn('user_code', $filteredArray)
-                ->with([
-                    'positions' => function ($q) {
-                        $q->where('deleted_flag', 0);
-                    },
-                    'offices',
-                    'today_weather'
-                ])
-                ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code')->get();
+                    ->where('position_id', '>', 5)
+                    ->where('partner_flag', 0)
+                    ->where('general_position', $sk['level']) // Replace with general_position
+                    ->with([
+                        'positions' => function ($q) {
+                            $q->where('deleted_flag', 0);
+                        },
+                        'offices',
+                        'today_weather'
+                    ])
+                    ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code')
+                    ->get();
+            
                 $sk['employees'] = $emp;
-                $sk['user_codes'] = $filteredArray;
+                $sk['user_codes'] = $emp->pluck('user_code')->toArray(); // Extract user codes from employees
                 return $sk;
             })->values()->toArray();
 
