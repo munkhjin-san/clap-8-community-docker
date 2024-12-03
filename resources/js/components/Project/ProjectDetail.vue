@@ -96,7 +96,6 @@
                             <div class="project-cell cell-width" data-label="メンバー">
                                 <div style="position: relative; width: fit-content;">
                                     {{ member.name }}
-                                    <span class="side-notification" style="top: -5px; right: -20px; left: auto;" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
                                 </div>
                                 
                             </div>
@@ -105,7 +104,7 @@
                             <div class="project-cell cell-width" data-label="メンター">{{ member?.evaluation?.mentor?.name }}</div>
                             <div class="project-cell cell-width" data-label="職務評価基準">{{ member?.evaluation?.current_level }}</div>
                             
-                            <div class="project-cell cell-width" data-label="成果目標・昇給課題">
+                            <div class="project-cell cell-width" style="position: relative;" data-label="成果目標・昇給課題">
                                 <CommandButton 
                                     v-if="auth.id === member.id || auth.id === member?.evaluation?.mentor?.id || isManagerOrDirector"
                                     :buttons="[
@@ -113,6 +112,7 @@
                                     ]"
                                 />
                                 <div v-else class="user-link" @click="jumpToGoal(member)">閲覧</div>
+                                <span class="side-notification" style="left: 55px;" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
                             </div>
                             <div class="project-cell cell-width" data-label="人事考課">
                                 <div v-if="member?.evaluation?.mentor">
