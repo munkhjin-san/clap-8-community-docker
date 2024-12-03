@@ -149,7 +149,8 @@ class MemberController extends Controller
             $s_list = $collection->map(function($sk) {
                 $empQuery = User::where('hide_flag', 0)
                     ->where('position_id', '>', 5)
-                    ->where('partner_flag', 0);
+                    ->where('partner_flag', 0)
+                    ->where('retire', 0);
             
                 if ($sk['name'] === '未分類') {
                     $empQuery->where(function ($q) {
