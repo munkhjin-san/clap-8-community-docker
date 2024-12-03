@@ -147,22 +147,30 @@ class MemberController extends Controller
             );
             $collection = collect($sks);
             $s_list = $collection->map(function($sk) {
-                $emp = User::where('hide_flag', 0)
+                $empQuery = User::where('hide_flag', 0)
                     ->where('position_id', '>', 5)
-                    ->where('partner_flag', 0)
-                    ->where('general_position', $sk['level']) // Replace with general_position
-                    ->with([
-                        'positions' => function ($q) {
-                            $q->where('deleted_flag', 0);
-                        },
-                        'offices',
-                        'today_weather'
-                    ])
-                    ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code')
-                    ->get();
+                    ->where('partner_flag', 0);
+            
+                if ($sk['name'] === '未分類') {
+                    $empQuery->where(function ($q) {
+                        $q->whereNull('general_position')->orWhere('general_position', '');
+                    });
+                } else {
+                    $empQuery->where('general_position', $sk['level']);
+                }
+            
+                $emp = $empQuery->with([
+                    'positions' => function ($q) {
+                        $q->where('deleted_flag', 0);
+                    },
+                    'offices',
+                    'today_weather'
+                ])
+                ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code')
+                ->get();
             
                 $sk['employees'] = $emp;
-                $sk['user_codes'] = $emp->pluck('user_code')->toArray(); // Extract user codes from employees
+                $sk['user_codes'] = $emp->pluck('user_code')->toArray();
                 return $sk;
             })->values()->toArray();
 
