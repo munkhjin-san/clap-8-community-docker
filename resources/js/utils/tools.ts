@@ -46,10 +46,9 @@ const detailedDateOptions = () => {
         const firstHalfStart = moment(`${year}-03-01`);
         const firstHalfEnd = moment(`${year}-08-31`);
         const secondHalfStart = moment(`${year}-09-01`);
-        const secondHalfEnd = moment(`${year + 1}-02-28`);
+        const secondHalfEnd = moment(`${year}-02-28`);
         const evaluationFirst = moment(`${year}-02-01`);
         const evaluationSecond = moment(`${year}-08-01`);
-        
         const firstHalf = {
             name: `${year}年上期（${firstHalfStart.format('YYYY.M.D')}～${firstHalfEnd.format('YYYY.M.D')}）`,
             value: firstHalfStart.format('YYYY-MM-DD'),
@@ -58,7 +57,7 @@ const detailedDateOptions = () => {
             lastname:  `${year - 1}年上期（${secondHalfStart.clone().year(year - 1).format('YYYY.M.D')}～${secondHalfEnd.year(year).format('YYYY.M.D')}）`
         };
         const secondHalf = {
-            name: `${year}年下期（${secondHalfStart.format('YYYY.M.D')}～${secondHalfEnd.format('YYYY.M.D')}）`,
+            name: `${year}年下期（${secondHalfStart.format('YYYY.M.D')}～${secondHalfEnd.clone().year(year + 1).format('YYYY.M.D')}）`,
             value: secondHalfStart.format('YYYY-MM-DD'),
             evaluationDate: evaluationSecond.format('YYYY-MM-DD'),
             lastDate: firstHalfStart.format('YYYY-MM-DD'),
@@ -67,7 +66,6 @@ const detailedDateOptions = () => {
         options.push(firstHalf);
         options.push(secondHalf);
     }
-
     return options;
 }
 const evaluationDateOptions = () => {
