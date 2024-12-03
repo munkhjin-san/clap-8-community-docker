@@ -302,7 +302,7 @@ import { reactive } from 'vue';
     const boardMembers = computed(() => {
         if(board.value){
             
-            return board.value.board_to_users.map(ob => ob.user && ob.user.on_leave == 0)
+            return board.value.board_to_users.map(ob => ob.user).filter(user => user.on_leave == 0)
             
         }
         return []
