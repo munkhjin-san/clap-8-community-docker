@@ -218,11 +218,6 @@ const refresh = inject('refresh') as Function
 const getProjects = inject('getProjects') as Function
 const badge = useBadgeStore()
 onMounted(() => {
-    if(props.selectedDate && !props.editGoalData) {
-        
-        startDate.value = props.selectedDate.value;
-        
-    }
     firstFetch()
     getAdvice()
 })
