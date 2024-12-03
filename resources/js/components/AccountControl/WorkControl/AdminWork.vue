@@ -186,7 +186,7 @@
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `勤怠_${date}月`});
         const data = []
         attendance_record_items.value.forEach(item => {     
-            const shokkai = users.value.find(user => user.id == item.user_id).general_position
+            const shokkai = users.value.find(user => user.id == item.user_id).general_position ?? ''
             const row = {
                 "社員コード" : item.user_code,
                 "社員名" : item.name,
