@@ -23,7 +23,7 @@ class User extends Authenticatable
         'phone', 'password','icon_id', 'login', 
         'phone_isVerified', 'phone_prefix', 'q_token', 
         'is_public', 'color', 'language', 'work_email', 'footer_view', 'ical_key',
-        'award_charge'
+        'award_charge', 'general_position'
     ];
 
     /**
