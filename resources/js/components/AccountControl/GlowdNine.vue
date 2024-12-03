@@ -16,7 +16,7 @@
               </div>
           </div>
       </div>
-      <div style="height: calc(100% - 70px); overflow: hidden auto;">
+      <div class="table-wrapper" style="height: calc(100% - 70px); overflow: auto;">
         <table>
           <thead>
             <tr>
@@ -90,6 +90,9 @@ const setDate = (val) => {
 </script>
   
   <style scoped>
+  .table-wrapper::-webkit-scrollbar{
+    height: 4px;
+  }
   table {
     border-collapse: collapse;
     width: 100%;
