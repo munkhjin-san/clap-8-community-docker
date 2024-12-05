@@ -54,6 +54,7 @@ import moment from 'moment'
 import OptionSelector from '../Form/OptionSelector.vue'
 import axios from 'axios'
 import { useTheme } from '@/store/theme'
+import { Dialog } from '@/interface/globalInterface'
 const theme = useTheme()
 const messageSchedule = useMessageSchedule()
 const selectedTime = ref(moment().add(1, 'hours').format('H'))
@@ -61,7 +62,7 @@ const selectedDate = ref(moment().format('YYYY-MM-DD'))
 const error = ref('')
 const refreshMessage = inject('refreshMessage') as Function
 const availableHours = Array.from({ length: 24 }, (_, index) => index + 1);
-
+const { info } = inject<Dialog>('dialog')!
 const close = () => {
     const data = {
         active: false,
@@ -93,6 +94,7 @@ const setSchedule = async() => {
         const response = axios.put('/set_message_schedule', {reserved_at: formattedDateTime, id: message_id})
         refreshMessage()
         close()
+        info('送信スケジュールが設定されました。')
     } catch (e) {
 
     }
