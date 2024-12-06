@@ -23,7 +23,7 @@
                                 <span>アクティブ：{{ theme.active ? 'ON' : 'OFF' }}</span>
                             </div>
                             <div style="font-size: 12px;margin-top: 15px;color: gray;">
-                                <span>アシスタンID：{{ theme.assistant_id }}</span>
+                                <span>アシスタントID：{{ theme.assistant_id }}</span>
                             </div>
                         </div>
                         <div style="position: absolute;right: 10px;top: 10px;">      

@@ -5,7 +5,7 @@
                 <div style="overflow: hidden;margin: 20px 40px 20px 20px;height: calc(100% - 40px);position: relative;" >
                     <div v-html="lesson.title"></div>
                     <div style="font-size: 12px;color: gray;">
-                        <span>アシスタンID：{{ lesson.assistant_id }}</span>
+                        <span>アシスタントID：{{ lesson.assistant_id }}</span>
                     </div>
                     <Transition name="modalFade">
                         <div class="cal-month-loader" v-if="initialLoader == lesson.id" style="top: 50%;">
