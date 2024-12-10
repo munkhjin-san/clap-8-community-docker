@@ -275,6 +275,17 @@ class AdminWorkController extends Controller{
                 }
                 throw ValidationException::withMessages(['message' => $string . '日はすでに計画された計画有給のため、変更することはできません。']);
             }
+            $startDate = Carbon::parse($request->startDate);
+            $endDate = $startDate->copy()->addYear()->subDay();
+            $allShiftsValid = collect($changedShifts)->every(function ($shift) use ($startDate, $endDate) {
+                $shiftDay = Carbon::parse($shift['shift_day']);
+                return $shiftDay->between($startDate, $endDate);
+            });
+        
+            if (!$allShiftsValid) {
+                throw ValidationException::withMessages(['message' => "{$startDate->format('Y-m-d')}から{$endDate->format('Y-m-d')}の間で選択してください。"]);
+
+            }
             shiftRecord::whereIn('shift_day', $shiftDays)
                         ->where('user_id', $request->userId)
                         ->whereNot('shift_type', 3)
