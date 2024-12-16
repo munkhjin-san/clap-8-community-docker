@@ -238,10 +238,13 @@ class SharedService
             "glowd_nine_task" => "が作られました。"
         ];
         $addedMembers = ' <span class="addedMembers">' . $userName . '</span>' . $patterns[$type];
-        $addedMembers = match ($type) {
-            'new_task' => "<strong>新しい{$userName}{$patterns[$type]}</strong>\n{$extra}",
-            'glowd_nine_task' => "<strong>グラウドナインの新しい{$userName}{$patterns[$type]}</strong>\n{$extra}"
-        };
+        if ($type == 'new_task' || $type == 'glowd_nine_task') {
+            $addedMembers = match ($type) {
+                'new_task' => "<strong>新しい{$userName}{$patterns[$type]}</strong>\n{$extra}",
+                'glowd_nine_task' => "<strong>グラウドナインの新しい{$userName}{$patterns[$type]}</strong>\n{$extra}"
+            };
+        }
+        
         $first_message = new messageRecord;
         $first_message->info_flag = $type == 'new_task' || $type == 'glowd_nine_task' ? 2 : 1;
         $first_message->message = $addedMembers;
