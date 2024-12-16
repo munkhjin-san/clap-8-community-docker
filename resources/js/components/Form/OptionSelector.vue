@@ -1,5 +1,5 @@
 <template>
-    <div class="locale-selector" style="width: fit-content;position:relative;height:40px;display: block;">
+    <div class="locale-selector" style="width: fit-content;position:relative;height:40px;">
 
         <select 
             class="dropDownSelector cursor-pointer"

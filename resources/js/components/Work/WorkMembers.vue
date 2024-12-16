@@ -4,7 +4,7 @@
             <div style="position: sticky; top:0;background: var(--bg3);z-index: 2;">
                 <div class="sub-tab-container">
                     <div @click="byWorkGroups = 0" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 0}]">メンバー</div>
-                    <div @click="byWorkGroups = 1, checkedUsers = []" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">ワークグループ</div>
+                    <div @click="byWorkGroups = 1, checkedUsers = []" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">プロジェクト</div>
                 </div>
                 <div class="searchBarInner" style="margin: 10px 15px 0;width: auto;min-width: 270px"> 
                     <PostSearchBar  
@@ -16,9 +16,9 @@
             </div>         
             <div v-if="searchUsers.length">
                 <div style="padding:0 15px;display:flex;" v-if="byWorkGroups == 0">                                
-                    <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
+                    <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
                         <input @change="selectAll" :checked="searchUsers.length && searchUsers.length == value.length"  name="memberCheckBox" type="checkbox">
-                        <span class="cal-check-mark" style="top: 13px;"></span>
+                        <span class="work-check-mark" style="top: 13px;"></span>
                         <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
                                     
                             <p class="userName" style="line-height: 30px;margin-left: 0;">全員選択</p>                                    

@@ -19,14 +19,12 @@
                                 <div class="user-wrap"> 
                                     <UserIcon :user="user" imgClass="userNormalIcon" size="30"/>
                                     <router-link :to="`/user/${user.id}`" class="suggested-user-name user-link" style="margin:0">{{ user.name }}</router-link>
-                                    <div title="タスクが完了しました" v-if="user.pivot.comp_flag == 1" :style="{backgroundColor : user.pivot.late_answer != 0 ? '#ffa500' : 'rgb(100, 188, 68)'}" style="width: 15px;height: 15px;display: flex;border-radius: 50%;margin:auto 3px;min-width:15px;">
+                                    <div title="タスクが完了しました" v-if="user.pivot.progress_flag == 2" style="width: 15px;height: 15px;display: flex;border-radius: 50%;margin:auto 3px;min-width:15px; background-color: rgb(100, 188, 68);">
                                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill:#fff;margin:auto;">
                                             <path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
                                         </svg>                                           
                                     </div>
-                                    <p style="font-size:10px;word-break:break-all;" v-if="user.pivot.comp_flag == 1">
-                                        {{ lateAnswer(user.pivot.late_answer,user.pivot.late_answer_custom ) }} 
-                                    </p>
+                                    
                                     <div title="タスク承認待ち" v-if="user.pivot.status_flag == 1" style="width: 15px;height: 15px;display: flex;border-radius: 50%;margin:auto 3px;min-width:15px;background-color: tomato;">
                                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill:#fff;margin:auto;">
                                             <path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
@@ -57,7 +55,7 @@
                             <div v-if="isSupervisor && user.pivot.status_flag == 1" style="display: flex; gap: 5px; padding: 10px;">
                                 <CommandButton 
                                     :buttons="[
-                                        {title: '承認', action:() => taskApprove(user.id, 2, 1)}, 
+                                        {title: '承認', action:() => taskApprove(user.id, 2, 2)}, 
                                         {title: '差戻', action:() =>  taskApprove(user.id, 0, 0)}
                                     ]" 
                                 />
@@ -108,21 +106,7 @@ import FileIcon from '../../Mixed/FileIcon.vue';
         }
         taskUsers.setTaskUsers(data)
     }
-    const lateAnswer = (value,lateAnswerCustom) => {
-        const answers = [
-            { label: 'タスク対応に時間がかかった', value: 1, id:"incomplete_ans1"},
-            { label: 'タスクの優先順位を変更した', value: 2, id:"incomplete_ans2"},
-            { label: '完了ボタンを押し忘れていた', value: 3, id:"incomplete_ans3"},
-            { label: 'タスクを認識していなかった', value: 4, id:"incomplete_ans4"},
-            { label: 'このタスクの担当者ではない', value: 5, id:"incomplete_ans5"},
-        ]
-        if(value == 6) {
-            return lateAnswerCustom;
-        }else{
-            return answers.find(ob => ob.value == value)?.label || ''
-        }
-    }
-    const taskApprove = async(userId, status, comp_flag) => {
+    const taskApprove = async(userId, status, progress_flag) => {
         if(status == 0){
             const answer = await confirm('申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。')
             if(!answer) return
@@ -132,7 +116,7 @@ import FileIcon from '../../Mixed/FileIcon.vue';
                 user_id: userId,
                 task_id: task.value.id,
                 status_flag: status,
-                comp_flag: comp_flag
+                progress_flag: progress_flag
             }
             await axios.put('/task_approve', params)
             close()

@@ -39,5 +39,11 @@ export default defineConfig({
         chunkSizeWarningLimit: 600 
     },
       
-    
+    css: {
+        preprocessorOptions: {
+            scss: {
+                api: 'modern-compiler'
+            }
+        }
+    }
 });

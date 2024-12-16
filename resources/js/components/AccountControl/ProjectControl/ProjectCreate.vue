@@ -11,6 +11,16 @@
             </div>
             <div>
                 <div>
+                    <ShortInput 
+                        name="name"
+                        v-model="name"
+                        :rules="'required'"
+                        placeHolder="タイトル"
+                        type="text"
+                        ref="projectTitle"
+                    />
+                </div>
+                <div class="si-box">
                     <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">期間</p>
                     <div style="display:flex;position: relative;width:100%">
                         <ShortInput 
@@ -33,13 +43,6 @@
                             v-model="dateEnd"
                         />
                     </div>
-                </div>
-                <div class="si-box">
-                    <ShortInput 
-                        name="name"
-                        v-model="name"
-                        placeHolder="名前"
-                    />
                 </div>
                 <div class="si-box">
                     <LongInput 
@@ -75,7 +78,9 @@
                         v-model="director"
                         :options="directorOptions"
                         :multiple="false"
+                        rules="required"
                         placeHolder="取締役"
+                        ref="directorSelect"
                     />
                 </div>
                 <div class="si-box">
@@ -97,7 +102,17 @@
                         :multiple="true"
                     />
                 </div>
-                
+                <div class="si-box" style="position:relative;">
+                    <div>
+                        <p :class="['form-title-small', 'form-title-active']">ボード連携</p>
+                    </div>
+                    <div class="selectSwitchArea" style="width: fit-content;">    
+                        <input type="checkbox" id="release_flag" v-model="boardLink">
+                        <label for="release_flag" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer']"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                    </div>  
+                </div> 
                 <div class="si-box">
                     <LoaderButton @triggered="createProject" :loading="loading" content="作成する"/>
                 </div>
@@ -110,9 +125,10 @@ import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { computed, ref } from 'vue';
+import { computed, ref, useTemplateRef } from 'vue';
 import axios from 'axios';
 import { User } from '@/interface/globalInterface';
+import { ComponentExposed } from 'vue-component-type-helpers';
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
 const name = ref(props.editData?.name ?? '')
@@ -126,6 +142,11 @@ const member = ref<User[]>(props.editData?.members ?? [])
 const loading = ref(false)
 const dateStart = ref(props.editData?.date_start ?? '')
 const dateEnd = ref(props.editData?.date_end ?? '')
+const boardLink = ref(props.editData?.board_id ? true : false)
+const startDateRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('startDateRef')
+const endDateRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('endDateRef')
+const projectTitle = useTemplateRef<ComponentExposed<typeof ShortInput>>('projectTitle')
+const directorSelect = useTemplateRef<ComponentExposed<typeof MemberSelector>>('directorSelect')
 const directorOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id < 6 && user.position_id !== null)
 })
@@ -134,10 +155,16 @@ const managerOptions = computed(() => {
 })
 
 const createProject = async() => {
-    console.log(manager.value)
+    const validationTargets = [startDateRef.value, endDateRef.value, projectTitle.value, directorSelect.value]
+    let result = true
+    for(const target of validationTargets){                
+        const val = await target?.validate() || {valid:false}
+        result = result && val.valid
+    }
+    if(!result) return
     const params = {
         id: props.editData?.id,
-        manager_ids: manager.value?.id,
+        manager_ids: manager.value ? [manager.value?.id] : [],
         member_ids: member.value.map(ob => ob.id),
         params: {
            name: name.value,
@@ -148,7 +175,8 @@ const createProject = async() => {
            strategy: strategy.value,
            kgi: kgi.value,
            kpi: kpi.value,  
-        }
+        },
+        board_link: boardLink.value
     }
     loading.value = true
     try {

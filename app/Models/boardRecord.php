@@ -40,6 +40,9 @@ class boardRecord extends Model
     public function icons(){
         return $this->hasOne(Icons::class, 'id', 'icon_id');
     }
+    public function project(){
+        return $this->hasOne(ProjectRecord::class, 'board_id', 'id')->select(['id', 'board_id', 'name']);
+    }
     protected $casts = [        
         'user_id' => 'int',  
         'icon_id' => 'int', 

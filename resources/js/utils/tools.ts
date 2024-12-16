@@ -1,6 +1,6 @@
 import Autolinker from 'autolinker';
 import moment from 'moment';
-
+import { DateTime } from 'luxon'
 const mentionFormatter = (text: string | null, withUrl?: boolean) => {
     const cook = text ? text : ''
     const cooked = cook.replace(
@@ -94,6 +94,13 @@ const generalPositions = () => {
 const parseDate = (date: string | Date) => {
     return moment(date).format('YYYY年M月実施分')
 }
+const taskStatusBackgrounds = ['black', '#eb7a00', 'green']
+const DateParser = (date:string) => {
+    const instance = DateTime.fromISO(date)
+    const today = DateTime.now()
+    const format = instance.hasSame(today, 'day') ? 'T' : instance.hasSame(today, 'year') ? 'M / d (ccc) HH:mm' : 'y / M / d (ccc) HH:mm'      
+    return instance.toFormat(format)  
+}
 export { 
     debounce, 
     mentionFormatter, 
@@ -102,5 +109,7 @@ export {
     detailedDateOptions, 
     generalPositions,
     evaluationDateOptions,
-    parseDate
+    parseDate,
+    taskStatusBackgrounds,
+    DateParser
 }

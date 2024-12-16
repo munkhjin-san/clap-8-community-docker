@@ -58,84 +58,47 @@
         <div @click="emit('jumpToday')" class="c-bar-button">本日</div>
         <Transition name="modalFade">
             <div v-if="menu.parent == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menu.name = ''">
-                <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);min-height: 150px;">   
-                    <!-- <div v-if="allMembers.length">
-                        <div style="padding:0 15px 0 30px;display:flex;"> 
-                            <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                <input @change="selectAll(group, 'byMember')" :checked="allSelected(group)" name="memberCheckBox" type="checkbox">
-                                <span class="cal-check-mark" style="top: 13px;"></span>
-                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-
-                                    <p class="userName" style="line-height: 30px;margin-left: 0;">全員選択</p>                                    
-                                </div>
-                            </label> 
-                        </div>
-                        <div :key="user.id" v-for="user in group.users" style="padding:0 15px 0 30px;display:flex;">                                
-                            <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member" :value="user.id" name="memberCheckBox" type="checkbox">
-                                <span class="cal-check-mark" style="top: 10px;"></span>
-                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                    <UserIcon :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
-                                    <p class="userName">{{user.name}}</p>                                    
-                                </div>
-                            </label>  
-                            
-                        </div>
-                    </div>     -->
+                <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);">   
+                    <div @click="createWindow = true, addUsersWindow = true" class="groupCreateButton">
+                        <div v-html="getIcon('plus')"></div>
+                        <p>グループ追加</p>                        
+                    </div> 
                     <div v-if="myGroups.length">
                         <div v-for="group in myGroups">  
-                            <div style="display: flex;align-items: center;white-space: nowrap;padding: 0 15px;gap: 15px;position:relative;justify-content: space-between;">
-                                <div>
-                                    <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;justify-content: space-between;">
-                                        <input @change="selectAll(group, 'byGroup')" :checked="group.selected" name="memberRadioBox" type="checkbox">
+                            <div class="c-group-item">
+                                    <label class="cal-member-check">
+                                        <input @change="selectAll($event, group, 'byGroup')" :checked="group.selected ? true : false" name="memberRadioBox" type="checkbox">
                                         <span class="cal-check-mark" style="top: 13px;"></span>
-                                        <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                                    
-                                            <p class="userName" style="line-height: 30px;margin-left: 0;">{{ group.name }}</p>                                    
-                                        </div>                                        
-                                    </label>  
-                                </div>
-                                
-                                <ItemMenu :items="[
-                                    {title: '編集する', action: () => editGroupStart(group)},
-                                    {title: '削除する', action: () => deleteConfirm(group)}
-                                ]"/>
+                                        {{ group.name }}                                  
+                                    </label>                                 
+                                    <ItemMenu :items="[
+                                        {title: '編集する', action: () => editGroupStart(group)},
+                                        {title: '削除する', action: () => deleteConfirm(group)}
+                                    ]"/>
                                 
                             </div>
                              
-                            <div v-if="group.selected">
-                                <div style="padding:0 15px 0 30px;display:flex;"> 
-                                    <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                        <input @change="selectAll(group, 'byMember')" :checked="allSelected(group)" name="memberCheckBox" type="checkbox">
-                                        <span class="cal-check-mark" style="top: 13px;"></span>
-                                        <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-
-                                            <p class="userName" style="line-height: 30px;margin-left: 0;">全員選択</p>                                    
-                                        </div>
-                                    </label> 
-                                </div>
-                                <div :key="user.id" v-for="user in group.users" style="padding:0 15px 0 30px;display:flex;">                                
-                                    <label class="cal-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                        <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member" :value="user.id" name="memberCheckBox" type="checkbox">
-                                        <span class="cal-check-mark" style="top: 10px;"></span>
-                                        <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                            <UserIcon :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
-                                            <p class="userName">{{user.name}}</p>                                    
-                                        </div>
-                                    </label>  
+                            <div class="active-group-members" v-if="group.selected">
+                                <label class="cal-member-check">
+                                    <input @change="selectAll($event, group, 'byMember')" :checked="allSelected(group)" name="memberCheckBox" type="checkbox">
+                                    <span class="cal-check-mark" style="top: 13px;"></span>
+                                    全員選択
+                                </label>
+                                <label :key="user.id" v-for="user in group.users" class="cal-member-check">
+                                    <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member" :value="user.id" name="memberCheckBox" type="checkbox">
+                                    <span class="cal-check-mark" style="top: 10px;"></span>
+                                    <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
+                                        <UserIcon :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
+                                        <p class="userName">{{user.name}}</p>                                    
+                                    </div>
+                                </label>  
                                     
-                                </div>
                             </div>
                         </div> 
                     </div>
                     <div v-else class="no-comment-text" style="position: unset;margin-top: 30px;padding: 20px;">
                         <div>現在マイグループありません。</div>
-                    </div>
-                    <div title="新規作成" id="boardCreate" class="createBoardButton fileNewButton" style="z-index: 7;" @click="createWindow = true, addUsersWindow = true">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="fill: rgb(0, 0, 0); margin: auto;">
-                            <path d="M30.044 14.14c-2.402-0.231-4.804-0.341-7.206-0.422-1.535-0.058-3.071-0.079-4.606-0.090-0.326-0.002-0.587-0.265-0.588-0.591-0.004-1.537-0.018-3.074-0.078-4.613-0.092-2.4-0.218-4.802-0.542-7.205-0.084-0.612-0.565-1.119-1.205-1.206-0.769-0.103-1.477 0.437-1.582 1.206-0.324 2.401-0.449 4.804-0.542 7.205-0.059 1.536-0.074 3.071-0.078 4.606-0.001 0.325-0.263 0.59-0.59 0.59-1.534 0.005-3.068 0.020-4.602 0.078-2.404 0.094-4.805 0.219-7.207 0.543-0.612 0.081-1.119 0.564-1.205 1.205-0.103 0.769 0.436 1.477 1.205 1.58 2.402 0.324 4.804 0.449 7.207 0.543 1.536 0.059 3.074 0.073 4.612 0.078 0.325 0.001 0.587 0.262 0.59 0.587 0.011 1.536 0.033 3.070 0.090 4.606 0.080 2.402 0.192 4.805 0.423 7.207 0.066 0.699 0.622 1.278 1.349 1.348 0.823 0.079 1.556-0.524 1.633-1.348 0.231-2.402 0.342-4.805 0.423-7.207 0.057-1.538 0.079-3.077 0.090-4.615 0.002-0.324 0.263-0.583 0.587-0.586 1.538-0.011 3.077-0.034 4.615-0.090 2.402-0.080 4.804-0.193 7.206-0.423 0.7-0.066 1.279-0.622 1.349-1.349 0.076-0.823-0.528-1.557-1.351-1.634z"></path>
-                        </svg>
-                    </div>                                                
+                    </div>                                               
                 </div>
             </div>
         </Transition>
@@ -146,7 +109,7 @@
                         <div :key="index" v-for="(facilities, index) in facilitiesList" style="padding:0 15px">     
                             <div style="margin: 10px 0;font-weight: 600;color: var(--primary-color);">{{ facilityTitle(index) }}</div>   
                             <div>                                                
-                                <label v-for="(facility, sub_index) in facilities" class="cal-member-check" style="align-self: center;padding-left: 20px;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
+                                <label v-for="(facility, sub_index) in facilities" class="cal-member-check" style="align-self: center;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
                                     <input :checked="facility.selected" @input="emit('setFacility', index, sub_index, $event.target.checked)" :value="facility.value" name="memberCheckBox" type="checkbox">
                                     <span class="cal-check-mark" style="top: 5px;"></span>
                                     <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">                    
@@ -176,7 +139,7 @@
                     <div>
                             
                         <div style="padding: 0 15px;">                                                
-                            <label v-for="department in searchDepartment" class="cal-member-check" style="align-self: center;padding-left: 20px;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
+                            <label v-for="department in searchDepartment" class="cal-member-check" style="align-self: center;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
                                 <input :value="department.id" :checked="selectedDepartment.includes(department.id)" @input="emit('setDepartment', department.id)" name="memberCheckBox" type="checkbox">
                                 <span class="cal-check-mark" style="top: 5px;"></span>
                                 <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">                    
@@ -200,6 +163,7 @@ import { useMenuStore } from "@/store/menu";
 import { useAuthUserStore } from '../../store/auth'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import PostSearchBar from '../Post/PostSearchBar.vue'
+import { getIcon } from 'assets/icons'
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const props = defineProps(['facilitiesList', 'selectedYear', 'selectedMonth', 'departmentsList', 'selectedDepartment'])
@@ -368,11 +332,12 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
         const id = event.target.value
         updateSelectedUsers(id, val, group.id, 'byMember')
     }
-    const selectAll = (group, by) => {
+    const selectAll = (event, group, by) => {
+        const target = event.target
         group.users.forEach(item => {
-            item.pivot.selected_as_calendar_member = event.target.checked
+            item.pivot.selected_as_calendar_member = target.checked ? 1 : 0
         });
-        const val = event.target.checked
+        const val = target.checked
         const user_id = -1
         updateSelectedUsers(user_id, val, group.id, by)
     }
@@ -385,3 +350,41 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
         });
     }
 </script>
+<style lang="scss">
+.fac-select-pop{
+    max-height: 50vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    gap: 15px;
+}
+.c-group-item{
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    padding: 10px 5px 10px 15px;
+    gap: 15px;
+    position: relative;
+    justify-content: space-between;
+}
+.active-group-members{
+    padding: 0px 15px 10px 30px;
+    display: flex;
+    flex-direction: column;
+    white-space: nowrap;
+    gap: 10px;
+}
+.groupCreateButton{
+    display: flex;
+    align-items: center;
+    gap:10px;
+    padding: 15px 15px 5px 15px;
+    cursor:pointer;
+    svg{
+        width: 12px;
+        height: 12px;
+        fill:var(--primary-color);
+    }
+}
+</style>

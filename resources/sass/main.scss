@@ -90,8 +90,8 @@ html {
 *,
 ::before,
 ::after {
-  background-repeat: no-repeat; /* Set `background-repeat: no-repeat` to all elements and pseudo elements */
-//   box-sizing: inherit;
+    background-repeat: no-repeat;
+    box-sizing: unset !important;
 }
 
 ::before,
@@ -466,6 +466,7 @@ progress {
     min-height: 40px;
     width: fit-content;
     width: -moz-fit-content;
+    font-size: small;
 }
 .boardTypeArea{
     padding: 0 10px 0 0;
@@ -475,7 +476,7 @@ progress {
 }
 .typeCommandBar{
     position: absolute;
-    right: 5px;
+    left: 5px;
     bottom: 5px;
     cursor: pointer;
 }
@@ -1572,8 +1573,15 @@ img {
 .typeAreaOuter{
     border: 1px solid var(--third-color);
     padding: 5px 0 5px 10px;
-    width: calc(100% - 55px);
+    width: calc(100% - 10px);
     position: relative;
+}
+.typeContainer{
+  display:inline-block;
+  z-index:5;width:100%;
+  box-sizing: border-box !important;
+  padding: 10px;
+  position:relative
 }
 .typeBoxArea{
   white-space: pre-line;
@@ -2792,6 +2800,10 @@ div.recordFormTitle > p{
   color: var(--primary-color);
   white-space: nowrap;
   fill: var(--primary-color);
+  display: flex;
+  align-items: center;
+  min-width: 100px;
+  gap: 15px;
 }
 .boxMenuItems:hover{
   color:var(--background-color);
@@ -5334,6 +5346,12 @@ font-size: 13px;
     color: #e4e6eb;
     cursor: pointer;
     user-select: none;
+    font-size: 13px;
+}
+.c-bar-button:hover {
+  text-decoration: none;
+  color: #e4e6eb;
+  font-weight: 400;
 }
 .calendarMemberSelector{
     position: absolute;
@@ -5345,16 +5363,19 @@ font-size: 13px;
     box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 }
 .cal-member-check {
-  display: block;
+  align-self: center;
+  display: flex;
+  height: 25px;
+  align-items: center;
   position: relative;
-  padding-left: 35px;
-  margin-bottom: 0px;
   cursor: pointer;
-  font-size: 22px;
+  font-size: 14px;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  gap: 10px;
+  align-self: flex-start;
 }
 
 /* Hide the browser's default checkbox */
@@ -5364,17 +5385,15 @@ font-size: 13px;
   cursor: pointer;
   height: 0;
   width: 0;
+  display: none;
 }
 
 /* Create a custom checkbox */
 .cal-check-mark {
-  position: absolute;
-  top: 0;
-  left: 0;
   height: 15px;
   width: 15px;
   border: solid 1px var(--primary-color);
-    border-radius: 3px;
+  border-radius: 3px;
 }
 
 /* Create the checkmark/indicator (hidden when not checked) */
@@ -5385,19 +5404,19 @@ font-size: 13px;
 }
 
 /* Show the checkmark when checked */
-.cal-member-check input:checked ~ .cal-check-mark:after {
+.cal-member-check input:checked~.cal-check-mark:after {
   display: block;
 }
 
 /* Style the checkmark/indicator */
 .cal-member-check .cal-check-mark:after {
-    left: 5px;
-    top: 2px;
-    width: 3px;
-    height: 7px;
-    border: solid var(--primary-color);
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
+  left: 6px;
+  top: 7px;
+  width: 3px;
+  height: 7px;
+  border: solid var(--primary-color);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 
 

@@ -315,6 +315,7 @@ const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
         refresh()
         emit('close')
         info(info_message)
+        badge.getProjectBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

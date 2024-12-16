@@ -156,16 +156,22 @@
         processing.value = true
         const startDate = formatDate(editUser.value?.work_temps?.date);
         const endDate = moment(startDate).add(1, 'year').subtract(1, 'day').format('YYYY-MM-DD');
-        const allShiftsValid = changedShifts.value.every(shift => 
-            isShiftDayInRange(shift.shift_day, startDate, endDate)
-        );
-        if (!allShiftsValid) {
-            notify(`${startDate}から${endDate}の間で選択してください。`);
-            processing.value = false;
-            return;
-        }
+        // const allShiftsValid = changedShifts.value.every(shift => 
+        //     isShiftDayInRange(shift.shift_day, startDate, endDate)
+        // );
+        // if (!allShiftsValid) {
+        //     notify(`${startDate}から${endDate}の間で選択してください。`);
+        //     processing.value = false;
+        //     return;
+        // }
         try {
-            await axios.post('/change_planned_shifts', {shifts: changedShifts.value, userId: editUser.value.id})
+            await axios.post('/change_planned_shifts', 
+                {
+                    shifts: changedShifts.value, 
+                    userId: editUser.value.id,
+                    startDate: startDate                
+                }
+            )
             getPlannedShifts()
             open.value = false
             changedShifts.value = []

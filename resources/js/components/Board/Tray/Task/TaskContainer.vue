@@ -41,7 +41,7 @@
         </div>
     </div>
     <Transition name="modalFade">
-    <TaskCreate 
+    <BoardTaskCreate 
         v-if="taskModalView" 
         @close="closeTaskModal" 
         @taskDeleted="taskDeleted"
@@ -84,7 +84,7 @@
 </template>
 <script setup>
 import TaskSortMenu from './TaskSortMenu.vue'
-import TaskCreate from './TaskCreate.vue'
+import BoardTaskCreate from './BoardTaskCreate.vue'
 import TaskBox from './TaskBox.vue'
 import TaskRequest from './TaskRequest.vue'
 import moment from 'moment'

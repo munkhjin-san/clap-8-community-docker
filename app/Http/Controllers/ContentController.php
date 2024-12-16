@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Str;
 use Intervention\Image\Laravel\Facades\Image;
+use Illuminate\Support\Facades\Cache;
 class ContentController extends Controller
 {
 
@@ -90,5 +91,36 @@ class ContentController extends Controller
             'Cache-Control' => 'public, max-age=2628000',
             'Expires' => gmdate('D, d M Y H:i:s \G\M\T', time() + 2628000),
         ]);
+    }
+    public function user_default_thumbnail($char, $size, $color = 'light'){      
+        
+        $regex = '/[А-Яа-яЁёөү]/u';
+        $is_mn = preg_match($regex, $char);
+        $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';
+        $bg = $color === 'light' ? '#000' : '#ddd';
+        $text_color = $color === 'light' ? '#fff' : '#000';
+        $resize = $size ? (int) $size : 30;
+        $cacheKey = 'chat_image_' . md5($char.$color.$size);
+        if (Cache::has($cacheKey)) {
+            $cachedImage = Cache::get($cacheKey);
+            if(!empty($cachedImage)){
+                $img = Image::read($cachedImage);
+                return $this->image_response($img);
+            }            
+        }
+        $img = Image::create(200, 200)->fill($bg);
+
+        $img->text($char, 100, 100, function ($font) use ($font_path, $text_color) {
+            $font->file(resource_path($font_path));
+            $font->size(130);
+            $font->color($text_color);
+            $font->align('center');
+            $font->valign('middle');
+            
+        })->resize($resize, $resize);
+        $imagedata = (string) $img->toWebp();     
+        Cache::put($cacheKey, (string) $imagedata, 2628000);
+
+        return $this->image_response($img);  
     }
 }

@@ -191,7 +191,7 @@ import { reactive } from 'vue';
     const auth = useAuthUserStore()
 
     const props = defineProps(['editTaskData'])
-    const emit = defineEmits(['close'])
+    const emit = defineEmits(['close', 'getBoardTasks'])
     const content = ref(props.editTaskData ? props.editTaskData.remarks : '')
     const qualified_users = ref(props.editTaskData ? props.editTaskData.executors : [auth.activeUser]) 
     const supervisors = ref(props.editTaskData && props.editTaskData.supervisors ? props.editTaskData.supervisors : [])
@@ -352,7 +352,7 @@ import { reactive } from 'vue';
         };
         try{
             loading.value = true
-            await axios.post('/add_task_api', params )            
+            await axios.post('/add_board_task', params )            
             info('作成しました。')
             emit('close', true)
             loading.value = false

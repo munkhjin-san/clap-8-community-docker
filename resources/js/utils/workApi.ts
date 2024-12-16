@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useAuthUserStore } from "../store/auth";
 import { useFilePreview } from "../store/filePreview";
-import moment from "moment";
+import { DateTime } from "luxon";
 export const getWorkGroup = async () => {
     try {
         const auth = useAuthUserStore()
@@ -86,8 +86,28 @@ export const workFilePreview = (file: string, type: string) => {
 }
 
 export const dateDetail = (value: string | Date) => {
-    moment.locale('ja');
-    const thisYear = moment().year();
-    const taskYear = moment(value).year();
-    return (thisYear == taskYear) ? moment(value).format('M/D (dd)') : moment(value).format('YYYY/M/D (dd)')               
-}
+    const now = DateTime.local();
+    const taskDate = DateTime.fromISO(typeof value === 'string' ? value : value.toISOString());
+
+    const thisYear = now.year;
+    const taskYear = taskDate.year;
+
+    return (thisYear === taskYear)
+        ? taskDate.setLocale('ja').toFormat('M/d (ccc)')
+        : taskDate.setLocale('ja').toFormat('yyyy/M/d (ccc)');
+};
+
+export const vehicleAsOptions = ([
+    { label: '福岡582く5617 ホンダライフ', value: 0},
+    { label: '福岡582え8686 ダイハツミラ', value: 1},
+    { label: '福岡580と5654 オッティ', value: 2},
+    { label: '福岡480わ3206 クリッパー', value: 3},
+    { label: '福岡480ね5019 バン', value: 4},
+    { label: '福岡480ね5020 バン', value: 5},
+    { label: '鹿児島582そ6650 ミライース', value: 6},
+    { label: '福岡582ち7350', value: 7},
+    { label: 'なにわ502の1116', value: 8},
+    { label: '大阪581わ707（ﾚﾝﾀｶｰ）', value: 9},
+    { label: 'レンタカー', value: 10},
+    { label: 'マイカー', value: 11}
+])

@@ -34,20 +34,6 @@
                         path="/task_files"
                     />
                 </div>
-                <!-- <div class="si-box" v-if="overdue" style="position:relative">
-                    <p style="font-weight:600;margin-bottom:10px;">期限内に完了しなかった理由選んでください</p>
-                    <div v-for="answer in answers" style="padding: 10px 0px;display: flex;">
-                        <input class="fish-eye" @change="selectedAnswer = answer.value" type="radio" :id="answer.id" name="answer" :value="answer.value">
-                        <label style="margin-left:10px;cursor:pointer" :for="answer.id">{{answer.label}}</label>  
-                    </div> 
-                    <span v-if="validationFailed && !isValid.status" class="valid-error post-error" style="bottom:auto">必須です</span>
-                    <Transition name="feedbackAreaToggle">
-                        <div v-if="selectedAnswer == 6" style="position:relative">
-                            <textarea class="feedbackArea" placeholder="その他の理由を入力してください" v-model="lateAnswerCustom" name="" id=""></textarea>
-                            <span v-if="validationFailed && isValid.inputRequired" class="valid-error post-error" style="bottom: -15px;">必須です</span>
-                        </div>    
-                    </Transition>   
-                </div> -->
                 <div class="si-box">
                     <LoaderButton @triggered="approveRequest" :loading="loading" content="申請する"/>
                 </div>
@@ -118,8 +104,6 @@ import { dateDetail } from '@/utils/workApi';
                 task_id: taskRequest.data.id,
                 board_id: taskRequest.data.board_id,
                 status_flag: 1,
-                late_answer:  selectedAnswer.value,
-                late_answer_custom: lateAnswerCustom.value
             }
             await axios.put('/task_approve_request', params)
             info('申請しました。')

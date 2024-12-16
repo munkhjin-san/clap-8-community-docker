@@ -1,12 +1,14 @@
+@use "sass:meta";
 // Fonts
 @import url('https://fonts.bunny.net/css?family=Nunito');
 
 // Variables
-@import 'variables';
+@include meta.load-css('variables');
 
 // Bootstrap
 // @import 'bootstrap/scss/bootstrap';
-@import './main.scss';
-@import './mobileStyle.scss';
-@import './TrayStyle.scss';
-@import './workStyle.scss';
+@include meta.load-css('main.scss');
+@include meta.load-css('mobileStyle.scss');
+@include meta.load-css('TrayStyle.scss');
+@include meta.load-css('workStyle.scss');
+@include meta.load-css('GanttStyle.scss');

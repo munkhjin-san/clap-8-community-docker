@@ -115,7 +115,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
     Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'post', 'knowledge', 'nice', 'members', 'schedule', 'timesheet', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning', 'project'])->where('any', '.*')->name('board');
     
-
+    Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController::class, 'user_default_thumbnail']);
     Route::get('/shared_thumbnail/{board_id}/{path}', [ContentController::class, 'sharedThumbnail']);
     Route::prefix('cdn')->group(function () {
         Route::get('/{any?}', [ContentController::class, 'fileTransferAll'])->where('any', '.*');
@@ -181,21 +181,27 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::put('/set_message_schedule', [BoardController::class, 'set_message_schedule']);
     Route::put('/update_view_from', [BoardController::class, 'update_view_from']);
     // Task
-    Route::post('/get_task_api', [TaskController::class, 'getTask']); 
-    Route::post('/complete_task_api', [TaskController::class, 'completeTask']); 
-    Route::post('/task_update_api', [TaskController::class, 'updateTask']); 
+    Route::get('/task_list', [TaskController::class, 'getTask']); 
+    Route::patch('/complete_task', [TaskController::class, 'completeTask']); 
+    Route::patch('/task_item', [TaskController::class, 'updateTask']); 
     Route::post('/task_file_upload', [TaskController::class, 'task_file_upload']);
     Route::get('/task_badge', [TaskController::class, 'get_task_badge']);    
     Route::post('/task_edit_api', [TaskController::class, 'taskEdit']); 
-    Route::post('/task_delete_api', [TaskController::class, 'taskDelete']); 
-    Route::post('/add_task_api', [TaskController::class, 'addTask']); 
+    Route::delete('/task_item', [TaskController::class, 'taskDelete']);  
+    Route::put('/task_item', [TaskController::class, 'addTask']);
+    Route::put('/task_sub_item', [TaskController::class, 'addSubTask']);  
     Route::put('/task_approve_request', [TaskController::class, 'task_approve_request']);
     Route::put('/task_approve', [TaskController::class, 'task_approve']);
     Route::get('/task_not_approved', [TaskController::class, 'task_not_approved']);
     Route::put('/task_update_prize', [TaskController::class, 'task_update_prize']);
     Route::put('/task_update_flag', [TaskController::class, 'task_update_flag']);
     Route::put('/task_update_pin', [TaskController::class, 'task_update_pin']);
-    
+    Route::post('/update_task_comment_check', [TaskController::class, 'update_task_comment_check']); 
+    Route::put('/task_comment', [TaskController::class, 'task_comment']); 
+    Route::delete('/task_comment', [TaskController::class, 'task_comment_delete']); 
+    Route::post('/update_task_comment_check', [TaskController::class, 'update_task_comment_check']); 
+    Route::put('/task_comment_update', [TaskController::class, 'task_comment_update']); 
+    Route::post('/add_board_task', [TaskController::class, 'addBoardTask']); 
         // Admin Panel User:
         Route::get('/get_controllable_users', [AdminAccountController::class, 'get_controllable_users']);
         Route::post('/user_add', [AdminAccountController::class, 'addUser']);
@@ -411,4 +417,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_not_approved', [ProjectController::class, 'project_not_approved']);
         Route::delete('/delete_issue', [ProjectController::class, 'delete_issue']);
         Route::get('/project_badge', [ProjectController::class, 'get_project_badge']);
+
+        Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
+        Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);
+        Route::patch('/quick_edit_task', [TaskController::class, 'quick_edit_task']);
+        Route::get('/get_gantt_project_tasks', [TaskController::class, 'get_gantt_project_tasks']);
 });

@@ -10,29 +10,7 @@
                     v-model="keywords"
                 />                
             </div>
-            <!-- <div class="c-bar-wrap">
-                <div @click.stop="menu.setMenu( { id: 8, name: 'sortProject'})" class="c-bar-button" style="margin-left: 15px;">
-                    ソート
-                </div>
-                <Transition name="modalFade">
-                    <div v-if="menu.name == 'sortProject'" id="sortProject" class="calendarMemberSelector">
-                        <div id="sortProject" style=" max-height: 50vh; overflow-y: auto;">
-                            <div>
-                                
-                                <div style="padding: 0 15px;">                                                
-                                    <label v-for="option in sortOptions" class="cal-member-check" style="align-self: center;padding-left: 20px;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
-                                        <input :value="option.value" :checked="sortType === option.value" @click="toggleRadio(option.value)" name="memberCheckBox" type="radio">
-                                        <span class="cal-check-mark" style="top: 5px;"></span>
-                                        <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">                    
-                                            <p class="userName">{{option.name}}</p>                                    
-                                        </div>
-                                    </label>  
-                                </div>     
-                            </div>
-                        </div>
-                    </div>
-                </Transition>
-            </div> -->
+            <router-link :to="{name: 'gantt-chart'}" class="c-bar-button ml-auto mr-[20px] whitespace-nowrap">ガントチャート</router-link>
         </div>
         <Transition name="modalFade">
             <div class="cal-month-loader" style="height: calc(100% - 60px); top: 60px;" v-if="initialLoader">
@@ -41,21 +19,9 @@
                 </div>
             </div>
         </Transition>
-        <router-view v-slot="{ Component }">
-            <transition name="lessonShift">
-                <component
-                    v-if="selectedProject"
-                    :is="Component"
-                    :selectedProject="selectedProject"
-                    :selectedDate="selectedDate"
-                    :userList="userList"
-                    :key="selectedProject?.id"
-                />
-            </transition>
-        </router-view>
-        <div class="post-container scrollable">
+        <div class="post-container scrollable" v-if="route.name === 'project'">
             
-            <div class="project-table" v-if="route.name === 'project'">
+            <div class="project-table">
                 <div class="project-header-row">
                     <div class="project-cell">プロジェクト名</div>
                     <div class="project-cell">概要</div>
@@ -67,12 +33,19 @@
                     
                 </div>
                 <div class="project-cell-row" v-for="project in sortedProjects">
-                    <div class="project-cell" style="border-bottom: none;" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
-                        <div class="user-link" style="position: relative">
-                            {{ project.name }}
-                            <span class="side-notification" style="top: -5px; right: -20px; left: auto;" v-if="projectBadge && projectBadge[project.id]">{{ projectBadge[project.id] }}</span>
-                        </div>
+                    <div class="project-cell" style="border-bottom: none;" >
                         
+                        <div class="flex justify-between w-full">
+                            <div class="user-link" style="position: relative" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
+                                {{ project.name }}
+                                <span class="side-notification" style="top: -5px; right: -20px; left: auto;" v-if="projectBadge && projectBadge[project.id]">{{ projectBadge[project.id] }}</span>
+                            </div>
+                            <div v-if="project.board_id && (project?.members.some(ob => ob.id === auth.id || project?.manager.some(ob => ob.id === auth.id)) || project.director_id === auth.id)">
+                                <svg @click="router.push(`/board/${project.board_id}`)" class="side-app-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 39 32" style="width: 20px !important; height: 17px; min-width: 20px;">
+                                    <path d="M39.365 27.314v-2.971l-0.013-3.975-0.076-15.873v-0.14l-0.013-0.165c-0.013-0.114-0.013-0.229-0.025-0.343s-0.038-0.229-0.051-0.343l-0.089-0.33c-0.14-0.432-0.33-0.851-0.597-1.219-0.254-0.368-0.584-0.698-0.94-0.978s-0.762-0.495-1.194-0.635c-0.432-0.14-0.889-0.229-1.333-0.229l-10.933-0.013-19.619-0.089c-0.038-0.013-0.114-0.013-0.165-0.013l-0.178 0.013c-0.457 0.038-0.914 0.127-1.346 0.305s-0.825 0.419-1.181 0.724c-0.356 0.292-0.66 0.66-0.902 1.054-0.254 0.394-0.444 0.825-0.546 1.283-0.038 0.114-0.051 0.229-0.064 0.343s-0.038 0.229-0.038 0.343l-0.013 0.178v3.378l-0.025 3.987-0.025 7.949v8.076l0.013 0.178c0.013 0.114 0.013 0.241 0.025 0.356s0.038 0.229 0.051 0.356l0.089 0.343c0.14 0.457 0.343 0.876 0.61 1.27s0.597 0.724 0.965 1.016c0.368 0.279 0.787 0.521 1.244 0.66 0.444 0.152 0.914 0.241 1.384 0.241l30.87-0.038c0.47-0.038 0.927-0.14 1.359-0.317s0.838-0.432 1.194-0.724c0.356-0.305 0.66-0.66 0.902-1.054s0.432-0.838 0.533-1.295c0.038-0.114 0.051-0.229 0.063-0.343s0.038-0.229 0.038-0.343l0.013-0.178v-0.165l0.013-0.279zM36.914 4.419v0.064l-0.076 15.873-0.013 3.975v3.39c0 0.051-0.013 0.102-0.013 0.14 0 0.051-0.013 0.102-0.025 0.14-0.038 0.19-0.127 0.368-0.229 0.533s-0.229 0.317-0.381 0.444-0.317 0.229-0.495 0.305c-0.178 0.076-0.368 0.114-0.559 0.127l-30.667-0.025c-0.19 0-0.381-0.038-0.559-0.102-0.178-0.051-0.356-0.152-0.508-0.267s-0.292-0.254-0.406-0.406c-0.102-0.152-0.19-0.33-0.241-0.508-0.013-0.051-0.025-0.089-0.038-0.14l-0.025-0.14c-0.013-0.051-0.013-0.089-0.013-0.14v-8.127l-0.013-7.936-0.013-3.975v-3.378c0-0.051 0.013-0.102 0.013-0.14s0.013-0.102 0.025-0.14c0.038-0.19 0.114-0.368 0.216-0.546 0.102-0.165 0.229-0.33 0.381-0.457s0.317-0.229 0.495-0.305c0.178-0.076 0.368-0.114 0.571-0.14h1.905l1.981-0.013 15.873-0.076 10.908-0.013c0.203 0 0.419 0.051 0.61 0.114 0.203 0.063 0.381 0.165 0.546 0.292s0.317 0.279 0.432 0.457c0.114 0.178 0.203 0.356 0.267 0.559l0.038 0.152 0.025 0.152c0.013 0.051 0.013 0.102 0.013 0.152v0.076c-0.025-0.013-0.025 0-0.025 0.025z"></path><path d="M32.14 8.203c-2.070-0.076-4.152-0.127-6.222-0.152-1.041-0.013-2.070-0.025-3.111-0.038l-3.111-0.013-3.111 0.013-3.111 0.038c-1.041 0.013-2.070 0.038-3.111 0.051l-1.537 0.025-1.562 0.038c-0.495 0.013-0.902 0.419-0.927 0.927-0.013 0.521 0.406 0.952 0.927 0.965l1.562 0.038 1.549 0.025c1.041 0.013 2.070 0.038 3.111 0.051l3.111 0.038 3.111 0.013 3.111-0.013c1.041 0 2.070-0.025 3.111-0.038 2.070-0.025 4.152-0.063 6.222-0.152 0.47-0.025 0.851-0.394 0.876-0.876 0.013-0.495-0.381-0.927-0.889-0.94zM25.6 15.073c-1.524-0.076-3.060-0.114-4.584-0.152-0.762-0.013-1.524-0.038-2.286-0.038l-2.298-0.013-2.286 0.013-2.286 0.038c-1.524 0.025-3.060 0.051-4.584 0.114-0.483 0.025-0.889 0.406-0.902 0.902-0.025 0.521 0.381 0.965 0.902 0.99 1.524 0.064 3.060 0.089 4.584 0.114l2.286 0.025 2.286 0.013 2.298-0.013c0.762 0 1.524-0.025 2.286-0.038 1.524-0.025 3.060-0.064 4.584-0.152 0.457-0.025 0.838-0.394 0.863-0.863 0.025-0.483-0.356-0.914-0.863-0.94zM19.060 21.956c-0.978-0.089-1.968-0.114-2.946-0.152s-1.968-0.038-2.946-0.038c-0.495 0-0.978 0-1.473 0.013l-1.473 0.038c-0.978 0.025-1.968 0.051-2.946 0.114-0.47 0.025-0.851 0.406-0.889 0.889-0.038 0.521 0.368 0.965 0.889 1.003 0.978 0.064 1.968 0.089 2.946 0.114l1.473 0.038c0.495 0.013 0.978 0.013 1.473 0.013 0.978-0.013 1.968-0.013 2.946-0.038s1.968-0.064 2.946-0.152c0.432-0.038 0.8-0.381 0.838-0.838 0.025-0.521-0.343-0.965-0.838-1.003z"></path>
+                                </svg>
+                            </div>
+                        </div>
                     </div>
                     <div class="project-cell pc">
                         <div style="position: relative;">
@@ -123,14 +96,38 @@
                 
             </div>
         </div>
-        
+        <!-- <FloatButton type="plus" @action="createWindow = true" v-if="auth.activeUser.position_id >= 6 && (route.name == 'gantt-chart' || route.name == 'project')"/> -->
+        <Transition name="modalFade">
+            <ProjectCreate 
+                v-if="createWindow"
+                @close="createWindow = false, editData = null"
+                @getProjects="getProjects"
+                :userList="userList"
+                :edit-data="editData"
+            />
+        </Transition>
+        <div class="z-10 absolute w-full h-full top-[0] left-[0] bg-[var(--bg2)]" v-if="route.name !== 'project'">
+            <router-view v-slot="{ Component }">
+                <!-- <transition name="lessonShift"> -->
+                    <component
+                        @getProjects="getProjects"
+                        @edit="(rec) => {editData = rec; createWindow = true}"
+                        :is="Component"
+                        :selectedProject="selectedProject"
+                        :userList="userList"
+                        :maxInterval="totalSpan"
+                        ref="taskComponent"
+                    />
+                <!-- </transition> -->
+            </router-view>
+        </div>
     </div>
     
 </template>
 <script lang="ts" setup>
 import { Project } from '@/interface/projectInterface';
 import axios from 'axios';
-import { nextTick, onMounted, ref, computed, provide, watch, inject } from 'vue';
+import { nextTick, onMounted, ref, computed, provide, watch, inject, useTemplateRef } from 'vue';
 import UserIcon from '../Board/Mixed/UserIcon.vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import { useMenuStore } from '@/store/menu';
@@ -143,6 +140,11 @@ import { Dialog, User } from '@/interface/globalInterface';
 import { detailedDateOptions } from '@/utils/tools';
 import { useProjectUsers } from '@/store/projectUsers';
 import { useBadgeStore } from '@/store/badge';
+import { DateTime, Interval } from 'luxon';
+import TaskComponent from '../Task/TaskComponent.vue';
+import { ComponentExposed } from 'vue-component-type-helpers'
+import ProjectCreate from '../AccountControl/ProjectControl/ProjectCreate.vue';
+import FloatButton from '../Global/FloatButton.vue';
 const projects = ref<Project[]>([])
 const keywords = ref('')
 const initialLoader = ref(true)
@@ -151,34 +153,16 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthUserStore()
 const responsive = useResponsive()
-// const selectedDate = ref<string | undefined>('')
-// const metricDate = ref<string | undefined>('')
 const evaluationDate = ref('')
 const { notify } = inject<Dialog>('dialog')!
 const options = detailedDateOptions()
 const sortType = ref(0)
 const projectUsers = useProjectUsers()
 const userList = ref([])
+const editData = ref(null)
+const createWindow = ref(false)
 const badge = useBadgeStore()
-const sortOptions = [
-    
-    {
-        value: 2,
-        name: 'プロジェクト取締役'
-    },
-    {
-        value: 3,
-        name: 'プロジェクト管理者'
-    },
-    {
-        value: 4,
-        name: 'プロジェクトメンター'
-    },
-    {
-        value: 1,
-        name: 'プロジェクトメンバー'
-    },
-]
+const taskComponent = useTemplateRef<ComponentExposed<typeof TaskComponent>>('taskComponent')
 onMounted(async() => {
     setInitialDates()
     await getProjects();
@@ -187,13 +171,22 @@ onMounted(async() => {
 const projectBadge = computed(() => {
     return badge.project.project_counts
 })
-const toggleRadio = (value: number) => {
-    if (sortType.value === value) {
-        sortType.value = 0
-    } else {
-        sortType.value = value
-    }
-}
+
+const totalSpan = computed(() => {
+    let startPoint: DateTime = DateTime.now().startOf('year');
+    let endPoint: DateTime = DateTime.now().plus({ year: 1 }).endOf('year');
+    projects.value.forEach((project: { date_start?: string; date_end?: string }) => {
+        const startDate = project.date_start ? DateTime.fromISO(project.date_start) : null;
+        const endDate = project.date_end ? DateTime.fromISO(project.date_end) : null;
+        if (startDate?.isValid) {
+            startPoint = DateTime.min(startPoint, startDate);
+        }
+        if (endDate?.isValid) {
+            endPoint = DateTime.max(endPoint, endDate);
+        }
+    });
+    return Interval.fromDateTimes(startPoint, endPoint)    
+})
 const setInitialDates = () => {
     const currentMonth = moment().month();
     if (currentMonth >= 1 && currentMonth < 7) {
@@ -284,6 +277,9 @@ const getProjects = async() => {
         nextTick(() => {
             initialLoader.value = false
         })
+        if(route.name == 'gantt-chart'){
+            taskComponent.value?.setDate()
+        }
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

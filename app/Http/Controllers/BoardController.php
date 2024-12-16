@@ -16,6 +16,7 @@ use App\Models\CalendarRecord;
 use App\Models\messageRemindUser;
 use App\Models\messageSignUser;
 use App\Models\userDetail;
+use App\Models\UserLeaveRecord;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -150,6 +151,7 @@ class BoardController extends Controller
             $q->whereHas('user')
             ->with('user');
         }])
+        ->with('project')
         ->with('last_message')
         ->when($active_user->on_leave === 1, function ($query) {
             return $query->where('private_flag', '!=', 0);
@@ -1730,9 +1732,8 @@ class BoardController extends Controller
     public function getIncompletedTasks(Request $request ){
         $active_user = $this->active_user();
         $today = Carbon::today();
-        $list = taskRecord::where('comp_flag', '=', 0)
-                ->whereHas('executors', function($q) use($active_user){
-                    $q->where('users.id', $active_user->id)->where('comp_flag', 0)->where('status_flag', 0);
+        $list = taskRecord::whereHas('executors', function($q) use($active_user){
+                    $q->where('users.id', $active_user->id)->where('progress_flag', 0)->where('status_flag', 0);
                 })
                 ->with('executors')
                 ->with('files')
@@ -1752,7 +1753,7 @@ class BoardController extends Controller
         ]);
         $checkBoard = boardRecord::findOrFail($request->record_id);
         $checkAdmin = $checkBoard->board_to_users()->where('user_id', $active_user->id)->where('admin_flag', 1)->exists();
-        if($checkAdmin){
+        if($checkAdmin || $request->from_project){
            
             if($request->flag == 0){
                 $countAdmins = $checkBoard->board_to_users()->where('admin_flag', 1)->count();
@@ -1811,7 +1812,7 @@ class BoardController extends Controller
         ]);
         $checkBoard = boardRecord::findOrFail($request->record_id);
         $checkAdmin = $checkBoard->board_to_users()->where('user_id', $active_user->id)->exists();
-        if($checkAdmin){          
+        if($checkAdmin || $request->from_project){           
             
             
             $targetUser = $checkBoard->board_to_users()->where('user_id', $request->user_id)->first();

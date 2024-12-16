@@ -23,19 +23,27 @@
                 </div>
             </div>
         </div> 
-        <TaskContainer/>
+        <GanttTaskPopup v-if="board?.project" :from="'board'" :boardProject="board?.project"/>
+        <TaskComponent v-else :from="'board'" :board="board" :maxInterval="totalSpan"/>
     </div>
 </Transition>
 </template>
 
 <script setup>
-
+import GanttTaskPopup from '../Task/Gantt/GanttTaskPopup.vue';
+import TaskComponent from '../Task/TaskComponent.vue';
 import TaskContainer from '../Board/Tray/Task/TaskContainer.vue'
 import BoardTitlePre from '../Board/Mixed/BoardTitle.vue'
 import { inject } from 'vue';
 import { useRouter } from 'vue-router';
+import { DateTime, Interval } from 'luxon';
 
 const board = inject('openedBoard')
 const router = useRouter()
-
+const totalSpan = computed(() => {
+    let startPoint = DateTime.now().startOf('year');
+    let endPoint = DateTime.now().plus({ year: 1 }).endOf('year');
+    
+    return Interval.fromDateTimes(startPoint, endPoint)    
+})
 </script>

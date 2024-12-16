@@ -44,6 +44,7 @@ import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { File } from '@/interface/trayInterface';
+import { useBadgeStore } from '@/store/badge';
 const props = defineProps(['chosenIssue', 'memberData', 'isManagerOrMember', 'reviewing'])
 const emit = defineEmits(['close', 'reload'])
 const result = ref(props.chosenIssue?.result ?? '')
@@ -52,6 +53,7 @@ const loading = ref([false, false, false])
 const auth = useAuthUserStore()
 const refresh = inject('refresh') as Function
 const uploadedFiles = ref<File[]>(props.chosenIssue?.files ?? [])
+const badge = useBadgeStore()
 const { notify, info } = inject<Dialog>('dialog')!
 
 const progressReport = async(status: number) => {
@@ -74,6 +76,7 @@ const progressReport = async(status: number) => {
         info(`${info_message}しました`)
         emit('reload')
         refresh()
+        badge.getProjectBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

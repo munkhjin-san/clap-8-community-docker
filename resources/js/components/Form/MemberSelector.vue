@@ -1,7 +1,7 @@
 <template>
     <div>        
         <div>
-            <div style="border: 1px solid var(--primary-color);" class="form-wrapper" :class="{focused: (multiple ? modelValue.length : modelValue) || focus}">
+            <div style="border: 1px solid var(--primary-color);" class="form-wrapper" :class="{focused: (multiple ? modelValue?.length : modelValue) || focus}">
                 <label style="z-index:5" class="form-plc">{{ placeHolder }}</label>
                  
                 <drop-selector 
@@ -127,7 +127,16 @@ import { validator } from '@/validation/validator'
     const selectAll = (flag) => {
         qualified_users.value = flag ? options.value : []
     }
-    defineExpose({validate, selectAll})
+    const selectBy = (list) => {
+        list.forEach(user => {
+            const valid = options.value.some(ob => ob.id == user.id)
+            const exist = qualified_users.value?.some(ob => ob.id == user.id)
+            if(valid && !exist){
+                qualified_users.value?.push(user)
+            }
+        });
+    }
+    defineExpose({validate, selectAll, selectBy, options})
 
 </script>
 <style lang="scss">

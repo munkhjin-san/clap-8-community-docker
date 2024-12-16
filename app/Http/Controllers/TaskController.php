@@ -7,6 +7,8 @@ use App\Models\taskRecord;
 use App\Models\taskUser;
 use App\Models\TaskRepeat;
 use App\Models\boardRecord;
+use App\Models\ProjectRecord;
+use App\Models\TaskComment;
 use App\Services\SharedService;
 use App\Jobs\TaskCreated;
 use Carbon\Carbon;
@@ -32,104 +34,212 @@ class TaskController extends Controller
         }
     }
     public function getTask(Request $request){
+        $user_id = $request->user_id;
+        $progress_flag = $request->progress_flag;
+        
+        if(!empty($request)){
 
-        
-        $active_user = $this->active_user();
-        $auth_user_id = $active_user->id;
-        $which = $request->which;
-        if(!empty($request) && !empty($auth_user_id)){      
-            $list1 = taskRecord::where('board_id', '=', $request->record_id)
-            ->whereNotNull('end_at')
-            ->where(function ($query) use ($auth_user_id, $which) {
-                $query->whereHas('executors', function($q) use ($auth_user_id, $which) {
-                    $q->where('comp_flag', $which)
-                        ->where('user_id', $auth_user_id);
-                })->orWhere(function ($query) use ($auth_user_id, $which) {
-                    $query->whereDoesntHave('executors', function($q) use ($auth_user_id) {
-                        $q->where('user_id', $auth_user_id);
-                    })->where('comp_flag', $which);
-                })->orWhereHas('supervisors', function ($q) use ($auth_user_id, $which) {
-                    $q->where('user_id', $auth_user_id)
-                        ->where('comp_flag', $which);
-                });
-            })
-            ->with('executors')
-            ->with('files')
-            ->with('supervisors')
-            ->orderBy('created_at', 'desc')->get();
-
-            $list2 = taskRecord::where('board_id', '=', $request->record_id)
-            ->whereNull('end_at')
-            ->with('executors')
-            ->with('files')
-            ->with('supervisors')
-            ->when($request->which == 1, function($q){
-                $q->onlyTrashed();                    
-            })
-            ->orderBy('created_at', 'desc')->get();
-            $list = $list1->concat($list2);
-            $order = $request->which == 1 ? 'updated_at' : 'created_at';
-            $list3 = $list->sortByDesc($order)->values();
-            return response()->json($list3);  
-                
-            
-                  
-        
-        }else{
-            return response()->json('error');
-        }
-        
-    } 
-    public function completeTask(Request $request){
-        
-        $active_user = $this->active_user();
-        $auth_user_id = $active_user->id;
-        
-        if(!empty($request) && !empty($auth_user_id)){   
-            $taskUser = taskUser::where('record_id', $request->task_id)
-                                ->whereHas('user', function ($q) {
-                                    $q->where('retire', 0);
-                                })
-                                ->get();         
-            $list = $taskUser->where('user_id', $auth_user_id)->first();
-            $list->comp_flag = $request->comp_flag;
-            $list->status_flag = $request->status_flag ?? 0;
-            if($request->late_answer){
-                $list->late_answer = $request->late_answer;
-            }
-            if($request->late_answer_custom){
-                $list->late_answer_custom = $request->late_answer_custom;
-            }
-            $list->save();
-            
-            $allCount = $taskUser->where('supervisor', 0)->count();
-            if($allCount > 0){
-                $completedCount = $taskUser->where('comp_flag', 1)->count();
-                $task = taskRecord::find($request->task_id);
-                $allCount == $completedCount ? $task->comp_flag = 1 : $task->comp_flag = 0;
-                if($allCount == $completedCount){
-                    $this->sharedService->deleteTaskFromCalendar($task);
+            $tasks = taskRecord::where('board_id', $request->record_id)
+            ->whereHas('executors', function($q) use($user_id, $progress_flag) {
+                if ($user_id !== null) {
+                    $q->where('users.id', $user_id);
+                    if ($progress_flag !== null && $progress_flag > -1) {
+                        $q->where('progress_flag', $progress_flag);
+                    }
+                } 
+            })->orWhereHas('supervisors', function ($q) use($user_id, $progress_flag) {
+                $q->where('users.id', $user_id)->whereNot('progress_flag', 2);
+                if ($progress_flag !== null && $progress_flag > -1) {
+                    $q->where('progress_flag', $progress_flag);
                 }
-                $task->save();
-            }
-                    
-            return response()->json('saved');     
+            })
+            ->with(['executors', 'files', 'supervisors'])
+            ->orderByDesc('created_at')
+            ->get();
             
+            
+            return response()->json($tasks);      
+        }  
+    }  
+    public function addBoardTask(Request $request){
+        $active_user = $this->active_user();
+        $request->validate([
+            'board_id' => 'required',
+            'qualified_users' => 'required',
+        ]);
+        $edit_id = $request->edit_id ?? null;
+        $endDate = $request->task_end_date ?? null;
+        $time = $request->response_time['hours'] * 60 + $request->response_time['minutes'];
+        $task = taskRecord::updateOrCreate(['id' => $edit_id], [
+            "user_id" => $active_user->id,
+            "updated_user" => $active_user->id,
+            "board_id" => $request->board_id,
+            "end_at" => $endDate,
+            "remarks" => $request->remarks,
+            "response_time" => $time ?? null,
+            "sync_to_schedule" => $request->sync_to_schedule,
+            "title" => $request->title,
+            "glowd_nine" => $request->glowd_nine
+        ]);
+        $task->executors()->sync($request->qualified_users);
+        $task->supervisors()->syncWithPivotValues($request->supervisors, ['supervisor' => 1]);
+        if ($request->sync_to_schedule) {
+            $this->sharedService->syncTaskToCalendar($task, $request->qualified_users);
         }
-        return response()->json('loggedOut');  
+        $pivotData = [];
+        foreach ($request->qualified_users as $qualified_user) {
+            $pivotData[$qualified_user] = [
+                'glowd_nine' => in_array($qualified_user, $request->glowd_nine_users) ? 1 : 0
+            ];
+        }
+        $task->executors()->sync($pivotData);
+        if(!$edit_id && $endDate){ 
+            $after = [
+                "user_id" => $active_user->id,
+                "text" => $request->remarks,
+                "board_id" => $request->board_id,
+                "glowd_nine" => $request->glowd_nine
+            ];
+            TaskCreated::dispatchAfterResponse($after);  
+        }
+        $socket = [];
+        array_push($socket, ["event" => "task:{$request->board_id}", "data" => []]);
+        return response()->json(['socket' =>  $socket]);
+    }
+    public function addTask(Request $request){
+        $active_user = $this->active_user();
+        $request->validate([
+            'executors' => 'required',
+            'remarks' => 'required',
+            'start_at' => 'required',
+            'end_at' => 'required',
+            'project_id' => 'required'
+
+        ]);  
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $this->task_project_date_checker($project, $request['start_at'], $request['end_at']);
+        foreach($request->sub_tasks as $sub_task){
+            $this->task_project_date_checker($project, $sub_task['start_at'], $sub_task['end_at']);
+        }
+        $id = $request->id ?? null;
+        $task = taskRecord::updateOrCreate(['id' => $id], [
+            "user_id" => $active_user->id,
+            "updated_user" => $active_user->id,
+            "end_at" => $request->end_at,
+            "start_at"=>$request->start_at,
+            "remarks" => $request->remarks,
+            "board_id" => $request->board_id ?? null,
+            "title" => $request->title,
+            "project_record_id" => $request->project_id
+        ]);
         
-    } 
+        $task->executors()->sync($request->executors);
+        $task->supervisors()->syncWithPivotValues($request->supervisors, ['supervisor' => 1]);
+        $pivotData = [];
+        // foreach ($request->executors as $qualified_user) {
+        //     $pivotData[$qualified_user] = [
+        //         'glowd_nine' => in_array($qualified_user, $request->glowd_nine_users) ? 1 : 0
+        //     ];
+        // }
+        // $task->executors()->sync($pivotData);
+        if(!$request->id && $request->end_at){ 
+            $after = [
+                "user_id" => $active_user->id,
+                "text" => $request->remarks,
+                "board_id" => $request->board_id
+            ];
+            TaskCreated::dispatchAfterResponse($after);  
+        }
+
+        $sub_task_id = [];
+        if($request->sub_tasks){
+
+            foreach($request->sub_tasks as $sub_task){
+                $subTask = $this->executeSubTask($sub_task, $task, $request->project_id);               
+                $sub_task_id[] = $subTask->id;
+            }
+        }        
+       
+        taskRecord::where('parent_task_id', $task->id)->whereNotIn('id', $sub_task_id)->delete();        
+        $socket = [];
+        array_push($socket, ["event" => "task:{$request->board_id}", "data" => []]);      
+        return response()->json(['socket' =>  $socket]);  
+                      
+    }
+    public function addSubTask(Request $request){
+        $mainTask = taskRecord::findOrFail($request->mainTaskId);
+        $this->task_project_date_checker($mainTask->project, $request->params['start_at'], $request->params['end_at']);
+        $sub_task = $this->executeSubTask($request->params, $mainTask, $mainTask->project->id);
+        return response()->json($sub_task);  
+    }
+    public function executeSubTask($sub_task, $task, $project_id){
+        $id = $sub_task['id'] ?? null;
+        
+        $subTask = taskRecord::updateOrCreate(['id' => $id ], [
+            "remarks" => $sub_task['remarks'],
+            "parent_task_id" => $task->id,
+            "project_record_id" => $project_id,
+            "start_at" => $sub_task['start_at'],
+            "end_at" => $sub_task['end_at']                    
+        ]);
+
+        $subTask->executors()->sync($sub_task['pre_executors']);          
+        return $subTask;
+    }
+    public function completeTask(Request $request){ 
+        $active_user = $this->active_user();        
+        $task = taskRecord::findOrFail($request->id);
+        $my = $task->executors()->updateExistingPivot($active_user->id, $request->params);
+       
+        return response()->json($my); 
+    }
+    public function quick_edit_task(Request $request){
+        $task = taskRecord::findOrFail($request->id);
+       
+        if($request->column == 'start_at' || $request->column == 'end_at'){
+            $v1 = $request->column == 'start_at' ? $request->value : $task['start_at'];
+            $v2 = $request->column == 'end_at' ? $request->value : $task['end_at'];
+            $this->task_project_date_checker($task->project, $v1, $v2);            
+        }
+
+        $task->update([$request->column => $request->value]);
+       
+
+        return response('OK', 200); 
+    }
+    private function task_project_date_checker($project, $start, $end){
+        $start_limit = $project->date_start;
+        $end_limit = $project->date_end;
+        if($start < $start_limit || $end > $end_limit){
+            throw ValidationException::withMessages(['message' => 'プロジェクト期間内に設定してください。']);
+        }
+        if( $start > $end){
+            throw ValidationException::withMessages(['message' => '開始日は終了日より後にはできません。']);
+        }
+        return;
+    }
+    public function completeSubTask(Request $request){ 
+        $active_user = $this->active_user();   
+        taskRecord::findOrFail($request->id)
+        ->executors()
+        ->updateExistingPivot($active_user->id, $request->params);
+        return response()->json(200); 
+    }
+    public function taskDelete(Request $request){
+        $task = taskRecord::find($request->task_id);
+        if($task->sync_to_schedule){
+            $this->sharedService->deleteTaskFromCalendar($task);
+        }
+        $task->comments()->delete();
+        $task->sub_tasks()->delete();
+        $task->delete();
+        $socket = [];
+        array_push($socket, ["event" => "task:{$task->board_id}", "data" => []]);      
+        return response()->json(['socket' =>  $socket]);  
+    }
     public function updateTask(Request $request){
         $active_user = $this->active_user();
         $task = taskRecord::findOrFail($request->task_id);
-        $newStartDate = Carbon::createFromFormat('Y-m-d', $request->date)->startOfDay();
-        $newEndDate = Carbon::createFromFormat('Y-m-d', $request->date)->endOfDay();
-        $calendar = CalendarRecord::where('task', $request->task_id)->first();
-        if($calendar){
-            $calendar->date_start = $newStartDate;
-            $calendar->date_end = $newEndDate;
-            $calendar->save();
-        }
         $task->update(['end_at' => $request->date, 'updated_user' => $active_user->id]);
         return response()->json($request);
     }
@@ -183,11 +293,10 @@ class TaskController extends Controller
         $allBoard = boardRecord::whereHas('board_to_users', function($q) use($active_user){
             $q->where('user_id', $active_user->id)->where('deleted_status','=', 0);
         })->pluck('id')->toArray();
-        $taskCounts = taskRecord::where('comp_flag', 0)
-        ->whereNotNull('end_at')
+        $taskCounts = taskRecord::whereNotNull('end_at')
         ->whereIn('board_id', $allBoard)
         ->whereHas('executors', function($q) use($active_user) {
-            $q->where('users.id', $active_user->id)->where('comp_flag', 0);
+            $q->where('users.id', $active_user->id)->where('progress_flag', 0)->orWhere('progress_flag', 1);
         })
         ->select('board_id', DB::raw('count(*) as total_task_number'))
         ->groupBy('board_id')
@@ -196,181 +305,143 @@ class TaskController extends Controller
         ->toArray();
         return response()->json($taskCounts);
     }
-
-    public function taskEdit(Request $request){
-        $active_user = $this->active_user();
-        $auth_user_id = $active_user->id;
-        if($auth_user_id){
-            $task = taskRecord::find($request->task_id);
-            // #20201202_0013 Tumur　通知機能追加
-            if($task){
-                $task_info_edit_trigger = 0;
-                $end_time = '00:00:00';
-                if($request->task_end_time){
-                    $end_time = $request->task_end_time;
-                }
-                $combinedDT = date('Y-m-d H:i:s', strtotime("$request->task_end_date $end_time"));
-                $minutes = intval(date('i', strtotime($combinedDT))); // Get the minutes from the combined datetime
-                $minutes > 30 ? $combinedDT = date('Y-m-d H:00:00', strtotime("{$combinedDT}+1 hour")) : $combinedDT = date('Y-m-d H:00:00', strtotime($combinedDT));
-                
-
-                if($task->task_end !== $combinedDT){
-                    $task_info_edit_trigger = 1;
-                }
-                $task->updated_user = $auth_user_id;
-                $task->end_at = $combinedDT;
-          
-                $task->remarks = $request->remarks;
-                $task->title = $request->title;
-                // $task->color = $request->color;
-                $task->save();
-                
-                if(!empty($request->qualified_users)){
-
-                    $qualified_users = $request->qualified_users;
-                    $old_users = taskUser::where('record_id', '=', $request->task_id)->get();
-                    foreach($old_users as $old_user){
-                        $old_user->delete();
-                        $old_user->save();
-                    }                   
-                    foreach($qualified_users as $qualified_user){
-                        $exist_user = taskUser::where('record_id', '=', $request->task_id)->where('user_id', '=', $qualified_user)->first();
-                        if($exist_user){
-                            $exist_user->delete();
-                            $exist_user->save();
-                            
-                        }else{
-                            $new_user = new taskUser;
-                            $new_user->record_id = $request->task_id;
-                            $new_user->user_id = $qualified_user;
-                            $new_user->save();
-                           
-                            
-                        }
-                        
-                    }    
-                    
-                }                
-                return response()->json($task);
-            }
-            
-        }
-    }
-    public function taskDelete(Request $request){
-        $task = taskRecord::find($request->task_id);
-        if($request->all_delete){
-            $tasks = taskRecord::where('repeat_id', $task->repeat_id)->get();
-            foreach($tasks as $task){
-                if($task->sync_to_schedule){
-                    $this->sharedService->deleteTaskFromCalendar($task);
-                }
-                $task->delete();
-            }
-        } else {
-            if($task->sync_to_schedule){
-                $this->sharedService->deleteTaskFromCalendar($task);
-            }
-            $task->delete();
-        }
-        $socket = [];
-        
-        array_push($socket, ["event" => "task:{$task->board_id}", "data" => []]);
-       
-        return response()->json(['socket' =>  $socket]);
-        
-    }
    
-    private function insertItemBuilder(Request $request, $endDate){
-        $active_user = $request->override_user ?? $this->active_user();
-        $time = $request->response_time['hours'] * 60 + $request->response_time['minutes'];
-        return [
-            "user_id" => $active_user->id,
-            "updated_user" => $active_user->id,
-            "board_id" => $request->board_id,
-            "end_at" => $endDate,
-            "remarks" => $request->remarks,
-            "response_time" => $time ?? null,
-            "sync_to_schedule" => $request->sync_to_schedule,
-            "title" => $request->title,
-            "glowd_nine" => $request->glowd_nine
-        ];
-    }
-    
-
-    public function addTask(Request $request){
-        
-        $active_user = $this->active_user();
+    public function task_comment(Request $request){
+        $active_user = Auth::user();
         $request->validate([
-            'qualified_users' => 'required',
-            'board_id' => 'required',
-        ]);
-    
-        $endDate = $request['task_end_date'];
-  
-        $edit_id = $request->edit_id;
-        
-        if ($edit_id) {
-            $this->updateSingleTask($edit_id, $this->insertItemBuilder($request, $endDate), $request);
-            return response()->json(['status' => 'success']);
-        }
-    
-        $createQuery = $this->insertItemBuilder($request, $endDate);
-        if (empty($createQuery)) {
-            throw ValidationException::withMessages(['message' => '繰り返し設定をもう一度確認し、有効期間を入力してください。']);
-        }
-    
-        $this->createTasks($createQuery, $request);
-        
-        if(!$edit_id && $endDate){
-            $after = [
-                "user_id" => $active_user->id,
-                "text" => $request->remarks,
-                "board_id" => $request->board_id,
-            ];
-            TaskCreated::dispatchAfterResponse($after);
-        }
+            'task_record_id' => 'required',
+            'comment' => 'required',
+        ]); 
+        $data = $request->toArray();
+        $data['user_id'] = $active_user->id;
+        $comment = TaskComment::create($data);
         $socket = [];
-        
-        array_push($socket, ["event" => "task:{$request->board_id}", "data" => []]);
-       
-        return response()->json(['socket' =>  $socket]);
+        array_push($socket, ["event" => 'refresh:task', "data" => $request->task_record_id]);  
+
+        // event(new MessageSent($rebound));    
+        return response()->json([
+            "socket" => $socket
+        ]);
 
     }
-    private function updateSingleTask($taskId, $data, $request) {
-        $task = taskRecord::findOrFail($taskId);
-        $task->update($data);
-        $this->syncTaskUsers($task, $request);
-        $executors = $request->qualified_users;
-        if($request->sync_to_schedule){
-            $this->sharedService->syncTaskToCalendar($task, $executors);
-        }else{
-            $this->sharedService->deleteTaskFromCalendar($task);
-        }
-        
+    public function task_comment_update(Request $request){
+        $request->validate([
+            'id' => 'required',
+            'comment' => 'required',
+        ]); 
+        $comment = TaskComment::findOrFail($request->id);
+        $comment->update(['comment' => $request->comment]);
+        return response(200);
+
     }
+    public function update_task_comment_check(Request $request){
+        $request->validate([
+            'task_id' => 'required',
+        ]); 
+        $active_user = $this->active_user();
+        $task = taskRecord::findOrFail($request->task_id);
+        $task->executors()->updateExistingPivot($active_user->id, ['checked_at' => now()]);
+        return response(200);
+
+    }
+    public function task_comment_delete(Request $request){
+        $request->validate([
+            'id' => 'required',
+        ]); 
+        $comment = TaskComment::findOrFail($request->id);
+        $comment->delete();
+        return response(200);
+
+    }
+    public function get_gantt_project_tasks(Request $request){
+        $request->validate([
+            "id" => "required"
+        ]);
+        $user_id = $request->user_id;
+        $progress_flag = $request->progress_flag;
+        $projects = ProjectRecord::where('id', $request->id)
+        ->with(['members', 'manager', 'director', 'tasks' => function($q) use($user_id, $progress_flag) {
+            $q->whereNull('parent_task_id')->when($user_id, function($q)use($user_id, $progress_flag){
+                $q->whereHas('executors', function($q) use($user_id, $progress_flag){
+                    $q->where('users.id', $user_id)->when($progress_flag !== null && $progress_flag > -1, function($q) use($progress_flag){
+                        $q->where('progress_flag', $progress_flag);
+                    });
+                });
+            })->with(['executors','files','supervisors', 'project','comments', 'sub_tasks' => function($q) use($user_id, $progress_flag){
+                $q->when($user_id, function($q)use($user_id, $progress_flag){
+                    $q->whereHas('executors', function($q) use($user_id, $progress_flag){
+                        $q->where('users.id', $user_id)->when($progress_flag !== null && $progress_flag > -1, function($q) use($progress_flag){
+                            $q->where('progress_flag', $progress_flag);
+                        });
+                    });
+                });
+            }])
+            ->orderBy('start_at', 'asc');
+        }])->first();
+        if ($projects['date_start'] == null || $projects['date_end'] == null) {
+            $projects['date_start'] = Carbon::now()->startOfYear()->format('Y-m-d');  
+            $projects['date_end'] = Carbon::now()->endOfYear()->format('Y-m-d');
+
+        }
+        return response()->json(['project' => empty($projects) ? null : $projects]);
+    }
+    public function get_gantt_projects(Request $request){
+
+        $unit = $request->unit;
+        
+
+        $fromInstance = Carbon::parse($request->from);
+        $toInstance = Carbon::parse($request->to);
+        $projects = ProjectRecord::when(($unit == 'month' || $unit == 'day') && ($fromInstance->isValid() && $toInstance->isValid()), function($query) use ($fromInstance, $toInstance){
+            $query->where(function($query) use ($fromInstance, $toInstance) {
+                $query->whereBetween('date_start', [$fromInstance, $toInstance])
+                    ->orWhereBetween('date_end', [$fromInstance, $toInstance])
+                    ->orWhere(function($query) use ($fromInstance, $toInstance) {
+                        $query->where('date_start', '<', $fromInstance)
+                            ->where('date_end', '>', $toInstance);
+                    })->orWhere(function($query) use ($toInstance) {
+                        $query->whereNull('date_start')
+                                ->whereDate('date_end', '>=', $toInstance->startOfDay())
+                                ->whereDate('date_end', '<=', $toInstance->endOfDay());
+                    });
+            });
+        })->orWhereNull('date_start') // Include projects with null date_start
+        ->orWhereNull('date_end')
+        ->with(['members','manager' ])->withCount('tasks')->orderBy('date_start', 'asc')->get();
+
+
+        
+
+        if($unit == 'year' && count($projects)){
+            $collection = collect($projects);
+            $min = $collection->min('date_start');
+            $max = $collection->max('date_end');
+            $fromInstance = Carbon::parse($min);
+            $toInstance = Carbon::parse($max);
+        }
+
+        $projects->map(function($project) use($fromInstance, $toInstance, $unit){
+            if ($project['date_start'] == null || $project['date_end'] == null) {
+                $start = Carbon::now()->startOfYear()->format('Y-m-d');
+                $end = Carbon::now()->endOfYear()->format('Y-m-d');
+                $project['pseudo_start'] = $start < $fromInstance ? $fromInstance->clone()->format('Y-m-d') : $start;  
+                $project['pseudo_end'] = $end > $toInstance ? $toInstance->clone()->format('Y-m-d') : $end;
     
-    private function createTasks($data, $request) {
-            $fresh = taskRecord::create($data);
-            if($request->sync_to_schedule){
-                $executors = $request->qualified_users;
-                $this->sharedService->syncTaskToCalendar($fresh, $executors);
+            } else {
+                $start = Carbon::createFromFormat('Y-m-d', $project['date_start']);
+                $end = Carbon::createFromFormat('Y-m-d', $project['date_end']);
+        
+                $project['pseudo_start'] = $start < $fromInstance ? $fromInstance->clone()->format('Y-m-d') : $project['date_start'];  
+                $project['pseudo_end'] = $end > $toInstance ? $toInstance->clone()->format('Y-m-d') : $project['date_end'];
             }
-            $this->syncTaskUsers($fresh, $request);
-       
+                              
+        
+            $duration = Carbon::createFromFormat('Y-m-d', $project['pseudo_end'])->$unit - Carbon::createFromFormat('Y-m-d', $project['pseudo_start'])->$unit;
+            $duration++;
+            $project['duration'] = abs($duration);
+        });
+        return response()->json($projects);
     }
-    private function syncTaskUsers($task, $request) {
-        $task->executors()->sync($request->qualified_users);
-        $task->supervisors()->syncWithPivotValues($request->supervisors, ['supervisor' => 1]);
-        $pivotData = [];
-        foreach ($request->qualified_users as $qualified_user) {
-            $pivotData[$qualified_user] = [
-                'glowd_nine' => in_array($qualified_user, $request->glowd_nine_users) ? 1 : 0
-            ];
-        }
-        $task->executors()->sync($pivotData);
-    }
-   
-
     public function task_approve_request(Request $request){
         $request->validate([
             'task_id' => 'required',
@@ -405,10 +476,11 @@ class TaskController extends Controller
                               ->where('user_id', $request->user_id)
                               ->update([
                                 'status_flag' => $request->status_flag,
-                                'comp_flag' => $request->comp_flag,
+                                'progress_flag' => $request->progress_flag,
                               ]);
         $allCompleted = taskUser::where('record_id', $request->task_id)
-                            ->where('comp_flag', '!=', 1)
+                            ->where('progress_flag', '!=', 1)
+                            ->orWhere('progress_flag', '!=', 0)
                             ->where('supervisor', '!=', 1)
                             ->doesntExist();
         if ($allCompleted) {
@@ -417,7 +489,7 @@ class TaskController extends Controller
             taskUser::where('record_id', $request->task_id)
                     ->where('user_id', $active_user->id)
                     ->where('supervisor', 1)
-                    ->update(['comp_flag' => 1]);
+                    ->update(['progress_flag' => 2]);
             $this->sharedService->deleteTaskFromCalendar($task);
             $task->save();
         }

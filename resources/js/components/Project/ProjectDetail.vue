@@ -30,6 +30,7 @@
              <router-view v-slot="{ Component }">
                 <transition name="lessonShift">
                     <component
+                        :key="memberData"
                         :is="Component"
                         :selectedProject="selectedProject"
                         :memberData="memberData"
@@ -130,19 +131,12 @@
                 </div>
                 <div v-if="isManagerOrDirector" style="position: absolute; top: 20px; right: 20px;">
                     <ItemMenu :items="[
-                        {title: '編集する', action: () => editWindow = true}
+                        {title: '編集する', action: () => emit('edit', selectedProject)},
                     ]"/>
                 </div>
+                <router-link :to="{name: 'projectGanttDetail', params: {projectId: route.params.projectId }}" class="c-bar-button w-fit mt-[20px]">ガントチャート</router-link>
             </div>
         </div>
-        <Transition name="modalFade">
-            <ProjectEdit 
-                v-if="editWindow"
-                :userList="userList"
-                :edit-data="selectedProject"
-                @close="editWindow = false"
-            />
-        </Transition>
     </div>
 </template>
 <script setup lang="ts">
@@ -161,6 +155,7 @@ import { useBadgeStore } from '@/store/badge';
     const auth = useAuthUserStore()
     const editWindow = ref(false)
     const badge = useBadgeStore()
+    const emit = defineEmits(['edit'])
     const isManagerOrDirector = computed(() => {
         return props.selectedProject?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6)
     })

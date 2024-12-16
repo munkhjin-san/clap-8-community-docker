@@ -188,8 +188,24 @@ const routes = [
                             nameJp: '人事考課'
                         },
                         component: () => import('./components/Project/PersonnelEvaluation/EvaluationDetail.vue'),
-                    }
+                    },
                 ]
+            },
+            {
+                path: 'gantt-chart',
+                name: 'gantt-chart',
+                meta: {
+                    title: 'CLAP - ガントチャート'
+                },
+                component: () => import('./components/Task/TaskComponent.vue'),
+                children: [
+                    {
+                        path: `:projectId`,
+                        component: () => import('./components/Task/Gantt/GanttTaskPopup.vue'),
+                        name: 'projectGanttDetail',
+                        props: true
+                    }
+                ],
             }
         ]
     },

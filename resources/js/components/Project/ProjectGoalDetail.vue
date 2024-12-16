@@ -153,10 +153,10 @@ const statuses = [
     '未達成', 
     '達成'
 ]
-watch(goalDate, (newValue) => {
+watch(goalDate, async(newValue) => {
     if(newValue){
         initialLoader.value = true
-        fetchMemberData()
+        await fetchMemberData()
     }
 })
 
@@ -190,18 +190,21 @@ const isManagerOrMember = computed(() => {
     return props.selectedProject?.manager.some((ob: { id: number | null; }) => ob.id === auth.id)
 })
 const fetchMemberData = async () => {
-    try {
-        const params = {
-            target_period: goalDate.value,
-            user_id: props.memberData.id
+    if (props.memberData) {
+        try {
+            const params = {
+                target_period: goalDate.value,
+                user_id: props.memberData?.id
+            }
+            projectGoals.value = await axios.post('/get_outcome_goals', params).then(res => res.data)
+            setTimeout(() => {
+                initialLoader.value = false
+            }, 300)
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
-        projectGoals.value = await axios.post('/get_outcome_goals', params).then(res => res.data)
-        setTimeout(() => {
-            initialLoader.value = false
-        }, 300)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
+    
 }
 const editGoal = async (goal: any) => {
     editGoalData.value = goal

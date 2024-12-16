@@ -7,6 +7,7 @@ interface State {
     icon_id: number;
   }[];
   title: string | null
+  isTask: boolean
 }
 
 export const useMessageUsers = defineStore('messageUsers', {
@@ -14,12 +15,14 @@ export const useMessageUsers = defineStore('messageUsers', {
     active: false,
     title: null,
     userList: [],
+    isTask: false
   }),
   actions: {
     setMessageUsers(payload: any){
         this.active = payload.active
         this.title = payload.title
         this.userList = payload.userList
+        this.isTask = payload.isTask
     }
   }
 })

@@ -25,5 +25,8 @@ class ProjectRecord extends Model
     public function goals() {
         return $this->hasMany(ProjectGoal::class, 'project_id', 'id');
     }
+    public function tasks(){
+        return $this->hasMany(taskRecord::class);
+    }
     protected $guarded = [];
 }

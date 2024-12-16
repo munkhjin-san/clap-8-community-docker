@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\boardRecord;
 use App\Models\ProjectEvaluation;
 use App\Models\ProjectMember;
 use App\Models\ProjectRecord;
@@ -14,10 +15,17 @@ use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
-
+use App\Http\Controllers\BoardController;
+use App\Services\SharedService;
 class ProjectController extends Controller
 {
     //
+    protected $boardController;
+    protected $sharedService;
+    public function __construct(BoardController $boardController, SharedService $sharedService){
+        $this->boardController = $boardController;
+        $this->sharedService = $sharedService;
+    } 
     private function active_user(){
         $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
         if($sub){
@@ -108,36 +116,7 @@ class ProjectController extends Controller
                                     }])
                                     ->get();
         return response()->json($project_goals);
-        // $members = $request->members ?? [];
-        // $date = $request->date ?? '';
-        // if (empty($members)) {
-        //     return response()->json([]);
-        // }
         
-        // $membersCollection = collect($members);
-        // $ids = $membersCollection->pluck('id');
-
-        // $user_name = env('KINTONE_USER_NAME');
-        // $password = env('KINTONE_PASSWORD');
-        // $string = "{$user_name}:{$password}";
-        // $x_token = base64_encode($string);
-        // $headers = [
-        //     'Authorization' => 'Basic', 
-        //     'X-Cybozu-Authorization' => $x_token
-        // ];
-        // $data = [];
-        // foreach($members as $member){
-        //     $queryParams = [
-        //         'app' => '954',
-        //         'query' => "社員ｺｰﾄﾞ = {$member['user_code']} and ドロップダウン in (\"{$date}\")",
-        //         // 'fields' => ['社員ｺｰﾄﾞ', '氏名', 'KGI', 'KPI', '職務評価基準', '職務遂行のための基準', '成果評価テーブル', 'ドロップダウン', '更新日時', '作成日時']
-        //     ];
-        //     $queryString = http_build_query($queryParams);
-        //     $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?{$queryString}";
-        //     $responseData = Http::withHeaders($headers)->get($url);
-        //     $data = array_merge($data, $responseData->json()['records']);
-        // }
-        // return response()->json($data);
         
     }
     public function get_member($projectId, $memberId)
@@ -215,11 +194,6 @@ class ProjectController extends Controller
     }
 
     public function save_project_goal(Request $request){
-        // $user = Auth::user();
-        // $formattedName = str_replace(' ', '', $user->name);
-        // $request->validate([
-        //     'goal_id' => 'required',
-        // ]);
         $id = $request->goal_id;
         $params = $request->params;
         $date = $request->date;
@@ -228,79 +202,8 @@ class ProjectController extends Controller
             ['user_id' => $params['user_id'], 'date' => $date]
         );
         $projectEvaluation->current_level = $params['criteria'];
-        // $projectEvaluation->employment_type = $params['employment_type'];
         $projectEvaluation->save();
-        // $project = ProjectRecord::find($projectGoal->project_id);
-        // $user_name = env('KINTONE_USER_NAME');
-        // $password = env('KINTONE_PASSWORD');
-        // $string = "{$user_name}:{$password}";
-        // $x_token = base64_encode($string);
-        // $headers = [
-        //     'Authorization' => 'Basic', 
-        //     'X-Cybozu-Authorization' => $x_token,
-        // ];
-        // $queryParams = [
-        //     'app' => 948,
-        //     'query' => "文字列__1行__1 like \"" . addslashes($projectGoal->criteria) . "\"",
-        // ];
-        // $queryString = http_build_query($queryParams);
-        // $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?{$queryString}";
         
-        // $response = Http::withHeaders($headers)->get($url);
-        // $responseData = $response->json();
-        // $add[] = [
-        //     'value' => [
-        //         '該当部門' => [ 'value' => $project->name ],
-        //         '期日' => [ 'value' => $projectGoal->end_date ],
-        //         '成果目標' => [ 'value' => $projectGoal->outcome_goal ],
-        //         '確認項目' => [ 'value' => $request->checked_items ],
-        //         '事業戦略に与える影響' => [ 'value' => $projectGoal->impact ],
-        //         '進捗状況' => [ 'value' => $projectGoal->progress]
-        //     ]
-        // ];
-        
-        // if ($request->record_id) {
-
-        // } else {
-        //     $selectedRecord = $responseData['records'][0];
-        //     $body = [
-        //         'app' => 954,
-        //         'record' => [
-        //             '氏名' => [
-        //                 'value' => $formattedName
-        //             ],
-        //             '雇用形態' => [
-        //                 'value' => $projectGoal->employment_type
-        //             ],
-        //             '配属部門' => [
-        //                 'value' => $project->name
-        //             ],
-        //             'ドロップダウン' => [
-        //                 'value' => $projectGoal->target_period
-        //             ],
-        //             '成果評価テーブル' => [
-        //                 'value' => $add
-        //             ]
-        //         ]
-        //     ];
-        //     try {
-        //         $response = Http::withHeaders($headers)
-        //                         ->post('https://glowd-hldgs.cybozu.com/k/v1/record.json', $body);
-        //         if ($response->successful()) {
-        //             return response()->json($response->json());
-        //         } else {
-        //             return response()->json([
-        //                 'error' => 'Failed to create record in Kintone',
-        //                 'details' => $response->json()
-        //             ], $response->status());
-        //         }
-        //     } catch (\Exception $e) {
-        //         return response()->json([
-        //             'error' => 'An error occurred while creating the record',
-        //             'message' => $e->getMessage()
-        //         ], 500);
-        //     }
-        // }
         return response()->json($projectGoal);
     }
     public function get_applied_goals(Request $request) {
@@ -351,32 +254,6 @@ class ProjectController extends Controller
                         }])
                         ->with('positions')
                         ->get();
-        // $user_list = $userList->whereNotNull('user_code')->pluck('user_code')->toArray();
-        // $strings = array_map('strval', $user_list);
-        // $result = '(' . implode(', ', $strings) . ')';
-        // $queryParams = [
-        //     'app' => '9',
-        //     "query" => "社員コード in $result limit 200",
-        //     'fields' => ['社員コード', '文字列__1行__15']
-        // ];
-        
-        // $queryString = http_build_query($queryParams);
-        // $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?{$queryString}";
-        // $headers = [
-        //     'Authorization' => 'Basic', 
-        //     'X-Cybozu-API-Token' => 'BH1geaWExPVVIaa48izBjDzCilqRslkNlcZgNvp4'
-        // ];
-        // $recieve = [];
-        // $response = Http::withHeaders($headers)->get($url);
-        // $responseData = $response->json();
-        // foreach ($responseData['records'] as $data){
-        //     $recieve[] = ['user_code'=>$data['社員コード']['value'], 'general_position'=>$data['文字列__1行__15']['value']];
-        // }
-        // $userList->transform(function ($user) use ($recieve) {
-        //     $kintoneData = collect($recieve)->firstWhere('user_code', $user->user_code);
-        //     $user->general_position = $kintoneData['general_position'] ?? null;
-        //     return $user;
-        // });
         $mentors = $userList->filter(function ($user) {
             $evaluation = $user->evaluation ?? null;
             return (!empty($evaluation->general_position) && $evaluation->general_position !== '一般職') 
@@ -392,11 +269,64 @@ class ProjectController extends Controller
     public function create_project(Request $request) {
         $id = $request->id ?? null;
         $params = $request->params;
+        $active_user = $this->active_user();
         $project = ProjectRecord::updateOrCreate(['id' => $id], $params);
         $members = $request->member_ids;
         $manager = $request->manager_ids;
         $project->members()->sync($members);
         $project->manager()->syncWithPivotValues($manager, ['authority' => 1]);
+        if($request->board_link){
+
+            
+            $board = boardRecord::updateOrCreate(['id' => $project->board_id], [
+                "title" => $params['name']
+            ]);
+            $project->update(['board_id' => $board->id]);
+          
+            
+
+
+            $board_members_id = $board->board_to_users()->pluck('user_id')->toArray();
+            $manager[] = $params['director_id'];
+            $unite = array_merge($members, $manager);
+            $remove_members = array_diff($board_members_id, $unite);
+            $add_members = array_diff( $unite, $board_members_id);
+            
+            $unique_add_members = array_unique($add_members);
+
+            foreach($unique_add_members as $member) {
+                $this->boardController->groupAddMember(new Request([
+                    "record_id" => $board->id,
+                    "user_id" => $member,
+                    "from_project" => true
+                ]));
+            }
+
+
+            foreach($manager as $mg) {
+
+
+                $this->boardController->setAdminRole(new Request([
+                    'flag' => 1,
+                    "user_id" => $mg,
+                    "record_id" => $board->id,
+                    "from_project" => true
+
+                ]));
+            }
+            
+
+
+            foreach($remove_members as $remove_member){
+                $this->boardController->removeGroupMember(new Request([
+                    "user_id" => $remove_member,
+                    "record_id" => $board->id
+                ]));
+            }
+            $board->board_to_users()->where('admin_flag', 1)->whereNotIn('user_id', $manager)->delete();
+            $createIcon = $this->sharedService->createBoardDefaultIcon($board, $active_user->id);
+
+        }
         return response()->json($project);
     }
     public function get_salary_options() {

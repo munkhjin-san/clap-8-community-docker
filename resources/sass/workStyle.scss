@@ -527,6 +527,33 @@
 .report-field{
     margin-bottom: 20px;
 }
+.checkable-input {
+    height: 30px;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+}
+.checkable-label {
+    position: absolute;
+    top: 0;
+    left: 0;
+    color: var(--primary-color);
+    width: 100%;
+    height: 30px;
+    background: var(--bg3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    border: solid thin var(--bg3);
+    font-size: 14px;
+    box-sizing: border-box;
+}
+.checkable-input:checked + .checkable-label {
+    font-weight: 500;
+    color: var(--primary-color);
+    border: solid thin var(--primary-color);
+}
 .report-input input{
     // width: 160px;
     height: 30px;

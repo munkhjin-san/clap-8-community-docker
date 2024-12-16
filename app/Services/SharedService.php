@@ -234,14 +234,16 @@ class SharedService
             "added_members" => "がボードメンバーに追加されました。",
             "removed_members" => "がボードを退出しました。",
             "left_members" => "がボードを退出しました。",
-            "new_task" => "が作られました。"
+            "new_task" => "が作られました。",
+            "glowd_nine_task" => "が作られました。"
         ];
         $addedMembers = ' <span class="addedMembers">' . $userName . '</span>' . $patterns[$type];
-        if($type == 'new_task'){
-            $addedMembers = "<strong>新しい{$userName}{$patterns[$type]}</strong>\n{$extra}";
-        }
+        $addedMembers = match ($type) {
+            'new_task' => "<strong>新しい{$userName}{$patterns[$type]}</strong>\n{$extra}",
+            'glowd_nine_task' => "<strong>グラウドナインの新しい{$userName}{$patterns[$type]}</strong>\n{$extra}"
+        };
         $first_message = new messageRecord;
-        $first_message->info_flag = $type == 'new_task' ? 2 : 1;
+        $first_message->info_flag = $type == 'new_task' || $type == 'glowd_nine_task' ? 2 : 1;
         $first_message->message = $addedMembers;
         $first_message->record_id = $boardId;
         $first_message->user_id = $userId;

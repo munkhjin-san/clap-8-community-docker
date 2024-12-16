@@ -17,7 +17,8 @@
                 </div>
             </div> 
             <div :style="{height: 'calc(100% - 35px)'}">
-                <TaskContainer v-if="trayItemWhich == 1"/>
+                <GanttTaskPopup v-if="trayItemWhich == 1 && board.project" :from="'board'" :boardProject="board.project"/>
+                <TaskComponent v-else-if="trayItemWhich == 1" :from="'board'" :board="board" :maxInterval="totalSpan"/>
                 <FileContainer v-if="trayItemWhich == 0" @jumpToMessage="jumpToMessage"
                 />
             </div>            
@@ -30,7 +31,10 @@
 import TaskContainer from './Tray/Task/TaskContainer.vue'
 import FileContainer from './Tray/File/FileContainer.vue'
 import { computed, inject } from 'vue';
+import GanttTaskPopup from '../Task/Gantt/GanttTaskPopup.vue';
+import TaskComponent from '../Task/TaskComponent.vue';
 import { useBadgeStore } from '@/store/badge'
+import { DateTime, Interval } from 'luxon'
     const badge = useBadgeStore()
     const props = defineProps([ 'trayItemWhich'])
     const emit = defineEmits(['setTrayItem', 'jumpToMessage'])
@@ -44,5 +48,10 @@ import { useBadgeStore } from '@/store/badge'
     const jumpToMessage = (file) => {
         emit('jumpToMessage', file)
     }    
+    const totalSpan = computed(() => {
+        let startPoint = DateTime.now().startOf('year');
+        let endPoint = DateTime.now().plus({ year: 1 }).endOf('year');
 
+        return Interval.fromDateTimes(startPoint, endPoint)
+    })
 </script>

@@ -1,4 +1,5 @@
-import { User } from "./globalInterface";
+import { DateTimeUnit, Interval } from "luxon";
+import { Task, User } from "./globalInterface";
 
 interface Project {
     id: number;
@@ -15,7 +16,23 @@ interface Project {
     members: User[];
     manager: User[];
     director: User;
+    tasks: Task[];
+    pseudo_start?: string
+    pseudo_end?: string
+    duration?: number
+    order?: number;
+    board_id?: number;
+    tasks_count: number;
     director_id: number;
+}
+interface VirtualSpan {
+    interval: Interval
+    unit: DateTimeUnit,
+    expanded: boolean,
+    selectedMonth: number| null
+    selectedYear: number| null
+    selectedWeek: number| null
+    selectedIndex: number| null
 }
 interface ProjectGoal {
     id: number;
@@ -37,8 +54,7 @@ interface ProjectGoal {
     result: string;
     project: Project;
     salary_issue: SalaryIssue;
-    evaluation: Evaluation;
-    edit_flag: number;
+    evaluation: Evaluation
 }
 
 interface SalaryIssue {
@@ -83,4 +99,16 @@ interface Candidate {
     last_candidate: string;
     next_candidate: string;
 }
-export type { Project, ProjectGoal, Evaluation, SalaryIssue, Increase }
+
+interface QuickEditText {
+    text:string, 
+    id: number | null, 
+    editable: boolean
+}
+
+interface SubTaskPreData {
+    mainTaskId: number | null,
+    subTaskData: Partial<Task>
+    active: boolean
+}
+export type { Project, ProjectGoal, Evaluation, SalaryIssue, Increase, VirtualSpan,  QuickEditText, SubTaskPreData}

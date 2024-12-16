@@ -1,5 +1,5 @@
 <template>
-<div class="container login-wrapper" style="display: flex;height: 100%;">
+<div class="login-wrapper" style="display: flex;height: 100%;">
     <div class="login-body">
         <form class="login-form" action="/login" method="post" @submit.prevent="handleSubmit" ref="loginForm">
             <div class="login-header" style="display: flex;justify-content: center;margin-bottom: 20px;">   

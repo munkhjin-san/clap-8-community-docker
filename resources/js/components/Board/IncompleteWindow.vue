@@ -89,16 +89,16 @@
 
             <masonry-wall :items="incompletedTasksList" :column-width="360" :gap="responsive.mobile ? 0 : 30">
                 <template v-slot:default="{item}">
-                    <TaskBoxpreload 
+                    <ListBox 
                         boxClass="incompleted-task-box-container"
                         v-if="item"
                         :item="item"  
-                        :inTrash="0"
+                        :isBoard="true"
                         @editTask="editTask" 
                         @taskUserViewToggle="taskUserViewToggle"
                         @completeTaskBefore="completeTaskBefore"
                         @taskDeleted="taskDeleted"
-                        @getTask="getIncompletedTasks"
+                        @get-board-tasks="getIncompletedTasks"
                     />
                 </template>
             </masonry-wall>
@@ -176,6 +176,7 @@ import { useTaskRequest } from "@/store/taskRequest";
 import Autolinker from 'autolinker';
 import moment from "moment";
 import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
+import ListBox from '@/components/Task/List/ListBox.vue'
     const route = useRoute()
     const router = useRouter()
     const auth = useAuthUserStore()
@@ -218,7 +219,8 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
                 getPlannedShifts(),
                 getNotApproved(),
                 getTaskNotApproved(),
-                getProjectNotApproved()
+                getProjectNotApproved(),
+                getRemindMessages()
             ]);
         }catch (e){
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
@@ -228,9 +230,9 @@ import ProjectGoalMore from "../Project/ProjectGoalMore.vue";
     }
     onMounted(() => {
         performTasksOnMounted()
-        if (props.canGetRemind) {
-            getRemindMessages()
-        }
+        // if (props.canGetRemind) {
+        //     getRemindMessages()
+        // }
     })
     watch(
         () => taskFeedback.active,

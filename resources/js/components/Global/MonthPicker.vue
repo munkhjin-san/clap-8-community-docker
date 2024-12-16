@@ -51,6 +51,7 @@ import moment from 'moment'
         }
     })
     watch(() => props.selectedMonth, (newValue) => {
+        console.log(props.selectedMonth)
         month.value = newValue + 1
     }, {immediate: true})
     watch(() => props.selectedYear, (newValue) => {

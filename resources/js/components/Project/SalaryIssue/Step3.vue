@@ -83,6 +83,7 @@ import moment from 'moment';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
+import { useBadgeStore } from '@/store/badge';
 const emit = defineEmits([
     'close', 
     'next',
@@ -109,6 +110,7 @@ const aiAdvice = ref('')
 const evaluationDate = inject('evaluationDate') as Date
 const saving = ref(false)
 const attaching = ref(false)
+const badge = useBadgeStore()
 const { notify, confirm, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const kadaiContent = ref<InstanceType<typeof LongInput> | null>(null)
@@ -292,6 +294,7 @@ const saveTemplate = async(action, status) => {
             title.value = content.value = content_goal.value = ''
             refresh()
             emit('close')
+            badge.getProjectBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     } finally {

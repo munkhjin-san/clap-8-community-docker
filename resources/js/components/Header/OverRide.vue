@@ -112,13 +112,13 @@
         
     })
     const incompleteCall = () => {
-        if(auth.id){
-            const remind = route.query.remind
-            const string = '/user/' + auth.id
-            canGetRemind.value = shouldCallRemindMessagesNextMorning(auth.activeUser.id) || window.location.pathname == string;
-            viewIncompleteWindow.value = hasOneHourPassed(auth.activeUser.id) || canGetRemind.value
-        }
+        if (!auth.id) return;
         
+        const userPath = `/user/${auth.id}`;
+        const isUserProfile = window.location.pathname.includes(userPath);
+        
+        canGetRemind.value = shouldCallRemindMessagesNextMorning(auth.activeUser.id) || isUserProfile;
+        viewIncompleteWindow.value = hasOneHourPassed(auth.activeUser.id) || isUserProfile;
     }
     const shouldCallRemindMessagesNextMorning = (user_id) => {
         const lastCloseTime = localStorage.getItem('remindPopupCloseTime_' + user_id);
@@ -168,7 +168,7 @@
             }else{
                 const currentTime = new Date().getTime();
                 localStorage.setItem('popupCloseTime_' + user_id, currentTime);
-                localStorage.setItem('remindPopupCloseTime_' + user_id, currentTime);
+                // localStorage.setItem('remindPopupCloseTime_' + user_id, currentTime);
                 viewIncompleteWindow.value = false
             }
         } 
