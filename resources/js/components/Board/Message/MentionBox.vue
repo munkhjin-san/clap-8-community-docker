@@ -43,7 +43,7 @@ import UserIcon from '../Mixed/UserIcon.vue';
     }
         const mentionBoxPosition = () => {
             if(props.forced){
-                return `bottom: 45px;right:50px;visibility:visible;width:fit-content`
+                return `bottom: 45px;left:0px;visibility:visible;width:fit-content`
             }else{
                 let x = 0,
                 y = 0;

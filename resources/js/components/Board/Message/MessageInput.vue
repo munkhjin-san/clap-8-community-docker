@@ -124,7 +124,22 @@
                             :class="['typeBoxArea',  'boardTypeArea', {maxLengthAlert: charLength >= 5000}, {hasText: true}]"
                             >
                         </div>
-                        
+                        <Transition name="modalFade">
+                            <div id="EmojiPicker" v-if="menu.name == 'EmojiPicker' && menu.id == 1002">
+                                <EmojiPicker                                     
+                                    :native="true" 
+                                    @select="selectEmoji" 
+                                    :hide-search="true" 
+                                    :hide-group-names="true" 
+                                    theme="dark" 
+                                    :disable-sticky-group-names="true" 
+                                    :disable-skin-tones="true"
+                                    :display-recent="true"
+                                    style="left: 0;right:auto;"
+                                />
+                            </div>
+                            
+                        </Transition>
                         <div class="typeCommandBar">
                             <div class="message-icon-outer">
                                 <div title="メンション" class="message-icon-wrapper" style="position: relative;">
@@ -165,21 +180,7 @@
                                 </div>
                             </div>
                             
-                                <Transition name="modalFade">
-                                    <div id="EmojiPicker" v-if="menu.name == 'EmojiPicker' && menu.id == 1002">
-                                        <EmojiPicker                                     
-                                            :native="true" 
-                                            @select="selectEmoji" 
-                                            :hide-search="true" 
-                                            :hide-group-names="true" 
-                                            theme="dark" 
-                                            :disable-sticky-group-names="true" 
-                                            :disable-skin-tones="true"
-                                            :display-recent="true"
-                                        />
-                                    </div>
-                                    
-                                </Transition>
+                                
                         </div>
                         <div @mousedown.prevent.stop @click="commentSendConfirm(0)" id="sendArea" class="sendAreaBox" style="display:flex;bottom:0px;"> 
                             <div style="display: flex;position: relative;">
