@@ -443,7 +443,20 @@ class TaskController extends Controller
             $duration++;
             $project['duration'] = abs($duration);
         });
-        return response()->json($projects);
+        $sortedProjects = $projects->sortByDesc(function ($project) {
+            $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
+            $isManager = in_array(Auth::id(), $project->manager->pluck('id')->toArray());
+            $isDirector = $project->director && $project->director->id == Auth::id();
+            if ($isMember) {
+                return 3;
+            } elseif ($isManager) {
+                return 2;
+            } elseif ($isDirector) {
+                return 1;
+            }
+            return 0;
+        })->values();
+        return response()->json($sortedProjects);
     }
     public function task_approve_request(Request $request){
         $request->validate([
