@@ -778,7 +778,7 @@ class BoardController extends Controller
             $messageRecord = $this->get_messages(new Request(['page_index' => 1, 'record_id' => $request->record_id, 'message_id' => $chat->id, 'override_user' => $request->override_user]));          
             // SendPusher::dispatchAfterResponse($rebound);  
             $socket = array();
-            array_push($socket, ["event" => "board:{$request->record_id}", "data" => $messageRecord->original ]);
+            array_push($socket, ["event" => "board:{$request->record_id}", "data" => []]);
             array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
             array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);
             $data = [
@@ -971,7 +971,7 @@ class BoardController extends Controller
                     'override_user' => $request->user ?? null
                 ]));
                 
-                $socket[] = ["event" => "board:{$new_chat_record->record_id}", "data" => $messageRecord?->original];
+                $socket[] = ["event" => "board:{$new_chat_record->record_id}", "data" => []];
                 $socket[] = ["event" => 'refresh:badge', "data" => $related_members];
                 $socket[] = ["event" => 'refresh:board', "data" => $related_members];
                 
