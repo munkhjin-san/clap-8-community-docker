@@ -210,12 +210,15 @@ class TaskController extends Controller
     private function task_project_date_checker($project, $start, $end){
         $start_limit = $project->date_start;
         $end_limit = $project->date_end;
-        if($start < $start_limit || $end > $end_limit){
-            throw ValidationException::withMessages(['message' => 'プロジェクト期間内に設定してください。']);
+        if ($start_limit && $end_limit) {
+            if($start < $start_limit || $end > $end_limit){
+                throw ValidationException::withMessages(['message' => 'プロジェクト期間内に設定してください。']);
+            }
+            if( $start > $end){
+                throw ValidationException::withMessages(['message' => '開始日は終了日より後にはできません。']);
+            }
         }
-        if( $start > $end){
-            throw ValidationException::withMessages(['message' => '開始日は終了日より後にはできません。']);
-        }
+        
         return;
     }
     public function completeSubTask(Request $request){ 
