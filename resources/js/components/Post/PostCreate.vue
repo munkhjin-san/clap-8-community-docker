@@ -27,10 +27,10 @@
                     <PostIcon which="3" size="20"/>
                     ツィート
                 </div> -->
-                <div @click="app_type = 4" :class="['pt-selector', { ptSelected: app_type == 4}]">
+                <!-- <div @click="app_type = 4" :class="['pt-selector', { ptSelected: app_type == 4}]">
                     <PostIcon which="4" size="20"/>
                     ヘルプ
-                </div>
+                </div> -->
             </div>
             <div class="si-box">
                 <TagSelector 
