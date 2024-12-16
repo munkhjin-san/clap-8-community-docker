@@ -1,8 +1,8 @@
 <template>
-    <div class="flex flex-col gap-10">
+    <div class="flex flex-col gap-2.5">
       <label :for="questionId" style="font-size: 16px; font-weight: 600;">{{ question }}</label>
       
-      <div v-for="(answer, index) in answers" :key="index" class="flex gap-10 align-center">
+      <div v-for="(answer, index) in answers" :key="index" class="flex gap-2.5 align-center">
         <input class="fish-eye" :id="`${questionId}-${index + 1}`" type="radio" :value="index + 1" v-model="selectedAnswer" @change="emit('setValue', index)">
         <label :for="`${questionId}-${index + 1}`">{{ answer }}</label>
       </div>
