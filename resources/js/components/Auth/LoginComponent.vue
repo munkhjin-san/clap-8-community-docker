@@ -99,7 +99,7 @@
     const saveWeather = (num) => {
         tempNum.value = num
         sessionStorage.setItem('condition_for_session', num)
-        // handleSubmit()
+        handleSubmit()
     }  
     const handleSubmit = () => {
         if (tempNum.value == null) {
