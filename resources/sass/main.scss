@@ -4799,12 +4799,11 @@ font-size: 13px;
     line-height: 1.7;
     background: inherit;
     position: relative;
-    width: calc(100% - 100px);
-    margin-left: 50px;
+    width: calc(100% - 65px);
     outline: none;
     border: solid thin #878787;
     display: inline-block;
-    margin: 20px 0 20px 50px;
+    margin: 20px 10px 10px;
 }
 .ai-prompt-content{
     outline: none;
