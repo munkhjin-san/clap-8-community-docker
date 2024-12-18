@@ -19,16 +19,16 @@
                         <div class="lg-triangle self-center mr-[10px]" :title="task.sub_tasks?.length ? `サブタスク${task.sub_tasks.length}件` : 'サブタスク'" :style="{transform: `rotate(${task.sub_tasks?.length ? 90 : 0}deg)`}" v-if="task.sub_tasks?.length || isSubTask"></div>
                         <div :style="{width: task.sub_tasks?.length || isSubTask ? 'calc(100% - 19px)' : '100%'}" class="flex flex-col gap-[5px]">
                             <div class="w-[fit-content] max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap leading-[1.4]" @click="emit('setFullText', {text: task.remarks as string, id: task.id as number, editable: includesMe || hasPrivilage})">{{task.remarks}}</div>
-                            <div class="text-[12px] relative w-fit">
-                                <span :class="['cursor-pointer']" @click="includesMe || hasPrivilage ? quickStart?.showPicker() : false">{{DateTime.fromISO(task.start_at).toLocaleString()}}</span> 
-                                <span> ~ </span>
-                                <span :class="['cursor-pointer']" @click="includesMe || hasPrivilage ? quickEnd?.showPicker() : false">{{ DateTime.fromISO(task.end_at).toLocaleString() }}</span>
-                                <input type="date" ref="quickStart" @change="updateDate($event, 'start_at')" :value="task.start_at" class="absolute invisible left-[0] top-[0]"/>
-                                <input type="date" ref="quickEnd" @change="updateDate($event, 'end_at')" :value="task.end_at" class="absolute invisible right-[0] top-[0]"/>
-                            </div>
+                            
                         </div>
                     </div>
-
+                    <div class="text-[12px] relative w-fit">
+                        <span :class="['cursor-pointer']" @click="includesMe || hasPrivilage ? quickStart?.showPicker() : false">{{DateTime.fromISO(task.start_at).toLocaleString()}}</span> 
+                        <span> ~ </span>
+                        <span :class="['cursor-pointer']" @click="includesMe || hasPrivilage ? quickEnd?.showPicker() : false">{{ DateTime.fromISO(task.end_at).toLocaleString() }}</span>
+                        <input type="date" ref="quickStart" @change="updateDate($event, 'start_at')" :value="task.start_at" class="absolute invisible left-[0] top-[0]"/>
+                        <input type="date" ref="quickEnd" @change="updateDate($event, 'end_at')" :value="task.end_at" class="absolute invisible right-[0] top-[0]"/>
+                    </div>
                     <div v-if="errorMessages.length" class="flex text-[tomato] text-[11px] my-[5px]">
                         <svg fill="tomato" class="min-w-[15px] min-h-[15px]" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
                             <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>

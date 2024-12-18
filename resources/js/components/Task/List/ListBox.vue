@@ -247,7 +247,7 @@ import { useBadgeStore } from '@/store/badge';
             active: true,
             userList: taskUsers.value,
             title: 'タスクメンバー',
-            isTask: isTask.value
+            isTask: props.item.end_at !== null
         }
         messageUsers.setMessageUsers(data)
     }
