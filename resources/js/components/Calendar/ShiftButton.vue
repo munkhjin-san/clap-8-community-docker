@@ -39,12 +39,12 @@ import { onMounted, ref } from 'vue';
 
 }
 .to-up-month{
-    bottom: 20px;
+    top: 100px;
     left: 0;
     right: 0;
 }
 .to-down-month{
-    top: 100px;
+    bottom: 20px;
     left: 0;
     right: 0;
 }

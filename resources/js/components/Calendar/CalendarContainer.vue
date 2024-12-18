@@ -584,6 +584,7 @@ import axios from 'axios';
         createWindow.value = false
         editTarget.value = null
         preSelected.value = null
+        edit_all_record.value = true
         if(val){
             const date = moment([selectedYear.value, selectedMonth.value, 1]).format('YYYY-MM-DD')
             getCalendar(date, 'updated')
