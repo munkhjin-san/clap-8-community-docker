@@ -256,15 +256,16 @@ const confirmOptions = [
     '確定'
 ]
 watch(() => evaluationDate.value, async(newValue) => {
-    if(newValue) {
+    
+    if(newValue && props.memberData) {
         initialLoader.value = true
-        await getProjects()
         reload()
     }
+  
+    
 })
 onMounted(async() => {
-    reload()
-    setDates()
+    getEvaluations()
     
 })
 const currentPosition = computed(() => {
@@ -317,20 +318,23 @@ const search = debounce(async(key: string) => {
     
 }, 350)
 const getEvaluations = async() => {
-    initialLoader.value = true
-    try {
-        const params = {
-            date: evaluationDate.value,
-            user_id: props.memberData.id
+    if (props.memberData) {
+        initialLoader.value = true
+        try {
+            const params = {
+                date: evaluationDate.value,
+                user_id: props.memberData?.id
+            }
+            const response = await axios.post('/get_set_increase', params)
+            projectEvaluations.value = response.data
+            setTimeout(() => {
+                initialLoader.value = false
+            }, 300);
+        } catch (e) {
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
-        const response = await axios.post('/get_set_increase', params)
-        projectEvaluations.value = response.data
-        setTimeout(() => {
-            initialLoader.value = false
-        }, 300);
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
+    
 }
 
 const deleteEvaluation = async() => {
