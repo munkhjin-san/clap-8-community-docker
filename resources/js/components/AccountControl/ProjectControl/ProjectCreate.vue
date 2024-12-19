@@ -78,9 +78,7 @@
                         v-model="director"
                         :options="directorOptions"
                         :multiple="false"
-                        rules="required"
                         placeHolder="取締役"
-                        ref="directorSelect"
                     />
                 </div>
                 <div class="si-box">
@@ -146,7 +144,6 @@ const boardLink = ref(props.editData?.board_id ? true : false)
 const startDateRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('startDateRef')
 const endDateRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('endDateRef')
 const projectTitle = useTemplateRef<ComponentExposed<typeof ShortInput>>('projectTitle')
-const directorSelect = useTemplateRef<ComponentExposed<typeof MemberSelector>>('directorSelect')
 const directorOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id < 6 && user.position_id !== null)
 })
@@ -155,7 +152,7 @@ const managerOptions = computed(() => {
 })
 
 const createProject = async() => {
-    const validationTargets = [startDateRef.value, endDateRef.value, projectTitle.value, directorSelect.value]
+    const validationTargets = [startDateRef.value, endDateRef.value, projectTitle.value]
     let result = true
     for(const target of validationTargets){                
         const val = await target?.validate() || {valid:false}
