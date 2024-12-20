@@ -128,6 +128,7 @@ import BoardEdit from './BoardEdit.vue'
 import CopyWindow from './Message/CopyWindow.vue'
 import ConfirmWindow from './Message/ConfirmWindow.vue'
 import { instance } from '@/utils/broadcaster'
+import { useKeyboardStore } from '@/store/keyboardStore'
     const badge = useBadgeStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -186,7 +187,7 @@ import { instance } from '@/utils/broadcaster'
     const routeWatchLock = ref(false)
     const messageContainerRef = ref(null)
     const { confirm, notify, info } = inject('dialog');
-    const keyboardHeight = ref(0)
+    const keyboardStore = useKeyboardStore()
     const activeListeners = new Set();
     watch(() => focused.active, (after) => {
         if(after){
@@ -304,7 +305,7 @@ import { instance } from '@/utils/broadcaster'
 
     const keyboardHeightListener = (event) => {
         const { height } = event.target.boundingRect;
-        keyboardHeight.value = height
+        keyboardStore.height = height
     }
     const boardDelete = async(item) => {       
         const confirmed = await confirm(`ボードを削除しますか。`);
@@ -476,7 +477,7 @@ import { instance } from '@/utils/broadcaster'
         }        
     }
     const closeMessageContainer = () => {
-        keyboardHeight.value = 0
+        keyboardStore.setKeyboardHeight(0)
         openedBoardId.value = null;
         messageList.value = [];
         messageContainerKey.value ++
@@ -753,7 +754,6 @@ import { instance } from '@/utils/broadcaster'
     provide('closeMessageContainer', closeMessageContainer)   
     provide('openedBoard', openedBoard)
     provide('reload', getBoardList)      
-    provide('keyboardHeight', keyboardHeight)
     defineExpose({getBoardList, unreadLineTrigger, getMessageList, onPusher})
 </script>
     

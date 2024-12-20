@@ -1,5 +1,5 @@
 <template>
-    <div id="boardAreaBoxInner" :class="['messageAreaContainer', {quotActive: quoteWindow.active}]" :style="{height: `calc(100% - ${keyboardHeight}px)`}">
+    <div id="boardAreaBoxInner" :class="['messageAreaContainer', {quotActive: quoteWindow.active}]" :style="{height: `calc(100% - ${keyboardStore.height}px)`}">
         <router-view v-slot="{ Component }">
                 <transition name="slideFromRight">
                     <component 
@@ -79,6 +79,7 @@ import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from "@/store/responsive";
 import { useQuoteWindow } from "@/store/quoteWindow";
+import { useKeyboardStore } from "@/store/keyboardStore";
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
@@ -103,7 +104,7 @@ import { useQuoteWindow } from "@/store/quoteWindow";
     const route = useRoute()
     const router = useRouter()
     const board = inject('openedBoard')
-    const keyboardHeight = inject('keyboardHeight')
+    const keyboardStore = useKeyboardStore()
     onBeforeRouteLeave((to, from, next) => {
         if (from.params.roomId) {
             next(false)

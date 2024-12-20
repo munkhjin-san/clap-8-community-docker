@@ -244,13 +244,7 @@ import UserIcon from '../Mixed/UserIcon.vue'
     const {addQueue} = inject('messageItem')
     const {notify, info, confirm} = inject('dialog')
     const filePreview = useFilePreview()
-    const keyboardHeight = inject('keyboardHeight')
     const mentionBoxForced = ref(false)
-    // watch(() => keyCharacters.value, (after) => {
-    //     if(!after){
-    //         resetMention()
-    //     }
-    // })
     
     onUnmounted(() => {
         messageInputArea.value?.removeEventListener('keyup', inputKeyEventfirst);  

@@ -21,12 +21,13 @@
 import { inject, onMounted, onUnmounted, ref, computed } from 'vue';
 import BoardIcon from '../Mixed/BoardIcon.vue';
 import UserIcon from '../Mixed/UserIcon.vue';
+import { useKeyboardStore } from '@/store/keyboardStore';
     const props = defineProps(['mentionAbleList', 'forced'])
     const emit = defineEmits(['mentionUser', 'close'])
     const board = inject('openedBoard')
     const highlighted = ref(-1)
     const innerMention = ref(null)
-    const keyboardHeight = inject('keyboardHeight')
+    const keyboardStore = useKeyboardStore()
     onUnmounted(() => {
         window.removeEventListener('keydown', mentionBoxNavigation);
         window.removeEventListener('click', clickHandler)
@@ -63,7 +64,7 @@ import UserIcon from '../Mixed/UserIcon.vue';
                 var leftM = x - 80;      
                 leftM = leftM < 0 ? 10 : leftM      
                 var messagePanel = window.innerHeight;
-                var bottomM = messagePanel - y + 5 - keyboardHeight.value;  
+                var bottomM = messagePanel - y + 5 - keyboardStore.height;  
                 const window_width = window.innerWidth
                 const pc = window_width > 959
                 const substract_from_left = pc ?  Math.floor(window_width * 0.2) : 0
