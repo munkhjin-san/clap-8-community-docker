@@ -476,6 +476,7 @@ import { instance } from '@/utils/broadcaster'
         }        
     }
     const closeMessageContainer = () => {
+        keyboardHeight.value = 0
         openedBoardId.value = null;
         messageList.value = [];
         messageContainerKey.value ++

@@ -355,7 +355,7 @@
 import LoaderButton from '../Global/LoaderButton.vue'
 import FacilitySelector from '../Form/FacilitySelector.vue';
 import moment from 'moment';
-import { computed, onMounted, ref, inject } from 'vue';
+import { computed, onMounted, ref, inject, watch } from 'vue';
 import ShortInput from '../Form/ShortInput.vue';
 import OptionSelector from '../Form/OptionSelector.vue';
 import MemberSelector from '../Form/MemberSelector.vue';
@@ -433,6 +433,10 @@ import ItemSelector from '../Form/ItemSelector.vue';
             if(editAll && editAll == 1){
                 edit_all.value = true
             }
+        }
+        const calendarDepartment = localStorage.getItem('calendarDepartment')
+        if (calendarDepartment) {
+            department_id.value = Number(calendarDepartment)
         }
     })
     const set_start_time = computed({
@@ -542,7 +546,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
             return
         }
         processing.value = true
-
+        
         let convertableFacilities = {};
         for (let key in facility.value) {
             convertableFacilities[key] =  facility.value[key] !== null ? parseInt(facility.value[key]) : null            
@@ -640,5 +644,10 @@ import ItemSelector from '../Form/ItemSelector.vue';
         const limit = thisYear + 10
         const list = Array.from({ length: limit - thisYear + 1 }, (_, i) => thisYear + i);
         return list
+    })
+    watch(() => department_id.value, (newVal, oldVal) => {
+        if(newVal !== oldVal){
+            localStorage.setItem('calendarDepartment', newVal)
+        }
     })
 </script>
