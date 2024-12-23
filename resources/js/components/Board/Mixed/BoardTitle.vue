@@ -11,7 +11,7 @@ import { useAuthUserStore } from '@/store/auth'
 
     const props = defineProps(['item', 'titleClass', 'titleStyle'])    
     const boardTitle = computed(() => {            
-        if(props.item.private_flag == 1 && props.item.board_to_users.length == 2){
+        if(props.item.private_flag == 1){
             var coresspondId = props.item.board_to_users.filter(obj => obj.user_id !== auth.activeUser.id);
             if(coresspondId && coresspondId.length && coresspondId[0].user){
                 return coresspondId[0].user.name;
