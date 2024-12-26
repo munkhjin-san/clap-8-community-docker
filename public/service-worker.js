@@ -1450,4 +1450,9 @@ self.addEventListener('notificationclick', function (e) {
     );
   }
 });
-self.addEventListener('fetch', function(event) {});
+self.addEventListener('fetch', function(event) {
+  if (event.request.url.includes('/login')) {
+      return fetch(event.request);
+  }
+  event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
+});
