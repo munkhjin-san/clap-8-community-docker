@@ -115,14 +115,16 @@
     const nextMonthOrCurrent = computed(() => {
         const now = moment()
         if(now.date() >= 25 && props.selectedMonth == now.month()){
-            return props.selectedMonth + 1
+            const selectedDate = moment().year(props.selectedYear).month(props.selectedMonth);
+            const updatedDate = selectedDate.add(1, 'month');
+            return { year: updatedDate.year(), month: updatedDate.month() }
         } 
         return props.selectedMonth
     })
     const checkApproval = useCheckApproval()
     const menu = useMenuStore()
-    const approveYear = ref(props.selectedYear)
-    const approveMonth = ref(nextMonthOrCurrent.value)
+    const approveYear = ref(nextMonthOrCurrent.value.year)
+    const approveMonth = ref(nextMonthOrCurrent.value.month)
     const shiftRecords = ref([])
     const auth = useAuthUserStore()
     const workUsers = ref([])
