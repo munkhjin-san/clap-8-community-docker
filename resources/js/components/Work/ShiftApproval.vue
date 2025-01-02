@@ -114,12 +114,13 @@
     ])
     const nextMonthOrCurrent = computed(() => {
         const now = moment()
+        const selectedDate = moment().year(props.selectedYear).month(props.selectedMonth);
         if(now.date() >= 25 && props.selectedMonth == now.month()){
-            const selectedDate = moment().year(props.selectedYear).month(props.selectedMonth);
+            
             const updatedDate = selectedDate.add(1, 'month');
             return { year: updatedDate.year(), month: updatedDate.month() }
         } 
-        return props.selectedMonth
+        return { year: selectedDate.year(), month: selectedDate.month() }
     })
     const checkApproval = useCheckApproval()
     const menu = useMenuStore()
