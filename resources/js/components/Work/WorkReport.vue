@@ -272,7 +272,7 @@
     
     const showToastIfEmpty = async() => {
         return new Promise ((resolve) => {
-            const targets = [39,40,41,44]
+            const targets = [39,40,41,43]
             if (workedTime.value > shiftWorkTime.value && props.item?.work_type == 1 && !shift.value?.overtime_request) {
                 targets.push(42)
             }
@@ -284,7 +284,7 @@
                     notify(message)
                     resolve(false)
                 }
-                if(index == 44 && v == 1){
+                if(index == 43 && v == 1){
                     if(!vehicleConfirm()){
                         resolve(false)
                     }

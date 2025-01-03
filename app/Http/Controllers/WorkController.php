@@ -1035,7 +1035,7 @@ class WorkController extends Controller
         }
     }
     private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id, $vehicleData){
-        if ($type_id === 44 && $value == 1){
+        if ($type_id === 43 && $value == 1){
             $this->saveVehicleData($vehicleData, $table_record_id, $user_id);
         }
         $new_custom_data = new customFieldDataRecord;

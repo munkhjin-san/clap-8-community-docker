@@ -74,18 +74,15 @@ import AssistantCreate from './AssistantCreate.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import OpenAI from 'openai';
 import SummaryCreate from './SummaryCreate.vue';
-import CriteriaCreate from './CriteriaCreate.vue';
 const props = defineProps(['theme'])
 const { confirm } = inject('dialog')
 const route = useRoute()
-const menu = useMenuStore()
 const createWindow = ref(false)
 const createAssistantWindow = ref(false)
 const editTarget = ref(null)
 const editAssistantTarget = ref(null)
 const initialLoader = ref(null)
 const createSummary = ref(false)
-const createCriteria = ref(false)
 const materialId = ref(null)
 const summaryData = ref(null)
 onMounted(() => {
