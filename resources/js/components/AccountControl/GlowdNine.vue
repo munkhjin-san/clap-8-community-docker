@@ -26,10 +26,10 @@
           </thead>
     
           <tbody>
-            <tr v-for="user in searchUsers" :key="user.name">
+            <tr v-for="user in searchUsers" :key="user.id">
               <td>{{ user.name }}</td>
               <td v-for="month in months" :key="month">
-                {{ user.task_users.find(t_user => t_user.month === month)?.total_prize }}
+                {{ user.task_users?.find(t_user => t_user.month === month)?.total_prize }}
               </td>
             </tr>
           </tbody>
@@ -57,24 +57,20 @@ onMounted(() => {
     );
     getMonthlyPrizes()
 });
-const searchUsers = computed(() => {
-  if(keywords.value){
-      let lowSearch = keywords.value.toLowerCase()
-      return users.value.filter(user => Object.values(user).some(val => 
-              String(val).toLowerCase().includes(lowSearch)
-          )
-      )
-  }else{         
-      return users.value
-  }
-})
+const setDate = (val) => {
+    year.value = val.year
+    months.value = Array.from({ length: 12 }, (_, i) =>
+      moment().year(year.value).month(i).format('YYYY-MM')
+    );
+    getMonthlyPrizes()
+}
 const getMonthlyPrizes = async() => {
     try {
         const params = {
           year: year.value
         }
         const response = await axios.get('/get_monthly_prizes', {params: params})
-        users.value = response.data
+        users.value = [...response.data];
     } catch (e) {
 
     }
@@ -82,10 +78,18 @@ const getMonthlyPrizes = async() => {
 const monthFormat = (yearMonth: string) => {
   return moment(yearMonth).format('M月')
 }
-const setDate = (val) => {
-    year.value = val.year
-    getMonthlyPrizes()
-}
+
+const searchUsers = computed(() => {
+  if(keywords.value){
+      let lowSearch = keywords.value.toLowerCase()
+      return users.value.filter(user => Object.values(user).some(val => 
+              String(val).toLowerCase().includes(lowSearch)
+          )
+      )
+  }         
+  return users.value
+  
+})
   
 </script>
   

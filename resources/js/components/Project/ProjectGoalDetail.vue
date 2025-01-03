@@ -181,6 +181,8 @@ const setInitialDates = () => {
     const currentMonth = moment().month();
     if (currentMonth >= 2 && currentMonth < 8) {
         goalDate.value = moment().month(2).date(1).format('YYYY-MM-DD');
+    } else if (currentMonth < 2) {
+        goalDate.value = moment().subtract(1, 'year').month(8).date(1).format('YYYY-MM-DD');
     } else {
         goalDate.value = moment().month(8).date(1).format('YYYY-MM-DD');
     }

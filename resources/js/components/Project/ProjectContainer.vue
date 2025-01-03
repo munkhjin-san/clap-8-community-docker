@@ -197,6 +197,8 @@ const setInitialDates = () => {
     const currentMonth = moment().month();
     if (currentMonth >= 1 && currentMonth < 7) {
         evaluationDate.value = moment().month(1).date(1).format('YYYY-MM-DD');
+    } else if(currentMonth < 1) {
+        evaluationDate.value = moment().subtract(1, 'year').month(7).date(1).format('YYYY-MM-DD');
     } else {
         evaluationDate.value = moment().month(7).date(1).format('YYYY-MM-DD');
     }
