@@ -24,6 +24,13 @@ interface Project {
     board_id?: number;
     tasks_count: number;
     director_id: number;
+    project_conditions: ProjectCondition[]
+}
+interface ProjectCondition {
+    project_record_id: number;
+    user_id: number;
+    week_date_start: Date;
+    value: number;
 }
 interface VirtualSpan {
     interval: Interval

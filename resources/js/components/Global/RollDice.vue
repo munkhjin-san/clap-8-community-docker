@@ -51,7 +51,7 @@ import axios from 'axios';
   const dices = ref([1, 1, 1]); 
   const rolling = ref(false);   
   const result = ref<number | null>(null);      
-  const intervals = ref<NodeJS.Timeout[]>([]);
+  const intervals = ref<number[]>([]);
   const prizes = [
     {try: 1, hit: 100},
     {try: 2, hit: 200},
@@ -258,11 +258,6 @@ import axios from 'axios';
     border-radius: 5px;
     border: 2px solid #000;
     color: #000;
-  }
-  button {
-    padding: 10px 20px;
-    font-size: 16px;
-    cursor: pointer;
   }
   .result {
     margin-top: 20px;

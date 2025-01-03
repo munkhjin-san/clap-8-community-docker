@@ -3,10 +3,10 @@
         <div class="goals-wrap">
             <div style="overflow: hidden; position: relative;height:100%;">
                 <div class="goals-inner">
-                    <div style="display: flex;justify-content: flex-end;padding: 20px 0;background-color:var(--background-color);position:sticky;top:0;z-index: 1;">
+                    <div style="display: flex;justify-content: flex-end;padding: 20px 0;background-color:var(--background-color);position:sticky;top:-1;z-index: 7;">
                         <!-- <h2>成果目標／昇給課題</h2> -->
                         <div class="locale-selector" style="width: auto;">
-                            <select name="locales" v-model="goalDate" class="dropDownSelector cursor-pointer" style="width: fit-content;">
+                            <select name="locales" v-model="goalDate" class="dropDownSelector cursor-pointer" style="width: fit-content; padding: 5px 10px;">
                                 <option :value="date.value" v-for="date in seikaOptions">{{date.name}}</option>
                             </select>
                         </div>
@@ -16,7 +16,11 @@
                         <div class="goal-detail cursor-pointer" @click="chosenGoal = goal" style="position: relative;gap:10px;margin-bottom: 20px;">
                             <div>
                                 <div>該当部門</div>
-                                <div class="kadai-content">{{ goal?.project?.name }}</div>
+                                <div class="kadai-content flex items-center">
+                                    {{ goal?.project?.name }}
+                                    <span class="side-notification" style="position: static;" v-if="badge.project?.which_goal?.[goal.id]">{{ badge.project?.which_goal[goal.id] }}</span>
+                                </div>
+                                
                             </div>
                             <div>
                                 <div>成果目標</div>
@@ -118,6 +122,7 @@ import { detailedDateOptions } from '@/utils/tools'
 import CommandButton from '../Global/CommandButton.vue';
 import ProjectGoalMore from './ProjectGoalMore.vue';
 import moment from 'moment';
+import { useBadgeStore } from '@/store/badge';
 const props = defineProps([
     'selectedProject', 
     'memberData',
@@ -141,6 +146,7 @@ const editGoalData = ref<ProjectGoal | null>(null)
 const goalDate = ref('')
 const projectGoals = ref<ProjectGoal[]>([])
 const chosenGoal = ref<ProjectGoal | null>(null)
+const badge = useBadgeStore()
 const { notify, info, confirm } = inject<Dialog>('dialog')!;
 const statuses = [
     '作成中', 

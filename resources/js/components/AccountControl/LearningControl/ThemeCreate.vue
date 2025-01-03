@@ -84,6 +84,17 @@
                         v-model="discussionDate"
                     />
                 </div>
+                <div class="si-box">
+                    <ItemSelector 
+                        placeHolder="アンケート"
+                        :options="forms"
+                        label="title"
+                        :multiple="false"
+                        :clearable="true"
+                        :close-on-select="true"
+                        v-model="selectedForm"
+                    />
+                </div>
                 <div style="text-align: center;margin-top: auto;padding: 20px 0;">
                     <LoaderButton @triggered="create" :loading="loader" content="作成する"/>
                 </div>
@@ -94,11 +105,12 @@
     </div>
 </template>
 <script setup>
-import { computed, inject, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
 import { useTheme } from '@/store/theme';
 import RichEditor from '@/components/Global/RichEditor.vue';
+import ItemSelector from '@/components/Form/ItemSelector.vue';
 const props = defineProps(['editTarget'])
 const emit = defineEmits(['closeModal'])
 const title = ref(props.editTarget ? props.editTarget.title : '')
@@ -112,6 +124,8 @@ const titleGuidance = ref(null)
 const theme = useTheme()
 const portfolio = ref(props.editTarget?.portfolio === 1 ? true : false);
 const case_study = ref(props.editTarget?.has_case_study === 1 ? true : false);
+const forms = ref([])
+const selectedForm = ref(props.editTarget?.custom_form_id ?? null)
 const initialPortfolioGuidance = computed(() => {
     return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
 })
@@ -124,7 +138,7 @@ const initialTitleGuidance = computed(() => {
 const create = () => {
     let episodeGuidanceContent = ''
     let portfolioGuidanceContent = ''
-    let titleGuidanceContent = 's'
+    let titleGuidanceContent = ''
     if (portfolio.value) {
         episodeGuidanceContent = episodeGuidance.value?.editor.getHTML()
         portfolioGuidanceContent = portfolioGuidance.value?.editor.getHTML()
@@ -144,7 +158,8 @@ const create = () => {
             guidance: portfolioGuidanceContent,
             title_guidance: titleGuidanceContent,
             portfolio: portfolio.value,
-            has_case_study: case_study.value
+            has_case_study: case_study.value,
+            custom_form_id: selectedForm.value
         }
 
     }).then(response => {
@@ -154,4 +169,15 @@ const create = () => {
     })
 
 }
+const getForms = async() => {
+    try {
+        const response = await axios.get('/get_forms')
+        forms.value = response.data
+    } catch (error) {
+        console.log(error)
+    }
+}
+onMounted(() => {
+    getForms()
+})
 </script>

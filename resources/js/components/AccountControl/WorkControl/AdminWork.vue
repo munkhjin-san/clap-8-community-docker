@@ -16,6 +16,7 @@
                 <div class="admin-button" @click="departmentCSV">部門CSV出力</div>
                 <div class="admin-button" @click="exportCSV">勤怠CSV出力</div>
                 <div class="admin-button" @click="expenseCSV">経費CSV出力</div>
+                <div class="admin-button" @click="vehicleCSV">車両CSV出力</div>
                 <div class="admin-month-wrapper">
                     <MonthPicker 
                         :selectedYear="selectedYear"
@@ -34,11 +35,12 @@
                         <td class="admin-table-data" rowspan="2">社員名</td>
                         <td class="admin-table-data" colspan="2">勤怠</td>
                         <td class="admin-table-data" rowspan="2">インシデント</td>
+                        <td class="admin-table-data" rowspan="2">車両</td>
                         <td class="admin-table-data" rowspan="2">職階</td>
-                        <td class="admin-table-data" rowspan="2">天気<span style="font-size: 11px;">（3日連続）</span></td>
+                        <td class="admin-table-data" rowspan="2">天気<br><span style="font-size: 11px;">（3日連続）</span></td>
                         <td class="admin-table-data" rowspan="2">計画有給</td>
                         <td class="admin-table-data" colspan="9">年休</td>
-                        <td class="admin-table-data" colspan="3">休暇</td>
+                        <td class="admin-table-data" colspan="4">休暇</td>
                         <td class="admin-table-data" rowspan="2">経費</td>
                         <td class="admin-table-data" rowspan="2">インセ</td>
                         <td class="admin-table-data" rowspan="2">労働時間</td>
@@ -58,6 +60,7 @@
                         <td class="admin-table-data">慶弔</td>
                         <td class="admin-table-data">転勤</td>
                         <td class="admin-table-data">ODA</td>
+                        <td class="admin-table-data">代休</td>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,11 +69,12 @@
                         <td>{{ item.attendance_records.length ? item.attendance_records[0].month_petition : ''}}</td>
                         <td v-html="item.shift_records.length ? '済' : ''"></td>
                         <td style="white-space: nowrap;" v-html="hasIncident(item)"></td>
+                        <td style="white-space: nowrap;" v-html="hasVehicle(item)"></td>
                         <td style="white-space: nowrap;">{{ item.general_position }}</td>
                         <td>
                             <WeatherIcon v-if="weather_average[item.id]" :which="weather_average[item.id].current_value" :size="15"/>
                         </td>                        
-                        <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15,16]" v-html="computedHoliday(item.id, number)"></td>
+                        <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15,16,17]" v-html="computedHoliday(item.id, number)"></td>
                         <td style="white-space: nowrap;">{{ monthly_expenses[item.id] ? `${monthly_expenses[item.id]}円` : '' }}</td>
                         <td style="white-space: nowrap;">{{ monthly_incentive[item.id] }}</td>
                         <td v-html="conversionTime(month_work_time[item.id])"></td>
@@ -88,6 +92,7 @@
     import { mkConfig, generateCsv, download } from "export-to-csv";
     import PostSearchBar from '../../Post/PostSearchBar.vue';
     import WeatherIcon from '@/components/Global/WeatherIcon.vue';
+    import { vehicleAsOptions } from '@/utils/workApi';
     const keywords = ref('')
     const selectedYear = ref(moment().year())
     const selectedMonth = ref(moment().month())
@@ -129,7 +134,7 @@
     const hasIncident = (user) => {
         let days = ''
         user.time_card_records.forEach(record => {
-            if(record.custom_field_data_records && record.custom_field_data_records.length){
+            if(record.custom_field_data_records && record.custom_field_data_records.filter(ob => ob.type_id === 40).length){
                 if(days == ''){
                     days = ''
                 }
@@ -137,6 +142,52 @@
             }
         });
         return days
+    }
+    const hasVehicle = (user) => {
+        let days = ''
+        user.time_card_records.forEach(record => {
+            if(record.custom_field_data_records && record.custom_field_data_records.filter(ob => ob.type_id === 44).length){
+                if(days == ''){
+                    days = ''
+                }
+                days = days + `<div>${dayFormat(record.day)}</div>`
+            }
+        });
+        return days
+    }
+    const vehicleCSV = () => {
+        const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `車両_${date}月`})
+        const data = []
+        users.value.forEach(user => {
+            user.time_card_records.forEach(time_card => {
+                const vehicleData = time_card.vehicle_data
+                if (vehicleData) {
+                    const vehicle = vehicleAsOptions.find(ob => ob.value == vehicleData.vehicle)
+                    const row = {
+                        "氏名" : user.name,
+                        "日付" : time_card.day,
+                        "使用車両" : vehicle.label,
+                        "アルコールチェックした時間使用前" : vehicleData.alcohol_before_time,
+                        "アルコールチェックした時間使用後" : vehicleData.alcohol_after_time,
+                        "アルコールチェックした値使用前" : vehicleData.alcohol_before_value,
+                        "アルコールチェックした値使用後" : vehicleData.alcohol_after_value,
+                        "アルコールチェックした確認者使用前" : vehicleData.before_user.name,
+                        "アルコールチェックした確認者使用後" : vehicleData.after_user.name,
+                    }
+                    data.push(row)
+                }
+                return []
+            })
+        })
+        if(data && data.length){
+            const csv = generateCsv(csvConfig)(data)
+            download(csvConfig)(csv);
+        } else {
+            notify('車両記録ないです。')
+            return
+        }
+
     }
     const departmentCSV = () => {
         const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
@@ -166,7 +217,7 @@
         timecard_costs.value.forEach(cost => {
             const row = {
                 "氏名" : cost.user.name,
-                "日付" : cost.timecard.day,
+                "日付" : cost.timecard?.day,
                 "部門" : cost.department ? cost.department : '',
                 "勘定科目" : costOptions.find(ob => ob.value == cost.type).label,
                 "金額" : cost.expenses ? cost.expenses : 0,
@@ -186,7 +237,7 @@
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `勤怠_${date}月`});
         const data = []
         attendance_record_items.value.forEach(item => {     
-            const shokkai = users.value.find(user => user.id == item.user_id).general_position ?? ''
+            const shokkai = users.value.find(user => user.id == item.user_id)?.general_position ?? ''
             const row = {
                 "社員コード" : item.user_code,
                 "社員名" : item.name,
@@ -214,6 +265,7 @@
                 "慶弔休暇": item.condolence_holiday,
                 "特別休暇": item.special_holiday,
                 "ODA休暇": item.oda_holiday,
+                "代休" : item.comp_holiday,
                 "休業": item.closed_day,
                 "労働時間": item.working_hours_no_over,
                 "欠勤時間": item.absence_hour,

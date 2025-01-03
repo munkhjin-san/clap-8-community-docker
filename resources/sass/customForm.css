@@ -1,0 +1,84 @@
+/* Basic styling to reset default checkbox appearance */
+.custom-f-checkbox, .custom-f-radio  {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 15px;
+    height: 15px;
+    border: 1px solid var(--primary-color);
+    background-color: var(--background-color);
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+.custom-f-radio{
+    border-radius: 50px;
+    background-color: var(--background-color);
+    box-sizing: border-box !important;
+    min-height: 20px;
+    min-width: 20px;
+    width: 20px;
+    height: 20px;
+}
+/* Checkbox checked state */
+.custom-f-checkbox:checked {
+    background-color: var(--primary-color);
+}
+
+/* Custom checkmark appearance */
+.custom-f-checkbox:checked::after {
+    content: "";
+    position: absolute;
+    top: 1px;
+    left: 5px;
+    width: 4px;
+    height: 9px;
+    border: solid var(--background-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+.custom-f-radio:checked::after {
+    content: "";
+    background-color: var(--primary-color);
+    border-radius: 50%;
+    height: 10px;
+    position: absolute;
+    width: 10px;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: auto;
+}
+
+.custom-f-checkbox:hover {
+    border-color: var(--primary-color);
+}
+.custom-o-input{
+    border-bottom: solid thin transparent;
+    padding: 3px 5px;
+    font-size: 13px;
+    color: var(--primary-color);
+}
+.custom-q-input{
+    border-bottom: solid thin transparent;
+    color: var(--primary-color);
+}
+.custom-o-input:focus,
+.custom-q-input:focus {
+  border-bottom: solid thin var(--primary-color);
+}
+.custom-q-input{
+    font-size: 13px;
+    padding: 5px 10px;
+    width: -webkit-fill-available;
+}
+.invalid-box:not(:checked){
+    border: solid thin tomato;
+}
+.invalid-box:not(:checked){
+    border: solid thin tomato;
+}
+.invalid-input:placeholder-shown {
+    border: solid thin tomato;
+}

@@ -16,15 +16,18 @@
 >
     <div class="relative min-h-[60px]">
         <div :class="['task-card-inner min-h-[50px] gap-[3px]']" :style="{background: background}">
-            <div @click="viewTaskUsers(project.members)" class="flex cursor-pointer"> 
-                <div v-for="user in project.members.slice(0, 3)" style="width: fit-content;position: relative;">
+            <div @click="viewTaskUsers([...project.manager, ...project.members])" class="flex cursor-pointer"> 
+                <div v-for="user in [...(project?.manager || []), ...(project?.members || [])].slice(0, 3)" style="width: fit-content;position: relative;">
                     <UserPanel :force-color="includesMe ? 'light' : undefined" :disableInstant="true" :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
                 </div>
                 <div style="cursor: pointer;margin-top: 1px;" v-if="project.members.length > 3">({{ project.members.length }})</div>
             </div>
 
            
-            <div class="truncated-task-remarks overflow-hidden overflow-ellipsis leading-[1.4]">{{ project.name }}</div>
+            <div class="truncated-task-remarks overflow-hidden overflow-ellipsis leading-[1.4] flex items-center">
+                {{ project.name }}
+                <WeatherIcon v-if="project.project_conditions.length" :which="project.project_conditions[0].value" size="15"/>
+            </div>
            
             <div class="flex gap-[10px] items-center overflow-hidden">
                 <div class="flex gap-[5px] items-center">
@@ -55,6 +58,7 @@ import { Project } from '@/interface/projectInterface';
 import colors from 'assets/colors.json'
 import { useAuthUserStore } from '@/store/auth';
 import { useTheme } from '@/store/theme';
+import WeatherIcon from '@/components/Global/WeatherIcon.vue';
 const router = useRouter()
 const messageUsers = useMessageUsers()
 const props = defineProps<{
@@ -88,7 +92,7 @@ const viewTaskUsers = (list: User[]) => {
         active: true,
         userList: list,
         title: 'タスクメンバー',
-        isTask: true
+        isTask: false
     }
     messageUsers.setMessageUsers(data)
 }

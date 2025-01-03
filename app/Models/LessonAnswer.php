@@ -10,4 +10,8 @@ class LessonAnswer extends Model
 {
     use HasFactory, SoftDeletes;
     protected $fillable = ['id', 'material_id', 'user_id', 'answer', 'ai_review', 'status'];
+
+    public function user() {
+        return $this->belongsTo(User::class)->select('id', 'name');
+    }
 }

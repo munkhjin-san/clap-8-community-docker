@@ -1400,6 +1400,24 @@ class BoardController extends Controller
    
     
     public function messageSearch(Request $request){
+
+        $request->validate([
+            'keyword' => 'required|min:2',
+        ], [
+            'keyword.required' => '検索キーワードを入力してください',
+            'keyword.min' => '検索キーワードは2文字以上で入力してください',
+        ]);
+        $rawKeyword = $request->keyword;
+
+        $normalizedKeyword = str_replace('＠', '@', $rawKeyword);
+
+        if (preg_match('/@(\w+)/', $normalizedKeyword, $matches)) {
+            $processedKeyword = "[To:{$matches[1]}:]";
+        } else {
+            $processedKeyword = $normalizedKeyword; 
+        }        
+        
+        $keywords = preg_split('/[ \x{3000}]+/u', $processedKeyword);
         $active_user = $this->active_user();
         if($request->private_flag && $request->record_id){
             $list = boardRecord::where('id', $request->record_id)->whereHas('board_to_users', function($q) use( $active_user ){
@@ -1429,7 +1447,12 @@ class BoardController extends Controller
                     $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
                 })
                 ->where('record_id', $board->id)
-                ->where('message_text', 'LIKE', '%' . $request->keyword . '%')
+                ->where(function($query) use($keywords){
+                    foreach($keywords as $keyword){
+                        $query->where('message_text', 'LIKE', "%$keyword%");
+                    }
+                })
+                // ->where('message_text', 'LIKE', '%' . $request->keyword . '%')
                 ->whereHas('user')
                 ->with('user')
                 ->latest('created_at')
@@ -1448,7 +1471,11 @@ class BoardController extends Controller
                     $result = $result->merge($comment_list_pre);
                 }else{                   
                     $comment_list_pre = messageRecord::where('record_id', $board->id)
-                    ->where('message_text', 'LIKE', '%' . $request->keyword . '%')
+                    ->where(function($query) use($keywords){
+                        foreach($keywords as $keyword){
+                            $query->where('message_text', 'LIKE', "%$keyword%");
+                        }
+                    })
                     ->whereHas('user')
                     ->with('user')
                     ->latest('created_at')

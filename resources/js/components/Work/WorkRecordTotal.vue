@@ -33,6 +33,7 @@
     <td v-if="!responsive.mobile && hasHeader('インセンティブ')">{{ data?.mont_total_incentive ? `${data?.mont_total_incentive}件` : ''}}</td>
     <td v-if="!responsive.mobile"></td>
     <td v-if="!responsive.mobile"></td>
+    <td v-if="!responsive.mobile"></td>
 </tr>
 </template>
 <script setup>

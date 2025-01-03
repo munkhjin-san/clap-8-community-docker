@@ -21,9 +21,9 @@
                 <FilePreview v-if="filePreview.active"/>
             </Transition> 
         </Teleport>
-        <!-- <Transition name="modalFade">
-            <WeatherComponent v-if="auth.user"/>
-        </Transition>  -->
+        <Transition>
+            <ProjectWeather v-if="auth.user && auth.user.position_id === 6"/>
+        </Transition>
         <SharingData v-if="sharingData.active && (route.name == 'board' || route.name == 'room')"/>
         <Transition name="modalFade">
             <CheckWork v-if="auth.user" />
@@ -45,7 +45,6 @@
     import IncompleteFeedBack from '../Board/IncompleteFeedBack.vue'
     import theme from '../../../assets/theme.json'
     import MessageUsers from '../Board/Message/MessageUsers.vue'
-    import WeatherComponent from '../Global/WeatherComponent.vue'
     import SharingData from '../Global/SharingData.vue'
     import FilePreview from '../Board/Tray/File/FilePreview.vue'
     import CheckWork from '../Global/CheckWork.vue'
@@ -65,6 +64,7 @@
     import DateTimeSelect from '../Global/DateTimeSelect.vue'
     import { useProjectUsers } from '@/store/projectUsers'
     import { useMessageSchedule } from '@/store/messageSchedule'
+    import ProjectWeather from '../Global/ProjectWeather.vue'
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()

@@ -9,7 +9,7 @@
                     </svg>                        
                 </div> 
             </div>      
-
+            
             <div class="si-box">
                 <ShortInput 
                     name="lessonTitle" 
@@ -37,7 +37,15 @@
                     </div>
                 </div>
             </div>
-            
+            <div class="si-box" v-if="has_case_study && selectedPriority">
+                <div style="font-size: 14px;margin-bottom: 15px;">タイプ</div>
+                <OptionSelector 
+                    :initialValue="material_type"
+                    :options="['基礎知識', 'ケーススタディ']"
+                    v-model="material_type"
+                    unit=""
+                />
+            </div>
             <div class="si-box">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">「理解」依頼</p>
@@ -98,13 +106,14 @@ import LongInput from '../../Form/LongInput.vue';
 import RichEditor from '../../Global/RichEditor.vue';
 import { computed, inject, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import OptionSelector from '@/components/Form/OptionSelector.vue';
     const priorities = [
         {value: 0, content: 'ヘッダー'},
         {value: 1, content: 'セクション'},
     ]
     const route = useRoute()
     const { notify, info } = inject('dialog')
-    const props = defineProps(['editTarget'])
+    const props = defineProps(['editTarget', 'has_case_study'])
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
     const hasFeedBack =  ref(props.editTarget && props.editTarget.has_feedback ? props.editTarget.has_feedback : false)
@@ -113,7 +122,7 @@ import { useRoute } from 'vue-router';
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : '')
     const richEdit = ref(null)
    
-    
+    const material_type = ref(props.editTarget?.material_type ?? '基礎知識')
     const auth = useAuthUserStore()
     const richEditDetailed = ref(null)
     const selectedPriority = ref(props.editTarget ? props.editTarget.priority : null)
@@ -145,6 +154,7 @@ import { useRoute } from 'vue-router';
                         priority: selectedPriority.value,
                         has_question: has_question.value,
                         has_understand: has_understand.value,
+                        material_type: material_type.value
                     }
                     
                 }

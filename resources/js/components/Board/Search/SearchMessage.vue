@@ -1,5 +1,5 @@
 <template>
-<div id="mRw1" class="md-window" style="z-index:60">
+<div id="mRw1" class="md-window" style="z-index:54">
     <div class="searchMessageArea">
         <div style="display:flex;height: 40px;min-height: 40px;line-height: 40px;margin-top: 10px;">
             <div style="margin:0 20px;display: flex;font-size: 14px;overflow: hidden;" v-html="searchTitle"></div>
@@ -134,7 +134,7 @@ import { urlCheck } from '@/utils/tools';
     const targetBoards = ref([])
     const fetched = ref(false)
     const board = inject('openedBoard')
-
+    const { confirm, notify, info } = inject('dialog');
   
     const searchTitle = computed(() => {       
         return '検索結果'                
@@ -203,7 +203,7 @@ import { urlCheck } from '@/utils/tools';
     const boardItem = (id) => {
         return props.filteredAllBoard && props.filteredAllBoard.filter(ob => ob.id == id).length ? props.filteredAllBoard.filter(ob => ob.id == id)[0] : null
     }
-    const getMessageSearch = (key, val, val2) => {
+    const getMessageSearch = async(key, val, val2) => {
         if(searchLoader.value || searchMiniLoader.value || !key) return
         
             searchLoader.value = true
@@ -219,24 +219,31 @@ import { urlCheck } from '@/utils/tools';
             }
             messageResult.value = reset
         }
-        axios.post('/message_search',{
-            keyword: key,
-            private_flag: targetedSearch.value,
-            record_id: record_id,
-            index: messageResult.value.currentPage
-        }).then(response => {  
-            setTimeout(() => {
-                messageResult.value = response.data
-                searchLoader.value = false;
-                searchMiniLoader.value = false;  
-                selectedHistory.value = -1;
-                if(val2){
-                    groupByBoard()
-                } 
-                fetched.value = true
-            }, 0)              
-    
-        })
+        try{
+            const data = await axios.post('/message_search',{
+                keyword: key,
+                private_flag: targetedSearch.value,
+                record_id: record_id,
+                index: messageResult.value.currentPage
+            }).then(response => response.data)
+            if(data.data){
+                messageResult.value = data  
+            }
+
+            searchLoader.value = false;
+            searchMiniLoader.value = false;  
+            selectedHistory.value = -1;
+            if(val2){
+                groupByBoard()
+            } 
+            fetched.value = true
+        } catch(e){
+            console.log('aaaaaaaaa')
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            searchLoader.value = false;
+            searchMiniLoader.value = false;  
+        }
+
     }
     const setActivePage = (page) => {
         messageResult.value.currentPage = page
@@ -303,6 +310,7 @@ import { urlCheck } from '@/utils/tools';
     const setKeyWord = () => {
         
         if(event.which === 38 || event.which === 40 || event.which === 13){
+            
             event.preventDefault()
             
             return

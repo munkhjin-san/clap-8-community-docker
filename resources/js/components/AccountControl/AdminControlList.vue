@@ -11,6 +11,7 @@
                 <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修</div>
                 <div class="admin-tab-item" @click="router.push({name: 'projectlist'})" :class="{'selected-tab' : route.path.includes('projectcontrol')}">プロジェクト</div>
                 <div class="admin-tab-item" @click="router.push({name: 'glowdnine'})" :class="{'selected-tab' : route.name == 'glowdnine'}">グラウドナイン</div>
+                <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">アンケート</div>
             </div>
         </div>
         <div style="width: 100%;flex:1;overflow: hidden;background: var(--background-color);" v-if="[608, 610].includes(auth.activeUser.id)">

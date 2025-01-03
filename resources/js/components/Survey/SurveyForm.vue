@@ -1,0 +1,87 @@
+<template>
+    <div class="w-full h-full overflow-y-auto">
+        <div class="m-[20px] p-[20px] bg-[var(--background-color)] text-[var(--primary-color)] leading-normal flex flex-col gap-[20px] text-[14px]">
+            <div class="text-[12px] ml-auto">ステータス : <span v-if="hasAnswer" class="text-[green]">回答済み</span><span v-else class="text-[gray]">未回答</span></div>
+            <div class="text-[16px]">{{ survey.title }}</div>
+            <div v-html="urlCheck(survey.description)"></div>
+            <div class="flex flex-col gap-[30px]">
+                <div v-for="block in survey.blocks">
+                    <SurveyBlock ref="blocks" :block="block"/>
+                </div>
+                
+            </div>
+            <div class="si-box">
+                <LoaderButton content="送信する" :loading="sending" @triggered="sendSurvey"/>
+            </div>
+        </div>
+    </div>
+</template>
+<script setup lang="ts">
+import { CustomForm, SurveyAnswer } from '@/interface/customFormInterface';
+import { useRoute } from 'vue-router';
+import SurveyBlock from './SurveyBlock.vue';
+import { urlCheck } from '@/utils/tools';
+import { computed, inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import LoaderButton from '../Global/LoaderButton.vue';
+import { ComponentExposed } from 'vue-component-type-helpers';
+import axios from 'axios';
+import { DialogMethods } from '@/interface/globalInterface';
+import { DialogKey } from '@/interface/keys';
+const { confirm, info, notify } = inject('dialog') as DialogMethods;
+const props = defineProps<{
+    survey: CustomForm
+}>()
+
+const emit = defineEmits<{
+    saved: []
+}>()
+const route = useRoute()
+const blocks = useTemplateRef<ComponentExposed<typeof SurveyBlock>[]>('blocks')
+const answer = reactive<SurveyAnswer>({
+    block_answers: []
+})
+
+const sending = ref(false)
+
+onMounted(() => {
+    const myAnswer = props.survey?.survey_answers ? props.survey.survey_answers[0] : null
+    if(myAnswer){
+        Object.assign(answer, myAnswer)
+    }
+})
+const hasAnswer = computed(() => {
+    return props.survey.survey_answers && props.survey.survey_answers.length ? props.survey.survey_answers[0] : null
+})
+const sendSurvey = async() => {
+    const targets = blocks.value && blocks.value.length ? blocks.value : []
+    let blockValid = true
+    
+    for(const block of targets){
+        const isValid = block.isValid()
+        console.log('rrr',isValid, block.blockData)
+        blockValid =  isValid && blockValid
+    }
+    if(!blockValid) return
+
+    const constructedBlocks = targets.map( t => {return t.extractedData})
+
+    const params = {
+        custom_form_id: props.survey.id,
+        params: constructedBlocks
+    }
+    
+    console.log(constructedBlocks)
+    try{
+        sending.value = true
+        await axios.post('/save_survey_answer', params)
+        setTimeout(() => {
+            emit('saved')
+            info('保存しました。')
+            sending.value = false  
+        }, 300);
+
+    } catch (e) { 
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    } 
+}
+</script>

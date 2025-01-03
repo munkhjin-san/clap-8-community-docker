@@ -299,7 +299,10 @@ class TaskController extends Controller
         $taskCounts = taskRecord::whereNotNull('end_at')
         ->whereIn('board_id', $allBoard)
         ->whereHas('executors', function($q) use($active_user) {
-            $q->where('users.id', $active_user->id)->where('progress_flag', 0)->orWhere('progress_flag', 1);
+            $q->where('users.id', $active_user->id)->where(function($q) {
+                $q->where('progress_flag', 0)
+                  ->orWhere('progress_flag', 1);
+            });
         })
         ->select('board_id', DB::raw('count(*) as total_task_number'))
         ->groupBy('board_id')
@@ -362,8 +365,9 @@ class TaskController extends Controller
         ]);
         $user_id = $request->user_id;
         $progress_flag = $request->progress_flag;
+        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString(); 
         $projects = ProjectRecord::where('id', $request->id)
-        ->with(['members', 'manager', 'director', 'tasks' => function($q) use($user_id, $progress_flag) {
+        ->with(['members', 'manager', 'director', 'tasks' => function($q) use($user_id, $progress_flag, $weekStartDate) {
             $q->whereNull('parent_task_id')->when($user_id, function($q)use($user_id, $progress_flag){
                 $q->whereHas('executors', function($q) use($user_id, $progress_flag){
                     $q->where('users.id', $user_id)->when($progress_flag !== null && $progress_flag > -1, function($q) use($progress_flag){
@@ -380,7 +384,11 @@ class TaskController extends Controller
                 });
             }])
             ->orderBy('start_at', 'asc');
-        }])->first();
+        },
+        'project_conditions' => function ($q) use ($weekStartDate) {
+            $q->where('week_start_date', $weekStartDate);
+        }
+        ])->first();
         if ($projects['date_start'] == null || $projects['date_end'] == null) {
             $projects['date_start'] = Carbon::now()->startOfYear()->format('Y-m-d');  
             $projects['date_end'] = Carbon::now()->endOfYear()->format('Y-m-d');
@@ -392,6 +400,7 @@ class TaskController extends Controller
 
         $unit = $request->unit;
         
+        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString(); 
 
         $fromInstance = Carbon::parse($request->from);
         $toInstance = Carbon::parse($request->to);
@@ -410,7 +419,11 @@ class TaskController extends Controller
             });
         })->orWhereNull('date_start') // Include projects with null date_start
         ->orWhereNull('date_end')
-        ->with(['members','manager' ])->withCount('tasks')->orderBy('date_start', 'asc')->get();
+        ->with(['members','manager' ])
+        ->with(['project_conditions' => function ($q) use ($weekStartDate) {
+            $q->where('week_start_date', $weekStartDate);
+        }])
+        ->withCount('tasks')->orderBy('date_start', 'asc')->get();
 
 
         

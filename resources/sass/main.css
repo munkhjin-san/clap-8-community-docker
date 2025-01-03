@@ -1,33 +1,22 @@
-/* リセットCSS */
-html, body, div, span, applet, object, iframe,
-h1, h2, h3, h4, h5, h6, p, blockquote, pre,
-a, abbr, acronym, address, big, cite, code,
-del, dfn, em, img, ins, kbd, q, s, samp,
-small, strike, strong, sub, sup, tt, var,
-b, u, i, center,
-dl, dt, dd, 
-fieldset, form, label, legend,
-table, caption, tbody, tfoot, thead, tr, th, td,
-article, aside, canvas, details, embed, 
-figure, figcaption, footer, header, hgroup, 
-menu, nav, output, ruby, section, summary,
-time, mark, audio, video {
+@import './customForm.css';
+@import './GanttStyle.css';
+@import './mobileStyle.css';
+@import './TrayStyle.css';
+@import './workStyle.css';
+
+*:not(ol, ul),
+*::before:not(ol, ul),
+*::after:not(ol, ul) {
     margin: 0;
     padding: 0;
     border: 0;
     font-size: 100%;
-    // font: inherit;
     vertical-align: baseline;
 }
 /* HTML5 display-role reset for older browsers */
 article, aside, details, figcaption, figure, 
 footer, header, hgroup, menu, nav, section {
     display: block;
-}
-$isDarkMode: true !default;
-$theme: 'light';
-@if $isDarkMode {
-  $theme: 'dark';
 }
 body {
     line-height: 1;
@@ -76,7 +65,6 @@ table {
    # ================================================================= */
 
 html {
-//   box-sizing: border-box;
   -webkit-text-size-adjust: 100%; /* Prevent adjustments of font size after orientation changes in iOS */
   word-break: normal;
   -moz-tab-size: 4;
@@ -148,7 +136,6 @@ abbr[title] {
 
 a {
   background-color: transparent; /* Remove the gray background on active links in IE 10 */
-  // #20201221_023
   color: var(--link-color);
   text-decoration: none;
   word-break: break-all;
@@ -203,17 +190,6 @@ input {
   border-radius: 0;
   outline: none;
 }
-
-/* #20201215_022 */
-/* chrome inputのコンフォーム背景(水色)リセット*/
-// @keyframes onAutoFillStart { from {} to {}}
-// input:-webkit-autofill {
-//   animation-name: onAutoFillStart;
-//   transition: background-color 50000s ease-in-out 0s;
-//   font-size: 16px !important;
-//   color: var(--primary-color) !important;
-//   -webkit-background-clip: text !important;
-// }
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
@@ -312,14 +288,9 @@ button,
 input,
 select,
 textarea {
-  background-color: transparent;
+  background-color: var(--background-color);
   border-style: none;
 }
-
-// select {
-//   -moz-appearance: none; /* Firefox 36+ */
-//   -webkit-appearance: none; /* Chrome 41+ */
-// }
 .form-plc {
   position: absolute;
   pointer-events: none;
@@ -397,10 +368,6 @@ progress {
   vertical-align: baseline;
 }
 
-// svg:not([fill]) {
-//   fill: var(--primary-color);
-// }
-
 /* # =================================================================
    # Accessibility
    # ================================================================= */
@@ -437,22 +404,12 @@ progress {
     margin-top: 15px;
     height: fit-content;
 }
-// .kebab:hover{
-//     background: var(--kebab-bg1);  
-//     fill: var(--primary-color) !important;  
-// }
-// .kebabActive{
-//     background: var(--kebab-bg1);
-//     fill: var(--primary-color) !important;  
-// }
+
 .dot-menu{
     fill: var(--kebab-icon);
     min-width: 3px;
 }
-// input.taskDateTimePicker::-webkit-calendar-picker-indicator{
-//   opacity: 1;
-  
-// }
+
 .date-color{
   color-scheme: dark;
 }
@@ -554,14 +511,12 @@ progress {
 }
 .searchWindowToggle-enter-active,
 .searchWindowToggle-leave-active {
-    // opacity: 1;
     max-height: 240px;
     transition: max-height 0.2s;
 }
 
 .searchWindowToggle-enter-from,
 .searchWindowToggle-leave-to {
-    // opacity: 0;
     max-height: 0;
 }
 
@@ -818,7 +773,6 @@ progress {
     position:relative;
     color: var(--primary-color);
     fill: var(--primary-color);
-    // overflow-y: auto;
 }
 .fileCompactScreen{
     height:100%;
@@ -826,7 +780,6 @@ progress {
     background-color: var(--background-color);
     color: var(--primary-color);
     position:relative;
-    // overflow-y: auto;
 }
 
 .searchArea{
@@ -840,7 +793,6 @@ progress {
 }
 .search-bar-board{
     box-shadow: rgb(60 64 67 / 30%) 0px 1px 2px 0px, rgb(60 64 67 / 15%) 0px 2px 6px 2px;
-    // max-height: 0vh;
     overflow: hidden auto;
     z-index: 7;
     position:absolute;
@@ -854,12 +806,8 @@ progress {
     margin-left: auto;
     margin-right: auto;
 }
-// .searchBarView{
-    
-// }
 .searchBarView-enter-active,
 .searchBarView-leave-active {
-    // opacity: 1;
     max-height: 50vh;
     transition: max-height 0.2s;
 }
@@ -867,7 +815,6 @@ progress {
 .searchBarView-enter-from,
 .searchBarView-leave-to {
     max-height: 0;
-    // opacity: 0;
 
 }
 .fileFullcontainer{
@@ -881,7 +828,6 @@ progress {
 }
 .fileWindowWrap{
     z-index: 14;
-    // position:fixed;
     width: 100%;
     right:0;
     bottom:0;
@@ -890,7 +836,6 @@ progress {
     transition: width .15s, height .15s;
     
 }
-// }
 .trayWindowWrap{
     position:fixed;
     right:0;
@@ -912,11 +857,6 @@ progress {
     top: 60px !important;
     width: calc(20% + 50px);
     height: calc(100% - 60px);
-    // top: 80px !important;
-    // width: calc(20% + 30px);
-    // height: calc(44% - 5px);    
-    // // border-radius: 5px;
-    // right: 10px !important;
 }
 .innerContainer{
     display:flex;
@@ -951,10 +891,6 @@ progress {
     cursor:pointer;
 }
 .selectedMenu{
-    // background: #000;
-    // background: #000;
-    // color: #fff;
-    // border-bottom: solid thick;
     background: var(--background-color) !important;
     border: solid thin var(--normalBorder) !important;
     border-bottom: none !important;
@@ -990,7 +926,6 @@ progress {
     grid-gap: 10px;
     grid-template-columns: repeat(auto-fill,minmax(100px,1fr));
     grid-template-rows: repeat(auto-fit, 90px);    
-    // height: 100% !important;
 }
 .gridBox{
     height: 100% !important;
@@ -1022,7 +957,6 @@ progress {
     flex-direction: column;
     padding: 10px !important;
     width: 100%;
-    // min-width: 90px;
     max-height: 100px;
     overflow: hidden;
     display: block !important;
@@ -1099,7 +1033,6 @@ progress {
     width: auto;
     margin-top: 5px;
 }
-// #20201202_0013 Tumur　通知機能追加
 .info-window-outer{
     max-width: 35vw;
     width: max-content;
@@ -1162,7 +1095,6 @@ img {
 
 .cropper-view-box, .cropper-face {
   border-radius: 50% !important;
-  // border: solid 1px #fff;
   outline: #fff !important;
 }
 .cropper-line {
@@ -1207,11 +1139,9 @@ img {
   transform: scale(1);
   width:30px;
   height:30px;
-  // background: rgba(255, 255, 255, 0.8);
   z-index:999;
   display: flex;
   border-radius: 50%;
-  // transition: transform 1s;
 }
 .floatOn{
   transform: scale(1.5);
@@ -1278,7 +1208,6 @@ img {
   cursor: pointer;  
   text-overflow: ellipsis;
   white-space: nowrap;
-  // overflow: hidden;
   transition: border-radius 0.15s ease-out;
   position: relative;
   display: flex;
@@ -1292,7 +1221,6 @@ img {
   cursor: pointer;  
   text-overflow: ellipsis;
   white-space: nowrap;
-  // overflow: hidden;
   transition: border-radius 0.15s ease-out;
   position: relative;
   display: flex;
@@ -1308,12 +1236,10 @@ img {
   background: var(--bg2) !important;  
 }
 .custom-group-menu{  
-  // position: relative;
   display: flex;  
   width: 20px;
   height: 100%;  
   transition: max-width 0.1s ease;
-  // overflow: hidden;
   margin-left: auto;
 }
 .custom-group-active{
@@ -1463,13 +1389,6 @@ img {
   font-size: 20px !important;
   line-height: 20px !important;
 }
-/* On mouse-over, add a grey background color */
-// .check-container:hover input ~ .checkmark {
-//   background-color: #ccc;
-// }
-// .check-container:hover input ~ .checkmark-mini {
-//   background-color: rgb(0, 0, 0);
-// }
 /* When the checkbox is checked, add a blue background */
 .check-container input:checked ~ .checkmark {
   background-color: #000000;
@@ -1552,8 +1471,6 @@ img {
     font-size: 11px;
     position: absolute;
     top: 47px;
-    // left: 0;
-    // right: 0;
     left: 50%;
     transform: translate(-50%, 0);
     margin-left: auto;
@@ -1585,12 +1502,9 @@ img {
 }
 .typeBoxArea{
   white-space: pre-line;
-  //white-space: pre;
-    //white-space: break-spaces;
   font-size: 14px;
   display:inline-block;
   overflow-wrap: break-word;
-  // -webkit-line-break: after-white-space;
   line-height: 1.7;
   outline: none;
   user-select: text;  
@@ -1613,14 +1527,12 @@ img {
 .mentionBox{
   position: absolute;
   z-index: 55;
-//   left: 111px;
   background: var(--side-menu-bg);
   color: var(--primary-color);
   max-height: 205px;
   overflow-y: auto;
   box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 2px 6px 2px;
   visibility: hidden;
-//   transition: left 0.2s;
 }
 
 .private{
@@ -1643,7 +1555,6 @@ img {
   overflow-y: auto;
   max-height: 300px;
   height: auto;
-  // background: #ddd;
   margin-top:40px;
   -webkit-overflow-scrolling: touch;
   border: 1px solid #ccc;
@@ -1664,12 +1575,10 @@ img {
   max-width: 308px;
   background: rgb(255, 255, 255);
   flex-wrap: wrap;
-  // justify-content: space-between;
   padding: 5px;
   max-height: 250px;
   overflow-y: auto;
   text-decoration:none;
-  // #20201202_013
   -webkit-overflow-scrolling: touch;
   z-index: 99;
   border: solid thin #ddd;
@@ -1695,11 +1604,6 @@ img {
   border-radius: 5px 0 5px 5px;
   transition: max-height 0.25s ease-out;
 }
-// .rightSide{
-//   // left: auto !important;
-//   // right: 0;
-
-// }
 .boardUsersListInner{
   padding: 5px 10px;
   font-size:14px;
@@ -1762,11 +1666,6 @@ li.dateText {
     position: absolute;
     top: 20px;
     right: 20px;
-
-    // color: #fff;
-
-    // デバッグ用の背景
-    // border: 1px solid #fff;
 }
 .buttonContainer{
   display: flex;
@@ -1811,9 +1710,6 @@ li.dateText {
     display: block;
     width: 100%;
     height: 50px;
-
-    // デバッグ用の背景
-    // background: #eee;
 }
 
 .recordTextLayer-03 {
@@ -1824,13 +1720,8 @@ li.dateText {
     display: block;
     width: 18px;
     height: 18px;
-
-    // デバッグ用の背景
-    // background: #ddd;
 }
 
-
-//20211224
 .multiselecMemberLayer-03 {
   position: absolute;
   z-index: 1;
@@ -1839,13 +1730,9 @@ li.dateText {
   display: block;
   width: 18px;
   height: 18px;
-
-  // デバッグ用の背景
-  // background: #ddd;
   
   background-repeat: no-repeat;
 }
-//20211224
 .recordTextAreaLayer-01 {
   position: relative;
   display: block;
@@ -1853,9 +1740,6 @@ li.dateText {
   height: 200px;
 
   margin-top: 40px;
-
-  // デバッグ用の背景
-  // background: #ccc;
 }
 
 .recordTextAreaLayer-02 {
@@ -1864,9 +1748,6 @@ li.dateText {
   display: block;
   width: 100%;
   height: 200px;
-
-  // デバッグ用の背景
-  // background: #eee;
 }
 
 .recordTextAreaLayer-03 {
@@ -1883,10 +1764,6 @@ li.dateText {
     display: none;
 }
 
-// @font-face {
-//     font-family: 'Noto Sans bold';
-//     src: url('/fonts/NotoSansJP-Bold.otf');
-// }
 html{
     font-family: 'Noto Sans JP', sans-serif !important;
 }
@@ -1909,7 +1786,6 @@ textarea{
     font-family: 'Noto Sans JP',sans-serif !important;
 
 }
-//20210128
 button,
 input,
 optgroup,
@@ -1924,15 +1800,10 @@ textarea{
 
     width:100%;
     height:50px;
-    // background-color: #000;
 
     z-index: 13;
-    // border-bottom: solid 2px #dddddd;
-    // box-sizing: border-box;
 
-    //デバッグ用
     background-color: #fff;
-    // border-bottom: 1px solid #ccc;
 }
 
 
@@ -1971,11 +1842,7 @@ textarea{
     width: 100%;
     height: 100%;
 
-    // #20201215_022
-    //margin: 100px 0 0 0;
     margin: 0px 0px 0px 0px;
-
-    //デバッグ用の背景
     background-color:var(--background-color);
 }
 .app-title-text{
@@ -2011,9 +1878,6 @@ textarea{
   width: auto;
   height: 40px;
   float: left;
-
-  // デバッグ用の背景
-  // background-color: #ccc;
 }
 
 .commentHeder > .column-02 {
@@ -2022,9 +1886,6 @@ textarea{
   float: left;
 
   line-height: 40px;
-
-  // デバッグ用の背景
-  // background-color: #eee;
 }
 
 .commentHeder > .column-03 {
@@ -2041,7 +1902,6 @@ textarea{
   align-items: center;
 }
 .file-area-container{  
-  // margin: 0 7.5px;  
   max-width: 100% !important;  
   display: flex;
   
@@ -2049,7 +1909,6 @@ textarea{
   padding: 10px;
   background: var(--bg3);
   max-width: 100%;
-//   overflow: hidden;
   position: relative;
   cursor:pointer;
   min-width: 140px;
@@ -2057,7 +1916,6 @@ textarea{
 .file-wrap{
   min-height: 63px;
   position: relative;
-//   overflow: hidden;
     max-width: 100%;
 }
 .file-wrap:last-of-type{  
@@ -2073,9 +1931,6 @@ textarea{
   border-radius: 20px;
   font-size: 12px !important;
 }
-// .file-area-container:first-of-type{  
-//   margin: 0 7.5px 0 0 ;
-// }
 .file-area-content{
   display: flex;
   flex-wrap: wrap;  
@@ -2091,9 +1946,6 @@ textarea{
   max-height: 210px;
   overflow: auto;
 }
-// .singleFile{
-//   margin: 0 0 10px 10px !important;
-// }
 .preImgWrapper{
   display: flex;
   align-items: center;
@@ -2169,7 +2021,6 @@ textarea{
   display: flex;
 }
 .preImgWrapper > img {
-  // max-width: 35px;
   max-height: 40px;
 }
 .mov-del-button{
@@ -2205,7 +2056,6 @@ textarea{
   font-size: medium;
 }
 .iconPreviewInner{
-  // font-family: "Noto Sans bold" !important;  
   text-align: center;
   margin:auto;
   font-weight: 600;
@@ -2262,7 +2112,6 @@ textarea{
   height:60px;
   border-radius:50%;
   min-width: 60px;
-  // image-rendering: -webkit-optimize-contrast;
 }
 
 .commentRoot{
@@ -2279,20 +2128,14 @@ textarea{
   
   width: 100%;
   position: relative;
-  // line-height: 30px;
   word-wrap:break-word;
   overflow-wrap:break-word;
-  // background: white;
   
 }
 .commentTextBoxRight {
-  // float:right;
   width: 100%;
-//   position: relative;
-  // line-height: 30px;
   word-wrap:break-word;
   overflow-wrap:break-word;
-  // background: white;
   
 }
 .emojiOnly{
@@ -2309,7 +2152,6 @@ textarea{
 .commentTextBoxLeft {
   width: 100%;
   position: relative;
-  // line-height: 30px;
   word-wrap:break-word;
   overflow-wrap:break-word;
   background: white;
@@ -2345,7 +2187,6 @@ textarea{
   
 }
 .quotBox{
-//   border-bottom: 0.4px solid gray;
   width: 100%;
   display: flow-root;
   margin-bottom: 5px;
@@ -2368,10 +2209,7 @@ textarea{
   margin: 1% 0;
   
   color: gray;
-  // white-space: break-spaces;
   float: none;
-  // font-size: 16px;
-  // line-height: 2.4;
   
 }
 
@@ -2429,13 +2267,11 @@ textarea{
 .recordTextArea {
     width: 100%;
     height: 200px;
-    // margin-bottom: 40px;
     padding: 12px 12px 12px 12px;
 
     color: var(--primary-color);
     box-sizing:border-box;
 
-    // border: 1px solid var(--formBorder);
     border: 1px solid var(--primary-color);
 
     font-size: 16px;
@@ -2466,19 +2302,10 @@ textarea{
   -webkit-overflow-scrolling: touch;
 }
 .taskUserSelecArea {
-    // padding-bottom: 10px;
     border: solid 1px var(--formBorder);
     transition: border 0.3s ease;
 
 }
-// .taskUserSelecArea .vs__search{
-//     padding-top: 20px;
-//     padding-bottom: 10px;
-// }
-// .taskUserSelecArea .vs__search:focus{
-//     padding-top: 20px;
-//     padding-bottom: 10px;
-// }
 div.recordFormTitle {
     width: 100%;
     height: auto;
@@ -2529,8 +2356,6 @@ div.recordFormTitle > p{
   -webkit-box-align: center;
   -ms-flex-align: center;
   align-items: center;
-  
-  // border-left:1px solid #fff;
 }
 .image-swiper{
   margin: auto;
@@ -2553,11 +2378,7 @@ div.recordFormTitle > p{
 
 /* 一時的仮デザイン */
 .filedrop-area {
-    // font-weight: bold;
     font-size: 18px;
-
-    // display: flex;
-
     justify-content: center;
     align-items: center;
     width: 100%;
@@ -2576,7 +2397,6 @@ div.recordFormTitle > p{
 
     text-align: center;
     line-height: 90px;
-    // border-radius: 15px;
 }
 
 .enter {
@@ -2600,7 +2420,6 @@ div.recordFormTitle > p{
 
 #modalContent {
     z-index:3;
-    // width: 50%;
     width: 80%;
     height: 80%;
     padding: 0px;
@@ -2622,9 +2441,7 @@ div.recordFormTitle > p{
 
 #modalContent02 {
   z-index:2;
-  // width: 50%;
   width: 80%;
-  // height: 80%;
   height: 280px;
   -webkit-overflow-scrolling: touch;
   padding: 0px;
@@ -2678,7 +2495,6 @@ div.recordFormTitle > p{
   box-shadow: 0px 7px 0px rgb(97, 97, 97), 0px -7px 0px rgb(97, 97, 97);
 }
 .messageMenuList{
-  // width: 100px;
   transition: width 0.35s;
   box-shadow: rgb(60 64 67 / 30%) 0px 1px 2px 0px, rgb(60 64 67 / 15%) 0px 2px 6px 2px;
 }
@@ -2695,9 +2511,6 @@ div.recordFormTitle > p{
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  // background: white;
-  /* margin-bottom: auto; */
-  // position: absolute;
   float: right;
   right: 1%;
   top: 10px;
@@ -2735,7 +2548,6 @@ div.recordFormTitle > p{
   padding:1px;
   height: 15px;
   text-align: center;
-  // line-height: 1.4;
   font-size: 10px;
   border-radius: 50%;
   line-height: 15px;
@@ -2775,7 +2587,6 @@ div.recordFormTitle > p{
   top: 65px;
   right: 3%;
   min-width: 100px;
-  // left: 76%;  
 }
 .headerMenuContainer{
   
@@ -2790,7 +2601,6 @@ div.recordFormTitle > p{
   top: 50px;
   right:0;
   min-width: 100px;
-  // left: 76%;  
 }
 
 .boxMenuItems{
@@ -2838,9 +2648,7 @@ div.recordFormTitle > p{
 
 .main-bar{
   width: 30%;
-  // min-width: 20%;
   margin: 50px 0;
-  // max-width: 160px;
 }
 .main-bar .bar01{
   text-align: center;
@@ -3105,11 +2913,7 @@ div.recordFormTitle > p{
 ::-webkit-scrollbar-thumb {
   
     background-color: var(--scroll-bar);
-    // @if $isDarkMode {
-    //   background-color: #707070;
-    // }
     border-radius: 0px;
-    // box-shadow:0 0 0 1px rgba(255, 255, 255, 1);
 }
 
 
@@ -3121,8 +2925,6 @@ div.recordFormTitle > p{
 .vs__selected{
     margin:0;
 }
-
-// #vs1__combobox {
 .vs__dropdown-toggle {
     -webkit-appearance: none;
     -moz-appearance: none; 
@@ -3185,7 +2987,6 @@ div.recordFormTitle > p{
   background: var(--bg2);
 }
 .vs__dropdown-option--selected{
-  // background: #000 !important;
   display: none !important;
 
 }
@@ -3207,8 +3008,6 @@ div.recordFormTitle > p{
   padding: 7px;
 }
 
-
-// 20211214
 /* ツールチップCSS */
 .tooltip {
   display: block !important;
@@ -3340,7 +3139,6 @@ div.recordFormTitle > p{
   border: 1px solid var(--primary-color);
   background: inherit;
   color: var(--primary-color);
-//   background: whitesmoke;
 }
 #login:-webkit-autofill,
 input:-webkit-autofill:hover, 
@@ -3405,7 +3203,6 @@ width: auto !important;
 
 .vc-compact {
 float: left;
-// width: 133px !important;
 width: 500px !important;
 
 box-sizing: none !important;
@@ -3427,7 +3224,6 @@ display: none !important;
 
 #modalContent02 {
   z-index:4;
-  // width: 50%;
   width: 80%;
   height: 80%;
   padding: 0px;
@@ -3437,30 +3233,23 @@ display: none !important;
 }
 .board-icon{
   width: 50%;
-  // height: 50px;
 }
 
 .knowledge-icon{
   width: 50%;
-  // #20201215_022
-  // margin-top: 10% !important;
-  // height: 50px;
 }
 
 .nice-icon{
   width: 50%;
-  // height: 50px;
 }
 
 .challenge-icon{
   width: 50%;
-  // height: 50px;
 }
 
 .calendar-icon{
   width: 20px !important;
   fill: var(--primary-color) !important;
-  // height: 50px;
 }
 
 .work-icon{
@@ -3469,13 +3258,11 @@ display: none !important;
 
 .file-icon{
   width: 50%;
-  // height: 50px;
 }
 
 
 .clap-icon {
   width: 26px;
-  // height: 22px;
 }
 
 
@@ -3492,9 +3279,6 @@ display: none !important;
   display: block;
   width: 40%;
   margin: auto;
-  // margin-top: 15%;
-  // background: #fff;
-  // padding-bottom: 50px;
 }
 
 .login-btn{
@@ -3533,7 +3317,6 @@ display: none !important;
   left:0;
   width:100%;
   height:100%;
-  // background-color:rgba(0,0,0,0.4);
 
   /*　画面の中央に要素を表示させる設定　*/
   display: flex;
@@ -3587,10 +3370,7 @@ display: none !important;
   font-size: 14px;
 }
 
-// 20201129
 
-
-// #20201215_022
 .user-icon-content{
   display: inline-flex;
   width: 100%;
@@ -3604,7 +3384,6 @@ display: none !important;
   top:0;
   height: 60px;
   align-items: center;
-  // right: -15px;
 }
 .user-three-menu>div{
     display: flex;
@@ -3642,7 +3421,6 @@ display: none !important;
 .row .cell {
   position: relative;
   float: left;
-  // padding: 15px;
   padding: 5px;
   -webkit-box-sizing: border-box;
   -moz-box-sizing: border-box;
@@ -3654,7 +3432,6 @@ display: none !important;
   box-sizing: border-box;
 }
 .row .third {
-  // width: 33.333%;
   width: 33.333%;
 }
 .row .squareBox {
@@ -3706,11 +3483,9 @@ display: none !important;
   padding: 5px 10px;
 }
 .center {
-  // background-color: #fff;
   text-align: center;
 }
 .user-time-line{
-  // width: 93%;
   width: 98%;
   margin: 0 auto;
   margin-top: 25px;
@@ -3719,7 +3494,6 @@ display: none !important;
 }
 
 .content p{
-  // font-size: ;
   position: absolute;
   bottom: 10%;
   text-align: center;
@@ -3727,7 +3501,6 @@ display: none !important;
 }
 .valid-error{
   color: tomato;
-  // bottom: -20px;
   left: 0px;
   font-size: 12px;
   bottom: -12px;
@@ -3758,7 +3531,6 @@ display: none !important;
   text-align: center;
   color: darkgray;
 }
-// #20210420_096 work追加
 .user-select {
   position: relative;
   width: 20%;
@@ -3783,15 +3555,11 @@ display: none !important;
 
 .block {
   display: table-cell;
-  // border: solid 1px #999;
-  // width: 200px;
   width: 4%;
   height: 123px;
   border-right: 1px solid #efefef;
   border-bottom: 1px solid #efefef;
-  // border: 1px solid #efefef;
   position: relative;
-  // overflow: hidden;
   background: #fff;
   box-sizing: border-box;
 }
@@ -3819,9 +3587,6 @@ display: none !important;
     bottom: 10px;
     gap: 5px;
 }
-// .openedInfoBar{
-//     bottom: 5px;
-// }
 .board-c-bar > div{
     width: 30px;
     height: 30px;
@@ -4061,7 +3826,6 @@ display: none !important;
 
 .commentArea-enter-active,
 .commentArea-leave-active {
-    // opacity: 1;
     max-height: 480px;
     transition: max-height 0.3s ease;
     overflow: hidden;
@@ -4069,13 +3833,9 @@ display: none !important;
 
 .commentArea-enter-from,
 .commentArea-leave-to {
-    // opacity: 0;
     max-height: 0;
     transition: max-height 0.3s;
 }
-// .commentAreaBox{
-    
-// }
 .commentAreaBoxInner {
     display: block;
     width:100%;
@@ -4190,8 +3950,6 @@ display: none !important;
     transform: scale(1);
 }
 .reactOn{
-    // transform: scale(1.5);
-    // transition: transform 0.4s;
     animation: reacting .5s;
 }
 .messageInnerBody{
@@ -4263,7 +4021,6 @@ font-size: 13px;
     font-size: 13px !important;
 }
 .searchMessageArea{
-    // padding:20px;
     background: var(--background-color);
     color: var(--primary-color);
     width:50%;
@@ -4328,23 +4085,16 @@ font-size: 13px;
     line-height: 1.5;
 }
 .left-panel-items{  
-    //prototype 12-28
     border: solid thin transparent;
     margin: 0 11px 0 15px;
     padding: 8px 20px 8px 10px;
     display: flex;
-//   padding: 10px 0px;
-//   width: 90%;
-//   margin: auto;
     position:relative;
     text-overflow: ellipsis;
     white-space: nowrap;
-    // overflow: hidden;
     align-items: center;
-    // z-index: 1;
     user-select: none;
     background-color: var(--background-color);
-    //transition: all 0.2s;
     color: var(--primary-color)
 }
 .leftPanelSelected{
@@ -4413,10 +4163,8 @@ font-size: 13px;
     align-items: center;
     background-color: inherit;
     right: 5px;
-    // padding: 0 0 0 8px;
     top: 10px;
     height: 25px;
-    // transition: background-color 0.3s;
 }
 .messageIconContainer{
     display: flex;
@@ -4497,8 +4245,6 @@ font-size: 13px;
     -webkit-overflow-scrolling: touch;
     position: relative;
     height: 100%;
-    // top: 0;
-    // left: 20%;
     width:60%;
     display: flex;
     flex-direction: column-reverse;
@@ -4516,11 +4262,6 @@ font-size: 13px;
     align-items: center;
     flex-direction: row-reverse;
 }
-// .messageBoxRoot:first-of-type{
-//     position: relative;
-//     margin-top:25px;
-// }
-
 .footAreaContainer{
     border-left: solid 2px var(--bg2);
     border-right: solid 2px var(--bg2);
@@ -4646,7 +4387,6 @@ font-size: 13px;
     animation: slide-out 0.1s ease-out forwards;
     transition: opacity 0.1s;
     opacity: 0;
-    // position: absolute;
     
   }
   .slide-move {
@@ -4674,8 +4414,6 @@ font-size: 13px;
     position: relative !important;
     display: flex;
     flex-direction: column-reverse;
-    // height: calc(100% - 68px);
-    // overflow: hidden scroll;
 }
 .inactiveSearchIcon{
     position: absolute;
@@ -4696,7 +4434,6 @@ font-size: 13px;
     border: solid thin var(--normalBorder);
     transition: all 0.3s;
     color: var(--primary-color);
-    // width: -moz-available;
 }
 .memberSearch{
     background-color: var(--background-color) !important;
@@ -4735,7 +4472,6 @@ font-size: 13px;
     align-items: center;
 }
 .searchBarInner{
-    // width: calc(100% - 65px);
     width: calc(100% - 30px);
     margin-left: 15px;
     height: fit-content;
@@ -4760,7 +4496,6 @@ font-size: 13px;
     fill: var(--primary-color) !important;
 }
 .boardHeader{
-    // border-bottom: thin solid rgb(221, 221, 221);
     max-width: 100%;
     overflow: hidden;
     height: 40px;
@@ -5296,7 +5031,6 @@ font-size: 13px;
 }
 .cal-remark{
     line-height: 1.5;
-    // margin-top: 10px;
     user-select: text;
     cursor: text;
     width: fit-content;
@@ -5634,7 +5368,6 @@ input:autofill {
 .top-list-tile{
     min-height: 30px;
     line-height: 30px;
-    // background: var(--background-color);
     font-size: 12px;
 }
 .top-list-tile > div{
@@ -5668,7 +5401,6 @@ input:autofill {
     z-index: 11;
     background: var(--background-color);
     word-break: keep-all;
-    // overflow: hidden;
     text-overflow: ellipsis;
     display: flex;
     align-items: center;
@@ -5817,7 +5549,7 @@ input:autofill {
 .lesson-preview{
     background: var(--background-color);
     border: solid thin var(--calendarBorder);
-    height: 80px;
+    height: fit-content;
     white-space: nowrap;
     margin-bottom: 20px;
     line-height: 1.5;
@@ -5979,9 +5711,6 @@ input:autofill {
         width: 90%;
         font-size: 14px;
     }
-    // .login-footer{
-    //     flex-direction: column
-    // }
     .footer-link{
         text-align: center;
     }
@@ -6054,9 +5783,6 @@ input:autofill {
         height: calc(100% - 20px);
         padding-top: 0;
     }
-    // .ai-loader-button{
-    //     right: 60px;
-    // }
     .ai-edit-window{
         width: 80%;
     }
@@ -6078,7 +5804,6 @@ input:autofill {
         top: 0;
         height: 100%;
     }
-    //prototype 12-28
     .left-panel-items{  
         margin: auto;
         width: 90%;
@@ -6126,14 +5851,10 @@ input:autofill {
     }
 
     .left-panel{
-        // position:fixed;
-        //due remove board group TUMUR
         top:100px;
-        // top: 60px;
         max-width:100%!important;
         min-width:100%!important;
-        width: 100% !important; 
-        // height: calc(100% - 145px); 
+        width: 100% !important;  
         height: -webkit-fill-available;
         
     }
@@ -6180,9 +5901,7 @@ input:autofill {
     }
     .calendar-bar-container{
         height: 45px;
-        margin-top: 0;
-        // margin-bottom: 5px;
-    
+        margin-top: 0;    
     }
     .calendar-search-wrap{
         width: calc(100% - 65px);
@@ -6199,10 +5918,6 @@ input:autofill {
     .chargeFormeAddButton{
         width: 65%;
     }
-    // .post-user-wrap{
-    //     flex-direction: column;
-    //     align-items: flex-start;
-    // }
     .toUserListContainer{
         max-height: 105px;
         
@@ -6257,27 +5972,11 @@ input:autofill {
         width: 100%;
     }
     .listItem{
-        // width:100%;
-        // min-width:100%;
         width: -webkit-fill-available;
-        // margin:3px 0;
     }
     .m-logo{
         margin-left: 0;
     }
-    // #20220119_0016 Tumurボード入力アリア調整
-    // .boardTypeArea{
-    //     width:calc(100% - 141px);
-    //     // margin-left:39px;
-    //     visibility:visible;  
-    //     padding: 5px 85px 5px 10px !important;
-    // }
-    // .attach-area{
-    //   right:90px;
-    // }
-    // .temp-save {
-    //   right: 115px;
-    // }
     .copyareaTitle{
         font-size: 13px;
     }
@@ -6296,13 +5995,12 @@ input:autofill {
         height: 30px;
     }
 
-//20220404
 #colorpicker {
   margin-top: 30px !important;
   margin-left: 20px !important;
 }
 
-//20220404
+
 .vc-compact{
   width: 216px !important;
   margin-top: 30px !important;
@@ -6313,7 +6011,6 @@ input:autofill {
   .emojiOnlyInner{
     font-size: 60px;    
    }
-  // #20210401_089
 
   .cat-board-list{    
     max-height: 150px;   
@@ -6331,10 +6028,6 @@ input:autofill {
   .isNarrow{
     width:100%;    
   }
-//   .header-box{
-    
-//     padding: 0 10px;
-//   }
   .auto-font{
     font-size: 12px;
   } 
@@ -6363,7 +6056,6 @@ input:autofill {
 
 
   .header-inner {
-    // #20201215_022
     width: 90%;
     height: 100%;
     margin: 0 auto;
@@ -6381,12 +6073,7 @@ input:autofill {
     display: block;
     width: 100%;
     height: auto;
-
-    // #20201215_022
-    // margin: 80px 0 0 0;
-    // margin: 80px 0px 60px 0px;
     margin: 0px 0px 0px 0px;
-    //デバッグ用の背景
   }
 
 
@@ -6396,7 +6083,6 @@ input:autofill {
     height: auto;
     margin: 0 auto;
     margin-top: 20px;
-    // #20201215_022
     margin-bottom: 20%;
 
     padding: 0px 5px 40px 5px;
@@ -6406,12 +6092,6 @@ input:autofill {
   .card-body{
     display: block;
     width: 90%;
-    // margin: 0 auto 70% auto !important;
-    // margin: 0 auto;
-    // margin-top: 15%;
-    // background: #fff;
-    // #20201215_022
-    // padding-bottom: 1px;
   }
 
   div.recordFormTitle {
@@ -6432,7 +6112,6 @@ input:autofill {
         font-size: 12px;
     }
     .mobileMessageBody{
-    //  #20210108_029
     min-width: 50%;
     max-width: 80% !important;
     width: fit-content;
@@ -6452,7 +6131,6 @@ input:autofill {
         width: 100% !important;
         min-width: 100% !important;
         margin: 0px 0px 0px 0px !important;
-        // max-width: 160px;
     }
 
 
@@ -6485,7 +6163,6 @@ input:autofill {
 
     .second-bar{
         width: 100%;
-        // text-align: center;
     }
 
 
@@ -6520,7 +6197,6 @@ input:autofill {
     
 
     .content p{
-        // font-size: ;
         position: absolute;
         bottom: 10%;
         text-align: center;
@@ -6537,7 +6213,6 @@ input:autofill {
         top: 18px;
         right: 20px;
         z-index: 9;
-        // color: #fff;
     }
 
  
@@ -6571,16 +6246,12 @@ input:autofill {
     }
 
     .conteiner-inner {
-        // display: block;
         width: 90%;
         height: auto;
         margin: 0 auto;
         margin-top: 30px;
         margin-bottom: 120px;
         padding: 0px 10px 40px 10px;
-
-        //デバッグ用の背景
-        // border: 1px solid #ccc;
         background-color:#fff;
     }
 
@@ -6620,10 +6291,8 @@ input:autofill {
 /* Focus style */
 select:focus {
   outline:none;
-  // box-shadow: 0 0 1px 3px rgba(180,222,250, 1);
   background-color:transparent;
   color: #444;
-  // border:1px solid #aaa;
 }
 
 /* Firefox focus has odd artifacts around the text, this kills that */

@@ -128,6 +128,7 @@ import { useCheckApproval } from '../../store/checkApproval';
             { title: 'コンディション'},
             { title: 'コメント'},
             { title: '経費'},
+            { title: '車両使用' },
             { title: 'ステータス'},
             { title: '報告'},
         ];
@@ -383,7 +384,7 @@ import { useCheckApproval } from '../../store/checkApproval';
                     display: block;
                     height: fit-content !important;
                     
-                    width: 100%;
+                    width: -webkit-fill-available;
                     line-height: 2;
                     padding: 0 20px !important;
                     max-width: calc(100vw - 45px);

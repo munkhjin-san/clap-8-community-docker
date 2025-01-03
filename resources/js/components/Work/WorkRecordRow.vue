@@ -89,6 +89,14 @@
             </div>
         </td>
         <td>
+            <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
+                <div @click.stop="boxPosition('vehicleBox')" class="text-wrap">{{ hasVehicle }}</div>
+                <div @click="menu.close()" ref="vehicleBox" class="comment-box" id="vehicleBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'vehicleBox' && menu.id == item.time_card?.id">
+                    <div style="word-break: break-word;">{{ vehicleDetail }}</div>                              
+                </div>
+            </div>
+        </td>
+        <td>
             <div style="position: relative;">
                 <div>
                     <div @click.stop="menu.setMenu({name: 'approveBox', id: item.shift?.overtime_request?.id})" v-if="item?.shift?.overtime_request">残業 : {{ overTimeRequestDisplay }}</div>
@@ -117,11 +125,11 @@
 </template>
 <script setup>
 import moment from 'moment';
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, useTemplateRef } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from "@/store/menu";
 import CommandButton from '../Global/CommandButton.vue';
-import { workFilePreview } from '../../utils/workApi';
+import { vehicleAsOptions, workFilePreview } from '../../utils/workApi';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
 import WeatherIcon from '../Global/WeatherIcon.vue';
 const menu = useMenuStore()
@@ -145,6 +153,7 @@ const emit = defineEmits(['callModal', 'procedureStart'])
 
 const commentBox = ref(null)
 const costBox = ref(null)
+const vehicleBox = useTemplateRef('vehicleBox')
 const topOffset = ref(0)
 const getDayClass = computed(() => {
     const date = props.item.day_full
@@ -169,7 +178,7 @@ const boxPosition = (name) => {
     topOffset.value = 0
     menu.setMenu({name: name, id: props.item.time_card?.id})
     setTimeout(() => {
-        const box = name == 'costBox' ? costBox.value : commentBox.value
+        const box = name == 'costBox' ? costBox.value : name == 'commentBox' ? commentBox.value : vehicleBox.value
         if(box){
             const rects = box.getBoundingClientRect()
             topOffset.value = rects.bottom > window.innerHeight ? Math.ceil(window.innerHeight - rects.bottom - 10) : 0
@@ -371,6 +380,18 @@ const getStatusText = computed(() => {
     }
     return statusFlag ? statuses[statusFlag] : ''
 })
-
-
+const hasVehicle = computed(() => {
+    const vehicleData = props.item?.time_card?.vehicle_data
+    if (vehicleData) {
+        return vehicleAsOptions.find(ob => ob.value === vehicleData.vehicle).label
+    }
+})
+const vehicleDetail = computed(() => {
+    const vehicleData = props.item?.time_card?.vehicle_data
+    if (vehicleData) {
+        const vehicle = vehicleAsOptions.find(ob => ob.value === vehicleData.vehicle)
+        const text = `使用車両\n${vehicle.label}\n\nアルコールチェックした時間\n車両使用前: ${vehicleData.alcohol_before_time}\n車両使用後: ${vehicleData.alcohol_after_time}\n\nアルコールチェックした値\n車両使用前: ${vehicleData.alcohol_before_value}\n車両使用後: ${vehicleData.alcohol_after_value}\n\nアルコールチェックした確認者\n車両使用前: ${vehicleData.before_user.name}\n車両使用後: ${vehicleData.after_user.name}`
+        return text
+    }
+})
 </script>

@@ -117,10 +117,6 @@
     margin: 0;
     }
 
-    /* Firefox */
-    // input[type=number] {
-    // -moz-appearance: textfield;
-    // }
   /* Style the checkmark/indicator */
   .work-member-check .work-check-mark:after {
       left: 5px;
@@ -555,12 +551,10 @@
     border: solid thin var(--primary-color);
 }
 .report-input input{
-    // width: 160px;
     height: 30px;
     opacity: 0;
     cursor: pointer;
     width: 100%;
-    // margin-right: 10px;
 }
 .report-wrapper{
     margin-top: 20px;
@@ -589,7 +583,6 @@
 .report-input-wrapper{
     position: relative;
     width: 25%;
-    // overflow: hidden;
 }
 .customfieldTextAreaLayer-01 {
     position: relative;
@@ -766,11 +759,6 @@
     overflow-y: scroll;
     fill: var(--primary-color)
   }
-//   .comment-box svg{
-//     position: absolute;
-//     top: 10px;
-//     right: 10px;
-//   }
   .alertTip{
     position: relative;
   }
@@ -789,7 +777,6 @@
         background: var(--bg2);
 
     }
-  // #20210420_096 work追加
   .alertTip::after {
     content: "";
     position: absolute;
@@ -805,7 +792,6 @@
     position: relative;
   }
   
-  // #20210420_096 work追加
   .timeEdit::after {
     content: "";
     position: absolute;
@@ -836,15 +822,8 @@
         display: none;
     }
     .report-input{
-        // flex-wrap: wrap;
         gap: 15px;
     }
-    // .report-input label{
-    //     width: 120px;
-    // }
-    // .report-input input{
-    //     width: 120px;
-    // }
     .body-row:hover{
         background-color: inherit;
     }

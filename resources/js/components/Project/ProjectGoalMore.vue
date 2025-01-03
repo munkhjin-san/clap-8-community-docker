@@ -65,7 +65,7 @@
                     </div>
                     <div v-if="reviewReport" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton @click="progressReport(false)" style="margin: 0;" :content="'成果報告'"/>
-                        <LoaderButton v-if="managerOrDirector" @click="progressReport(true)" style="margin: 0;" :content="'成果報告レビュー'"/>
+                        <LoaderButton v-if="managerOrDirector" @click="progressReport(true)" style="margin: 0;" :content="'進捗報告承認'"/>
                     </div>
 
                     <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && (goal?.status == 2 || goal?.status == 4)" style="display: flex; gap: 20px;margin-bottom: 10px;">
@@ -127,7 +127,7 @@
                     </div>
                     <div v-if="salaryIssueReport" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" :content="'成果報告'" @click="addIssueReport(false, goal)"/>
-                        <LoaderButton style="margin: 0;" v-if="goal?.salary_issue?.mentor_id === auth.id" :content="'成果報告レビュー'" @click="addIssueReport(true, goal)"/>
+                        <LoaderButton style="margin: 0;" v-if="goal?.salary_issue?.mentor_id === auth.id" :content="'進捗報告承認'" @click="addIssueReport(true, goal)"/>
                     </div>
                 </div>
                 <div v-else-if="canCreateIssue && sub_tab === 1">

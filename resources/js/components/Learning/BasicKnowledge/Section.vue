@@ -11,6 +11,18 @@
                     <p v-html="filteredContent"></p>
                 </div>
                 <div class="post-separetor"></div>
+                <SummaryQuestions 
+                    v-if="hasQuestions"
+                    :material="material"
+                    v-model:model-value="summaryAnswers"    
+                />
+                <EasySummary 
+                    v-if="showSummary"
+                    :summaries="filteredSummaries"
+                    :material="material"
+                    @updateAnswerStatus="updateAnswerStatus"
+                    @close="showSummary = false"
+                />
                 <div v-if="sectionStatus != 2 && material.has_understand">
                     <p><strong>基礎知識の内容を理解しましたか？</strong></p>
                     <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
@@ -39,27 +51,10 @@
                     </div>
                     
                 </div>
-                <div v-if="material.has_question" style="position: relative;">
-                    <LongInput 
-                        v-if="(material.answer && material?.answer?.status < 2) || !material.answer" 
-                        :initialValue="material?.answer?.answer ? material?.answer?.answer : answer" 
-                        :placeHolder="`質問に関する答え`"
-                        ref="answerComment"
-                        rules="required|max:2000"
-                        name="recordBody"
-                        label="タイトル"
-                        v-model="answer"
-                    />
-                    <p v-else><strong>質問に関する回答内容<br></strong>{{ material?.answer?.answer }}</p>
-                    <OpenAiReview 
-                        :assistand-id="material?.assistant_id" 
-                        :soure-text="material?.answer?.ai_review" 
-                        :message="answer"
-                        :confirm-text="'業務リスク管理の基礎を効果的に理解し、実務で活用できる視点を身につけている。'"
-                        :answer="true"
-                        ref="reviewEl"
-                    />
-                </div>
+                <HasQuestion 
+                    v-if="material.has_question" 
+                    :material="material" 
+                />
                 <div v-if="sectionStatus != 2 && material.has_understand" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <div v-if="selectedAnswer == 1">
                         <LoaderButton @triggered="validate('save')" :loading="processing_save" :content="'一時保存'"/>
@@ -68,19 +63,10 @@
                         <LoaderButton @triggered="nextStage" :loading="processing" :content="selectedAnswer == 0  ? '次へ' : '完了'"/>
                     </div>
                 </div>
-                <div v-else-if="material.has_question" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
-                    <div>
-                        <LoaderButton @triggered="finish(1, material)" :loading="questionsave[1]" :content="'一時保存'"/>
-                    </div>
-                    <div>
-                        <LoaderButton @triggered="finish(2, material)" :loading="questionsave[2]" :content="'完了'"/>
-                    </div>
-                </div>
-                <div v-else style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                <div v-else-if="!material.has_question && (!material.answer || material?.answer?.status < 2)" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <LoaderButton @triggered="nextStage" :loading="processing" :content="'完了'"/>
                 </div>
             </div>
-            
             <router-view
                 :material="material"
                 :selectedTopic="selectedTopic"
@@ -95,21 +81,20 @@
     import { useRoute, useRouter } from 'vue-router';
     import LongInput from '../../Form/LongInput.vue';
     import LoaderButton from '../../Global/LoaderButton.vue'
-    import { ref, computed, inject, useTemplateRef } from 'vue'
+    import { ref, computed, inject, useTemplateRef, watchEffect } from 'vue'
     import DraftLayout from './DraftLayout.vue';
     import axios from 'axios';
-    import OpenAI from 'openai';
-    import OpenAiReview from '@/components/Global/OpenAiReview.vue';
     import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
     import { useTtsStore } from '@/store/ttsStore';
+    import EasySummary from './EasySummary.vue';
+    import HasQuestion from './HasQuestion.vue';
+    import SummaryQuestions from './SummaryQuestions.vue';
     const router = useRouter()
     const route = useRoute()
     const ttsStore = useTtsStore()
     const { notify, info } = inject('dialog')
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
     const getLessonPortfolios = inject('getLessonPortfolios')
-    const reviewEl = useTemplateRef('reviewEl')
-    const { confirm } = inject('dialog')
     const filteredContent = computed(() => {
         
         return material.value.content.replace(/\[\[learning_video src="(.*?)" learning_video\]\]/g, (match, videoSrc) => {
@@ -125,9 +110,13 @@
     const sectionContent = computed(() => {
         return props.sections_status && props.sections_status.length ? props.sections_status.find(val => val.material_id === material.value?.id)?.content : ''
     })
+    const hasQuestions = computed(() => {
+        return material.value?.summaries.length && material.value?.summaries.some(ob => ob.questions?.length > 0) && (material.value?.answer?.status < 2 || !material.value?.answer)
+    })
+    const answers = computed(() => {
+        return material.value?.summaries.map(summary => summary.answers).flat()
+    })
     const understandComment = ref(null)
-    const answer = ref("")
-    const answerComment = ref(null)
     const comment = ref("")
     const processing = ref(false)
     const list = [
@@ -138,8 +127,13 @@
     
     const radioError = ref("")
     const processing_save = ref(false) 
-    const questionsave = ref(['', false, false])
-    const getThemes = inject('getThemes')
+    const getLessons = inject('getLessons')
+    const summaryAnswers = ref([])
+    watchEffect(() => {
+        summaryAnswers.value = answers.value ?? []
+    })
+    const showSummary = ref(false)
+    const filteredSummaries = ref([])
     const validate = async(status) => {
         const valid = await understandComment.value.validate()
         if(valid.valid){
@@ -196,6 +190,16 @@
                 return
             }
         } else if (!material.value.has_question){
+            filteredSummaries.value = material.value.summaries.filter((summary) => {
+                return summaryAnswers.value.some(answer => 
+                    answer.lesson_summary_id === summary.id && (answer.answer_val === 0 || answer.answer_val === 1)
+                );
+            });
+            if (filteredSummaries.value.length > 0) {
+                showSummary.value = true
+                return
+            }
+            
             updateAnswerStatus()
         } else {
             router.push({name: 'basic'})
@@ -203,17 +207,33 @@
         
         
     }
-    const updateAnswerStatus = async() => {
+    const saveSummaryAnswers = async() => {
+        if(!summaryAnswers.value.length) return
+        try {
+            await axios.post('/save_summary_answers', {answers: summaryAnswers.value})
+            getLessons()
+        } catch (e) {
+            notify(e)
+        }
+    }
+    const updateAnswerStatus = async(status) => {
         try {
             const params = {
                 id: material?.value?.answer?.id,
                 params: {
                     material_id: material.value?.id,
-                    status: 2
+                    status: status || 2,
                 },
             }
             await axios.post('/update_lesson_answer', params)
-            router.push({name: 'basic'})
+            if (status === -1) {
+                router.push({name: 'more'})
+            } else {
+                router.push({name: 'basic'})
+            }
+            
+            saveSummaryAnswers()
+            getLessons()
         } catch (e) {
 
         }
@@ -224,63 +244,5 @@
         tempDiv.innerHTML = html;
         return tempDiv.textContent || tempDiv.innerText; // Get plain text from HTML
     };
-       
-    const finish = async(status, material) => {
-        if (status === 2) {
-            if(props.selectedTopic.assistant_id && !reviewEl.value?.reviewResultRaw){
-                notify('基礎知識研修を完了する前、AI分析してください。')
-                return
-            }
-            
-        }        
-        const aiVal = await reviewEl.value?.validate()
-        
-        const val = await answerComment.value?.validate() || {valid: false}
-        
-        if((props.selectedTopic.assistant_id && !aiVal) || !val.valid){
-            return
-        }
-        
-        questionsave.value[status] = true
-        const materialId = material?.id
-        const answerId = material?.answer?.id
-        const params = {     
-            id: answerId,           
-            params: {
-                status: status,
-                answer: answer.value,
-                ai_review: reviewEl.value?.reviewResultRaw,
-                material_id: materialId
-            }
-        }
-        // let decision
-        // if (status == 2) {
-        //     decision = await checkList()
-        // }
-        try {
-            axios.post('/update_lesson_answer', params)
-            info('保存しました。')
-            questionsave.value[status] = false
-            getThemes()
-            // if (decision) {
-            //     window.open(
-            //     'https://docs.google.com/forms/d/e/1FAIpQLSclZ50A5MBYcx-Y_8_hLV3ARWgkJMX8Z6QRKdkl0XLKGDzhSg/viewform',
-            //     '_blank'
-            //     );
-            // }
-            
-        } catch (e) {
-            notify(e)
-        } finally {
-            router.push({name : 'basic'})
-        }
-    }
-    const checkList = async() => {
-        const options = {
-            answers: [{ label: 'OK', value: true }]
-        };
-        const answer = await confirm("最後に業務リスク研修チェックリストの実施をお願い致します。", options);
-        return answer
-    }
     
 </script>

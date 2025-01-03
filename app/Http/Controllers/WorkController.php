@@ -14,7 +14,7 @@ use App\Models\timecardRecord;
 use App\Models\timecardCostRecord;
 use App\Models\customFieldDataRecord;
 use App\Models\customFieldPartsRecord;
-
+use App\Models\timecardVehicle;
 use App\Models\workGroup;
 use App\Models\workTemp;
 use App\Models\attendanceRecord;
@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class WorkController extends Controller
 {
@@ -50,13 +51,8 @@ class WorkController extends Controller
         $active_user = $this->active_user();
         
         $users_list = $request->work_group ?? [];
-          
-        if($request->current_date){
-            [$currentYear, $currentMonth] = explode('-', $request->current_date);
-        }else{
-            $current_date = Carbon::now()->format('Y-m');
-            [$currentYear, $currentMonth] = explode('-', $current_date);
-        }
+        $current_date = $request->current_date ?? Carbon::now()->format('Y-m');
+        [$currentYear, $currentMonth] = explode('-', $current_date);
 
         $time_card_record = timecardRecord::selectRaw(
             'user_id,
@@ -243,7 +239,7 @@ class WorkController extends Controller
         $requestDateString = $request->current_date;
         $active_user = $this->active_user();
         $users_list = $request->work_group ?? [];
-        list($year, $month) = explode("-", $requestDateString);
+        [$year, $month] = explode("-", $requestDateString);
         $users = User::whereIn('id', $users_list)
         ->with([
             'time_card_records' => function($q) use($year, $month) {
@@ -251,7 +247,7 @@ class WorkController extends Controller
                 ->whereMonth('day', $month)
                 ->with([
                     'custom_field_data_records' => function ($q) {
-                        $q->whereIn('type_id', [37, 40, 39, 41, 42])
+                        $q->whereIn('type_id', [37, 40, 39, 41, 42, 44])
                             ->orderBy('created_at', 'desc')
                             ->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
                     },
@@ -267,6 +263,9 @@ class WorkController extends Controller
                     'total_break_time',
                     'department' => function ($q) {
                         $q->with('members')->with('manager');
+                    },
+                    'vehicle_data' => function ($q) {
+                        $q->with('before_user')->with('after_user');
                     }
                 ])
                 ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id');
@@ -292,7 +291,9 @@ class WorkController extends Controller
                 $q->where('date_year_month', $requestDateString);
             }
         ])->get();
-       
+        $previousTimeCard = timecardRecord::where('user_id', $active_user->id)            
+            ->orderBy('day', 'desc')
+            ->first();
         $recordList = [];
         // $workGroups = workGroup::whereHas('members', function ($q) {
         //     $q->where('user_id', Auth::id())
@@ -370,6 +371,7 @@ class WorkController extends Controller
                     'authority' => $authority,
                     'force_authority' => $active_user->id == 610 || $active_user->id == 608,
                     'total_break_time' => $time_card?->total_break_time->first()->total_break_minute ?? 0,
+                    'prev_vehicle_data' => $previousTimeCard?->prev_vehicle_data,
                     'ability' => [
                         'overtime_request' => $overtime_ability,
                         'daily_report_create' => $daily_report_ability[0],
@@ -873,72 +875,78 @@ class WorkController extends Controller
         if(array_key_exists(37, $request->customValues) && $request->customValues[37] && in_array(2, $request->customValues[37])){
             $this->checkWaitingAllowance($request);
         }
-        $is_exist = timecardRecord::firstOrCreate([
-            'day' => $request->day,
-            'user_id' => $request->userId
-        ]);
-        $is_exist->work_group_id = $request->department;
-        $is_exist->start_time = $request->start_time;
-        $is_exist->end_time = $request->end_time;
-        if ($user->work_type === 1) {
-            if ($time_difference_seconds >= $shift_time_difference_seconds) {                
-                $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
-                $overtimeMinutes = floor($overtimeSeconds / 60);
-                $is_exist->over_time = $overtimeMinutes;
-            } else {
-                $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
-                $latetimeMinutes = floor($latetimeSeconds / 60);
-                $is_exist->late_time = $latetimeMinutes;
+        DB::beginTransaction();
+        try {
+            $is_exist = timecardRecord::firstOrCreate([
+                'day' => $request->day,
+                'user_id' => $request->userId
+            ]);
+            $is_exist->work_group_id = $request->department;
+            $is_exist->start_time = $request->start_time;
+            $is_exist->end_time = $request->end_time;
+            if ($user->work_type === 1) {
+                if ($time_difference_seconds >= $shift_time_difference_seconds) {                
+                    $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
+                    $overtimeMinutes = floor($overtimeSeconds / 60);
+                    $is_exist->over_time = $overtimeMinutes;
+                } else {
+                    $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
+                    $latetimeMinutes = floor($latetimeSeconds / 60);
+                    $is_exist->late_time = $latetimeMinutes;
+                }
             }
-        }
-        if (isset($night_difference_seconds) && $night_difference_seconds > 0) {
-            $nighttimeMinutes = floor($night_difference_seconds / 60);
-            $is_exist->night_over_time = $nighttimeMinutes;
-        }else{
-            $is_exist->night_over_time = 0;
-        }
-        $minutes = floor($time_difference_seconds / 60);
-        $is_exist->work_time = $minutes;
-        $is_exist->edit_start_time = $request->start_time;
-        $is_exist->edit_end_time = $request->end_time;
-        
-        $is_exist->break_time = $request->breakTime;
-        $is_exist->stamp_flag = 1;
-        $is_exist->status_flag = $request->status_flag;
-        
-        if($today != $request->day){
-            $is_exist->work_time_edit_flag = 1;
-        }
-        foreach ($request->customValues as $key => $field) {
+            if (isset($night_difference_seconds) && $night_difference_seconds > 0) {
+                $nighttimeMinutes = floor($night_difference_seconds / 60);
+                $is_exist->night_over_time = $nighttimeMinutes;
+            }else{
+                $is_exist->night_over_time = 0;
+            }
+            $minutes = floor($time_difference_seconds / 60);
+            $is_exist->work_time = $minutes;
+            $is_exist->edit_start_time = $request->start_time;
+            $is_exist->edit_end_time = $request->end_time;
             
-           customFieldDataRecord::where('table_record_id', $is_exist->id)
-                ->where('user_id', $request->userId)
-                ->where('type_id', $key)
-                ->delete();
-            if ($key == 37) {
-                if(is_array($field)){
-                    foreach ($field as $val) {
-                        $this->saveCustomData($request->day, $is_exist->id, $request->userId, $val, $key);
+            $is_exist->break_time = $request->breakTime;
+            $is_exist->stamp_flag = 1;
+            $is_exist->status_flag = $request->status_flag;
+            
+            if($today != $request->day){
+                $is_exist->work_time_edit_flag = 1;
+            }
+            foreach ($request->customValues as $key => $field) {
+                
+               customFieldDataRecord::where('table_record_id', $is_exist->id)
+                    ->where('user_id', $request->userId)
+                    ->where('type_id', $key)
+                    ->delete();
+                if ($key == 37) {
+                    if(is_array($field)){
+                        foreach ($field as $val) {
+                            $this->saveCustomData($request->day, $is_exist->id, $request->userId, $val, $key, $request->vehicleData);
+                        }
                     }
+                    
+                } else {
+                    $this->saveCustomData($request->day, $is_exist->id, $request->userId, $field, $key, $request->vehicleData);
                 }
                 
-            } else {
-                $this->saveCustomData($request->day, $is_exist->id, $request->userId, $field, $key);
             }
             
+            $is_exist->save();
+            if($request->shiftType !== 0 && $request->shiftType !== 1){
+                $this->checkDepartment($request->day, $request->userId);
+            }
+            $this->saveWorkCost($request, $is_exist);
+            $this->saveWorkIncentive($user, $request, $is_exist);
+            if($request->overTimeMinute){
+                $this->overTimeCheck($request, $overtimeMinutes);
+            }
+            DB::commit();
+            return response()->json(['success' => 'success'], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            throw $e;
         }
-        
-        $is_exist->save();
-        if($request->shiftType !== 0 && $request->shiftType !== 1){
-            $this->checkDepartment($request->day, $request->userId);
-        }
-        $this->saveWorkCost($request, $is_exist);
-        $this->saveWorkIncentive($user, $request, $is_exist);
-        if($request->overTimeMinute){
-            $this->overTimeCheck($request, $overtimeMinutes);
-        }
-
-        return response()->json(['success' => 'success'], 200); 
     }
     private function checkDepartment($day, $user_id){
         $shift = shiftRecord::where('shift_day', $day)
@@ -1026,7 +1034,10 @@ class WorkController extends Controller
             throw ValidationException::withMessages(['message' => '待機手当は1か月に5回以上の利用はできません。']);
         }
     }
-    private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id){
+    private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id, $vehicleData){
+        if ($type_id === 44 && $value == 1){
+            $this->saveVehicleData($vehicleData, $table_record_id, $user_id);
+        }
         $new_custom_data = new customFieldDataRecord;
         $new_custom_data->date = $date;
         $new_custom_data->table_record_id = $table_record_id;
@@ -1048,6 +1059,19 @@ class WorkController extends Controller
         }
         $new_custom_data->save();
     }
+    private function saveVehicleData($vehicleData, $table_record_id, $user_id){
+        $new_vehicle_data = new timecardVehicle;
+        $new_vehicle_data->user_id = $user_id;
+        $new_vehicle_data->record_id = $table_record_id;
+        $new_vehicle_data->vehicle = $vehicleData['vehicle'];
+        $new_vehicle_data->confirm_before_user = $vehicleData['confirm_before_user'];
+        $new_vehicle_data->confirm_after_user = $vehicleData['confirm_after_user'];
+        $new_vehicle_data->alcohol_before_time = $vehicleData['alcohol_before_time'];
+        $new_vehicle_data->alcohol_after_time = $vehicleData['alcohol_after_time'];
+        $new_vehicle_data->alcohol_before_value = $vehicleData['alcohol_before_value'];
+        $new_vehicle_data->alcohol_after_value = $vehicleData['alcohol_after_value'];
+        $new_vehicle_data->save();
+    }
     public function deleteTimeCard(Request $request){
         $is_exist = timecardRecord::where('day', $request->date)->where('user_id', $request->userId)->first();
         $over_time = ShiftOvertimeRequest::where('overtime_day', $request->date)->where('user_id', $request->userId)->first();
@@ -1055,6 +1079,7 @@ class WorkController extends Controller
             $is_exist->custom_field_data_records()->delete();
             $is_exist->timecard_costs()->delete();
             $is_exist->timecard_incentives()->delete();
+            $is_exist->vehicle_data()->delete();
             $is_exist->delete();
             if($over_time){
                 $over_time->delete();
@@ -1170,7 +1195,7 @@ class WorkController extends Controller
             $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
         }
         if ($user->work_type == 1) {
-            $month_over_time += $over_time;
+            $month_over_time = $over_time;
         }
         $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
         $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
@@ -1277,6 +1302,7 @@ class WorkController extends Controller
             $petitionType3_count = $shift_records->where('shift_type', 9)->count();
             $petitionType2_count = $shift_records->where('shift_type', 8)->count();
             $petitionType1_count = $shift_records->where('shift_type', 7)->count();
+            $comp_holiday = $shift_records->where('shift_type', 17)->count();
             $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
             $hours_count = 0;
             $working_hour_low = 0;
@@ -1322,6 +1348,7 @@ class WorkController extends Controller
             $attendance_record->condolence_holiday = $request->condolence_leave;
             $attendance_record->special_holiday = $request->transfer_leave;
             $attendance_record->oda_holiday = $request->oda_leave;
+            $attendance_record->comp_holiday = $comp_holiday;
             $attendance_record->working_hours = $request->worked_hours;
             $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
             $attendance_record->over_time = $request->over_time;

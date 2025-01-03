@@ -222,6 +222,7 @@ export interface Task {
     pseudo_end?: string
     unread_comments?: number
     pre_executors?: TaskUser[]
+    sort_number: number
 }
 
 export interface GanttColumnData {

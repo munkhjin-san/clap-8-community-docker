@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 namespace App\Http\Controllers;
+use App\Models\shiftRecord;
 use App\Models\User;
 use App\Models\Icons;
 
@@ -314,12 +315,20 @@ class UserController extends Controller{
             ->where('date', '<', $today)
             ->orderBy('date', 'desc')
             ->limit(5);
-        }])->with('portfolio')->with('linked')
+        }])->with(['portfolio', 'linked'])
         ->first();         
 
         return response()->json($list);
         
     }  
+    public function get_planned_leaves(Request $request){
+        $paidholidays = shiftRecord::where('user_id', $request->user_id)
+                                    ->where('planned_year', $request->year)
+                                    ->where('shift_type', 3)
+                                    ->select('shift_day', 'user_id')
+                                    ->get();
+        return response()->json($paidholidays);
+    }
     public function setColor (Request $request){     
         $request->validate([
             'value' => 'required',

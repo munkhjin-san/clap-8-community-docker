@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CustomForm;
 use App\Models\LessonAnswer;
+use App\Models\LessonSummary;
+use App\Models\LessonSummaryAnswer;
+use App\Models\LessonSummaryQuestion;
 use Illuminate\Http\Request;
 use App\Models\LessonMaterial;
 use App\Models\LessonPortfolio;
@@ -21,6 +25,15 @@ class LessonController extends Controller
         $lessons = LessonMaterial::where('lesson_theme_id', $request->lesson_theme_id)
                                 ->with(['answer' => function ($q) {
                                     $q->where('user_id', Auth::id());
+                                }])->with(['summaries' => function ($q) {
+                                    $q->with([
+                                        'questions.answer' => function ($q) {
+                                            $q->where('user_id', Auth::id());
+                                        },
+                                        'answers' => function ($q) {
+                                            $q->where('user_id', Auth::id());
+                                        }
+                                    ]);
                                 }])
                                 ->get();
 
@@ -237,5 +250,95 @@ class LessonController extends Controller
         $params['user_id'] = auth()->id();
         $lesson_answer = LessonAnswer::updateOrCreate(['id' => $id], $params);
         return response()->json($lesson_answer);
+    }
+    public function get_material_list(Request $request) {
+        $lessons = LessonMaterial::where('lesson_theme_id', $request->lesson_theme_id)
+                    ->whereHas('answer', function ($q) {
+                        $q->whereHas('user');
+                    })
+                    ->with(['answer.user'])
+                    ->get();
+
+        $usersProgress = []; 
+
+        foreach ($lessons as $lesson) {
+            $type = $lesson->material_type;
+            $answer = $lesson->answer;
+                
+            $userId = $answer->user->id;
+            if (!isset($usersProgress[$userId])) {
+                $usersProgress[$userId] = [
+                    'user' => $answer->user,
+                    'basic_knowledge_statuses' => [],
+                    'case_study_statuses' => [],
+                    'answers' => [],
+                ];
+            }
+            if ($type === '基礎知識') {
+                $usersProgress[$userId]['basic_knowledge_statuses'][] = $answer->status;
+            } elseif ($type === 'ケーススタディ') {
+                $case_answers = [
+                    'title' => $lesson->title,
+                    'answer' => $answer->answer
+                ];
+                $usersProgress[$userId]['case_study_statuses'][] = $answer->status;
+                $usersProgress[$userId]['answers'][] = $case_answers;
+            }
+        }
+        foreach ($usersProgress as $userId => &$progress) {
+            $progress['basic_knowledge_completed'] = !empty($progress['basic_knowledge_statuses']) &&
+                collect($progress['basic_knowledge_statuses'])->every(function ($status) {
+                    return $status == 2;
+                });
+            $progress['case_study_completed'] = !empty($progress['case_study_statuses']) &&
+                collect($progress['case_study_statuses'])->every(function ($status) {
+                    return $status == 2;
+                });
+            $progress['basic_knowledge_uncompleted'] = !empty($progress['basic_knowledge_statuses']) &&
+                collect($progress['basic_knowledge_statuses'])->some(function ($status) {
+                    return $status == -1;
+                });
+            $progress['completed'] = $progress['basic_knowledge_completed'] && $progress['case_study_completed'];
+        }
+                                
+        return response()->json($usersProgress);
+    }
+
+    public function add_material_summary(Request $request){
+        $id = $request->id ?? null;
+        $params = $request->params;
+        $lesson_material_summary = LessonSummary::updateOrCreate(['id' => $id], $params);
+        
+        foreach ($request->questions as $question) {
+            $question['lesson_summary_id'] = $lesson_material_summary->id;
+            
+            LessonSummaryQuestion::updateOrCreate(
+                ['id' => $question['id'] ?? null],
+                $question
+            );
+        }
+            
+        
+        return response()->json($lesson_material_summary);
+    }
+    public function get_forms(Request $request){
+        $ankets = CustomForm::all();
+
+        return response()->json($ankets);
+    }
+    public function lesson_remove_summary(Request $request){
+        if($request->id){
+            $lesson = LessonSummary::findOrFail($request->id)->delete();
+            return response()->json($lesson);
+        }
+    }
+    public function save_summary_answers(Request $request){
+        $answers = $request->answers;
+        foreach ($answers as $answer) {
+            $id = $answer['id'] ?? null;
+            $params = $answer;
+            $lesson_summary_answer = LessonSummaryAnswer::updateOrCreate(['id' => $id], $params);
+        }
+        return response()->json($lesson_summary_answer);
     }
 }

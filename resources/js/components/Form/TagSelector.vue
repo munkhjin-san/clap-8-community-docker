@@ -36,7 +36,7 @@
 </template>
 <script setup>
 import { markRaw, onMounted, ref, watch,} from 'vue';
-
+import { debounce } from '@/utils/tools';
 import OpenAI from "openai";
 
     const props = defineProps(['placeHolder', 'specialTags', 'suggestion', 'modelValue'])
@@ -51,7 +51,7 @@ import OpenAI from "openai";
         superFetch()
     })      
 
-    const search = _.debounce((key) => {
+    const search = debounce((key) => {
         axios.post('/post_get_tags', {key: key, super: false})
         .then(response => {
             tagOptions.value = response.data

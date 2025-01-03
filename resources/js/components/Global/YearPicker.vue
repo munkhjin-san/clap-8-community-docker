@@ -4,7 +4,7 @@
             {{ year }}年
         </div>
         <Transition name="slidePop">
-            <div id="cYearPicker" v-if="menu.name=='cYearPicker' && menu.id==87" class="month-grid" style="right:0;">
+            <div id="cYearPicker" v-if="menu.name=='cYearPicker' && menu.id==87" class="month-grid" :style="{right : right ? right : '0'}">
                 <div v-if="pickerIs == 'year'" class="grid-container year-picker">
                     <div @click.stop="setYear(y)" :id="`y_${y}`" :class="{thisYear : y == year}" v-for="y in yearList" class="grid-item">{{ y }}年</div>
                 </div>
@@ -18,7 +18,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { useMenuStore } from "@/store/menu";
     const menu = useMenuStore()
-    const props = defineProps(['selectedYear'])
+    const props = defineProps(['selectedYear', 'right'])
     const emit = defineEmits(['setDate'])
     const pickerIs = ref('year')
     const year = ref(props.selectedYear)

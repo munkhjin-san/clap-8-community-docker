@@ -11,7 +11,7 @@
         </Transition>      
         <div style="height: 100%">
             <div class="lcontrol" v-if="route.name == 'learningcontrol'">
-                <h2 style="padding: 20px;">テーマ</h2>
+                <h4 style="padding: 20px;">テーマ</h4>
                 <div style="display:grid;grid-template-columns: repeat(3, 1fr);gap: 20px;padding: 0 20px;">
                     <div class="theme-item" v-for="theme in themeRecords">
                         <div @click="router.push({name: 'content', params: {themeId: theme.id}})" style="max-width: 90%;overflow: hidden;text-overflow: ellipsis;">

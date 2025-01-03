@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\boardRecord;
+use App\Models\ProjectCondition;
 use App\Models\ProjectEvaluation;
 use App\Models\ProjectMember;
 use App\Models\ProjectRecord;
@@ -35,19 +36,25 @@ class ProjectController extends Controller
         }
     }
     public function get_projects(Request $request) {
+        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString(); 
         $evaluation_date = $request->evaluation_date;
-        $projects = ProjectRecord::with(['members' => function ($q) use ($evaluation_date) {
-                        $q->with(['evaluation' => function ($q) use ($evaluation_date) {
-                            $q->whereDate('date', $evaluation_date)
-                                ->with('mentor');
-                        }])->where('retire', 0);
-                    }])
-                    ->with(['manager' => function ($q) use ($evaluation_date) {
-                        $q->with(['evaluation' => function ($q) use ($evaluation_date) {
-                            $q->whereDate('date', $evaluation_date)
-                                ->with('mentor');
-                        }])->where('retire', 0);
-                    }])
+        $projects = ProjectRecord::with([
+                        'project_conditions' => function ($q) use($weekStartDate) {
+                            $q->where('week_start_date', $weekStartDate);
+                        },
+                        'manager' => function ($q) use ($evaluation_date) {
+                            $q->with(['evaluation' => function ($q) use ($evaluation_date) {
+                                $q->whereDate('date', $evaluation_date)
+                                    ->with('mentor');
+                            }])->where('retire', 0);
+                        },
+                        'members' => function ($q) use ($evaluation_date) {
+                            $q->with(['evaluation' => function ($q) use ($evaluation_date) {
+                                $q->whereDate('date', $evaluation_date)
+                                    ->with('mentor');
+                            }])->where('retire', 0);
+                        }
+                    ])
                     ->with('director')
                     ->get();
         $sortedProjects = $projects->sortByDesc(function ($project) {
@@ -287,7 +294,9 @@ class ProjectController extends Controller
 
 
             $board_members_id = $board->board_to_users()->pluck('user_id')->toArray();
-            $manager[] = $params['director_id'];
+            if (isset($params['director_id'])) {
+                $manager[] = $params['director_id'];
+            }
             $unite = array_merge($members, $manager);
             $remove_members = array_diff($board_members_id, $unite);
             $add_members = array_diff( $unite, $board_members_id);
@@ -808,10 +817,10 @@ class ProjectController extends Controller
         $projectCounts = $goals->groupBy('project_id')
             ->map->count()
             ->all();
-
         $totalSum = array_sum($projectCounts);
-
+        $whichGoal = $goals->groupBy('id')->map->count()->toArray();
         return [
+            'which_goal' => $whichGoal,
             'total_sum' => $totalSum,
             'project_counts' => $projectCounts,
             'goal_counts' => $goalCounts,
@@ -823,5 +832,43 @@ class ProjectController extends Controller
                 ->pluck('user_id')
                 ->unique()
                 ->toArray();
+    }
+
+    public function get_managing_projects(Request $request)
+    {
+        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString(); 
+        $projects = ProjectRecord::whereDoesntHave('project_conditions', function ($q) use($weekStartDate, $request) {
+            $q->where('user_id', $request->user()->id)
+                ->where('week_start_date', $weekStartDate);
+        })->whereHas('manager', function ($q) use($request) {
+            $q->where('users.id', $request->user()->id);
+        })->get();
+        return response()->json($projects);
+    }
+    public function updateConditions(Request $request)
+    {
+        $validated = $request->validate([
+            'selected' => 'required|array',
+            'selected.*.value' => 'required|integer|between:0,5', 
+            'selected.*.project_record_id' => 'required|integer|exists:project_records,id',
+        ]);
+
+        $userId = $request->user()->id; 
+        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString();  
+
+        foreach ($validated['selected'] as $item) {
+            ProjectCondition::updateOrCreate(
+                [
+                    'project_record_id' => $item['project_record_id'],
+                    'user_id' => $userId,
+                    'week_start_date' => $weekStartDate,
+                ],
+                [
+                    'value' => $item['value'],
+                ]
+            );
+        }
+
+        return response()->json(['message' => 'Project conditions updated successfully.'], 200);
     }
 } 

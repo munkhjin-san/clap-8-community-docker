@@ -16,6 +16,10 @@ class LessonMaterial extends Model
     public function answer(){
         return $this->hasOne(LessonAnswer::class, 'material_id');
     }
+
+    public function summaries() {
+        return $this->hasMany(LessonSummary::class, 'lesson_material_id');
+    }
     protected $fillable = [
         'lesson_theme_id',
         'user_id',
@@ -27,6 +31,7 @@ class LessonMaterial extends Model
         'priority',
         'has_question',
         'has_understand',
-        'assistant_id'
+        'assistant_id',
+        'material_type'
     ];
 }

@@ -12,7 +12,7 @@
             </div>
             <div class="report-wrapper" style="background:inherit;">
                 <div class="report-field">
-                    <p class="report-header">部門を選択</p>
+                    <p class="report-header">プロジェクト</p>
                     <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="todayWorkGroup">
                         <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
                     </select>
@@ -65,8 +65,9 @@
                     v-for="field in filterCustomValues" 
                     :shift_type="shift?.shift_type" 
                     :data="field"
-                    v-model="customValues[field.id]"
-                />               
+                    v-model:fieldValue="customValues[field.id]"
+                    v-model:vehicle="vehicleData"
+                />              
                 <div class="si-box" style="display: flex; justify-content: center; gap: 20px;">
                     <LoaderButton style="margin: 0" :loading="loading[0]" content="一時保存" @triggered="saveTimeCard(0)" />
                     <LoaderButton style="margin: 0" :loading="loading[1]" content="申請する" @triggered="saveTimeCard(1)" />
@@ -89,6 +90,7 @@
     const emit = defineEmits(['reload'])
     const theme = useTheme()
     const workGroups = inject('workGroups')
+    
     const props = defineProps([
             'chosenDate', 
             'todayStartTime', 
@@ -107,6 +109,15 @@
     const timeCard = computed(() => {
         return props.item?.time_card
     })
+    const vehicleData = ref(timeCard.value?.vehicle_data ? timeCard.value.vehicle_data : props.item?.prev_vehicle_data ? props.item.prev_vehicle_data : {
+        vehicle: null,
+        alcohol_before_time: null,
+        alcohol_after_time: null,
+        alcohol_before_value: null,
+        alcohol_after_value: null,
+        confirm_before_user: null,
+        confirm_before_user: null
+    });
     const workGroupAsOptions = computed(() => {
         let filteredgroups
         let mappedgroups
@@ -261,7 +272,7 @@
     
     const showToastIfEmpty = async() => {
         return new Promise ((resolve) => {
-            const targets = [39,40,41]
+            const targets = [39,40,41,44]
             if (workedTime.value > shiftWorkTime.value && props.item?.work_type == 1 && !shift.value?.overtime_request) {
                 targets.push(42)
             }
@@ -273,10 +284,34 @@
                     notify(message)
                     resolve(false)
                 }
+                if(index == 44 && v == 1){
+                    if(!vehicleConfirm()){
+                        resolve(false)
+                    }
+                }
             })
             resolve(true)
         })
     }
+    const vehicleConfirm = () => {
+        if (!vehicleData.value) {
+            notify('車両の使用に関する情報はありません。');
+            return false;
+        } else if (vehicleData.value['vehicle'] === null) {
+            notify('車両が選択されていません。');
+            return false;
+        } else if (!vehicleData.value['alcohol_before_time'] || !vehicleData.value['alcohol_after_time']) {
+            notify('前後の時間が選択されていません。');
+            return false;
+        } else if (vehicleData.value['alcohol_before_value'] == null || !vehicleData.value['alcohol_after_value'] == null) {
+            notify('前後の値が選択されていません。');
+            return false;
+        } else if (!vehicleData.value['confirm_before_user'] || !vehicleData.value['confirm_after_user']) {
+            notify('前後の確認者が選択されていません。');
+            return false;
+        }
+        return true;
+    };
     const formatTime = (time) => { 
         const timeFormat = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
         if (timeFormat.test(time)) {
@@ -351,7 +386,8 @@
                 costsValues: costs,
                 incentiveValues: incentives.value,
                 department: todayWorkGroup.value,
-                shiftType: props.item?.shift?.shift_type?.id ?? null
+                shiftType: props.item?.shift?.shift_type?.id ?? null,
+                vehicleData: vehicleData.value
             }
             resolve(a)
         })

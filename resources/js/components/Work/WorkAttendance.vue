@@ -121,6 +121,14 @@
                     </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
+                            <span>ODA休暇</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.oda_leave + '日' }}</span>
+                        </div>
+                    </div>
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
+                        <div class="attendance-title">
                             <span>残業</span>
                         </div>
                         <div class="attendance-value">

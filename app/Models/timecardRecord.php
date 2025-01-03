@@ -39,6 +39,12 @@ class timecardRecord extends Model
     public function department_members(){
         return $this->hasMany(ProjectMember::class, 'record_id', 'work_group_id');
     }
+    public function vehicle_data(){
+        return $this->hasOne(timecardVehicle::class, 'record_id', 'id');
+    }
+    public function prev_vehicle_data(){
+        return $this->hasOne(timecardVehicle::class, 'record_id', 'id')->select('id', 'record_id', 'alcohol_before_time', 'alcohol_after_time', 'vehicle');
+    }
     protected $casts = [
         'record_id' => 'int',
         'deleted_flag' => 'int',

@@ -17,7 +17,7 @@
             "utils/*": ["resources/js/utils/*"]
         }
     },
-    "include": [ "resources/**/*.*" ],
+    "include": [ "resources/**/*.ts", "resources/**/*.js", "resources/**/*.vue" ],
     "exclude": [
         "node_modules",
         "**/node_modules/*"

@@ -62,11 +62,16 @@ class AdminWorkController extends Controller{
               ->whereMonth('day', $currentMonth)
               ->select('work_time', 'day', 'id', 'user_id', 'work_group_id')
               ->orderBy('day', 'asc')
-              ->with(['custom_field_data_records' => function($q) {
-                $q->where('type_id', 40)
-                ->where('value_int', '=' , 1)
-                ->select('type_id', 'value_int', 'date', 'table_record_id');
-              }])
+              ->with([
+                'custom_field_data_records' => function($q) {
+                    $q->whereIn('type_id', [40, 44])
+                    ->where('value_int', 1)
+                    ->select('type_id', 'value_int', 'date', 'table_record_id');
+                },
+                'vehicle_data' => function ($q) {
+                    $q->with('before_user', 'after_user');
+                }
+              ])
               ->with('department');
         }])
         ->with(['attendance_records' => function($q) use($month){
@@ -162,7 +167,7 @@ class AdminWorkController extends Controller{
             $month_work_time_array2 = [];
             $allDepartmentCounts = collect();
             foreach ($all_users as $user) {
-                $shiftTypes = range(3, 16);
+                $shiftTypes = range(3, 17);
                 $totalPaidHours = 0;
                 if (count($user->shift_records) > 0) {
                     $shiftRecords = $user->shift_records->map(function ($record) {

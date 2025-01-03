@@ -2,10 +2,18 @@
     <div class="lcontrol">        
         <div style="padding: 0 20px">
             <div v-for="lesson in lessons" class="lesson-preview">
-                <div style="overflow: hidden;margin: 20px 40px 20px 20px;height: calc(100% - 40px);position: relative;" >
+                <div style="margin: 20px 40px 20px 20px;height: calc(100% - 40px);position: relative;" >
                     <div v-html="lesson.title"></div>
-                    <div style="font-size: 12px;color: gray;">
+                    <div class="flex flex-col" style="font-size: 12px;color: gray;">
                         <span>アシスタントID：{{ lesson.assistant_id }}</span>
+                        <div v-if="lesson.summaries.length" class="mt-[10px] text-sm" style="color: var(--primary-color);">要約</div>
+                        <div v-for="summary in lesson.summaries" :key="summary.id" class="flex justify-between items-center">
+                            <span>{{ summary.title }}</span>
+                            <ItemMenu :items="[
+                                {title: '編集する', action: () => editSummary(summary)},
+                                {title: '削除する', action: () => deleteSummary(summary.id)},
+                            ]"/>
+                        </div>
                     </div>
                     <Transition name="modalFade">
                         <div class="cal-month-loader" v-if="initialLoader == lesson.id" style="top: 50%;">
@@ -20,7 +28,8 @@
                     <ItemMenu :items="[
                         {title: '編集する', action: () => editLesson(lesson)},
                         {title: '削除する', action: () => deleteConfirm(lesson.id)},
-                        {title: 'AIアシスタント', action: () => editAssistant(lesson)}
+                        {title: 'AIアシスタント', action: () => editAssistant(lesson)},
+                        {title: '要約作成', action: () => summary(lesson.id)},
                     ]"/> 
                 </div>  
             </div>
@@ -32,6 +41,7 @@
             <LessonCreate 
                 v-if="createWindow"
                 :editTarget="editTarget"
+                :has_case_study="theme.has_case_study"
                 @createFinish="createFinish"           
             />
             
@@ -45,6 +55,14 @@
                 :editId="editTarget.id"
             />
         </Transition>
+        <Transition name="modalFade">
+            <SummaryCreate 
+                v-if="createSummary"
+                :materialId="materialId"
+                :summaryData="summaryData"
+                @createFinish="createFinish"
+            />
+        </Transition>
     </div>  
 </template>
 <script setup>
@@ -55,6 +73,8 @@ import LessonCreate from './LessonCreate.vue';
 import AssistantCreate from './AssistantCreate.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import OpenAI from 'openai';
+import SummaryCreate from './SummaryCreate.vue';
+import CriteriaCreate from './CriteriaCreate.vue';
 const props = defineProps(['theme'])
 const { confirm } = inject('dialog')
 const route = useRoute()
@@ -64,6 +84,10 @@ const createAssistantWindow = ref(false)
 const editTarget = ref(null)
 const editAssistantTarget = ref(null)
 const initialLoader = ref(null)
+const createSummary = ref(false)
+const createCriteria = ref(false)
+const materialId = ref(null)
+const summaryData = ref(null)
 onMounted(() => {
     getLesson()
 })
@@ -79,6 +103,9 @@ const editLesson = (lesson) => {
 const createFinish = (reload) => {
     createWindow.value = false
     createAssistantWindow.value = false
+    createSummary.value = false
+    materialId.value = null
+    summaryData.value = null
     if(reload){
         getLesson()
     }
@@ -109,5 +136,19 @@ const editAssistant = async(lesson) => {
         }
     }
     createAssistantWindow.value = true
+}
+const summary = (id) => {
+    materialId.value = id
+    createSummary.value = true
+}
+const editSummary = (summary) => {
+    summaryData.value = summary
+    createSummary.value = true
+}
+const deleteSummary = async(id) => {
+    const answer = await confirm('削除しますか。')
+    if(!answer) return
+    await axios.delete(`/lesson_remove_summary?id=${id}`) 
+    getLesson()              
 }
 </script>

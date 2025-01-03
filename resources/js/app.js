@@ -6,7 +6,8 @@ import "vue-select/dist/vue-select.css";
 import MasonryWall from '@yeger/vue-masonry-wall'
 import VueLazyload from 'vue3-lazyload';
 const app = createApp({});
-import '../sass/app.scss'
+import '../sass/main.css'
+
 
 import { createPinia } from 'pinia'
 const pinia = createPinia()
@@ -35,14 +36,7 @@ if(theme){
 } 
 
 import Vue3TouchEvents from "vue3-touch-events";
-// Vuetify
-// import 'vuetify/styles'
 import { createVuetify } from 'vuetify'
-// import { VDataTableVirtual } from 'vuetify/components/VDataTableVirtual'
-
-// const vuetify = createVuetify({
-//   components : { VDataTableVirtual },
-// })
 const vuetify = createVuetify()
 app
 .component('Root', defineAsyncComponent(() => import('./components/Root.vue')))

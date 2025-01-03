@@ -6,6 +6,7 @@ import { useResponsive } from '@/store/responsive'
 import { useSideMenuView } from '@/store/sideMenuView'
 import { useAuthUserStore } from './store/auth'
 import { useProjectUsers } from '@/store/projectUsers'
+import { useKeyboardStore } from '@/store/keyboardStore'
 import axios from 'axios'
 const routes = [
     { 
@@ -81,6 +82,15 @@ const routes = [
                         next();
                     }
                 },
+            },
+            {
+                path: 'paid-leave',
+                component: () => import('./components/Profile/UserEditComps/UserPaidLeave.vue'),
+                name: 'paid-leave',
+                props: true,
+                meta: {
+                    title: 'CLAP - 計画有給',
+                }
             },
             {
                 path: 'salary-issue',
@@ -266,6 +276,12 @@ const routes = [
                                 path: 'assistant',
                                 name: 'assistant',
                                 component: () => import('./components/AccountControl/LearningControl/AssistantControl.vue')
+                            },
+                            {
+                                props: true,
+                                path: 'case-study',
+                                name: 'case-study',
+                                component: () => import('./components/AccountControl/LearningControl/CaseStudyControl.vue')
                             }
                             
                         ]
@@ -316,10 +332,41 @@ const routes = [
                         name: 'mentorcontrol',
                         props: true,
                         component: () => import('./components/AccountControl/ProjectControl/EvaluationMentor.vue')
+                    },
+
+                ]
+            },
+            {
+                path: 'custom-form-control',
+                name: 'custom-form-control',
+                meta: { head: 'アンケート' },
+                props: true,
+                component: () => import('@/components/AccountControl/CustomForm/CustomFormControl.vue'),
+                children: [
+                    {
+                        path: ':formId',
+                        name: 'formDetail',
+                        props: true,
+                        component: () => import('@/components/AccountControl/CustomForm/CustomFormDetail.vue'),
                     }
                 ]
             }
         ],
+    },
+    {
+        path: '/survey',
+        name: 'survey',
+        component: () => import('@/components/Survey/Survey.vue'),
+        meta: {
+            title: 'CLAP - アンケート',
+        },
+        children: [
+            {
+                path: ':surveyId',
+                name: 'survey-form',
+                component: () => import('@/components/Survey/SurveyForm.vue')
+            }
+        ]
     },
     {
         path: '/support',
@@ -541,13 +588,13 @@ const routes = [
                         component: () => import('./components/Learning/Portfolio/LessonFinish.vue')
                     },
                 ],
-                beforeEnter: (to, from, next) => {
-                    axios.get(`/get_lessons?lesson_theme_id=${to.params.lessonThemeId}`).then(
-                        response => {
-                            to.meta.data = response.data
-                            next();
-                        })
-                }
+                // beforeEnter: (to, from, next) => {
+                //     axios.get(`/get_lessons?lesson_theme_id=${to.params.lessonThemeId}`).then(
+                //         response => {
+                //             to.meta.data = response.data
+                //             next();
+                //         })
+                // }
             }
         ],
     }
@@ -587,6 +634,13 @@ function fetchPosts(to, next, from, path) {
 const router = createRouter({
     history: createWebHistory(),
     routes
+})
+router.beforeEach((to, from) => {
+    const keyboardStore = useKeyboardStore()
+    keyboardStore.setKeyboardHeight(0)
+    if ("virtualKeyboard" in navigator) {                  
+        navigator.virtualKeyboard.overlaysContent = false;                  
+    }
 })
 router.afterEach(() => {
     const responsive = useResponsive()

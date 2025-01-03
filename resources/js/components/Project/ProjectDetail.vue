@@ -44,8 +44,9 @@
             <div class="project-detail" style="position: relative;" v-if="route.name === 'projectdetail'">
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">プロジェクト名</div> 
-                    <div>
+                    <div class="flex items-center gap-2">
                         {{ selectedProject?.name }}
+                        <WeatherIcon v-if="selectedProject?.project_conditions.length" :which="selectedProject.project_conditions[0].value" size="20"/>
                     </div>
                 </div>
                 
@@ -113,7 +114,7 @@
                                     ]"
                                 />
                                 <div v-else class="user-link" @click="jumpToGoal(member)">閲覧</div>
-                                <span class="side-notification" style="left: 55px;" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
+                                <span class="side-notification from-left" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
                             </div>
                             <div class="project-cell cell-width" data-label="人事考課">
                                 <div v-if="member?.evaluation?.mentor">
@@ -148,6 +149,7 @@ import { RouteLocationMatched } from 'vue-router';
 import ItemMenu from '../Global/ItemMenu.vue';
 import ProjectEdit from './ProjectEdit.vue';
 import { useBadgeStore } from '@/store/badge';
+import WeatherIcon from '../Global/WeatherIcon.vue';
     const props = defineProps(['selectedProject', 'userList'])
     const router = useRouter()
     const route = useRoute()
@@ -198,6 +200,9 @@ import { useBadgeStore } from '@/store/badge';
     }); 
 </script>
 <style lang="scss">
+.from-left {
+    left: 55px !important;
+}
 .project-nav-bar{
     display: flex;
     width: calc(100% - 50px);
@@ -306,6 +311,10 @@ import { useBadgeStore } from '@/store/badge';
         line-height: 1.5;
     }
     @media screen and (max-width: 959px) {
+        .from-left {
+            left: auto !important;
+            right: -17px;
+        }
         
         .kadaiCreate{
             width: 100% !important;

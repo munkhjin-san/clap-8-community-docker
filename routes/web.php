@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -113,7 +114,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         
     Route::get('/employee', function () {return redirect("/members");});
 
-    Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'post', 'knowledge', 'nice', 'members', 'schedule', 'timesheet', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning', 'project'])->where('any', '.*')->name('board');
+    Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'post', 'knowledge', 'nice', 'members', 'schedule', 'timesheet', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning', 'project', 'survey'])->where('any', '.*')->name('board');
     
     Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController::class, 'user_default_thumbnail']);
     Route::get('/shared_thumbnail/{board_id}/{path}', [ContentController::class, 'sharedThumbnail']);
@@ -240,6 +241,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
             ]);
             return $update;
         }); 
+        Route::post('/get_planned_leaves', [UserController::class, 'get_planned_leaves']);
 
 
         Route::post('/get_posts', [PostController::class, 'get_posts']);
@@ -369,6 +371,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_lesson_portfolio', [LessonController::class, 'get_lesson_portfolio']);
         Route::post('/save_lesson_form', [LessonController::class, 'save_lesson_form']);
         Route::get('/get_portfolio_view', [LessonController::class, 'get_portfolio_view']);
+        Route::get('/get_material_list', [LessonController::class, 'get_material_list']);
 
         Route::post('/create_learning_theme', [LessonController::class, 'create_learning_theme']);
         Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);
@@ -385,6 +388,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/section_update', [LessonController::class, 'section_update']);
         Route::put('/update_portfolio_status', [LessonController::class, 'update_portfolio_status']);
         Route::post('/update_lesson_answer', [LessonController::class, 'update_lesson_answer']);
+        Route::post('/add_material_summary', [LessonController::class, 'add_material_summary']);
+        Route::get('/get_forms', [LessonController::class, 'get_forms']);
+        Route::delete('/lesson_remove_summary', [LessonController::class, 'lesson_remove_summary']);
+        Route::post('/save_summary_answers', [LessonController::class, 'save_summary_answers']);
         // Lessons
 
         // Project
@@ -417,9 +424,18 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_not_approved', [ProjectController::class, 'project_not_approved']);
         Route::delete('/delete_issue', [ProjectController::class, 'delete_issue']);
         Route::get('/project_badge', [ProjectController::class, 'get_project_badge']);
+        Route::get('/get_managing_projects', [ProjectController::class, 'get_managing_projects']);
+        Route::post('/update_project_conditions', [ProjectController::class, 'updateConditions']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);
         Route::patch('/quick_edit_task', [TaskController::class, 'quick_edit_task']);
         Route::get('/get_gantt_project_tasks', [TaskController::class, 'get_gantt_project_tasks']);
+        
+        Route::get('/get_custom_forms', [CustomFormController::class, 'get_custom_forms']);
+        Route::post('/save_custom_form', [CustomFormController::class, 'save_custom_form']);
+        Route::get('/get_survey', [CustomFormController::class, 'get_survey']);
+        Route::post('/save_survey_answer', [CustomFormController::class, 'save_survey_answer']);
+        Route::get('/get_survey_answers', [CustomFormController::class, 'get_survey_answers']);
+        Route::delete('/delete_custom_form', [CustomFormController::class, 'delete_custom_form']);
 });

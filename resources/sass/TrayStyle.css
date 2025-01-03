@@ -90,7 +90,6 @@
 
 .trayRoot{
     transition: width .15s, height .15s, top 0.15s;
-    // position: fixed;
     right: 0;    
     display: flex;
     flex-direction: column;
