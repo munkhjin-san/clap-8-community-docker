@@ -115,9 +115,9 @@
         if (!auth.id) return;
         
         const userPath = `/user/${auth.id}`;
-        const isUserProfile = window.location.pathname.includes(userPath);
+        const isUserProfile = window.location.pathname === userPath;
         
-        canGetRemind.value = shouldCallRemindMessagesNextMorning(auth.activeUser.id) || isUserProfile;
+        // canGetRemind.value = shouldCallRemindMessagesNextMorning(auth.activeUser.id) || isUserProfile;
         viewIncompleteWindow.value = hasOneHourPassed(auth.activeUser.id) || isUserProfile;
     }
     const shouldCallRemindMessagesNextMorning = (user_id) => {

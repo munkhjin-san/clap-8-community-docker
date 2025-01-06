@@ -32,7 +32,7 @@
 import YearPicker from '@/components/Global/YearPicker.vue';
 import { useResponsive } from '@/store/responsive';
 import { inject, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { DateTime } from 'luxon';
 import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
@@ -43,13 +43,14 @@ const year = ref(DateTime.now().year)
 const props = defineProps(['UserAllData'])
 const paidHolidays = ref<Shift[]>([])
 const { notify, info } = inject<Dialog>('dialog')!
+const route = useRoute()
 const setDate = (val) => {
     year.value = val.year
     getPlannedLeaves()
 }
 const getPlannedLeaves = async() => {
     try{
-        const response = await axios.post('/get_planned_leaves', {user_id: props.UserAllData.id, year: year.value})
+        const response = await axios.post('/get_planned_leaves', {user_id: route.params.userId, year: year.value})
         paidHolidays.value = response.data
     } catch (e){
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')

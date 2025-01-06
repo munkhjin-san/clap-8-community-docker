@@ -90,7 +90,23 @@ const routes = [
                 props: true,
                 meta: {
                     title: 'CLAP - 計画有給',
-                }
+                },
+                beforeEnter: (to, from, next) => {
+                    const rootElement = document.getElementById('app');
+                    const userId = rootElement.getAttribute('data-user-id');
+
+                    if (to.params.userId !== userId) {
+                        const currentUserIdRoute = `/user/${userId}/paid-leave`;
+                        
+                        if (to.path !== currentUserIdRoute) {
+                            next(currentUserIdRoute);
+                        } else {
+                            next();
+                        }
+                    } else {
+                        next();
+                    }
+                },
             },
             {
                 path: 'salary-issue',
