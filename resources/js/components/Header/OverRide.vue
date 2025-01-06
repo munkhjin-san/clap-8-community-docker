@@ -101,8 +101,7 @@
             });
         } 
     })
-    watch(() => route.fullPath, (newVal, oldVal) => {
-        
+    watch(() => route.path, (newVal, oldVal) => {
         if(!newVal.includes(oldVal) && !oldVal.includes(newVal)){
             incompleteCall()
         }        
@@ -113,7 +112,6 @@
     })
     const incompleteCall = () => {
         if (!auth.id) return;
-        
         const userPath = `/user/${auth.id}`;
         const isUserProfile = window.location.pathname === userPath;
         
