@@ -213,7 +213,8 @@ class WorkController extends Controller
     }
     public function get_temp_data(Request $request){
         $notificationUser = User::select('name', 'id', 'icon_id')->findOrFail(610);
-        $tempData = workTemp::where('user_code', $request->user_code)->first();
+        $tempData = workTemp::where('user_code', $request->user_code)
+                            ->whereYear('date', $request->year)->first();
         
         
         if ($tempData) {
@@ -470,7 +471,8 @@ class WorkController extends Controller
             ->exists();
         $between_records = 0;
         $remaining_days = 0;
-        $work_temp = workTemp::where('user_code', $user_code)->first();
+        $work_temp = workTemp::where('user_code', $user_code)
+                             ->whereYear('date', $currentYear)->first();
         if($work_temp){
             $planned_date = $work_temp->date;
             $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');

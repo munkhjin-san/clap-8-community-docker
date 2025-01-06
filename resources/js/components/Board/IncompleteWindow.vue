@@ -370,7 +370,7 @@ import ListBox from '@/components/Task/List/ListBox.vue'
 
         if(currentDate > targetDate){
             try{
-                const response = await axios.post('/get_temp_data', { user_code: auth.activeUser.user_code})
+                const response = await axios.post('/get_temp_data', { user_code: auth.activeUser.user_code, year: currentDate.getFullYear() })
                 if(response.data && response.data.tempData){
                     tempData.value = response.data.tempData
                     remainingDays.value = response.data.remaining_days
