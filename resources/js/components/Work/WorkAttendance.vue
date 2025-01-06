@@ -244,7 +244,7 @@
         return moment(yearMonth).format("YYYY年M月");
     })
     const shiftDay = (data) => {
-        let days = data.should_work_days + '日'
+        let days = data.shift_count + '日'
         let hours = data.should_work/60 + '時間'
         return `${days} / ${hours}`
     }
