@@ -471,11 +471,9 @@ class WorkController extends Controller
             ->exists();
         $between_records = 0;
         $remaining_days = 0;
+        $yearForTemp = Carbon::now()->format('Y');
         $work_temp = workTemp::where('user_code', $user_code)
-                            ->where(function($query) use ($currentYear) {
-                                $query->whereYear('date', $currentYear)
-                                    ->orWhereYear('date', $currentYear + 1);
-                            })->first();
+                            ->whereYear('date', $yearForTemp)->first();
         if($work_temp){
             $planned_date = $work_temp->date;
             $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
