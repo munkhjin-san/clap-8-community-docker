@@ -13,6 +13,6 @@ class SurveyAnswer extends Model
         return $this->hasMany(SurveyBlockAnswer::class);
     }
     public function user(){
-        return $this->belongsTo(User::class, 'user_id')->select('id', 'name', 'email');
+        return $this->belongsTo(User::class, 'user_id')->select('id', 'name', 'email', 'icon_id');
     }
 }
