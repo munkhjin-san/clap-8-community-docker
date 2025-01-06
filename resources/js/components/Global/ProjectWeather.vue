@@ -91,8 +91,8 @@ import { Dialog } from "@/interface/globalInterface";
     justify-content: center;
     align-items: center;
     background-color: var(--overlay);
-    height: 100vh;
-    width: 100vw;
+    height: 100%;
+    width: 100%;
     position: fixed;
     top: 0;
     left: 0;
@@ -153,6 +153,12 @@ import { Dialog } from "@/interface/globalInterface";
   }
   .selectedBackground {
     background-color: #f3f3f3;
+  }
+  @media screen and (max-width: 768px) {
+    .weather-window {
+      max-height: calc(100% - 40px);
+    }
+    
   }
   </style>
   
