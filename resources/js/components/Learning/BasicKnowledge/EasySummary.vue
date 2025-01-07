@@ -9,17 +9,20 @@
                     </svg>                        
                 </div> 
             </div>
-            <div v-for="item in summaries" :key="item.id">
-                <div>{{ item.title }}</div>
-                <div v-html="item.content"></div>
-                <div>
-                    <p><strong>不安を解消できたか？　内容を理解できたか？</strong></p>
-                    <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
-                        <input class="fish-eye" v-model="selectedAnswer[item.id]" type="radio" :id="`${item.id}-${answer.value}`" :name="`answer-${item.id}`" :value="answer.value" >
-                        <label style="margin-left:10px;cursor:pointer" :for="`${item.id}-${answer.value}`">{{answer.content}}</label>
+            <div v-for="item in summaries" :key="item.id" style="margin-bottom: 20px;">
+                <div v-for="q in item.questions">
+                    <div>{{ q.question }}</div>
+                    <div v-html="q.content"></div>
+                    <div style="padding: 10px; background-color: var(--bg3); margin-top: 20px;">
+                        <p><strong>不安を解消できたか？　内容を理解できたか？</strong></p>
+                        <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
+                            <input class="fish-eye" v-model="selectedAnswer[item.id]" type="radio" :id="`${item.id}-${answer.value}`" :name="`answer-${item.id}`" :value="answer.value" >
+                            <label style="margin-left:10px;cursor:pointer" :for="`${item.id}-${answer.value}`">{{answer.content}}</label>
+                        </div>
+                        <span v-if="radioError[item.id]" class="form-error" style="font-size: 11px;color:tomato">{{ radioError[item.id] }}</span>
                     </div>
-                    <span v-if="radioError[item.id]" class="form-error" style="font-size: 11px;color:tomato">{{ radioError[item.id] }}</span>
                 </div>
+                
                 
             </div>
             <div class="si-box flex justify-center gap-[30px]">

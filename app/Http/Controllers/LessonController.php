@@ -319,7 +319,9 @@ class LessonController extends Controller
                 $question
             );
         }
-            
+        foreach ($request->deleted as $id) {
+            LessonSummaryQuestion::findOrFail($id)->delete();
+        }
         
         return response()->json($lesson_material_summary);
     }

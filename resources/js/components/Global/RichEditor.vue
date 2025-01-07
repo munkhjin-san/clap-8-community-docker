@@ -109,6 +109,7 @@ import axios from 'axios'
 import CommandButton from './CommandButton.vue'
 
 const props = defineProps(['initilaValue'])
+const emit = defineEmits(['content-updated'])
 const editor = useEditor({
   content: props.initilaValue,
   extensions: [
@@ -122,6 +123,10 @@ const editor = useEditor({
     }),
     Image
   ],
+  onUpdate: ({ editor }) => {
+    const html = editor.getHTML()
+    emit('content-updated', html)
+  }
 })
 const colorPickerView = ref<number| null>(null)
 const fileList = ref<string[]>([])
