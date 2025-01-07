@@ -112,6 +112,7 @@ export const vehicleAsOptions = ([
     { label: '長崎581つ9501', value: 11},
     { label: '福岡582た8963', value: 12},
     { label: '大分581な4912', value: 13},
-    { label: 'レンタカー', value: 14},
-    { label: 'マイカー', value: 15},
+    { label: '鹿児島582そ8143', value: 14},
+    { label: 'レンタカー', value: 15},
+    { label: 'マイカー', value: 16},
 ])
