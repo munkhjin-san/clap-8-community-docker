@@ -16,8 +16,8 @@
                     <div style="padding: 10px; background-color: var(--bg3); margin-top: 20px;">
                         <p><strong>不安を解消できたか？　内容を理解できたか？</strong></p>
                         <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
-                            <input class="fish-eye" v-model="selectedAnswer[q.id]" type="radio" :id="`${q.id}-${answer.value}`" :name="`answer-${q.id}`" :value="answer.value" >
-                            <label style="margin-left:10px;cursor:pointer" :for="`${q.id}-${answer.value}`">{{answer.content}}</label>
+                            <input class="fish-eye" v-model="selectedAnswer[q.id]" type="radio" :id="`sum-${q.id}-${answer.value}`" :name="`answer-${q.id}`" :value="answer.value" >
+                            <label style="margin-left:10px;cursor:pointer" :for="`sum-${q.id}-${answer.value}`">{{answer.content}}</label>
                         </div>
                         <span v-if="radioError[q.id]" class="form-error" style="font-size: 11px;color:tomato">{{ radioError[q.id] }}</span>
                     </div>
