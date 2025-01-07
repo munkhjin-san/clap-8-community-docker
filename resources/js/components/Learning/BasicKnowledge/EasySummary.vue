@@ -12,14 +12,22 @@
             <div v-for="item in summaries" :key="item.id">
                 <div>{{ item.title }}</div>
                 <div v-html="item.content"></div>
-
+                <div>
+                    <p><strong>不安を解消できたか？　内容を理解できたか？</strong></p>
+                    <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
+                        <input class="fish-eye" v-model="selectedAnswer[item.id]" type="radio" :id="`${item.id}-${answer.value}`" :name="`answer-${item.id}`" :value="answer.value" >
+                        <label style="margin-left:10px;cursor:pointer" :for="`${item.id}-${answer.value}`">{{answer.content}}</label>
+                    </div>
+                    <span v-if="radioError[item.id]" class="form-error" style="font-size: 11px;color:tomato">{{ radioError[item.id] }}</span>
+                </div>
+                
             </div>
             <div class="si-box flex justify-center gap-[30px]">
-                <div>
-                    <LoaderButton @triggered="emit('updateAnswerStatus', -1)" :content="'理解できなかった'"/>
+                <div v-if="understandAll">
+                    <LoaderButton @triggered="complete(2)" :content="'完了'"/>
                 </div>
-                <div>
-                    <LoaderButton @triggered="emit('updateAnswerStatus', 2)" :content="'理解した'"/>
+                <div v-else>
+                    <LoaderButton @triggered="complete(-1)" :content="'個別フォローアップ申請'"/>
                 </div>
             </div>
         </div>
@@ -27,7 +35,49 @@
 </template>
 <script lang="ts" setup>
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-defineProps(['material', 'summaries'])
+import { Dialog } from '@/interface/globalInterface';
+import { computed, inject, ref, watch } from 'vue';
+const props = defineProps(['material', 'summaries'])
 
 const emit = defineEmits(['close', 'updateAnswerStatus'])
+const selectedAnswer = ref({})
+const radioError = ref({})
+const { notify } = inject<Dialog>('dialog')! 
+const list = [
+    { value: 2, content: '理解した'},
+    { value: 1, content: '理解できなかった'}        
+]
+const understandAll = computed(() => {
+    return props.summaries.every((item: any) => selectedAnswer.value[item.id] === 2)
+})
+const complete = async(status: number) => {
+    const errors: { [key: string]: string } = {}
+    const unansweredSummaries: string[] = []
+
+    for (const item of props.summaries) {
+        if (!selectedAnswer.value[item.id]) {
+            errors[item.id] = '必須です。'
+        }
+        if (selectedAnswer.value[item.id] === 1) {
+            unansweredSummaries.push(item.title)
+        }
+    }
+
+    radioError.value = errors
+    if (Object.keys(errors).length) return
+    const joined = unansweredSummaries.join('、 ')
+    if (status === -1) {
+        notify(`個別フォローアップを希望される方には、\n法務が${joined}について個別面談を実施します。`)
+    }
+    
+    emit('updateAnswerStatus', status, joined)
+}
+
+watch(selectedAnswer, (newVal) => {
+    for (const key in newVal) {
+        if (newVal[key]) {
+            delete radioError.value[key]
+        }
+    }
+}, { deep: true })
 </script>

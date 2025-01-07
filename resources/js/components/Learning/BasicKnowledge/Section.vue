@@ -14,7 +14,8 @@
                 <SummaryQuestions 
                     v-if="hasQuestions"
                     :material="material"
-                    v-model:model-value="summaryAnswers"    
+                    v-model:answers="summaryAnswers"
+                    v-model:errors="validationErrors"    
                 />
                 <EasySummary 
                     v-if="showSummary"
@@ -129,6 +130,7 @@
     const processing_save = ref(false) 
     const getLessons = inject('getLessons')
     const summaryAnswers = ref([])
+    const validationErrors = ref({});
     watchEffect(() => {
         summaryAnswers.value = answers.value ?? []
     })
@@ -195,10 +197,30 @@
                     answer.lesson_summary_id === summary.id && (answer.answer_val === 0 || answer.answer_val === 1)
                 );
             });
+            let hasError = false;
+
+            material.value?.summaries.forEach(summary => {
+                summary.questions.forEach(question => {
+                    const isAnswered = summaryAnswers.value.some(
+                        answer => answer.lesson_summary_question_id === question.id
+                    );
+
+                    if (!isAnswered) {
+                        validationErrors.value[question.id] = true;
+                        hasError = true;
+                    } else {
+                        validationErrors.value[question.id] = false;
+                    }
+                });
+            });
+            if (hasError) {
+                return;
+            }
             if (filteredSummaries.value.length > 0) {
                 showSummary.value = true
                 return
             }
+            
             
             updateAnswerStatus()
         } else {
@@ -211,26 +233,24 @@
         if(!summaryAnswers.value.length) return
         try {
             await axios.post('/save_summary_answers', {answers: summaryAnswers.value})
-            getLessons()
         } catch (e) {
             notify(e)
         }
     }
-    const updateAnswerStatus = async(status) => {
+    const updateAnswerStatus = async(status, joined) => {
         try {
             const params = {
                 id: material?.value?.answer?.id,
                 params: {
                     material_id: material.value?.id,
                     status: status || 2,
+                    cant_understand: joined || ''
                 },
             }
             await axios.post('/update_lesson_answer', params)
-            if (status === -1) {
-                router.push({name: 'more'})
-            } else {
-                router.push({name: 'basic'})
-            }
+            
+            router.push({name: 'basic'})
+            
             
             saveSummaryAnswers()
             getLessons()
