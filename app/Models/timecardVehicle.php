@@ -9,6 +9,7 @@ class timecardVehicle extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    protected $guarded = [];
     public function before_user(){
         return $this->belongsTo(User::class, 'confirm_before_user')->select('id', 'name', 'icon_id');
     }
