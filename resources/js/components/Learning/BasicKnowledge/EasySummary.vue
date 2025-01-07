@@ -9,9 +9,9 @@
                     </svg>                        
                 </div> 
             </div>
-            <div v-for="item in summaries" :key="item.id" style="margin-bottom: 20px;">
-                <div v-for="q in item.questions">
-                    <div>{{ q.question }}</div>
+            <div v-for="item in summaries" :key="item.id">
+                <div v-for="q in item.questions" style="margin-bottom: 20px;">
+                    <div style="margin-bottom: 10px;">{{ q.question }}</div>
                     <div v-html="q.content"></div>
                     <div style="padding: 10px; background-color: var(--bg3); margin-top: 20px;">
                         <p><strong>不安を解消できたか？　内容を理解できたか？</strong></p>

@@ -93,7 +93,7 @@
     const router = useRouter()
     const route = useRoute()
     const ttsStore = useTtsStore()
-    const { notify, info } = inject('dialog')
+    const { notify, info, confirm } = inject('dialog')
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
     const getLessonPortfolios = inject('getLessonPortfolios')
     const filteredContent = computed(() => {
@@ -217,8 +217,14 @@
                 return;
             }
             if (filteredSummaries.value.length > 0) {
-                showSummary.value = true
-                return
+                const options = {
+                    answers: [{label: 'OK', value: true}]
+                }
+                const answer = await confirm('理解度チェックの結果、「理解できていない」または「さらに復習が必要」を選択された方に向けて、\n研修内容を分かりやすくまとめた要約を表示します。要約をご覧いただき、理解を深めてください。', options)
+                if (answer) {
+                    showSummary.value = true
+                    return
+                }
             }
             
             
