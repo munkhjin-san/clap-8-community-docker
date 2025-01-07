@@ -51,7 +51,8 @@ const list = [
     { value: 1, content: '理解できなかった'}        
 ]
 const understandAll = computed(() => {
-    return props.summaries.every((item: any) => item?.questions.every((q: any) => selectedAnswer[q.id] === 2))
+    console.log(props.summaries.every(item => item.questions))
+    return props.summaries.every((item: any) => item?.questions.every((q: any) => selectedAnswer.value[q.id] === 2))
 })
 const complete = async(status: number) => {
     const errors: { [key: string]: string } = {}
@@ -80,6 +81,7 @@ const complete = async(status: number) => {
 }
 
 watch(selectedAnswer, (newVal) => {
+    console.log(newVal)
     for (const key in newVal) {
         if (newVal[key]) {
             delete radioError.value[key]
