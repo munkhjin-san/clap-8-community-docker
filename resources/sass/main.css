@@ -2039,7 +2039,7 @@ textarea{
   height: 45px;
   background: var(--primary-color);
   border-radius: 50%;
-  color: var(--background-color);
+  color: #fff;
   display: grid;
   position: relative;
 }
