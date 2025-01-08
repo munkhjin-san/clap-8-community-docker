@@ -66,7 +66,7 @@ const statusModel = defineModel<number | null>('status')
 
 const selected = computed(() => {
     const user = userModel.value ? props.userOptions.find( u => u.id == userModel.value) : null
-    const name = user ? user.name : 'すべて'
+    const name = user ? user.name : 'メンバ : すべて'
     const status = props.statusOptions.find( s => s.value == statusModel.value)?.label
     const label = userModel.value == null ? '' : ` : ${status}`
     return `${name}${label}`        

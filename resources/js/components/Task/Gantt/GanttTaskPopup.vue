@@ -15,7 +15,7 @@
                     v-model:user="selectedUser" 
                     v-model:status="selectedStatus"
                     class="mr-[20px] ml-auto" 
-                    :user-options="[...project?.members, ...project?.manager]"  
+                    :user-options="[project?.director, ...project?.manager, ...project?.members]"  
                     :statusOptions="categoryOptions"
                     @update="getTask"
                 />
@@ -223,8 +223,7 @@ const todayLinePosition = computed(() => {
 })
 
 const expandSpan = () => {
-    virtualSpan.expanded = true
-    
+    virtualSpan.expanded = true    
 }
 const setVirtualSpan = (item: VirtualHeader) => {
     const index = units.findIndex( u => u == item.unit)

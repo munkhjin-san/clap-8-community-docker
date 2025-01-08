@@ -43,7 +43,7 @@
                     :multiple="true"
                     :closeOnSelect="false"
                     v-model="setExecutor" 
-                    :options=" [...project.manager, ...project.members, project.director]"               
+                    :options=" [project?.director, ...project?.manager, ...project?.members]"               
                 />
             </div>     
             
