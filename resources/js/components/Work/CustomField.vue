@@ -20,7 +20,7 @@
             </div>
         </div>
         <VehicleField 
-            v-if="data.id === 43 && value == 1"
+            v-if="data.id === 44 && value == 1"
             v-model:vehicle="vehicle"
         />
         <div v-if="data.form_type == 'checkbox'">
