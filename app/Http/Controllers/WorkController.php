@@ -1038,7 +1038,7 @@ class WorkController extends Controller
         }
     }
     private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id, $vehicleData){
-        if ($type_id === 43 && $value == 1){
+        if ($type_id === 44 && $value == 1){
             $this->saveVehicleData($vehicleData, $table_record_id, $user_id);
         }
         $new_custom_data = new customFieldDataRecord;
@@ -1063,17 +1063,21 @@ class WorkController extends Controller
         $new_custom_data->save();
     }
     private function saveVehicleData($vehicleData, $table_record_id, $user_id){
-        $new_vehicle_data = new timecardVehicle;
-        $new_vehicle_data->user_id = $user_id;
-        $new_vehicle_data->record_id = $table_record_id;
-        $new_vehicle_data->vehicle = $vehicleData['vehicle'];
-        $new_vehicle_data->confirm_before_user = $vehicleData['confirm_before_user'];
-        $new_vehicle_data->confirm_after_user = $vehicleData['confirm_after_user'];
-        $new_vehicle_data->alcohol_before_time = $vehicleData['alcohol_before_time'];
-        $new_vehicle_data->alcohol_after_time = $vehicleData['alcohol_after_time'];
-        $new_vehicle_data->alcohol_before_value = $vehicleData['alcohol_before_value'];
-        $new_vehicle_data->alcohol_after_value = $vehicleData['alcohol_after_value'];
-        $new_vehicle_data->save();
+        $new_vehicle_id = $vehicleData['id'] ?? null;
+        timecardVehicle::updateOrCreate(
+            ['id' => $new_vehicle_id],
+            [
+                'record_id' => $table_record_id,
+                'user_id' => $user_id,
+                'vehicle' => $vehicleData['vehicle'],
+                'confirm_before_user' => $vehicleData['confirm_before_user'],
+                'confirm_after_user' => $vehicleData['confirm_after_user'],
+                'alcohol_before_time' => $vehicleData['alcohol_before_time'],
+                'alcohol_after_time' => $vehicleData['alcohol_after_time'],
+                'alcohol_before_value' => $vehicleData['alcohol_before_value'],
+                'alcohol_after_value' => $vehicleData['alcohol_after_value']
+            ]
+        );
     }
     public function deleteTimeCard(Request $request){
         $is_exist = timecardRecord::where('day', $request->date)->where('user_id', $request->userId)->first();
@@ -1202,6 +1206,7 @@ class WorkController extends Controller
         $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
         $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
         $month_waiting_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 2)->count();
+        $month_remote_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 3)->count();
         $attendance_flag = !empty($attendance) ? true : false;
         $responseArray = [
             'user' => $userData,
@@ -1224,6 +1229,7 @@ class WorkController extends Controller
             'month_stay_allowance_count' => $month_stay_allowance_count,
             'month_move_allowance_count' => $month_move_allowance_count,
             'month_waiting_allowance_count' => $month_waiting_allowance_count,
+            'month_remote_allowance_count' => $month_remote_allowance_count,
             'worked_time' => $worked_time,
             'holiday_worked_time' => $holiday_worked_time,
             'night_over_time' => $night_over_time,
@@ -1358,6 +1364,7 @@ class WorkController extends Controller
             $attendance_record->stay_pay = $request->stay_pay;
             $attendance_record->move_pay = $request->move_pay;
             $attendance_record->waiting_pay = $request->waiting_pay;
+            $attendance_record->remote_pay = $request->remote_pay;
             $attendance_record->expenses = $request->expenses;
             $attendance_record->incentive = $request->incentive;
             $attendance_record->save();
@@ -1908,6 +1915,14 @@ class WorkController extends Controller
         ]);
         $update = shiftRecord::findOrFail($request->id)->update(['department_id' => $request->department_id]);
         return response()->json($update);
+    }
+    public function get_planned_leaves(Request $request){
+        $paidholidays = shiftRecord::where('user_id', $request->user_id)
+                                    ->where('planned_year', $request->year)
+                                    ->where('shift_type', 3)
+                                    ->select('shift_day', 'user_id')
+                                    ->get();
+        return response()->json($paidholidays);
     }
 }
 
