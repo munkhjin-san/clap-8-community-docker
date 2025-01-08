@@ -125,7 +125,7 @@ import { computed, inject, onMounted, ref } from 'vue';
     const boardTitle = ref(null)
     const newIcon = ref(null)
     const cropImage = ref(null)
-    const iconBg = ref(props.editTarget?.icon_bg ?? '#000')
+    const iconBg = ref(props.editTarget?.icon_bg ?? 'var(--primary-color)')
     const iconText = ref(props.editTarget?.icon_text ?? '')
     const iconType = ref(0)
     const croppedImage = ref(null)

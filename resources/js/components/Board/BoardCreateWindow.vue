@@ -144,7 +144,7 @@ import ColorPicker from '../Global/ColorPicker.vue';
     const { confirm, notify, info } = inject('dialog');
     const boardTitle = ref(null)
     const boardMembers = ref(null)
-    const iconBg = ref('#000')
+    const iconBg = ref('var(--primary-color)')
     const iconText = ref('')
     const croppedImage = ref(null)
     const reload = inject('reload')
