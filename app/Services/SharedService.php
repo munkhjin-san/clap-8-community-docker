@@ -190,10 +190,10 @@ class SharedService
         $board->update(['icon_id' => $icon->id]);
         $board->timestamps = true;
         
-      
-        $boardname_no_space = preg_replace('/\s+/', '', $board->title);
         
-        $img = Image::create(200, 200)->fill('#000');   
+        $boardname_no_space = preg_replace('/\s+/', '', $board->icon_text);
+        
+        $img = Image::create(200, 200)->fill($board->icon_bg);   
         $length = mb_strlen($boardname_no_space);
         $font_path = 'fonts/Noto_Sans_CJK-Bold.otf';        
 

@@ -53,6 +53,8 @@ class boardRecord extends Model
     protected $fillable = [
         'q_token',
         'icon_id',
-        'title'
+        'title',
+        'icon_bg',
+        'icon_text'
     ];
 }

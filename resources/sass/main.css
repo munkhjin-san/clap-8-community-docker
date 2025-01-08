@@ -426,8 +426,8 @@ progress {
     font-size: small;
 }
 .boardTypeArea{
-    padding: 5px 5px 0 5px;
-    width: calc(100% - 10px);
+    padding: 5px 10px 0 5px;
+    width: calc(100% - 15px);
     visibility:visible;
     transition: margin 0.1s ;
 }

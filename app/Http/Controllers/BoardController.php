@@ -229,8 +229,8 @@ class BoardController extends Controller
             $board = new boardRecord;
             $board->user_id = $auth_user_id;
             $board->private_flag = $request->private_flag;           
-            
-
+            $board->icon_bg = $request->icon_bg;
+            $board->icon_text = $request->icon_text;
 
             
             if($defaultTitle == null){
@@ -319,7 +319,7 @@ class BoardController extends Controller
             throw ValidationException::withMessages(['message' => '管理者でないメンバーはボード編集できません']);
         }             
         $board->timestamps = false;
-        $board->update(['title' => $request->title]);    
+        $board->update(['title' => $request->title, 'icon_bg' => $request->icon_bg, 'icon_text' => $request->icon_text]);    
          
         if(!empty($request->new_icon)){               
         
@@ -611,9 +611,8 @@ class BoardController extends Controller
         }
     }
     private function user_onleave($user_id){
-        return userDetail::where('user_id', $user_id)
-        ->whereNotNull('leave_start')
-        ->whereNotNull('leave_end')
+        return UserLeaveRecord::where('user_id', $user_id)
+        ->where('active', 2)
         ->first();
     }
     public function get_messages(Request $request){
