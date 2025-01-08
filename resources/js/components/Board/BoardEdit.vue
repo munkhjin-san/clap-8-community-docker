@@ -139,18 +139,7 @@ import { computed, inject, onMounted, ref } from 'vue';
     })
     const { notify, info } = inject('dialog')
     const reload = inject('reload')
-    const iconTextGet = computed({
-        get(){
-            iconText.value = title.value
-            return title.value
-        },
-        set(value){
-            if (iconType.value == 0){
-                newIcon.value = 'initial'
-            }
-            iconText.value = value
-        }
-    })
+
     const previewText = computed(() => {
         if (!iconText.value) {
             return ''; 

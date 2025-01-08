@@ -53,10 +53,10 @@
                         <ShortInput 
                             name="boardIconText"
                             place-holder="アイコンテキスト"
-                            :initial-value="iconTextGet"
+                            :initial-value="iconText"
                             custom-class="full"
                             type="text"
-                            v-model="iconTextGet"
+                            v-model="iconText"
                         />
                     </div>
                     <div v-if="iconType == 0" class="si-box" style="padding: 10px;position:relative;border: solid thin var(--primary-color);">   
@@ -112,7 +112,7 @@ import LoaderButton from '../Global/LoaderButton.vue'
 import MemberSelector from '../Form/MemberSelector.vue'
 import 'cropperjs/dist/cropper.css';
 import ShortInput from '../Form/ShortInput.vue'
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import ColorPicker from '../Global/ColorPicker.vue';
     const auth = useAuthUserStore()
@@ -139,13 +139,9 @@ import ColorPicker from '../Global/ColorPicker.vue';
             boardMembers.value, 
         ]
     }) 
-    const iconTextGet = computed({
-        get(){
-            iconText.value = title.value
-            return title.value
-        },
-        set(value){
-            iconText.value = value
+    watch(title, (newValue) => {
+        if (newValue !== iconText.value) {
+            iconText.value = newValue
         }
     })
     const previewText = computed(() => {
