@@ -16,11 +16,10 @@
   
   <script setup>
   import { Vue3ColorPicker } from '@cyhnkckali/vue3-color-picker';
-  import { ref, onMounted, nextTick } from 'vue';
   
-  const color = defineModel(); // Default color
+  const color = defineModel(); 
   
-  
+
   </script>
   
   <style scoped>

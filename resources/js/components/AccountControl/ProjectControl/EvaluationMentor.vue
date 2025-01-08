@@ -1,7 +1,7 @@
 <template>
     <div class="post-container scrollable" style="height: calc(100% - 126px);">
         <div class="evaluation-date">
-            <select name="locales" v-model="selectedDate" class="dropDownSelector cursor-pointer" style="width: fit-content;">
+            <select name="locales" v-model="selectedDate" class="dropDownSelector cursor-pointer" style="width: fit-content; padding: 5px 10px;">
                 <option :value="date" v-for="date in targetDates">{{ parseDate(date)}}</option>
             </select>
         </div>

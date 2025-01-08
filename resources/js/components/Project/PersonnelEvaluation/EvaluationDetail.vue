@@ -5,7 +5,7 @@
                 <div style="display: flex;justify-content: flex-end;padding: 20px 0;background-color:var(--background-color);position:sticky;top:0;z-index: 1;">
                     <!-- <div>人事考課</div> -->
                     <div class="locale-selector" style="width: auto;">
-                        <select name="locales" v-model="evaluationDate" class="dropDownSelector cursor-pointer" style="width: fit-content;">
+                        <select name="locales" v-model="evaluationDate" class="dropDownSelector cursor-pointer" style="width: fit-content; padding: 5px 10px;">
                             <option :value="date.evaluationDate" v-for="date in evaluationOptions">{{ parseDate(date.evaluationDate) }}</option>
                         </select>
                     </div>

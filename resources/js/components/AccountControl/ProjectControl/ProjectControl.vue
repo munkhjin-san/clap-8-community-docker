@@ -39,9 +39,11 @@ const selectedDate = ref('')
 onMounted(() => {
     const currentMonth = moment().month()
     if (currentMonth >= 1 && currentMonth < 7) {
-        selectedDate.value = moment().month(1).set('date', 1).format('YYYY-MM-DD')
+        selectedDate.value = moment().month(1).date(1).format('YYYY-MM-DD');
+    } else if(currentMonth < 1) {
+        selectedDate.value = moment().subtract(1, 'year').month(7).date(1).format('YYYY-MM-DD');
     } else {
-        selectedDate.value = moment().month(7).set('date', 1).format('YYYY-MM-DD')
+        selectedDate.value = moment().month(7).date(1).format('YYYY-MM-DD');
     }
 })
 const getSelectableUsers = async() => {
