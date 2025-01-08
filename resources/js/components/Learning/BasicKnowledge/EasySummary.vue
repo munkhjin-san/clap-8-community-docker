@@ -14,7 +14,7 @@
                     <div style="margin-bottom: 10px;">{{ q.question }}</div>
                     <div v-html="q.content"></div>
                     <div style="padding: 10px; background-color: var(--bg3); margin-top: 20px;">
-                        <p><strong>不安を解消できたか？　内容を理解できたか？</strong></p>
+                        <p><strong>内容を理解できたか？</strong></p>
                         <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
                             <input class="fish-eye" v-model="selectedAnswer[q.id]" type="radio" :id="`sum-${q.id}-${answer.value}`" :name="`answer-${q.id}`" :value="answer.value" >
                             <label style="margin-left:10px;cursor:pointer" :for="`sum-${q.id}-${answer.value}`">{{answer.content}}</label>
@@ -74,7 +74,7 @@ const complete = async(status: number) => {
     if (Object.keys(errors).length) return
     const joined = unansweredSummaries.join('、 ')
     if (status === -1) {
-        notify(`個別フォローアップを希望される方には、\n法務が${joined}について個別面談を実施します。`)
+        notify(`理解出来なかった内容について、\n法務から個別フォローアップのため後日ご連絡致します。`)
     }
     
     emit('updateAnswerStatus', status, joined)
