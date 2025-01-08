@@ -258,7 +258,16 @@
                 remainingDays.value--
             }
             if(type_id == 3){
-                if(record?.planned_year != 2023 && (moment(date.day_full).isBefore(moment(tempStartDate.value)) || moment(date.day_full).isAfter(moment(tempStartEnd.value)))){
+                const previousPeriodStart = moment(tempStartDate.value).subtract(1, 'year');
+                const previousPeriodEnd = moment(tempStartDate.value);
+                if (
+                    record?.planned_year !== 2023 &&
+                    !(
+                        (moment(date.day_full).isBetween(previousPeriodStart, previousPeriodEnd, 'day', '[]') && 
+                        record?.planned_year === moment().year() - 1) || // Valid in previous year's planning
+                        moment(date.day_full).isBetween(moment(tempStartDate.value), moment(tempStartEnd.value), 'day', '[]') // Valid in current planning period
+                    )
+                ) {
                     selectedShifts.value.pop()
                     remainingDays.value++
                     const content = moment(date.day_full).format('YYYY/MM/DD') + 'は計画期間外です。<br>設定可能な期間は' + '<strong>' + moment(tempStartDate.value).format('YYYY/MM/DD') + '</strong>' + '-' + '<strong>' + tempStartEnd.value.format('YYYY/MM/DD') + '</strong>'
