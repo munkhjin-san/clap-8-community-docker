@@ -123,4 +123,47 @@ class ContentController extends Controller
 
         return $this->image_response($img);  
     }
+    public function board_default_thumbnail($name, $size, $color){
+        $boardname_no_space = preg_replace('/\s+/', '', $name);
+        $bg = $color;
+        $text_color = '#fff';
+        $firstChar = mb_substr($boardname_no_space, 0, 3, "UTF-8"); 
+        $img = Image::create(200, 200)->fill($bg);   
+        $length = mb_strlen($boardname_no_space);       
+        $regex = '/[А-Яа-яЁёөү]/u';
+        $is_mn = preg_match($regex, $firstChar);
+        $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';
+        $cacheKey = 'chat_image_' . md5($name.$color.$size);
+        if (Cache::has($cacheKey)) {
+            $cachedImage = Cache::get($cacheKey);
+            if(!empty($cachedImage)){
+                $img = Image::read($cachedImage);
+                return $this->image_response($img);
+            }            
+        }
+        $bucket = [
+            [],
+            [ ['y' => 100, 'size' => 100, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8")]],
+            [ ['y' => 100, 'size' => 80, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8")]],
+            [ ['y' => 100, 'size' => 60, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8")]],
+            [ ['y' => 70, 'size' => 60, 'text' => mb_substr($boardname_no_space, 0, 2, "UTF-8")],  ['y' => 130, 'size' => 60, 'text' => mb_substr($boardname_no_space, 2, 2, "UTF-8")]],
+            [ ['y' => 75, 'size' => 50, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8")], ['y' => 135, 'size' => 50, 'text' => mb_substr($boardname_no_space, 3, 2, "UTF-8")]],
+            [ ['y' => 70, 'size' => 50, 'text' => mb_substr($boardname_no_space, 0, 3, "UTF-8")], ['y' => 130, 'size' => 50, 'text' => mb_substr($boardname_no_space, 3, 3, "UTF-8")]],           
+        ];
+
+        $index = $length >= 6 ? 6 : $length;        
+        $pot = $bucket[$index];
+        foreach($pot as $plate){
+            $img->text($plate['text'], 100, $plate['y'], function ($font) use($font_path, $text_color, $plate) {
+                $font->file(resource_path($font_path));
+                $font->size($plate['size']);
+                $font->color($text_color);
+                $font->align('center');
+                $font->valign('middle');                
+            });
+        }     
+        $imagedata = (string) $img->toWebp();     
+        Cache::put($cacheKey, (string) $imagedata, 2628000);
+        return $this->image_response($img);
+    }
 }

@@ -2037,10 +2037,7 @@ textarea{
 .iconPreview{
   width: 45px;
   height: 45px;
-  background: var(--primary-color);
   border-radius: 50%;
-  color: #fff;
-  display: grid;
   position: relative;
 }
 .uploadButton{
@@ -2056,9 +2053,8 @@ textarea{
   font-size: medium;
 }
 .iconPreviewInner{
-  text-align: center;
   margin:auto;
-  font-weight: 600;
+  border-radius: 50%;
 }
 .file-wrap-rec{
   max-width: calc(20% - 10px);  

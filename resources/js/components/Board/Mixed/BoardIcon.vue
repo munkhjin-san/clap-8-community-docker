@@ -25,7 +25,12 @@ import { useAuthUserStore } from '@/store/auth'
         return null
     })
     const boardIcon = computed(() => {
-        if(props.item.icons){
+        if (props.item.icon_text) {
+            const color = encodeURIComponent(props.item.icon_bg);
+            const noSpace = props.item.icon_text?.replace(/[\s　]/g, '');   
+            const basePath = '/board_default_thumbnail'
+            return `${basePath}/${noSpace}/45/${color}`; 
+        } else if(props.item.icons) {
            return `/cdn/board_icon/board_${props.item.icon_id}.${props.item.icons.extension}`;
         }
     })   

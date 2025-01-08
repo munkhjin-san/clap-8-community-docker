@@ -260,22 +260,22 @@ class BoardController extends Controller
 
             }            
            
-            if(empty($file_id_array) && $request->private_flag !== 1){
-                try {
-                    $createIcon = $this->sharedService->createBoardDefaultIcon($board, $active_user->id);             
+            // if(empty($file_id_array) && $request->private_flag !== 1){
+            //     try {
+            //         $createIcon = $this->sharedService->createBoardDefaultIcon($board, $active_user->id);             
                    
-                    if ($createIcon) {
-                        $board->save();
-                    } else {
-                        $board->delete();
-                        throw ValidationException::withMessages(['message' => $createIcon]);
-                    }   
-                } catch (\Exception $e) {           
-                    $board->delete();       
-                    throw ValidationException::withMessages(['message' => $createIcon]);
-                }               
+            //         if ($createIcon) {
+            //             $board->save();
+            //         } else {
+            //             $board->delete();
+            //             throw ValidationException::withMessages(['message' => $createIcon]);
+            //         }   
+            //     } catch (\Exception $e) {           
+            //         $board->delete();       
+            //         throw ValidationException::withMessages(['message' => $createIcon]);
+            //     }               
 
-            }
+            // }
             if(!empty($file_id_array)){
                 $board->icon_id = $request->icon_id;
                 $board->save();
