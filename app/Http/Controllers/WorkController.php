@@ -1578,7 +1578,7 @@ class WorkController extends Controller
         $day = $date->day;
         $year = $date->year;
         $month = $date->month;
-        $prev_month = $date->clone()->subMonth()->month;
+        $prev_month = $month == 1 ? $month : $date->clone()->subMonth()->month;
         $shift_month = $day >= 25 ? $date->clone()->addMonthNoOverflow()->month : $month;
         $ids = [608, 610];
         $active_user = $this->active_user();
