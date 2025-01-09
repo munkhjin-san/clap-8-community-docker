@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col gap-5">
-        <p><strong>チェック項目</strong></p>
+        <p><strong>理解度チェック</strong></p>
         <div v-for="summary in material?.summaries" :key="summary.id">
             <p>{{ summary.title }}</p>
             <div class="ml-5 mt-2" v-for="question in summary.questions" :key="question.id">
