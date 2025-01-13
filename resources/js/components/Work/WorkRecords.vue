@@ -306,6 +306,12 @@ import { useCheckApproval } from '../../store/checkApproval';
 }
 
 @media (max-width: 959px) {
+    .comment-wrap {
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+    }
     .text-wrap {
         white-space: nowrap;
     }

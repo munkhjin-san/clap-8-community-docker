@@ -47,7 +47,7 @@
         </td> 
         <td>
             <div style="position: relative;">
-                <div class="text-wrap" @click.stop="boxPosition('commentBox')"> 
+                <div class="text-wrap comment-wrap" @click.stop="boxPosition('commentBox')"> 
                     {{ commentFormatted }}
                 </div>
                 <div @click="menu.close()" ref="commentBox" class="comment-box" id="commentBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'commentBox' && menu.id == item.time_card?.id">
