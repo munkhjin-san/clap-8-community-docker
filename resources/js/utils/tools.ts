@@ -101,7 +101,12 @@ const DateParser = (date:string) => {
     const format = instance.hasSame(today, 'day') ? 'T' : instance.hasSame(today, 'year') ? 'M / d (ccc) HH:mm' : 'y / M / d (ccc) HH:mm'      
     return instance.toFormat(format)  
 }
-const decidedAnswers = ['ほとんど理解できていない', '少し理解できたが、さらに復習が必要', '十分に理解できているが、実務での応用に不安がある', '完全に理解し、実務で活用できる自信がある']
+const decidedAnswers = [
+    '完全に理解し、実務で活用できる自信がある',
+    '十分に理解できているが、実務での応用に不安がある', 
+    '少し理解できたが、さらに復習が必要',
+    'ほとんど理解できていない'
+]
 export { 
     debounce, 
     mentionFormatter, 

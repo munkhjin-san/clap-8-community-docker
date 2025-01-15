@@ -11,7 +11,7 @@
             </div>
             <div v-for="item in summaries" :key="item.id">
                 <div v-for="q in item.questions" style="margin-bottom: 20px;">
-                    <div style="margin-bottom: 10px;">{{ q.question }}</div>
+                    <!-- <div style="margin-bottom: 10px;">{{ q.question }}</div> -->
                     <div v-html="q.content"></div>
                     <div style="padding: 10px; background-color: var(--bg3); margin-top: 20px;">
                         <p><strong>内容を理解できたか？</strong></p>
@@ -34,24 +34,33 @@
                 </div>
             </div>
         </div>
+        <Transition name="modalFade">
+            <HasReason 
+                v-if="reason"
+                @close="reason = false"
+                @update="update"
+            />
+        </Transition>
     </div>
 </template>
 <script lang="ts" setup>
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { Dialog } from '@/interface/globalInterface';
 import { computed, inject, ref, watch } from 'vue';
+import HasReason from './HasReason.vue';
 const props = defineProps(['material', 'summaries'])
 
 const emit = defineEmits(['close', 'updateAnswerStatus'])
 const selectedAnswer = ref({})
 const radioError = ref({})
+const reason = ref(false)
+const joined = ref('')
 const { notify } = inject<Dialog>('dialog')! 
 const list = [
     { value: 2, content: '理解した'},
     { value: 1, content: '理解できなかった'}        
 ]
 const understandAll = computed(() => {
-    console.log(props.summaries.every(item => item.questions))
     return props.summaries.every((item: any) => item?.questions.every((q: any) => selectedAnswer.value[q.id] === 2))
 })
 const complete = async(status: number) => {
@@ -72,16 +81,20 @@ const complete = async(status: number) => {
 
     radioError.value = errors
     if (Object.keys(errors).length) return
-    const joined = unansweredSummaries.join('、 ')
+    joined.value = unansweredSummaries.join('、 ')
     if (status === -1) {
-        notify(`理解出来なかった内容について、\n法務から個別フォローアップのため後日ご連絡致します。`)
+        reason.value = true
+        return
+        // notify(`理解出来なかった内容について、\n法務から個別フォローアップのため後日ご連絡致します。`)
     }
     
-    emit('updateAnswerStatus', status, joined)
+    // emit('updateAnswerStatus', status, joined)
 }
-
+const update = async(status: number, reason_dnt_und: string) => {
+    reason.value = false
+    emit('updateAnswerStatus', status, joined.value, reason_dnt_und)
+}
 watch(selectedAnswer, (newVal) => {
-    console.log(newVal)
     for (const key in newVal) {
         if (newVal[key]) {
             delete radioError.value[key]

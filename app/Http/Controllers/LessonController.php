@@ -273,11 +273,13 @@ class LessonController extends Controller
                     'case_study_statuses' => [],
                     'answers' => [],
                     'cant_understand' => '',
+                    'reason_dnt_und' => ''
                 ];
             }
             if ($type === '基礎知識') {
                 $usersProgress[$userId]['basic_knowledge_statuses'][] = $answer->status;
                 $usersProgress[$userId]['cant_understand'] = $answer->cant_understand;
+                $usersProgress[$userId]['reason_dnt_und'] = $answer->reason_dnt_und;
             } elseif ($type === 'ケーススタディ') {
                 $case_answers = [
                     'title' => $lesson->title,

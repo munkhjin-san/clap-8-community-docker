@@ -11,6 +11,7 @@
                         <div class="header-cell">ステータス</div>
                         <div class="header-cell">ケーススタディ答え</div>
                         <div class="header-cell">基礎知識理解不能</div>
+                        <div class="header-cell">理解できない理由</div>
                         <!-- <div class="header-cell">アンケート</div>                    -->
                     </div>
                 </div>
@@ -49,6 +50,11 @@
                         <div class="body-cell border-none" style="text-align: left;position: relative;">
                             <div class="pt-content" style="white-space: break-spaces;">
                                 {{ lesson?.cant_understand }}
+                            </div>
+                        </div>
+                        <div class="body-cell border-none" style="text-align: left;position: relative;">
+                            <div class="pt-content" style="white-space: break-spaces;">
+                                {{ lesson?.reason_dnt_und }}
                             </div>
                         </div>
                         <!-- <div class="body-cell border-none" style="text-align: left;position: relative;">

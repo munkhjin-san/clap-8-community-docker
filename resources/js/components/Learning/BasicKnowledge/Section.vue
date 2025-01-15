@@ -194,7 +194,7 @@
         } else if (!material.value.has_question){
             filteredSummaries.value = material.value.summaries.filter((summary) => {
                 return summaryAnswers.value.some(answer => 
-                    answer.lesson_summary_id === summary.id && (answer.answer_val === 0 || answer.answer_val === 1)
+                    answer.lesson_summary_id === summary.id && (answer.answer_val === 2 || answer.answer_val === 3)
                 );
             });
             let hasError = false;
@@ -243,21 +243,22 @@
             notify(e)
         }
     }
-    const updateAnswerStatus = async(status, joined) => {
+    const updateAnswerStatus = async(status, joined, reason_dnt_und) => {
         try {
             const params = {
                 id: material?.value?.answer?.id,
                 params: {
                     material_id: material.value?.id,
                     status: status || 2,
-                    cant_understand: joined || ''
+                    cant_understand: joined || '',
+                    reason_dnt_und: reason_dnt_und || ''
                 },
             }
             await axios.post('/update_lesson_answer', params)
             
             router.push({name: 'basic'})
             
-            
+            info('研修は終了致しました。有難うございます。')
             saveSummaryAnswers()
             getLessons()
         } catch (e) {
