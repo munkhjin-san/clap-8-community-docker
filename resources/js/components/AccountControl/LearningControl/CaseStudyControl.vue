@@ -48,12 +48,18 @@
                             </div>
                         </div>
                         <div class="body-cell border-none" style="text-align: left;position: relative;">
-                            <div class="pt-content" style="white-space: break-spaces;">
+                            <div @click.stop="menu.setMenu({ id: lesson.id, name: `pt_dt_und${lesson.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
+                                {{ lesson?.cant_understand }}
+                            </div>
+                            <div v-if="menu.name == `pt_content${lesson.id}` && menu.id == lesson.id" :id="`pt_dt_und${lesson.id}`" class="pt-popup shadow-me" style="left:0;right:auto">
                                 {{ lesson?.cant_understand }}
                             </div>
                         </div>
                         <div class="body-cell border-none" style="text-align: left;position: relative;">
-                            <div class="pt-content" style="white-space: break-spaces;">
+                            <div @click.stop="menu.setMenu({ id: lesson.id, name: `reason_dt_und${lesson.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
+                                {{ lesson?.reason_dnt_und }}
+                            </div>
+                            <div v-if="menu.name == `reason_dt_und${lesson.id}` && menu.id == lesson.id" :id="`pt_dt_und${lesson.id}`" class="pt-popup shadow-me" style="left:0;right:auto">
                                 {{ lesson?.reason_dnt_und }}
                             </div>
                         </div>
