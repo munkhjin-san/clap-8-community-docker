@@ -27,7 +27,7 @@ class LessonTheme extends Model
     }
     public function getSurveyDateAttribute()
     {
-        return $this->form?->survey_answers?->where('user_id', Auth::id())->first()->updated_at;
+        return $this->form?->survey_answers?->where('user_id', Auth::id())->first()?->updated_at;
     }
 }
 
