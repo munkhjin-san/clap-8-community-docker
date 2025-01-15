@@ -48,19 +48,24 @@
                             </div>
                         </div>
                         <div class="body-cell border-none" style="text-align: left;position: relative;">
-                            <div @click.stop="menu.setMenu({ id: lesson.user.id, name: `pt_dt_und${lesson.user.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
+                            <div class="pt-content">
+                                <p @click.stop="menu.setMenu({ id: lesson.user.id, name: `pt_dt_und${lesson.user.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
                                 {{ lesson?.cant_understand }}
+                                </p>
+                                <p v-if="menu.name == `pt_dt_und${lesson.user.id}` && menu.id == lesson.user.id" :id="`pt_dt_und${lesson.user.id}`" class="pt-popup shadow-me" style="left:auto;right:0">
+                                    {{ lesson?.cant_understand }}
+                                </p>
                             </div>
-                            <div v-if="menu.name == `pt_dt_und${lesson.user.id}` && menu.id == lesson.user.id" :id="`pt_dt_und${lesson.user.id}`" class="pt-popup shadow-me" style="left:0;right:auto">
-                                {{ lesson?.cant_understand }}
-                            </div>
+                            
                         </div>
                         <div class="body-cell border-none" style="text-align: left;position: relative;">
-                            <div @click.stop="menu.setMenu({ id: lesson.user.id, name: `reason_dt_und${lesson.user.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
-                                {{ lesson?.reason_dnt_und }}
-                            </div>
-                            <div v-if="menu.name == `reason_dt_und${lesson.user.id}` && menu.id == lesson.user.id" :id="`reason_dt_und${lesson.user.id}`" class="pt-popup shadow-me" style="left:0;right:auto">
-                                {{ lesson?.reason_dnt_und }}
+                            <div class="pt-content">
+                                <p @click.stop="menu.setMenu({ id: lesson.user.id, name: `reason_dt_und${lesson.user.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
+                                    {{ lesson?.reason_dnt_und }}
+                                </p>
+                                <p v-if="menu.name == `reason_dt_und${lesson.user.id}` && menu.id == lesson.user.id" :id="`reason_dt_und${lesson.user.id}`" class="pt-popup shadow-me" style="left:auto;right:0">
+                                    {{ lesson?.reason_dnt_und }}
+                                </p>
                             </div>
                         </div>
                         <!-- <div class="body-cell border-none" style="text-align: left;position: relative;">
