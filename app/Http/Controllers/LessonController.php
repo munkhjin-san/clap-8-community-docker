@@ -253,41 +253,43 @@ class LessonController extends Controller
     }
     public function get_material_list(Request $request) {
         $lessons = LessonMaterial::where('lesson_theme_id', $request->lesson_theme_id)
-                    ->whereHas('answer', function ($q) {
+                    ->whereHas('answers', function ($q) {
                         $q->whereHas('user');
                     })
-                    ->with(['answer.user'])
+                    ->with(['answers.user'])
                     ->get();
 
         $usersProgress = []; 
 
         foreach ($lessons as $lesson) {
             $type = $lesson->material_type;
-            $answer = $lesson->answer;
-                
-            $userId = $answer->user->id;
-            if (!isset($usersProgress[$userId])) {
-                $usersProgress[$userId] = [
-                    'user' => $answer->user,
-                    'basic_knowledge_statuses' => [],
-                    'case_study_statuses' => [],
-                    'answers' => [],
-                    'cant_understand' => '',
-                    'reason_dnt_und' => ''
-                ];
+            $answers = $lesson->answers;
+            foreach ($answers as $answer) {
+                $userId = $answer->user->id;
+                if (!isset($usersProgress[$userId])) {
+                    $usersProgress[$userId] = [
+                        'user' => $answer->user,
+                        'basic_knowledge_statuses' => [],
+                        'case_study_statuses' => [],
+                        'answers' => [],
+                        'cant_understand' => '',
+                        'reason_dnt_und' => ''
+                    ];
+                }
+                if ($type === '基礎知識') {
+                    $usersProgress[$userId]['basic_knowledge_statuses'][] = $answer->status;
+                    $usersProgress[$userId]['cant_understand'] = $answer->cant_understand;
+                    $usersProgress[$userId]['reason_dnt_und'] = $answer->reason_dnt_und;
+                } elseif ($type === 'ケーススタディ') {
+                    $case_answers = [
+                        'title' => $lesson->title,
+                        'answer' => $answer->answer
+                    ];
+                    $usersProgress[$userId]['case_study_statuses'][] = $answer->status;
+                    $usersProgress[$userId]['answers'][] = $case_answers;
+                }
             }
-            if ($type === '基礎知識') {
-                $usersProgress[$userId]['basic_knowledge_statuses'][] = $answer->status;
-                $usersProgress[$userId]['cant_understand'] = $answer->cant_understand;
-                $usersProgress[$userId]['reason_dnt_und'] = $answer->reason_dnt_und;
-            } elseif ($type === 'ケーススタディ') {
-                $case_answers = [
-                    'title' => $lesson->title,
-                    'answer' => $answer->answer
-                ];
-                $usersProgress[$userId]['case_study_statuses'][] = $answer->status;
-                $usersProgress[$userId]['answers'][] = $case_answers;
-            }
+            
         }
         foreach ($usersProgress as $userId => &$progress) {
             $progress['basic_knowledge_completed'] = !empty($progress['basic_knowledge_statuses']) &&

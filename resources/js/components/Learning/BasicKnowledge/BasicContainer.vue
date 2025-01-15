@@ -23,7 +23,7 @@
                         </div>
                         <div class="flex flex-col">
                             <div style="text-wrap: wrap;line-height: 1.5;">{{section.title}}</div>         
-                            <div class="text-xs" v-if="section?.answer?.status == 2 && section?.answer?.updated_at">完了日:{{ dateDetail(section?.answer?.updated_at) }}</div>
+                            <div class="text-xs" v-if="section?.answer?.status == 2 && section?.answer?.updated_at">完了日:{{ dateFormat(section?.answer?.updated_at) }}</div>
                         </div>
                     </div>
                     <div v-if="selectedTopic.portfolio == 1" @click="sectionsCompleted && portfolioStatus < 1 ? router.push({name: 'story'}) : sectionsCompleted ? router.push({name: 'summary'}) : ''" :class="['topic-item', {'inactive-theme' : !sectionsCompleted}]" style="flex-direction: row;align-items: center;justify-content: start;gap:5px;">
@@ -41,7 +41,7 @@
                         </div>
                         <div class="flex flex-col">
                             <div style="text-wrap: wrap;line-height: 1.5;">チェックリスト</div>
-                            <div class="text-xs" v-if="selectedTopic.survey_date">完了日:{{ dateDetail(selectedTopic.survey_date) }}</div>
+                            <div class="text-xs" v-if="selectedTopic.survey_date">完了日:{{ dateFormat(selectedTopic.survey_date) }}</div>
                         </div>
                     </div>
                 </div>
@@ -68,7 +68,7 @@
     import { useRoute, useRouter } from 'vue-router';
     import axios from 'axios';
     import HasQuestion from './HasQuestion.vue';
-import { dateDetail } from '@/utils/workApi';
+    import { DateTime } from 'luxon';
     const router = useRouter()
     const route = useRoute()
     const ttsStore = useTtsStore()
@@ -154,4 +154,7 @@ import { dateDetail } from '@/utils/workApi';
         }
         return true
     })
+    const dateFormat = (date) => {
+        return DateTime.fromISO(date).toISODate()
+    }
 </script>
