@@ -10,7 +10,7 @@ class LessonTheme extends Model
     use HasFactory;
 
     protected $guarded = [];
-    protected $appends = ['survey_completed'];
+    protected $appends = ['survey_completed', 'survey_date'];
     public function lesson_portfolio(){
         return $this->hasOne(LessonPortfolio::class, 'lesson_theme_id')->select('lesson_theme_id', 'status', 'understand');
     }
@@ -24,6 +24,10 @@ class LessonTheme extends Model
     public function getSurveyCompletedAttribute()
     {
         return $this->form?->survey_answers?->where('user_id', Auth::id())->isNotEmpty();
+    }
+    public function getSurveyDateAttribute()
+    {
+        return $this->form?->survey_answers?->where('user_id', Auth::id())->first()->updated_at;
     }
 }
 
