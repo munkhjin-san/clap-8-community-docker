@@ -109,7 +109,7 @@
     const timeCard = computed(() => {
         return props.item?.time_card
     })
-    const vehicleData = ref(timeCard.value?.vehicle_data ? timeCard.value.vehicle_data : props.item?.prev_vehicle_data ? props.item.prev_vehicle_data : {
+    const vehicleData = ref(timeCard.value?.vehicle_data ? timeCard.value.vehicle_data : {
         vehicle: null,
         alcohol_before_time: null,
         alcohol_after_time: null,
