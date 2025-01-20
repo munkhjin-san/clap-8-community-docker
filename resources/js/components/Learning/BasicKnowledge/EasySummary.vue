@@ -88,7 +88,7 @@ const complete = async(status: number) => {
         // notify(`理解出来なかった内容について、\n法務から個別フォローアップのため後日ご連絡致します。`)
     }
     
-    emit('updateAnswerStatus', status, joined)
+    emit('updateAnswerStatus', status, joined.value)
 }
 const update = async(status: number, reason_dnt_und: string) => {
     reason.value = false
