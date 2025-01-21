@@ -1,6 +1,25 @@
 import Autolinker from 'autolinker';
 import moment from 'moment';
 import { DateTime } from 'luxon'
+import { customRef } from 'vue'
+function useDebouncedRef(value:any, delay = 200) {
+    let timeout:ReturnType<typeof setTimeout> | number = 300;
+    return customRef((track, trigger) => {
+      return {
+        get() {
+          track()
+          return value
+        },
+        set(newValue) {
+          clearTimeout(timeout)
+          timeout = setTimeout(() => {
+            value = newValue
+            trigger()
+          }, delay)
+        }
+      }
+    })
+  }
 const mentionFormatter = (text: string | null, withUrl?: boolean) => {
     const cook = text ? text : ''
     const cooked = cook.replace(
@@ -104,7 +123,6 @@ const DateParser = (date:string) => {
 const decidedAnswers = [
     '完全に理解し、実務で活用できる自信がある',
     '十分に理解できているが、実務での応用に不安がある', 
-    '少し理解できたが、さらに復習が必要',
     'ほとんど理解できていない'
 ]
 export { 
@@ -118,5 +136,6 @@ export {
     parseDate,
     taskStatusBackgrounds,
     DateParser,
-    decidedAnswers
+    decidedAnswers,
+    useDebouncedRef
 }
