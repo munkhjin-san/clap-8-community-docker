@@ -49,7 +49,7 @@ const getLessons = inject('getLessons') as Function
 const finish = async(status: number) => {
     if (status === 2) {
         if(props.material.assistant_id && !reviewEl.value?.reviewResultRaw){
-            notify('基礎知識研修を完了する前、AI分析してください。')
+            notify('AI分析を必須として実施し、完了してください。')
             return
         }
     }        

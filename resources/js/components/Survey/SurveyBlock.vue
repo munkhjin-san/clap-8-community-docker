@@ -29,7 +29,7 @@
                     </label>                    
                     <Transition name="customInputGroup">
                         <div class="mt-[10px] ml-[25px]" v-if="element.has_sub_text && (radioModel == element.id || checkboxModel.includes(element.id))">
-                            <input :class="['custom-a-input' , {'invalid-input': element.is_required && !sub_texts[element.id]}]" v-model="sub_texts[element.id]" placeholder="回答" back type="text"/>
+                            <input :class="['custom-a-input' , {'invalid-input': element.is_required && !sub_texts[element.id]}]" v-model="sub_texts[element.id]" placeholder="具体的に教えて下さい" back type="text"/>
                         </div>
                     </Transition>
                 </div>
@@ -43,16 +43,16 @@
                 </select>
             </div>
             <div v-if="block.type == 'singletext'">
-                <input :class="['custom-a-input', {'invalid-input': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" placeholder="回答" type="text"/>
+                <input :class="['custom-a-input', {'invalid-input': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" placeholder="具体的に教えて下さい" type="text"/>
             </div>
             <div v-if="block.type == 'date'">
-                <input :class="['custom-a-input', {'invalid-box': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" placeholder="回答" type="date"/>
+                <input :class="['custom-a-input', {'invalid-box': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" placeholder="具体的に教えて下さい" type="date"/>
             </div>
             <div v-if="block.type == 'time'">
-                <input :class="['custom-a-input', {'invalid-box': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" placeholder="回答" type="time"/>
+                <input :class="['custom-a-input', {'invalid-box': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" placeholder="具体的に教えて下さい" type="time"/>
             </div>
             <div v-if="block.type == 'multitext'">
-                <textarea :class="['custom-a-input', {'invalid-input': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" placeholder="回答" type="text"></textarea>
+                <textarea :class="['custom-a-input', {'invalid-input': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" placeholder="具体的に教えて下さい" type="text"></textarea>
             </div>
         </div>
 

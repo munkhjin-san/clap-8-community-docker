@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col gap-5">
-      <label :for="questionId" style="font-size: 16px; font-weight: 600;">{{ question }}</label>
+      <label :for="questionId" class="mb-4" style="font-size: 16px; font-weight: 600;">{{ question }}</label>
       
       <div v-for="(answer, index) in answers" :key="index" class="flex gap-2.5 align-center">
         <input 

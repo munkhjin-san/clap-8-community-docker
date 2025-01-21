@@ -65,7 +65,7 @@
                     </div>
                 </div>
                 <div v-else-if="!material.has_question && (!material.answer || material?.answer?.status < 2)" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
-                    <LoaderButton @triggered="nextStage" :loading="processing" :content="'完了'"/>
+                    <LoaderButton @triggered="nextStage" :loading="processing" :content="filteredSummaries.length > 0 ? '次へ' : '完了'"/>
                 </div>
             </div>
             <router-view
@@ -135,7 +135,6 @@
         summaryAnswers.value = answers.value ?? []
     })
     const showSummary = ref(false)
-    const filteredSummaries = ref([])
     const validate = async(status) => {
         const valid = await understandComment.value.validate()
         if(valid.valid){
@@ -178,6 +177,13 @@
         }
                 
     }
+    const filteredSummaries = computed(() => {
+        return material.value.summaries.filter((summary) => {
+            return summaryAnswers.value.some(answer => 
+                answer.lesson_summary_id === summary.id && (answer.answer_val === 1 || answer.answer_val === 2)
+            );
+        });
+    })
     const nextStage = async() => {
         if (material.value.has_understand) {
             if(selectedAnswer.value == 1){
@@ -192,11 +198,7 @@
                 return
             }
         } else if (!material.value.has_question){
-            filteredSummaries.value = material.value.summaries.filter((summary) => {
-                return summaryAnswers.value.some(answer => 
-                    answer.lesson_summary_id === summary.id && (answer.answer_val === 2 || answer.answer_val === 3)
-                );
-            });
+            
             let hasError = false;
 
             material.value?.summaries.forEach(summary => {
@@ -220,7 +222,7 @@
                 const options = {
                     answers: [{label: 'OK', value: true}]
                 }
-                const answer = await confirm('理解度チェックの結果、「理解できていない」または「さらに復習が必要」を選択された方に向けて、\n研修内容を分かりやすくまとめた要約を表示します。要約をご覧いただき、理解を深めてください。', options)
+                const answer = await confirm('理解度チェックの結果、「実務での応用に不安がある」または「理解できていない」を選択された方に向けて、研修内容を分かりやすくまとめた要約を表示します。要約をご覧いただき、理解を深めてください。', options)
                 if (answer) {
                     showSummary.value = true
                     return

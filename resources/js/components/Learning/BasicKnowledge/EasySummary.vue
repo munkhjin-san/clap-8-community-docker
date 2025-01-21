@@ -14,7 +14,7 @@
                     <!-- <div style="margin-bottom: 10px;">{{ q.question }}</div> -->
                     <div v-html="q.content"></div>
                     <div style="padding: 10px; background-color: var(--bg3); margin-top: 20px;">
-                        <p><strong>内容を理解できたか？</strong></p>
+                        <p><strong>内容を理解しましたか？</strong></p>
                         <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
                             <input class="fish-eye" v-model="selectedAnswer[q.id]" type="radio" :id="`sum-${q.id}-${answer.value}`" :name="`answer-${q.id}`" :value="answer.value" >
                             <label style="margin-left:10px;cursor:pointer" :for="`sum-${q.id}-${answer.value}`">{{answer.content}}</label>
@@ -30,7 +30,7 @@
                     <LoaderButton @triggered="complete(2)" :content="'完了'"/>
                 </div>
                 <div v-else>
-                    <LoaderButton @triggered="complete(-1)" :content="'個別フォローアップ申請'"/>
+                    <LoaderButton @triggered="complete(-1)" :content="'次へ'"/>
                 </div>
             </div>
         </div>
