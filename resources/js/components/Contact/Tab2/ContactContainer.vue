@@ -112,10 +112,11 @@ const getContacts = async() => {
 }
 const deleteContact = async(id:number) => {
     const confirmed = await confirm('コンタクトを削除しますか。')
-    if(!confirmed.value) return
+    console.log(confirmed)
+    if(!confirmed) return
     await axios.delete('/contact_item', {params: {id: id}})
     getContacts()
-    router.push({name: 'contact'})
+    router.push({name: 'tab2'})
 }
 const closeCreate = (flag:boolean) => {
     createWindow.value = false
