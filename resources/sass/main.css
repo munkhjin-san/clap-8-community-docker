@@ -757,6 +757,21 @@ progress {
     line-height: 1.2; 
     border-radius: 5px;
 }
+.users-list-popup{
+  box-shadow: rgb(0 0 0 / 35%) 0px 5px 15px;
+  padding: 20px;
+  margin: auto;
+  background: var(--background-color);
+  color: var(--primary-color);
+  max-width: 80%;
+  font-size: 14px;
+  line-height: 1.5;
+  max-height: 90%;
+  overflow: hidden auto;
+  max-height: 60vh;
+  min-width: 20%;
+}
+
 .record-content{
     width: 100%;
     height: auto;
@@ -1094,8 +1109,8 @@ img {
 }
 
 .cropper-view-box, .cropper-face {
-  border-radius: 50% !important;
-  outline: #fff !important;
+  border-radius: 50% ;
+  outline: #fff ;
 }
 .cropper-line {
   background-color: #fff !important;
@@ -1814,25 +1829,6 @@ textarea{
     display: none;
 }
 
-
-
-.sticky {
-    display: block;
-    position: fixed;
-    top: 80px;
-    width: 100%;
-    padding-top: 10px !important;
-    height: 40px !important;
-
-    z-index: 10 !important;
-
-    line-height: 40px !important;
-    background: #ccc;
-}
-
-.sticky h2{
-    font-size: 20px !important;
-}
 /* ヘッダー */
 
 
@@ -2327,7 +2323,7 @@ div.recordFormTitle > p{
   height: 35px;
 }
 .swiper-container {
-  height: auto;
+  height: calc(100% - 30px);
   width: 99.9%;
   box-sizing: border-box;
 
@@ -2370,29 +2366,31 @@ div.recordFormTitle > p{
   justify-content: center;
   align-items: center;
 }
-
-
+.sub-tab-container{
+    display: flex;
+}
+.sub-tab-item{
+    padding: 10px 15px;
+    font-size: 14px;
+    border-bottom: solid thin transparent;
+    box-sizing: border-box;
+    cursor: pointer;
+    color: var(--primary-color);
+}
+.selected-sub-tab{
+    border-bottom: solid thin var(--primary-color);
+}
 /* 一時的仮デザイン */
 .filedrop-area {
-    font-size: 18px;
+    font-size: 16px;
     justify-content: center;
     align-items: center;
     width: 100%;
-    height: auto;
-    min-height: 98px;
-
-    margin-top: 20px;
-
-    border: 1px solid var(--formBorder);
-
-
-    
-    background-repeat: no-repeat;
-    background-position: top 5px right 5px;
-    background-color: var(--bg3);
-
+    height: 100%;
     text-align: center;
-    line-height: 90px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
 .enter {
@@ -4832,14 +4830,63 @@ font-size: 13px;
     content: "";
     background-color: var(--primary-color);
     border-radius: 50%;
-    height: 10px;
+    height: 12px;
     position: absolute;
-    width: 10px;
+    width: 12px;
     left: 0;
     right: 0;
     top: 0;
     bottom: 0;
     margin: auto;
+}
+.new-radio:checked,
+.new-radio:not(:checked) {
+    position: absolute;
+    left: -9999px;
+}
+.new-radio:checked + label,
+.new-radio:not(:checked) + label
+{
+    position: relative;
+    padding-left: 28px;
+    cursor: pointer;
+    line-height: 20px;
+    display: inline-block;
+}
+.new-radio:checked + label:before,
+.new-radio:not(:checked) + label:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--primary-color);
+    border-radius: 100%;
+    background: var(--background-color);
+}
+.new-radio:checked + label:after,
+.new-radio:not(:checked) + label:after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background: var(--primary-color);
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    border-radius: 100%;
+    -webkit-transition: all 0.2s ease;
+    transition: all 0.2s ease;
+}
+.new-radio:not(:checked) + label:after {
+    opacity: 0;
+    -webkit-transform: scale(0);
+    transform: scale(0);
+}
+.new-radio:checked + label:after {
+    opacity: 1;
+    -webkit-transform: scale(1);
+    transform: scale(1);
 }
 .day-tc {
     display: flex;
@@ -5669,6 +5716,9 @@ input:autofill {
   border: solid thin var(--primary-color);
 }
 @media screen and (max-width: 959px) {
+    .users-list-popup{
+        min-width: 50%;
+    }
     .message-icon-outer{
       gap: 8px;
     }

@@ -15,7 +15,7 @@
                     <PostSearchBar 
                         className="newChatMemberSearch" 
                         :searching="searching" 
-                        v-model="keyword"
+                        @search-start="(word) => {keyword = word}"
                     />
                 </div>
             </div>
@@ -26,7 +26,7 @@
                         <div class="suggested-list">
                             <div :key="admin.id" v-for="admin in filteredAdmins">
                                 <div class="suggested-wrap">
-                                    <UserIcon :user="admin.user" imgClass="userNormalIcon" size="30"/>
+                                    <UserPanel :user="admin.user" imgClass="userNormalIcon" size="30"/>
                                     <router-link :to="`/user/${admin.user.id}`" class="suggested-user-name user-link">{{ admin.user.name }}</router-link>
                                     <ItemMenu 
                                         v-if="checkAdminAccess"
@@ -43,7 +43,7 @@
                         <div class="suggested-list">
                             <div :key="member.id" v-for="member in filteredMembers">
                                 <div class="suggested-wrap">                                    
-                                    <UserIcon :user="member.user" imgClass="userNormalIcon" size="30"/>
+                                    <UserPanel :user="member.user" imgClass="userNormalIcon" size="30"/>
                                     <div>
                                         <router-link :to="`/user/${member.user.id}`" class="suggested-user-name user-link">{{ member.user.name }}</router-link>
                                         <div v-if="checkAdminAccess" style="font-size: 11px;color: gray;margin: 5px 0 0 5px;">閲覧制限日付:{{ viewFrom(member) }}</div>
@@ -99,7 +99,7 @@
 <script setup>
 import PostSearchBar from '../Post/PostSearchBar.vue'
 import { computed, inject, ref } from 'vue'
-import UserIcon from './Mixed/UserIcon.vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import ItemMenu from '@/components/Global/ItemMenu.vue';

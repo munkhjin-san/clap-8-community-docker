@@ -4,7 +4,7 @@
       
       <div v-for="(answer, index) in answers" :key="index" class="flex gap-2.5 align-center">
         <input 
-          class="fish-eye" 
+          class="new-radio" 
           :id="`${questionId}-${index + 1}`" 
           type="radio" :value="index" 
           v-model="selectedAnswer" 

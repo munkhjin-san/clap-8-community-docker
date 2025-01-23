@@ -27,7 +27,7 @@
                             <input @change="validateSelection" v-model="selectedMembers" :value="user.id" name="targetMembers" type="checkbox">
                             <span class="checkmark-mini" style="margin: auto;bottom: 0;"></span>                        
                             <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;">
-                                <UserIconPreLoad :disableInstant="true" size="30" :title="user.name" :user="user" imgClass="userNormalIcon"/>                      
+                                <UserPanel :disableInstant="true" size="30" :title="user.name" :user="user" imgClass="userNormalIcon"/>                      
                                 <div style="align-self: center;padding:0 10px;">
                                     <p style="line-height: 1.3;font-size: 16px;">{{user.name}}</p>                                          
                                 </div>                                      
@@ -57,7 +57,7 @@
 <script setup>
 import { computed, inject, ref, watch } from 'vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
-import UserIconPreLoad from '../Mixed/UserIcon.vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { useAuthUserStore } from '@/store/auth'
     const auth = useAuthUserStore()
     const props = defineProps(['message', 'requestType', 'file'])

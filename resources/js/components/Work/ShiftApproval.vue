@@ -100,9 +100,9 @@
     import { useAuthUserStore } from '../../store/auth';
     import holiday_jp from '@holiday-jp/holiday_jp'
     import { useMenuStore } from '../../store/menu';
-    import { useCheckApproval } from '../../store/checkApproval';
     import { getShiftWithWorkGroup } from '../../utils/workApi';
     import WorkMembers from './WorkMembers.vue';
+    import { useBadgeStore } from '@/store/badge';
     const props = defineProps([
         'selectedYear',
         'selectedMonth',
@@ -122,7 +122,6 @@
         } 
         return { year: selectedDate.year(), month: selectedDate.month() }
     })
-    const checkApproval = useCheckApproval()
     const menu = useMenuStore()
     const approveYear = ref(nextMonthOrCurrent.value.year)
     const approveMonth = ref(nextMonthOrCurrent.value.month)
@@ -131,7 +130,7 @@
     const workUsers = ref([])
     const workGroups = ref([])
     const loading = ref(0)
-    
+    const badge = useBadgeStore()
     const checkedUsers = ref([])
     
     const statuses = ['', '', ' : 申請中', ' : 承認済']
@@ -198,7 +197,7 @@
         try {
             await axios.patch('/shift_approve_all', {user_ids: userIds, year_month: yearMonth}).then(res => res.data)
             info('承認しました。')
-            checkApproval.setCheckApproval(true)
+            badge.getRemindBadge()
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {
@@ -214,7 +213,7 @@
         try {
             await axios.patch('/shift_approve', {shift_id: shiftId, status: status}).then(res => res.data)
             info(status == 3 ? '承認しました。' : status == 2 ? '承認取消しました。' : '差戻しました。')
-            checkApproval.setCheckApproval(true)
+            badge.getRemindBadge()
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {

@@ -9,13 +9,13 @@
     >
         <div class="cal-userlist-full" v-if="expanded" :style="{marginBottom: '10px'}"> 
             <div v-for="user in listTruncate" style="width: fit-content;">
-                <UserIcon :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
+                <UserPanel :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
                 <p @click.stop="pushInstantUser($event, user.id)" class="userName" style="white-space: break-spaces;font-size: 12px;margin-right: 25px;">{{ user.name }}</p>
             </div>
             <div style="cursor: pointer;" @click.stop="truncate = false" v-if="truncate && record.calendar_users.length > 6">...({{ record.calendar_users.length }})</div>
         </div>
         <div v-else style="display: flex;">
-            <UserIcon :disableInstant="true" v-for="user in record.calendar_users.slice(0, 3)" :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
+            <UserPanel :disableInstant="true" v-for="user in record.calendar_users.slice(0, 3)" :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
             <span style="line-height: 15px;" v-if="record.calendar_users.length > 3">...({{ record.calendar_users.length }})</span>
             <div style="margin: 1px 0 0 5px;overflow: hidden;" v-if="!expanded && fullDay">{{ viewable ? record.title : '予定' }}</div>
         </div>
@@ -90,7 +90,7 @@
     import Autolinker from 'autolinker';
     import CalendarFiles from './CalendarFiles.vue';
     import { ref, computed, onMounted, inject } from 'vue'
-    import UserIcon from '../Board/Mixed/UserIcon.vue';
+    import UserPanel from '@/components/Global/UserPanel.vue'
     import colors from '../../../assets/colors.json'
     import { useAuthUserStore } from '@/store/auth'
     import { useMenuStore } from "@/store/menu";

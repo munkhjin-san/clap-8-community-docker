@@ -39,7 +39,8 @@
                 v-if="menu.id == 98 && menu.name == 'workMemberSelector'"
                 :workUsers="flatworkGroups"
                 :workGroups="workGroups"
-                v-model="selectedUsersList"
+                v-model:users="selectedUsersList"
+                v-model:vehicles="selectedVehicles"
                 customStyle="color: var(--primary-color);"
             />
         </Transition>
@@ -61,7 +62,7 @@
     import { useMenuStore } from "../../store/menu";
     import { useResponsive } from '../../store/responsive';
     import { useAuthUserStore } from '../../store/auth';
-    import { User } from '../../interface/workInterface';
+    import { User } from '@/interface/globalInterface';
     import WorkMembers from './WorkMembers.vue';
     const menu = useMenuStore()
     const responsive = useResponsive()
@@ -79,7 +80,8 @@
         'approveShift',
     ])
     const modal = ref(false)
-    const selectedUsersList = defineModel<any>()
+    const selectedUsersList = defineModel<any>('users')
+    const selectedVehicles = defineModel('vehicles')
     const flatworkGroups = computed(() => {
         let groups : any
        

@@ -8,7 +8,7 @@
                         <label class="flex items-center gap-[5px] text-[12px] cursor-pointer whitespace-nowrap">
                             <input type="checkbox" v-model="block.is_required"/>
                             必須
-                        </label>                                        
+                        </label>   
                     </div>                                
                 </div> 
             </div>
@@ -30,7 +30,8 @@
                                         <label class="flex items-center gap-[5px] text-[12px] cursor-pointer">
                                             <input type="checkbox" v-model="answer.has_sub_text"/>
                                             サブテキスト欄
-                                        </label>                                        
+                                        </label>
+                                        <input v-if="answer.has_sub_text" placeholder="プレースホルダー" class="custom-o-input" back type="text" ref="checkboxes" v-model="answer.placeholder"/>                                     
                                     </div>                                    
                                 </div>                               
                             </div>  

@@ -78,7 +78,7 @@ class MemberController extends Controller
                         'offices',
                         'today_weather'
                     ])
-                    ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
+                    ->select('id', 'name', 'name_kana', 'motto', 'icon_path', 'icon_bg', 'icon_bg', 'icon_bg', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
             }
         ])
         ->orderBy('sort_flag', 'asc')
@@ -167,7 +167,7 @@ class MemberController extends Controller
                     'offices',
                     'today_weather'
                 ])
-                ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code')
+                ->select('id', 'name', 'name_kana', 'motto', 'icon_path', 'icon_bg', 'icon_bg', 'icon_bg', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code')
                 ->get();
             
                 $sk['employees'] = $emp;
@@ -188,7 +188,7 @@ class MemberController extends Controller
                             'offices',
                             'today_weather'
                         ])
-                        ->select('id', 'name', 'name_kana', 'motto', 'icon_id', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
+                        ->select('id', 'name', 'name_kana', 'motto', 'icon_path', 'icon_bg', 'icon_bg', 'icon_bg', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
                 }
             ])
             ->orderBy('sort_flag', 'asc')

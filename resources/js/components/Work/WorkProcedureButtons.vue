@@ -91,14 +91,14 @@
     import LoaderButton from '../Global/LoaderButton.vue';
     import { inject, ref, computed, onMounted, onUnmounted } from 'vue';
     import OverTimeRequest from './OverTimeRequest.vue';
-    import { useCheckApproval } from '../../store/checkApproval';
+    import { useBadgeStore } from '@/store/badge';
     const overtimeRequestData = ref(null)
     const props = defineProps(['currentDay', 'statuses', 'item'])
     const emit = defineEmits(['reload', 'closeModal'])
     const { confirm, notify, info } = inject('dialog')
     const auth = useAuthUserStore()
+    const badge = useBadgeStore()
     const { edit, stampDelete, addDepartmentOnly } = inject('stamps')
-    const checkApproval = useCheckApproval()
     onMounted(() => {
         if(props.item.ability.daily_report_approve){
             window.addEventListener('keydown', handleEnterPress);
@@ -128,7 +128,7 @@
             emit('reload')
             info(`${action}しました。`)
             emit('closeModal')
-            checkApproval.setCheckApproval(true)
+            badge.getRemindBadge()
         } catch (e) { 
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } 

@@ -11,7 +11,7 @@ class Friend extends Model
     
     public function user()
     {
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'q_token');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg', 'q_token');
     }
     
     public function friend()

@@ -31,7 +31,7 @@
                 />
             </div> 
             <div class="si-box">
-                <p>モデル</p>
+                <p class="mb-[10px]">モデル</p>
                 <select v-model="model" style="border: solid thin var(--primary-color);padding: 5px 10px; color: var(--primary-color);">
                     <option value="gpt-3.5-turbo">GPT3.5</option>
                     <option value="gpt-4o-mini">GPT4o mini</option>
@@ -60,7 +60,7 @@ import OpenAI from "openai";
     const processing = ref(false)
     const title = ref(props.editTarget && props.editTarget.name ? props.editTarget.name : '')
     const instruction = ref(props.editTarget && props.editTarget.instructions ? props.editTarget.instructions : '')
-    const model = ref(props.editTarget && props.editTarget.model ? props.editTarget.model : 'gpt-3.5-turbo')
+    const model = ref(props.editTarget && props.editTarget.model ? props.editTarget.model : 'gpt-4o-mini')
     const createSend = async() => {
         try {
             processing.value = true

@@ -3,7 +3,7 @@
     <div draggable="false" @mousedown.stop @click="emit('viewFull', true)" class="left-member-tile" :style="{ width: hideName ? '45px' : `130px`, overflowX: 'unset'}">
         <div style="cursor: pointer;position: relative;width: -webkit-fill-available;overflow: hidden;">
               
-            <UserIcon :disableInstant="hideName" :user="userData.user" imgClass="userMidIcon" size="25"/>
+            <UserPanel :disableInstant="hideName" :user="userData.user" imgClass="userMidIcon" size="25"/>
             <div @click.stop="pushInstantUser($event, userData.user.id)" :style="{lineHeight: 1.5, visibility: hideName ? 'hidden' : 'visible'}">{{userData.user.name}}</div>
             
         </div>
@@ -32,7 +32,7 @@
 <script setup>
     import HourBlock from './HourBlock.vue';
     import moment from 'moment';
-    import UserIcon from '../../Board/Mixed/UserIcon.vue';
+    import UserPanel from '@/components/Global/UserPanel.vue'
     import AllDayRecord from '../AllDayRecord.vue';
     import { computed, inject } from 'vue';
     import { useAuthUserStore } from '@/store/auth'

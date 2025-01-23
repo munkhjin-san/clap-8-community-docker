@@ -42,7 +42,7 @@
                 <div v-for="user in listMembers" style="display: flex;">
                     <div @click="hideName = false" class="left-member-tile" draggable="false" :style="{ width: hideName ? '45px' : `130px`}">
                         <div style="cursor: pointer;overflow: hidden;">
-                            <UserIcon :disableInstant="hideName" :user="user" imgClass="userMidIcon" size="25"/>
+                            <UserPanel :disableInstant="hideName" :user="user" imgClass="userMidIcon" size="25"/>
                             <div @click.stop="pushInstantUser($event, user.id)" :style="{lineHeight: 1.5, visibility: hideName ? 'hidden' : 'visible'}">{{user.name}}</div>
                         </div>                        
                     </div>
@@ -66,7 +66,7 @@
 <script setup>
 import moment from 'moment';
 import DayBlock from './DayBlock.vue';
-import UserIcon from '../../Board/Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
     const props = defineProps(["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'activeMembers', 'appendLock'])

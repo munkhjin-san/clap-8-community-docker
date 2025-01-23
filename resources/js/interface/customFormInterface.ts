@@ -10,9 +10,16 @@ export interface CustomForm {
     updated_at?: string	
     blocks: CustomFormBlock[]
     survey_answers?: SurveyAnswer[]
-
+    users?: CustomFormUser[]
+    admins?: CustomFormUser[]
 }
-
+export interface CustomFormUser extends User {
+    pivot: {
+        custom_form_id: number
+        user_id: number
+    }
+    is_answered?: boolean
+}
 export interface CustomFormBlock {
     id: number	
     type: CustomFormBlockType
@@ -21,6 +28,7 @@ export interface CustomFormBlock {
     elements: CustomFormBlockElement[]
     answers?: SurveyBlockAnswer[]
     order_number?: number
+    placeholder?: string
 }
 export type CustomFormBlockType = 'checkbox' | 'radio' | 'singletext' | 'multitext' | 'date' | 'time' | 'select'
 export type CustomFormBlockState = 'control' | 'live'
@@ -34,6 +42,7 @@ export interface CustomFormBlockElement {
     created_at?: string	
     updated_at?: string	
     answers?: SurverBlockElementAnswer[]
+    placeholder?: string
 }
 
 export interface SurveyAnswer{

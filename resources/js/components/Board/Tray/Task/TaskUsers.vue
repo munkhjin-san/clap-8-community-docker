@@ -17,7 +17,7 @@
                         <div class="user-wrapper">
                             <div>
                                 <div class="user-wrap"> 
-                                    <UserIcon :user="user" imgClass="userNormalIcon" size="30"/>
+                                    <UserPanel :user="user" imgClass="userNormalIcon" size="30"/>
                                     <router-link :to="`/user/${user.id}`" class="suggested-user-name user-link" style="margin:0">{{ user.name }}</router-link>
                                     <div title="タスクが完了しました" v-if="user.pivot.progress_flag == 2" style="width: 15px;height: 15px;display: flex;border-radius: 50%;margin:auto 3px;min-width:15px; background-color: rgb(100, 188, 68);">
                                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill:#fff;margin:auto;">
@@ -71,20 +71,18 @@
 
 <script setup>
 import { computed, inject } from 'vue';
-import UserIcon from '../../Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { useTaskUsers } from '@/store/taskUsers';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { useAuthUserStore } from '@/store/auth';
 import axios from 'axios';
 import { useFilePreview } from '@/store/filePreview';
-import { useCheckApproval } from '@/store/checkApproval';
 import FileIcon from '../../Mixed/FileIcon.vue';
     const taskUsers = useTaskUsers()
     const filePreview = useFilePreview()
     const auth = useAuthUserStore()
-    const { confirm } = inject('dialog')
-    const checkApproval = useCheckApproval()
-    
+    const { confirm, info } = inject('dialog')
+    const refresh = inject('refreshRemind')
     const userList = computed(() => {
         return taskUsers.userList
     })
@@ -111,6 +109,7 @@ import FileIcon from '../../Mixed/FileIcon.vue';
             const answer = await confirm('申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。')
             if(!answer) return
         }
+        let info_message = status == 2 ? '承認' : '差戻'
         try {
             const params = {
                 user_id: userId,
@@ -119,8 +118,9 @@ import FileIcon from '../../Mixed/FileIcon.vue';
                 progress_flag: progress_flag
             }
             await axios.put('/task_approve', params)
+            info(`${info_message}しました。`)
+            refresh('not_approved_tasks')
             close()
-            checkApproval.setCheckApproval(true)
         } catch (e) {
             console.log(e)
         }
@@ -160,20 +160,7 @@ import FileIcon from '../../Mixed/FileIcon.vue';
     background: var(--bg2);
     color: var(--primary-color);
 }
-.users-list-popup{
-    box-shadow: rgb(0 0 0 / 35%) 0px 5px 15px;
-    padding: 20px;
-    margin: auto;
-    background: var(--background-color);
-    color: var(--primary-color);
-    max-width: 80%;
-    font-size: 14px;
-    line-height: 1.5;
-    max-height: 90%;
-    overflow: hidden auto;
-    max-height: 60vh;
-    min-width: 20%;
-}
+
 .sibling-task-cbar{
     display: flex;
     gap: 20px;
@@ -182,9 +169,7 @@ import FileIcon from '../../Mixed/FileIcon.vue';
 }
 
 @media screen and (max-width: 959px) {
-    .users-list-popup{
-        min-width: 50%;
-    }
+    
     .user-wrapper{
         flex-wrap: wrap;
     }

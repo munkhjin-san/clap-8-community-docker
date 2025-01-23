@@ -3,18 +3,21 @@
 
         <div class="admin-header">            
             <Hamburger v-if="responsive.mobile"/>
-            <div v-if="[608, 610].includes(auth.activeUser.id)" class="admin-tab-container">
+            <div v-if="[608, 610].includes(auth.activeUser.id) || auth.activeUser.position_id <= 6" class="admin-tab-container">
                 <div class="pc" style="font-size: 16px;margin: 20px 0px 0px 15px;padding-bottom: 10px;"></div>
-                <div class="admin-tab-item" @click="router.push({name: 'account'})" :class="{'selected-tab' : route.name == 'account' }">アカウント</div>
-                <div class="admin-tab-item" @click="router.push({name: 'attendance'})" :class="{'selected-tab' : route.path.includes('workcontrol')}">タイムシート</div>
-                <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div>
-                <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修</div>
-                <div class="admin-tab-item" @click="router.push({name: 'projectlist'})" :class="{'selected-tab' : route.path.includes('projectcontrol')}">プロジェクト</div>
-                <div class="admin-tab-item" @click="router.push({name: 'glowdnine'})" :class="{'selected-tab' : route.name == 'glowdnine'}">グラウドナイン</div>
-                <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">アンケート</div>
+                <div v-if="[608, 610].includes(auth.activeUser.id)">
+                    <div class="admin-tab-item" @click="router.push({name: 'account'})" :class="{'selected-tab' : route.name == 'account' }">アカウント</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'attendance'})" :class="{'selected-tab' : route.path.includes('workcontrol')}">タイムシート</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'projectlist'})" :class="{'selected-tab' : route.path.includes('projectcontrol')}">プロジェクト</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'glowdnine'})" :class="{'selected-tab' : route.name == 'glowdnine'}">グラウドナイン</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
+                </div>
+                <div v-else class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
             </div>
         </div>
-        <div style="width: 100%;flex:1;overflow: hidden;background: var(--background-color);" v-if="[608, 610].includes(auth.activeUser.id)">
+        <div style="width: 100%;flex:1;overflow: hidden;background: var(--background-color);" v-if="[608, 610].includes(auth.activeUser.id) || (auth.activeUser.position_id <= 6 && route.path.includes('custom-form-control'))">
             
             <router-view
             ></router-view>
@@ -75,19 +78,8 @@ import { useAuthUserStore } from '@/store/auth'
     align-items: center;
     justify-content: center;
 }
-.sub-tab-item{
-    padding: 10px 15px;
-    font-size: 14px;
-    border-bottom: solid thin transparent;
-    box-sizing: border-box;
-    cursor: pointer;
-}
-.selected-sub-tab{
-    border-bottom: solid thin var(--primary-color);
-}
-.sub-tab-container{
-    display: flex;
-}
+
+
 .admin-tab-item{
     border: solid thin transparent;
     padding: 15px;
@@ -97,6 +89,7 @@ import { useAuthUserStore } from '@/store/auth'
     cursor: pointer;
     transition: all 0.2s ease;
     color: gray;
+    word-break: keep-all;
 }
 .admin-tab-container{
     display: flex;

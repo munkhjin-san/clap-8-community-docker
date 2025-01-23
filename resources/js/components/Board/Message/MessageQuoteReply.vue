@@ -18,7 +18,7 @@
                 </svg>                
             </div>
             <div v-if="message.user" @click.stop="pushInstantUser($event, message.user_id)" class="column-01 cursor-pointer">                        
-                <UserIcon imgStyle="width:25px;height:25px;border-radius:50%" size="25" :user="message.user"/>                       
+                <UserPanel imgStyle="width:25px;height:25px;border-radius:50%" size="25" :user="message.user"/>                       
             </div> 
             <div v-else class="column-01 cursor-pointer">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
@@ -53,7 +53,7 @@
 <script setup>
 import { computed, inject, onMounted, ref } from "vue";
 import MessageFiles from "./MessageFiles.vue";
-import UserIcon from "../Mixed/UserIcon.vue";
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { mentionFormatter } from "@/utils/tools";
     const props = defineProps(['which', 'message', 'quotMessage', 'mentionClick'])
     const pushInstantUser = inject('pushInstantUser')

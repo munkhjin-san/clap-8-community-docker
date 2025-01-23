@@ -9,8 +9,7 @@
             <PostSearchBar 
                 className="newChatMemberSearch" 
                 customPlaceHolder="ワークグループやユーザー検索" 
-                :searching="false"  
-                v-model="keywords"
+                @search-start="(word) => {keywords = word}"
             />  
         </div>
         <div class="admin-workgroup-wrapper">

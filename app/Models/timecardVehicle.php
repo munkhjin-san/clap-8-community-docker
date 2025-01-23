@@ -11,9 +11,9 @@ class timecardVehicle extends Model
     use SoftDeletes;
     protected $guarded = [];
     public function before_user(){
-        return $this->belongsTo(User::class, 'confirm_before_user')->select('id', 'name', 'icon_id');
+        return $this->belongsTo(User::class, 'confirm_before_user')->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function after_user(){
-        return $this->belongsTo(User::class, 'confirm_after_user')->select('id', 'name', 'icon_id');
+        return $this->belongsTo(User::class, 'confirm_after_user')->select('id', 'name', 'icon_path', 'icon_bg');
     }
 }

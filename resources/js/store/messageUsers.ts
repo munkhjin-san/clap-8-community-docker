@@ -4,7 +4,7 @@ interface State {
   userList: {
     id: number;
     title: string;
-    icon_id: number;
+    string: number;
   }[];
   title: string | null
   isTask: boolean

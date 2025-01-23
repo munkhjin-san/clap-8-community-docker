@@ -8,7 +8,7 @@
             >
                 <template #user="{user}">
                     <div style="display: flex;align-items: center;gap: 10px;margin: 20px 0;">
-                        <UserIcon :user="user" size="30" imgClass="userNormalIcon"/>
+                        <UserPanel :user="user" size="30" imgClass="userNormalIcon"/>
                         <p>{{ user.name }}</p>
                     </div>
                 </template>
@@ -20,7 +20,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import UserPortfolio from '../../Profile/UserPortfolio.vue';
-import UserIcon from '../../Board/Mixed/UserIcon.vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
     const portfolio_list = ref([])
     const route = useRoute()
     onMounted(() => {

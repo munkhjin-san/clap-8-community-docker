@@ -9,8 +9,7 @@
             <PostSearchBar 
                 className="newChatMemberSearch" 
                 style="width:auto;min-width: 300px;" 
-                :searching="false"  
-                v-model="keywords"
+                @search-start="(word) => {keywords = word}"
             />   
             <div class="admin-work-header">
                 <div class="admin-button" @click="departmentCSV">部門CSV出力</div>
@@ -275,6 +274,7 @@
                 "遠方手当": item.stay_pay,
                 "宿泊日当": item.move_pay,
                 "待機手当": item.waiting_pay,
+                "在宅手当": item.remote_pay
             }
             data.push(row)
         });

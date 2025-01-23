@@ -28,6 +28,6 @@ class AppFileRecord extends Model
         'recycle_flag' => 'int'       
     ];
     public function user(){
-        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_id')->with('icons');
+        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_path', 'icon_bg')->with('icons');
     }
 }

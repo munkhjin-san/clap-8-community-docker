@@ -24,7 +24,7 @@ export interface Board {
     private_flag: number;
     board_to_users: BoardMember[];
     last_message: LastMessage
-    icon_id: string;
+    icon_path: string;
     created_at: string
     user?: User
     project: Project | null
@@ -55,7 +55,8 @@ export interface Tag {
 export interface User {
     id: number;
     name: string | null;
-    icon_id: string | null | undefined;
+    icon_path: string | null | undefined;
+    icon_bg: string | null
     work_time_day?: number;
     position_id?: number;
     user_code?: number | null;
@@ -223,6 +224,9 @@ export interface Task {
     unread_comments?: number
     pre_executors?: TaskUser[]
     sort_number: number
+    project_record_id?: number
+    board?: Board
+    project?: Project 
 }
 
 export interface GanttColumnData {
@@ -242,8 +246,9 @@ export interface TaskComment{
 export interface TaskUser {
     id: number,
     name: string,
-    icon_id: string,
+    icon_path: string,
     pivot: TaskUserPivot,
+    icon_bg: string | null
 }
 export interface TaskUserPivot {
     id: number;

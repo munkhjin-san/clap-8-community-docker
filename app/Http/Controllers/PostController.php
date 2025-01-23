@@ -217,7 +217,7 @@ class PostController extends Controller
         ->get([
             'id',
             'name',
-            'icon_id',
+            'icon_path', 'icon_bg',
         ]);
         return response()->json($all_users);
     }
@@ -550,15 +550,15 @@ class PostController extends Controller
         return response()->json($record);  
     }
     public function post_get_all_possible_users(Request $request){
-        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->select('id', 'name', 'icon_id')->get();
+        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
         return response()->json($other_users); 
     }
     public function post_get_challenge_users(Request $request){
-        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
+        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
         return response()->json($other_users); 
     }
     public function post_get_post_users(Request $request){
-        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '!=', Auth::id())->where('id', '>', 99)->select('id', 'name', 'icon_id')->get();
+        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '!=', Auth::id())->where('id', '>', 99)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
         return response()->json($other_users); 
     }
     public function get_post_badge(Request $request){

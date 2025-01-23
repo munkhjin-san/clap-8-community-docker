@@ -11,7 +11,7 @@ class NiceRecord extends Model
     use HasFactory;
     use SoftDeletes;
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function files(){
         return $this->belongsToMany(FileRecord::class, 'nice_use_files', 'record_id', 'file_id')->where('file_records.deleted_flag', 0);
@@ -24,7 +24,7 @@ class NiceRecord extends Model
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'nice')->with('user');
     }
     public function to_users(){
-        return $this->belongsToMany(User::class, 'nice_to_users', 'record_id', 'user_id')->withPivot('id')->select(['users.id as id', 'users.name', 'users.icon_id']);
+        return $this->belongsToMany(User::class, 'nice_to_users', 'record_id', 'user_id')->withPivot('id')->select(['users.id as id', 'users.name', 'users.icon_path','users.icon_bg']);
     }
     public function comments(){
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'nice')->where('deleted_flag', 0);

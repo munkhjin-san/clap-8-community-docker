@@ -25,11 +25,12 @@
                     />
                 </div>
                 <div v-if="reviewing" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
-                    <LoaderButton style="margin: 0;" content="未達成" @triggered="progressReport(7)" :loading="loading[1]"/>
-                    <LoaderButton style="margin: 0;" content="達成" @triggered="progressReport(8)" :loading="loading[2]"/>
+                    <LoaderButton style="margin: 0;" content="差戻" @triggered="progressReport(8)" :loading="loading[2]"/>
+                    <LoaderButton style="margin: 0;" content="承認" @triggered="progressReport(9)" :loading="loading[3]"/>
                 </div>
-                <div v-else class="si-box">
-                    <LoaderButton content="報告する" @triggered="progressReport(6)" :loading="loading[0]"/>
+                <div v-else class="si-box" style="display: flex; gap: 20px; justify-content: center;">
+                    <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(6)" :loading="loading[0]"/>
+                    <LoaderButton style="margin: 0;" content="申請する" @triggered="progressReport(7)" :loading="loading[1]"/>
                 </div>
             </div>
         </div>
@@ -49,21 +50,26 @@ const props = defineProps(['chosenIssue', 'memberData', 'isManagerOrMember', 're
 const emit = defineEmits(['close', 'reload'])
 const result = ref(props.chosenIssue?.result ?? '')
 const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
-const loading = ref([false, false, false])
+const loading = ref([false, false, false, false])
 const auth = useAuthUserStore()
 const refresh = inject('refresh') as Function
 const uploadedFiles = ref<File[]>(props.chosenIssue?.files ?? [])
 const badge = useBadgeStore()
-const { notify, info } = inject<Dialog>('dialog')!
+const { notify, info, confirm } = inject<Dialog>('dialog')!
 
 const progressReport = async(status: number) => {
     const val = await resultRef.value?.validate() || {valid: false}
 
     if(!val.valid) return
 
-    const loadstatus = status === 6 ? 0 : status === 7 ? 1 : 2
+    const loadstatus = status === 6 ? 0 : status === 7 ? 1 : status === 8 ? 2 : 3;
+    let info_message = status === 6 ? '報告' : status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
+    if (status === 7 || status === 8 || status === 9) {
+        let confirm_message = status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
+        const confirmResult = await confirm(`${confirm_message}しますか？`);
+        if (!confirmResult) return;
+    }
     try {
-        let info_message = status === 6 ? '報告' : status === 7 ? '未達成' : '達成'
         loading.value[loadstatus] = true
         const params = {
             id: props.chosenIssue.id,

@@ -15,7 +15,7 @@
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
                                 <div style="display:flex;gap: 10px">
-                                    <UserIcon :disableInstant="true" size="30" :user="item.user" imgClass="userNormalIcon"/>
+                                    <UserPanel :disableInstant="true" size="30" :user="item.user" imgClass="userNormalIcon"/>
                                     <div >
                                         <p style="margin-top: 5px">{{ item.user?.name }}</p>
                                         <div style="display:flex;flex-direction: column;gap:5px;margin-top: 10px;">
@@ -44,7 +44,7 @@
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
                                 <div style="display:flex;gap: 10px">
-                                    <UserIcon :disableInstant="true" size="30" :user="user" imgClass="userNormalIcon"/>
+                                    <UserPanel :disableInstant="true" size="30" :user="user" imgClass="userNormalIcon"/>
                                     <div >
                                         <p style="margin-top: 5px">{{ user?.name }}</p>
                                         <div style="display:flex;flex-direction: column;gap:5px;margin-top: 10px;">
@@ -72,13 +72,13 @@
                     </div>
                 </div>
             </div>
-            <div v-if="planShift" style="padding: 0 10px;">
+            <div v-if="tempData.length" style="padding: 0 10px;">
                 <div class="incompleted-title">計画有給を入力してください</div>
-                <masonry-wall :items="[tempData]" :column-width="360" :gap="responsive.mobile ? 0 : 30">
+                <masonry-wall :items="tempData" :column-width="360" :gap="responsive.mobile ? 0 : 30">
                     <template v-slot:default="{item}">
                     <WorkMessage 
                         v-if="item"
-                        :item="item"
+                        :item="item.tempData"
                         @close="closeOverRide()"
                     />
                 </template>
@@ -167,7 +167,7 @@ import CheckGoal from "../Global/CheckGoal.vue";
 import { ref, onMounted, watch, computed, inject, provide } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useTaskFeedback } from '@/store/taskFeedback'
-import UserIcon from "./Mixed/UserIcon.vue"
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { useRoute, useRouter } from "vue-router";
 import { useCheckApproval } from "../../store/checkApproval";
 import { useResponsive } from "@/store/responsive"
@@ -228,12 +228,12 @@ import ListBox from '@/components/Task/List/ListBox.vue'
             closePopupIfNeeded()
         }
     }
-    onMounted(() => {
-        performTasksOnMounted()
-        // if (props.canGetRemind) {
-        //     getRemindMessages()
-        // }
-    })
+    // onMounted(() => {
+    //     performTasksOnMounted()
+    //     // if (props.canGetRemind) {
+    //     //     getRemindMessages()
+    //     // }
+    // })
     watch(
         () => taskFeedback.active,
         (after, before) => {
@@ -297,10 +297,11 @@ import ListBox from '@/components/Task/List/ListBox.vue'
             uncheckedMessages.value.length ||
             notapprovedTimecards.value.length ||
             notapprovedTasks.value.length || 
-            notapprovedProjects.value.length
-        const hasPlanShift = planShift.value
+            notapprovedProjects.value.length ||
+            tempData.value.length
+        
 
-        return hasItems || hasPlanShift       
+        return hasItems     
     })
     const isJumpToMessage = computed(() => {
         const url_string = window.location.href;
@@ -371,15 +372,9 @@ import ListBox from '@/components/Task/List/ListBox.vue'
         if(currentDate > targetDate){
             try{
                 const response = await axios.post('/get_temp_data', { user_code: auth.activeUser.user_code, year: currentDate.getFullYear() })
-                if(response.data && response.data.tempData){
-                    tempData.value = response.data.tempData
-                    remainingDays.value = response.data.remaining_days
-                    if(response.data.shift_count < tempData.value.planned_days){
-                        planShift.value = true
-                    }else{
-                        planShift.value = false
-                    }
-                }
+                tempData.value = response.data
+                    
+            
             }catch (e){
                 notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
             }

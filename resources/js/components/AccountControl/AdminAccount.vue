@@ -18,8 +18,7 @@
             </div>    
             <PostSearchBar 
                 className="newChatMemberSearch" 
-                :searching="false" 
-                v-model="keywords"
+                @search-start="(word) => {keywords = word}"
             />     
         </div>
         
@@ -28,7 +27,7 @@
                 <div class="admin-account-center-inner" :key="item.id" v-for="item in filteredUsers">
                     <div class="account-wrapper">
                         <div style="display:flex; align-items:center;margin-bottom:10px;">
-                            <UserIconPreLoad :disableInstant="true" size="30" :title="item.name" :user="item" imgClass="userNormalIcon"/>
+                            <UserPanel :disableInstant="true" size="30" :title="item.name" :user="item" imgClass="userNormalIcon"/>
                             <div style="display:flex; flex-direction:column">
                                 <span style="margin-left:10px;">{{item.name}}</span>
                                 <!-- <span style="margin-left:10px; margin-top:10px;">{{ item.name_kana }}</span> -->
@@ -77,7 +76,7 @@
 <script setup>
     import CommandButton from '../Global/CommandButton.vue';
     import UserCreate from './UserCreate.vue'
-    import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
+    import UserPanel from '@/components/Global/UserPanel.vue'
     import { computed, onMounted, ref } from 'vue';
     import PostSearchBar from '../Post/PostSearchBar.vue';
     const showModalContent = ref(false)

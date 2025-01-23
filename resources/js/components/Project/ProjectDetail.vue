@@ -135,7 +135,10 @@
                         {title: '編集する', action: () => emit('edit', selectedProject)},
                     ]"/>
                 </div>
-                <router-link :to="{name: 'projectGanttDetail', params: {projectId: route.params.projectId }}" class="c-bar-button w-fit mt-[20px]">ガントチャート</router-link>
+                <div class="relative mt-[20px] w-fit">
+                    <router-link :to="{name: 'projectGanttDetail', params: {projectId: route.params.projectId }}" class="c-bar-button">ガントチャート</router-link>
+                    <span class="side-notification" style="left: auto; right: -5px; top: -5px;" v-if="ganttBadge?.[selectedProject?.id]">{{ ganttBadge[selectedProject.id] }}</span>
+                </div>
             </div>
         </div>
     </div>
@@ -171,6 +174,9 @@ import WeatherIcon from '../Global/WeatherIcon.vue';
     const goalBadge = computed(() => {
         return badge.project.goal_counts || {}
     })
+    const ganttBadge = computed(() => {
+        return badge.project.by_projects || {}
+    })
     const jumpToGoal = (member: any) => {
         router.push({name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}})
     }
@@ -191,7 +197,7 @@ import WeatherIcon from '../Global/WeatherIcon.vue';
         items.push(base);
 
         relatedRoutes.forEach((rt) => {
-            if (rt.name && typeof rt.name === 'string') {
+            if (rt.name && typeof rt.name === 'string' && rt.name !== 'goal-more') {
                 const label = `${memberData.value?.name ?? ''}／${rt.meta?.nameJp ?? ''}`;
                 items.push({ label, route: { name: rt.name } });
             }

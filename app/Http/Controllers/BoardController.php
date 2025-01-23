@@ -231,6 +231,7 @@ class BoardController extends Controller
             $board->private_flag = $request->private_flag;           
             $board->icon_bg = $request->icon_bg;
             $board->icon_text = $request->icon_text;
+            $board->icon_path = $request->icon_path;
 
             
             if($defaultTitle == null){
@@ -276,12 +277,13 @@ class BoardController extends Controller
             //     }               
 
             // }
-            if(!empty($file_id_array)){
-                $board->icon_id = $request->icon_id;
-                $board->save();
-            }       
+            // if(!empty($file_id_array)){
+            //     $board->icon_path = $request->icon_path;
+            // } else {
+            //     $board->icon_text = $request->icon_text;
+            // }      
+            // $board->save();
             
-
 
 
             $socket = array();
@@ -319,31 +321,14 @@ class BoardController extends Controller
             throw ValidationException::withMessages(['message' => '管理者でないメンバーはボード編集できません']);
         }             
         $board->timestamps = false;
-        $board->update(['title' => $request->title, 'icon_bg' => $request->icon_bg, 'icon_text' => $request->icon_text]);    
+        $board->update([
+            'title' => $request->title, 
+            'icon_bg' => $request->icon_bg, 
+            'icon_text' => $request->icon_text,
+            'icon_path' => $request->icon_path
+        ]);    
          
-        if(!empty($request->new_icon)){               
         
-            if($request->new_icon == 'initial'){               
-                try {
-                    $createIcon = $this->sharedService->createBoardDefaultIcon($board, $active_user->id);     
-                    return response()->json($createIcon);      
-                } catch (\Exception $e) {          
-                    throw ValidationException::withMessages(['message' => 'Icon create failed.']);
-                }    
-            }else{
-                if($board->icon_id){
-                    $rmv = Icons::where('record_id', '=', $board->id)->where('use_of', '=', 'board')->get();
-                    if($rmv){
-                        foreach($rmv as $del){
-                            Storage::disk('local')->delete('board_icon/board_' . $del->id . '.' . $del->extension);
-                            $del->delete();
-                        }                                    
-                    }  
-                }
-                $board->update(['icon_id' => $request->new_icon]);    
-                Icons::findOrFail($request->new_icon)->update(['record_id' => $board->id]);
-            }
-        }
         $board->timestamps = true;       
 
         $socket = array();
@@ -526,33 +511,6 @@ class BoardController extends Controller
         $data = [
             'messages' => $messages,
             'tasks' => $tasks
-        ];
-        return response()->json($data);
-    }
-    public function getUnsignedUsers(Request $request){
-        $active_user = $this->active_user();
-        $auth_id = $active_user->id;   
-        $list = boardToUser::where('user_id', $auth_id)
-                            ->where('deleted_status', 0)
-                            ->pluck('record_id');
-                 
-        $comment_list_pre = messageRecord::whereIn('record_id', $list)
-        ->whereHas('message_files', function ($query) use ($auth_id) {
-            $query->where('sign_flag', 1)->whereHas('unsignedUsers', function ($q) use ($auth_id) {
-                $q->where('user_id', $auth_id)->where('cancel_flag', 0);
-            });
-        })
-        ->with('user')
-        ->with(['message_files', 'message_files.unsignedUsers', 'message_files.signedUsers'])
-        ->with('reactedUsers')
-        ->with('checkedUsers')
-        ->with('uncheckedUsers')
-        ->select('check_flag', 'created_at', 'id', 'message', 'record_id', 'user_id', 'info_flag')
-        ->get();
-           
-        
-        $data = [
-            "message_list" => $comment_list_pre
         ];
         return response()->json($data);
     }
@@ -854,7 +812,7 @@ class BoardController extends Controller
             }, $notify_ids);
             if(!empty($members)){
                 $deep_link = url('board/' . $boardRecord->id);
-                $icon = url('content_api/profile_icon/' . $user->icon_id . '_' . $user->id . '_200.jpg');
+                $icon = url('content_api/profile_icon/' . $user->icon_path . '_' . $user->id . '_200.jpg');
                 $badge = url('/96x96.png');
                 if(!empty($boardRecord) && $boardRecord->private_flag == 1){
                     $push_title = $user->name;
@@ -1240,31 +1198,6 @@ class BoardController extends Controller
         $mail = $this->sendMail($request);
         return $mail;
     }
-    public function getRemindMessage(){
-        $user = $this->active_user();
-        // $list = boardRecord::whereHas('board_to_users', function($q) use($user){
-        //     $q->where('user_id', $user->id)->where('deleted_status', 0);
-        // })->pluck('id')->toArray();
-        $list = boardToUser::where('user_id', $user->id)
-                            ->where('deleted_status', 0)
-                            ->pluck('record_id');
-        $remindedMessages = messageRecord::whereIn('record_id', $list)
-            ->whereHas('messageRemindUsers', function ($query) use ($user) {
-                $query->where('user_id', $user->id)
-                      ->where('reminded', 1);
-            })
-            ->where('deleted_flag', 0)
-            ->with('messageRemindUsers')
-            ->with('user')
-            ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
-            ->with('reactedUsers')
-            ->with('checkedUsers')
-            ->with('uncheckedUsers')
-            ->select('check_flag', 'created_at', 'id', 'message', 'record_id', 'user_id', 'info_flag')
-            ->get();
-            
-        return response()->json($remindedMessages);
-    }
     public function remindRequest(Request $request){
         $active_user = $this->active_user();
         $auth_user_id = $active_user->id;
@@ -1285,34 +1218,7 @@ class BoardController extends Controller
         }
 
         
-    }
-    public function getUncheckedMessage(Request $request){
-        $user = $this->active_user();
-        $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
-        $list = boardToUser::where('user_id', $user->id)
-                            ->where('deleted_status', 0)
-                            ->pluck('record_id');
-        $checkMessages = messageRecord::
-            whereIn('record_id', $list)
-            ->whereHas('checkUsers', function ($query) use ($user) {
-                $query->where('user_id', $user->id)
-                      ->where('checked', 0);
-            })
-            ->whereDate('check_request_at', '>', $start_point)
-            ->where('deleted_flag', '0')
-            ->where('check_flag', 1)
-            ->with('messageRemindUsers')
-            ->with('user')
-            ->with('message_files', 'message_files.unsignedUsers', 'message_files.signedUsers')
-            ->with('reactedUsers')
-            ->with('checkedUsers')
-            ->with('uncheckedUsers')
-            ->select('check_flag', 'created_at', 'id', 'message', 'record_id', 'user_id', 'info_flag')
-            ->get();
-
-        // return response()->json($list);
-        return response()->json($checkMessages);
-    }
+    }    
     public function checkRequest(Request $request){
 
         
@@ -1680,7 +1586,7 @@ class BoardController extends Controller
         $today = Carbon::now()->format('Y-m-d');
         $user = User::where('id', $request->id)->orWhere('name', $request->name)->where('id', '>', 105)->where('retire', 0)->with(['weathers' => function($q) use ($today){
             $q->where('type_id', 43)->where('date', $today);
-        }])->select('id', 'name', 'phone_number', 'work_email', 'icon_id')->first();
+        }])->select('id', 'name', 'phone_number', 'work_email', 'icon_path')->first();
         if($user){
 
             $res = [
@@ -1720,55 +1626,50 @@ class BoardController extends Controller
 
 
     public function getIconUp(Request $request ){
-        $active_user = $this->active_user();
-        $auth_user_id = $active_user->id;
-        if($request->hasFile('file')) {
-            $file_path = date("YmdHis") . md5(uniqid());
-            $file_extension = $request->file('file')->getClientOriginalExtension();
-            $mime_type = $request->file('file')->getMimeType();
-            $mime_type_array = explode('/',$mime_type);
-            $file_type = $mime_type_array[0];
-            $file_size = $request->file('file')->getSize();     
+        // $active_user = $this->active_user();
+        // $auth_user_id = $active_user->id;
+        // if($request->hasFile('file')) {
+        //     $file_path = date("YmdHis") . md5(uniqid());
+        //     $file_extension = $request->file('file')->getClientOriginalExtension();
+        //     $mime_type = $request->file('file')->getMimeType();
+        //     $mime_type_array = explode('/',$mime_type);
+        //     $file_type = $mime_type_array[0];
+        //     $file_size = $request->file('file')->getSize();     
 
-            $fileRecord = new Icons;
-            $fileRecord->mime_type = $file_type;
-            $fileRecord->extension = 'jpg';
-            $fileRecord->user_id = $auth_user_id;
-            $fileRecord->use_of = 'board';
-            $fileRecord->save();
-            $path = '/board_icon';
-            $set_path = 'board'. '_' . $fileRecord->id  . '.jpg';
-            $img = Image::read($request->file('file'));
-            File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                
+        //     $fileRecord = new Icons;
+        //     $fileRecord->mime_type = $file_type;
+        //     $fileRecord->extension = 'jpg';
+        //     $fileRecord->user_id = $auth_user_id;
+        //     $fileRecord->use_of = 'board';
+        //     $fileRecord->save();
+        //     $path = '/board_icon';
+        //     $set_path = 'board'. '_' . $fileRecord->id  . '.jpg';
+        //     $img = Image::read($request->file('file'));
+        //     File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                
 
-            $save_path = (storage_path('app') . '/' . $path . '/' . $set_path);
-            if($file_size > 2000000){
-                $img->toJpeg(30)->save($save_path);
-            }else{
-                $img->save($save_path);  
-            }         
-            $ret = array ( 
-                "set_path" =>  $set_path,
-                "icon_id" => $fileRecord->id
-            );
-            return response()->json($ret);       
+        //     $save_path = (storage_path('app') . '/' . $path . '/' . $set_path);
+        //     if($file_size > 2000000){
+        //         $img->toJpeg(30)->save($save_path);
+        //     }else{
+        //         $img->save($save_path);  
+        //     }         
+        //     $ret = array ( 
+        //         "set_path" =>  $set_path,
+        //         "icon_path" => $fileRecord->id
+        //     );
+        //     return response()->json($ret);       
+        // }
+        if($request->hasFile('file')) {   
+            $set_path = $this->sharedService->path_generator();
+            $img = Image::read($request->file('file'))->scaleDown(200, 200);
+            File::isDirectory(storage_path('app/board_icon_migrated')) or File::makeDirectory(storage_path('app/board_icon_migrated'), 0755, true, true);               
+            $img->toWebp()->save(storage_path('app/board_icon_migrated/' . $set_path . '.webp'));               
+            return response()->json($set_path);       
         }
+        throw ValidationException::withMessages(['message' => 'ファイルは無効です。']);
+
 
     }   
-    public function getIncompletedTasks(Request $request ){
-        $active_user = $this->active_user();
-        $today = Carbon::today();
-        $list = taskRecord::whereHas('executors', function($q) use($active_user){
-                    $q->where('users.id', $active_user->id)->where('progress_flag', 0)->where('status_flag', 0);
-                })
-                ->with('executors')
-                ->with('files')
-                ->with('supervisors')
-                ->whereDate('end_at', '<', $today)
-                ->orderBy('created_at', 'desc')->get();
-        
-        return response()->json($list);
-    }
    
     public function setAdminRole(Request $request){
         $active_user = $this->active_user();
@@ -1893,7 +1794,7 @@ class BoardController extends Controller
         ->where('retire', 0)
         ->whereNotIn('name', $ng_list)
         ->whereNotIn('id', $request->exclude)
-        ->select('id', 'name', 'icon_id')
+        ->select('id', 'name', 'icon_path', 'icon_bg')
         ->get();
         return response()->json($all_users);
     }
@@ -1904,7 +1805,7 @@ class BoardController extends Controller
         ->where('retire', 0)
         ->whereNotIn('name', $ng_list)
         ->whereNotIn('id', $exists)
-        ->select('id', 'name', 'icon_id')
+        ->select('id', 'name', 'icon_path', 'icon_bg')
         ->get();
         return response()->json($all_users);
     }

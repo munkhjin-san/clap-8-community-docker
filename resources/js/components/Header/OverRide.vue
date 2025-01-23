@@ -1,12 +1,12 @@
 <template>
     <div id="override">
             
-        <IncompleteWindow 
+        <!-- <IncompleteWindow 
             ref="incompleteRef" 
             v-if="auth.user && viewIncompleteWindow"
             :canGetRemind="canGetRemind" 
             @closePopup="closePopup"
-        /> 
+        />  -->
         <!-- <Transition name="modalFade">
             <IncompleteFeedBack v-if="taskFeedBack.active"/>
         </Transition> -->
@@ -37,6 +37,9 @@
         <Transition name="modalFade">
             <DateTimeSelect v-if="messageSchedule.active"/>
         </Transition>
+        <Transition name="modalFade">
+            <SurveyUsers v-if="surveyUsers.active"/>
+        </Transition>
     </div>
 </template>
 
@@ -65,9 +68,12 @@
     import { useProjectUsers } from '@/store/projectUsers'
     import { useMessageSchedule } from '@/store/messageSchedule'
     import ProjectWeather from '../Global/ProjectWeather.vue'
+    import SurveyUsers from '../Survey/SurveyUsers.vue'
+    import { useSurveyUsers } from '@/store/surveyUsers'
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()
+    const surveyUsers = useSurveyUsers()
     const projectUsers = useProjectUsers()
     const taskFeedBack = useTaskFeedback()
     const taskRequest = useTaskRequest()

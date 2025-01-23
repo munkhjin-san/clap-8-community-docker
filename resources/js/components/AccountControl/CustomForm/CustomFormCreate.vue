@@ -14,7 +14,32 @@
                     ref="titleRef"
                     type="text"
                     v-model="params.title"
+                />                
+            </div>
+            <div class="si-box">
+                <MemberSelector 
+                    :initialValue="params.admins" 
+                    ref="adminSelectorRef"
+                    placeHolder="管理者"
+                    name="admins"
+                    path="get_authorized_users"
+                    :multiple="true"
+                    v-model="params.admins"
                 />
+                <span class="text-[gray] text-[12px]">※フォームの回答は管理者のみ閲覧可能です。「システム管理者含む」</span>
+            </div>
+            <GroupSelector v-model="params.users"/>
+            <div class="si-box">
+                <MemberSelector 
+                    :initialValue="params.users" 
+                    ref="userSelectorRef"
+                    placeHolder="対象者"
+                    name="users"
+                    path="board_possible_users"
+                    :multiple="true"
+                    v-model="params.users"
+                />
+                <span class="text-[gray] text-[12px]">※フォームのURLはどなたでもアクセス可能ですが、回答は対象者のみ必須となります。</span>
             </div>
             <div class="si-box">
                 <RichEditor ref="richEdit" :initila-value="editData ? editData.description : ''"/>
@@ -83,8 +108,9 @@
                 </div>
                 <div class="text-[12px] flex flex-col items-center overflow-hidden whitespace-nowrap mt-[30px]">
                     <div @click.stop="menu.setMenu({parent: 'initial-plus'})" class="w-[30px] h-[30px] flex items-center justify-center min-w-[30px] cursor-pointer">
-                        <div class="">
+                        <div class="flex items-center gap-[5px]">
                             <AddIcon size="15"/>
+                            <div>項目追加</div>
                         </div>
                     </div>                    
                     <div v-if="menu.parent == 'initial-plus'" id="initial-plus" class="flex gap-[10px] mt-[15px]">
@@ -119,6 +145,8 @@ import { DialogMethods } from '@/interface/globalInterface';
 import { DialogKey } from '@/interface/keys';
 import { useSortable, moveArrayElement } from '@vueuse/integrations/useSortable'
 import RichEditor from '@/components/Global/RichEditor.vue';
+import MemberSelector from '@/components/Form/MemberSelector.vue';
+import GroupSelector from '@/components/Form/GroupSelector.vue';
 const props = defineProps<{
     editData: CustomForm | null
 }>()
@@ -127,6 +155,7 @@ const emit = defineEmits<{
 }>()
 const richEdit = ref<typeof RichEditor | null>(null)
 const { confirm, info, notify } = inject('dialog') as DialogMethods;
+
 const blockTypes:{label:string, value: CustomFormBlockType}[] = [
     {label: 'チェックボックス', value: 'checkbox'}, 
     {label: 'ラジオボタン', value: 'radio'}, 
@@ -144,6 +173,8 @@ const params = reactive<CustomForm>({
     title: '',
     description: '',
     blocks: [],
+    users: [],
+    admins: [],
 })
 const sortParent = useTemplateRef('sortParent')
 
@@ -176,7 +207,8 @@ const addBlock = (type:CustomFormBlockType, index: number) => {
         elements: [],
         id: id,
         question: '',
-        is_required: false 
+        is_required: false,
+        placeholder: '', 
     }
     if(!params.blocks){
         params.blocks = []
@@ -185,10 +217,13 @@ const addBlock = (type:CustomFormBlockType, index: number) => {
     menu.close()
 }
 
+const removedItems = ref<number[]>([])
+
 const removeItem = (id: number) => {
     if(params?.blocks && params.blocks.length){
         const index = params.blocks?.findIndex( b => b.id == id)
         if(index !== undefined && index > -1){
+            removedItems.value.push(params.blocks[index].id)
             params.blocks.splice(index, 1)
         }
     }
@@ -203,7 +238,10 @@ const saveForm = async() => {
     })
     
     try {
-        await axios.post('/save_custom_form', params)
+        await axios.post('/save_custom_form', {
+            ...params,
+            removed_items: removedItems.value
+        })
         info('保存しました。')
         emit('close', true)
     } catch (e) {

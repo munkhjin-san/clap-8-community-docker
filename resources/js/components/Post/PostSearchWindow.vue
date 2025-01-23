@@ -129,7 +129,7 @@
                     <div class="post-second-wrap" style="gap: 10px">
                         <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers(item)}]">
                             <div v-if="item.app_type !== 2" style="display:flex;align-items: center;">
-                                <UserIcon :disableInstant="true" :user="item.user" imgClass="toUsersIcon" size="30"/>
+                                <UserPanel :disableInstant="true" :user="item.user" imgClass="toUsersIcon" size="30"/>
                                 <p class="userName" v-html="item.user ? nameHighlight(item.user.name) : ''"></p>
                             </div>                
                             <div v-if="item.app_type == 2 || item.app_type == 0" style="position: relative;">
@@ -139,7 +139,7 @@
                                     </svg>
                                     <div :ref="`to_users_${item.id}`" :class="['toUserListContainer']">
                                         <div :key="user.id" v-for="user in item.to_users" style="display: flex;align-items: center;">                                                             
-                                            <UserIcon :disableInstant="true" size="30" :user="user" :imgClass="isMultipleUsers(item) ? 'toUsersIconSmall' : 'toUsersIcon'"/> 
+                                            <UserPanel :disableInstant="true" size="30" :user="user" :imgClass="isMultipleUsers(item) ? 'toUsersIconSmall' : 'toUsersIcon'"/> 
                                             <p style="width: max-content;" class="userName" v-html="nameHighlight(user.name)"></p>                                       
                                         </div>                               
                                     </div>
@@ -205,7 +205,7 @@
 
 <script setup>
 import moment from 'moment'
-import UserIcon from '../Board/Mixed/UserIcon.vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
 import PostSearchPager from './PostSearchPager.vue'
 import SearchHistory from './SearchHistory.vue'
 import PostDate from './PostDate.vue';

@@ -10,7 +10,7 @@ class CommentRecord extends Model
     use HasFactory;
 
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function claps(){
         return $this->hasMany(ClapRecord::class, 'record_id')->where('app_id', 5)->where('deleted_flag', 0)->select('record_id', 'from_user')->with('user');

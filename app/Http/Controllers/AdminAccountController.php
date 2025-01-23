@@ -13,6 +13,7 @@ use App\Models\officeRecord;
 use App\Models\workGroup;
 use App\Models\workGroupUser;
 use App\Models\userDetail;
+use App\Models\UserLeaveRecord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use App\Services\SharedService;
@@ -47,7 +48,7 @@ class AdminAccountController extends Controller
                             ->get();
         $position_list_label = positionRecord::select('name', 'id')->orderBy('sort_flag', 'asc')->get();
         $office_list_label = officeRecord::select('name', 'id')->get();
-        $linkable_accounts = User::where('linkable', 1)->select('id', 'name', 'icon_id')->get();
+        $linkable_accounts = User::where('linkable', 1)->select('id', 'name', 'icon_path', 'icon_bg')->get();
         $work_groups = workGroup::select('name', 'id')
         ->whereHas('members')
         ->when($with_users, function ($q) {
@@ -130,18 +131,21 @@ class AdminAccountController extends Controller
         }
         $user->save();
         if($user->on_leave === 1){
-            userDetail::updateOrCreate(
-                ['user_id' => $user->id],
-                ['leave_start' => Carbon::now()->isoFormat('YYYY-MM-DD')]
+            UserLeaveRecord::create(
+                ['user_id' => $user->id,
+                'leave_start' => Carbon::now()->isoFormat('YYYY-MM-DD'),
+                'active' => 1],
             );
         }else{
-            $userDetail = userDetail::firstWhere("user_id", $user->id);
-            if ($userDetail && $userDetail->leave_start) {
-                $userDetail->update([
-                    "leave_end" => Carbon::now()->isoFormat('YYYY-MM-DD')
+            $userleave = UserLeaveRecord::where("user_id", $user->id)->where('active', 1)->first();
+            if ($userleave && $userleave->leave_start) {
+                $userleave->update([
+                    "leave_end" => Carbon::now()->isoFormat('YYYY-MM-DD'),
+                    "active" => 2
                 ]);
             }
         }
+        
         if(!$request->id){
             try {
                 $createIcon = $this->sharedService->createUserDefaultIcon($user);             

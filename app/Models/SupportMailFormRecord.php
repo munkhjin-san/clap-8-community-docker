@@ -9,7 +9,7 @@ class SupportMailFormRecord extends Model
 {
     use HasFactory;
     public function user(){
-        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_id');
+        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function support_mail_responding_logs(){
         return $this->hasMany(SupportMailRespondingLog::class, 'record_id');

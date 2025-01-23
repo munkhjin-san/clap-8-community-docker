@@ -74,7 +74,7 @@
         return props.userList.filter(user => user.retire == 0 && user.partner_flag == 0).map(user => ({
                 id: user.id,
                 name: user.name,
-                icon_id: user.icon_id,
+                icon_path: user.icon_path,
                 name_kana: user.name_kana,
                 position_id: user.position_id
             }))

@@ -25,4 +25,7 @@ class ProjectGoal extends Model
         return $this->hasOne(ProjectEvaluation::class, 'target_period', 'target_period')
                 ->whereColumn('user_id', 'user_id');
     }
+    public function files() {
+        return $this->belongsToMany(FileRecord::class, 'project_use_files', 'project_goal_id', 'file_id');
+    }
 }

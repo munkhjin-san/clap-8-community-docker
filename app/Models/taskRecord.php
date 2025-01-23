@@ -18,7 +18,7 @@ class taskRecord extends Model
                     ->wherePivot('supervisor', 0)
                     ->wherePivotNull('deleted_at')
                     ->withPivot('id', 'comp_flag', 'late_answer', 'late_answer_custom', 'status_flag', 'comment', 'glowd_nine', 'try_flag', 'pin_flag', 'progress_flag')
-                    ->select(['users.id as id', 'users.name','users.icon_id', 'users.position_id']);
+                    ->select(['users.id as id', 'users.name','users.icon_path', 'users.icon_bg','users.position_id']);
     }
     public function files(){
         return $this->belongsToMany(FileRecord::class, 'task_use_files', 'record_id', 'file_id');
@@ -29,7 +29,7 @@ class taskRecord extends Model
                     ->wherePivot('supervisor', 1)
                     ->wherePivotNull('deleted_at')
                     ->withPivot('id', 'comp_flag', 'late_answer', 'late_answer_custom', 'status_flag', 'comment', 'pin_flag', 'progress_flag')
-                    ->select(['users.id as id', 'users.name','users.icon_id']);
+                    ->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg']);
     }
     public function repeat(){
         return $this->hasOne(TaskRepeat::class, 'record_id', 'repeat_id');
@@ -43,11 +43,14 @@ class taskRecord extends Model
     public function project(){
         return $this->belongsTo(ProjectRecord::class,  'project_record_id', 'id');
     }
+    public function board() {
+        return $this->belongsTo(boardRecord::class, 'board_id', 'id');
+    }
     public function comments(){
         return $this->hasMany(TaskComment::class)->with('user');
     }
     public function taskUsers(){
-        return $this->hasMany(taskUser::class, 'id', 'record_id');
+        return $this->hasMany(taskUser::class, 'record_id', 'id');
     }
     public function unreadCommentsForUser($userId)
     {

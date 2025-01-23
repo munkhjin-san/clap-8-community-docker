@@ -1,12 +1,11 @@
 <template>
-    <div class="shift-submitted-masonry">
+    <div>
         <div class="shift-submitted-masonry-inner">
             <div style="display:flex;align-items:center;position:relative">
-                <UserIcon :disableInstant="true" size="30" :user="item.notification_user" imgClass="userNormalIcon"/>
-                <p class="userName" style="margin-left:10px;">{{ item.notification_user.name }}</p>
+                <UserPanel :disableInstant="true" :withName="true" size="30" :user="item.notification_user" imgClass="userNormalIcon"/>
             </div>
             <div>
-                <p style="line-height:2;">{{ item.date }}から{{ item.endDate }}までの計画有給を入れてください。</p> 
+                <p style="line-height:2;">{{ item.date }}から{{ item.endDate }}までの計画有給</p> 
                 <!-- <br>期間：2024年1月31日 -->
                 <div style="width:100%;margin-top:10px;">
                     <button class="shift-button" @click="shiftPlannedLeave()">計画有給を入力</button>
@@ -41,7 +40,7 @@
     import { useRouter } from 'vue-router';
     import type { RouteRecordName } from 'vue-router';
     import { WorkItem } from '../../interface/workInterface';
-    import UserIcon from '../Board/Mixed/UserIcon.vue';
+    import UserPanel from '../Global/UserPanel.vue';
     const emit = defineEmits(['close'])
 
     interface Props {

@@ -21,7 +21,7 @@
                 >
                     <template #selected-option="option">
                         <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;margin-right: 5px;">
-                            <UserIcon :disableInstant="true" :user="option" imgClass="userMidIcon"/>
+                            <UserPanel :disableInstant="true" :user="option" size="25"/>
                             <p>{{ option.name }}</p>
                         </div>
                     </template>
@@ -33,7 +33,7 @@
                     </template>
                     <template slot="option" slot-scope="option" v-slot:option="option" >
                         <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;">
-                            <UserIcon :disableInstant="true" :user="option" imgClass="userMidIcon"/>
+                            <UserPanel :disableInstant="true" :user="option" size="25"/>
                             <p>{{ option.name }}</p>
                         </div>
                     
@@ -47,7 +47,7 @@
     </div>
 </template>
 <script setup>
-import UserIcon from '../Board/Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { computed, markRaw, onMounted, ref, watch } from 'vue';
 import { validator } from '@/validation/validator'
 

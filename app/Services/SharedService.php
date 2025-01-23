@@ -95,7 +95,7 @@ class SharedService
             'id', 
             'name', 
             'created_at',
-            'icon_id'
+            'icon_path', 'icon_bg'
         )
         ->with('user_detail')
         ->first();
@@ -145,7 +145,7 @@ class SharedService
             $temp_path = storage_path('app/profile_icon/'.$set_path);
             $img_rsz->save($temp_path);
         }
-        $user->update(['icon_id' => $icon->id]);
+        $user->update(['icon_path' => $icon->id]);
         return true;
     }
     public function removeBoard($target){
@@ -159,9 +159,8 @@ class SharedService
         $board->delete();
         messageRecord::where('record_id', $board->id)->delete();
         messageFile::where('board_id', $board->id)->delete();
-        $icon = Icons::findOrFail($board->icon_id);
-        if($icon){
-            $icon->delete();
+        if($board->icon_path){
+            Storage::disk('local')->delete("board_icon_migrated/$board->icon_path");
         }  
         return "respondDeleted";
     }
@@ -187,7 +186,7 @@ class SharedService
         $icon->use_of = "board";
         $icon->save();
         $board->timestamps = false;
-        $board->update(['icon_id' => $icon->id]);
+        $board->update(['icon_path' => $icon->id]);
         $board->timestamps = true;
         
         
@@ -252,5 +251,18 @@ class SharedService
         $first_message->user_id = $userId;
         $first_message->save();
         return true;
+    }
+    public function path_generator(){
+        $timestamp = time();
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $randomString = '';
+        for ($i = 0; $i < 5; $i++) {
+            $randomString .= $characters[rand(0, strlen($characters) - 1)];
+        }
+        $iconId = $timestamp . $randomString;
+        if (strlen($iconId) > 15) {
+            $iconId = substr($iconId, 0, 15);
+        }    
+        return $iconId;
     }
 }

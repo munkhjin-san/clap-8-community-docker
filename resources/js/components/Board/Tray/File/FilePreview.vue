@@ -73,7 +73,8 @@
 
                             </div>
                             <div class="swiper-button-prev" style="top:50%;"></div>
-                            <div class="swiper-button-next" style="top:50%;"></div>                  
+                            <div class="swiper-button-next" style="top:50%;"></div>  
+                            <div class="swiper-pagination"></div>                
                         </div>                  
                     </div>
                     <!-- <div class="second-swiper-wrapper" ref="secondswiper">                     
@@ -101,7 +102,7 @@ import PdfViewer from './PdfViewer.vue'
 import Swiper from 'swiper';
 import 'swiper/css/bundle';
 import "swiper/css/zoom";
-import { Navigation, Zoom, Thumbs } from 'swiper/modules';
+import { Navigation, Zoom, Thumbs, Pagination } from 'swiper/modules';
 import 'swiper/css/navigation'
 import 'swiper/css/thumbs'
 import FileIcon from '../../Mixed/FileIcon.vue';
@@ -225,7 +226,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
             zoom: true,
             navigation: true,
             centeredSlides: true,
-            modules: [Navigation, Zoom, Thumbs],
+            modules: [Navigation, Zoom, Thumbs, Pagination],
             // thumbs: {
             //     swiper: thumbsSwiper.value 
             // },
@@ -238,6 +239,10 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
                 nextEl: '.swiper-button-next',
                 prevEl: '.swiper-button-prev',
             },
+            pagination: {
+                el: ".swiper-pagination",
+                type: "fraction",
+            }
         });
     }
               
@@ -519,7 +524,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
         background: var(--background-color);
     }
     .mySwiper-container{ 
-        height: 100%;
+        height: calc(100% - 30px);
         display: flex;
         flex-direction: column;
         position:relative;

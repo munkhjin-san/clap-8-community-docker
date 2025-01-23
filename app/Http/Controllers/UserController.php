@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 namespace App\Http\Controllers;
-use App\Models\shiftRecord;
 use App\Models\User;
 use App\Models\Icons;
 
@@ -63,59 +62,40 @@ class UserController extends Controller{
     }
     
     public function croppedUp(Request $request) {    
-        $user = Auth::user();
-        $auth_user_id = Auth::id();
-
-        $img = Image::read($request->file('croppedImage'))->scale(200);      
+                $img = Image::read($request->file('croppedImage'))->scale(200);    
         
-        $size_variants = [200, 120, 80, 45, 30, 25, 20, 15];
-        if (!Storage::disk('local')->exists('profile_icon')) {
-            Storage::disk('local')->makeDirectory('profile_icon');
+        $imageData = Image::read($request->file('orgImage'));    
+
+        $org_img = Image::read($imageData)->toWebp();
+        $set_path = $this->sharedService->path_generator();
+
+        $path_for_org = storage_path('app/profile_icon_migrated/'.$set_path . '_original.webp');
+
+        if (!Storage::disk('local')->exists('profile_icon_migrated')) {
+            Storage::disk('local')->makeDirectory('profile_icon_migrated');
         }
-
-        $old_icon = Icons::where('user_id', $auth_user_id)->where('use_of', 'profile')->first();
-
-        $orgImage = json_decode($request->get('orgImage'), true);
-        $imageUrl = $orgImage['url'];
-
-        $imageData = base64_decode(preg_replace('#^data:\w+/\w+;base64,#i', '', $imageUrl));
-        $org_img = Image::read($imageData);
-        
-        $icon = new Icons;
-                
-        $icon->mime_type = 'image';
-        $icon->extension = 'jpg';       
-        $icon->user_id = $user->id;
-        $icon->profile_id = $user->id;
-        $icon->use_of = "profile";
-        $icon->save();
-        $org_path = $icon->id . '_' . $user->id . '_x.jpg';
-        $path_for_org = storage_path('app/profile_icon/'.$org_path);
         $org_img->save($path_for_org);
-        foreach($size_variants as $size){
-            $img_rsz = $img->resize($size, $size);
-            $set_path = $icon->id . '_' . $user->id . '_' . $size . '.jpg';
-            $temp_path = storage_path('app/profile_icon/'.$set_path);
-            $img_rsz->save($temp_path);
-            if($old_icon){
-                Storage::disk('local')->delete('profile_icon/' . $old_icon->id . '_' . $auth_user_id . '_' . $size . '.jpg');
-               
-            }
+     
+        $img_rsz = $img->resize(200, 200);
+        
+        $temp_path = storage_path('app/profile_icon_migrated/'. $set_path . '.webp');
+        $img_rsz->toWebp()->save($temp_path);
 
-        }
-        if($old_icon){
-            $old_icon->delete();
-        }
-        $user->update(['icon_id' => $icon->id]);
-        return response()->json();
+        Auth::user()->update(['icon_path' => $set_path]);
+        return response()->json(["column" => "icon_path", "value" => $set_path]);
        
     }
     public function userIconCreate(Request $request) { 
-        $create = $this->sharedService->createUserDefaultIcon(Auth::user());
-        if($create){
-            return response()->json("success");
-        }        
-        return response()->json();        
+        $user = Auth::user();
+        $user->icon_type = $request->icon_type;
+        $user->icon_bg = str_replace("#", "", $request->icon_bg);
+        $user->icon_path = null;
+        $user->save();
+        // $create = $this->sharedService->createUserDefaultIcon(Auth::user());
+        // if($create){
+        //     return response()->json("success");
+        // }        
+        return response()->json("success");        
     }
     public function get_albums(Request $request) {
         $tag_id = $request->tag_id;
@@ -126,7 +106,7 @@ class UserController extends Controller{
                   ->whereHas('tags', function ($subQuery) use ($tag_id) {
                       $subQuery->where('tag_id', $tag_id);
                   });
-        }])->select('id', 'name', 'icon_id')->get();
+        }])->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
 
         return response()->json($usersWithAlbums);
     }
@@ -321,14 +301,6 @@ class UserController extends Controller{
         return response()->json($list);
         
     }  
-    public function get_planned_leaves(Request $request){
-        $paidholidays = shiftRecord::where('user_id', $request->user_id)
-                                    ->where('planned_year', $request->year)
-                                    ->where('shift_type', 3)
-                                    ->select('shift_day', 'user_id')
-                                    ->get();
-        return response()->json($paidholidays);
-    }
     public function setColor (Request $request){     
         $request->validate([
             'value' => 'required',

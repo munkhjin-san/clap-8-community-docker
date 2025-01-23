@@ -49,6 +49,7 @@
                             v-model="alcoholTestConfirmMember" 
                             :multiple="false"
                             :closeOnSelect="true"
+                            :exclude="[auth.activeUser.id]"
                             path="board_possible_users"
                         />
                     </div>
@@ -59,6 +60,7 @@
                             v-model="alcoholTestConfirmMember2" 
                             :multiple="false"
                             :closeOnSelect="true"
+                            :exclude="[auth.activeUser.id]"
                             path="board_possible_users"
                         />
                     </div>
@@ -73,6 +75,8 @@ import { onMounted, ref, watch } from 'vue';
 import MemberSelector from '../Form/MemberSelector.vue';
 import { User } from '@/interface/globalInterface';
 import { vehicleAsOptions } from '@/utils/workApi';
+import { useAuthUserStore } from '@/store/auth'
+const auth = useAuthUserStore()
 const vehicle = defineModel('vehicle')
 const vehicleType = ref(null)
 const theme = useTheme()

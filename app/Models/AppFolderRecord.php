@@ -14,14 +14,13 @@ class AppFolderRecord extends Model
         'parent_id' => 'int',     
         'recycle_flag' => 'int',
         'folder' => 'int',
-        'color' => 'int',
-        'recycle_flag' => 'int'              
+        'color' => 'int',            
     ];
     protected $fillable = [
         'recycle_flag','old_parent_id', 'parent_id', 'updated_by', 'deleted_at', 'path'
     ];
     public function user(){
-        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_id')->with('icons');
+        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_path', 'icon_bg')->with('icons');
     }
     public function files(){
         return $this->hasMany(AppFileRecord::class, 'parent_id', 'id');

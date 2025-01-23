@@ -1,60 +1,52 @@
 <template>
     <div class="main-bar">
-        <div class="overlay" v-show="iconEditModal" style="z-index:99;">   
-            <div class="chatCreate">
-                <div class="recordFormTitle" style="display:flex">
-                    <p>アイコンを編集する</p>
-                    <div @click="closeIconEditModal" class="cursor-pointer" style="position:unset; margin-left:auto;">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
-                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                        </svg>
-                    </div>              
-                </div>        
-                <div id="cropperContainer" class="" style="display:flex;height: 100%;width: 100%;">                 
-                        
-                    <div class="filedrop-area" v-if="!cropperIs" style="width:100% !important;height:80% !important;display:flex;margin: auto;">
-                        <label for="userIcon" class="file-label cursor-pointer">
-                            アップロード
-                        </label>
-                        <input accept="image/*" type="file" name="userIcon" id="userIcon" v-on:change="preUpload" style="display: none;">
-                    </div>
-                    <div v-else style="height: auto;min-height:200px;background:var(--bg3);width: 100%;max-height: 80%;margin: auto;">
-                        <img style="display:none;" id="hiddenImageWrap" :src="tempImage">
-                    </div>                      
-                    
+        <Modal v-if="iconEditModal" @close="closeIconEditModal">
+            <template #title>
+                <p>アイコンを編集する</p>
+            </template>
+            <template #content>                         
+                <div>
+                    <div style="display:flex;gap:15px;font-size: 14px;">
+                        <div :class="['ch-selector', {chSelected : iconType == 0}]" @click="iconType = 0" style="font-size: 14px;">デフォルトアイコン</div>
+                        <div :class="['ch-selector', {chSelected : iconType == 1}]" @click="iconType = 1" style="font-size: 14px;">画像アイコン</div>                
+                    </div>               
                 </div>
-                <div style="width:100%; margin-top:auto;display:flex;text-align:center">        
-                    <button v-on:click="cropComplete()" class="l-button cursor-pointer" style="position:relative;">
-                        <span v-if="!sendLoader">保存</span>
-                        <div v-if="sendLoader" id="loaderMini" style="position: absolute;">
-                            <div style="border: 4px #ffffff solid;border-top: 4px var(--primary-button) solid;" class="spinner-mini"></div>
+                <div  class="si-box" style="padding: 10px;position:relative;border: solid thin var(--primary-color);">
+                    <div v-if="iconType == 0">
+                        <span class="form-plc smallPlc">アイコンカラー</span>                  
+                        <div class="flex justify-center">
+                            <div class="si-box">
+                                <ColorPicker v-model="iconBg"/>
+                            </div>
+                                                            
                         </div>
-                    </button>   
+                    </div>
+                    <div v-else>
+                        <Cropper ref="cropperInstance"/>                       
+                    </div>
                 </div>
-            </div>
-        </div>
-        <div class="overlay" v-if="iconViewModal">            
-            <div class="chatCreate" style="justify-content:center;align-items:center;padding-top: 30px;">                    
-                <img style="width:fit-content;height:-webkit-fill-available" v-if="UserAllData.icons.use_of == 'profile'" :src="'/cdn/profile_icon/' + UserAllData.icon_id + '_' + UserAllData.icons.profile_id +  '_x.' + UserAllData.icons.extension">
-                <img style="width:fit-content;" v-else :src="'/cdn/profile_icon/' + UserAllData.icon_id + '_' + UserAllData.icons.profile_id +  '_200.' + UserAllData.icons.extension">
-                <div @click="iconViewModal = false" class="m-close-button">
-                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
-                        <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                    </svg>
-                </div> 
-            </div>
-            
-        </div>
+                <div class="si-box">
+                    <div v-if="iconType == 0" style="width: fit-content;padding: 15px;margin: auto;">
+                        <div id="boardIconPreview" class="iconPreview">
+                            <img draggable="false" loading="lazy" class="iconPreviewInner" :src="defaultIcon">
+                        </div>
+                    </div>
+                </div>    
+                <div class="si-box">
+                    <LoaderButton @triggered="sendIcon" :loading="sendLoader" content="保存する"/>
+                </div>                    
+            </template> 
+        </Modal>   
         <div style="overflow: hidden;">
             <div class="profile-icon-content">
                 <div id="imageWrap" style="position: relative;width: fit-content;margin: auto;min-height: 120px;">
                     <div @click.stop="iconClickMenu" class="cursor-pointer">
-                        <UserIconPreLoad size="120" :disableInstant="true" :title="UserAllData.name" :user="UserAllData" imgClass="profile-image"/>
+                        <UserPanel disable-instant :user="UserAllData" imgClass="profile-image" size="120"/>
                     </div>
                     <div id="iconMenuWrap" class="iconChange" v-if="menu.name == 'iconMenuWrap' && menu.id == 23">
                         <div @click="previewProfile(icon, 0)" class="cursor-pointer">フルサイズを表示</div>
-                        <div v-if="auth_id == targetId" @click="iconEditModal = true" class="cursor-pointer">アップロード</div>
-                        <div v-if="auth_id == targetId" @click="iconDeleteConfirm()" class="cursor-pointer">削除</div>
+                        <div v-if="auth_id == targetId" @click="iconEditModal = true" class="cursor-pointer">アイコン変更</div>
+                        <div v-if="auth_id == targetId" @click="iconDeleteConfirm" class="cursor-pointer">削除</div>
                         
                     </div>
                 </div>
@@ -128,13 +120,9 @@
                         </div>
                         <div style="max-width: 280px;width: 100%;">
                             <div v-if="targetId == auth_id" title="作成" class="mov-del-button" style="margin-left: auto;margin-top:10px" @click="introUpload = true">
-                                <!-- <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="17" viewBox="0 0 32 32" style="fill:var(--primary-color);margin:auto;">
-                                    <path d="M30.044 14.14c-2.402-0.231-4.804-0.341-7.206-0.422-1.535-0.058-3.071-0.079-4.606-0.090-0.326-0.002-0.587-0.265-0.588-0.591-0.004-1.537-0.018-3.074-0.078-4.613-0.092-2.4-0.218-4.802-0.542-7.205-0.084-0.612-0.565-1.119-1.205-1.206-0.769-0.103-1.477 0.437-1.582 1.206-0.324 2.401-0.449 4.804-0.542 7.205-0.059 1.536-0.074 3.071-0.078 4.606-0.001 0.325-0.263 0.59-0.59 0.59-1.534 0.005-3.068 0.020-4.602 0.078-2.404 0.094-4.805 0.219-7.207 0.543-0.612 0.081-1.119 0.564-1.205 1.205-0.103 0.769 0.436 1.477 1.205 1.58 2.402 0.324 4.804 0.449 7.207 0.543 1.536 0.059 3.074 0.073 4.612 0.078 0.325 0.001 0.587 0.262 0.59 0.587 0.011 1.536 0.033 3.070 0.090 4.606 0.080 2.402 0.192 4.805 0.423 7.207 0.066 0.699 0.622 1.278 1.349 1.348 0.823 0.079 1.556-0.524 1.633-1.348 0.231-2.402 0.342-4.805 0.423-7.207 0.057-1.538 0.079-3.077 0.090-4.615 0.002-0.324 0.263-0.583 0.587-0.586 1.538-0.011 3.077-0.034 4.615-0.090 2.402-0.080 4.804-0.193 7.206-0.423 0.7-0.066 1.279-0.622 1.349-1.349 0.076-0.823-0.528-1.557-1.351-1.634z"></path>
-                                </svg> -->
                                 追加
                             </div>
-                        </div>
-                        
+                        </div>                       
                         
                     </div>
                 </div>
@@ -170,33 +158,32 @@
     </div>
 </template>
 <script setup>
-    import Cropper from 'cropperjs';
-    import UserIconPreLoad from '../../Board/Mixed/UserIcon.vue'
-    import 'cropperjs/dist/cropper.css';
-    import moment from 'moment';
-    import UserIntroFile from './UserIntroFile.vue';
-    import UserAlbumByTags from '../UserAlbumByTags.vue';
-    import WeatherUpdater from '../../Global/WeatherUpdater.vue';
-    import WeatherIcon from '@/components/Global/WeatherIcon.vue';
-    import { computed, inject, onMounted, ref } from 'vue';
-    import { useFilePreview } from '@/store/filePreview';
-    import { useAuthUserStore } from '@/store/auth'
-    import { useMenuStore } from "@/store/menu";
-    import ItemMenu from '@/components/Global/ItemMenu.vue'
+import moment from 'moment';
+import UserIntroFile from './UserIntroFile.vue';
+import UserAlbumByTags from '../UserAlbumByTags.vue';
+import WeatherUpdater from '../../Global/WeatherUpdater.vue';
+import WeatherIcon from '@/components/Global/WeatherIcon.vue';
+import { computed, inject, onMounted, ref, useTemplateRef } from 'vue';
+import { useFilePreview } from '@/store/filePreview';
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import ItemMenu from '@/components/Global/ItemMenu.vue'
+import ColorPicker from '@/components/Global/ColorPicker.vue';
+import UserPanel from '@/components/Global/UserPanel.vue';
+import Modal from '@/components/Global/Modal.vue';
+import LoaderButton from '@/components/Global/LoaderButton.vue';
+import Cropper from '@/components/Global/Cropper.vue';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const { confirm, notify } = inject('dialog')
     const props = defineProps(['UserAllData', 'clapData', 'movExist'])
     const emit = defineEmits(['updateUser'])
-    const iconViewModal = ref(false)
     const iconEditModal = ref(false)
     const cropperIs = ref(false)
     const sendLoader = ref(false)
-    const tempImage = ref(null)
-    const cropperInstance = ref(null)
+    const cropperInstance = useTemplateRef('cropperInstance')
     const auth_id = auth.id
     const targetId = props.UserAllData.id
-    const orgImage = ref(null)
     const viewAlbum = ref(false)
     const tagText = ref('')
     const tagAlbums = ref('')
@@ -204,9 +191,17 @@
     const filePreview = useFilePreview()
     const introUpload = ref(false)
     const imageError = ref([])
+    const iconType = ref(props.UserAllData?.icon_type ?? 0)
+    const iconBg = ref(props.UserAllData?.icon_bg ?? '#000')
     const handleImgError = (index) => {
         imageError.value.push(index)
     }
+    const defaultIcon = computed(() => {
+        const color = encodeURIComponent(iconBg.value);
+        const noSpace = props.UserAllData.name?.charAt(0).toUpperCase();   
+        const basePath = '/user_default_thumbnail'
+        return `${basePath}/${noSpace}/45/${color}`; 
+    })
     const icon = computed(() => {
         return props.UserAllData.icons
     })
@@ -243,18 +238,20 @@
     const movSrc = (mov) => {
         return mov.path.includes('intro') ? '/cdn/user_album/' + targetId + '/' + mov.path : '/cdn/user_album/' + targetId + '/' + mov.id + '_' + targetId + '_' + mov.path + '.' + mov.extension
     }
-    const previewProfile = (file, index) => {
-        let target_data = file
-        if(target_data.use_of == 'profile'){
-            target_data['file_path'] = '/cdn/profile_icon/' + target_data.id + '_' + target_data.profile_id +  '_x.' + target_data.extension
-        }else{
-            target_data['file_path'] = '/cdn/profile_icon/' + target_data.id + '_' + target_data.profile_id +  '_200.' + target_data.extension
+    const previewProfile = () => {
+        let target_data = {
+            mime_type: 'image',
+            extenstion: 'webp',
+            id: props.UserAllData.icon_path
         }
+        const color = props.UserAllData.icon_bg || '000000'
+        const path = props.UserAllData.icon_path ? `/user_icon_thumbnail/${props.UserAllData.icon_path}/original`  : `/user_default_thumbnail/${props.UserAllData.name?.charAt(0)}/200/${color}`
+        target_data['file_path'] = path       
         
         const data = {
             active: true,
             files: [target_data],
-            source: 'message',
+            source: 'user',
             index: 0,
             message: null,
         }
@@ -305,88 +302,35 @@
     const iconClickMenu = () => {
         menu.setMenu( {name: 'iconMenuWrap', id: 23})
     }
-    const cropComplete = () => {
-        if(!cropperInstance.value || sendLoader.value){
-            return;
+    const sendIcon = async() => {
+        if(iconType.value == 0) {
+            defaultIconCreate()
+        }else if(iconType.value == 1 && cropperInstance.value){
+            customIconCreate()
+        }else{
+            notify('エラーが発生しました。')
         }
-        let data = JSON.stringify(orgImage.value)
+
+    }
+    const customIconCreate = async() => {
+
         sendLoader.value = true;
-        cropperInstance.value.getCroppedCanvas({
-            }).toBlob(async(blob) => {
+        const { blob, source } = await cropperInstance.value.complete();
+        if(blob && source){
             const formData = new FormData();
             formData.append('croppedImage', blob/*, 'example.png' */);
-            formData.append('orgImage', data)        
+            formData.append('orgImage', source)  
             try{
                 await axios.post('/user_icon_cropped_up_api',formData)
                 iconEditModal.value = false;
-                cropCancel();
                 emit('updateUser')
             } catch (e) {
                 notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
             } finally {
                 sendLoader.value = false;
-            }    
-        })
-    }
-    const getFileExtension = (fileName) => {
-        const lastDotIndex = fileName.lastIndexOf('.');
-        if (lastDotIndex === -1) {
-            return '';
+            } 
         }
-        return fileName.substring(lastDotIndex + 1).toLowerCase();
-    }
-    const preUpload = () => {
-        cropperIs.value = true;
-        tempImage.value = URL.createObjectURL(event.target.files[0]);
-        const file = event.target.files[0]
-        if(file){
-            const fileExtension = getFileExtension(file.name);
-            const reader = new FileReader();
-            
-            reader.onload = () => {
-                const image = {
-                    name: file.name,
-                    url: reader.result,
-                    mime_type: file.type,
-                    extension: fileExtension,
-                    size: file.size
-                };
-                orgImage.value = image;
-            }
-            reader.readAsDataURL(file);
-            
-        }
-        setTimeout(() => {
-            var image = document.getElementById('hiddenImageWrap');
-            var width = 300;
-            var height = 300;
-            var container = document.getElementById('cropperContainer');            
-            if(container){
-                width = container.offsetWidth * 0.8;
-                height = container.offsetHeight * 0.8;
-            }            
-            if(cropperInstance.value){
-                cropperInstance.value.destroy();
-                cropperInstance.value = null;
-            }            
-            cropperInstance.value = new Cropper(image, {              
-                dragMode: 'move',
-                preview: '.preview',
-                aspectRatio: 1 / 1,
-                minContainerWidth: width,
-                maxContainerWidth: width,
-                minContainerHeight: height,
-                maxContainerHeight: height,
-                viewMode: 1,
-                responsive:true,
-                autoCrop: true,
-                background: false,
-                guides: false,
-                crop(event) { 
-                },            
-            });
-        },0)
-    }            
+    }     
     const closeIconEditModal = () => {
         iconEditModal.value = false
         cropCancel()
@@ -399,17 +343,6 @@
         }
                     
     }
-    const loaderOff = () => {
-        var sp = document.getElementsByClassName('cropper-view-box');
-        
-        if(!sp.length){
-            setTimeout(function() {
-                loaderOff();                       
-            },300);
-        }else{
-            uploadSpinner.value = false;
-        }
-    }
     const iconDeleteConfirm = async(id) => {
         const answer = await confirm('アイコンを削除してもよろしいですか？')
                    
@@ -419,11 +352,16 @@
     }
     const defaultIconCreate = async() => {     
         try{
-            await axios.post('/user_icon_create_api',{create: 1})
+            sendLoader.value = true;
+            await axios.post('/user_icon_create_api',{icon_type: iconType.value, icon_bg: iconBg.value})
             emit('updateUser');
+
+            iconEditModal.value = false;
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }   
+        } finally {
+            sendLoader.value = false;
+        } 
     }
 
 </script>

@@ -12,11 +12,11 @@ class taskUser extends Model
     use HasFactory;
     protected $guarded = [];
     public function user(){
-        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_id');
+        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function taskRecord()
     {
-        return $this->belongsTo(TaskRecord::class, 'id', 'record_id');
+        return $this->belongsTo(taskRecord::class, 'record_id', 'id');
     }
 
     public function unreadComments()

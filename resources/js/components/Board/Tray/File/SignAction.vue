@@ -82,6 +82,7 @@ import { useAuthUserStore } from '@/store/auth';
 import { useFilePreview } from '@/store/filePreview';
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
+import { useBadgeStore } from '@/store/badge';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const props = defineProps(['file', 'viewer', 'source'])
@@ -99,8 +100,9 @@ import { useResponsive } from '@/store/responsive';
     const scale = ref(1)
     const posX = ref(0)
     const posY = ref(0)
+    const badge = useBadgeStore()
     const auth = useAuthUserStore()
-    const refresh = inject('getIncompleteMessage')
+    const refresh = inject('refreshRemind')
     const filePreview = useFilePreview()
     const { notify, confirm } = inject('dialog')
     
@@ -253,7 +255,8 @@ import { useResponsive } from '@/store/responsive';
         }
         filePreview.setFilePreview(data)
         setTimeout(() => {
-            refresh()
+            refresh('unsigned_messages')
+            badge.getRemindBadge()
         }, 100);
     }
     const useMySignature = () => {

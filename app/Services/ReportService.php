@@ -22,7 +22,7 @@ class ReportService
 
     public function sendMessage($override_user_id, $board_id, $type)
     {
-        $override_user = User::select('id', 'name', 'icon_id')
+        $override_user = User::select('id', 'name', 'icon_path', 'icon_bg')
                              ->findOrFail($override_user_id);
         
         $message = $this->generateMessage($type);
@@ -44,7 +44,7 @@ class ReportService
                                     ->whereNot('user_id', $override_user_id)
                                     ->pluck('user_id')
                                     ->toArray();
-        $override_user = User::select('id', 'name', 'icon_id')->findOrFail($override_user_id);
+        $override_user = User::select('id', 'name', 'icon_path', 'icon_bg')->findOrFail($override_user_id);
         $checkData = [
             'type' => 'confirm',
             'users' => $mention_users,
@@ -58,7 +58,7 @@ class ReportService
     }
     public function createTask($override_user_id, $board_id, $type){
         $mention_users = boardToUser::where('record_id', $board_id)->whereNot('user_id', 610)->pluck('user_id')->toArray();
-        $override_user = User::select('id', 'name', 'icon_id')
+        $override_user = User::select('id', 'name', 'icon_path', 'icon_bg')
                              ->findOrFail($override_user_id);
         $dateString = sprintf('%04d-%02d-%02d', date('Y'), date('m'), '20');
         $date = Carbon::parse($dateString);
@@ -192,7 +192,7 @@ class ReportService
         担当部門において、以下の事項について変更または変更予定がある場合は、速やかに経営管理本部にご連絡いただきますようお願い申し上げます。
         また、変更の可能性がある場合は、事前に経営管理本部と情報共有をお願いいたします。
         
-        【人員配置に関する事項】
+        【人員配置】
         ・部門間での異動
         ・パートナー社員の追加・終了
         
@@ -200,7 +200,7 @@ class ReportService
         ・成果目標確認（提出状況・進捗）
         ・半年管理対象者進捗確認
         
-        【法務に関する事項】
+        【契約管理】
         ・新規契約
         ・契約更新
         
@@ -209,18 +209,18 @@ class ReportService
         
         ・契約終了
         
-        【会計に関する事項】
+        【収支管理】
         ・仮払未精算
         ・未入金確認
         ・交際費稟議
         ・稟議未計上
         
-        【事業戦略に関する事項】
+        【収支管理】
         ・収支入力・更新
         ・タスクの期日確認
         ・戦略会議の宿題進捗
         
-        【総務に関する事項】
+        【執行役員】
         ・事務所移転
         ・車入替
         
@@ -229,7 +229,7 @@ class ReportService
         ・物品移動
         ・kintoneアカウント追加・削除
         
-        【インシデントに関する事項】
+        【インシデント】
         ・インシデント報告・進捗各位
         EOT;
 

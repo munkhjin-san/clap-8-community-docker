@@ -27,7 +27,9 @@ import { ComponentExposed } from 'vue-component-type-helpers';
 import axios from 'axios';
 import { DialogMethods } from '@/interface/globalInterface';
 import { DialogKey } from '@/interface/keys';
+import { useBadgeStore } from '@/store/badge';
 const { confirm, info, notify } = inject('dialog') as DialogMethods;
+const badge = useBadgeStore()
 const props = defineProps<{
     survey: CustomForm
 }>()
@@ -77,7 +79,8 @@ const sendSurvey = async() => {
         setTimeout(() => {
             emit('saved')
             info('保存しました。')
-            sending.value = false  
+            sending.value = false
+            badge.getRemindBadge()  
         }, 300);
 
     } catch (e) { 

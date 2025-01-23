@@ -3,7 +3,7 @@
         <div :class="['commentInner']" :style="{position:'relative',padding:'15px',borderRadius: '0', border: editing ? 'solid 2px var(--hoverBorder)' : 'solid 2px transparent', boxSizing: 'border-box', float: comment.user_id == auth.id ? 'right' : 'left'}">
             <div class="message-top-block" style="margin-bottom: 0;">      
                 <div style="display: flex;align-items: center;gap:10px">
-                    <UserIcon size="30" :user="comment.user" imgClass="userNormalIcon"/>                   
+                    <UserPanel size="30" :user="comment.user" imgClass="userNormalIcon"/>                   
                     <div @click.stop="pushInstantUser($event, comment.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ comment?.user?.name }}</div>     
                 </div>     
                 <div class="m-date">{{momentMessage}}</div> 
@@ -30,7 +30,7 @@
     </div> 
 </template>
 <script setup>
-import UserIcon from '../Board/Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import ClapButton from './ClapButton.vue';
 import moment from 'moment';

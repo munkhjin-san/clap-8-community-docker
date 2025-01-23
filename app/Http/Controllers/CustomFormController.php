@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CustomForm;
 use App\Models\SurveyAnswer;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Arr;
@@ -41,9 +42,57 @@ class CustomFormController extends Controller
             return response()->json($survey);
 
     }
-    public function get_custom_forms(Request $request){
+    public function duplicate_custom_form(Request $request){
+        $request->validate([
+            'id' => 'required'
+        ]);
 
-        $forms = CustomForm::with(['blocks'])->get();
+        $form = CustomForm::with(['blocks', 'users', 'admins'])->findOrFail($request->id);
+        $new_form = $form->replicate();
+        $new_form->title = $form->title . ' (コピー)';
+        $new_form->save();
+        $form->blocks->each(function($block) use($new_form){
+            $new_block = $block->replicate();
+            $new_block->custom_form_id = $new_form->id;
+            $new_block->save();
+            $block->elements->each(function($element) use($new_block){
+                $new_element = $element->replicate();
+                $new_element->custom_form_block_id = $new_block->id;
+                $new_element->save();
+            });
+        });
+        $form->users->each(function($user) use($new_form){
+            $new_form->users()->attach($user->id, ['authority' => 0]);
+        });
+        $form->admins->each(function($admin) use($new_form){
+            $new_form->admins()->attach($admin->id, ['authority' => 1]);
+        });
+        return response()->json(['message' => 'Form duplicated successfully'], 200);
+    }
+    public function get_custom_forms(Request $request){
+        $active_user = $this->active_user();
+
+        $forms = CustomForm::with(['blocks'])->orderBy('created_at', 'desc')
+        ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
+            $q->whereHas('admins', function($q) use($active_user){
+                $q->where('user_id', $active_user->id);
+            });
+        })
+        ->with(
+        [
+            'users', 
+            'admins', 
+            'survey_answers'
+            ]
+        )->get();
+
+        $forms->map(function($form){
+            $form->users->map(function($user) use($form){
+                $user['is_answered'] = $form->survey_answers->where('user_id', $user->id)->count() > 0;
+            });
+        });
+
+        
         return response()->json($forms);
 
         
@@ -54,35 +103,58 @@ class CustomFormController extends Controller
             'id' => 'nullable|integer',
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'users' => 'array',
+            'admins' => 'array',
             'blocks' => 'array',
             'blocks.*.id' => 'nullable|integer',
             'blocks.*.type' => 'required|string|max:50',
             'blocks.*.question' => 'required|string',
             'blocks.*.is_required' => 'boolean',
             'blocks.*.order_number' => 'required|integer',
+            'blocks.*.placeholder' => 'nullable|string',
             'blocks.*.elements' => 'array',
             'blocks.*.elements.*.id' => 'nullable|integer',
             'blocks.*.elements.*.value' => 'required|string',
             'blocks.*.elements.*.is_required' => 'boolean',
             'blocks.*.elements.*.has_sub_text_required' => 'boolean',
             'blocks.*.elements.*.has_sub_text' => 'boolean',
+            'blocks.*.elements.*.placeholder' => 'nullable|string',
         ]);
     
         $form = $this->saveForm( $validated);
 
         $this->saveBlocks($form, Arr::get($validated, 'blocks', []));
-    
+        if (!empty($request->removed_items)) {
+            $blocks = $form->blocks()->whereIn('id', $request->removed_items)->get();
+            foreach ($blocks as $block) {
+                $block->elements()->delete();
+            }
+            $form->blocks()->whereIn('id', $request->removed_items)->delete();
+        }
         return response()->json(['message' => 'Form saved successfully'], 200);
     }
     private function saveForm( array $data)
     {
-        return CustomForm::updateOrCreate(
+
+        $form = CustomForm::updateOrCreate(
             ['id' => $this->sanitizeId(Arr::get($data, 'id'))],
             [
                 'title' => Arr::get($data, 'title'),
                 'description' => Arr::get($data, 'description'),
             ]
         );
+        $users = Arr::get($data, 'users', []);
+        $user_ids = collect($users)->map(function($user){
+            return $user['id'];
+        });
+
+        $admins = Arr::get($data, 'admins', []);
+        $admin_ids = collect($admins)->map(function($admin){
+            return $admin['id'];
+        });
+        $form->users()->syncWithPivotValues($user_ids, ['authority' => 0]);
+        $form->admins()->syncWithPivotValues($admin_ids, ['authority' => 1]);
+        return $form;
     }
     public function delete_custom_form(Request $request){
         $request->validate([
@@ -107,6 +179,7 @@ class CustomFormController extends Controller
                     'question' => Arr::get($block, 'question'),
                     'is_required' => Arr::get($block, 'is_required', false),
                     'order_number' => Arr::get($block, 'order_number'),
+                    'placeholder' => Arr::get($block, 'placeholder'),
                 ]
             );
     
@@ -127,6 +200,7 @@ class CustomFormController extends Controller
                     'is_required' => Arr::get($element, 'is_required', false),
                     'has_sub_text_required' => Arr::get($element, 'has_sub_text_required', false),
                     'has_sub_text' => Arr::get($element, 'has_sub_text'),
+                    'placeholder' => Arr::get($element, 'placeholder'),
                 ]
             );
         }
@@ -228,5 +302,12 @@ class CustomFormController extends Controller
                 return response()->json($main);
             }
         
+    }
+    public function get_authorized_users() {
+        $user_list = User::where('position_id', '<=', 6)
+                        ->where('retire', 0)
+                        ->select('id', 'name', 'icon_path', 'icon_bg')
+                        ->get();
+        return response()->json($user_list);
     }
 }

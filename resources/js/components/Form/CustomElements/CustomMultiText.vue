@@ -12,6 +12,7 @@
                     </div>                                
                 </div> 
             </div>
+            <input placeholder="プレースホルダー" class="custom-o-input" back type="text" ref="checkboxes" v-model="block.placeholder"/>                                                                             
         </div>
     </div>
 </template>

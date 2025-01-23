@@ -12,11 +12,11 @@ class messageFile extends Model
         return $this->belongsTo(MessageRecord::class);
     }
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function signUsers()
     {
-        return $this->belongsToMany(User::class, 'message_sign_users')->withPivot(['signed', 'cancel_flag'])->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
+        return $this->belongsToMany(User::class, 'message_sign_users')->withPivot(['signed', 'cancel_flag'])->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg', 'users.deleted_at');
     }
     public function signedUsers()
     {
@@ -24,7 +24,7 @@ class messageFile extends Model
                     ->using(messageSignUser::class)
                     ->withPivot(['signed', 'cancel_flag'])
                     ->wherePivot('signed', true)
-                    ->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
+                    ->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg', 'users.deleted_at');
     }
 
     public function unsignedUsers()
@@ -33,7 +33,7 @@ class messageFile extends Model
                     ->using(messageSignUser::class)
                     ->withPivot(['signed', 'cancel_flag'])
                     ->wherePivot('signed', false)
-                    ->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
+                    ->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg', 'users.deleted_at');
     }
     protected $casts = [
         'message_id' => 'int',     

@@ -1012,8 +1012,8 @@ class CalendarController extends Controller
     public function calendar_more_users(Request $request){
         $user = MyGroup::where('user_id', $this->active_user()->id)->latest()->first();
         $rec = $user->users()->pluck('id')->toArray();        
-        $close_users = User::whereIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
-        $other_users = User::whereNotIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_id')->get();
+        $close_users = User::whereIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_path', 'icon_bg')->get();
+        $other_users = User::whereNotIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_path', 'icon_bg')->get();
         $merged_users = $close_users->concat($other_users)->toArray();
         return response()->json($merged_users); 
     }

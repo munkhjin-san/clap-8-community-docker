@@ -15,7 +15,7 @@ class NoticeRecord extends Model
     }
     public function readers()
     {
-        return $this->belongsToMany(User::class, 'notice_readers', 'notice_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_id']);;
+        return $this->belongsToMany(User::class, 'notice_readers', 'notice_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_path', 'users.icon_bg']);;
     }
     protected $hidden = [
         'read_users', 'unread_users'

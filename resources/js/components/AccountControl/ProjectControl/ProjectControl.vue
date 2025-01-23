@@ -9,7 +9,7 @@
             <PostSearchBar 
                     className="newChatMemberSearch" 
                     :customPlaceHolder="route.name === 'projectlist' ? `プロジェクト検索` : `メンバーとメンター検索`" 
-                    v-model="keywords"
+                    @search-start="(word) => {keywords = word}"
                 /> 
         </div>
         <!-- <CreatePeriod /> -->

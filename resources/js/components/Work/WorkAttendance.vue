@@ -92,7 +92,7 @@
                             <span>年休</span>
                         </div>
                         <div class="attendance-value">
-                            <span>{{ attendanceData.annual_leave ? annualTime(attendanceData) : '--' }}</span>
+                            <span>{{ attendanceData.annual_leave ? timeFormat(attendanceData.annual_leave) : '--' }}</span>
                         </div>
                     </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
@@ -151,6 +151,7 @@
                             <p>宿泊日当 : {{ attendanceData.month_move_allowance_count }}</p>
                             <p><br>遠方手当 : {{ attendanceData.month_stay_allowance_count }}</p>
                             <p><br>待機手当 : {{ attendanceData.month_waiting_allowance_count }}</p>
+                            <p><br>在宅手当 : {{ attendanceData.month_remote_allowance_count }}</p>
                         </div>
                     </div>
                     <div class="attendance-row">
@@ -181,6 +182,7 @@
     import { computed, inject, onMounted, ref } from 'vue';
     import { useAuthUserStore } from '@/store/auth';
     import { getAttendanceData } from '../../utils/workApi';
+    import { timeFormat } from '@/utils/tools';
     
     const emit = defineEmits(['reload', 'closeModal'])
     const props = defineProps([
@@ -335,6 +337,7 @@
             stay_pay: attendanceData.value.month_stay_allowance_count,
             move_pay: attendanceData.value.month_move_allowance_count,
             waiting_pay: attendanceData.value.month_waiting_allowance_count,
+            remote_pay: attendanceData.value.month_remote_allowance_count,
             expenses: attendanceData.value.annual_costs,
             incentive: attendanceData.value.annual_incentives
         }

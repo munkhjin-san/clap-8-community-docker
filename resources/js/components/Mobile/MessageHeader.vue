@@ -21,7 +21,7 @@
                     <div @click="members(board)" style="overflow:hidden;height:40px">
                         <div style="display: flex;height:40px;align-items:center">
                             <div :key="user.id" v-for="user in confirmedMembers.slice(0, 3)" style="position:relative;">                                
-                                <UserIconPreLoad size="15" :user="user.user" :disableInstant="true" imgClass="userSmallIcon"/>                                           
+                                <UserPanel size="15" :user="user.user" :disableInstant="true" imgClass="userSmallIcon"/>                                           
                             </div>                                                                                                                  
                             <p @touchstart.stop style="margin-top:2px;cursor:pointer;font-size:12px;margin-left: 3px;" v-if="confirmedMembers.length > 3">({{confirmedMembers.length}})</p>                                            
                         </div> 
@@ -55,12 +55,12 @@
 
 <script setup>
 import { computed, inject } from 'vue';
-import UserIconPreLoad from '../Board/Mixed/UserIcon.vue'
 import { useRouter } from 'vue-router';
 import { useMenuStore } from '@/store/menu'
 import { useBadgeStore } from '@/store/badge'
 import BoardTitle from '../Board/Mixed/BoardTitle.vue';
 import Back from '../Icons/Back.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
     const badge = useBadgeStore()
     const menu = useMenuStore()
     const emit = defineEmits('close')

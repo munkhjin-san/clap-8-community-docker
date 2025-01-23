@@ -11,7 +11,7 @@
         ">                                    
             <div class="column-01">  
                 <BoardIcon v-if="user.id == -1" imgClass="userMidIcon" :item="board"/> 
-                <UserIcon :disableInstant="true" v-else size="30" :user="user" imgClass="userMidIcon"/>  
+                <UserPanel :disableInstant="true" v-else size="30" :user="user" imgClass="userMidIcon"/>  
             </div>
             <p  class="cursor-pointer" style="padding:5px;font-size:13px;">{{user.name}}</p>                                   
         </li>                    
@@ -20,7 +20,7 @@
 <script setup>
 import { inject, onMounted, onUnmounted, ref, computed } from 'vue';
 import BoardIcon from '../Mixed/BoardIcon.vue';
-import UserIcon from '../Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { useKeyboardStore } from '@/store/keyboardStore';
     const props = defineProps(['mentionAbleList', 'forced'])
     const emit = defineEmits(['mentionUser', 'close'])

@@ -6,7 +6,7 @@
                     <div @click="viewApprovalUsers('', taskUsers)" style="display:flex;width: fit-content;">
                         <div v-for="user in taskUsers.slice(0, 3)" style="position:relative;">
                             <div v-if="user" :title="user.name" class="column-01">
-                                <UserIcon size="30" :disableInstant="true" :user="user" imgClass="u_icon_15"/>                            
+                                <UserPanel size="30" :disableInstant="true" :user="user" imgClass="u_icon_15"/>                            
                             </div>
                             <div class="column-01" v-else>
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" class="u_icon_15">
@@ -52,7 +52,7 @@
                 <div @click="viewSupervisors" v-if="!canModify && supervisors.length" style="display:flex;width: fit-content; margin-top: 15px;align-items: center">
                     <div v-for="user in supervisors.slice(0, 3)" style="position:relative;">
                         <div v-if="user" :title="user.name" class="column-01">
-                            <UserIcon size="30" :disableInstant="true" :user="user" imgClass="u_icon_15"/>                            
+                            <UserPanel size="30" :disableInstant="true" :user="user" imgClass="u_icon_15"/>                            
                         </div>
                         <div class="column-01" v-else>
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" class="u_icon_15">
@@ -93,7 +93,7 @@ import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { useUrlTask } from '@/store/urlTask';
 import { useUrlTaskEdit } from '@/store/urlTaskEdit'
-import UserIcon from '../../Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { useTaskUsers } from '@/store/taskUsers';
 import { useMessageUsers } from '@/store/messageUsers';
 import { timeFormat, urlCheck } from '@/utils/tools';

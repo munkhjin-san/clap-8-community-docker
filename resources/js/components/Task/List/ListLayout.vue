@@ -64,11 +64,11 @@ import FloatButton from '@/components/Global/FloatButton.vue';
 import BoardTaskCreate from '@/components/Board/Tray/Task/BoardTaskCreate.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import TaskCategorizer from '../Gantt/TaskCategorizer.vue';
-import { useCheckApproval } from '@/store/checkApproval'
 import { instance } from '@/utils/broadcaster';
 import router from '@/router';
 import axios from 'axios';
 import { useBadgeStore } from '@/store/badge';
+import { useSharingDataStore } from '@/store/sharingData';
     const props = defineProps<{
         board: Board | undefined
         isBoard: boolean
@@ -83,9 +83,9 @@ import { useBadgeStore } from '@/store/badge';
     const tasks = ref<Task[]>([])
     const initialLoader = ref(true)
     const editTaskData = ref<Task | null>(null)
-    const checkApproval = useCheckApproval()
     const selectedUser = ref<number | null>(auth.activeUser.id)
     const selectedStatus = ref<number>(-1)
+    const sharingData = useSharingDataStore()
     const categoryOptions = [
         {value: -1, label: 'すべて'},
         {value: 0, label: '未対応'},
@@ -100,7 +100,9 @@ import { useBadgeStore } from '@/store/badge';
             instance.on(`task:${props.board.id}`, socketTaskHandler)
             activeListeners.add(`task:${props.board.id}`);
         }
-        
+        if (sharingData.active && sharingData.to == 'task') {
+            createTaskPopup.value = true
+        }
         getBoardTasks()
     })
     const clearListeners = () => {
@@ -118,9 +120,6 @@ import { useBadgeStore } from '@/store/badge';
         getBoardTasks()
     }
 
-    watch(() => checkApproval.approved, () => {
-        getBoardTasks()
-    })
     const editTask = (task:Task) => {
         const usersId = task.executors.map(ob => ob.id);
         if (usersId.indexOf(Number(auth.activeUser.id)) > -1) {

@@ -11,11 +11,11 @@ class messageRecord extends Model
     use SoftDeletes; 
     public function checkUsers()
     {
-        return $this->belongsToMany(User::class, 'message_check_users')->withPivot(['checked'])->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
+        return $this->belongsToMany(User::class, 'message_check_users')->withPivot(['checked'])->select('users.id', 'users.name', 'users.icon_path', 'users.deleted_at');
     }
     public function reactedUsers()
     {
-        return $this->belongsToMany(User::class, 'message_reacted_users')->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
+        return $this->belongsToMany(User::class, 'message_reacted_users')->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg', 'users.deleted_at');
     }   
     public function checkedUsers()
     {
@@ -23,7 +23,7 @@ class messageRecord extends Model
                     ->using(messageCheckUser::class)
                     ->withPivot(['checked'])
                     ->wherePivot('checked', true)
-                    ->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
+                    ->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.deleted_at');
     }
 
     public function uncheckedUsers()
@@ -32,10 +32,10 @@ class messageRecord extends Model
                     ->using(messageCheckUser::class)
                     ->withPivot(['checked'])
                     ->wherePivot('checked', false)
-                    ->select('users.id', 'users.name', 'users.icon_id', 'users.deleted_at');
+                    ->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.deleted_at');
     }
     public function user(){
-        return $this->belongsTo(User::class)->withTrashed()->select('id', 'icon_id', 'name', 'deleted_at');
+        return $this->belongsTo(User::class)->withTrashed()->select('id', 'icon_path', 'icon_bg', 'name', 'deleted_at');
     }
     public function board(){
         return $this->belongsTo(boardRecord::class, 'id', 'record_id');
@@ -62,7 +62,7 @@ class messageRecord extends Model
         return $this->hasMany(boardToUser::class, 'record_id', 'record_id');
     }
     public function messageRemindUsers(){
-        return $this->hasMany(messageRemindUser::class, 'message_id');
+        return $this->hasMany(messageRemindUser::class, 'message_id')->where('reminded', 1);
     }
     public function memo(){
         return $this->hasOne(memoRecord::class, 'message_id', 'id');

@@ -21,7 +21,7 @@ class customFieldTypeRecord extends Model
 
     //パーツとリレーション
     public function custom_field_parts_records(){
-        return $this->hasMany(customFieldPartsRecord::class, 'record_id');
+        return $this->hasMany(customFieldPartsRecord::class, 'record_id')->orderBy('created_at', 'asc');
     }
 
     protected $casts = [

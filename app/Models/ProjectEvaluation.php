@@ -12,6 +12,6 @@ class ProjectEvaluation extends Model
     protected $guarded = [];
 
     public function mentor() {
-        return $this->hasOne(User::class, 'id', 'mentor_id')->select('id', 'name', 'icon_id');
+        return $this->hasOne(User::class, 'id', 'mentor_id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
 }

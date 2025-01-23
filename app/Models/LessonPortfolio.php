@@ -11,7 +11,7 @@ class LessonPortfolio extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id', 'id')->select('id', 'name', 'icon_id');
+        return $this->belongsTo(User::class, 'user_id', 'id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function lesson_sections()
     {

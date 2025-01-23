@@ -5,7 +5,8 @@ interface State {
   userList: {
     id: number;
     title: string;
-    icon_id: number;
+    icon_path: string;
+    icon_bg: string | null
   }[];
   title: string | null;
   task: Task | null

@@ -6,7 +6,7 @@
             </div> 
             <div v-if="!skLoader && found && user" style="display:flex;align-items:center">
                 <div>
-                    <UserIcon size="80" :user="user" :disableInstant="true" imgClass="userLargeIcon"/> 
+                    <UserPanel size="80" :user="user" :disableInstant="true" imgClass="userLargeIcon"/> 
                 </div>
                 <div style="display:flex;flex-direction:column;overflow: hidden;font-size:14px;overflow: hidden;font-size: 14px;margin-left: 13px;min-height: 72px;place-content: center;">   
                     <div style="font-weight:600;margin-bottom:10px;display: flex;">
@@ -43,7 +43,7 @@
 <script setup>
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
-import UserIcon from './Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
     const props = defineProps(['data'])
     const emit = defineEmits(['resetInstantUser'])
     const auth = useAuthUserStore()

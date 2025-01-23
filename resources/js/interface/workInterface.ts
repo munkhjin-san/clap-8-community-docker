@@ -1,13 +1,16 @@
+import { TaskUser, User } from "./globalInterface"
+
 export type WorkItem = {
     date: string
     endDate: string
-    notification_user: NotificationUser
+    notification_user: User | TaskUser
 }
 
 type NotificationUser = {
     id: number
     name: string
-    icon_id: number
+    icon_path: string
+    icon_bg: string | null
 }
 export type ChosenDateShiftType = {
     id: number | null
@@ -60,16 +63,6 @@ export type AttendanceData = {
     worked_time: number
     workedday_count: 4
 }
-export type User = {
-    id: number
-    name: string
-    icon_id: number
-    position_id: number
-    user_code: number
-    work_time_day: number
-    work_type: number
-    members: any
-}
 export type RecordItem = {
     day_show: string
     day_full: Date | string
@@ -114,4 +107,31 @@ export type ShiftType = {
     id: number | null
     name: string
     abbreviation: string
+}
+export type notApproved = {
+    overtime:  number
+    shift: notApprovedShift[]
+    timecard: number
+    user: User
+}
+
+export type notApprovedShift = {
+    month: number;
+    count: number;
+    user_id: number;
+}
+export type plannedLeave = {
+    remaining_days: number;
+    shift_count: number;
+    tempData: tempData;
+}
+export type tempData = {
+    date: string;
+    endDate: string;
+    granted_days: number;
+    id: number;
+    notification_user: User;
+    planned_days: number;
+    user_code: number;
+    user_name: string;
 }

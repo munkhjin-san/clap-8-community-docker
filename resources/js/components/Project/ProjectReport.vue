@@ -33,12 +33,19 @@
                         rules="required"
                     />
                 </div>
+                <div class="si-box">
+                    <FileUploader 
+                        v-model="uploadedFiles"
+                        path="/project_files"
+                    />
+                </div>
                 <div v-if="!reviewing" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
                     <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(6)" :loading="loading[0]"/>
+                    <LoaderButton style="margin: 0;" content="申請する" @triggered="progressReport(7)" :loading="loading[1]"/>
                 </div>
                 <div v-if="reviewing" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
-                    <LoaderButton style="margin: 0;" content="未達成" @triggered="progressReport(7)" :loading="loading[1]"/>
-                    <LoaderButton style="margin: 0;" content="達成" @triggered="progressReport(8)" :loading="loading[2]"/>
+                    <LoaderButton style="margin: 0;" content="差戻" @triggered="progressReport(8)" :loading="loading[2]"/>
+                    <LoaderButton style="margin: 0;" content="承認" @triggered="progressReport(9)" :loading="loading[3]"/>
                 </div>
             </div>
         </div>
@@ -52,6 +59,8 @@ import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge'
+import FileUploader from '../Form/FileUploader.vue';
+import { File } from '@/interface/trayInterface';
 const props = defineProps([
     'chosenGoal', 
     'memberData', 
@@ -65,12 +74,13 @@ const result = ref(props.chosenGoal?.result ?? '')
 const report = ref(props.chosenGoal?.report ?? '')
 const reportRef = ref<InstanceType<typeof LongInput> | null>(null)
 const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
-const loading = ref([false, false, false])
+const loading = ref([false, false, false, false])
 const addResult = ref(result.value ? true : false)
 const auth = useAuthUserStore()
 const refresh = inject('refresh') as Function
 const { notify, info, confirm } = inject<Dialog>('dialog')!
 const badge = useBadgeStore()
+const uploadedFiles = ref<File[]>(props.chosenGoal?.files ?? [])
 const progressReport = async(status: number) => {
     const validateTargets = [resultRef.value, reportRef.value]
     const targets = validateTargets.filter(ob => ob !== null)
@@ -81,8 +91,13 @@ const progressReport = async(status: number) => {
         validate = validate && val.valid
     }
     if(!validate) return
-    const loadstatus = status === 6 ? 0 : status === 7 ? 1 : 2
-    let info_message = status === 6 ? '報告' : status === 7 ? '未達成' : '達成'
+    const loadstatus = status === 6 ? 0 : status === 7 ? 1 : status === 8 ? 2 : 3;
+    let info_message = status === 6 ? '報告' : status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
+    if (status === 7 || status === 8 || status === 9) {
+        let confirm_message = status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
+        const confirmResult = await confirm(`${confirm_message}しますか？`);
+        if (!confirmResult) return;
+    }
     try {
         loading.value[loadstatus] = true
         const params = {
@@ -92,7 +107,8 @@ const progressReport = async(status: number) => {
                 result: result.value,
                 achievement_rate: sliderValue.value,
                 status: status
-            }
+            },
+            file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
         }
         await axios.put('/update_project_progress', params)
         loading.value[loadstatus] = false

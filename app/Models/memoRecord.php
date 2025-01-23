@@ -9,7 +9,7 @@ class memoRecord extends Model
 {   
     use SoftDeletes;
     public function user(){
-        return $this->hasOne(User::class, 'id', 'user_id')->withTrashed()->select('id', 'name', 'icon_id');
+        return $this->hasOne(User::class, 'id', 'user_id')->withTrashed()->select('id', 'name', 'icon_path', 'icon_bg');
     }
     protected $fillable = [
         'editing',

@@ -496,6 +496,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
             const response = await axios.post('/remind_add', { id: data.id }).then(res => res.data)
             const message = response ? 'リマインドしました。' : 'リマインドを取り消しました。'
             info(message)
+            badge.getRemindBadge()
         } catch (e) { 
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {

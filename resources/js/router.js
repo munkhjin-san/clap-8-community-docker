@@ -84,31 +84,6 @@ const routes = [
                 },
             },
             {
-                path: 'paid-leave',
-                component: () => import('./components/Profile/UserEditComps/UserPaidLeave.vue'),
-                name: 'paid-leave',
-                props: true,
-                meta: {
-                    title: 'CLAP - 計画有給',
-                },
-                beforeEnter: (to, from, next) => {
-                    const rootElement = document.getElementById('app');
-                    const userId = rootElement.getAttribute('data-user-id');
-
-                    if (to.params.userId !== userId) {
-                        const currentUserIdRoute = `/user/${userId}/paid-leave`;
-                        
-                        if (to.path !== currentUserIdRoute) {
-                            next(currentUserIdRoute);
-                        } else {
-                            next();
-                        }
-                    } else {
-                        next();
-                    }
-                },
-            },
-            {
                 path: 'salary-issue',
                 component: () => import('./components/Profile/Issue/Salary.vue'),
                 name: 'salary-issue',
@@ -205,6 +180,14 @@ const routes = [
                             nameJp: '成果目標・昇給課題'
                         },
                         component: () => import('./components/Project/ProjectGoalDetail.vue'),
+                        children: [
+                            {
+                                path: ':goalId',
+                                name: 'goal-more',
+                                props: true,
+                                component: () => import('./components/Project/ProjectGoalMore.vue'),
+                            }
+                        ]
                     },
                     {
                         path: 'evaluation/:memberId',
@@ -613,6 +596,58 @@ const routes = [
                 // }
             }
         ],
+    },
+    {
+        path: '/contact',
+        name: 'contact',
+        meta: {
+            title: 'CLAP - コンタクト',
+        },
+        redirect: {name: 'tab1'}, 
+        component: () => import('@/components/Contact/MainContainer.vue'),
+        children: [
+            {
+                path: 'tab1',
+                name: 'tab1',
+                component: () => import('@/components/Contact/Tab1/MemberContainer.vue')
+            },
+            {
+                path: 'tab2',
+                name: 'tab2',
+                component: () => import('@/components/Contact/Tab2/ContactContainer.vue'),
+                children: [
+                    {
+                        path: ':contactId',
+                        name: 'contactDetail',
+                        component: () => import('@/components/Contact/Tab2/ContactDetail.vue')
+                    }
+                ]
+            }
+        ]
+
+    },
+    {
+        path: '/remind',
+        name: 'remind',
+        meta: {
+            title: 'CLAP - リマインド',
+            titleJp: 'リマインド'
+        }, 
+        component: () => import('./components/Remind/RemindContainer.vue'),
+        children: [
+            {
+                path: 'project-approval/:userId',
+                name: 'project-approval',
+                component: () => import('./components/Global/CheckGoal.vue'),
+                children: [
+                    {
+                        path: ':goalId',
+                        name: 'goal-approval',
+                        component: () => import('./components/Project/ProjectGoalMore.vue')
+                    }
+                ]
+            }
+        ]
     }
 
     

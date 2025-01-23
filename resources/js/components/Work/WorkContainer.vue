@@ -5,7 +5,8 @@
             <WorkHeader
                 :workGroups="workGroups"
                 :selectedMonth="selectedMonth"
-                v-model="usersCheckArray"
+                v-model:users="usersCheckArray"
+                v-model:vehicles="selectedVehicles"
                 @selectShift="selectShift"
                 @confirmAttendance="confirmAttendance"
                 @todayScroll="todayScroll"
@@ -140,6 +141,7 @@
     const approvalModal = ref(false)
     const breakTimeStore = useBreakTime()
     const shiftForDepartment = ref(null)
+    const selectedVehicles = ref([])
     onMounted(async() => {
         const query = route.query
         if(query.user_id){
@@ -153,14 +155,32 @@
             selectShift()
         }
     })
+    let isClearing = false
+    watch(() => usersCheckArray.value, (newValue) => {
+        if (isClearing) return
+        if (newValue.length && selectedVehicles.value.length) {
+            selectedVehicles.value = []
+            isClearing = true
+        }
+        handleWatch()
+    })
 
-    watch(() => usersCheckArray.value,  async() => {
+    watch(() => selectedVehicles.value, (newValue) => {
+        if (isClearing) return
+        if (newValue.length && usersCheckArray.value.length) {
+            usersCheckArray.value = []
+            isClearing = true
+        }
+
+        handleWatch()
+    })
+    const handleWatch = () => {
         const dataTable = document.querySelector('.v-table__wrapper')
         dataTable ? dataTable.scrollTop = 0 : ''
         fetchShiftDataTable()
         fetchWorkData()
-    })
-    
+        setTimeout(() => (isClearing = false), 0);
+    }
     const headerHeight = computed(() => {
         const { height } = useElementSize(headerEl)
         return height
@@ -323,7 +343,7 @@
     const fetchShiftDataTable = async(init) => {
         let yearMonth = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
 
-        recordsArray.value = await getShiftDataTable(yearMonth, usersCheckArray.value)
+        recordsArray.value = await getShiftDataTable(yearMonth, usersCheckArray.value, selectedVehicles.value)
         if(init == 0){
             loading.value ++
             setTimeout(() => {

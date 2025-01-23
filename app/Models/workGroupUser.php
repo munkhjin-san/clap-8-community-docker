@@ -13,7 +13,7 @@ class workGroupUser extends Model
     use HasFactory;
 
     public function user(){
-        return $this->belongsTo(User::class)->select('name', 'name_kana', 'id', 'icon_id', 'work_authority');
+        return $this->belongsTo(User::class)->select('name', 'name_kana', 'id', 'icon_path', 'icon_bg', 'work_authority');
     }
 
     public function work_group(){

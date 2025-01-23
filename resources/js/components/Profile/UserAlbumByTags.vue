@@ -15,7 +15,7 @@
                         <div class="post-second-wrap" style="gap: 10px;margin: 0;">
                             <div class="post-user-wrap">
                                 <div style="display:flex;align-items: center;">
-                                    <UserIcon :disableInstant="true" :user="item" imgClass="userNormalIcon" size="30"/>
+                                    <UserPanel :disableInstant="true" :user="item" imgClass="userNormalIcon" size="30"/>
                                     <router-link class="memberNameLink" :to="`/user/${item.id}`">
                                         <p class="userName">{{ item ? item.name : '' }}</p>
                                     </router-link>
@@ -40,7 +40,7 @@
 </template>
 <script setup lang="ts">
     import { useFilePreview } from '../../store/filePreview'
-    import UserIcon from '../Board/Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
     const emit = defineEmits(['closeModal'])
     const filePreview = useFilePreview()
     interface Props {

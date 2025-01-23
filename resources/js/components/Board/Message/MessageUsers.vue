@@ -51,23 +51,5 @@ import UserPanel from '@/components/Global/UserPanel.vue'
 </script>
 <style scoped lang="scss">   
 
-.users-list-popup{
-    box-shadow: rgb(0 0 0 / 35%) 0px 5px 15px;
-    padding: 20px;
-    margin: auto;
-    background: var(--background-color);
-    color: var(--primary-color);
-    max-width: 80%;
-    font-size: 14px;
-    line-height: 1.5;
-    max-height: 90%;
-    overflow: hidden auto;
-    max-height: 60vh;
-    min-width: 20%;
-}
-@media screen and (max-width: 959px) {
-    .users-list-popup{
-        min-width: 50%;
-    }
-}
+
 </style>

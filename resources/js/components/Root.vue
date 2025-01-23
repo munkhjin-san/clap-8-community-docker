@@ -18,7 +18,7 @@
             />
             
             <router-view v-slot="{ Component }">
-                <KeepAlive :include="['MembersRoot']">
+                <KeepAlive :include="['MainContainer']">
                     <component
                         :is="Component"
                         :key="keyGen" 
@@ -51,7 +51,6 @@ import moment from 'moment';
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
 import * as PusherPushNotifications from "@pusher/push-notifications-web";
-import Pusher from 'pusher-js';
 import { computed, nextTick, onBeforeMount, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from './Global/Dialog.vue';
@@ -65,7 +64,6 @@ import InstantProfile from './Board/InstantProfile.vue';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useSkeleton } from '@/store/skeleton'
 import { useTitle } from '@vueuse/core'
-import { io } from "socket.io-client";
 import axios from 'axios';
 import { instance as socket } from '@/utils/broadcaster'
 import { endPlay } from '@/utils/tts';
@@ -105,13 +103,13 @@ import { endPlay } from '@/utils/tts';
         if(condition){
             saveWeather(condition)
         }
-        
         badge.getBoardBadge('mounted');
         
         if(!auth.isPartner){
             badge.getNoticeBadge()
             badge.getPostBadge()
             badge.getProjectBadge()
+            badge.getRemindBadge()
         }
         
     })
@@ -212,10 +210,7 @@ import { endPlay } from '@/utils/tts';
     const setActiveUser = async(id) => {
         if(id == auth.activeUser.id){
             if(id == auth.id){
-                router.push({
-                    path: `/user/${auth.activeUser.id}`,
-                    query: { t: Date.now() } 
-                });
+                router.push({path: `/user/${auth.activeUser.id}`});
             }
             return            
         }
@@ -226,6 +221,7 @@ import { endPlay } from '@/utils/tts';
 
         await auth.setActiveUser(id)
         skeleton.setSkeleton(0)
+        badge.getRemindBadge()
         nextTick(() => {
             setTimeout(() => {
                 switchLoader.value = false
@@ -303,6 +299,12 @@ import { endPlay } from '@/utils/tts';
     const refreshMessage = () => {
         if(mainRef.value.getMessageList){
             mainRef.value.getMessageList()
+        }
+    }
+    const refreshRemind = (dataType) => {
+        if(mainRef.value.refreshData) {
+            console.log(dataType)
+            mainRef.value.refreshData(dataType)
         }
     }
     const onClick = (event) => {
@@ -423,7 +425,7 @@ import { endPlay } from '@/utils/tts';
         info: (message) => info(message)
     });
     provide('pushInstantUser', pushInstantUser)
-
+    provide('refreshRemind', refreshRemind)
     provide('refreshMessage', refreshMessage)
     provide('resetInstantUser', resetInstantUser)
 </script>

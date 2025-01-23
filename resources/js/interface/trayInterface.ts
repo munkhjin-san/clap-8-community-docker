@@ -11,8 +11,9 @@ export interface File {
 interface UnsignedUsers {
     id: number | null
     pivot: Pivot
-    icon_id: number | null
+    icon_path: number | null
     name: string
+    icon_bg: string | null
 }
 interface Pivot {
     message_file_id: number | null

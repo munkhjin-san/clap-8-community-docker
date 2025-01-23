@@ -7,7 +7,7 @@
                 <PostSearchBar 
                     className="newChatMemberSearch" 
                     :customPlaceHolder="`プロジェクト検索`" 
-                    v-model="keywords"
+                    @search-start="(word) => {keywords = word}"
                 />                
             </div>
             <router-link :to="{name: 'gantt-chart'}" class="c-bar-button ml-auto mr-[20px] whitespace-nowrap">ガントチャート</router-link>
@@ -79,18 +79,18 @@
                     </div>
                     <div class="project-cell pc">
                         <div>
-                            <UserIcon v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="30"/>
+                            <UserPanel v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="20"/>
                         </div>
                     </div>
                     <div class="project-cell pc">
                         <div>
-                            <UserIcon v-for="member in project.manager" imgClass="u_icon_20" :user="member" size="30"/>
+                            <UserPanel v-for="member in project.manager" imgClass="u_icon_20" :user="member" size="20"/>
                         </div>
                     </div>
                     <div class="project-cell pc" style="overflow: hidden">
                         <div style="display: flex;">
                             <div style="display: flex;" @click="viewUsers(project.members)">
-                                <UserIcon v-for="member in project.members.slice(0, 10)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
+                                <UserPanel v-for="member in project.members.slice(0, 10)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
                             </div>
                             <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 10">...({{project.members.length}})</span>
                         </div>
@@ -133,7 +133,7 @@
 import { Project } from '@/interface/projectInterface';
 import axios from 'axios';
 import { nextTick, onMounted, ref, computed, provide, watch, inject, useTemplateRef } from 'vue';
-import UserIcon from '../Board/Mixed/UserIcon.vue';
+import UserPanel from '../Global/UserPanel.vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import { useMenuStore } from '@/store/menu';
 import { useRoute, useRouter } from 'vue-router';

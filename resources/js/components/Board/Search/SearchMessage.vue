@@ -50,7 +50,7 @@
                 <div v-if="message.user" style="display:flex;align-items:center;margin-bottom:10px;">
                     <div style="display:flex;align-items:center">
                         <div v-if="message.user.deleted_at == null" class="column-01 cursor-pointer">                        
-                            <UserIconPreLoad size="30" :user="message.user" imgClass="userNormalIcon"/>                       
+                            <UserPanel size="30" :user="message.user" imgClass="userNormalIcon"/>                       
                         </div>   
                         <div v-else class="column-01 cursor-pointer"> 
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30">
@@ -96,7 +96,6 @@
 
 <script setup>
 import moment from 'moment'
-import UserIconPreLoad from '../Mixed/UserIcon.vue'
 import BoardTitlePreLoad from '../Mixed/BoardTitle.vue'
 import BoardIconPreLoad from '../Mixed/BoardIcon.vue'
 import PostSearchPager from '../../Post/PostSearchPager.vue'
@@ -105,6 +104,7 @@ import LoaderButton from '../../Global/LoaderButton.vue';
 import { computed, inject, onMounted, watch, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { urlCheck } from '@/utils/tools';
+import UserPanel from '@/components/Global/UserPanel.vue'
     const auth = useAuthUserStore()
 
     const props = defineProps([

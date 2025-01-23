@@ -50,11 +50,9 @@ import axios from 'axios';
 import FileUploader from '@/components/Form/FileUploader.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useTaskRequest } from '@/store/taskRequest';
-import { useCheckApproval } from '@/store/checkApproval';
 import { dateDetail } from '@/utils/workApi';
     const taskRequest = useTaskRequest()
     const auth = useAuthUserStore()
-    const checkApproval = useCheckApproval()
     const myTask = computed(() => {
         return taskRequest.data.executors.find(ob => ob.id == auth.activeUser.id)
     })
@@ -107,7 +105,6 @@ import { dateDetail } from '@/utils/workApi';
             }
             await axios.put('/task_approve_request', params)
             info('申請しました。')
-            checkApproval.setCheckApproval(true)
             close()
         } catch (e) {
             console.log(e)

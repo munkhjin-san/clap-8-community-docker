@@ -10,7 +10,6 @@
                     :searching="searching"
                     className="newChatMemberSearch" 
                     :customPlaceHolder="`スケジュールを検索`"
-                    v-model="searchKey"
                 />
                 <SearchResult 
                     v-if="searchKey.length && menu.id == 26 && menu.name == 'calendarSearchResultWindow'" 
@@ -221,7 +220,7 @@ import axios from 'axios';
     const facilitiesList = ref([])
     const departmentsList = ref([])
     const selectedDepartment = ref([])
-    const searching = ref(false)
+    const searching = ref(0)
     const preSelected = ref(null)
     const prevScrollTop = ref(0)
     const prevScrollLeft = ref(0)
@@ -451,19 +450,20 @@ import axios from 'axios';
     const getFacilities = () => {
         axios.post('/get_all_facilities').then(response => facilitiesList.value = response.data)
     }
-    const searchStart = () => {
+    const searchStart = (word) => {
+        searchKey.value = word
         menu.setMenu( {id : 26, name: 'calendarSearchResultWindow'})
         let val = searchKey.value            
         if(val && val.length){
-            searching.value = true
+            searching.value = 1
             axios.post('/get_calendar_search',{key: val}).then(response => {                      
                 searchResult.value = response.data        
                 searchFetch.value ++     
-                searching.value = false        
+                searching.value = 0        
             })
         }else{
             searchResult.value = []
-            searching.value = false
+            searching.value = 0
         }
         
     }

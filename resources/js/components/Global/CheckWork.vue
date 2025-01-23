@@ -90,7 +90,7 @@
     } 
     const getNotSubmitted = async() => {
         try{
-            const data = await axios.post('/not_submitted').then(res => res.data)
+            const data = await axios.get('/not_submitted').then(res => res.data)
             timecardNotSubmittedList.value = data.timecard_notSubmitted
             shiftNotSubmittedList.value = data.shift_notSubmitted
         } catch (e) {

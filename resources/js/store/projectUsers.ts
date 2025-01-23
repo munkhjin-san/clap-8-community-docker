@@ -3,7 +3,7 @@ interface State {
   active: boolean
   userList: {
     id: number;
-    icon_id: number;
+    icon_path: string;
     name: string;
   }[];
   title: string | null

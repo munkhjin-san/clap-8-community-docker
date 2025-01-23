@@ -15,7 +15,7 @@ class KnowledgeRecord extends Model
         'title', 'description',
     ];
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function files(){
         return $this->belongsToMany(FileRecord::class, 'knowledge_use_files', 'record_id', 'file_id')->where('file_records.deleted_flag', 0);

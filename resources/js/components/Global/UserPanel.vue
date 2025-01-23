@@ -41,11 +41,9 @@ import { useTheme } from '@/store/theme';
         }        
     }    
     const thumbnailUrl = (size:number) => {    
-        const color = props.forceColor ? props.forceColor : theme.dark ? 'dark' : 'light'
-        const imageFileName = devicePixelRatio > 1 ? `${props.user.icon_id}_${props.user.id}_200.jpg` : `${props.user.icon_id}_${props.user.id}_${props.size ? props.size : '30'}.jpg`
-
-        return props.user.icon_id ? 
-        `${window.location.origin}/cdn/profile_icon/${imageFileName}` : 
+        const color = props.user.icon_bg || '000000'
+        return props.user.icon_path ? 
+        `/user_icon_thumbnail/${props.user.icon_path}/${size}/${color}` : 
         `/user_default_thumbnail/${props.user.name?.charAt(0).toUpperCase()}/${size}/${color}`
     }
     const generateSrcset = computed(() => {

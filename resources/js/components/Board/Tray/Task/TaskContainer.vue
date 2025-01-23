@@ -96,7 +96,6 @@ import { useUrlTask } from '@/store/urlTask'
 import { useSharingDataStore } from '@/store/sharingData'
 import { useTaskFeedback } from '@/store/taskFeedback'
 import { useBadgeStore } from '@/store/badge'
-import { useCheckApproval } from '@/store/checkApproval'
 import { useTaskRequest } from '@/store/taskRequest'
 import { instance } from '@/utils/broadcaster'
 import { onUnmounted } from 'vue'
@@ -117,7 +116,6 @@ import axios from 'axios'
     const viewActiveTask = ref(true)
     const viewCompletedTasks = ref(false)
     const createHidden = ref(false)
-    const checkApproval = useCheckApproval()
     const taskRequest = useTaskRequest()
     const playNineWindow = ref(false)
     const taskId = ref(null)
@@ -163,9 +161,6 @@ import axios from 'axios'
 
     watch(() => taskFeedBack.active, () => {            
         getTask();        
-    })
-    watch(() => checkApproval.approved, () => {
-        getTask()
     })
     const clearListeners = () => {
         activeListeners.forEach(listener => {
@@ -359,7 +354,6 @@ import axios from 'axios'
     const getTask = () => {
         axios.post("/get_task_api", { record_id: board.value.id, which: which.value }).then(response => {
             unorganizedTasks.value = response.data
-            checkApproval.setCheckApproval(false)
         });
     }
     const closeTaskModal = (update) => {

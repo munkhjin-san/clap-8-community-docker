@@ -214,7 +214,6 @@
 import { generalPositions, debounce, evaluationDateOptions, parseDate, detailedDateOptions } from '@/utils/tools';
 import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import UserIcon from '@/components/Board/Mixed/UserIcon.vue';
 import { useAuthUserStore } from '@/store/auth';
 import axios from 'axios';
 import { Increase } from '@/interface/projectInterface';

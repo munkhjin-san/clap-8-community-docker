@@ -40,7 +40,7 @@
                         
                         <div v-if="isOpened" style="display: flex;">
                             <div :key="user.id" v-for="user in item.board_to_users.slice(0, 3)" style="position:relative;">                                
-                                <UserIconPreLoad size="15" :disableInstant="true" :user="user.user" imgClass="userSmallIcon"/>                                           
+                                <UserPanel size="15" :disableInstant="true" :user="user.user" imgClass="userSmallIcon"/>                                           
                             </div>                                                                                                                  
                             <p style="margin-top:2px;cursor:pointer;font-size:12px;margin-left: 3px;" v-if="item.board_to_users.length > 3">({{item.board_to_users.length}})</p>                                            
                         </div> 
@@ -53,7 +53,7 @@
 
 <script setup>
 import BoardIconPreLoad from './Mixed/BoardIcon.vue'
-import UserIconPreLoad from './Mixed/UserIcon.vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
 import BoardTitlePreLoad from './Mixed/BoardTitle.vue'
 import { computed, inject } from 'vue';
 import { useAuthUserStore } from '@/store/auth'

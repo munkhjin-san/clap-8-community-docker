@@ -23,6 +23,8 @@ use App\Http\Controllers\SupportController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\ContactController;
+use App\Http\Controllers\RemindController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -114,9 +116,32 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         
     Route::get('/employee', function () {return redirect("/members");});
 
-    Route::get('/{name}/{any?}',[BoardController::class, "index"])->whereIn('name', ['board', 'challenge', 'post', 'knowledge', 'nice', 'members', 'schedule', 'timesheet', 'admin_control', 'support', 'notice', 'settings', 'user', 'learning', 'project', 'survey'])->where('any', '.*')->name('board');
-    
+    Route::get('/{name}/{any?}',[BoardController::class, "index"])
+    ->whereIn('name', [
+        'board', 
+        'challenge', 
+        'post', 
+        'knowledge', 
+        'nice', 
+        'members', 
+        'schedule', 
+        'timesheet', 
+        'admin_control', 
+        'support', 
+        'notice', 
+        'settings', 
+        'user', 
+        'learning', 
+        'project', 
+        'survey', 
+        'remind',
+        'contact'
+    ])->where('any', '.*')->name('board');
+    Route::get('/user_icon_thumbnail/{path}/{size}/{color?}', [ContentController::class, 'user_icon_thumbnail']);
     Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController::class, 'user_default_thumbnail']);
+    Route::get('/board_default_thumbnail/{name}/{size}/{color?}', [ContentController::class, 'board_default_thumbnail']);
+    Route::get('/board_icon_thumbnail/{path}/{size?}/{color?}', [ContentController::class, 'board_icon_thumbnail']);
+
     Route::get('/shared_thumbnail/{board_id}/{path}', [ContentController::class, 'sharedThumbnail']);
     Route::prefix('cdn')->group(function () {
         Route::get('/{any?}', [ContentController::class, 'fileTransferAll'])->where('any', '.*');
@@ -161,11 +186,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/get_target_message', [BoardController::class, 'getTargetMessage']); 
     Route::post('/get_bottom_messages', [BoardController::class, 'getAppend']); 
     Route::post('/get_instant_user', [BoardController::class, 'getInstantUser']);   
-    Route::post('/get_incompleted_tasks', [BoardController::class, 'getIncompletedTasks']); 
     Route::post('/set_admin_role', [BoardController::class, 'setAdminRole']); 
     Route::post('/remove_group_member', [BoardController::class, 'removeGroupMember']); 
     Route::post('/group_add_member', [BoardController::class, 'groupAddMember']); 
-    Route::post('/get_unsigned_messages', [BoardController::class, 'getUnsignedUsers']);
     Route::post('/get_edit_user', [BoardController::class, 'getEditUser']);
     Route::post('/signature_upload_api', [BoardController::class, 'signFile']);
     // Route::post('/save_user_signature', [BoardController::class, 'saveSignature']);
@@ -173,8 +196,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/leave_board', [BoardController::class, 'leaveBoard']);
     Route::post('/board_possible_users', [BoardController::class, 'board_possible_users']);
     Route::post('/send_reconfirm_email', [BoardController::class, 'send_reconfirm_email']);
-    Route::post('/get_remind_messages', [BoardController::class, 'getRemindMessage']);
-    Route::post('/get_unchecked_messages', [BoardController::class, 'getUncheckedMessage']);
     Route::post('/addable_board_members', [BoardController::class, 'addable_board_members']);
     Route::post('/get_file_list', [FileController::class, 'fetchFileList']); 
     Route::get('/incomplete_check', [BoardController::class, 'incomplete_check']);
@@ -193,7 +214,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::put('/task_sub_item', [TaskController::class, 'addSubTask']);  
     Route::put('/task_approve_request', [TaskController::class, 'task_approve_request']);
     Route::put('/task_approve', [TaskController::class, 'task_approve']);
-    Route::get('/task_not_approved', [TaskController::class, 'task_not_approved']);
     Route::put('/task_update_prize', [TaskController::class, 'task_update_prize']);
     Route::put('/task_update_flag', [TaskController::class, 'task_update_flag']);
     Route::put('/task_update_pin', [TaskController::class, 'task_update_pin']);
@@ -241,8 +261,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
             ]);
             return $update;
         }); 
-        Route::post('/get_planned_leaves', [UserController::class, 'get_planned_leaves']);
-
 
         Route::post('/get_posts', [PostController::class, 'get_posts']);
         Route::post('/delete_post', [PostController::class, 'delete_post']);
@@ -320,10 +338,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/cancel_time_card', [WorkController::class, 'cancelTimeCard']);
         Route::post('/attendance_confirm', [WorkController::class, 'attendanceConfirm']);
         Route::post('/attendance_delete', [WorkController::class, 'attendanceDelete']);
-        Route::post('/not_submitted', [WorkController::class, 'notSubmitted']);
         Route::post('/attendance_closed', [WorkController::class, 'attendanceClose']);
-        Route::post('/get_temp_data', [WorkController::class, 'get_temp_data']);
-        Route::get('/not_approved', [WorkController::class, 'not_approved']);
         Route::get('/work_badge', [WorkController::class, 'work_badge']);
         Route::post('/request_overtime', [WorkController::class, 'request_overtime']);
         Route::delete('/request_overtime', [WorkController::class, 'delete_overtime']);
@@ -339,6 +354,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/work_generate_csv', [WorkController::class, 'work_generate_csv']);
         Route::get('/check_break_time', [WorkController::class, 'check_break_time']);
         Route::put('/shift_add_department', [WorkController::class, 'shift_add_department']);
+        Route::post('/get_planned_leaves', [WorkController::class, 'get_planned_leaves']);
+
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
         Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);
@@ -421,7 +438,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/delete_project', [ProjectController::class, 'delete_project']);
         Route::put('/approve_outcome_goal', [ProjectController::class, 'approve_outcome_goal']);
         Route::put('/update_issue_report', [ProjectController::class, 'update_issue_report']);
-        Route::get('/project_not_approved', [ProjectController::class, 'project_not_approved']);
         Route::delete('/delete_issue', [ProjectController::class, 'delete_issue']);
         Route::get('/project_badge', [ProjectController::class, 'get_project_badge']);
         Route::get('/get_managing_projects', [ProjectController::class, 'get_managing_projects']);
@@ -433,9 +449,35 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_gantt_project_tasks', [TaskController::class, 'get_gantt_project_tasks']);
         
         Route::get('/get_custom_forms', [CustomFormController::class, 'get_custom_forms']);
+        Route::post('/duplicate_custom_form', [CustomFormController::class, 'duplicate_custom_form']);
         Route::post('/save_custom_form', [CustomFormController::class, 'save_custom_form']);
         Route::get('/get_survey', [CustomFormController::class, 'get_survey']);
         Route::post('/save_survey_answer', [CustomFormController::class, 'save_survey_answer']);
         Route::get('/get_survey_answers', [CustomFormController::class, 'get_survey_answers']);
         Route::delete('/delete_custom_form', [CustomFormController::class, 'delete_custom_form']);
+        Route::post('/get_authorized_users', [CustomFormController::class, 'get_authorized_users']);
+
+        //Contact
+        Route::post('contact_item', [ContactController::class, 'create_contact']);
+        Route::delete('contact_item', [ContactController::class, 'delete_contact']);
+        Route::post('upload_name_card', [ContactController::class, 'upload_name_card']);
+        Route::get('contact_list', [ContactController::class, 'contact_list']);
+        Route::get('google_test', [ContactController::class, 'index_test']);
+        Route::post('scan_card', [ContactController::class, 'scan_card']);
+        Route::get('get_contact_types', [ContactController::class, 'get_contact_types']);
+
+        // Remind
+        Route::get('/not_submitted', [RemindController::class, 'notSubmitted']);
+        Route::get('/get_unsigned_messages', [RemindController::class, 'getUnsignedUsers']);
+        Route::get('/get_unchecked_messages', [RemindController::class, 'getUncheckedMessage']);
+        Route::get('/task_not_approved', [RemindController::class, 'task_not_approved']);
+        Route::get('/project_not_approved', [RemindController::class, 'project_not_approved']);
+        Route::get('/not_approved', [RemindController::class, 'not_approved']);
+        Route::get('/get_temp_data', [RemindController::class, 'get_temp_data']);
+        Route::get('/get_remind_messages', [RemindController::class, 'getRemindMessage']);
+        Route::get('/get_not_started_tasks', [RemindController::class, 'get_not_started_tasks']);
+        Route::get('/get_not_completed_tasks', [RemindController::class, 'get_not_completed_tasks']);
+        Route::get('/get_remind_badge', [RemindController::class, 'get_remind_badge']);
+        Route::get('/get_not_answered_forms', [RemindController::class, 'get_not_answered_forms']);
+        
 });

@@ -20,7 +20,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name', 'email', 'email_or_phone', 
-        'phone', 'password','icon_id', 'login', 
+        'phone', 'password','icon_path', 'login', 
         'phone_isVerified', 'phone_prefix', 'q_token', 
         'is_public', 'color', 'language', 'work_email', 'footer_view', 'ical_key',
         'award_charge', 'general_position'
@@ -44,14 +44,14 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'position_id'    => 'int', 
         'office_id' => 'int',
-        'icon_id' => 'int',   
+        'icon_path' => 'string',   
         'hide_flag' => 'int',
         'partner_flag' => 'int',
         'award_charge' => 'int'
     ];
     public function friends()
     {
-        return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')->select('users.id', 'users.name', 'users.icon_id', 'users.q_token');
+        return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.q_token');
     }
     //board message relation
     public function message_records(){

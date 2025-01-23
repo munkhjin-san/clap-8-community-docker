@@ -10,9 +10,8 @@
                 <HamBurger v-if="responsive.mobile"/>
                 <div class="post-search-wrap">
                     <PostSearchBar 
-                        :searching="searching" 
                         @searchStart="searchStart"
-                        v-model="keyword" 
+                        :searching="searching"
                         className="newChatMemberSearch" 
                         :customPlaceHolder="`お知らせを検索`" 
                     />
@@ -76,8 +75,8 @@ import { useResponsive } from '@/store/responsive';
     const noticeData = ref(null)
     const pagerKey = ref(0)
     const page = ref(1)
-    const searching = ref(0)
     const keyword = ref('')
+    const searching = ref(0)
     const createWindow = ref(false)
     const editTarget = ref(null)
     const { confirm } = inject('dialog')
@@ -120,7 +119,8 @@ import { useResponsive } from '@/store/responsive';
         }
 
     }
-    const searchStart = () => {
+    const searchStart = (word) => {
+        keyword.value = word
         getNotices()
     }
     const setActivePage = (pagenum) => {

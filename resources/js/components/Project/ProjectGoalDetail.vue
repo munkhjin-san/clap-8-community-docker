@@ -13,7 +13,7 @@
                     </div>
                     <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">
                         
-                        <div class="goal-detail cursor-pointer" @click="chosenGoal = goal" style="position: relative;gap:10px;margin-bottom: 20px;">
+                        <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-more', params: { goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
                             <div>
                                 <div>該当部門</div>
                                 <div class="kadai-content flex items-center">
@@ -81,8 +81,24 @@
                 </div>
                     
             </div>
-            <Transition name="modalFade">
-                <ProjectGoalMore
+            
+            <!-- <Transition name="modalFade"> -->
+                <router-view v-slot="{ Component }">
+                    <transition name="modalFade">
+                        <component
+                            :is="Component" 
+                            :goal="chosenGoal"
+                            :memberData="memberData"
+                            :selectedProject="selectedProject"
+                            :isManagerOrMember="isManagerOrMember"
+                            :themeRecords="themeRecords"
+                            :selectedDate="selectedDate"
+                            :statuses="statuses"
+                        />
+                    </transition>
+                    
+                </router-view>
+                <!-- <ProjectGoalMore
                     v-if="chosenGoal" 
                     :goal="chosenGoal"
                     :memberData="memberData"
@@ -92,8 +108,8 @@
                     :selectedDate="selectedDate"
                     :statuses="statuses"
                     @close="chosenGoal = null"
-                />
-            </Transition>
+                /> -->
+            <!-- </Transition> -->
             <Transition name="modalFade">
                 <ProjectOutcomeGoal 
                     v-if="createOutcomeGoal"
@@ -110,7 +126,6 @@
 </template>
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router';
-import UserIcon from '../Board/Mixed/UserIcon.vue';
 import { computed, ref, onMounted, inject, watch, provide } from 'vue';
 import ItemMenu from '../Global/ItemMenu.vue';
 import axios from 'axios';
@@ -119,8 +134,6 @@ import { Dialog } from '@/interface/globalInterface';
 import ProjectOutcomeGoal from './ProjectGoalCreation.vue';
 import { ProjectGoal } from '@/interface/projectInterface';
 import { detailedDateOptions } from '@/utils/tools'
-import CommandButton from '../Global/CommandButton.vue';
-import ProjectGoalMore from './ProjectGoalMore.vue';
 import moment from 'moment';
 import { useBadgeStore } from '@/store/badge';
 const props = defineProps([
@@ -145,7 +158,6 @@ const editGoalData = ref<ProjectGoal | null>(null)
 // const selectedDate = inject('selectedDate') as Date
 const goalDate = ref('')
 const projectGoals = ref<ProjectGoal[]>([])
-const chosenGoal = ref<ProjectGoal | null>(null)
 const badge = useBadgeStore()
 const { notify, info, confirm } = inject<Dialog>('dialog')!;
 const statuses = [
@@ -155,9 +167,10 @@ const statuses = [
     '人事申請中', 
     '変更申請中', 
     '人事承認済', 
-    '報告中',
-    '未達成', 
-    '達成'
+    '報告進行中',
+    '報告承認待ち',
+    '報告差戻', 
+    '目標達成'
 ]
 watch(goalDate, async(newValue) => {
     if(newValue){
@@ -170,6 +183,9 @@ onMounted(async() => {
     setInitialDates()
     // await fetchMemberData()
     await getThemes()
+})
+const chosenGoal = computed(() => {
+    return route.params && route.params.goalId ? projectGoals.value.find(ob => ob.id == Number(route.params.goalId)) : null
 })
 const sliceGoal = (content: string) => {
     const truncatedGoal = content.length > 100 

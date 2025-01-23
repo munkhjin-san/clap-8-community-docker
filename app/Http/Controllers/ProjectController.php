@@ -12,6 +12,7 @@ use App\Models\SalaryIssue;
 use App\Models\ProjectGoal;
 use App\Models\User;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -36,7 +37,7 @@ class ProjectController extends Controller
         }
     }
     public function get_projects(Request $request) {
-        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString(); 
+        $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
         $evaluation_date = $request->evaluation_date;
         $projects = ProjectRecord::with([
                         'project_conditions' => function ($q) use($weekStartDate) {
@@ -117,7 +118,7 @@ class ProjectController extends Controller
 
         $project_goals = ProjectGoal::where('target_period', $request->target_period)
                                     ->where('user_id', $request->user_id)
-                                    ->with('project')
+                                    ->with(['project', 'files'])
                                     ->with(['salaryIssue' => function ($q) {
                                         $q->with('files');
                                     }])
@@ -238,9 +239,10 @@ class ProjectController extends Controller
         $request->validate([
             'id' => 'required',
         ]);
-        $update = ProjectGoal::findOrFail($request->id)
-                                ->update($request->params);
-        return response()->json($update);
+        $goal_report = ProjectGoal::findOrFail($request->id);
+        $goal_report->update($request->params);
+        $goal_report->files()->sync($request->file_ids);
+        return response()->json($goal_report);
     }
 
     public function apply_kadai(Request $request) {
@@ -254,7 +256,7 @@ class ProjectController extends Controller
                         ->where('partner_flag', 0)
                         ->whereNotNull('user_code')
                         ->where('hide_flag', 0)
-                        ->select('id', 'name', 'position_id', 'icon_id', 'user_code')
+                        ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg', 'user_code')
                         ->with(['evaluation' => function ($q) use($date) {
                             $q->where('date', $date)
                                 ->with('mentor');
@@ -575,142 +577,6 @@ class ProjectController extends Controller
         $issue_report->files()->sync($request->file_ids);
         return response()->json($issue_report);
     }
-    public function project_not_approved() {
-        $user = Auth::user();
-        if ($user->id === 631) {
-            $members = $this->getAdminMembers();
-        } elseif ($user->position_id == 6) {
-            $members = $this->getUserMembers($user->id);
-        } elseif ($user->position_id < 6) {
-            $members = $this->getUserManagers($user->id);
-        } else {
-            $members = $this->getUserMentors($user->id);
-        }
-        
-        return response()->json($members);
-    }
-    
-    private function getAdminMembers() {
-        return User::whereHas('outcome_goals', function ($query) {
-                $query->where('status', 3)
-                      ->orWhereHas('salaryIssue', function ($query) {
-                          $query->where('status', 3);
-                      });
-            })
-            ->orWhereHas('salary_issues', function ($query) {
-                $query->where('status', 3);
-            })
-            ->with([
-                'outcome_goals' => function ($query) {
-                    $query->where('status', 3)
-                          ->orWhereHas('salaryIssue', function ($query) {
-                              $query->where('status', 3);
-                          })
-                          ->with(['salaryIssue', 'project']);
-                },
-                'salary_issues' => function ($query) {
-                    $query->where('status', 3);
-                }
-            ])
-            ->get();
-    }
-    
-    private function getUserMembers($userId) {
-        return User::where(column: function ($query) use ($userId) {
-            $query->whereHas('salary_issues', function ($q) use ($userId) {
-                    $q->where('mentor_id', $userId)->where('status', 2);
-                });
-                
-            
-            $query->orWhereHas('outcome_goals', function ($q) use ($userId) {
-                    $q->where(function ($subQuery) {
-                        $subQuery->where('status', 2)
-                                ->orWhere('status', 4);
-                    })
-                    ->whereHas('project', function ($projectQuery) use ($userId) {
-                        $projectQuery->whereHas('manager', function ($directorQuery) use ($userId) {
-                            $directorQuery->where('users.id', $userId);
-                        });
-                    });
-                });
-        })
-        ->with([
-            'outcome_goals' => function ($query) use($userId) {
-                $query->where(function ($subQuery) {
-                        $subQuery->where('status', 2)
-                                ->orWhere('status', 4);
-                    })
-                    
-                    ->whereHas('project', function ($q) use($userId) {
-                        $q->whereHas('manager', function ($q) use($userId) {
-                            $q->where('users.id', $userId);
-                        });
-                    })
-                    ->orWhereHas('salaryIssue', function ($query) {
-                        $query->where('status', 2);
-                    })
-                    ->with(['salaryIssue', 'project.manager']);
-            },
-            'salary_issues' => function ($query) use($userId) {
-                $query->where('status', 2)
-                    ->where('mentor_id', $userId);
-            }
-        ])
-        ->get();
-    }
-    
-    private function getUserManagers($userId) {
-        return User::where(column: function ($query) use ($userId) {
-                    $query->whereHas('salary_issues', function ($q) use ($userId) {
-                        $q->where('mentor_id', $userId)->where('status', 2);
-                    });
-                    $query->orWhere('position_id', 6)
-                        ->whereHas('outcome_goals', function ($q) use ($userId) {
-                            $q->where('status', 2)
-                            ->whereHas('project', function ($projectQuery) use ($userId) {
-                                $projectQuery->whereHas('director', function ($directorQuery) use ($userId) {
-                                    $directorQuery->where('id', $userId);
-                                });
-                            });
-                        });
-                })
-                ->with([
-                    'outcome_goals' => function ($query) use($userId) {
-                        $query->where('status', 2)
-                            
-                            ->whereHas('project', function ($q) use($userId) {
-                                $q->whereHas('director', function ($q) use($userId) {
-                                    $q->where('id', $userId);
-                                });
-                            })
-                            ->orWhereHas('salaryIssue', function ($query) {
-                                $query->where('status', 2);
-                            })
-                            ->with(['salaryIssue', 'project.manager']);
-                    },
-                    'salary_issues' => function ($query) use($userId) {
-                        $query->where('status', 2)
-                              ->where('mentor_id', $userId);
-                    }
-                ])
-                ->get();
-    }
-    private function getUserMentors($userId) {
-        return User::whereHas('salary_issues', function ($query) use($userId) {
-                    $query->where('mentor_id', $userId)
-                        ->where('status', 2);
-                })->with([
-                    'outcome_goals' => function ($query) {
-                        $query->whereHas('salaryIssue', function ($q) {
-                            $q->where('status', 2);
-                        })->with(['salaryIssue', 'project']);
-                    },
-                    'salary_issues' => function ($query) {
-                        $query->where('status', 2);
-                    },
-                ])
-                ->get();
-    }
     public function delete_issue(Request $request) {
         $request->validate([
             'id' => 'required',
@@ -731,9 +597,37 @@ class ProjectController extends Controller
         } else {
             $response = $this->remindedBadges($user);
         }
+        
+        $task_counts = $this->project_task_badge($user);
+        $by_projects = $task_counts->groupBy('id')->mapWithKeys(function ($group, $key) {
+            return [$key => $group->count()];
+        })->toArray();
+        $total_task_badge = $task_counts->count();
+        $grouped_task_badge = $task_counts->flatMap(function ($project) {
+            return $project->tasks;
+        })->groupBy('id')->map->count();
+
+        foreach ($by_projects as $project_id => $count) {
+            if (isset($response['project_counts'][$project_id])) {
+                $response['project_counts'][$project_id] += $count;
+            } else {
+                $response['project_counts'][$project_id] = $count;
+            }
+        }
+
+        $response['total_sum'] += $total_task_badge;
+
+        $data = array_merge(
+            [
+            'by_projects' => $by_projects,
+            'grouped_task_badge' => $grouped_task_badge
+            ],
+            $response
+        );
+        
        
         
-        return response()->json($response);
+        return response()->json($data);
     }
     private function getMemberBadges($user, $date)
     {
@@ -752,7 +646,7 @@ class ProjectController extends Controller
             ->where(function ($query) use ($date) {
                 $query->whereIn('status', [2, 4])
                     ->orWhere(function ($subQuery) use ($date) {
-                        $subQuery->where('end_date', '<', $date)->where('status', 6);
+                        $subQuery->where('end_date', '<', $date)->where('status', 7);
                     });
             })
             ->orWhereHas('salaryIssue', function ($q) use ($user) {
@@ -782,7 +676,7 @@ class ProjectController extends Controller
             ->where(function ($query) use ($date) {
                 $query->whereIn('status', [2, 4])
                     ->orWhere(function ($subQuery) use ($date) {
-                        $subQuery->where('end_date', '<', $date)->where('status', 6);
+                        $subQuery->where('end_date', '<', $date)->where('status', 7);
                     });
             })
             ->orWhereHas('salaryIssue', function ($q) use ($user) {
@@ -798,7 +692,10 @@ class ProjectController extends Controller
     private function remindedBadges($user) {
         $goals = ProjectGoal::where(function ($query) use ($user) {
                     $query->where('user_id', $user->id)
-                        ->where('status', 1);
+                        ->where(function ($q) {
+                            $q->where('status', 1)
+                            ->orWhere('status', 8);
+                        });
                 })->orWhereHas('salaryIssue', function ($q) use ($user) {
                     $q->where('status', 2)->where('mentor_id', $user->id);
                 })
@@ -836,7 +733,7 @@ class ProjectController extends Controller
 
     public function get_managing_projects(Request $request)
     {
-        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString(); 
+        $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
         $projects = ProjectRecord::whereDoesntHave('project_conditions', function ($q) use($weekStartDate, $request) {
             $q->where('user_id', $request->user()->id)
                 ->where('week_start_date', $weekStartDate);
@@ -854,7 +751,7 @@ class ProjectController extends Controller
         ]);
 
         $userId = $request->user()->id; 
-        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString();  
+        $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString();  
 
         foreach ($validated['selected'] as $item) {
             ProjectCondition::updateOrCreate(
@@ -870,5 +767,27 @@ class ProjectController extends Controller
         }
 
         return response()->json(['message' => 'Project conditions updated successfully.'], 200);
+    }
+    public function project_task_badge($user) {
+        $badge_counts = ProjectRecord::whereHas('tasks', function ($q) use ($user) {
+            $q->whereHas('taskUsers', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->whereHas('taskRecord.comments', function ($commentQuery) use ($user) {
+                        $commentQuery->whereColumn('task_comments.created_at', '>', 'task_users.checked_at')
+                                    ->whereNot('task_comments.user_id', $user->id);
+                    });
+            });
+        })->with(['tasks' => function ($q) use ($user) {
+            $q->whereHas('taskUsers', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->whereHas('taskRecord.comments', function ($commentQuery) use($user) {
+                        $commentQuery->whereColumn('task_comments.created_at', '>', 'task_users.checked_at')
+                                    ->whereNot('task_comments.user_id', $user->id);
+                    });
+            });
+        }])->get();
+        
+
+        return $badge_counts;
     }
 } 

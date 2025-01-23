@@ -4,7 +4,7 @@
             <div :class="['request-container', {editIsOn:editing}]">
                 
                 <div style="display:flex;align-items:center;position:relative;margin-bottom: 10px;">                      
-                    <UserIconPreLoad :disableInstant="true" v-if="message.user" size="30" :user="message.user" imgClass="userNormalIcon"/>    
+                    <UserPanel :disableInstant="true" v-if="message.user" size="30" :user="message.user" imgClass="userNormalIcon"/>    
                     <div v-else>
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" width="30" height="30" imgClass="userNormalIcon">
                             <circle cx="15" cy="15" r="15" fill="#ddd"/>
@@ -51,7 +51,7 @@
                         border-radius: 0px;
                         background: var(--primary-button);
                         color: #fff;
-                        margin-top:10px;" @click="emit('remindRequest', message)" >リマインドから外す</button>        
+                        margin-top:10px;" @click="remindRequest" >リマインドから外す</button>        
                
                <div v-if="message.deleted_at == null" class="message-foot-area">
                     <div style="display:flex;width: fit-content;">                    
@@ -62,7 +62,7 @@
                         </div>
                         <div v-if="message.reacted_users.length" @click.stop="viewReactedUsersList" style="display:flex;padding: 10px;margin: 5px 0 -15px -15px;height: 15px;">
                             <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in reactedUsersListAll.slice(0,3)">  
-                                <UserIconPreLoad :title="user.name" :disableInstant="true" size="30" :user="user" imgClass="userSmallIcon"/>                                         
+                                <UserPanel :title="user.name" :disableInstant="true" size="15" :user="user" imgClass="userSmallIcon"/>                                         
                             </div>
                             <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="reactedUsersListAll.length > 3">...({{reactedUsersListAll.length}})</span>
                         </div>                                    
@@ -84,7 +84,6 @@ import MessageQuoteReply from "./MessageQuoteReply.vue";
 import MessageFiles from "./MessageFiles.vue";
 import moment from 'moment';
 import Autolinker from 'autolinker';
-import UserIconPreLoad from '../Mixed/UserIcon.vue'
 import { computed, inject, onMounted, ref } from "vue";
 import { useAuthUserStore } from '@/store/auth'
 import { useMessageUsers } from "../../../store/messageUsers";
@@ -92,18 +91,20 @@ import { mentionFormatter } from "@/utils/tools";
 import ItemMenu from "@/components/Global/ItemMenu.vue";
 import MessageEditor from "./MessageEditor.vue";
 import { useMenuStore } from "@/store/menu";
+import UserPanel from "@/components/Global/UserPanel.vue";
+import { useBadgeStore } from "@/store/badge";
     const auth = useAuthUserStore()
     const messageUsers = useMessageUsers()
     const props = defineProps(['message', 'openedBoard', 'boxClass'])
-    const emit = defineEmits(['remindRequest'])
+    const emit = defineEmits(['getRemindMessages', 'getUncheckedMessages'])
     const reacting = ref(false)
     const { notify, confirm, info } = inject('dialog')
-    const get_incomplete = inject('getUncheckedMessages')
     const editing = ref(false)
     const truncate = ref(null)
     const menu = useMenuStore()
     const dynamicHeight = ref('auto')
     const messageBodyRef = ref(null)
+    const badge = useBadgeStore()
     onMounted(() => {
         if (messageBodyRef.value) {
             if(messageBodyRef.value?.clientHeight > 170){
@@ -211,7 +212,8 @@ import { useMenuStore } from "@/store/menu";
             reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
         try{
             const response = await axios.post('/send_reaction_api', {id: msg.id})
-            await get_incomplete()
+            emit('getUncheckedMessages')
+            emit('getRemindMessages')
             const checkedMessage = response.data
             if(checkedMessage.check_flag == 1){
                 const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
@@ -221,8 +223,9 @@ import { useMenuStore } from "@/store/menu";
                     const confirmed = await confirm('確認済みにしますか')
                     if(confirmed){
                         await axios.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
-                        await get_incomplete() 
-                        info('確認済みにしました。')      
+                        emit('getUncheckedMessages')
+                        info('確認済みにしました。') 
+                        badge.getRemindBadge()     
                     }
 
                 }
@@ -241,7 +244,18 @@ import { useMenuStore } from "@/store/menu";
         link.click();   
         link.remove();
     } 
-              
+    const remindRequest = async () => {
+        try {
+            const response = await axios.post('/remind_add', { id: props.message.id }).then(res => res.data)
+            const message = response ? 'リマインドしました。' : 'リマインドを取り消しました。'
+            info(message)
+        } catch (e) { 
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        } finally {
+            emit('getRemindMessages')
+            badge.getRemindBadge()
+        }     
+    }          
    
 </script>
 <style scoped lang="scss">

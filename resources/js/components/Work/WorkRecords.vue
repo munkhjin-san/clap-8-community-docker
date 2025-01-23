@@ -72,7 +72,7 @@ import WorkRecordRow from './WorkRecordRow.vue';
 import WorkProcedureButtons from './WorkProcedureButtons.vue'
 import OverTimeRequest from './OverTimeRequest.vue';
 import WorkRecordTotal from './WorkRecordTotal.vue'
-import { useCheckApproval } from '../../store/checkApproval';
+import { useBadgeStore } from '@/store/badge';
     const auth = useAuthUserStore()
     const props = defineProps([
         'monthAverage',
@@ -86,8 +86,8 @@ import { useCheckApproval } from '../../store/checkApproval';
     const overTimeRequestData = ref(null)
     const { confirm, notify, info } = inject('dialog')
     const emit = defineEmits(['reload'])
-    const checkApproval = useCheckApproval()
     const tempItem = ref(null)
+    const badge = useBadgeStore()
     const holidays = computed(() => {
         const holidays = holiday_jp.between(new Date(props.selectedYear + '-01-01'), new Date(props.selectedYear + '-12-31'));
         return holidays
@@ -100,7 +100,7 @@ import { useCheckApproval } from '../../store/checkApproval';
         tempItem.value = null
         const targets = [dailyApproval, timeCardRemand, dailyCancel, overtTimeRequest]
         targets[value](item)
-        checkApproval.setCheckApproval(true)
+        badge.getRemindBadge()
     }
     const overtTimeRequest = (item) => {
         overTimeRequestData.value = item

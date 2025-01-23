@@ -17,8 +17,7 @@
                 <PostSearchBar 
                     className="newChatMemberSearch" 
                     customPlaceHolder="ユーザーの検索" 
-                    :searching="false" 
-                    v-model="keyword"
+                    @search-start="(word) => {keyword = word}"
                 />
             </div>            
             <div style="height: -webkit-fill-available;user-select: none;overflow: hidden auto;">
@@ -26,7 +25,7 @@
                         <div class="suggested-list">
                             <div :key="user.id" v-for="user in filteredMembers">
                                 <div @click="selectedMember = user.id" class="suggested-wrap" :style="{backgroundColor: selectedMember === user.id ? 'var(--bg2)' : ''}">
-                                    <UserIcon :user="user" imgClass="userNormalIcon" size="30"/>
+                                    <UserPanel :user="user" imgClass="userNormalIcon" size="30"/>
                                     <div class="suggested-user-name">
                                         <div>{{ user.name }}</div>
                                         <div v-if="selectedMember === user.id" style="margin-top: 10px;">
@@ -63,7 +62,7 @@
 import PostSearchBar from '../Post/PostSearchBar.vue'
 import { computed, inject, nextTick, onMounted, ref } from 'vue'
 import CommandButton from '../Global/CommandButton.vue';
-import UserIcon from './Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import moment from 'moment';
 import ShortInput from '../Form/ShortInput.vue';
     const props = defineProps(['item'])

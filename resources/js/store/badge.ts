@@ -6,7 +6,8 @@ interface State {
     post: number
     task: number[]
     notice: number
-    project: any
+    project: any,
+    remind: any,
 }
 
 export const useBadgeStore = defineStore('badge', {
@@ -16,6 +17,7 @@ export const useBadgeStore = defineStore('badge', {
         task: [],
         notice: 0,
         project: [],
+        remind: {}
     }),
     actions: {
         setTaskBadge(payload: number[]){
@@ -54,6 +56,10 @@ export const useBadgeStore = defineStore('badge', {
         async getProjectBadge(){
             const data = await axios.get('/project_badge').then(response => response.data)
             this.project = data
+        },
+        async getRemindBadge() {
+            const data = await axios.get('/get_remind_badge').then(response => response.data)
+            this.remind = data
         }
     },
     getters: {
@@ -102,9 +108,10 @@ export const useBadgeStore = defineStore('badge', {
                     sum = sum + p.list[i];
                 }
             });
-            const projectBadge = this.project.total_sum;  
+            const projectBadge = this.project.total_sum;
+            const remindBadge = this.remind.total
             const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : this.post; 
-            sum = sum + postBadge + projectBadge
+            sum = sum + postBadge + projectBadge + remindBadge
             return sum
         }
     }

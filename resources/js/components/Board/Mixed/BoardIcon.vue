@@ -1,7 +1,7 @@
 <template>
     <div >
         <img v-if="item.private_flag == 0 && boardIcon" draggable="false" loading="lazy" :class="[imgClass]" :src="boardIcon" :style="imgStyle">
-        <UserIcon v-if="item.private_flag > 0 && correspondUser" :disableInstant="true" :user="correspondUser" :imgClass="imgClass" size="45"/>
+        <UserPanel v-if="item.private_flag > 0 && correspondUser" :disableInstant="true" :user="correspondUser" :imgClass="imgClass" size="45"/>
         <svg v-if="!boardIcon && !correspondUser" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
             <circle cx="15" cy="15" r="15" fill="#ddd"/>
         </svg>
@@ -9,7 +9,7 @@
 </template>
 <script setup>
 import { computed } from 'vue';
-import UserIcon from './UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { useAuthUserStore } from '@/store/auth'
     const auth = useAuthUserStore()
     const props = defineProps(['item', 'imgClass', 'imgStyle'])
@@ -25,13 +25,18 @@ import { useAuthUserStore } from '@/store/auth'
         return null
     })
     const boardIcon = computed(() => {
-        if (props.item.icon_text) {
-            const color = encodeURIComponent(props.item.icon_bg);
+        if (props.item.icon_path) {
+            return `/board_icon_thumbnail/${props.item.icon_path}`
+        } else if (props.item.icon_text) {
+            const color = encodeURIComponent(props.item?.icon_bg ?? '#000');
             const noSpace = props.item.icon_text?.replace(/[\s　]/g, '');   
             const basePath = '/board_default_thumbnail'
             return `${basePath}/${noSpace}/45/${color}`; 
-        } else if(props.item.icons) {
-           return `/cdn/board_icon/board_${props.item.icon_id}.${props.item.icons.extension}`;
+        } else  {
+            const color = encodeURIComponent('#000');
+            const noSpace = props.item.title?.replace(/[\s　]/g, '');   
+            const basePath = '/board_default_thumbnail'
+            return `${basePath}/${noSpace}/45/${color}`;
         }
     })   
 </script>

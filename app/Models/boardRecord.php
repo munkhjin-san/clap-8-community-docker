@@ -11,7 +11,7 @@ class boardRecord extends Model
    
     //ユーザー情報取得リレーション
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function board_to_users(){
         return $this->hasMany(boardToUser::class, 'record_id');
@@ -22,7 +22,7 @@ class boardRecord extends Model
         ->wherePivot('deleted_status', 0)
         ->wherePivotNull('deleted_at')
         ->where('retire', 0)
-        ->select(['users.id', 'users.name','users.icon_id', 'users.email', 'users.name_kana', 'users.on_leave']);
+        ->select(['users.id', 'users.name','users.icon_path', 'users.icon_bg', 'users.icon_bg', 'users.email', 'users.name_kana', 'users.on_leave']);
     }
     public function messages(){
         return $this->hasMany(messageRecord::class, 'record_id');
@@ -38,23 +38,23 @@ class boardRecord extends Model
         ->withExists('message_files');
     }
     public function icons(){
-        return $this->hasOne(Icons::class, 'id', 'icon_id');
+        return $this->hasOne(Icons::class, 'id', 'icon_path');
     }
     public function project(){
         return $this->hasOne(ProjectRecord::class, 'board_id', 'id')->select(['id', 'board_id', 'name']);
     }
     protected $casts = [        
         'user_id' => 'int',  
-        'icon_id' => 'int', 
         'private_flag' => 'int', 
         'app_type' => 'int'        
          
     ];
     protected $fillable = [
         'q_token',
-        'icon_id',
+        'icon_path',
         'title',
         'icon_bg',
-        'icon_text'
+        'icon_text',
+        'icon_bg'
     ];
 }

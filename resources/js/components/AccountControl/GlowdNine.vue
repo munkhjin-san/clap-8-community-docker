@@ -4,8 +4,7 @@
             <PostSearchBar 
                 className="newChatMemberSearch" 
                 style="width:auto;min-width: 300px;"
-                :searching="false"  
-                v-model="keywords"
+                @search-start="(word) => {keywords = word}"
             />   
             <div style="align-self: center;">
               <div style="display: flex;align-items: center;">

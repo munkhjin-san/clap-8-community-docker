@@ -11,9 +11,9 @@ import { computed, inject } from 'vue';
 
     const props = defineProps(['user', 'imgClass', 'imgStyle', 'size', 'disableInstant']) 
     const userIcon = computed(() => {
-        if(props.user && props.user.icon_id){
+        if(props.user && props.user.icon_path){
             const devicePixelRatio = window.devicePixelRatio || 1;
-            const imageFileName = devicePixelRatio > 1 ? `${props.user.icon_id}_${props.user.id}_200.jpg` : `${props.user.icon_id}_${props.user.id}_${props.size ? props.size : '30'}.jpg`
+            const imageFileName = devicePixelRatio > 1 ? `${props.user.icon_path}_${props.user.id}_200.jpg` : `${props.user.icon_path}_${props.user.id}_${props.size ? props.size : '30'}.jpg`
             return `${window.location.origin}/cdn/profile_icon/${imageFileName}`;
             
         }else{

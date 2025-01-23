@@ -21,7 +21,7 @@
             </div>
             <div :id="'reply_' + message.id" class="message-top-block">
                 <div style="display: flex;align-items: center;gap:10px">
-                    <UserIcon size="30" :user="message.user" imgClass="userNormalIcon"/>                   
+                    <UserPanel size="30" :user="message.user" imgClass="userNormalIcon"/>                   
                     <div @click.stop="pushInstantUser($event, message.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ messageUserName }}</div>     
                 </div>    
                 <div class="messageIconContainer"></div>                  
@@ -136,7 +136,7 @@ import FileIcon from '../Mixed/FileIcon.vue';
 import { computed, inject, onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useTempUnique } from '@/store/tempUnique';
-import UserIcon from '../Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { mentionFormatter } from '@/utils/tools';
         const auth = useAuthUserStore()
         const tempUnique = useTempUnique()

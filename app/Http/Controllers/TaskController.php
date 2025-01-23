@@ -12,6 +12,7 @@ use App\Models\TaskComment;
 use App\Services\SharedService;
 use App\Jobs\TaskCreated;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\File;
@@ -85,6 +86,8 @@ class TaskController extends Controller
         $task->supervisors()->syncWithPivotValues($request->supervisors, ['supervisor' => 1]);
         if ($request->sync_to_schedule) {
             $this->sharedService->syncTaskToCalendar($task, $request->qualified_users);
+        } else {
+            $this->sharedService->deleteTaskFromCalendar($task);
         }
         $pivotData = [];
         foreach ($request->qualified_users as $qualified_user) {
@@ -365,7 +368,7 @@ class TaskController extends Controller
         ]);
         $user_id = $request->user_id;
         $progress_flag = $request->progress_flag;
-        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString(); 
+        $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
         $projects = ProjectRecord::where('id', $request->id)
         ->with(['members', 'manager', 'director', 'tasks' => function($q) use($user_id, $progress_flag, $weekStartDate) {
             $q->whereNull('parent_task_id')->when($user_id, function($q)use($user_id, $progress_flag){
@@ -400,7 +403,7 @@ class TaskController extends Controller
 
         $unit = $request->unit;
         
-        $weekStartDate = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString(); 
+        $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
 
         $fromInstance = Carbon::parse($request->from);
         $toInstance = Carbon::parse($request->to);
@@ -525,22 +528,6 @@ class TaskController extends Controller
         return response()->json($task_user);
     }
 
-    public function task_not_approved(){
-        $active_user = $this->active_user();
-        $tasks = taskRecord::where('comp_flag', 0)
-                            ->whereHas('supervisors', function ($q) use($active_user) {
-                                $q->where('users.id', $active_user->id)
-                                    ->where('supervisor', 1);
-                            })
-                            ->whereHas('executors', function ($q) {
-                                $q->where('status_flag', 1);
-                            })
-                            ->with(['executors' => function ($q) {
-                                $q->where('status_flag', 1);
-                            }])
-                            ->get();
-        return response()->json($tasks);
-    }
     public function task_update_prize(Request $request) {
         $request->validate([
             'task_id' => 'required',

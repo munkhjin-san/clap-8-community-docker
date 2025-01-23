@@ -7,7 +7,11 @@ export default {
         "./resources/**/*/*.vue",
     ],
     theme: {
-        extend: {},
+        extend: {
+            screens: {
+                'sm959' : '960px'
+            }
+        },
     },
     corePlugins: {
         preflight: false, 

@@ -4,13 +4,14 @@
             <div style="position: sticky; top:0;background: var(--bg3);z-index: 2;">
                 <div class="sub-tab-container">
                     <div @click="byWorkGroups = 0" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 0}]">メンバー</div>
-                    <div @click="byWorkGroups = 1, checkedUsers = []" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">プロジェクト</div>
+                    <div @click="byWorkGroups = 1" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">プロジェクト</div>
+                    <div v-if="auth.activeUser.id === 610" @click="byWorkGroups = 2" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 2}]">車両</div>
                 </div>
                 <div class="searchBarInner" style="margin: 10px 15px 0;width: auto;min-width: 270px"> 
                     <PostSearchBar  
                         className="newChatMemberSearch" 
-                        :searching="false" 
-                        v-model="keywords"
+                        @search-start="(word) => {keywords = word}"
+                        :custom-place-holder=placeHolder
                     />
                 </div> 
             </div>         
@@ -25,7 +26,7 @@
                         </div>
                     </label>  
                 </div>    
-                <div :key="group.id" v-for="group in searchUsers" style="padding:0 15px;display:flex;">
+                <div v-if="byWorkGroups !== 2" :key="group.id" v-for="group in searchUsers" style="padding:0 15px;display:flex;">
                     <div v-if="group.members && group.members.length">
                         <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
                             <input :value="group.id" :checked="selectedGroups.includes(group.id)" @change="value = group.members.map(ob => ob.id).concat(group.manager.map(manager => manager.id)), selectGroup(group.id)" name="memberCheckBox" type="checkbox">
@@ -39,8 +40,7 @@
                                 <input v-model="value" :value="member.id" name="memberCheckBox" type="checkbox">
                                 <span class="work-check-mark" style="top: 10px;"></span>
                                 <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                    <UserIcon :disable-instant="true" size="30" :title="member.name" :user="member" imgClass="userNormalIcon"/>                      
-                                    <p class="userName">{{member.name}}</p>                                    
+                                    <UserPanel :disable-instant="true" :with-name="true" size="30" :title="member.name" :user="member" imgClass="userNormalIcon"/>                      
                                 </div>
                             </label>
                         </div>
@@ -50,13 +50,21 @@
                             <input v-model="value" :value="group.id" name="memberCheckBox" type="checkbox">
                             <span class="work-check-mark" style="top: 10px;"></span>
                             <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                <UserIcon :disable-instant="true" size="30" :title="group.name" :user="group" imgClass="userNormalIcon"/>                      
-                                <p class="userName">{{group.name}}</p>                                    
+                                <UserPanel :disable-instant="true" size="30" :with-name="true" :title="group.name" :user="group" imgClass="userNormalIcon"/>                      
                             </div>
                         </label>
                     </div>
                 </div>
-            </div> 
+                <div v-else v-for="vehicle in searchVehicles" style="padding:0 15px;display:flex;">
+                    <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
+                        <input :value="vehicle.value" v-model="vehicles" name="memberCheckBox" type="checkbox">
+                        <span class="work-check-mark" style="top: 13px;"></span>
+                        <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
+                            <p class="userName" style="line-height: 30px; margin-left: 0;">{{vehicle.label}}</p>                                    
+                        </div>
+                    </label>
+                </div>
+            </div>
             <div v-else-if="byUserOrGroup.length" style="height: calc(100% - 128px); display: flex; align-items: center; justify-content: center;white-space: nowrap;font-size: 13px;padding: 30px;">
                 検索結果はありません。
             </div>
@@ -68,12 +76,18 @@
 </template>
 <script setup>
 import PostSearchBar from '../Post/PostSearchBar.vue';
-import UserIcon from '../Board/Mixed/UserIcon.vue';
+import UserPanel from '../Global/UserPanel.vue';
 import { computed, ref } from 'vue';
+import { vehicleAsOptions } from '@/utils/workApi';
+import { useAuthUserStore } from '@/store/auth';
     const props = defineProps(['workUsers', 'workGroups', 'customStyle'])
+    const auth = useAuthUserStore()
     const byWorkGroups = ref(0)
     const keywords = ref('')
     const selectedGroups = ref([])
+    const placeHolder = computed(() => {
+        return byWorkGroups.value === 1 ? 'プロジェクト検索' : byWorkGroups.value === 2 ? '車両検索' : 'メンバー検索'
+    })
     const searchUsers = computed(() => {
         if(keywords.value && Array.isArray(byUserOrGroup.value)){
             let lowSearch = keywords.value.toLowerCase()
@@ -85,6 +99,18 @@ import { computed, ref } from 'vue';
         }else{         
             return byUserOrGroup.value
         }
+    })
+    const searchVehicles = computed(() => {
+        if (keywords.value) {
+            let lowSearch = keywords.value.toLowerCase()
+            return vehicleAsOptions.filter(vehicle =>
+                vehicle.label.toLowerCase().includes(lowSearch)
+            )
+        } 
+        
+        return vehicleAsOptions
+    
+        
     })
     const byUserOrGroup = computed(() => {
         if(byWorkGroups.value == 0){
@@ -105,7 +131,8 @@ import { computed, ref } from 'vue';
             selectedGroups.value = [groupId];
         }
     }
-    const value = defineModel()
+    const value = defineModel('users')
+    const vehicles = defineModel('vehicles')
 </script>
 <style scoped lang="scss">
     .sub-tab-item{

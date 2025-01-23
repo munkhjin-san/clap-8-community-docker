@@ -7,7 +7,7 @@
                 <div class="project-cell">戦略</div>
                 <div class="project-cell">期間</div>
                 <div class="project-cell">取締役</div>
-                <div class="project-cell">管理者</div>
+                <!-- <div class="project-cell">管理者</div> -->
                 <div class="project-cell">メンバー</div>
                 <div class="project-cell">アクション</div>
             </div>
@@ -42,20 +42,20 @@
                 <div class="project-cell">
                     <div v-if="project?.date_start">{{ project.date_start }} ～ {{ project.date_end }}</div>
                 </div>
-                <div class="project-cell">
+                <!-- <div class="project-cell">
                     <div>
-                        <UserIcon v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="30"/>
+                        <UserPanel v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="20"/>
                     </div>
-                </div>
+                </div> -->
                 <div class="project-cell">
                     <div style="display: flex;" @click="viewUsers(project.manager)">
-                        <UserIcon v-for="member in project.manager" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
+                        <UserPanel v-for="member in project.manager" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
                     </div>
                 </div>
                 <div class="project-cell">
                     <div style="display: flex;" @click="viewUsers(project.members)">
                         <div style="display: flex;" >
-                            <UserIcon v-for="member in project.members.slice(0, 5)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="30"/>
+                            <UserPanel v-for="member in project.members.slice(0, 5)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
                         </div>
                         <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 5">...({{project.members.length}})</span>
                     </div>
@@ -91,7 +91,7 @@
 <script setup lang="ts">
 import FloatButton from '@/components/Global/FloatButton.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
-import UserIcon from '@/components/Board/Mixed/UserIcon.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
 import { computed, inject, onMounted, ref } from 'vue';
 
 import { Project } from '@/interface/projectInterface';

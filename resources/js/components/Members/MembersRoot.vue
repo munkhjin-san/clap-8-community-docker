@@ -11,8 +11,7 @@
             <HamBurger v-if="responsive.mobile"/>
             <div class="calendar-search-wrap" id="memberSearchResultWindow" >
                 <PostSearchBar 
-                    v-model="keyword"  
-                    :searching="searching"
+                    @search-start="(word) => {keyword = word}"
                     className="newChatMemberSearch" 
                     :customPlaceHolder="`メンバーを検索`"
                 />               
@@ -75,7 +74,6 @@ import { useResponsive } from '@/store/responsive';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const memberList = ref([])
-    const searching = ref(false)
     const keyword = ref('')
     const sortByShokkai = ref(false)
     const initialLoader = ref(true)

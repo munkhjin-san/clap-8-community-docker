@@ -44,6 +44,7 @@ import { nextTick, onMounted, ref, useTemplateRef } from 'vue'
 import { inject } from 'vue';
 
 import GanttTaskCommentItem from '@/components/Task/Gantt/GanttTaskCommentItem.vue'
+import { useBadgeStore } from '@/store/badge';
 const props = defineProps<{
   task: Task
 }>()
@@ -53,7 +54,7 @@ const {refreshProject} = inject(GanttProjectMethodsKey) as GanttProjectMethods
 const editingCommentId = ref(null)
 const commentParent = useTemplateRef('commentParent')
 const commentText = useTemplateRef('commentText')
-
+const badge = useBadgeStore()
 onMounted(() => {
     scrollToEnd('instant')
     updateChecked()
@@ -61,6 +62,7 @@ onMounted(() => {
 const updateChecked = async() => {
     await axios.post('/update_task_comment_check', {task_id: props.task.id})
     refreshProject({})
+    badge.getProjectBadge()
 }
 const send = async() => {
     const text = commentText.value?.innerText

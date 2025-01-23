@@ -13,8 +13,10 @@ interface subUser {
     position_id: number
     id: number | null
     name: string| null
-    icon_id: number | null
+    icon_path: string | null
     linkable: boolean | false
+    user_code: number
+    icon_bg: string | null
 }
 interface User{
   id: number | null
@@ -24,10 +26,12 @@ interface User{
   sign_path: string | null
   color: number | null
   ical_key: string | null
-  icon_id: number | null
+  icon_path: string | null
   position_id: number | null
   work_authority: number | null
   linkable: boolean | false
+  linked: User[]
+  icon_bg: string | null
 }
 interface Weather{
   value_int: number | null

@@ -14,9 +14,6 @@
         </div>
         <div class="post-header" >
             <HamBurger v-if="responsive.mobile"/>
-            <!-- <div class="post-search-wrap">
-                <PostSearchBar className="newChatMemberSearch" customPlaceHolder="検索"/>
-            </div> -->
             <div class="post-search-wrap">
                 <p style="color:gray;">研修のテーマを選択してください。</p>
             </div>            

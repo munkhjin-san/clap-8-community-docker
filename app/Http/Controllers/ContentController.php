@@ -92,13 +92,34 @@ class ContentController extends Controller
             'Expires' => gmdate('D, d M Y H:i:s \G\M\T', time() + 2628000),
         ]);
     }
-    public function user_default_thumbnail($char, $size, $color = 'light'){      
+    public function user_icon_thumbnail($path, $size, $color = '000000'){   
+        if($size == 'original'){
+            $path = storage_path('app/profile_icon_migrated/' . $path . '_original.webp' );
+            if (!file_exists($path)) {
+                $bg = $color;
+                $blank = Image::create(200, 200)->fill($bg)->resize(200, 200);
+                return $this->image_response($blank);  
+            }
+            $img = Image::read($path);
+            return $this->image_response($img);  
+        }else{
+            $path = storage_path('app/profile_icon_migrated/' . $path . '.webp' );
+            if (!file_exists($path)) {
+                $bg = $color;
+                $blank = Image::create(200, 200)->fill($bg)->resize($size, $size);
+                return $this->image_response($blank);  
+            }
+            $img = Image::read($path)->resize($size, $size);
+            return $this->image_response($img);          
+        }        
+    }
+    public function user_default_thumbnail($char, $size, $color = '#000'){      
         
         $regex = '/[А-Яа-яЁёөү]/u';
         $is_mn = preg_match($regex, $char);
         $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';
-        $bg = $color === 'light' ? '#000' : '#ddd';
-        $text_color = $color === 'light' ? '#fff' : '#000';
+        $bg = $color;
+        $text_color = '#fff';
         $resize = $size ? (int) $size : 30;
         $cacheKey = 'chat_image_' . md5($char.$color.$size);
         if (Cache::has($cacheKey)) {
@@ -164,6 +185,16 @@ class ContentController extends Controller
         }     
         $imagedata = (string) $img->toWebp();     
         Cache::put($cacheKey, (string) $imagedata, 2628000);
+        return $this->image_response($img);
+    }
+    public function board_icon_thumbnail($path, $size = 45, $color = 'light'){ 
+        $path = storage_path('app/board_icon_migrated/' . $path . '.webp' );
+        if (!file_exists($path)) {
+            $bg = $color === 'light' ? '#000' : '#ddd';
+            $blank = Image::create(200, 200)->fill($bg)->resize($size, $size);
+            return $this->image_response($blank);
+        }
+        $img = Image::read($path)->resize($size, $size);
         return $this->image_response($img);
     }
 }

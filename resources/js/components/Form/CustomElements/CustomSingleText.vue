@@ -8,10 +8,11 @@
                         <label class="flex items-center gap-[5px] text-[12px] cursor-pointer whitespace-nowrap">
                             <input type="checkbox" v-model="block.is_required"/>
                             必須
-                        </label>                                        
+                        </label>
                     </div>                                
                 </div> 
             </div>
+            <input placeholder="プレースホルダー" class="custom-o-input" back type="text" ref="checkboxes" v-model="block.placeholder"/>                                                                             
         </div>
     </div>
 </template>

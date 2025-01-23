@@ -10,7 +10,7 @@
         <div class="post-second-wrap">
             <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers}]">
                 <RouterLink class="user-link" :to="`${route.name}?member=${record.user.name}`" v-if="record.app_type !== 2" style="display:flex;align-items: center;cursor: pointer;">
-                    <UserIcon :user="record.user" :disableInstant="true" imgClass="userNormalIcon" size="30"/>
+                    <UserPanel :user="record.user" :disableInstant="true" imgClass="userNormalIcon" size="30"/>
                     <p class="userName">{{ record.user ? record.user.name : '' }}</p>
                 </RouterLink>              
                 <div v-if="record.app_type == 2 || record.app_type == 0" style="position: relative;">
@@ -20,7 +20,7 @@
                         </svg>
                         <div ref="toUsersRef" :class="['toUserListContainer', {expandToUserListContainer : expand}]">   
                             <RouterLink class="user-link" :to="`${route.name}?member=${user.name}`" :key="user.id" v-for="user in record.to_users" style="display: flex;align-items: center;cursor: pointer;">                                                    
-                                <UserIcon size="30" :disableInstant="true"  :user="user" :imgClass="isMultipleUsers ? 'toUsersIconSmall' : 'toUsersIcon'"/>                               
+                                <UserPanel size="30" :disableInstant="true"  :user="user" :imgClass="isMultipleUsers ? 'toUsersIconSmall' : 'toUsersIcon'"/>                               
                                 <p style="width: max-content;" class="userName">{{ user.name }}</p>    
                             </RouterLink>                                                              
                         </div>
@@ -103,7 +103,7 @@
     </div>
 </template>
 <script setup>
-import UserIcon from '../Board/Mixed/UserIcon.vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
 import PostDate from './PostDate.vue'
 import Autolinker from 'autolinker';
 import PostTag from './PostTag.vue';

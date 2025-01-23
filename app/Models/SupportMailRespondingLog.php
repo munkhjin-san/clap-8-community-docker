@@ -9,7 +9,7 @@ class SupportMailRespondingLog extends Model
 {
     use HasFactory;
     public function user(){
-        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_id');
+        return $this->hasOne(User::class, 'id', 'user_id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
     protected $fillable = [
         'text', 'record_id', 'user_id'

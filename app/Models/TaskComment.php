@@ -10,7 +10,7 @@ class TaskComment extends Model
     use HasFactory;
     protected $guarded = [];
     public function user(){
-        return $this->belongsTo(User::class)->select('id', 'name', 'icon_id');
+        return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function taskRecord() {
         return $this->belongsTo(taskRecord::class);

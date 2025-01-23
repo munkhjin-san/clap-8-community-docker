@@ -88,7 +88,7 @@
                                     <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member" :value="user.id" name="memberCheckBox" type="checkbox">
                                     <span class="cal-check-mark" style="top: 10px;"></span>
                                     <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                        <UserIcon :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
+                                        <UserPanel :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
                                         <p class="userName">{{user.name}}</p>                                    
                                     </div>
                                 </label>  
@@ -130,9 +130,8 @@
                         <div class="searchBarInner" style="margin: auto;width: auto;min-width: 270px"> 
                             <PostSearchBar  
                                 className="newChatMemberSearch" 
-                                :searching="false" 
                                 :customPlaceHolder="'部門検索'"
-                                v-model="keywords"
+                                @search-start="(word) => {keywords = word}"
                             />
                         </div> 
                     </div>               
@@ -154,7 +153,7 @@
     </div>
 </template>
 <script setup>
-import UserIcon from '../Board/Mixed/UserIcon.vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
 import MemberSelector from '../Form/MemberSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
 import ShortInput from '../Form/ShortInput.vue'
