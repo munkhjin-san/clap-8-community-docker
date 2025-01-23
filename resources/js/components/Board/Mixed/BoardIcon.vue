@@ -30,13 +30,15 @@ import { useAuthUserStore } from '@/store/auth'
         } else if (props.item.icon_text) {
             const color = encodeURIComponent(props.item?.icon_bg ?? '#000');
             const noSpace = props.item.icon_text?.replace(/[\s　]/g, '');   
+            const noSlash = noSpace?.replace(/\//g, '');   
             const basePath = '/board_default_thumbnail'
-            return `${basePath}/${noSpace}/45/${color}`; 
+            return `${basePath}/${noSlash}/45/${color}`; 
         } else  {
             const color = encodeURIComponent('#000');
-            const noSpace = props.item.title?.replace(/[\s　]/g, '');   
+            const noSpace = props.item.title?.replace(/[\s　]/g, ''); 
+            const noSlash = noSpace?.replace(/\//g, '');   
             const basePath = '/board_default_thumbnail'
-            return `${basePath}/${noSpace}/45/${color}`;
+            return `${basePath}/${noSlash}/45/${color}`;
         }
     })   
 </script>

@@ -27,7 +27,7 @@
                     <div class="project-cell">概要</div>
                     <div class="project-cell">戦略</div>
                     <div class="project-cell">期間</div>
-                    <div class="project-cell cursor-pointer" @click="sortType = 2">取締役<span v-if="sortType === 2">▲</span></div>
+                    <!-- <div class="project-cell cursor-pointer" @click="sortType = 2">取締役<span v-if="sortType === 2">▲</span></div> -->
                     <div class="project-cell cursor-pointer" @click="sortType = 3">管理者<span v-if="sortType === 3">▲</span></div>
                     <div class="project-cell cursor-pointer" @click="sortType = 1">メンバー<span v-if="sortType === 1">▲</span></div>
                     
@@ -77,11 +77,11 @@
                     <div class="project-cell pc">
                         <div v-if="project?.date_start">{{ project.date_start }} ～ {{ project.date_end }}</div>
                     </div>
-                    <div class="project-cell pc">
+                    <!-- <div class="project-cell pc">
                         <div>
                             <UserPanel v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="20"/>
                         </div>
-                    </div>
+                    </div> -->
                     <div class="project-cell pc">
                         <div>
                             <UserPanel v-for="member in project.manager" imgClass="u_icon_20" :user="member" size="20"/>

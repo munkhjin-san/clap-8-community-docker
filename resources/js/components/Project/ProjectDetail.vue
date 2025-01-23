@@ -76,12 +76,12 @@
                         {{ selectedProject?.date_start }} ～ {{ selectedProject?.date_end }}
                     </div>
                 </div>
-                <div class="project-detail-header">
+                <!-- <div class="project-detail-header">
                     <div style="margin-bottom: 10px">取締役</div>
                     <div v-if="selectedProject?.director" style="margin-bottom: 10px;display: flex;align-items: center;gap: 10px;">
                         <div>{{ selectedProject?.director.name }}</div>                    
                     </div>
-                </div>
+                </div> -->
                 <div class="project-detail-header" style="margin-bottom: 0;">
                     <div class="project-table">
                         <div class="project-header-row">

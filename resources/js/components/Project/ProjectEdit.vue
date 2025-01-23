@@ -69,7 +69,7 @@
                         placeHolder="KGI"
                     />
                 </div>
-                <div class="si-box">
+                <!-- <div class="si-box">
                     <MemberSelector 
                         name="director"
                         v-model="director"
@@ -77,7 +77,7 @@
                         :multiple="false"
                         placeHolder="取締役"
                     />
-                </div>
+                </div> -->
                 <div class="si-box">
                     <MemberSelector 
                         name="manager"

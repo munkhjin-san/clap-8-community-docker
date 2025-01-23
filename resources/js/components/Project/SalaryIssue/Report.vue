@@ -29,7 +29,7 @@
                     <LoaderButton style="margin: 0;" content="承認" @triggered="progressReport(9)" :loading="loading[3]"/>
                 </div>
                 <div v-else class="si-box" style="display: flex; gap: 20px; justify-content: center;">
-                    <LoaderButton style="margin: 0;" content="報告する" @triggered="progressReport(6)" :loading="loading[0]"/>
+                    <LoaderButton style="margin: 0;" content="一時保存" @triggered="progressReport(6)" :loading="loading[0]"/>
                     <LoaderButton style="margin: 0;" content="申請する" @triggered="progressReport(7)" :loading="loading[1]"/>
                 </div>
             </div>
