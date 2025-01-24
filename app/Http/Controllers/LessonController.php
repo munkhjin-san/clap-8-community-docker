@@ -248,7 +248,7 @@ class LessonController extends Controller
         $id = $request->id ?? null;
         $params = $request->params;
         $params['user_id'] = auth()->id();
-        $lesson_answer = LessonAnswer::updateOrCreate(['id' => $id], $params);
+        $lesson_answer = LessonAnswer::updateOrCreate(['id' => $id, 'user_id' => auth()->id()], $params);
         return response()->json($lesson_answer);
     }
     public function get_material_list(Request $request) {

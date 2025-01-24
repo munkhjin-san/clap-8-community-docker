@@ -29,7 +29,7 @@
                     </label>                    
                     <Transition name="customInputGroup">
                         <div class="mt-[10px] ml-[25px]" v-if="element.has_sub_text && (radioModel == element.id || checkboxModel.includes(element.id))">
-                            <input :class="['custom-a-input' , {'invalid-input': element.is_required && !sub_texts[element.id]}]" v-model="sub_texts[element.id]" :placeholder="element.placeholder ? element.placeholder : '具体的に教えて下さい'" back type="text"/>
+                            <input :class="['custom-a-input' , {'invalid-input': element.is_required && !sub_texts[element.id]}]" v-model="sub_texts[element.id]" :placeholder="element.placeholder ? element.placeholder : '回答'" back type="text"/>
                         </div>
                     </Transition>
                 </div>
