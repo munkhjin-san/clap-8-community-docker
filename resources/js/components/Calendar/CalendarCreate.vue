@@ -21,18 +21,23 @@
                     v-model="title"
                 />
             </div>
-            <GroupSelector v-model="calendar_users"/>
-            <div class="si-box">
-                <MemberSelector 
-                    placeHolder="メンバー選択"
-                    rules="required"
-                    name="calendarUsers"
-                    ref="calendarUsers"
-                    path="calendar_more_users"
-                    :multiple="true"
-                    :closeOnSelect="false"
-                    v-model="calendar_users"
-                />
+            <div class="my-[50px]">
+                <p>メンバー選択</p>
+                <div class="mt-[20px]">
+                    <GroupSelector v-model="calendar_users" place-holder="グループ・プロジェクトから選択"/>
+                </div>
+                <div class="mt-[20px]">
+                    <MemberSelector 
+                        placeHolder="メンバー選択"
+                        rules="required"
+                        name="calendarUsers"
+                        ref="calendarUsers"
+                        path="calendar_more_users"
+                        :multiple="true"
+                        :closeOnSelect="false"
+                        v-model="calendar_users"
+                    />
+                </div>
             </div>
             <div class="si-box">
                 <ItemSelector 
@@ -80,21 +85,25 @@
                     <span v-if="release_flag || edit_all" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">編集許可または非公開設定ONのため設定できません</span>
                 </div>
             </div>
-            <div v-if="members_only">
-                <GroupSelector v-model="calendar_view_users"/>
+            <div v-if="members_only" class="my-[50px]">
+                <p>限定メンバー選択</p>
+                <div  class="mt-[20px]">
+                    <GroupSelector place-holder="グループ・プロジェクトから選択" v-model="calendar_view_users"/>
+                </div>
+                <div class="mt-[20px]">
+                    <MemberSelector 
+                        placeHolder="限定メンバー選択"
+                        rules="required"
+                        name="calendarUsers"
+                        ref="calendarUsers"
+                        path="calendar_more_users"
+                        :multiple="true"
+                        :closeOnSelect="false"
+                        v-model="calendar_view_users"
+                    />
+                </div>
             </div>
-            <div class="si-box" v-if="members_only">
-                <MemberSelector 
-                    placeHolder="メンバー限定選択"
-                    rules="required"
-                    name="calendarUsers"
-                    ref="calendarUsers"
-                    path="calendar_more_users"
-                    :multiple="true"
-                    :closeOnSelect="false"
-                    v-model="calendar_view_users"
-                />
-            </div>
+
              
             <div style="margin: 30px 0 -10px 0;">
                 <p :class="['form-title-small', 'form-title-active']">繰り返し設定</p>

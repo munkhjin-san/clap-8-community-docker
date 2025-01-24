@@ -28,28 +28,28 @@
                 />
                 <span class="text-[gray] text-[12px]">※フォームの回答は管理者のみ閲覧可能です。「システム管理者含む」</span>
             </div>
-            <GroupSelector v-model="params.users"/>
-            <div class="si-box">
-                <MemberSelector 
-                    :initialValue="params.users" 
-                    ref="userSelectorRef"
-                    placeHolder="対象者"
-                    name="users"
-                    path="board_possible_users"
-                    :multiple="true"
-                    v-model="params.users"
-                />
-                <span class="text-[gray] text-[12px]">※フォームのURLはどなたでもアクセス可能ですが、回答は対象者のみ必須となります。</span>
+            <div class="my-[50px]">
+                <p>対象者選択</p>
+                <div class="mt-[20px]">
+                    <GroupSelector v-model="params.users" place-holder="グループ・プロジェクトから選択"/>
+                </div>
+                <div class="mt-[20px]">
+                    <MemberSelector 
+                        :initialValue="params.users" 
+                        ref="userSelectorRef"
+                        placeHolder="対象者"
+                        name="users"
+                        path="board_possible_users"
+                        :multiple="true"
+                        v-model="params.users"
+                    />
+                    <span class="text-[gray] text-[12px]">※フォームのURLはどなたでもアクセス可能ですが、回答は対象者のみ必須となります。</span>
+                </div>
             </div>
+
             <div class="si-box">
+                <p class="mb-[20px]">説明</p>
                 <RichEditor ref="richEdit" :initila-value="editData ? editData.description : ''"/>
-                <!-- <LongInput
-                    :initialValue="params.description"  
-                    ref="descriptionRef"
-                    placeHolder="説明"
-                    name="description"
-                    v-model="params.description!"
-                />  -->
             </div>
             <div class="si-box">                
                 <div ref="sortParent" class="flex flex-col gap-[30px]">
@@ -113,7 +113,7 @@
                             <div>項目追加</div>
                         </div>
                     </div>                    
-                    <div v-if="menu.parent == 'initial-plus'" id="initial-plus" class="flex gap-[10px] mt-[15px]">
+                    <div v-if="menu.parent == 'initial-plus'" id="initial-plus" class="flex gap-[10px] mt-[15px] flex-wrap">
                         <button v-for="type in blockTypes" :key="type.value" @click="addBlock(type.value, params.blocks.length)" class="px-[5px] py-[5px] bg-[var(--primary-color)] text-[var(--background-color)]">{{ type.label }}</button>
                     </div>
                 </div>
@@ -128,7 +128,7 @@
 
 <script setup lang="ts">
 import Modal from '@/components/Global/Modal.vue';
-import { CustomForm, CustomFormBlock, CustomFormBlockType } from '@/interface/customFormInterface';
+import { CustomForm, CustomFormBlock, CustomFormBlockType, CustomFormUser } from '@/interface/customFormInterface';
 import { inject, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import CustomCheckbox from '@/components/Form/CustomElements/CustomCheckbox.vue'
@@ -141,18 +141,20 @@ import CustomMultiText from '@/components/Form/CustomElements/CustomMultiText.vu
 import CustomSelect from '@/components/Form/CustomElements/CustomSelect.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import axios from 'axios';
-import { DialogMethods } from '@/interface/globalInterface';
+import { DialogMethods, User } from '@/interface/globalInterface';
 import { DialogKey } from '@/interface/keys';
 import { useSortable, moveArrayElement } from '@vueuse/integrations/useSortable'
 import RichEditor from '@/components/Global/RichEditor.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import GroupSelector from '@/components/Form/GroupSelector.vue';
+import { useAuthUserStore } from '@/store/auth';
 const props = defineProps<{
     editData: CustomForm | null
 }>()
 const emit = defineEmits<{
     close: [flag: boolean]
 }>()
+const auth = useAuthUserStore()
 const richEdit = ref<typeof RichEditor | null>(null)
 const { confirm, info, notify } = inject('dialog') as DialogMethods;
 
@@ -181,8 +183,9 @@ const sortParent = useTemplateRef('sortParent')
 onMounted(() => {
     if(props.editData && props.editData?.id){
         Object.assign(params, props.editData)
+    }else{
+        params.admins?.push(auth.activeUser as CustomFormUser)
     }
-    console.log('desc',params.description)
 
 })
 
