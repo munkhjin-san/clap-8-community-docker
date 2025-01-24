@@ -148,7 +148,17 @@ import { useResponsive } from '@/store/responsive';
                 else notify('エラーが発生しました。 ' + error.message)                       
             });
         }
+    const providedMaterial = computed(() => {
+        const topic = themeRecords.value.find(ob => ob.id == parseInt(route.params.lessonThemeId))
+        console.log('topic', themeRecords.value)
+        const materials = topic?.materials || []
+        console.log('materials', materials)
+        const selectedMaterial = materials.find(ob => ob.id == parseInt(route.params.materialId) )
+        console.log('materialid', route.params.materialId)
+        return selectedMaterial
+    })
     provide('getThemes', getThemes)
+    provide('providedMaterial', themeRecords.value)
 
 </script>
 <style>

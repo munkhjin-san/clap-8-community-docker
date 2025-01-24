@@ -465,6 +465,13 @@ const routes = [
                                 name: 'material',
                                 props: true,
                                 component: () => import('./components/Learning/BasicKnowledge/Section.vue'),
+                                beforeEnter: (to, from, next) => {
+                                    axios.get(`/get_material`, {params: {id: to.params.materialId}}).then(
+                                        response => {
+                                            to.meta.material = response.data
+                                            next();
+                                        })
+                                },
                                 children: [
                                     {
                                         path: 'more',

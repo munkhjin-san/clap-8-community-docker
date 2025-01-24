@@ -95,6 +95,7 @@
     const ttsStore = useTtsStore()
     const { notify, info, confirm } = inject('dialog')
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
+
     const getLessonPortfolios = inject('getLessonPortfolios')
     const filteredContent = computed(() => {
         
@@ -103,7 +104,7 @@
         });
     })
     const material = computed(() => {
-        return props.filteredMaterials ? props.filteredMaterials.find(val => val.id == route.params.materialId) : null
+        return route.meta.material ? route.meta.material : null
     })
     const sectionStatus = computed(() => {
         return props.sections_status && props.sections_status.length ? props.sections_status.find(val => val.material_id === material.value?.id)?.status : 0

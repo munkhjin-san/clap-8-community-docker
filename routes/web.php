@@ -389,6 +389,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/save_lesson_form', [LessonController::class, 'save_lesson_form']);
         Route::get('/get_portfolio_view', [LessonController::class, 'get_portfolio_view']);
         Route::get('/get_material_list', [LessonController::class, 'get_material_list']);
+        Route::get('/get_material', [LessonController::class, 'get_material']);
 
         Route::post('/create_learning_theme', [LessonController::class, 'create_learning_theme']);
         Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);

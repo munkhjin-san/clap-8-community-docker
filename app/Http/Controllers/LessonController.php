@@ -40,6 +40,23 @@ class LessonController extends Controller
      
         return response()->json($lessons);
     }
+    public function get_material(Request $request){
+        $lesson = LessonMaterial::where('id', $request->id)
+        ->with(['answer' => function ($q) {
+            $q->where('user_id', Auth::id());
+        }])->with(['summaries' => function ($q) {
+            $q->with([
+                'questions.answer' => function ($q) {
+                    $q->where('user_id', Auth::id());
+                },
+                'answers' => function ($q) {
+                    $q->where('user_id', Auth::id());
+                }
+            ]);
+        }])
+        ->first();
+        return response()->json($lesson);
+    }
     public function lesson_remove_record(Request $request){
         if($request->id){
             $lesson = LessonMaterial::findOrFail($request->id)->delete();
