@@ -126,18 +126,19 @@ class AutoJobController extends Controller
                         ]
                     );
                 }
-
-                if(!empty($calendar)){
-                    $members = $calendar->calendar_users()->whereNotNull('email')->get();
-                    $emails = collect($members)->filter(function($user){
-                        return filter_var($user->email, FILTER_VALIDATE_EMAIL);
-                    })->pluck('email')->toArray();  
-                    $details = [
-                        "title" => $calendar->title,
-                        "content" => $summary->overview,
-                    ]; 
-                    foreach($emails as $to){
-                        Mail::to($to)->send(new Summary($details, $calendar->id));
+                if ($summary->wasRecentlyCreated) {
+                    if(!empty($calendar)){
+                        $members = $calendar->calendar_users()->whereNotNull('email')->get();
+                        $emails = collect($members)->filter(function($user){
+                            return filter_var($user->email, FILTER_VALIDATE_EMAIL);
+                        })->pluck('email')->toArray();  
+                        $details = [
+                            "title" => $calendar->title,
+                            "content" => $summary->overview,
+                        ]; 
+                        foreach($emails as $to){
+                            Mail::to($to)->send(new Summary($details, $calendar->id));
+                        }
                     }
                 }
             return response()->json(['message' => 'data_received'], 200);
