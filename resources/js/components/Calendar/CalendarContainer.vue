@@ -158,6 +158,9 @@
                 @close="closeCreate"      
             />            
         </Transition> 
+        <Transition name="modalFade">
+            <MeetingSummary :calendar-record="summeryViewing" v-if="summeryViewing" @close="setSummaryViewing(null)"/>
+        </Transition>
         <DragItem v-if="draggingCalendar"/>
     </div>        
 </template>
@@ -186,6 +189,7 @@ import { useResponsive } from '@/store/responsive';
 import { useSharingDataStore } from '@/store/sharingData'
 import { useTempRecord } from '@/store/tempRecord';
 import axios from 'axios';
+import MeetingSummary from './MeetingSummary.vue';
     const viewMenu = [
         {title: '月（スケジュール）', value: 1},
         {title: '月（時間）', value: 0},
@@ -240,6 +244,7 @@ import axios from 'axios';
     const memberHourLayoutRef = ref(null)
     const memberMonthLayoutRef = ref(null)
     const normalMonthLayoutRef = ref(null)
+    const summeryViewing = ref(null)
     const layouts = computed(() => {
         return [normalHourLayoutRef.value, normalMonthLayoutRef.value, memberMonthLayoutRef.value, memberHourLayoutRef.value]
     })
@@ -750,11 +755,15 @@ import axios from 'axios';
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
     }
+    const setSummaryViewing = (record) => {
+        summeryViewing.value = record
+    }
     provide('deleteCalendar', deleteRecord)
     provide('editRecord', editRecord)
     provide('facilities', facilitiesList)
     provide('selectedDepartment', selectedDepartment)
     provide('dropFinish', dropFinish)
     provide('draggingCalendar', draggingCalendar)
+    provide('setSummaryViewing', setSummaryViewing)
 
 </script>

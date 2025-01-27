@@ -1,8 +1,11 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Mail\Summary;
 use App\Models\boardRecord;
 use App\Models\boardToUser;
+use App\Models\CalendarMeetingSummary;
+use App\Models\CalendarRecord;
 use App\Models\ChallengeRecord;
 use App\Models\KnowledgeRecord;
 use App\Models\NiceRecord;
@@ -38,6 +41,7 @@ use App\Models\workGroup;
 use App\Models\ProjectRecord;
 use App\Models\ProjectMember;
 use App\Mail\Warning;
+use Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -54,6 +58,7 @@ use App\Jobs\GenerateThumbnailJob;
 use App\Jobs\GeneratePostThumbnail;
 use League\Csv\Reader;
 use League\Csv\Statement;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 class AutoJobController extends Controller
 
@@ -64,7 +69,81 @@ class AutoJobController extends Controller
         $this->sharedService = $sharedService;
         // $this->middleware('throttle:3,1');
     }
+    
+    public function zoom_event(Request $request){
+        $data = $request->all();
+        $path = $request->path();
+        $zoom_keys = [
+            'zoom1_event' => 'QrGNdoq8TqaJkyOHOnsxhw',
+            'zoom2_event' => 'mp63oT6YQbevg-j1z-v-ag',
+            'zoom3_event' => 'N7Uu27CwQsOQokLFQQyAgA',
+        ];
+        
+        if ($data['event'] === 'endpoint.url_validation') {
+            $plainToken = $data['payload']['plainToken'];            
+            $secret = $zoom_keys[$path];            
+            $encryptedToken = hash_hmac('sha256', $plainToken, $secret);
+            $response = [
+                'plainToken' => $plainToken,
+                'encryptedToken' => $encryptedToken,
+            ];            
+            return response()->json($response, 200);
+        }
 
+        if($data['event'] === 'meeting.summary_completed'){
+            $meeting_id = $data['payload']['object']['meeting_id'];
+            $calendar = CalendarRecord::where('zoom_id', $meeting_id)->first();
+            $filePath = storage_path('logs/zoomEvent.log');
+            if (!File::exists($filePath)) {
+                File::put($filePath, '');
+            }
+            
+            $details = Arr::get($data, 'payload.object.summary_details', []);
+            $nextSteps = Arr::get($data, 'payload.object.next_steps', []);
+            $title = Arr::get($data, 'payload.object.summary_title', '');
+            $overview = Arr::get($data, 'payload.object.summary_overview', '');
+            Log::channel('zoom')->info("{$meeting_id}",['title' => $title]);
+                
+                $summary = CalendarMeetingSummary::updateOrCreate(
+                    [
+                        'meeting_id' => $meeting_id,
+                        'title' => $title,
+                        'overview' => $overview
+                    ],
+                );
+                foreach($details as $detail){
+                    $summary->details()->updateOrCreate(
+                        [
+                            'label' => $detail['label'],
+                            'summary' => $detail['summary']
+                        ]
+                    );
+                }
+                foreach($nextSteps as $step){
+                    $summary->steps()->updateOrCreate(
+                        [
+                            'content' => $step
+                        ]
+                    );
+                }
+
+                if(!empty($calendar)){
+                    $members = $calendar->calendar_users()->whereNotNull('email')->get();
+                    $emails = collect($members)->filter(function($user){
+                        return filter_var($user->email, FILTER_VALIDATE_EMAIL);
+                    })->pluck('email')->toArray();  
+                    $details = [
+                        "title" => $calendar->title,
+                        "content" => $summary->overview,
+                    ]; 
+                    foreach($emails as $to){
+                        Mail::to($to)->send(new Summary($details, $calendar->id));
+                    }
+                }
+            return response()->json(['message' => 'data_received'], 200);
+        }
+        return response()->json(['message' => 'Invalid event'], 400);
+    }
     public function clap_process(){
         $update1 = ClapRecord::where('app_name', 'board')->update(['app_id' => 1]);
         $update2 = ClapRecord::where('app_name', 'knowledge')->update(['app_id' => 2]);

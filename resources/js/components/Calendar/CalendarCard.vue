@@ -45,7 +45,12 @@
                 <p>アカウントPASS : <span class="zoom-info-item">{{ record.zoom_account_pass ? record.zoom_account_pass : '' }}</span></p>
                 <p>ミーティングID : <span class="zoom-info-item">{{ record.zoom_id ? record.zoom_id : '' }}</span></p>
                 <p>ミーティングPASS :<span class="zoom-info-item">{{ record.zoom_pass ? record.zoom_pass : '' }}</span> </p>
-                <p>URL : <a target="_blank" :href="record.zoom_url ? record.zoom_url : ''">{{ record.zoom_url ? record.zoom_url : '' }}</a></p>               
+                <p>URL : <a target="_blank" :href="record.zoom_url ? record.zoom_url : ''">{{ record.zoom_url ? record.zoom_url : '' }}</a></p> 
+                <div class="mt-[15px]" v-if="record.summaries_count">
+                    <CommandButton :buttons="[{title: 'AIコンパニオン要約', action: () => {
+                        setSummaryViewing(record)
+                    }}]"/>
+                </div>              
             </div>
             <div @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false"  v-if="record.files && record.files.length" style="margin-top: 10px;width: fit-content;max-width: 100%;overflow: hidden;">
                 <CalendarFiles :list="record.files"/>
@@ -86,18 +91,19 @@
     </div>
 </template>
 <script setup>
-    import moment from 'moment';
-    import Autolinker from 'autolinker';
-    import CalendarFiles from './CalendarFiles.vue';
-    import { ref, computed, onMounted, inject } from 'vue'
-    import UserPanel from '@/components/Global/UserPanel.vue'
-    import colors from '../../../assets/colors.json'
-    import { useAuthUserStore } from '@/store/auth'
-    import { useMenuStore } from "@/store/menu";
-    import { useTheme } from '@/store/theme';
-    import { useTempRecord } from '@/store/tempRecord';
-    import ItemMenu from '@/components/Global/ItemMenu.vue';
-    import { timeFormat } from '@/utils/tools';
+import moment from 'moment';
+import Autolinker from 'autolinker';
+import CalendarFiles from './CalendarFiles.vue';
+import { ref, computed, onMounted, inject } from 'vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
+import colors from '../../../assets/colors.json'
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useTheme } from '@/store/theme';
+import { useTempRecord } from '@/store/tempRecord';
+import ItemMenu from '@/components/Global/ItemMenu.vue';
+import { timeFormat } from '@/utils/tools';
+import CommandButton from '../Global/CommandButton.vue';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const tempRecord = useTempRecord()
@@ -133,6 +139,8 @@
 
     const facilitiesList = inject('facilities')
     const departmentsList = inject('selectedDepartment')
+
+    const setSummaryViewing = inject('setSummaryViewing')
 
     const background = computed(() => {
         if(selectedFacility.value.length){

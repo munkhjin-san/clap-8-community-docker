@@ -36,6 +36,9 @@ use App\Models\User;
 | contains the "web" middleware group. Now create something great!
 |
 */
+Route::match(['get', 'post'],'/zoom3_event', [AutoJobController::class, 'zoom_event']);
+Route::match(['get', 'post'],'/zoom2_event', [AutoJobController::class, 'zoom_event']);
+Route::match(['get', 'post'],'/zoom1_event', [AutoJobController::class, 'zoom_event']);
 
 Route::get('app/public/{app_name}', function ($app_name, Request $request) {    
     $query = $request->getQueryString(); 
@@ -307,6 +310,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/calendar_drop', [CalendarController::class, 'calendar_drop']);
         Route::post('/calendar_delete_record', [CalendarController::class, 'calendar_delete_record']);
         Route::get('/get_departments_calendar', [CalendarController::class, 'get_departments_calendar']);
+        Route::get('/get_schedule_summaries', [CalendarController::class, 'get_schedule_summaries']);
 
         Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);

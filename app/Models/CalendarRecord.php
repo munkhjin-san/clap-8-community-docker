@@ -11,7 +11,7 @@ class CalendarRecord extends Model
     use HasFactory;
     use SoftDeletes;
     public function calendar_users(){
-        return $this->belongsToMany(User::class, 'calendar_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_path'])->distinct();
+        return $this->belongsToMany(User::class, 'calendar_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_path', 'users.email'])->distinct();
     }
     public function updated_by(){
         return $this->hasOne(User::class, 'id', 'updated_user')->select('id', 'name', 'icon_path', 'icon_bg');
@@ -31,6 +31,9 @@ class CalendarRecord extends Model
     public function calendar_view_users(){
         return $this->belongsToMany(User::class, 'calendar_view_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_path', 'users.icon_bg']);
     }
+    public function summaries(){
+        return $this->hasMany(CalendarMeetingSummary::class, 'meeting_id', 'zoom_id');
+    }
     protected $hidden = [
         'color', 
         'comp_flag', 
@@ -49,6 +52,11 @@ class CalendarRecord extends Model
         'time_start_text',
         'type',
 
+    ];
+
+    protected $casts = [
+        'zoom_waiting_room' => 'boolean',
+        'zoom_ai_companion' => 'boolean',
     ];
     protected $guarded = [];
 }

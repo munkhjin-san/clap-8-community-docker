@@ -303,6 +303,17 @@
                             <div class="switch-toggle"></div>
                         </label>
                     </div>  
+
+                    <div class="mt-[20px]">
+                        <p :class="['form-title-small']">AIコンパニオン機能</p>
+                    </div>
+                    <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                        <input type="checkbox" id="zoom_ai_companion" v-model="zoom_ai_companion">
+                        <label for="zoom_ai_companion" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                    </div>  
+                    <span v-if="zoom_ai_companion" class="text-[12px] text-[tomato]">※AIコンパニオン機能は、ミーティングのホストが参加するまで開始されません。<br>ホストがミーティングを開始した後、AIコンパニオン機能がオンになっていることを確認してください。</span>
                 </div>  
                 <div class="si-box">
                     <FacilitySelector 
@@ -393,7 +404,8 @@ import ItemSelector from '../Form/ItemSelector.vue';
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     const release_flag = ref(props.editTarget && props.editTarget.release_flag ? true : false)
     const edit_all = ref(props.editTarget && props.editTarget.edit_all ? true : false)
-    const zoom_waiting_room = ref(props.editTarget && props.editTarget.zoom_waiting_room ? props.editTarget.zoom_waiting_room : 0)
+    const zoom_waiting_room = ref(props.editTarget && props.editTarget.zoom_waiting_room ? true : false)
+    const zoom_ai_companion = ref(props.editTarget && props.editTarget.zoom_ai_companion ? true : false)
     const repetition_type = ref(props.editTarget && props.editTarget.repetition_type && props.edit_all_record ? props.editTarget.repetition_type : 0)            
     const all_day = ref(props.editTarget &&  Math.abs(moment(props.editTarget.date_start).diff(moment(props.editTarget.date_end), 'hours')) >= 23 ? true : false)   
     
@@ -571,6 +583,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
             edit_all: !release_flag.value ? edit_all.value : false,
             repetition_type: repetition_type.value,
             zoom_waiting_room: zoom_waiting_room.value,
+            zoom_ai_companion: zoom_ai_companion.value,
             time_start:  all_day.value ? '00:00' : time_start.value,
             time_end: all_day.value ? '23:59' : time_end.value,
             once_date: once_date.value,

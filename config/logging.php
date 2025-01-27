@@ -122,6 +122,11 @@ return [
             'path' => storage_path('logs/Chargereset.log'),
             'level' => 'debug',
         ],
+        'zoom' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/zoomEvent.log'),
+            'level' => 'debug',
+        ],
     ],
 
 ];

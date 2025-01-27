@@ -12,6 +12,8 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        //
+        '/zoom3_event',
+        '/zoom2_event',
+        '/zoom1_event',
     ];
 }

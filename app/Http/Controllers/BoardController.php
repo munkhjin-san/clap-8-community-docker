@@ -114,7 +114,7 @@ class BoardController extends Controller
         $date = null;
         $name = $request->name;
         $id = $request->id;
-        if($name && $name == 'calendar' && $id){
+        if($name && $name == 'schedule' && $id){
             
             $find = CalendarRecord::where('id', $id)->first();
             if(!empty($find)){

@@ -129,7 +129,9 @@ class CalendarController extends Controller
         $account = $this->zoom_account($params['zoom_id']); 
         $meetings_url = 'https://api.zoom.us/v2/meetings' . '/' . $params['meetingId'];
         $settings = array(
-            'use_pmi' => 'false'
+            'use_pmi' => 'false',
+            'auto_start_meeting_summary' => $params['auto_start_meeting_summary'],
+            'auto_start_ai_companion_questions' => false
         );
         if($params['waiting_room']){
             $settings['waiting_room'] = true;
@@ -169,7 +171,8 @@ class CalendarController extends Controller
         $account = $this->zoom_account($params['zoom_id']); 
         $meetings_url = 'https://api.zoom.us/v2/users/' . $account['accountMail'] . '/meetings';
         $settings = array(
-            'use_pmi' => 'false'
+            'use_pmi' => 'false',
+            'auto_start_meeting_summary' => $params['auto_start_meeting_summary'],
         );
         if($params['waiting_room']){
             $settings['waiting_room'] = true;
@@ -313,13 +316,17 @@ class CalendarController extends Controller
             }
         })
         ->whereBetween('date_start', [$previousMonday, $nextSunday])
-        ->with('calendar_users')
-        ->with('department')
-        ->with('task')
-        ->with('updated_by')
-        ->with('created_by')
-        ->with('files')
-        ->with('calendar_view_users')
+        ->with([
+            'calendar_users',
+            'department',
+            'task',
+            'updated_by',
+            'created_by',
+            'files',
+            'calendar_view_users',
+   
+        ])
+        ->withCount('summaries')
         ->get();
 
 
@@ -667,6 +674,7 @@ class CalendarController extends Controller
                     "title" => $request['title'],
                     "start_time" => $formattedDate,
                     "waiting_room" => $request['zoom_waiting_room'],
+                    "auto_start_meeting_summary" => $request['zoom_ai_companion'],
                     "zoom_id" => $request['facility']['zoom_value'],
                     "type" => $request['repetition_type'] == 0 ? 2 : 3            
                     
@@ -723,6 +731,8 @@ class CalendarController extends Controller
             "created_at" => $has_prev_date ? $has_prev_date['created_at'] : now(),
             "created_user" => $has_prev_date ? $has_prev_date['created_user'] : $active_user->id,
             "descendant_of" => $has_prev_date ? $has_prev_date['id'] : null,
+            "zoom_waiting_room" => $request['zoom_waiting_room'],
+            "zoom_ai_companion" => $request['zoom_ai_companion'],
             "real_created_at" => now()
         ]);
 
@@ -1111,6 +1121,7 @@ class CalendarController extends Controller
                     "zoom_id" => $record->zoom_value,
                     "title" => $record['title'],
                     "waiting_room" => $record['zoom_waiting_room'],      
+                    "auto_start_meeting_summary" => $request['zoom_ai_companion'],
                     
                 ];
                 $json_result = $this->update_zoom_meeting($params);
@@ -1283,6 +1294,22 @@ class CalendarController extends Controller
             return 0;
         })->values();
         return response()->json($sortedProjects);
+    }
+    public function get_schedule_summaries(Request $request){
+        $active_user = $this->active_user();
+
+        $record = CalendarRecord::findOrFail($request->id);
+
+        $members = $record->calendar_users()->pluck('id')->toArray();
+        $view_users = $record->calendar_view_users()->pluck('id')->toArray();
+        $override = [608, 610];
+        $all_users = array_merge($members, $view_users, $override);
+        $hasPrivilage = in_array($active_user->id, $all_users);
+        if(!$hasPrivilage){
+            throw ValidationException::withMessages(['message' => '閲覧権限がありません。']);
+        }
+        $summaries = $record->summaries()->with(['details', 'steps'])->orderBy('created_at', 'desc')->get();
+        return response()->json($summaries);
     }
 
     
