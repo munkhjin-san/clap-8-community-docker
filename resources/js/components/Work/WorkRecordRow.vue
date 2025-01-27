@@ -76,6 +76,14 @@
             </div>
             
         </td>
+        <td>
+            <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
+                <div @click.stop="boxPosition('vehicleBox')" class="text-wrap">{{ hasVehicle }}</div>
+                <div @click="menu.close()" ref="vehicleBox" class="comment-box" id="vehicleBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'vehicleBox' && menu.id == item.time_card?.id">
+                    <div style="word-break: break-word;">{{ vehicleDetail }}</div>                              
+                </div>
+            </div>
+        </td>
         <td v-if="hasHeader('インセンティブ')">
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
                 <div v-if="responsive.mobile && item.time_card?.timecard_incentives.length">インセンティブ : </div>
@@ -88,14 +96,7 @@
                 </div> -->
             </div>
         </td>
-        <td>
-            <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
-                <div @click.stop="boxPosition('vehicleBox')" class="text-wrap">{{ hasVehicle }}</div>
-                <div @click="menu.close()" ref="vehicleBox" class="comment-box" id="vehicleBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'vehicleBox' && menu.id == item.time_card?.id">
-                    <div style="word-break: break-word;">{{ vehicleDetail }}</div>                              
-                </div>
-            </div>
-        </td>
+
         <td>
             <div style="position: relative;">
                 <div>
