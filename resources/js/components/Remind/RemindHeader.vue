@@ -1,5 +1,5 @@
 <template>
-    <div class="flex items-center sticky top-0 z-10 bg-[var(--bg2)] py-[10px]">
+    <div class="flex items-center sticky z-10 bg-[var(--bg2)] py-[10px] px-[15px]" :style="{top: top, transition: 'top 0.3s'}">
         <div class="flex items-center">
             <div data-v-f3d19ae5="" @click="emit('expand')" title="すべて表示する" class="selector-accordion-el" style="min-width: 30px; min-height: 30px;">
                 <svg data-v-f3d19ae5="" fill="var(--primary-color)" version="1.1" width="11" height="11" :class="[{'expand' : !expanded}, 'cursor-pointer', 'selector-accordion-inactive']" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg" style="">
@@ -24,8 +24,12 @@
     </div>
 </template>
 <script lang="ts" setup>
-defineProps(['length', 'title', 'expanded'])
+import { useResponsive } from '@/store/responsive';
+import { computed } from 'vue';
+const props = defineProps(['length', 'title', 'expanded', 'offset'])
 const emit = defineEmits(['expand'])
+const responsive = useResponsive()
+const top = computed(() => responsive.mobile ? `${props.offset === 0 ? '60px' : '0px'}` : `0px`)
 </script>
 <style scoped>
     .expand {

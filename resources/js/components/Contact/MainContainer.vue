@@ -48,21 +48,3 @@ const handleScroll = () => {
 }
 
 </script>
-<style>
-.member-loader{
-    height: 100%;
-    z-index: 7;
-    background: var(--bg2);
-    position: absolute;
-    left: 0;
-    width: 100%;
-}
-.mem-header-section{
-    transition: transform 0.3s;
-    position: sticky;
-    top: 0;
-    width: 100%;
-    background: var(--bg2);
-    z-index: 3;
-}
-</style>

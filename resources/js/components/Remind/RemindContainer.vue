@@ -1,14 +1,20 @@
 <template>
-    <div class="scrollable pt-0 px-5 pb-5 w-full text-[var(--primary-color)] relative" ref="sortParent">
+    <div class="scrollable w-full text-[var(--primary-color)] relative pb-[20px]" ref="sortParent" @scroll="handleScroll">
+        <div v-if="responsive.mobile" class="mem-header-section" :style="{'transform': `translateY(${offset}px)`}">        
+            <div class="post-header sticky top-0 z-[11] bg-[var(--bg2)]" >
+                <HamBurger />          
+            </div>
+        </div>
         <div class="flex flex-col" v-for="data in combinedData">
-            <div class="mt-2.5" v-if="data.not_started_tasks?.length">
+            <div v-if="data.not_started_tasks?.length">
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.not_started_tasks.length"
                     title="未対応タスク"
                     :expanded="expanded.not_started_tasks"
                     @expand="expanded.not_started_tasks = !expanded.not_started_tasks"
                 />
-                <div v-if="expanded.not_started_tasks" class="grid md:grid-cols-4 gap-5">
+                <div v-if="expanded.not_started_tasks" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.not_started_tasks">
                         <ListBox 
                             boxClass=""
@@ -20,14 +26,15 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2.5" v-if="data.not_completed_tasks?.length">
+            <div v-if="data.not_completed_tasks?.length">
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.not_completed_tasks.length"
                     title="対応中タスク" 
                     :expanded="expanded.not_completed_tasks"
                     @expand="expanded.not_completed_tasks = !expanded.not_completed_tasks"
                 />
-                <div v-if="expanded.not_completed_tasks" class="grid md:grid-cols-4 gap-5">
+                <div v-if="expanded.not_completed_tasks" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.not_completed_tasks">
                         <ListBox 
                             boxClass=""
@@ -39,14 +46,15 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2.5" v-if="data.not_approved_tasks?.length">
+            <div v-if="data.not_approved_tasks?.length">
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.not_approved_tasks.length"
                     title="タスク承認漏れ"
                     :expanded="expanded.not_approved_tasks"
                     @expand="expanded.not_approved_tasks = !expanded.not_approved_tasks"
                 />
-                <div v-if="expanded.not_approved_tasks" class="grid md:grid-cols-4 gap-5">
+                <div v-if="expanded.not_approved_tasks" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.not_approved_tasks">
                         <ListBox 
                             boxClass=""
@@ -58,14 +66,15 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2.5" v-if="data.unchecked_messages?.length">
+            <div v-if="data.unchecked_messages?.length">
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.unchecked_messages.length"
                     title="未確認メッセージ"
                     :expanded="expanded.unchecked_messages"
                     @expand="expanded.unchecked_messages = !expanded.unchecked_messages"
                 />
-                <div v-if="expanded.unchecked_messages" class="grid md:grid-cols-4 gap-5">
+                <div v-if="expanded.unchecked_messages" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.unchecked_messages">
                         <UncheckedMessageItem 
                             boxClass=""
@@ -76,14 +85,15 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2.5" v-if=data.unsigned_messages?.length>
+            <div v-if=data.unsigned_messages?.length>
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.unsigned_messages.length"
-                    title="サインメッセージ"
+                    title="サイン依頼"
                     :expanded="expanded.unsigned_messages"
                     @expand="expanded.unsigned_messages = !expanded.unsigned_messages"
                 />
-                <div v-if="expanded.unsigned_messages" class="grid md:grid-cols-4 gap-5">
+                <div v-if="expanded.unsigned_messages" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.unsigned_messages">
                         <UncheckedMessageItem 
                             boxClass=""
@@ -93,14 +103,15 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2.5" v-if="data.reminded_messages?.length">
+            <div v-if="data.reminded_messages?.length">
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.reminded_messages.length"
                     title="リマインドメッセージ"
                     :expanded="expanded.reminded_messages"
                     @expand="expanded.reminded_messages = !expanded.reminded_messages"
                 />
-                <div v-if="expanded.reminded_messages" class="grid md:grid-cols-4 gap-5">
+                <div v-if="expanded.reminded_messages" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.reminded_messages">
                         <UncheckedMessageItem 
                             boxClass=""
@@ -111,8 +122,9 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2.5" v-if="data.not_approved_time_sheets?.length">
+            <div v-if="data.not_approved_time_sheets?.length">
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.not_approved_time_sheets.length"
                     title="タイムシート承認漏れ"
                     :expanded="expanded.not_approved_time_sheets"
@@ -147,14 +159,15 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2.5" v-if="data.paid_leaves?.length">
+            <div v-if="data.paid_leaves?.length">
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.paid_leaves.length"
                     title="計画有給"
                     :expanded="expanded.paid_leaves"
                     @expand="expanded.paid_leaves = !expanded.paid_leaves"
                 />
-                <div v-if="expanded.paid_leaves" class="grid md:grid-cols-4 gap-5">
+                <div v-if="expanded.paid_leaves" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.paid_leaves">
                         <WorkMessage 
                             v-if="item"
@@ -163,8 +176,9 @@
                     </div>
                 </div>
             </div>
-            <div class="mt-2.5" v-if="data.not_approved_projects?.length">
+            <div v-if="data.not_approved_projects?.length">
                 <RemindHeader 
+                    :offset="offset"
                     title="プロジェクト承認漏れ" 
                     :length="data.not_approved_projects?.length" 
                     :expanded="expanded.not_approved_projects"
@@ -202,14 +216,15 @@
                     
                 </router-view>
             </div>
-            <div class="mt-2.5" v-if="data.not_answered_forms?.length">
+            <div v-if="data.not_answered_forms?.length">
                 <RemindHeader 
+                    :offset="offset"
                     :length="data.not_answered_forms.length"
                     title="未回答フォーム"
                     :expanded="expanded.not_answered_forms"
                     @expand="expanded.not_answered_forms = !expanded.not_answered_forms"
                 />
-                <div v-if="expanded.not_answered_forms" class="grid md:grid-cols-4 gap-5">
+                <div v-if="expanded.not_answered_forms" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="form in data.not_answered_forms" class="relative bg-[var(--background-color)] cursor-pointer p-[20px] ">
                         <div class="w-full">{{ form.title }}</div>
                         <div class="mt-[20px] w-fit">
@@ -260,7 +275,6 @@
 </template>
 <script lang="ts" setup>
 import { useAuthUserStore } from '@/store/auth';
-import { useResponsive } from '@/store/responsive';
 import ListBox from '../Task/List/ListBox.vue';
 import UserPanel from '../Global/UserPanel.vue';
 import axios from 'axios';
@@ -275,6 +289,8 @@ import { useSortable, moveArrayElement } from '@vueuse/integrations/useSortable.
 import RemindHeader from './RemindHeader.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { useSurveyUsers } from '@/store/surveyUsers';
+import { useResponsive } from '@/store/responsive';
+import HamBurger from '../Global/HamBurger.vue';
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
 const combinedData = ref<{ [key: string]: any }[]>([])
@@ -282,6 +298,7 @@ const router = useRouter()
 const { notify } = inject<Dialog>('dialog')!
 const sortParent = useTemplateRef('sortParent')
 const surveyUsers = useSurveyUsers()
+const responsive = useResponsive()
 const expanded = ref({
     not_started_tasks: true,
     not_completed_tasks: true,
@@ -294,6 +311,14 @@ const expanded = ref({
     not_approved_projects: true,
     not_answered_forms: true
 })
+const offset = ref(0)
+const prevScrollPosition = ref(0)
+const handleScroll = () => {
+    if(!sortParent.value ) return
+    const currentScrollPosition = sortParent.value.scrollTop
+    offset.value = currentScrollPosition > prevScrollPosition.value ? -95 : 0
+    prevScrollPosition.value = currentScrollPosition   
+}
 const getGoals = (outcome_goals) => {
     if (auth.id == 631) {
         return outcome_goals.filter(goal => goal.status == 3)
