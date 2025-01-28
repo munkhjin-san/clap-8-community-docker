@@ -11,7 +11,7 @@
                         </svg>
                     </div>                      
                     <p :id="'messageSender_' + message.id" class="userName" @dragstart.prevent style="margin-left:10px;">{{ messageUserName }}</p>     
-                    <p @dragstart.prevent class="dateText" style="font-size:12px;color:grey;position:absolute;right:0;top:-5px">{{momentMessage}}</p>
+                    <p @dragstart.prevent class="dateText" style="font-size:12px;color:grey;position:absolute;right:-10px;top:-10px">{{momentMessage}}</p>
                     <!-- <ItemMenu v-if="remindedUsers" style="margin-left: auto;" :items="messageMenuItems" fit="boardListInner"/>                  -->
                 </div>                             
                                 

@@ -24,12 +24,12 @@
                     <!-- <ItemMenu style="align-self: flex-start;" :items="shareMenuItems(file)" type="share" fit="boardListInner"/> -->
                     <ItemMenu style="align-self: flex-start;" :items="fileMenuItems(file)" fit="boardListInner"/>
                 </div>   
-                <div v-if="file.sign_flag == 1" style="display:flex;margin-top:10px;align-items:center;height: 15px;justify-content:space-between;">
+                <div v-if="file.sign_flag == 1" class="flex mt-[10px] items-center justify-between gap-[5px] flex-wrap">
                     <div class="flex-centered" @click.stop="viewUsersList(file.signed_users, 'サイン完了メンバー')" v-if="file.signed_users">
-                        <p class="cursor-pointer" style="font-size:12px; margin-right:3px;">サイン完了 {{ file.signed_users.length ? `(${file.signed_users.length})` : '(0)' }}</p>                                            
+                        <p class="cursor-pointer text-[12px]">サイン完了 {{ file.signed_users.length ? `(${file.signed_users.length})` : '(0)' }}</p>                                            
                     </div>
-                    <div class="flex-centered" style="margin-left:10px;text-align:right;" @click.stop="viewUsersList(file.unsigned_users, 'サイン未完了メンバー')" v-if="file.unsigned_users">
-                        <p class="cursor-pointer" style="font-size:12px; margin-right:3px;">サイン未完了 {{ file.unsigned_users.length ? `(${file.unsigned_users.length})` : '(0)' }}</p>                                            
+                    <div class="flex-centered" @click.stop="viewUsersList(file.unsigned_users, 'サイン未完了メンバー')" v-if="file.unsigned_users">
+                        <p class="cursor-pointer text-[12px]">サイン未完了 {{ file.unsigned_users.length ? `(${file.unsigned_users.length})` : '(0)' }}</p>                                            
                     </div>
                 </div>
             </div>                                             
