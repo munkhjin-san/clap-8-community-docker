@@ -21,7 +21,7 @@
                     v-model="title"
                 />
             </div>
-            <div class="si-box" style="height: 70%;">
+            <div class="si-box">
                 <div style="font-size: 14px;margin-bottom: 15px;">基礎知識の内容</div>
                 <RichEditor ref="richEdit" :initilaValue="initialValue"/>
             </div>

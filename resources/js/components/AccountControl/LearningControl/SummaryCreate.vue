@@ -35,7 +35,7 @@
                                                 <div class="flex items-center w-full">
                                                     <input placeholder="質問" class="custom-o-input w-full" type="text" ref="radios" v-model="question.question"/>
                                                 </div>
-                                                <div style="height: 70%; width: 100%;">
+                                                <div style="width: 100%;">
                                                     <div style="font-size: 14px;margin-bottom: 15px;">要約内容</div>
                                                     <RichEditor 
                                                         ref="richEdit" 
