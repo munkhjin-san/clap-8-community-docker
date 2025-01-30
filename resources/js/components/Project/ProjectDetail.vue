@@ -41,7 +41,7 @@
             <!-- <RouterView 
                 :selectedProject="selectedProject"
             /> -->
-            <div class="project-detail" style="position: relative;" v-if="route.name === 'projectdetail'">
+            <div class="project-detail" style="position: relative;white-space: break-spaces;line-height: 1.5;" v-if="route.name === 'projectdetail'">
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">プロジェクト名</div> 
                     <div class="flex items-center gap-2">
@@ -58,17 +58,18 @@
                 </div>
                 
                 <div class="project-detail-header">
-                    <div style="margin-bottom: 10px">戦略</div> 
-                    <div>{{ selectedProject?.strategy }}</div>
-                </div>
-                <div class="project-detail-header">
-                    <div style="margin-bottom: 10px;">KGI</div>
-                    <div>{{ selectedProject?.kgi }}</div>
+                    <div style="margin-bottom: 10px">MISO</div> 
+                    <div class="leading-normal" v-html="sanitized(selectedProject?.strategy)"></div>
                 </div>
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">KPI</div> 
-                    <div>{{ selectedProject?.kpi }}</div>
+                    <div class="leading-normal">{{ selectedProject?.kpi }}</div>
                 </div>
+                <div class="project-detail-header">
+                    <div style="margin-bottom: 10px;">KGI</div>
+                    <div class="leading-normal">{{ selectedProject?.kgi }}</div>
+                </div>
+
                 
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">期間</div>
@@ -153,6 +154,8 @@ import ItemMenu from '../Global/ItemMenu.vue';
 import ProjectEdit from './ProjectEdit.vue';
 import { useBadgeStore } from '@/store/badge';
 import WeatherIcon from '../Global/WeatherIcon.vue';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
     const props = defineProps(['selectedProject', 'userList'])
     const router = useRouter()
     const route = useRoute()
@@ -161,6 +164,7 @@ import WeatherIcon from '../Global/WeatherIcon.vue';
     const editWindow = ref(false)
     const badge = useBadgeStore()
     const emit = defineEmits(['edit'])
+
     const isManagerOrDirector = computed(() => {
         return props.selectedProject?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6)
     })
@@ -182,6 +186,13 @@ import WeatherIcon from '../Global/WeatherIcon.vue';
     }
     const jumpToEvaluation = (member: any) => {
         router.push({name: 'evaluation', params: { projectId: route.params.projectId, memberId: member.id }})
+    }
+    const sanitized = (text: string) => {
+        const clean = text ?? ''
+        if(!clean) return ''
+        const markedText = marked.parse(clean) as string
+        const saveText = DOMPurify.sanitize(markedText)
+        return saveText
     }
     const pathGenerator = computed(() => {
         const relatedRoutes: RouteLocationMatched[] = route.matched.filter(

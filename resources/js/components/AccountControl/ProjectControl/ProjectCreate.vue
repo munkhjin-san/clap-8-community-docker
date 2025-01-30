@@ -55,7 +55,7 @@
                     <LongInput 
                         name="strategy"
                         v-model="strategy"
-                        placeHolder="戦略"
+                        placeHolder="MISO"
                     />
                 </div>
                 <div class="si-box">
@@ -70,13 +70,6 @@
                         name="kgi"
                         v-model="kgi"
                         placeHolder="KGI"
-                    />
-                </div>
-                <div class="si-box">
-                    <LongInput 
-                        name="miso"
-                        v-model="miso"
-                        placeHolder="MISO"
                     />
                 </div>
                 <!-- <div class="si-box">
@@ -180,7 +173,6 @@ const createProject = async() => {
             strategy: strategy.value,
             kgi: kgi.value,
             kpi: kpi.value,  
-            miso: miso.value
         },
         board_link: boardLink.value
     }
