@@ -99,10 +99,6 @@ import { endPlay } from '@/utils/tts';
         if(props.auth_user && props.auth_user.id){                  
             beamsInit()
         }
-        const condition = sessionStorage.getItem('condition_for_session')
-        if(condition){
-            saveWeather(condition)
-        }
         badge.getBoardBadge('mounted');
         
         if(!auth.isPartner){
@@ -113,33 +109,6 @@ import { endPlay } from '@/utils/tts';
         }
         
     })
-    
-    const saveWeather = async (index) => {
-        let today = moment().local().format('YYYY-MM-DD')
-        try {
-            await axios.post('/save_weather', { today, value: index })
-            const user = await axios.post('/profile_get_update_user', {id: auth.id}).then(res => res.data)
-            if(user && Object.hasOwn(user, 'id')){
-                auth.setUser(user)           
-            } 
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            saveToLocalStorage('condition', index);
-            sessionStorage.removeItem('condition_for_session')
-        }
-
-    }
-    const saveToLocalStorage = (key, value) => {
-        const now = moment();
-        const endOfDay = now.clone().endOf('day').toISOString();
-        
-        const data = {
-            value: value,
-            expiration: endOfDay
-        };
-        localStorage.setItem(key, JSON.stringify(data));
-    };
     const postHandler = () => {
         if(!auth.isPartner){
             badge.getPostBadge()

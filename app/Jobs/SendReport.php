@@ -32,7 +32,9 @@ class SendReport implements ShouldQueue
     public function handle(ReportService $reportService): void
     {
         $chat = $reportService->sendMessage($this->override_user_id, $this->board_id, $this->type);
-        if($this->type == 'weekly'){
+
+        $types = ['weekly_staff', 'weekly_legal', 'weekly_balance', 'weekly_officer'];
+        if(in_array($this->type, $types)){
             $reportService->checkRequest($chat, $this->override_user_id);
         }
         if($this->type == 'monthly_performance'){

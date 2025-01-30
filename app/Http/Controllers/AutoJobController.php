@@ -37,6 +37,7 @@ use App\Models\LessonPortfolio;
 use App\Models\LessonSection;
 use App\Models\LessonMaterial;
 use App\Models\ClapRecord;
+use App\Models\WelcomeMessage;
 use App\Models\workGroup;
 use App\Models\ProjectRecord;
 use App\Models\ProjectMember;
@@ -60,16 +61,93 @@ use League\Csv\Reader;
 use League\Csv\Statement;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 class AutoJobController extends Controller
 
 {
     protected $sharedService;
+    protected $gemini_url;
     public function __construct(SharedService $sharedService)
     {
         $this->sharedService = $sharedService;
+
+        $this->gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
         // $this->middleware('throttle:3,1');
     }
+    public function get_welcome_message(){
+        $date = Carbon::now()->format('Y-m-d');
+        $message = WelcomeMessage::where('date', $date)->latest()->first();
+        if($message){
+            return response()->json($message);
+        }
+        return response()->json(['message' => 'No message found'], 404);
+    }
+    public function generate_welcome_message(){
+       
+        $apiKey = env("GEMINI_API_KEY");
+
+        $thisMonth = Carbon::now()->format('m');
+        $thisMonthWithoutzero = ltrim($thisMonth, '0');
+        $thisDay = Carbon::now()->format('d');
+        $day = "{$thisMonthWithoutzero}月{$thisDay}日";
+        if (empty($apiKey)) {
+            return response()->json(['message' => 'API key not found'], 400);
+        }
+        
+        $instruction = <<<EOD
+            {$day}は日本国内もしくは国際で何の日ですか。ネットで検索し次のようにメッセージを作成してください。
+            1個だけでいいです。もし結果が複数の場合ランダムで選択してください。
+            最大150文字にまとめてください。
+            そしてちょっとしたメッセージも付けてください。
+            例1：今日は『データ・プライバシーの日』です。個人情報を守ることの大切さを改めて考える日にしてみませんか？
+            例1：今日は『下水道の日』です。水を大切にしましょう。
+            フォーマットは：本日は『〇〇日』です。〇〇。
+        EOD;
+        // Prepare payload
+        $payload = [
+            'contents' => [
+                [
+                    'role' => 'user',
+                    'parts' => [
+                        [
+                            'text' => $instruction,
+                        ],
+                    ],
+                ],
+            ],
+            'tools' => [
+                'google_search_retrieval' => [
+                    'dynamic_retrieval_config' => [
+                        'mode' => 'MODE_DYNAMIC',
+                        'dynamic_threshold' => 0,
+                    ],
+                ],
+            ],
+            'generationConfig' => [
+                'temperature' => 1,
+                'topK' => 40,
+                'topP' => 0.95,
+                'maxOutputTokens' => 8192,
+                'responseMimeType' => 'text/plain'
+            ],
+        ];
     
+        // Send request
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=$apiKey";
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+        ])->post($url, $payload);
+
+        
+        $date = Carbon::now()->format('Y-m-d');
+        $data = $response->json();
+        $chunks = collect(data_get($data, 'candidates.0.groundingMetadata.groundingChunks'));
+        WelcomeMessage::create([
+            'date' => $date,
+            'content' => data_get($data, 'candidates.0.content.parts.0.text'),
+            'chunks' => $chunks
+        ]);
+    }
     public function zoom_event(Request $request){
         $data = $request->all();
         $path = $request->path();

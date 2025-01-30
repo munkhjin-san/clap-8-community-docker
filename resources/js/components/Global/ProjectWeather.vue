@@ -18,7 +18,7 @@
                 <WeatherIcon
                     :class="['condition-icon', { selected: isSelected(num, project.id) }]"
                     :which="num"
-                    size="35"
+                    size="20"
                 />
                 </div>
             </div>

@@ -326,6 +326,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_performance_options', [MemberController::class, 'get_performance_options']);
         Route::post('/get_performance_records', [MemberController::class, 'get_performance_records']);
         Route::post('/get_job_evaluation', [MemberController::class, 'get_job_evaluation']);
+        Route::get('/get_evaluation_levels', [MemberController::class, 'get_evaluation_levels']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
@@ -447,6 +448,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_badge', [ProjectController::class, 'get_project_badge']);
         Route::get('/get_managing_projects', [ProjectController::class, 'get_managing_projects']);
         Route::post('/update_project_conditions', [ProjectController::class, 'updateConditions']);
+        Route::get('/check_evaluation_for_user_in_span ', [ProjectController::class, 'check_evaluation_for_user_in_span']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);
@@ -484,5 +486,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_not_completed_tasks', [RemindController::class, 'get_not_completed_tasks']);
         Route::get('/get_remind_badge', [RemindController::class, 'get_remind_badge']);
         Route::get('/get_not_answered_forms', [RemindController::class, 'get_not_answered_forms']);
+
+        Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);
+        Route::get('/welcome_message ', [AutoJobController::class, 'get_welcome_message']);
         
 });

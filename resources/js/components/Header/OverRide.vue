@@ -22,7 +22,7 @@
             </Transition> 
         </Teleport>
         <Transition>
-            <ProjectWeather v-if="auth.user && auth.user.position_id === 6"/>
+            <ProjectWeather v-if="auth.user && auth.user.position_id === 6 && !weatherModal"/>
         </Transition>
         <SharingData v-if="sharingData.active && (route.name == 'board' || route.name == 'room')"/>
         <Transition name="modalFade">
@@ -40,36 +40,38 @@
         <Transition name="modalFade">
             <SurveyUsers v-if="surveyUsers.active"/>
         </Transition>
+        <WeatherPopup v-if="weatherModal" @close="weatherModal = false"/>
     </div>
 </template>
 
 <script setup>
-    import IncompleteWindow from '../Board/IncompleteWindow.vue'
-    import IncompleteFeedBack from '../Board/IncompleteFeedBack.vue'
-    import theme from '../../../assets/theme.json'
-    import MessageUsers from '../Board/Message/MessageUsers.vue'
-    import SharingData from '../Global/SharingData.vue'
-    import FilePreview from '../Board/Tray/File/FilePreview.vue'
-    import CheckWork from '../Global/CheckWork.vue'
-    import TaskRequest from '../Board/Tray/Task/TaskRequest.vue'
-    import { inject, onBeforeMount, onMounted, provide, ref, watch } from 'vue'
-    import { useRoute } from 'vue-router'
-    import { useFilePreview } from "@/store/filePreview"
-    import { useAuthUserStore } from '@/store/auth'
-    import { useTheme } from '@/store/theme'
-    import { useMessageUsers } from '@/store/messageUsers'
-    import { useSharingDataStore } from '@/store/sharingData'
-    import { useTaskFeedback } from '@/store/taskFeedback'
-    import TaskUsers from '../Board/Tray/Task/TaskUsers.vue'
-    import { useTaskUsers } from '@/store/taskUsers'
-    import { useTaskRequest } from '@/store/taskRequest'
-    import ProjectUsers from '../AccountControl/ProjectControl/ProjectUsers.vue'
-    import DateTimeSelect from '../Global/DateTimeSelect.vue'
-    import { useProjectUsers } from '@/store/projectUsers'
-    import { useMessageSchedule } from '@/store/messageSchedule'
-    import ProjectWeather from '../Global/ProjectWeather.vue'
-    import SurveyUsers from '../Survey/SurveyUsers.vue'
-    import { useSurveyUsers } from '@/store/surveyUsers'
+import IncompleteWindow from '../Board/IncompleteWindow.vue'
+import IncompleteFeedBack from '../Board/IncompleteFeedBack.vue'
+import theme from '../../../assets/theme.json'
+import MessageUsers from '../Board/Message/MessageUsers.vue'
+import SharingData from '../Global/SharingData.vue'
+import FilePreview from '../Board/Tray/File/FilePreview.vue'
+import CheckWork from '../Global/CheckWork.vue'
+import TaskRequest from '../Board/Tray/Task/TaskRequest.vue'
+import { inject, onBeforeMount, onMounted, provide, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { useFilePreview } from "@/store/filePreview"
+import { useAuthUserStore } from '@/store/auth'
+import { useTheme } from '@/store/theme'
+import { useMessageUsers } from '@/store/messageUsers'
+import { useSharingDataStore } from '@/store/sharingData'
+import { useTaskFeedback } from '@/store/taskFeedback'
+import TaskUsers from '../Board/Tray/Task/TaskUsers.vue'
+import { useTaskUsers } from '@/store/taskUsers'
+import { useTaskRequest } from '@/store/taskRequest'
+import ProjectUsers from '../AccountControl/ProjectControl/ProjectUsers.vue'
+import DateTimeSelect from '../Global/DateTimeSelect.vue'
+import { useProjectUsers } from '@/store/projectUsers'
+import { useMessageSchedule } from '@/store/messageSchedule'
+import ProjectWeather from '../Global/ProjectWeather.vue'
+import SurveyUsers from '../Survey/SurveyUsers.vue'
+import { useSurveyUsers } from '@/store/surveyUsers'
+import WeatherPopup from '../Global/WeatherPopup.vue'
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()
@@ -86,6 +88,7 @@
     const auth = useAuthUserStore()
     const messageSchedule = useMessageSchedule()
     const canGetRemind = ref(false)
+    const weatherModal = ref(false)
     onBeforeMount(() => {
         const customTheme = localStorage.getItem('dark')
         if(customTheme == 0 || customTheme == '0' || !customTheme){
@@ -114,6 +117,11 @@
     }) 
     onMounted(() => {
         incompleteCall()
+        if(auth.user){                 
+            if(!auth.user.weathers){
+                weatherModal.value = true
+            }
+        }
         
     })
     const incompleteCall = () => {

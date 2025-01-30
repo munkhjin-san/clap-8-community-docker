@@ -26,6 +26,7 @@ class ReportService
                              ->findOrFail($override_user_id);
         
         $message = $this->generateMessage($type);
+
         $requestData = [
             'record_id' => $board_id,
             'override_user_id' => $override_user_id,
@@ -77,7 +78,7 @@ class ReportService
     }
     public function generateMessage($type)
     {
-        $message = '';
+        $message = null;
 
         switch ($type) {
             case 'incident':
@@ -85,6 +86,18 @@ class ReportService
                 break;
             case 'weekly':
                 $message = $this->weekly_message();
+                break;
+            case 'weekly_staff':
+                $message = $this->weekly_staff();
+                break;
+            case 'weekly_legal':
+                $message = $this->weekly_legal();
+                break;
+            case 'weekly_balance':
+                $message = $this->weekly_balance();
+                break;
+            case 'weekly_officer':
+                $message = $this->weekly_officer();
                 break;
             case 'monthly_3S':
                 $message = $this->monthly_3s_message();
@@ -357,6 +370,90 @@ class ReportService
         領収書は{$mail}までに本社必着で郵送お願いいたします。
         EOT;
 
+        return $message;
+    }
+    private function weekly_staff(){
+        $message = <<<EOT
+        各位
+        お疲れ様です。経営管理本部です。
+
+        以下の事項について変更または変更予定がある場合は、速やかに経営管理本部にご連絡いただきますようお願い申し上げます。
+        また、変更の可能性がある場合は、事前に経営管理本部と情報共有をお願いいたします。
+
+        【人員配置】
+        ・部門間での異動
+        ・パートナー社員の追加・終了
+
+        【人事考課に関する事項】
+        ・成果目標確認（提出状況・進捗）
+        ・半年管理対象者進捗確認
+        EOT;
+        return $message;
+    }
+    private function weekly_legal(){
+        $message = <<<EOT
+        各位
+        お疲れ様です。経営管理本部です。
+
+        以下の事項について変更または変更予定がある場合は、速やかに経営管理本部にご連絡いただきますようお願い申し上げます。
+        また、変更の可能性がある場合は、事前に経営管理本部と情報共有をお願いいたします。
+
+        【契約管理】
+        ・新規契約
+        ・契約更新
+
+        下記派遣更新者（派遣料金・就業場所等変更がないかご確認の程よろしくお願いいたします）
+        https://docs.google.com/spreadsheets/d/1G6sn_MaaunSbrkEarEKBQbDdtG-WoxS5G8ZhWV4LKGI/edit#gid=116057480
+
+        ・契約終了
+
+        EOT;
+        return $message;
+    }
+    private function weekly_balance(){
+        $message = <<<EOT
+        各位
+        お疲れ様です。経営管理本部です。
+
+        以下の事項について変更または変更予定がある場合は、速やかに経営管理本部にご連絡いただきますようお願い申し上げます。
+        また、変更の可能性がある場合は、事前に経営管理本部と情報共有をお願いいたします。
+
+
+        【収支管理】
+        ・仮払未精算
+        ・未入金確認
+        ・交際費稟議
+        ・稟議未計上
+
+        【収支管理】
+        ・収支入力・更新
+        ・タスクの期日確認
+        ・戦略会議の宿題進捗
+
+        EOT;
+        return $message;
+    }
+    private function weekly_officer(){
+        $message = <<<EOT
+        各位
+        お疲れ様です。経営管理本部です。
+
+        以下の事項について変更または変更予定がある場合は、速やかに経営管理本部にご連絡いただきますようお願い申し上げます。
+        また、変更の可能性がある場合は、事前に経営管理本部と情報共有をお願いいたします。
+
+        【執行役員】
+        ・事務所移転
+        ・車入替
+
+        https://docs.google.com/spreadsheets/d/1upDP3a8e2TLgaWPPcFCoCxbAGtLvUJ5YZ_F4HVgJy4U/edit#gid=0
+
+        ・物品移動
+        ・kintoneアカウント追加・削除
+
+        【インシデント】
+        ・インシデント報告・進捗各位
+
+        EOT;
         return $message;
     }
 }
