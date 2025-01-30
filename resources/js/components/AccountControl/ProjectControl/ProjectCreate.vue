@@ -72,6 +72,13 @@
                         placeHolder="KGI"
                     />
                 </div>
+                <div class="si-box">
+                    <LongInput 
+                        name="miso"
+                        v-model="miso"
+                        placeHolder="MISO"
+                    />
+                </div>
                 <!-- <div class="si-box">
                     <MemberSelector 
                         name="director"
@@ -134,6 +141,7 @@ const overview = ref(props.editData?.overview ?? '')
 const strategy = ref(props.editData?.strategy ?? '')
 const kpi = ref(props.editData?.kpi ?? '')
 const kgi = ref(props.editData?.kgi ?? '')
+const miso = ref(props.editData?.miso ?? '')
 const director = ref<User>(props.editData?.director ?? null)
 const manager = ref<User>(props.editData?.manager?.[0] ?? null)
 const member = ref<User[]>(props.editData?.members ?? [])
@@ -164,14 +172,15 @@ const createProject = async() => {
         manager_ids: manager.value ? [manager.value?.id] : [],
         member_ids: member.value.map(ob => ob.id),
         params: {
-           name: name.value,
-           director_id: director.value?.id,
-           date_start: dateStart.value,
-           date_end: dateEnd.value,
-           overview: overview.value,
-           strategy: strategy.value,
-           kgi: kgi.value,
-           kpi: kpi.value,  
+            name: name.value,
+            director_id: director.value?.id,
+            date_start: dateStart.value,
+            date_end: dateEnd.value,
+            overview: overview.value,
+            strategy: strategy.value,
+            kgi: kgi.value,
+            kpi: kpi.value,  
+            miso: miso.value
         },
         board_link: boardLink.value
     }
