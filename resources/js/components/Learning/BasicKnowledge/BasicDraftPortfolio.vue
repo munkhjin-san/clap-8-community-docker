@@ -41,7 +41,7 @@
                     :placeHolder="`ディスカッション用ポートフォリオ内容`"
                     :key="`${portfolio ? portfolio.content : 0}_${route.fullPath}_${portfolio.updated_at}`"
                     ref="portfolioBody"
-                    rules="required|max:2000"
+                    rules="required"
                     name="recordBody"
                     label="タイトル"
                     v-model="content"

@@ -42,7 +42,7 @@
                     ref="kadaiContent"
                     :placeHolder="`昇給課題内容・詳細`"
                     name="kadaiContent"
-                    rules="required|max:2000"
+                    rules="required"
                     label="タイトル"
                     v-model="content"
                 />
@@ -53,7 +53,7 @@
                     ref="kadaiGoal"
                     :placeHolder="`課題達成による取得能力`"
                     name="kadaiGoal"
-                    rules="required|max:2000"
+                    rules="required"
                     label="タイトル"
                     v-model="content_goal"
                 />

@@ -5,7 +5,7 @@
             :initialValue="material?.answer?.answer ? material?.answer?.answer : answer" 
             :placeHolder="`課題への回答`"
             ref="answerComment"
-            rules="required|max:2000"
+            rules="required"
             name="recordBody"
             label="タイトル"
             v-model="answer"

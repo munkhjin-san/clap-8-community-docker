@@ -41,7 +41,7 @@
                         :placeHolder="`理解した点`"
                         :key="sectionContent ? sectionContent : 0"
                         ref="understandComment"
-                        rules="required|max:2000"
+                        rules="required"
                         name="recordBody"
                         label="タイトル"
                         v-model="comment"
