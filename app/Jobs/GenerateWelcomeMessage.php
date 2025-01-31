@@ -36,17 +36,19 @@ class GenerateWelcomeMessage implements ShouldQueue
         if (empty($apiKey)) {
             return;
         }
-        
+        $check = WelcomeMessage::where('date', Carbon::now()->format('Y-m-d'))->exists();
+        if ($check) {
+            return;
+        }
         $instruction = <<<EOD
             {$day}は日本国内もしくは国際で何の日ですか。ネットで検索し次のようにメッセージを作成してください。
             1個だけでいいです。もし結果が複数の場合ランダムで選択してください。
             最大150文字にまとめてください。
             そしてちょっとしたメッセージも付けてください。
-            例1：今日は『データ・プライバシーの日』です。個人情報を守ることの大切さを改めて考える日にしてみませんか？
-            例1：今日は『下水道の日』です。水を大切にしましょう。
-            フォーマットは：本日は『〇〇日』です。〇〇。
+            例1：今日は『〇〇の日』です。△△しましょう。
+            フォーマットは：本日は『〇〇日』です。△△。
+            NGな例：今日は『〇月〇日』です。
         EOD;
-        // Prepare payload
         $payload = [
             'contents' => [
                 [
@@ -85,10 +87,15 @@ class GenerateWelcomeMessage implements ShouldQueue
         $date = Carbon::now()->format('Y-m-d');
         $data = $response->json();
         $chunks = collect(data_get($data, 'candidates.0.groundingMetadata.groundingChunks'));
+        $text = data_get($data, 'candidates.0.content.parts.0.text');
+        if(empty($text)){
+            return;
+        }
         WelcomeMessage::create([
             'date' => $date,
             'content' => data_get($data, 'candidates.0.content.parts.0.text'),
             'chunks' => $chunks
         ]);
+        dd($text);
     }
 }

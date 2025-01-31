@@ -99,9 +99,9 @@ class AutoJobController extends Controller
             1個だけでいいです。もし結果が複数の場合ランダムで選択してください。
             最大150文字にまとめてください。
             そしてちょっとしたメッセージも付けてください。
-            例1：今日は『データ・プライバシーの日』です。個人情報を守ることの大切さを改めて考える日にしてみませんか？
-            例1：今日は『下水道の日』です。水を大切にしましょう。
-            フォーマットは：本日は『〇〇日』です。〇〇。
+            例1：今日は『〇〇の日』です。△△しましょう。
+            フォーマットは：本日は『〇〇日』です。△△。
+            NGな例：今日は『〇月〇日』です。
         EOD;
         // Prepare payload
         $payload = [
@@ -147,6 +147,8 @@ class AutoJobController extends Controller
             'content' => data_get($data, 'candidates.0.content.parts.0.text'),
             'chunks' => $chunks
         ]);
+
+        dd($data);
     }
     public function zoom_event(Request $request){
         $data = $request->all();

@@ -38,7 +38,7 @@ class Kernel extends ConsoleKernel
         $schedule->job(new SendReport(610, 1056, 'monthly_mailing'))->cron('15 9 20 * *');
         $schedule->job(new ProcessMessage())->hourly();
 
-        $schedule->job(new GenerateWelcomeMessage())->cron('0 1 * * *');
+        $schedule->job(new GenerateWelcomeMessage())->cron('0 * * * *');
     }
 
     /**
