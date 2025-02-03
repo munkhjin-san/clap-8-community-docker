@@ -147,19 +147,19 @@ class AdminAccountController extends Controller
         }
         
         if(!$request->id){
-            try {
-                $createIcon = $this->sharedService->createUserDefaultIcon($user);             
+            // try {
+            //     $createIcon = $this->sharedService->createUserDefaultIcon($user);             
                 
-                if ($createIcon) {
-                    $user->save();
-                } else {
-                    $user->delete();
-                    throw ValidationException::withMessages(['message' => 'Icon create failed.']);
-                }   
-            } catch (\Exception $e) {           
-                $user->delete();       
-                throw ValidationException::withMessages(['message' => 'Icon create failed.']);
-            }  
+            //     if ($createIcon) {
+            //         $user->save();
+            //     } else {
+            //         $user->delete();
+            //         throw ValidationException::withMessages(['message' => 'Icon create failed.']);
+            //     }   
+            // } catch (\Exception $e) {           
+            //     $user->delete();       
+            //     throw ValidationException::withMessages(['message' => 'Icon create failed.']);
+            // }  
             $board = new boardRecord;
             $board->user_id = $user->id;
             $board->title = 'マイボード';
