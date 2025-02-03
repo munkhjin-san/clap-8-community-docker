@@ -399,7 +399,9 @@
             const confirm = await confirmOvertime()
             if(!confirm) return            
         } else if(status_flag === 1){
-            await fifteenMinuteCalc()
+            if (auth.activeUser.id !== 610) {
+                await fifteenMinuteCalc()
+            }
             const answer = await confirm('日報を申請します。申請後は修正できません。よろしいですか。')
             if(!answer) return
         }
