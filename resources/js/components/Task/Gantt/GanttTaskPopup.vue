@@ -15,7 +15,7 @@
                     v-model:user="selectedUser" 
                     v-model:status="selectedStatus"
                     class="mr-[20px] ml-auto" 
-                    :user-options="[project?.director, ...project?.manager, ...project?.members]"  
+                    :user-options="[...project?.manager ?? [], ...project?.members ?? []]"  
                     :statusOptions="categoryOptions"
                     @update="getTask"
                 />

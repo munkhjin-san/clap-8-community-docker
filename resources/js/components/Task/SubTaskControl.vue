@@ -15,7 +15,7 @@
             <div class="si-box">
                 <SubTaskSection 
                     ref="subTaskSection"
-                    :user-options="[project?.director, ...project?.manager, ...project?.members]" 
+                    :user-options="[ ...project?.manager ?? [], ...project?.members ?? []]" 
                     v-model:remarks="params.remarks"
                     v-model:executors="params.pre_executors"
                     v-model:end_at="params.end_at"
