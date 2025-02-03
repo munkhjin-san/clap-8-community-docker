@@ -264,7 +264,6 @@ class LessonController extends Controller
     public function update_lesson_answer(Request $request) {
         $request->validate([
             'params.material_id' => 'required',
-            'params.user_id' => 'required',
         ]);
         $params = $request->params;
         $params['user_id'] = auth()->id();
