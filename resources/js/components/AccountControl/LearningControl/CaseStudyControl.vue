@@ -29,7 +29,7 @@
                             <div v-if="lesson.case_study_completed" class="flex whitespace-nowrap flex-nowrap gap-[15px] justify-between" style="padding: 5px 0;">
                                 <div>✅ケーススタディ</div>
                             </div>
-                            <div v-if="theme.survey_completed" class="flex whitespace-nowrap flex-nowrap gap-[15px] justify-between" style="padding: 5px 0;">
+                            <div v-if="lesson.survey_completed" class="flex whitespace-nowrap flex-nowrap gap-[15px] justify-between" style="padding: 5px 0;">
                                 <div>✅チェックリスト</div>
                             </div>
                         </div>
