@@ -922,7 +922,8 @@ class CalendarController extends Controller
                 [ 'label' => '鹿児島582そ6650 ミライース', 'value' => 6, 'selected' => false ],
                 [ 'label' => '福岡582ち7350', 'value' => 7, 'selected' => false ],
                 [ 'label' => 'なにわ502の1116', 'value' => 8, 'selected' => false ],
-                [ 'label' => '大阪581わ707（ﾚﾝﾀｶｰ）', 'value' => 9, 'selected' => false ]
+                [ 'label' => '大阪581わ707（ﾚﾝﾀｶｰ）', 'value' => 9, 'selected' => false ],
+                [ 'label' => '仙台580ひ6191', 'value' => 10, 'selected' => false]
             ]
         ];
         if( $type == 'all' ){
