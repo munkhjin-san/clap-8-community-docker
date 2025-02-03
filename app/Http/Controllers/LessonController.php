@@ -262,10 +262,14 @@ class LessonController extends Controller
         return response()->json($portfolio_list);
     }
     public function update_lesson_answer(Request $request) {
-        $id = $request->id ?? null;
+        $request->validate([
+            'params.material_id' => 'required',
+            'params.user_id' => 'required',
+        ]);
         $params = $request->params;
         $params['user_id'] = auth()->id();
-        $lesson_answer = LessonAnswer::updateOrCreate(['id' => $id, 'user_id' => auth()->id()], $params);
+        $material_id = $params['material_id'];
+        $lesson_answer = LessonAnswer::updateOrCreate(['material_id' => $material_id, 'user_id' => auth()->id()], $params);
         return response()->json($lesson_answer);
     }
     public function get_material_list(Request $request) {
