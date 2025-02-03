@@ -20,7 +20,10 @@ class LessonTheme extends Model
     public function form(){
         return $this->hasOne(CustomForm::class, 'id', 'custom_form_id');
     }
-
+    public function isSurveyCompletedBy($userId)
+    {
+        return $this->form?->survey_answers?->where('user_id', $userId)->isNotEmpty();
+    }
     public function getSurveyCompletedAttribute()
     {
         return $this->form?->survey_answers?->where('user_id', Auth::id())->isNotEmpty();

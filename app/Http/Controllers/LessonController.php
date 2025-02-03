@@ -276,9 +276,9 @@ class LessonController extends Controller
                     ->whereHas('answers', function ($q) {
                         $q->whereHas('user');
                     })
-                    ->with(['answers.user'])
+                    ->with(['answers.user', 'theme'])
                     ->get();
-
+        
         $usersProgress = []; 
 
         foreach ($lessons as $lesson) {
@@ -293,7 +293,8 @@ class LessonController extends Controller
                         'case_study_statuses' => [],
                         'answers' => [],
                         'cant_understand' => '',
-                        'reason_dnt_und' => ''
+                        'reason_dnt_und' => '',
+                        'survey_completed' => $lesson->theme->isSurveyCompletedBy($userId),
                     ];
                 }
                 if ($type === '基礎知識') {

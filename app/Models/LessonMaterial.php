@@ -22,6 +22,9 @@ class LessonMaterial extends Model
     public function summaries() {
         return $this->hasMany(LessonSummary::class, 'lesson_material_id');
     }
+    public function theme() {
+        return $this->belongsTo(LessonTheme::class, 'lesson_theme_id');
+    }
     protected $fillable = [
         'lesson_theme_id',
         'user_id',
