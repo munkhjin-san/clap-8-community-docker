@@ -28,9 +28,11 @@ use InvalidArgumentException;
 class SharedService
 {
     public function syncShiftToCalendar($userId, $year, $month){
-        $deleteAll = CalendarRecord::whereHas('calendar_users', function ($query) use ($userId) {
-            $query->where('users.id', $userId);
-        })->whereYear('date_start', $year)->whereMonth('date_start', $month)->where('shift', 1)->delete();
+        CalendarRecord::join('calendar_users', 'calendar_records.id', '=', 'calendar_users.record_id')
+        ->where('calendar_users.user_id', $userId)
+        ->whereRaw("DATE_FORMAT(date_start, '%Y-%m') = ?", ["$year-$month"])
+        ->where('shift', 1)
+        ->delete();
         $shift_array = shiftRecord::whereMonth('shift_day', $month)->whereYear('shift_day', $year)->where('user_id', $userId)->get();
         foreach($shift_array as $shift){
             if(in_array( $shift['shift_type'], [0, 2, 3, 5, 14, 15, 16])){
