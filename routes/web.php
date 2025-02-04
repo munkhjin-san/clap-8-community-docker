@@ -311,6 +311,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/calendar_delete_record', [CalendarController::class, 'calendar_delete_record']);
         Route::get('/get_departments_calendar', [CalendarController::class, 'get_departments_calendar']);
         Route::get('/get_schedule_summaries', [CalendarController::class, 'get_schedule_summaries']);
+        Route::put('/save_edited_summary', [CalendarController::class, 'save_edited_summary']);
+        Route::delete('/delete_schedule_summary', [CalendarController::class, 'delete_schedule_summary']);
 
         Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
@@ -326,7 +328,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_performance_options', [MemberController::class, 'get_performance_options']);
         Route::post('/get_performance_records', [MemberController::class, 'get_performance_records']);
         Route::post('/get_job_evaluation', [MemberController::class, 'get_job_evaluation']);
-        Route::get('/get_evaluation_levels', [MemberController::class, 'get_evaluation_levels']);
+        Route::get('/get_evaluation_levels', [ProjectController::class, 'get_evaluation_levels']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
@@ -432,15 +434,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_evaluations', [ProjectController::class, 'get_evaluations']);
         Route::post('/save_evaluation_grade', [ProjectController::class, 'save_evaluation_grade']);
         Route::put('/save_member_role', [ProjectController::class, 'save_member_role']);
-        Route::post('/get_current_evaluation', [ProjectController::class, 'get_current_evaluation']);
         Route::post('/set_increase_request', [ProjectController::class, 'set_increase_request']);
-        Route::post('/get_set_increase', [ProjectController::class, 'get_set_increase']);
-        Route::post('/approve_increase_request', [ProjectController::class, 'approve_increase_request']);
+        Route::post('/get_evaluation_data', [ProjectController::class, 'get_evaluation_data']);
         Route::delete('/delete_project_goal', [ProjectController::class, 'delete_project_goal']);
         Route::put('/approve_salary_issue', [ProjectController::class, 'approve_salary_issue']);
         Route::post('/get_salary_issues', [ProjectController::class, 'get_salary_issues']);
-        Route::post('/save_evaluation', [ProjectController::class, 'save_evaluation']);
-        Route::delete('/delete_evaluation', [ProjectController::class, 'delete_evaluation']);
         Route::delete('/delete_project', [ProjectController::class, 'delete_project']);
         Route::put('/approve_outcome_goal', [ProjectController::class, 'approve_outcome_goal']);
         Route::put('/update_issue_report', [ProjectController::class, 'update_issue_report']);
@@ -489,5 +487,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);
         Route::get('/welcome_message ', [AutoJobController::class, 'get_welcome_message']);
+
+        Route::get('combine_data', [ProjectController::class, 'combine_data']);
         
 });

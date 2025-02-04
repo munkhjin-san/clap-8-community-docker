@@ -197,7 +197,7 @@ class User extends Authenticatable
         return $this->belongsToMany(PostRecord::class, 'post_to_users', 'user_id', 'record_id');
     }
     public function evaluation(){
-        return $this->hasOne(ProjectEvaluation::class);
+        return $this->hasOne(EvaluationRecord::class);
     }
     public function outcome_goals(){
         return $this->hasMany(ProjectGoal::class);

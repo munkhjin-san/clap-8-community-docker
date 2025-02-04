@@ -18,7 +18,6 @@ class ContactController extends Controller
 
     public function __construct()
     {
-        // Initialize the global variable in the constructor
         $this->gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
     }
     public function get_contact_types(){

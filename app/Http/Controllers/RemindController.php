@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\attendanceRecord;
 use App\Models\boardToUser;
 use App\Models\CustomForm;
+use App\Models\EvaluationRecord;
 use App\Models\messageRecord;
 use App\Models\ProjectRecord;
+use App\Models\ProjectSetIncrease;
 use App\Models\ShiftOvertimeRequest;
 use App\Models\shiftRecord;
 use App\Models\taskRecord;
@@ -381,11 +383,19 @@ class RemindController extends Controller
         // }
         
         $data = [
-            "not_approved_projects" => $members
+            "not_approved_projects" => $members,
+            "not_approved_increases" => $user->id === 604 || $user->id === 631 ? $this->not_approved_increases() : []
         ];
         return response()->json($data);
     }
-    
+
+    private function not_approved_increases(){
+        $evaluations = EvaluationRecord::where('status', 2)
+                                        ->where('created_at', '>', Carbon::now()->subMonths(3))
+                                        ->with('user.positions', 'checklist', 'candidate', 'mentor')
+                                        ->get();
+        return $evaluations;
+    }
     private function getAdminMembers() {
         return User::whereHas('outcome_goals', function ($query) {
                 $query->where('status', 3)

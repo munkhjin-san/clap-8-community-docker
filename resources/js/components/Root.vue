@@ -272,7 +272,6 @@ import { endPlay } from '@/utils/tts';
     }
     const refreshRemind = (dataType) => {
         if(mainRef.value.refreshData) {
-            console.log(dataType)
             mainRef.value.refreshData(dataType)
         }
     }

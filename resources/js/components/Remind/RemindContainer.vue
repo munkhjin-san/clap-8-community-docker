@@ -176,7 +176,7 @@
                     </div>
                 </div>
             </div>
-            <!-- <div v-if="data.not_approved_increases?.length">
+            <div v-if="data.not_approved_increases?.length">
                 <RemindHeader 
                     :offset="offset"
                     :length="data.not_approved_increases.length"
@@ -188,18 +188,25 @@
                     <div v-for="item in data.not_approved_increases" class="p-[15px] bg-[var(--background-color)]">
                         <div class="flex flex-col gap-[15px] text-[13px]">
                             <UserPanel v-if="item.user" disable-instant with-name size="30" :user="item.user"/>
-                            <div class="text-[gray]">{{ DateTime.fromISO(item.date).toFormat('yyyy年M月実施分') }}</div>
-                            <div>{{ `メンター : ${item?.evaluation?.mentor?.name}`  }}</div>
+                            <div class="text-[gray]">{{ `${item.year}${item.which_half == 'first' ? '上期' : '下期'}` }}</div>
+                            <div>{{ `メンター : ${item?.mentor?.name}`  }}</div>
                             <CommandButton 
                                 :buttons="[
-                                    {title: '対応', action: () => router.push({name: 'evaluation-mentor', query: {user_id: item.user.id, date: item.date}})}
+                                    {title: '対応', action: () => router.push({name: 'evaluation-approval', params: {memberId: item.user.id, span: `${item.year}-${item.which_half}`}})}
                                 ]"
                             />
                         </div>
                     </div>
                 </div>
-
-            </div> -->
+                <router-view v-slot="{ Component }" v-if="route.fullPath.includes('evaluation-approval')">
+                    <transition name="modalFade">
+                        <component
+                            :is="Component" 
+                            :evaluations="data.not_approved_increases"
+                        />
+                    </transition>                    
+                </router-view>
+            </div>
             <div v-if="data.not_approved_projects?.length">
                 <RemindHeader 
                     :offset="offset"
@@ -208,7 +215,7 @@
                     :expanded="expanded.not_approved_projects"
                     @expand="expanded = !expanded"
                 />
-                <div v-if="expanded.not_approved_projects" class="shift-submitted-masonry-inner" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
+                <div v-if="expanded.not_approved_projects" class="shift-submitted-masonry-inner mx-[20px]" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
                     <div v-for="user in data.not_approved_projects">
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
@@ -230,14 +237,13 @@
                         </div>
                     </div>
                 </div>
-                <router-view v-slot="{ Component }">
+                <router-view v-slot="{ Component }" v-if="route.fullPath.includes('project-approval')">
                     <transition name="modalFade">
                         <component
                             :is="Component" 
                             :projects="data.not_approved_projects"
                         />
-                    </transition>
-                    
+                    </transition>                    
                 </router-view>
             </div>
             <div v-if="data.not_answered_forms?.length">
@@ -339,6 +345,7 @@ const expanded = ref({
 })
 const offset = ref(0)
 const prevScrollPosition = ref(0)
+const route = useRoute()
 const handleScroll = () => {
     if(!sortParent.value ) return
     const currentScrollPosition = sortParent.value.scrollTop

@@ -177,15 +177,26 @@ const routes = [
                         name: 'outcomegoal',
                         props: true,
                         meta: {
-                            nameJp: '成果目標・昇給課題'
+                            nameJp: '成果目標・昇給課題',
+                            pushTo: 'goal-span'
                         },
-                        component: () => import('./components/Project/ProjectGoalDetail.vue'),
+                        
+                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationSpan.vue'),
                         children: [
                             {
-                                path: ':goalId',
-                                name: 'goal-more',
+                                path: ':span',
+                                name: 'goal-span',
                                 props: true,
-                                component: () => import('./components/Project/ProjectGoalMore.vue'),
+                                component: () => import('./components/Project/ProjectGoalDetail.vue'),
+                                children:[
+                                    {
+                                        path: ':goalId',
+                                        name: 'goal-more',
+                                        props: true,
+                                        component: () => import('./components/Project/ProjectGoalMore.vue'),
+                                    }
+                                ]
+
                             }
                         ]
                     },
@@ -194,9 +205,18 @@ const routes = [
                         name: 'evaluation',
                         props: true,
                         meta: {
-                            nameJp: '人事考課'
+                            nameJp: '人事考課',
+                            pushTo: 'evalutation-span'
                         },
-                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationDetail.vue'),
+                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationSpan.vue'),
+                        children: [
+                            {
+                                name: 'evalutation-span',
+                                path: ':span',
+                                component: () => import('./components/Project/PersonnelEvaluation/EvaluationDetail.vue'),
+                                 
+                            }
+                        ]
                     },
                 ]
             },
@@ -653,6 +673,11 @@ const routes = [
                         component: () => import('./components/Project/ProjectGoalMore.vue')
                     }
                 ]
+            },
+            {
+                path: 'evaluation-approval/:memberId/:span',
+                name: 'evaluation-approval',
+                component: () => import('./components/Global/CheckEvaluation.vue'),
             }
         ]
     }

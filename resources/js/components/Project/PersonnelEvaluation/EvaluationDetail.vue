@@ -1,350 +1,237 @@
 <template>
     <div class="goals-wrap">
-        <div style="overflow: hidden; position: relative;height:100%;">
+        <div class="absolute w-full h-full bg-[var(--background-color)] z-[10] flex items-center justify-center" v-if="initialLoader">
+            <div id="loaderMini">
+                <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+            </div>
+        </div>
+        <div>
             <div class="goals-inner">
-                <div style="display: flex;justify-content: flex-end;padding: 20px 0;background-color:var(--background-color);position:sticky;top:0;z-index: 1;">
-                    <!-- <div>人事考課</div> -->
-                    <div class="locale-selector" style="width: auto;">
-                        <select name="locales" v-model="evaluationDate" class="dropDownSelector cursor-pointer" style="width: fit-content; padding: 5px 10px;">
-                            <option :value="date.evaluationDate" v-for="date in evaluationOptions">{{ parseDate(date.evaluationDate) }}</option>
-                        </select>
+                <div v-if="evaluationData && evaluationData" class="my-[30px]">
+                    <div>
+                        <div class="mb-[10px]">期間</div>
+                        <div>{{ date.name }}</div>
                     </div>
-                </div>
-                <div v-if="projectEvaluations" style="position: relative">
-                    <div style="display: flex; gap: 20px;">
-                        <div>
-                            <div style="margin-bottom: 10px;">雇用形態</div>
-                            <div>{{ memberData?.positions?.name }}</div>
-                        </div>
-                        <div>
-                            <div style="margin-bottom: 10px;">等級</div>
-                            <div>{{ projectEvaluations?.evaluation?.grade }}</div>
-                        </div>
-                        <div>
-                            <div style="margin-bottom: 10px;">職階</div>
-                            <div>{{ projectEvaluations?.evaluation?.general_position }}</div>
-                        </div>
-                        <div>
-                            <div style="margin-bottom: 10px;">職務</div>
-                            <div>{{ projectEvaluations?.evaluation?.current_level }}</div>
-                        </div>
-                        
+                    <div class="mt-[20px]">
+                        <div class="mb-[10px]">ステータス</div>
+                        <div>{{ evaluationData ? statuses[evaluationData?.status].name : '' }}</div>
                     </div>
-                    
-                    <div class="si-box" style="display: flex; gap: 20px;" v-if="(auth.id === memberData.id || auth.id === memberData?.evaluation?.mentor?.id)">
-                        <!-- <div>
-                            <div style="margin-bottom: 10px;">等級</div>
-                            <div>{{ projectEvaluations?.evaluation?.grade }}</div>
-                        </div> -->
+                    <div class="flex gap-[20px] flex-wrap mt-[20px]">
                         <div>
-                            <div style="margin-bottom: 10px;">給料（非公開）</div>
-                            <div>{{ projectEvaluations?.evaluation?.current_salary_rank }}</div>
+                            <div class="mb-[10px]">雇用形態</div>
+                            <div>{{ memberData?.positions?.name || '未設定' }}</div>
+                        </div>
+                        <div>
+                            <div class="mb-[10px]">等級</div>
+                            <div>{{ evaluationData?.grade || '未設定' }}</div>
+                        </div>
+                        <div>
+                            <div class="mb-[10px]">職階</div>
+                            <div>{{ evaluationData?.general_position || '未設定' }}</div>
+                        </div>
+                        <div>
+                            <div class="mb-[10px]">職務</div>
+                            <div>{{ evaluationData?.current_level || '未設定' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-[20px] flex-wrap mt-[20px]"
+                        v-if="(auth.id === memberData.id || auth.id === evaluationData?.mentor?.id)">
+
+                        <div>
+                            <div class="mb-[10px]">給料（非公開）</div>
+                            <div>{{ evaluationData?.current_salary_rank }}</div>
                         </div>
                         <div v-if="currentPosition?.value">
-                            <div style="margin-bottom: 10px;">役職手当（非公開）</div>
+                            <div class="mb-[10px]">役職手当（非公開）</div>
                             <div>{{ currentPosition?.value }}</div>
                         </div>
-                        
                     </div>
-                    
-                    <div class="goal-detail" style="margin-top: 20px;gap: 10px;position:relative;">
-                        <div>{{selectedDate.lastname}}</div>
-                        <!-- <div style="display: flex; gap: 20px;">
-                            <div>
-                                <div style="margin-bottom: 10px;">達成された成果目標</div>
-                                <div>{{ projectEvaluations?.outcome_goals?.length }}／6</div>
-                            </div>
-                            
-                            
-                        </div> -->
+
+
+                    <div class="mt-[30px] flex flex-col gap-[20px] leading-normal">
+
                         <div style="display: flex; gap: 20px;">
                             <div>
-                                <div style="margin-bottom: 10px;">成果目標達成率</div>
-                                <div>{{ goalPercentage }}%／600%</div>
+                                <div class="mb-[10px]">人事計画</div>
+                                <div v-if="!evaluationData?.candidate || !evaluationData?.candidate.length">未設定
+                                </div>
+                                <div v-for="candidate in evaluationData?.candidate">{{ candidate.next_candidate }}</div>
                             </div>
                             <div>
-                                <div style="margin-bottom: 10px;">昇給課題設定数</div>
-                                <div>{{ projectEvaluations?.last_set }}</div>
+                                <div class="mb-[10px]">能力保有数</div>
+                                <div>{{ evaluationData?.checklist?.length }}／{{ baseSkills.length }}</div>
                             </div>
                             <div>
-                                <div style="margin-bottom: 10px;">昇給課題達成数</div>
-                                <div>{{ projectEvaluations?.last_achieved }}</div>
+                                <div class="mb-[10px]">能力保有率</div>
+                                <div>{{  !baseSkills.length ? '情報なし' : `${Math.round(evaluationData?.checklist?.length / baseSkills.length * 100)}%` }}
+                                </div>
                             </div>
-                            <!-- <div>
-                                <div style="margin-bottom: 10px;">雇用条件変更有無</div>
-                                <div>{{ employeChange[projectEvaluations?.change_in_position] }}</div>
-                            </div> -->
-                            <!-- <div> 
-                                <div style="margin-bottom: 10px;">人事確定ー人事会議使用欄ー</div>
-                                <div>{{ confirmOptions[projectEvaluations?.position_approved] }}</div>
-                            </div> -->
-                            <div>
-                                <div style="margin-bottom: 10px;">人事結果</div>
-                                <div v-for="candidate in projectEvaluations?.candidate">{{ candidate.last_candidate }}</div>
-                            </div>
-                            
+
                         </div>
-                        <div style="display: flex; gap: 20px;" v-if="(auth.id === memberData.id || auth.id === memberData?.evaluation?.mentor?.id)">
-                            <div>
-                                <div style="margin-bottom: 10px;">新給料（非公開）</div>
-                                <div>{{ projectEvaluations?.evaluation?.after_salary_rank }}</div>
-                            </div>
-                            <div v-if="newPosition?.value">
-                                <div style="margin-bottom: 10px;">新役職手当（非公開）</div>
-                                <div>{{ newPosition?.value }}</div>
-                            </div>
-                            <div v-if="newPosition">
-                                <div style="margin-bottom: 10px;">次期職階</div>
-                                <div>{{ newPosition?.name }}</div>
+                        <div>
+                            <div class="mb-[10px]">保有能力</div>
+                            <div class="flex flex-col gap-[10px] text-[13px]">
+                                <div v-for="skill in baseSkills">
+                                    <div class="flex gap-3">
+                                        <div>
+                                            <svg v-if="Array.isArray(evaluationData?.checklist) && evaluationData.checklist.find((c: any) => c.content == skill)"
+                                                fill="var(--primary-color)" version="1.1" xmlns="http://www.w3.org/2000/svg"
+                                                height="10" viewBox="0 0 38 32">
+                                                <path
+                                                    d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z">
+                                                </path>
+                                            </svg>
+                                            <svg v-else version="1.1" fill="gray" xmlns="http://www.w3.org/2000/svg"
+                                                height="10" viewBox="0 0 32 32">
+                                                <path
+                                                    d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z">
+                                                </path>
+                                            </svg>
+                                        </div>
+
+                                        <div
+                                            :class="Array.isArray(evaluationData?.checklist) && evaluationData.checklist.find((c: any) => c.content == skill) ? 'text-[var(--primary-color)]' : 'text-[gray]'">
+                                            {{ skill }}</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div v-if="memberData && (auth.id === memberData.id || auth.id === memberData?.evaluation?.mentor?.id || auth.id === 612)" style="position: absolute;right: 10px;top: 10px;">                                            
-                            <ItemMenu :items="[
-                                {title: '編集する', action: () => handleClick(0)},
-                                {title: '削除する', action: () => deleteEvaluation()}
-                            ]"/> 
+
+                        <div>
+                            <div class="mb-[10px]">昇格後のビジョン</div>
+                            <div>{{ evaluationData?.vision || '未設定' }}</div>
+                        </div>
+
+                        <div>
+                            <div class="mb-[10px]">メンター記入欄</div>
+                            <div>{{ evaluationData?.mentor_comment || '未設定' }}</div>
                         </div>
                     </div>
-                    <div class="goal-detail" style="margin-top: 20px;gap: 10px;position: relative;">
-                        <div>{{ selectedDate.name }}</div>
-                        <div style="display: flex; gap: 20px;">
-                            <div>
-                                <div style="margin-bottom: 10px;">昇給課題設定可能数</div>
-                                <div>{{ possibleSetIssue }}／4</div>
-                            </div>
-                            <div>
-                                <div style="margin-bottom: 10px;">昇給課題設定数</div>
-                                <div>{{ projectEvaluations?.salary_issues?.length }}／{{ possibleSetIssue }}</div>
-                            </div>
-                        </div>
-                        
-                        <div>
-                            <div style="margin-bottom: 10px;">保有能力</div>
-                            <div v-for="checked in projectEvaluations?.checklist">{{ checked.content }}</div>
-                        </div>
-                        <div style="display: flex; gap: 20px;">
-                            
-                            <div>
-                                <div style="margin-bottom: 10px;">能力保有数</div>
-                                <div>{{ projectEvaluations?.checklist?.length }}／{{ criteriaMaster?.[0]?.standards.length }}</div>
-                            </div>
-                            <!-- <div>
-                                <div style="margin-bottom: 10px;">保有数</div>
-                                <div></div>
-                            </div> -->
-                            <div>
-                                <div style="margin-bottom: 10px;">能力保有率</div>
-                                <div>{{ Math.round(projectEvaluations?.checklist?.length / criteriaMaster?.[0]?.standards.length * 100) }}%</div>
-                            </div>
-                            <div> 
-                                <div style="margin-bottom: 10px;">人事計画</div>
-                                <div v-for="candidate in projectEvaluations?.candidate">{{ candidate.next_candidate }}</div>
-                            </div>
-                        </div>
-                        <div>
-                            <div style="margin-bottom: 10px;">昇格後のビジョン</div>
-                            <div>{{ projectEvaluations?.reason }}</div>
-                        </div>
-                        
-                        <div>
-                            <div style="margin-bottom: 10px;">メンター記入欄</div>
-                            <div>{{ projectEvaluations?.mentor_entry }}</div>
-                        </div>
-                        <div v-if="memberData && (auth.id === memberData.id || auth.id === memberData?.evaluation?.mentor?.id || auth.id === 612)" style="position: absolute;right: 10px;top: 10px;">                                            
-                            <ItemMenu :items="[
-                                {title: '編集する', action: () => handleClick(1)},
-                                {title: '削除する', action: () => deleteEvaluation()}
-                            ]"/> 
-                        </div>
+                    <div class="mt-[30px] flex gap-[20px]">
+                        <CommandButton v-if="memberData && auth.user?.position_id !== 13 && evaluationData.status == 0 || evaluationData.status == 1" :buttons="[
+                            {title: evaluationData.status == 0 ? '人事考課開始' : '編集する', action: () => handleClick(1)},
+                        ]" />
+
+                        <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631 ].includes(auth.activeUser.id) && evaluationData.status == 2" :buttons="[
+                            {title:'承認する', action: () => updateStatus(3)},
+                        ]" />
+                        <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631 ].includes(auth.activeUser.id) && evaluationData.status == 2 || evaluationData.status == 3" :buttons="[
+                            {title:'差し戻し', action: () => updateStatus(1)},
+                        ]" />
+
+                        <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631, evaluationData?.mentor?.id ].includes(auth.activeUser.id) && evaluationData.status == 1" :buttons="[
+                            {title:'申請する', action: () => updateStatus(2)},
+                        ]" />
                     </div>
-                    <!-- <div class="goal-detail" style="margin-top: 20px;gap: 10px;"> -->
-                        <!-- <div>人事成果</div> -->
-                        <!-- <div style="display: flex; gap: 20px;"> -->
-                            <!-- <div>
-                                <div style="margin-bottom: 10px;">達成された成果目標</div>
-                                <div>{{ projectEvaluations?.outcome_goals?.length }}／6</div>
-                            </div>
-                            <div>
-                                <div style="margin-bottom: 10px;">成果目標達成率合計</div>
-                                <div>{{ goalPercentage }}%／600%</div>
-                            </div> -->
-                            <!-- <div>
-                                <div style="margin-bottom: 10px;">次期課題設定可能数</div>
-                                <div>{{ possibleSetIssue }}／4</div>
-                            </div>
-                            <div>
-                                <div style="margin-bottom: 10px;">次期昇給課題設定数</div>
-                                <div>{{ projectEvaluations?.salary_issues?.length }}／{{ possibleSetIssue }}</div>
-                            </div> -->
-                        <!-- </div> -->
-                    <!-- </div> -->
-                    
+
                 </div>
                 <div v-else class="no-comment-text">
                     現在レコードはありません。
+                    または、人事担当者より事前設定を行っていません。
                 </div>
             </div>
-            <div v-if="memberData && ((auth.id === memberData.id && auth.user?.position_id !== 13 )|| auth.id === memberData?.evaluation?.mentor?.id || auth.id === 612) && !projectEvaluations" title="新規作成" id="boardCreate" class="createBoardButton fileNewButton" @click="handleClick(0)" :style="{zIndex: 7}">
-                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="fill:#000;margin:auto;">
-                    <path d="M30.044 14.14c-2.402-0.231-4.804-0.341-7.206-0.422-1.535-0.058-3.071-0.079-4.606-0.090-0.326-0.002-0.587-0.265-0.588-0.591-0.004-1.537-0.018-3.074-0.078-4.613-0.092-2.4-0.218-4.802-0.542-7.205-0.084-0.612-0.565-1.119-1.205-1.206-0.769-0.103-1.477 0.437-1.582 1.206-0.324 2.401-0.449 4.804-0.542 7.205-0.059 1.536-0.074 3.071-0.078 4.606-0.001 0.325-0.263 0.59-0.59 0.59-1.534 0.005-3.068 0.020-4.602 0.078-2.404 0.094-4.805 0.219-7.207 0.543-0.612 0.081-1.119 0.564-1.205 1.205-0.103 0.769 0.436 1.477 1.205 1.58 2.402 0.324 4.804 0.449 7.207 0.543 1.536 0.059 3.074 0.073 4.612 0.078 0.325 0.001 0.587 0.262 0.59 0.587 0.011 1.536 0.033 3.070 0.090 4.606 0.080 2.402 0.192 4.805 0.423 7.207 0.066 0.699 0.622 1.278 1.349 1.348 0.823 0.079 1.556-0.524 1.633-1.348 0.231-2.402 0.342-4.805 0.423-7.207 0.057-1.538 0.079-3.077 0.090-4.615 0.002-0.324 0.263-0.583 0.587-0.586 1.538-0.011 3.077-0.034 4.615-0.090 2.402-0.080 4.804-0.193 7.206-0.423 0.7-0.066 1.279-0.622 1.349-1.349 0.076-0.823-0.528-1.557-1.351-1.634z"></path>
-                </svg>
-            </div>
-                
+
+
         </div>
-        <Transition name="modalFade">
-            <EvaluationCreation 
-                v-if="createWindow"
-                :criteriaMaster="criteriaMaster"
-                :memberData="memberData"
-                :evaluationDate="evaluationDate"
-                :selectedDate="selectedDate"
-                :edit-data="projectEvaluations"
-                :step="step"
-                @reload="reload"
-                @search="search"
-                @close="createWindow = false"
-                @next="step = 1"
-            />
-        </Transition>
+            <Transition name="modalFade">
+                <EvaluationCreationWithMentor 
+                    v-if="createWindow" 
+                    :memberData="memberData" 
+                    :date="date"
+                    @reload="reload" @close="createWindow = false" />
+            </Transition>
     </div>
-       
-    
 </template>
 <script setup lang="ts">
-import { generalPositions, debounce, evaluationDateOptions, parseDate, detailedDateOptions } from '@/utils/tools';
-import { computed, inject, onMounted, ref, watch } from 'vue';
+import { generalPositions, } from '@/utils/tools';
+import { computed, inject, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 import axios from 'axios';
 import { Increase } from '@/interface/projectInterface';
-import EvaluationCreation from './EvaluationCreation.vue';
-import ItemMenu from '@/components/Global/ItemMenu.vue';
-import moment from 'moment';
-import { Dialog } from '@/interface/globalInterface';
+import EvaluationCreationWithMentor from './EvaluationCreationWithMentor.vue';
+import {  Dialog, DialogMethods } from '@/interface/globalInterface'
+import { EvaluationRecord } from '@/interface/evaluationInterface';
+import CommandButton from '@/components/Global/CommandButton.vue';
 const props = defineProps([
-    'selectedProject',
-    'memberData'
+    'memberData',
+    'date',
 ])
-const initialLoader = defineModel()
+
+const statuses = [
+    {id: 0, name: '未開始', success: '作成しました'},
+    {id: 1, name: '作成中', success: '保存しました。'},
+    {id: 2, name: '申請中', success: '申請しました。'},
+    {id: 3, name: '承認済み', success: '承認しました。'},
+]
+const initialLoader = ref(true)
 const positions = generalPositions()
 const router = useRouter()
 const auth = useAuthUserStore()
-const projectEvaluations = ref<Increase | null>(null)
-const evaluationOptions = detailedDateOptions()
-interface Date {
-    value: any;
-    lastname: string;
-    name: string;
-}
-const selectedDate = inject('selectedDate') as Date
-const evaluationDate = inject('evaluationDate') as Date
-const metricDate = inject('metricDate') as Date
-const criteriaMaster = ref<any>([])
+const evaluationData = ref<EvaluationRecord | null>(null)
 const route = useRoute()
 const createWindow = ref(false)
 const step = ref(0)
-const getProjects = inject('getProjects') as Function
-const setDates = inject('setDates') as Function
-const { notify, confirm } = inject<Dialog>('dialog')!
-const employeChange = [
-    '変更なし',
-    '変更あり'
-]
-const confirmOptions = [
-    '未確定',
-    '確定'
-]
-watch(() => evaluationDate.value, async(newValue) => {
-    
-    if(newValue && props.memberData) {
-        initialLoader.value = true
-        reload()
-    }
-  
-    
-})
-onMounted(async() => {
+const baseSkills = ref<string[]>([])
+const { notify, confirm, info  } = inject<Dialog>('dialog') as DialogMethods
+
+const loading = ref(0)
+onMounted(async () => {
+
     getEvaluations()
-    
+
 })
+
 const currentPosition = computed(() => {
-    return positions.find(ob => ob.name === projectEvaluations.value?.evaluation?.general_position)
+    return positions.find(ob => ob.name === evaluationData.value?.general_position)
 })
 const newPosition = computed(() => {
-    return positions.find(ob => ob.name === projectEvaluations.value?.evaluation?.new_position)
+    return positions.find(ob => ob.name === evaluationData.value?.new_position)
 })
 const handleClick = (num: number) => {
-    // if (auth.id === memberData.value.id) {
-    //     step.value = 1
-    // }
     step.value = num
     createWindow.value = true
 }
-const reload = async() => {
+const reload = async () => {
     await getEvaluations()
-    firstFetch()
+
 }
-const goalPercentage = computed(() => {
-    return projectEvaluations.value?.outcome_goals?.reduce((acc, element) => acc + element.achievement_rate, 0)
-})
-const possibleSetIssue = computed(() => {
-    const percentage = goalPercentage.value;
-    if (percentage === 600) {
-        return 4;
-    } else if (percentage >= 500) {
-        return 3;
-    } else if (percentage >= 400) {
-        return 2;
-    } else if (percentage >= 300) {
-        return 1;
-    } else {
-        return 0;
-    }
-})
-const firstFetch = async() => {
+const updateStatus = async (status: number) => {
     try {
-        criteriaMaster.value = await axios.post('/get_project_criteria', {keywords: projectEvaluations.value?.evaluation?.current_level, first: false }).then(res => res.data)
+        const response = await axios.post('/set_increase_request', {
+            attributes:{
+                id: evaluationData.value?.id,
+            },            
+            params: {
+                status: status
+            }
+        })
+        info(statuses[status].success)
+        await getEvaluations()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
-const search = debounce(async(key: string) => {
-    try {
-        criteriaMaster.value = await axios.post('/get_project_criteria', {keywords: key, first: false}).then(res => res.data)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-    
-}, 350)
-const getEvaluations = async() => {
-    if (props.memberData) {
-        initialLoader.value = true
+const getEvaluations = async () => {
+    const span = route.params.span as string
+    if (props.memberData && span) {
         try {
             const params = {
-                date: evaluationDate.value,
+                year: span?.split('-')[0],
+                which_half: span?.split('-')[1],
                 user_id: props.memberData?.id
             }
-            const response = await axios.post('/get_set_increase', params)
-            projectEvaluations.value = response.data
-            setTimeout(() => {
-                initialLoader.value = false
-            }, 300);
+            const response = await axios.post('/get_evaluation_data', params)
+            evaluationData.value = response.data.evaluation
+            baseSkills.value = response.data.base_skills
         } catch (e) {
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }finally{
+            initialLoader.value = false
         }
     }
-    
+
 }
 
-const deleteEvaluation = async() => {
-    const id = projectEvaluations.value?.id
-    const answer = await confirm('この人事考課を削除してもよろしいですか?')
-    if(!answer) return
-    try {
-        await axios.delete(`/delete_evaluation?id=${id}`)
-        getEvaluations()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-}
 </script>

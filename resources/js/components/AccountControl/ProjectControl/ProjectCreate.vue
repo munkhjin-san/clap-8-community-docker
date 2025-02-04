@@ -55,7 +55,7 @@
                     <LongInput 
                         name="strategy"
                         v-model="strategy"
-                        placeHolder="MISO"
+                        placeHolder="魏和装"
                     />
                 </div>
                 <div class="si-box">

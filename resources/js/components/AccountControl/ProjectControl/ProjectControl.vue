@@ -24,31 +24,37 @@
     </div>
 </template>
 <script setup lang="ts">
-import { onMounted, provide, ref, watch } from 'vue';
+import { onMounted, provide, reactive, ref, watch } from 'vue';
 import PostSearchBar from '@/components/Post/PostSearchBar.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { User } from '@/interface/globalInterface';
 import axios from 'axios';
 import moment from 'moment';
+import { detailedDateOptions } from '@/utils/tools';
+import { DateTime } from 'luxon';
 const keywords = ref('')
 const router = useRouter()
 const route = useRoute()
 const userList = ref<User[]>([])
 const mentorList = ref([])
-const selectedDate = ref('')
+const selectedDate = ref({
+    year: '',
+    which_half: '',
+    name: ''
+})
 onMounted(() => {
-    const currentMonth = moment().month()
-    if (currentMonth >= 1 && currentMonth < 7) {
-        selectedDate.value = moment().month(1).date(1).format('YYYY-MM-DD');
-    } else if(currentMonth < 1) {
-        selectedDate.value = moment().subtract(1, 'year').month(7).date(1).format('YYYY-MM-DD');
-    } else {
-        selectedDate.value = moment().month(7).date(1).format('YYYY-MM-DD');
-    }
+    const options = detailedDateOptions()
+    const today = DateTime.now()
+    selectedDate.value.which_half = today.month > 3 && today.month < 9 ? 'second' : 'first'
+    selectedDate.value.year = today.year.toString()
+    const foundOption = options.find(option => option.year == selectedDate.value.year && option.which_half == selectedDate.value.which_half)
+    const findName = foundOption ? foundOption.name : ''
+    selectedDate.value.name = findName
+    getSelectableUsers()
 })
 const getSelectableUsers = async() => {
     try {
-        const data = await axios.post('/get_selectable_users', {date: selectedDate.value}).then(res => res.data)
+        const data = await axios.post('/get_selectable_users', {params: selectedDate.value}).then(res => res.data)
         userList.value = data.users
         mentorList.value = data.mentors
     } catch (e) {

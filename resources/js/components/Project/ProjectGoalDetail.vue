@@ -5,11 +5,11 @@
                 <div class="goals-inner">
                     <div style="display: flex;justify-content: flex-end;padding: 20px 0;background-color:var(--background-color);position:sticky;top:-1;z-index: 7;">
                         <!-- <h2>成果目標／昇給課題</h2> -->
-                        <div class="locale-selector" style="width: auto;">
+                        <!-- <div class="locale-selector" style="width: auto;">
                             <select name="locales" v-model="goalDate" class="dropDownSelector cursor-pointer" style="width: fit-content; padding: 5px 10px;">
                                 <option :value="date.value" v-for="date in seikaOptions">{{date.name}}</option>
                             </select>
-                        </div>
+                        </div> -->
                     </div>
                     <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">
                         
@@ -98,24 +98,11 @@
                     </transition>
                     
                 </router-view>
-                <!-- <ProjectGoalMore
-                    v-if="chosenGoal" 
-                    :goal="chosenGoal"
-                    :memberData="memberData"
-                    :selectedProject="selectedProject"
-                    :isManagerOrMember="isManagerOrMember"
-                    :themeRecords="themeRecords"
-                    :selectedDate="selectedDate"
-                    :statuses="statuses"
-                    @close="chosenGoal = null"
-                /> -->
-            <!-- </Transition> -->
             <Transition name="modalFade">
                 <ProjectOutcomeGoal 
                     v-if="createOutcomeGoal"
                     :selectedDate="selectedDate"
                     :selectedProject="selectedProject"
-                    :memberData="memberData"
                     :editGoalData="editGoalData"
                     @close="createOutcomeGoal = false, editGoalData = null"
                 />
@@ -173,15 +160,15 @@ const statuses = [
     '目標達成'
 ]
 watch(goalDate, async(newValue) => {
-    if(newValue){
-        initialLoader.value = true
-        await fetchMemberData()
-    }
+    // if(newValue){
+    //     initialLoader.value = true
+    //     await fetchMemberData()
+    // }
 })
 
 onMounted(async() => {
-    setInitialDates()
-    // await fetchMemberData()
+    // setInitialDates()
+    await fetchMemberData()
     await getThemes()
 })
 const chosenGoal = computed(() => {
@@ -193,18 +180,12 @@ const sliceGoal = (content: string) => {
     : content;
     return truncatedGoal
 }
-const setInitialDates = () => {
-    const currentMonth = moment().month();
-    if (currentMonth >= 2 && currentMonth < 8) {
-        goalDate.value = moment().month(2).date(1).format('YYYY-MM-DD');
-    } else if (currentMonth < 2) {
-        goalDate.value = moment().subtract(1, 'year').month(8).date(1).format('YYYY-MM-DD');
-    } else {
-        goalDate.value = moment().month(8).date(1).format('YYYY-MM-DD');
-    }
-};
 const selectedDate = computed(() => {
-    return seikaOptions.find(ob => ob.value === goalDate.value)
+    const options = detailedDateOptions()
+    const span = route.params.span as string
+    const [year, which_half] = span.split('-')
+    const goalDate = options.find(option => option.year === year && option.which_half === which_half)
+    return goalDate
 })
 
 const isManagerOrMember = computed(() => {
@@ -216,8 +197,11 @@ const isManagerOrMember = computed(() => {
 const fetchMemberData = async () => {
     if (props.memberData) {
         try {
+            const span = route.params.span as string
+            const [year, which_half] = span.split('-')
             const params = {
-                target_period: goalDate.value,
+                year: year,
+                which_half: which_half,
                 user_id: props.memberData?.id
             }
             projectGoals.value = await axios.post('/get_outcome_goals', params).then(res => res.data)

@@ -2,7 +2,7 @@
     <div class="post-container scrollable" style="height: calc(100% - 126px);">
         <div class="evaluation-date">
             <select name="locales" v-model="selectedDate" class="dropDownSelector cursor-pointer" style="width: fit-content; padding: 5px 10px;">
-                <option :value="date" v-for="date in targetDates">{{ parseDate(date)}}</option>
+                <option :value="date" v-for="date in targetDates">{{ date.name}}</option>
             </select>
         </div>
         <div class="project-table">
@@ -22,7 +22,22 @@
                     <span>{{user.name}}</span>
                 </div>
                 <div class="project-cell">{{ user?.positions?.name }}</div>
-                <div class="project-cell">{{ user?.evaluation?.mentor?.name }}</div>
+                <div class="project-cell">
+                    <div class="flex items-center gap-[10px]">
+                        <div style="display: flex; gap: 10px;">
+                            <CommandButton 
+                                :buttons="[
+                                    { title: '設定', action: () => setMentor(user)},
+                                ]"
+                            />
+                        </div>
+                        <div>
+                            {{ user?.evaluation?.mentor?.name }}
+                        </div>
+                    </div>
+
+                    
+                </div>
                 <div class="project-cell">{{ user?.evaluation?.general_position }}</div>
                 <div class="project-cell">{{ user?.evaluation?.current_level }}</div>
                 <div class="project-cell">{{ user?.evaluation?.grade }}</div>
@@ -32,7 +47,7 @@
                     <div style="display: flex; gap: 10px;">
                         <CommandButton 
                             :buttons="[
-                                { title: '追加', action: () => addEvaluation(user)},
+                                { title: '編集', action: () => addEvaluation(user)},
                             ]"
                         />
                     </div>
@@ -40,7 +55,7 @@
             </div>
         </div>
         <Transition name="modalFade">
-            <EvaluationCreation 
+            <EvaluationPreCreation 
                 v-if="createWindow"
                 :user="selectedUser"
                 :selectedDate="selectedDate"
@@ -50,26 +65,63 @@
                 @close="createWindow = false"
             />
         </Transition>
+        <Transition name="modalFade">
+            <MentorQuickSelector 
+                v-if="mentorSelectorData.view"
+                :data="mentorSelectorData"
+                @close="resetMentorSelector"
+            />
+        </Transition>
     </div>
 </template>
 <script lang="ts" setup>
-import { evaluationDateOptions, parseDate } from '@/utils/tools';
-import { onMounted, ref, computed } from 'vue';
+import { detailedDateOptions, evaluationDateOptions, parseDate } from '@/utils/tools';
+import { onMounted, ref, computed, reactive } from 'vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
-import EvaluationCreation from './EvaluationCreation.vue'
+import EvaluationPreCreation from './EvaluationPreCreation.vue'
 import axios from 'axios';
 import { Evaluation } from '@/interface/projectInterface';
+import MentorQuickSelector from './MentorQuickSelector.vue';
+import { User } from '@/interface/globalInterface';
+import { DateTime } from 'luxon';
 const props = defineProps(['userList', 'mentorList', 'keywords'])
 
-const targetDates = evaluationDateOptions()
+const targetDates = detailedDateOptions()
 const selectedDate = defineModel()
 const createWindow = ref(false)
 const selectedUser = ref(null)
 const salary_options = ref([])
 const editData = ref<Evaluation>()
+
+const mentorSelectorData = reactive<{
+        view: boolean,
+        user: User | null,
+        mentorList: User[],
+        selectedMentor: User | null
+        date: any
+        editId: number | null
+    }>
+    ({
+        view: false,
+        user: null,
+        mentorList: [],
+        selectedMentor: null,
+        date: null,
+        editId: null
+    })
+
+
 onMounted(() => {
     getSalaryOptions()
 })
+const resetMentorSelector = (flag: boolean) => {
+    mentorSelectorData.view = false
+    mentorSelectorData.user = null
+    mentorSelectorData.mentorList = []
+    mentorSelectorData.selectedMentor = null
+    mentorSelectorData.date = null
+    mentorSelectorData.editId = null
+}
 const searchResults = computed(() => {
     if(props.keywords){
         const lowSearch = props.keywords.toLowerCase()
@@ -99,6 +151,16 @@ const getSalaryOptions = async() => {
     } catch (e) {
 
     }
+}
+
+const setMentor = (user) => {    
+    mentorSelectorData.view = true
+    mentorSelectorData.user = user
+    mentorSelectorData.mentorList = props.mentorList
+    mentorSelectorData.selectedMentor = user?.evaluation?.mentor ?? null
+    mentorSelectorData.editId = user?.evaluation?.id ?? null
+    mentorSelectorData.date = selectedDate.value
+
 }
 
 </script>

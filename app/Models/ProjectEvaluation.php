@@ -14,4 +14,7 @@ class ProjectEvaluation extends Model
     public function mentor() {
         return $this->hasOne(User::class, 'id', 'mentor_id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
+    public function set_increases() {
+        return $this->hasOne(ProjectSetIncrease::class, 'date', 'date');
+    }
 }

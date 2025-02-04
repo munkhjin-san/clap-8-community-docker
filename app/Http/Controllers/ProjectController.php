@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\boardRecord;
+use App\Models\EvaluationRecord;
 use App\Models\ProjectCondition;
-use App\Models\ProjectEvaluation;
 use App\Models\ProjectMember;
 use App\Models\ProjectRecord;
 use App\Models\ProjectSetIncrease;
@@ -13,12 +13,16 @@ use App\Models\ProjectGoal;
 use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Validation\ValidationException;
 use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BoardController;
 use App\Services\SharedService;
+use App\Imports\EvaluationImport;
+use Illuminate\Database\Eloquent\Collection;
+use Maatwebsite\Excel\Facades\Excel;
 class ProjectController extends Controller
 {
     //
@@ -43,17 +47,11 @@ class ProjectController extends Controller
                         'project_conditions' => function ($q) use($weekStartDate) {
                             $q->where('week_start_date', $weekStartDate);
                         },
-                        'manager' => function ($q) use ($evaluation_date) {
-                            $q->with(['evaluation' => function ($q) use ($evaluation_date) {
-                                $q->whereDate('date', $evaluation_date)
-                                    ->with('mentor');
-                            }])->where('retire', 0);
+                        'manager' => function ($q)  {
+                            $q->where('retire', 0);
                         },
-                        'members' => function ($q) use ($evaluation_date) {
-                            $q->with(['evaluation' => function ($q) use ($evaluation_date) {
-                                $q->whereDate('date', $evaluation_date)
-                                    ->with('mentor');
-                            }])->where('retire', 0);
+                        'members' => function ($q)  {
+                            $q->where('retire', 0);
                         }
                     ])
                     ->with('director')
@@ -112,11 +110,13 @@ class ProjectController extends Controller
     }
     public function get_outcome_goals(Request $request) {
         $request->validate([
-            'target_period' => 'required',
-            'user_id' => 'required'
+            'year' => 'required',
+            'user_id' => 'required',
+            'which_half' => 'required',
         ]);
 
-        $project_goals = ProjectGoal::where('target_period', $request->target_period)
+        $project_goals = ProjectGoal::where('year', $request->year)
+                                    ->where('which_half', $request->which_half)
                                     ->where('user_id', $request->user_id)
                                     ->with(['project', 'files'])
                                     ->with(['salaryIssue' => function ($q) {
@@ -143,74 +143,75 @@ class ProjectController extends Controller
         return response()->json($member);
     }
     public function get_project_criteria(Request $request){
-        
-        
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
-        $string = "{$user_name}:{$password}";
-        $x_token = base64_encode($string);
-        $headers = [
-            'Authorization' => 'Basic', 
-            'X-Cybozu-Authorization' => $x_token,
-        ];
-        $appId = '1272';
-        $fields = ['文字列__1行__1', 'テーブル'];
-        $limit = 30;
-        $query = $request->first
-            ? "limit $limit"
-            : ($request->keywords ? "文字列__1行__1 like \"" . addslashes($request->keywords) . "\" limit $limit" : "limit $limit");
 
-        if (!$request->keywords) {
-            $limit = 20;
-            $query = "limit $limit";
-        }
-        $queryParams = [
-            'app' => $appId,
-            'query' => $query,
-            'fields' => $fields
-        ];
         
-        $queryString = http_build_query($queryParams);
-        $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?{$queryString}";
         
-        $response = Http::withHeaders($headers)->get($url);
-        $responseData = $response->json();
-        $recieve = [];
-        $levels = [];
-        if (array_key_exists('records', $responseData) && !empty($responseData['records'])) {
-            foreach ($responseData['records'] as $record) {
-                $standards = [];
-                if (isset($record['テーブル']['value'])) {
-                    foreach ($record['テーブル']['value'] as $standard) {
-                        if (isset($standard['value']['職務遂行のための基準']['value'])) {
-                            $standards[] = [
-                                'standard' => $standard['value']['職務遂行のための基準']['value'],
-                            ];
-                        }
-                    }
-                }
-                if (isset($record['文字列__1行__1']['value'])) {
-                    $levels[] = [
-                        'level' => $record['文字列__1行__1']['value'],
-                        'standards' => $standards, 
-                    ];
-                }
-            }
-        }
+        
+        // $user_name = env('KINTONE_USER_NAME');
+        // $password = env('KINTONE_PASSWORD');
+        // $string = "{$user_name}:{$password}";
+        // $x_token = base64_encode($string);
+        // $headers = [
+        //     'Authorization' => 'Basic', 
+        //     'X-Cybozu-Authorization' => $x_token,
+        // ];
+        // $appId = '1272';
+        // $fields = ['文字列__1行__1', 'テーブル'];
+        // $limit = 30;
+        // $query = $request->first
+        //     ? "limit $limit"
+        //     : ($request->keywords ? "文字列__1行__1 like \"" . addslashes($request->keywords) . "\" limit $limit" : "limit $limit");
 
-        return response()->json($levels);
+        // if (!$request->keywords) {
+        //     $limit = 20;
+        //     $query = "limit $limit";
+        // }
+        // $queryParams = [
+        //     'app' => $appId,
+        //     'query' => $query,
+        //     'fields' => $fields
+        // ];
+        
+        // $queryString = http_build_query($queryParams);
+        // $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?{$queryString}";
+        
+        // $response = Http::withHeaders($headers)->get($url);
+        // $responseData = $response->json();
+        // $recieve = [];
+        // $levels = [];
+        // if (array_key_exists('records', $responseData) && !empty($responseData['records'])) {
+        //     foreach ($responseData['records'] as $record) {
+        //         $standards = [];
+        //         if (isset($record['テーブル']['value'])) {
+        //             foreach ($record['テーブル']['value'] as $standard) {
+        //                 if (isset($standard['value']['職務遂行のための基準']['value'])) {
+        //                     $standards[] = [
+        //                         'standard' => $standard['value']['職務遂行のための基準']['value'],
+        //                     ];
+        //                 }
+        //             }
+        //         }
+        //         if (isset($record['文字列__1行__1']['value'])) {
+        //             $levels[] = [
+        //                 'level' => $record['文字列__1行__1']['value'],
+        //                 'standards' => $standards, 
+        //             ];
+        //         }
+        //     }
+        // }
+
+        // $keyword = $request->keywords;
+        // [$cat, $job, $level] = explode('_', $keyword);
+        // return $cat;
+
+        // $data = $this->get_evaluation_levels()->getData();
+        // return response()->json($cat);
     }
 
     public function save_project_goal(Request $request){
         $id = $request->goal_id;
         $params = $request->params;
-        $date = $request->date;
         $projectGoal = ProjectGoal::updateOrCreate(['id' => $id], $params);
-        $projectEvaluation = ProjectEvaluation::firstOrCreate(
-            ['user_id' => $params['user_id'], 'date' => $date]
-        );
-        $projectEvaluation->current_level = $params['criteria'];
-        $projectEvaluation->save();
         
         return response()->json($projectGoal);
     }
@@ -251,16 +252,19 @@ class ProjectController extends Controller
     }
 
     public function get_selectable_users(Request $request) {
-        $date = $request->date;
+        $params = $request->params;
         $userList = User::where('retire', 0)
                         ->where('partner_flag', 0)
                         ->whereNotNull('user_code')
                         ->where('hide_flag', 0)
                         ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg', 'user_code')
-                        ->with(['evaluation' => function ($q) use($date) {
-                            $q->where('date', $date)
-                                ->with('mentor');
-                        }])
+                        ->when(!empty($params), function ($q) use($params) {
+                            $q->with(['evaluation' => function ($q) use($params) {
+                                $q->where('year', $params['year'])
+                                    ->where('which_half', $params['which_half'])
+                                    ->with('mentor');
+                            }]);
+                        })                        
                         ->with('positions')
                         ->get();
         $mentors = $userList->filter(function ($user) {
@@ -378,16 +382,98 @@ class ProjectController extends Controller
         return response()->json($recieve);
     }
     public function get_evaluations(Request $request) {
-        $target_period = $request->target_period ?? null;
-        $evaluations = ProjectEvaluation::where('target_period', $target_period)->with('mentor')->get();
+        $evaluations = EvaluationRecord::where('year', $request->year)
+        ->where('which_half', $request->which_half)
+        ->where('user_id', $request->user_id)
+        ->with('mentor')->get();
         return response()->json($evaluations);
+    }
+    public function check_evaluation_for_user_in_span(Request $request) {
+        $active_user = $this->active_user();
+        $attributes = $request->validate([
+            'user_id' => 'required',
+            'year' => 'required',
+            'which_half' => 'required',
+        ]);
+        $evaluation = EvaluationRecord::where('user_id', $attributes['user_id'])
+            ->where('year', $attributes['year'])
+            ->where('which_half', $attributes['which_half'])
+            ->with(['checklist', 'mentor', 'candidate'])
+            ->first();
+        if(empty($evaluation)) {
+            return response()->json(['message' => '人事担当より人事考課設定していないため、現在作成できません。'], 404);
+        }
+
+        $privilageUsers = [608, 610, 631, $evaluation->mentor_id, $attributes['user_id']];
+        if (!in_array($active_user->id, $privilageUsers)) {
+            return response()->json(['message' => '権限がありません。'], 403);
+        }
+        $targetYear = $request->year;
+        $previous_year = $request->which_half == 'first' ? $targetYear - 1 : $targetYear;
+        $previousHalf = $request->which_half == 'first' ? 'second' : 'first';
+
+        $previous_evaluations = EvaluationRecord::where('user_id', $attributes['user_id'])
+        ->where('year', $previous_year)
+        ->where('which_half', $previousHalf)
+        ->whereNot('id', $evaluation->id)
+        ->with(['mentor', 'checklist'])
+        ->latest()->first();
+
+        $sum_of_achievment = 0;
+        $possible_increase_number = 0;
+        $current_level = '';
+        $current_skills = [];
+
+        if(!empty($previous_evaluations)) {
+            $current_level = $previous_evaluations->current_level ?? '';
+            $current_skills = $previous_evaluations->checklist->pluck('content')->toArray() ?? [];
+            $monthly_goals = ProjectGoal::where('year',  $previous_year)
+                ->where('which_half', $previousHalf)
+                ->where('user_id', $request->user_id)
+                ->with(['project', 'files'])
+                ->with(['salaryIssue' => function ($q) {
+                    $q->with('files');
+                }])
+            ->get();
+            $sum_of_achievment = $monthly_goals->sum('achievement_rate');
+            $possible_increase_number = match (true) {
+                $sum_of_achievment >= 600 => 4,
+                $sum_of_achievment <= 599 && $sum_of_achievment >= 500 => 3,
+                $sum_of_achievment <= 499 && $sum_of_achievment >= 400 => 2,
+                $sum_of_achievment <= 399 && $sum_of_achievment >= 300 => 1,
+                default => 0,
+            };
+        }          
+
+
+        $response = [];
+        $response['evaluation'] = $evaluation;
+        $response['total_achievment'] = $sum_of_achievment;
+        $response['possible_increase_number'] = $possible_increase_number;
+        $response['previous_evaluation'] = $previous_evaluations;
+        $response['current_level'] = $current_level;
+        $response['current_skills'] = $current_skills;
+
+
+        return response()->json($response);
     }
 
     public function save_evaluation_grade(Request $request) {
-        $id = $request->id ?? null;
+        $attr = $request->validate([
+            'attributes.user_id' => 'required',
+            'attributes.year' => 'required',
+            'attributes.which_half' => 'required',
+        ]);
+
         $params = $request->params;
-        User::find($params['user_id'])->update(['general_position' => $params['general_position']]);
-        $update = ProjectEvaluation::updateOrCreate(['id' => $id], $params);
+        if(isset($params['mentor_id']) && $attr['attributes']['user_id'] == $params['mentor_id']) {
+            throw ValidationException::withMessages(['message' => '自分自身をメンターに設定することはできません。']);
+            
+        }
+        if(isset($params['general_position'])) {
+            User::find($attr['attributes']['user_id'])->update(['general_position' => $params['general_position']]);
+        }        
+        $update = EvaluationRecord::updateOrCreate($attr['attributes'] , $params);
         return response()->json($update);
     }
     public function save_member_role(Request $request) {
@@ -399,86 +485,46 @@ class ProjectController extends Controller
         ]);       
         return response()->json($member);
     }
-    public function get_current_evaluation(Request $request){
-        $target_period = $request->target_period ?? null;
-        $user_id = $request->user_id ?? null;
-        $evaluation = ProjectEvaluation::where('target_period', $target_period)
-                                        ->where('user_id', $user_id)
-                                        ->with('mentor')->first();
-        return response()->json($evaluation);
-    }
-    public function save_evaluation(Request $request){
-        $id = $request->id ?? null;
-        $candidates = $request->candidates ?? [];
-        $last_candidates = $request->last_candidates ?? [];
-        $params = $request->params;
-        $project_increase = ProjectSetIncrease::updateOrCreate(['id' => $id], $params);
-
-        $lastcandidateData = collect($last_candidates)->map(function ($candidate) use ($project_increase) {
-            return [
-                'increase_id' => $project_increase->id,
-                'last_candidate' => $candidate
-            ];
-        })->toArray();
-        $candidateData = collect($candidates)->map(function ($candidate) use ($project_increase) {
-            return [
-                'increase_id' => $project_increase->id,
-                'next_candidate' => $candidate
-            ];
-        })->toArray();
-        $project_increase->candidate()->delete();
-        $project_increase->candidate()->createMany($candidateData);
-        $project_increase->candidate()->createMany($lastcandidateData);
-
-        $evaluations = $request->evaluations;
-        $evaluation = $project_increase->evaluation()->where('user_id', $params['user_id'])->first();
-        if ($evaluation) {
-            if (!empty($evaluation->new_position)) {
-                $evaluations['general_position'] = $evaluation->new_position;
-            }
-            $evaluation->update($evaluations);
-        } 
-        $project_increase->evaluation()->where('user_id', $params['user_id'])->update($evaluations);
-
-        return response()->json(['message' => 'Data inserted successfully!']);
-    }
     public function set_increase_request(Request $request){
-        $id = $request->id ?? null;
-        $skills = $request->skills ?? [];
-        $candidates = $request->candidates ?? [];
-        $last_candidates = $request->last_candidates ?? [];
-        $params = $request->params;
-        $project_increase = ProjectSetIncrease::updateOrCreate(['id' => $id], $params);
 
-        $checklistData = collect($skills)->map(function ($checklist) use ($project_increase) {
+        $request->validate([
+            'attributes.id' => 'required',
+        ]);
+        $evaluation = EvaluationRecord::findOrFail($request['attributes']['id']);
+        $evaluation->update($request['params']);
+
+        $skills = $request['children']['checklist'] ?? [];
+        $checklistData = collect($skills)->map(function ($checklist) use ($evaluation) {
             return [
-                'increase_id' => $project_increase->id,
                 'content' => $checklist,
             ];
         })->toArray();
-        $lastcandidateData = collect($last_candidates)->map(function ($candidate) use ($project_increase) {
+        if(!empty($checklistData)) {
+            $evaluation->checklist()->delete();
+            $evaluation->checklist()->createMany($checklistData);
+        }
+
+        $candidates = $request['children']['candidate'] ?? [];
+        $candidateData = collect($candidates)->map(function ($candidate) use ($evaluation) {
             return [
-                'increase_id' => $project_increase->id,
-                'last_candidate' => $candidate
-            ];
-        })->toArray();
-        $candidateData = collect($candidates)->map(function ($candidate) use ($project_increase) {
-            return [
-                'increase_id' => $project_increase->id,
                 'next_candidate' => $candidate
             ];
         })->toArray();
-        $project_increase->checklist()->delete();
-        $project_increase->candidate()->delete();
-        $project_increase->candidate()->createMany($candidateData);
-        $project_increase->checklist()->createMany($checklistData);
-        $project_increase->candidate()->createMany($lastcandidateData);
+        if(!empty($candidateData)) {
+            $evaluation->candidate()->delete();
+            $evaluation->candidate()->createMany($candidateData);
+        }
         return response()->json(['message' => 'Data inserted successfully!']);
     }
-    public function get_set_increase(Request $request) {
-        $date = $request->date ?? null;
-        $user_id = $request->user_id ?? null;
-        $increase = ProjectSetIncrease::where('date', $date)
+    public function get_evaluation_data(Request $request) {
+        $request->validate([
+            'year' => 'required',
+            'which_half' => 'required',
+            'user_id' => 'required',
+        ]);
+        $user_id = $request->user_id;
+        $year = $request->year;
+        $evalutaionRecord = EvaluationRecord::where('year', $year)
                                         ->where('user_id', $user_id)
                                         ->with('checklist')
                                         ->with(['salary_issues' => function ($q) use($user_id) {
@@ -488,27 +534,32 @@ class ProjectController extends Controller
                                             $q->where('user_id', $user_id)
                                                 ->where('status', 3);
                                         }])
-                                        ->with(['evaluation' => function ($q) use($user_id) {
-                                            $q->where('user_id', $user_id)
-                                                ->with('mentor');
-                                        }])
-                                        ->with('candidate')->first();
-        if(!$increase) {
+                                        ->with(['candidate', 'checklist'])->first();
+        
+        if(!$evalutaionRecord) {
             return;
         }
-        return response()->json($increase);
-    }
-    public function approve_increase_request(Request $request){
-        $request->validate([
-            'id' => 'required',
-        ]);
-        $id = $request->id;
-        $status_flag = $request->status_flag ?? 0;
-        ProjectSetIncrease::findOrFail($id)->update(['status_flag' => $status_flag]);
+        $levelData = $this->get_evaluation_levels()->getData();
+        $selectedLevel = $evalutaionRecord->current_level ?? '';
+        $baseSkills = [];
+        if($selectedLevel) {
+            $levelName = explode('_', $selectedLevel);
+            if (count($levelName) >= 3) {
+                $cat = collect($levelData)->where('title', $levelName[0])->first();
+                $job = collect($cat->children ?? [])->where('title', $levelName[1])->first();
+                $skill = collect($job->children ?? [])->where('title', $levelName[2])->first();
+                $baseSkills = $skill->children ?? [];
+            }
 
-        return response()->json(['message' => 'Successfully approved!']);
-    }
 
+
+        }
+        $response = [
+            'evaluation' => $evalutaionRecord,
+            'base_skills' => $baseSkills,
+        ];
+        return response()->json($response);
+    }
     public function delete_project_goal(Request $request){
         $request->validate([
             'id' => 'required',
@@ -535,14 +586,7 @@ class ProjectController extends Controller
                                     ->get();
         return response()->json($salary_issues);
     }
-    public function delete_evaluation(Request $request){
-        $request->validate([
-            'id' => 'required',
-        ]);
-        $id = $request->id;
-        ProjectSetIncrease::findOrFail($id)->delete();
-        return response()->json(['message' => 'Successfully deleted!']);
-    }
+
     public function delete_project(Request $request) {
         $request->validate([
             'id' => 'required',
@@ -723,14 +767,6 @@ class ProjectController extends Controller
             'goal_counts' => $goalCounts,
         ];
     }
-    private function getmentorBadges($user)
-    {   
-        $userIds = ProjectEvaluation::where('mentor_id', $user->id)
-                ->pluck('user_id')
-                ->unique()
-                ->toArray();
-    }
-
     public function get_managing_projects(Request $request)
     {
         $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
@@ -789,5 +825,105 @@ class ProjectController extends Controller
         
 
         return $badge_counts;
+    }
+    public function get_evaluation_levels(){
+        $tabs = [
+            '',
+            '営業',
+            'マーケティング',
+            '人事・人材開発',
+            '労務管理',
+            '総務',
+            '経理',
+            '企業法務',
+            '広報',
+            '情報システム',
+        ];
+
+        $filePath = storage_path('app/evaluation_files/evaluation.xlsx');
+        $data = Excel::toArray(new EvaluationImport, $filePath);
+
+
+        
+
+
+
+            if (isset($data[10])) {
+                $main_categories = $data[10];
+                $main_categories = array_map(function($item){
+                    return $item[0];
+                }, $main_categories);
+                unset($main_categories[0]);
+                $main_categories = array_unique($main_categories);
+                $main_categories = array_values($main_categories);
+            } else {
+                $main_categories = [];
+            }
+        $output = new Collection();
+        foreach($main_categories as $index => $main_category){
+            $category_index = array_search($main_category, $tabs);
+            $currentTab = $data[$category_index];
+            unset($currentTab[0]);
+            $currentTabData = array_values($currentTab);
+
+            // dd($currentTabData);
+
+
+            $indexed = [];
+            foreach($currentTabData as $key => $item){
+                $job = $item[2];
+                $level = $item[3];
+                $skill = $item[4];
+                $indexed[] = [
+                    "job" => $job,
+                    "level" => $level,
+                    "skill" => $skill
+                ];
+            }
+
+            $collection = collect($indexed);
+
+            $grouped = $collection->groupBy('job')->map(function ($group) {
+                return [
+                    'title' => $group->first()['job'],
+                    'children' => $group->groupBy('level')->map(function ($group) {
+                        return [
+                            'title' => $group->first()['level'],
+                            'children' => $group->map(function ($item) {
+                                return $item['skill'];
+                            })->values()->all(),
+                        ];
+                    })->values()->all(),          
+                ];
+            })->values()->all();
+
+            
+            $output->push([
+                "title" => $main_category,
+                "children" => $grouped
+            ]);
+
+        }
+        // dd($output);
+        return response()->json($output);      
+     
+
+    }
+
+    public function combine_data() {
+        $set_increases = ProjectSetIncrease::all();
+        foreach($set_increases as $increase) {
+            $evaluation = EvaluationRecord::updateOrCreate([
+                    'date' => $increase->date,
+                    'user_id' => $increase->user_id,
+
+                ],
+            [
+                'vision' => $increase->reason,
+                'mentor_comment' => $increase->mentor_entry
+            ]);
+            $increase->candidate()->update(['evaluation_record_id' => $evaluation->id]);
+            $increase->checklist()->update(['evaluation_record_id' => $evaluation->id]);
+        }
     }
 } 

@@ -16,7 +16,7 @@
             <div class="leading-normal whitespace-break-spaces">
                 
                 <div v-for="summary in summariesData" class="mb-[30px] flex flex-col gap-[20px]">
-                    <div class="flex justify-between sticky top-20 bg-[var(--background-color)]">
+                    <div class="flex justify-between sticky top-20 bg-[var(--background-color)] z-10">
                         <label class="flex items-center gap-[20px] cursor-pointer">
                             <div :style="{ transition: 'transform 0.2s', transform: expandedSummaries.includes(summary.id) ? 'rotate(270deg)' : 'rotate(180deg)' }">
                                 <Back size="12"/>
