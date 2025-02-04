@@ -109,14 +109,14 @@
                         </div>
                     </div>
                     <div class="mt-[30px] flex gap-[20px]">
-                        <CommandButton v-if="memberData && auth.user?.position_id !== 13 && evaluationData.status == 0 || evaluationData.status == 1" :buttons="[
+                        <CommandButton v-if="memberData && auth.user?.position_id !== 13 && (evaluationData.status == 0 || evaluationData.status == 1)" :buttons="[
                             {title: evaluationData.status == 0 ? '人事考課開始' : '編集する', action: () => handleClick(1)},
                         ]" />
 
                         <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631 ].includes(auth.activeUser.id) && evaluationData.status == 2" :buttons="[
                             {title:'承認する', action: () => updateStatus(3)},
                         ]" />
-                        <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631 ].includes(auth.activeUser.id) && evaluationData.status == 2 || evaluationData.status == 3" :buttons="[
+                        <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631 ].includes(auth.activeUser.id) && (evaluationData.status == 2 || evaluationData.status == 3)" :buttons="[
                             {title:'差し戻し', action: () => updateStatus(1)},
                         ]" />
 
