@@ -525,6 +525,7 @@ class ProjectController extends Controller
         $user_id = $request->user_id;
         $year = $request->year;
         $evalutaionRecord = EvaluationRecord::where('year', $year)
+                                        ->where('which_half', $request->which_half)
                                         ->where('user_id', $user_id)
                                         ->with('checklist')
                                         ->with(['salary_issues' => function ($q) use($user_id) {
