@@ -74,7 +74,7 @@
                     :expanded="expanded.unchecked_messages"
                     @expand="expanded.unchecked_messages = !expanded.unchecked_messages"
                 />
-                <div v-if="expanded.unchecked_messages" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                <div v-if="expanded.unchecked_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.unchecked_messages">
                         <UncheckedMessageItem 
                             boxClass=""
@@ -93,7 +93,7 @@
                     :expanded="expanded.unsigned_messages"
                     @expand="expanded.unsigned_messages = !expanded.unsigned_messages"
                 />
-                <div v-if="expanded.unsigned_messages" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                <div v-if="expanded.unsigned_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.unsigned_messages">
                         <UncheckedMessageItem 
                             boxClass=""
@@ -111,7 +111,7 @@
                     :expanded="expanded.reminded_messages"
                     @expand="expanded.reminded_messages = !expanded.reminded_messages"
                 />
-                <div v-if="expanded.reminded_messages" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                <div v-if="expanded.reminded_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="item in data.reminded_messages">
                         <UncheckedMessageItem 
                             boxClass=""
@@ -130,7 +130,7 @@
                     :expanded="expanded.not_approved_time_sheets"
                     @expand="expanded.not_approved_time_sheets = !expanded.not_approved_time_sheets"
                 />
-                <div v-if="expanded.not_approved_time_sheets" class="shift-submitted-masonry-inner" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
+                <div v-if="expanded.not_approved_time_sheets" class="shift-submitted-masonry-inner mx-[20px]" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
                     <div v-for="item in data.not_approved_time_sheets">
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
@@ -176,6 +176,30 @@
                     </div>
                 </div>
             </div>
+            <!-- <div v-if="data.not_approved_increases?.length">
+                <RemindHeader 
+                    :offset="offset"
+                    :length="data.not_approved_increases.length"
+                    title="人事考課承認漏れ"
+                    :expanded="expanded.not_approved_increases"
+                    @expand="expanded.not_approved_increases = !expanded.not_approved_increases"
+                />
+                <div v-if="expanded.not_approved_increases" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.not_approved_increases" class="p-[15px] bg-[var(--background-color)]">
+                        <div class="flex flex-col gap-[15px] text-[13px]">
+                            <UserPanel v-if="item.user" disable-instant with-name size="30" :user="item.user"/>
+                            <div class="text-[gray]">{{ DateTime.fromISO(item.date).toFormat('yyyy年M月実施分') }}</div>
+                            <div>{{ `メンター : ${item?.evaluation?.mentor?.name}`  }}</div>
+                            <CommandButton 
+                                :buttons="[
+                                    {title: '対応', action: () => router.push({name: 'evaluation-mentor', query: {user_id: item.user.id, date: item.date}})}
+                                ]"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+            </div> -->
             <div v-if="data.not_approved_projects?.length">
                 <RemindHeader 
                     :offset="offset"
@@ -291,6 +315,7 @@ import CommandButton from '../Global/CommandButton.vue';
 import { useSurveyUsers } from '@/store/surveyUsers';
 import { useResponsive } from '@/store/responsive';
 import HamBurger from '../Global/HamBurger.vue';
+import { DateTime } from 'luxon';
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
 const combinedData = ref<{ [key: string]: any }[]>([])
@@ -309,7 +334,8 @@ const expanded = ref({
     not_approved_time_sheets: true,
     paid_leaves: true,
     not_approved_projects: true,
-    not_answered_forms: true
+    not_answered_forms: true,
+    not_approved_increases: true
 })
 const offset = ref(0)
 const prevScrollPosition = ref(0)

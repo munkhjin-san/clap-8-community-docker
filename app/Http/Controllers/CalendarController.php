@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CalendarMeetingSummary;
 use App\Models\ProjectRecord;
 use Illuminate\Http\Request;
 use App\Models\CalendarRecord;
@@ -1313,5 +1314,19 @@ class CalendarController extends Controller
         return response()->json($summaries);
     }
 
-    
+    public function save_edited_summary(Request $request){
+        $summary = CalendarMeetingSummary::find($request->id)->update([
+            'edited_version' => $request->html,
+            'updated_at' => now()
+        ]);
+
+        return response()->json($summary);
+    }
+    public function delete_schedule_summary(Request $request){
+        $request->validate([
+            'id' => 'required'
+        ]);
+        $summary = CalendarMeetingSummary::find($request->id)->delete();
+        return response()->json($summary);
+    }
 }

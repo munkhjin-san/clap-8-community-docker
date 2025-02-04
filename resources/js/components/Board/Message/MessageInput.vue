@@ -251,37 +251,39 @@ import UserPanel from '@/components/Global/UserPanel.vue'
         messageInputArea.value?.removeEventListener('keyup',inputKeyEventSecond);
     })
     onMounted(() => {
-        
-        if(sharingData.active && sharingData.drag == false){
-            if(sharingData.message){
-                forwardItem.value = sharingData.message
-            }else{
-                sharingData.files.forEach((file) => {
-                    const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
-                    if(!isFolder && !sharingFiles.value.includes(item => item.path == file.path)){                            
-                        sharingFiles.value.push(file)
-                    }
-                });
-            }
-            
-
-            resetSharingData()
-            footerDropLeave();
-            
-        }
         if(board.value){
             const temp = localStorage.getItem('temp_message_' + board.value.id); 
             if(temp){                
                 messageInputArea.value.textContent = temp;
             }
+            if(sharingData.active && sharingData.drag == false){
+                if(sharingData.message && sharingData.from == 'message'){
+                    forwardItem.value = sharingData.message
+                } else if (sharingData.from == 'schedule') {
+                    messageInputArea.value.textContent = sharingData.text    
+                }else{
+                    sharingData.files.forEach((file) => {
+                        const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
+                        if(!isFolder && !sharingFiles.value.includes(item => item.path == file.path)){                            
+                            sharingFiles.value.push(file)
+                        }
+                    });
+                }
+                
+
+                resetSharingData()
+                footerDropLeave();
+                
+            }
+        
+            
             if(messageInputArea.value){
                 messageInputArea.value.scrollTo( 0, messageInputArea.value.scrollHeight)
             }
-        }
 
-        messageInputArea.value.addEventListener('keyup', inputKeyEventfirst);              
-        messageInputArea.value.addEventListener('keyup',inputKeyEventSecond)
-        
+            messageInputArea.value.addEventListener('keyup', inputKeyEventfirst);              
+            messageInputArea.value.addEventListener('keyup',inputKeyEventSecond)
+        }
     })
     
     const resetSharingData = () => {
