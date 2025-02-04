@@ -9,7 +9,7 @@
         </Transition>
         <div class="no-comment-text" v-if="initialLoader > 0 && !contacts.length">現在データはありません。</div>
         <ContactViewToggle v-if="!responsive.mobile" style="position: fixed" :type="viewType" @action="setViewType"/>
-        <FloatButton style="position: fixed" @action="createWindow = true" type="plus"/>
+        <FloatButton :style="{position: 'fixed', bottom: auth.user?.footer_view && responsive.mobile ? '65px' : '20px'}" @action="createWindow = true" type="plus"/>
         <div class="flex gap-[10px] flex-wrap mb-[20px] ml-[20px]">
             <label :class="['text-[13px] bg-[var(--background-color)] select-none text-[var(--primary-color)] px-[8px] py-[5px] cursor-pointer', {'!bg-[var(--primary-color)] !text-[var(--background-color)]': type.id && selectedTypes.includes(type.id)}]" v-for="type in contactTypes">
                 <input v-model="selectedTypes" type="checkbox" class="hidden" :value="type.id"/>
@@ -60,15 +60,15 @@ import TableLayout from './Table/TableLayout.vue';
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { DialogMethods } from '@/interface/globalInterface';
-import { DialogKey } from '@/interface/keys';
 import ContactViewToggle from './ContactViewToggle.vue';
+import { useAuthUserStore } from '@/store/auth';
 
 const props = defineProps<{
     keyword: string
 }>()
 const router = useRouter()
 const responsive = useResponsive()
-
+const auth = useAuthUserStore()
 const editData = ref<ContactRecord | null>(null)
 const createWindow = ref(false)
 const contacts = ref<ContactRecord[]>([])

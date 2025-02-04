@@ -16,7 +16,7 @@
             <div class="leading-normal whitespace-break-spaces">
                 
                 <div v-for="summary in summariesData" class="mb-[30px] flex flex-col gap-[20px]">
-                    <div class="flex justify-between">
+                    <div class="flex justify-between sticky top-20 bg-[var(--background-color)]">
                         <label class="flex items-center gap-[20px] cursor-pointer">
                             <div :style="{ transition: 'transform 0.2s', transform: expandedSummaries.includes(summary.id) ? 'rotate(270deg)' : 'rotate(180deg)' }">
                                 <Back size="12"/>
@@ -27,14 +27,26 @@
                             </div>                            
                             <input type="checkbox" class="hidden" :value="summary.id" v-model="expandedSummaries"/>
                         </label>
-                        <ItemMenu 
-                            :items="[
-                                { title: '編集', action: () => editSummary(summary) },
-                                { title: 'コピー', action: () => copySummary(summary) },
-                                { title: 'シェア', action: () => {}, children: [{ title: 'ボード', action: () => shareSummary(summary)}] },
-                                { title: '削除', action: () => deleteSummary(summary) },
-                            ]"
-                        />
+                        <div class="flex gap-[10px]">
+                            <div class="flex gap-[10px]" v-if="ttsStore.active && ttsStore.id == summary.id">
+                                <CommandButton 
+                                    :buttons="[
+                                        { title: ttsStore.play ? '一時停止' : '再開する', action: () => stopPlay(summary.id) },
+                                        { title: 'ストップ', action: () => endPlay()}
+                                    ]"
+                                />
+                            </div>
+                            <ItemMenu 
+                                :items="[
+                                    { title: '編集', action: () => editSummary(summary) },
+                                    { title: 'コピー', action: () => copySummary(summary) },
+                                    { title: 'シェア', action: () => {}, children: [{ title: 'ボード', action: () => shareSummary(summary)}] },
+                                    { title: '読み上げる', action: () => convertToSpeech(prepareText(summary), summary.id)},
+                                    { title: '削除', action: () => deleteSummary(summary) },
+                                ]"
+                            />
+                        </div>
+                        
                     </div>
                     
                     <div ref="summaryRef" v-if="expandedSummaries.includes(summary.id)">
@@ -101,7 +113,8 @@ import { sum } from 'pdf-lib';
 import CommandButton from '../Global/CommandButton.vue';
 import { useSharingDataStore } from '@/store/sharingData';
 import { useRouter } from 'vue-router';
-
+import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
+import { useTtsStore } from '@/store/ttsStore';
 const props = defineProps(['calendarRecord']);
 const emit = defineEmits(['close']);
 const summariesData = ref<SummaryData[]>([])
@@ -111,6 +124,7 @@ const summaryRef = useTemplateRef<HTMLElement[]>('summaryRef')
 const summaryEditor = useTemplateRef('summaryEditor')
 const sharingData = useSharingDataStore()
 const router = useRouter()
+const ttsStore = useTtsStore()
 const combinedSummary = ref<{
     id: number | null;
     html: string;

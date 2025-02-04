@@ -211,7 +211,7 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
         return props.item.executors.filter(ob => ob.pivot.progress_flag == 2)
     })
     const unCompletedUsers = computed(() => {
-        return props.item.executors.filter(ob => ob.pivot.progress_flag == 0 && ob.pivot.status_flag == 0)
+        return props.item.executors.filter(ob => (ob.pivot.progress_flag == 0 || ob.pivot.progress_flag == 1) && ob.pivot.status_flag == 0)
     })
     const waitingApprovalUsers = computed(() => {
         return props.item.executors.filter(ob => ob.pivot.status_flag == 1)
