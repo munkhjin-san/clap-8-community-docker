@@ -122,7 +122,8 @@ import { useSharingDataStore } from '@/store/sharingData';
 
     const editTask = (task:Task) => {
         const usersId = task.executors.map(ob => ob.id);
-        if (usersId.indexOf(Number(auth.activeUser.id)) > -1) {
+        const supervisorsId = task.supervisors.map(ob => ob.id);
+        if (usersId.indexOf(Number(auth.activeUser.id)) > -1 || supervisorsId.indexOf(Number(auth.activeUser.id)) > -1) {
             editTaskData.value = task;
             createTaskPopup.value = true;
         }
