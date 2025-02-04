@@ -40,16 +40,18 @@ const mentorList = ref([])
 const selectedDate = ref({
     year: '',
     which_half: '',
-    name: ''
+    name: '',
+    short_name: ''
 })
 onMounted(() => {
     const options = detailedDateOptions()
     const today = DateTime.now()
-    selectedDate.value.which_half = today.month > 3 && today.month < 9 ? 'second' : 'first'
-    selectedDate.value.year = today.year.toString()
-    const foundOption = options.find(option => option.year == selectedDate.value.year && option.which_half == selectedDate.value.which_half)
-    const findName = foundOption ? foundOption.name : ''
-    selectedDate.value.name = findName
+    const which_half = today.month > 3 && today.month < 9 ? 'second' : 'first'
+    const year = today.year.toString()
+    const foundOption = options.find(option => option.year == year && option.which_half == which_half)
+    if (foundOption) {
+        selectedDate.value = foundOption
+    }
     getSelectableUsers()
 })
 const getSelectableUsers = async() => {
