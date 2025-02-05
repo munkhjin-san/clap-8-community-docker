@@ -52,7 +52,6 @@ onMounted(() => {
     if (foundOption) {
         selectedDate.value = foundOption
     }
-    getSelectableUsers()
 })
 const getSelectableUsers = async() => {
     try {
