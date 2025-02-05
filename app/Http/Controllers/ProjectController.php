@@ -268,7 +268,7 @@ class ProjectController extends Controller
                         ->with('positions')
                         ->get();
         $mentors = $userList->filter(function ($user) {
-            return (!empty($user->general_position) && $user->general_position !== '一般職') 
+            return ($user->general_position !== null && $user->general_position !== '一般職') 
                     || ($user->position_id !== null && $user->position_id < 6);
         })->values(); 
         

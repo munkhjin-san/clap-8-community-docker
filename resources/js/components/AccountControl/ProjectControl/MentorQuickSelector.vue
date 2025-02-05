@@ -51,7 +51,7 @@ const possibleMentors = computed(() => {
     if (props.data.user?.general_position === '一般職' || props.data.user?.general_position === null) return props.data.mentorList
     return props.data.mentorList.filter((mentor) => {
         if (props.data.user === null) return false
-        return mentor.general_position > props.data.user?.general_position
+        return mentor.general_position > props.data.user?.general_position || (mentor.position_id && mentor.position_id < 6)
     })
 })
 const save = async() => {
