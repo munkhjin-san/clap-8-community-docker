@@ -111,11 +111,11 @@
                         <div class="kadai-content">{{ goal?.salary_issue.result }}</div>
                         <Files style="margin-top: 15px;" v-if="goal?.salary_issue?.files?.length" :items="goal?.salary_issue?.files" :path="'project_files'"/>
                     </div>
-                    <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData?.id || goal?.salary_issue?.mentor_id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData?.id || evaluationData?.mentor_id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'変更'"/>
                         <LoaderButton style="margin: 0;" @click="deleteIssue(goal.salary_issue)" :content="'削除'"/>
                     </div>
-                    <div v-if="goal?.salary_issue?.mentor_id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="evaluationData?.mentor_id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'承認'"/>
                     </div>
@@ -128,11 +128,11 @@
                     </div>
                     <div style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton v-if="salaryIssueReport" style="margin: 0;" :content="'成果報告'" @click="addIssueReport(false, goal)"/>
-                        <LoaderButton style="margin: 0;" v-if="goal?.salary_issue?.mentor_id === auth.id && goal?.salary_issue?.status === 7" :content="'進捗報告承認'" @click="addIssueReport(true, goal)"/>
+                        <LoaderButton style="margin: 0;" v-if="evaluationData?.mentor_id === auth.id && goal?.salary_issue?.status === 7" :content="'進捗報告承認'" @click="addIssueReport(true, goal)"/>
                     </div>
                 </div>
                 <div v-else-if="canCreateIssue && sub_tab === 1">
-                    <div v-if="(auth.id === memberData?.id || goal?.salary_issue?.mentor_id === auth.id)">
+                    <div v-if="(auth.id === memberData?.id || evaluationData?.mentor_id === auth.id)">
                         <LoaderButton style="margin: 0;" @click="salaryIssue = true" :content="'作成'"/>
                     </div>
                     <div v-else>
@@ -207,7 +207,8 @@ const props = defineProps([
     'isManagerOrMember', 
     'themeRecords',
     'selectedDate',
-    'statuses'
+    'statuses',
+    'evaluationData'
 ])
 const emit = defineEmits(['close'])
 const auth = useAuthUserStore()
@@ -245,7 +246,7 @@ const managerOrDirector = computed(() => {
 })
 const salaryIssueReport = computed(() => {
     return (props.goal?.salary_issue?.status >= 5 && props.goal?.salary_issue?.status < 9 && props.goal?.salary_issue?.status !== 7) 
-        && (auth.id === props.memberData?.id || props.goal?.salary_issue?.mentor_id === auth.id)
+        && (auth.id === props.memberData?.id || props.evaluationData?.mentor_id === auth.id)
 })
 const selectThemeConfirm = (level, theme) => {
     selectedTheme.value = getIssues(level, theme)[0]

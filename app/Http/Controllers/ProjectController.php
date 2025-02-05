@@ -10,6 +10,7 @@ use App\Models\ProjectRecord;
 use App\Models\ProjectSetIncrease;
 use App\Models\SalaryIssue;
 use App\Models\ProjectGoal;
+use App\Models\taskRecord;
 use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -114,16 +115,25 @@ class ProjectController extends Controller
             'user_id' => 'required',
             'which_half' => 'required',
         ]);
-
-        $project_goals = ProjectGoal::where('year', $request->year)
-                                    ->where('which_half', $request->which_half)
-                                    ->where('user_id', $request->user_id)
+        $year = $request->year;
+        $which_half = $request->which_half;
+        $user_id = $request->user_id;
+        $project_goals = ProjectGoal::where('year', $year)
+                                    ->where('which_half', $which_half)
+                                    ->where('user_id', $user_id)
                                     ->with(['project', 'files'])
                                     ->with(['salaryIssue' => function ($q) {
                                         $q->with('files');
                                     }])
                                     ->get();
-        return response()->json($project_goals);
+        $evalutaionRecord = EvaluationRecord::where('year', $year)
+                                    ->where('which_half', $which_half)
+                                    ->where('user_id', $user_id)->first();
+        $data = [
+            'project_goals' => $project_goals,
+            'evaluation' => $evalutaionRecord,
+        ];
+        return response()->json($data);
         
         
     }
@@ -925,5 +935,43 @@ class ProjectController extends Controller
             $increase->candidate()->update(['evaluation_record_id' => $evaluation->id]);
             $increase->checklist()->update(['evaluation_record_id' => $evaluation->id]);
         }
+    }
+    public function create_project_tasks(Request $request) {
+        $request->validate([
+            'project_id' => 'required',
+            'tasks' => 'required|array',
+        ]);
+
+        $project = ProjectRecord::with('manager')->findOrFail($request->project_id);
+        $managerIds = $project->manager->pluck('id')->toArray();
+        $tasks = $request->tasks;
+        $active_user = $this->active_user();
+        $taskRecords = [];
+        foreach ($tasks as $task) {
+            $taskRecord = taskRecord::create([
+                'remarks' => $task['content'],
+                'start_at' => $project->date_start,
+                'end_at' => Carbon::parse($project->date_end)->addDays($task['duration'])->format('Y-m-d'),
+                'project_record_id' => $project->id,
+                'user_id' => $active_user->id,
+                'updated_user' => $active_user->id
+            ]);
+            $taskRecord->taskUsers()->sync($managerIds);
+            foreach($task['sub_taks'] as $sub_task) {
+                $subTask = taskRecord::create([
+                    'remarks' => $sub_task['content'],
+                    'start_at' => $project->date_start,
+                    'end_at' => Carbon::parse($project->date_end)->addDays($sub_task['duration'])->format('Y-m-d'),
+                    'project_record_id' => $project->id,
+                    'user_id' => $active_user->id,
+                    'updated_user' => $active_user->id,
+                    'parent_id' => $taskRecord->id
+                ]);
+                $subTask->taskUsers()->sync($managerIds);
+            }
+            $taskRecords[] = $taskRecord;
+        }
+
+        return response()->json($taskRecords);
     }
 } 

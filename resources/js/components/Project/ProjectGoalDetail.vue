@@ -94,6 +94,7 @@
                             :themeRecords="themeRecords"
                             :selectedDate="selectedDate"
                             :statuses="statuses"
+                            :evaluationData="evaluationData"
                         />
                     </transition>
                     
@@ -123,6 +124,7 @@ import { ProjectGoal } from '@/interface/projectInterface';
 import { detailedDateOptions } from '@/utils/tools'
 import moment from 'moment';
 import { useBadgeStore } from '@/store/badge';
+import { EvaluationRecord } from '@/interface/evaluationInterface';
 const props = defineProps([
     'selectedProject', 
     'memberData',
@@ -145,6 +147,7 @@ const editGoalData = ref<ProjectGoal | null>(null)
 // const selectedDate = inject('selectedDate') as Date
 const goalDate = ref('')
 const projectGoals = ref<ProjectGoal[]>([])
+const evaluationData = ref<EvaluationRecord | null>(null)
 const badge = useBadgeStore()
 const { notify, info, confirm } = inject<Dialog>('dialog')!;
 const statuses = [
@@ -204,7 +207,9 @@ const fetchMemberData = async () => {
                 which_half: which_half,
                 user_id: props.memberData?.id
             }
-            projectGoals.value = await axios.post('/get_outcome_goals', params).then(res => res.data)
+            const data = await axios.post('/get_outcome_goals', params).then(res => res.data)
+            projectGoals.value = data.project_goals
+            evaluationData.value = data.evaluation
             setTimeout(() => {
                 initialLoader.value = false
             }, 300)
