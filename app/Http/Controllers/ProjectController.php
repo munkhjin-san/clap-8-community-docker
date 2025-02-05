@@ -257,7 +257,7 @@ class ProjectController extends Controller
                         ->where('partner_flag', 0)
                         ->whereNotNull('user_code')
                         ->where('hide_flag', 0)
-                        ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg', 'user_code')
+                        ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg', 'user_code', 'general_position')
                         ->when(!empty($params), function ($q) use($params) {
                             $q->with(['evaluation' => function ($q) use($params) {
                                 $q->where('year', $params['year'])
@@ -268,9 +268,8 @@ class ProjectController extends Controller
                         ->with('positions')
                         ->get();
         $mentors = $userList->filter(function ($user) {
-            $evaluation = $user->evaluation ?? null;
-            return (!empty($evaluation->general_position) && $evaluation->general_position !== '一般職') 
-                    || ($user->position_id !== null && $user->position_id <= 6);
+            return (!empty($user->general_position) && $user->general_position !== '一般職') 
+                    || ($user->position_id !== null && $user->position_id < 6);
         })->values(); 
         
         $data = [

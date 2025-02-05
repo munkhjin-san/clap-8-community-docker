@@ -86,6 +86,7 @@ export interface User {
     phone_number?: string;
     on_leave?: number;
     evaluation: Evaluation
+    general_position: string
 }
 export interface Details{
     recommend: string;

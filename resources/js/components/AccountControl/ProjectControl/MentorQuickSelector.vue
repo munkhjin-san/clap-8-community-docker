@@ -12,7 +12,7 @@
             <MemberSelector 
                 placeHolder="メンター選択"
                 v-model="mentor"
-                :options="data.mentorList"
+                :options="possibleMentors"
                 :multiple="false"
                 name="mentor"
             />
@@ -29,7 +29,7 @@ import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Modal from '@/components/Global/Modal.vue';
 import { DialogMethods, User } from '@/interface/globalInterface';
 import axios from 'axios';
-import { inject, ref } from 'vue';
+import { computed, inject, ref } from 'vue';
 const props = defineProps<{
     data: {
         view: boolean,
@@ -47,6 +47,13 @@ const refresh = inject('refresh') as Function
 const mentor = ref<User | null>(props.data.selectedMentor ?? null)
 const loading = ref(false)
 const { notify, info } = inject('dialog') as DialogMethods
+const possibleMentors = computed(() => {
+    if (props.data.user?.general_position === '一般職' || props.data.user?.general_position === null) return props.data.mentorList
+    return props.data.mentorList.filter((mentor) => {
+        if (props.data.user === null) return false
+        return mentor.general_position > props.data.user?.general_position
+    })
+})
 const save = async() => {
     loading.value = true
     const params = {
