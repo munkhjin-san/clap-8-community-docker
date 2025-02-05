@@ -307,7 +307,7 @@
         if(reportModal.value){
             closeModal()
         }
-        if(usersCheckArray.value.length > 0){
+        if(usersCheckArray.value.length > 0 || selectedVehicles.value.length > 0){
             await fetchWorkData()
             await fetchShiftDataTable()            
         }else{

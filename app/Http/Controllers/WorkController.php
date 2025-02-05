@@ -228,19 +228,23 @@ class WorkController extends Controller
         }
         [$year, $month] = explode("-", $requestDateString);
         $vehicleType = $request->vehicles ?? [];
-        $users = User::where(function ($query) use ($users_list, $vehicleType) {
+        $users = User::where(function ($query) use ($users_list, $vehicleType, $year, $month) {
             $query->whereIn('id', $users_list) // Condition 1: From $users_list
-                  ->orWhereHas('time_card_records.vehicle_data', function ($q) use ($vehicleType) {
-                      $q->whereIn('vehicle', $vehicleType); // Condition 2: From vehicle_type
-                  });
+                ->orWhereHas('time_card_records', function ($q) use ($year, $month, $vehicleType) {
+                    $q->whereYear('day', $year)
+                    ->whereMonth('day', $month)
+                    ->whereHas('vehicle_data', function ($subQuery) use ($vehicleType) {
+                        $subQuery->whereIn('vehicle', $vehicleType);
+                    });
+                });
         })
         ->with([
             'time_card_records' => function ($q) use ($year, $month, $vehicleType) {
                 $q->whereYear('day', $year)
                   ->whereMonth('day', $month);
                 if (!empty($vehicleType)) {
-                    $q->whereHas('vehicle_data', function ($q) use ($vehicleType) {
-                        $q->whereIn('vehicle', $vehicleType);
+                    $q->whereHas('vehicle_data', function ($subQuery) use ($vehicleType) {
+                        $subQuery->whereIn('vehicle', $vehicleType);
                     });
                 }
                 $q->with([
