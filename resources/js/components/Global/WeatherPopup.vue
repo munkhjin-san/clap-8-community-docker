@@ -23,7 +23,7 @@
                             <Sun size="30"/>
                         </div>
                         <div @click="setWeather(2)" :class="['icon-container', { 'selected-w-icon': saving === 2 }]">
-                            <Cloud size="30"/>
+                            <Cloud size="42"/>
                         </div>
                         <div @click="setWeather(3)" :class="['icon-container', { 'selected-w-icon': saving === 3 }]">
                             <Umbrella size="30"/>

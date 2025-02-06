@@ -36,9 +36,9 @@
                     <div class="project-cell" style="border-bottom: none;" >
                         
                         <div class="flex justify-between w-full">
-                            <div class="user-link flex gap-2" style="position: relative" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
-                                {{ project.name }}
-                                <WeatherIcon v-if="project.project_conditions.length" :which="project.project_conditions[0].value" size="20"/>
+                            <div class="user-link flex gap-2 items-center" style="position: relative" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
+                                <p>{{ project.name }}</p>
+                                <WeatherIcon v-if="project.project_conditions.length" :which="project.project_conditions[0].value" size="15" style="margin-top: 3px;"/>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span class="side-notification" style="position: static;" v-if="projectBadge && projectBadge[project.id]">{{ projectBadge[project.id] }}</span>

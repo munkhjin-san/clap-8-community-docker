@@ -1,5 +1,5 @@
 <template>
-    <component :size="size" :is="iconComponent"></component>
+    <component :size="which == 2 ? size + 12 : size" :is="iconComponent"></component>
 </template>
 <script setup>
 import {defineAsyncComponent, computed} from 'vue'
