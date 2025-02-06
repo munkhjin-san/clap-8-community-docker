@@ -36,12 +36,12 @@
                         <div class="body-cell border-none" style="text-align: left;position: relative;">
                             <div class="pt-content">
                                 <p @click.stop="menu.setMenu({ id: lesson.user.id, name: `pt_content${lesson.user.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
-                                    <div v-if="lesson.answers.length" v-for="answer in lesson.answers">
+                                    <div v-for="answer in lesson.answers">
                                         <p>{{ answer.answer }}</p>
                                     </div>
                                 </p>
                                 <p v-if="menu.name == `pt_content${lesson.user.id}` && menu.id == lesson.user.id" :id="`pt_content${lesson.user.id}`" class="pt-popup shadow-me" style="left:0;right:auto">
-                                    <div v-if="lesson.answers.length" v-for="(answer, index) in lesson.answers">
+                                    <div v-for="(answer, index) in lesson.answers">
                                         <p>{{ answer.answer }}</p>
                                         <div v-if="index !== lesson.answers.length - 1" class="post-separetor mt-[30px]"></div>
                                     </div>

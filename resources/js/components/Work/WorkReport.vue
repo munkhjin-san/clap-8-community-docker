@@ -332,8 +332,9 @@
                 endhoursAdjustment = 1;
             }
             const adjustedEndHours = parseInt(endhours) + endhoursAdjustment;
-            editEndTime.value = `${adjustedEndHours.toString().padStart(2, "0")}:${String(endnearestMinute).padStart(2, "0")}`;
-            
+            if (auth.activeUser.id !== 610) {
+                editEndTime.value = `${adjustedEndHours.toString().padStart(2, "0")}:${String(endnearestMinute).padStart(2, "0")}`;
+            }
             const [hours, minutes] = editStartTime.value.split(":");
             let nearestMinute = Math.ceil(minutes / 15) * 15;
             let hoursAdjustment = 0;
@@ -399,9 +400,7 @@
             const confirm = await confirmOvertime()
             if(!confirm) return            
         } else if(status_flag === 1){
-            if (auth.activeUser.id !== 610) {
-                await fifteenMinuteCalc()
-            }
+            await fifteenMinuteCalc()
             const answer = await confirm('日報を申請します。申請後は修正できません。よろしいですか。')
             if(!answer) return
         }

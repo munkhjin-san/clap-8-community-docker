@@ -12,7 +12,7 @@
                     </svg>                        
                 </div> 
             </div>
-            <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">            
+            <div v-for="goal in projectGoals" style="position: relative">            
                 <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-approval', params: { goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
                     <div>
                         <div>成果目標</div>

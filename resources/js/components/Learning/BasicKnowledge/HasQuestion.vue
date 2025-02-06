@@ -83,7 +83,7 @@ const finish = async(status: number) => {
         }
     }
     try {
-        axios.post('/update_lesson_answer', params)
+        await axios.post('/update_lesson_answer', params)
         info('保存しました。')
         processing.value[status] = false
         getLessons()
