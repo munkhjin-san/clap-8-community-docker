@@ -15,8 +15,8 @@
             
             <div class="leading-normal whitespace-break-spaces">
                 
-                <div v-for="summary in summariesData" class="mb-[30px] flex flex-col gap-[20px]">
-                    <div class="flex justify-between sticky top-20 bg-[var(--background-color)] z-[6]">
+                <div v-for="(summary, index) in summariesData" class="mb-[30px] flex flex-col gap-[20px]">
+                    <div class="flex justify-between sticky top-20 bg-[var(--background-color)]" :style="{zIndex: menuRef && menuRef.length && menuRef[index].active ? 7 : 6}">
                         <label class="flex items-center gap-[20px] cursor-pointer">
                             <div :style="{ transition: 'transform 0.2s', transform: expandedSummaries.includes(summary.id) ? 'rotate(270deg)' : 'rotate(180deg)' }">
                                 <Back size="12"/>
@@ -37,6 +37,7 @@
                                 />
                             </div>
                             <ItemMenu 
+                                ref="menuRef"
                                 :items="[
                                     { title: '編集', action: () => editSummary(summary) },
                                     { title: 'コピー', action: () => copySummary(summary) },
@@ -115,6 +116,7 @@ import { useSharingDataStore } from '@/store/sharingData';
 import { useRouter } from 'vue-router';
 import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
 import { useTtsStore } from '@/store/ttsStore';
+import { ComponentExposed } from 'vue-component-type-helpers';
 const props = defineProps(['calendarRecord']);
 const emit = defineEmits(['close']);
 const summariesData = ref<SummaryData[]>([])
@@ -125,6 +127,7 @@ const summaryEditor = useTemplateRef('summaryEditor')
 const sharingData = useSharingDataStore()
 const router = useRouter()
 const ttsStore = useTtsStore()
+const menuRef = useTemplateRef<ComponentExposed<typeof ItemMenu>[]>('menuRef')
 const combinedSummary = ref<{
     id: number | null;
     html: string;

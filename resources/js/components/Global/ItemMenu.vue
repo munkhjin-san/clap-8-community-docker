@@ -120,7 +120,8 @@ const active = computed(() => {
     return menu.name == unique.value.name && menu.id && menu.id == unique.value.id
 })
 
-defineExpose({show, longTapAction})
+
+defineExpose({show, longTapAction, active})
 </script>
 <style lang="scss" scoped>
 .rt{
