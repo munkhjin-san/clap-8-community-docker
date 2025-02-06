@@ -15,11 +15,12 @@
                 <ul v-if="subItem == null" class="reset-bullet"> 
                     <li @click.stop="action(item)" v-for="item in items">
                         <span style="margin-right: 10px;">{{ item.title}}</span>
-                        <Back v-if="item.children" size="10" style="transform:rotate(180deg);margin: auto;"/>
+                        <Back v-if="item.children" size="10" style="transform:rotate(180deg);margin: auto;fill:currentColor"/>
                     </li>
                 </ul>
                 <ul v-else  class="reset-bullet"> 
                     <li @click.stop="subItem = null;align()">
+                    <Back size="10" style="fill:currentColor;margin: auto 0px auto 10px;"/>
                     <span>戻る</span></li> 
                     <li @click.stop="action(item)" v-for="item in subItem.children">{{ item.title}}</li>
                 </ul>
