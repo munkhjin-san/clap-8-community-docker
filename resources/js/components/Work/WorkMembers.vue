@@ -25,45 +25,50 @@
                             <p class="userName" style="line-height: 30px;margin-left: 0;">全員選択</p>                                    
                         </div>
                     </label>  
-                </div>    
-                <div v-if="byWorkGroups !== 2" :key="group.id" v-for="group in searchUsers" style="padding:0 15px;display:flex;">
-                    <div v-if="group.members && group.members.length">
-                        <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                            <input :value="group.id" :checked="selectedGroups.includes(group.id)" @change="value = group.members.map(ob => ob.id).concat(group.manager.map(manager => manager.id)), selectGroup(group.id)" name="memberCheckBox" type="checkbox">
-                            <span class="work-check-mark" style="top: 13px;"></span>
-                            <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                <p class="userName" style="line-height: 30px; margin-left: 0;">{{group.name}}</p>                                    
-                            </div>
-                        </label>
-                        <div v-if="selectedGroups.includes(group.id)" v-for="member in [...(group?.manager || []), ...(group?.members || [])]" style="padding:0 15px 0 30px;display:flex;">
+                </div>
+                <div v-if="byWorkGroups !== 2">
+                    <div :key="group.id" v-for="group in searchUsers" style="padding:0 15px;display:flex;">
+                        <div v-if="(group.members && group.members.length) || (group.manager && group.manager.length)">
                             <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                                <input v-model="value" :value="member.id" name="memberCheckBox" type="checkbox">
+                                <input :value="group.id" :checked="selectedGroups.includes(group.id)" @change="value = group.members.map(ob => ob.id).concat(group.manager.map(manager => manager.id)), selectGroup(group.id)" name="memberCheckBox" type="checkbox">
+                                <span class="work-check-mark" style="top: 13px;"></span>
+                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
+                                    <p class="userName" style="line-height: 30px; margin-left: 0;">{{group.name}}</p>                                    
+                                </div>
+                            </label>
+                            <div v-if="selectedGroups.includes(group.id)" v-for="member in [...(group?.manager || []), ...(group?.members || [])]" style="padding:0 15px 0 30px;display:flex;">
+                                <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
+                                    <input v-model="value" :value="member.id" name="memberCheckBox" type="checkbox">
+                                    <span class="work-check-mark" style="top: 10px;"></span>
+                                    <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
+                                        <UserPanel :disable-instant="true" :with-name="true" size="30" :title="member.name" :user="member" imgClass="userNormalIcon"/>                      
+                                    </div>
+                                </label>
+                            </div>
+                        </div>                                
+                        <div v-else>
+                            <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
+                                <input v-model="value" :value="group.id" name="memberCheckBox" type="checkbox">
                                 <span class="work-check-mark" style="top: 10px;"></span>
                                 <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                    <UserPanel :disable-instant="true" :with-name="true" size="30" :title="member.name" :user="member" imgClass="userNormalIcon"/>                      
+                                    <UserPanel :disable-instant="true" size="30" :with-name="true" :title="group.name" :user="group" imgClass="userNormalIcon"/>                      
                                 </div>
                             </label>
                         </div>
-                    </div>                                
-                    <div v-else>
+                    </div>
+                </div>    
+                <div v-else>
+                    <div v-for="vehicle in searchVehicles" style="padding:0 15px;display:flex;">
                         <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                            <input v-model="value" :value="group.id" name="memberCheckBox" type="checkbox">
-                            <span class="work-check-mark" style="top: 10px;"></span>
+                            <input :value="vehicle.value" v-model="vehicles" name="memberCheckBox" type="checkbox">
+                            <span class="work-check-mark" style="top: 13px;"></span>
                             <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                                <UserPanel :disable-instant="true" size="30" :with-name="true" :title="group.name" :user="group" imgClass="userNormalIcon"/>                      
+                                <p class="userName" style="line-height: 30px; margin-left: 0;">{{vehicle.label}}</p>                                    
                             </div>
                         </label>
                     </div>
                 </div>
-                <div v-else v-for="vehicle in searchVehicles" style="padding:0 15px;display:flex;">
-                    <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                        <input :value="vehicle.value" v-model="vehicles" name="memberCheckBox" type="checkbox">
-                        <span class="work-check-mark" style="top: 13px;"></span>
-                        <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
-                            <p class="userName" style="line-height: 30px; margin-left: 0;">{{vehicle.label}}</p>                                    
-                        </div>
-                    </label>
-                </div>
+                
             </div>
             <div v-else-if="byUserOrGroup.length" style="height: calc(100% - 128px); display: flex; align-items: center; justify-content: center;white-space: nowrap;font-size: 13px;padding: 30px;">
                 検索結果はありません。
