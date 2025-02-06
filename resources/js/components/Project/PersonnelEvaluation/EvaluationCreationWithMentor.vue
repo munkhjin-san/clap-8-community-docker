@@ -210,7 +210,9 @@ const checkMentorSelected = async() => {
         previousStats.possible_increase_number = response.possible_increase_number
         previousStats.current_level = response.current_level
         previousStats.current_skills = response.current_skills
-        evaluationParams.children.checklist = response.current_skills
+        const currentSkills = response?.evaluation?.checklist?.map(ob => ob.content)
+        const previousSkills = response.current_skills
+        evaluationParams.children.checklist = currentSkills.length ? currentSkills : previousSkills.length ? previousSkills : []
 
     }catch(e) {
         await confirm(e.response?.data.message || e?.message || 'エラーが発生しました。')
