@@ -329,21 +329,36 @@ class UserController extends Controller{
                     $q->withCount('claps');
                 }
             ])->findOrFail($request->id);
-            $post = $user->post->sum('claps_count');
+            $challengeclaps = $user->post_recieved->where('app_type', 2)->sum('claps_count');
 
-            $post_to = $user->post_recieved->sum('claps_count');
+            $knowledgeclaps = $user->post->where('app_type', 1)->sum('claps_count');
 
-            $post_claps = $post + $post_to;
-            
+            $deltanicesent = $user->post->where('app_type', 0)->sum('claps_count');
+
+            $deltanicereceived = $user->post_recieved->where('app_type', 0)->sum('claps_count');
+
+            $deltanicetotal = $deltanicesent + $deltanicereceived;
+
+            $posttotal = $challengeclaps + $knowledgeclaps + $deltanicetotal;      
+
             $portfolio_claps = $user->portfolio->sum('claps_count');
 
             $comment_claps = $user->comment->sum('claps_count');
 
-            $sum = $post_claps + $portfolio_claps + $comment_claps;
+            $sum = $posttotal + $portfolio_claps + $comment_claps;
 
             $claps = [
+                "delta_challaenge" => $challengeclaps,
+                "delta_knowledge" => $knowledgeclaps,
+                "delta_nice_sent" => $deltanicesent,
+                "delta_nice_received" => $deltanicereceived,
+                "post" => $posttotal,
+                "portfolio" => $portfolio_claps,
+                "comment" => $comment_claps,
                 "sum" => $sum,
-            ]; 
+                "name" => $user->name,
+                "id" => $user->id
+            ];
 
             return response()->json($claps);
         }

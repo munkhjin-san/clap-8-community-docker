@@ -50,14 +50,23 @@
                 
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">概要</div> 
-                    <div>
-                        {{ selectedProject?.overview }}
-                    </div>
+                    <div class="leading-normal" v-html="sanitized(selectedProject?.overview)"></div>
                 </div>
-                
                 <div class="project-detail-header">
-                    <div style="margin-bottom: 10px">MISO</div> 
+                    <div style="margin-bottom: 10px">ミッション</div> 
+                    <div class="leading-normal" v-html="sanitized(selectedProject?.mission)"></div>
+                </div>
+                <div class="project-detail-header">
+                    <div style="margin-bottom: 10px">イノベーション</div> 
+                    <div class="leading-normal" v-html="sanitized(selectedProject?.innovation)"></div>
+                </div>
+                <div class="project-detail-header">
+                    <div style="margin-bottom: 10px">戦略</div> 
                     <div class="leading-normal" v-html="sanitized(selectedProject?.strategy)"></div>
+                </div>
+                <div class="project-detail-header">
+                    <div style="margin-bottom: 10px">運用</div> 
+                    <div class="leading-normal" v-html="sanitized(selectedProject?.operation)"></div>
                 </div>
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">KPI</div> 

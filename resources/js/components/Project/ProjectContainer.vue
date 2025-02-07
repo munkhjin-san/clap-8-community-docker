@@ -101,7 +101,7 @@
                 
             </div>
         </div>
-        <!-- <FloatButton type="plus" @action="createWindow = true" v-if="auth.activeUser.position_id >= 6 && (route.name == 'gantt-chart' || route.name == 'project')"/> -->
+        <FloatButton type="plus" @action="createWindow = true" v-if="auth.activeUser.position_id >= 6 && (route.name == 'gantt-chart' || route.name == 'project')"/>
         <Transition name="modalFade">
             <ProjectCreate 
                 v-if="createWindow"

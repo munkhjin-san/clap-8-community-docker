@@ -447,6 +447,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_managing_projects', [ProjectController::class, 'get_managing_projects']);
         Route::post('/update_project_conditions', [ProjectController::class, 'updateConditions']);
         Route::get('/check_evaluation_for_user_in_span ', [ProjectController::class, 'check_evaluation_for_user_in_span']);
+        Route::post('/create_project_tasks', [ProjectController::class, 'create_project_tasks']);
+
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);

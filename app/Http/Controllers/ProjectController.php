@@ -949,25 +949,25 @@ class ProjectController extends Controller
         $taskRecords = [];
         foreach ($tasks as $task) {
             $taskRecord = taskRecord::create([
-                'remarks' => $task['content'],
-                'start_at' => $project->date_start,
-                'end_at' => Carbon::parse($project->date_end)->addDays($task['duration'])->format('Y-m-d'),
+                'remarks' => $task['remarks'],
+                'start_at' => Carbon::now()->format('Y-m-d'),
+                'end_at' => Carbon::now()->addDays($task['duration'])->format('Y-m-d'),
                 'project_record_id' => $project->id,
                 'user_id' => $active_user->id,
                 'updated_user' => $active_user->id
             ]);
-            $taskRecord->taskUsers()->sync($managerIds);
-            foreach($task['sub_taks'] as $sub_task) {
+            $taskRecord->executors()->sync($managerIds);
+            foreach($task['sub_tasks'] as $sub_task) {
                 $subTask = taskRecord::create([
-                    'remarks' => $sub_task['content'],
-                    'start_at' => $project->date_start,
-                    'end_at' => Carbon::parse($project->date_end)->addDays($sub_task['duration'])->format('Y-m-d'),
+                    'remarks' => $sub_task['remarks'],
+                    'start_at' => Carbon::now()->format('Y-m-d'),
+                    'end_at' => Carbon::now()->addDays($sub_task['duration'])->format('Y-m-d'),
                     'project_record_id' => $project->id,
                     'user_id' => $active_user->id,
                     'updated_user' => $active_user->id,
-                    'parent_id' => $taskRecord->id
+                    'parent_task_id' => $taskRecord->id
                 ]);
-                $subTask->taskUsers()->sync($managerIds);
+                $subTask->executors()->sync($managerIds);
             }
             $taskRecords[] = $taskRecord;
         }

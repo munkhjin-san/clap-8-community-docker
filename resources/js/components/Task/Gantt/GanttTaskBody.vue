@@ -205,7 +205,7 @@ const errorMessages = computed(() => {
     return messages
 })
 </script>
-<style>
+<style scoped>
 .lg-triangle {
     width: 0px;
     height: 0px;

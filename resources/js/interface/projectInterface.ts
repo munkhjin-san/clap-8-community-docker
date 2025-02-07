@@ -15,6 +15,10 @@ interface Project {
     status: number;
     members: User[];
     manager: User[];
+    mission: string;
+    innovation: string;
+    operation: string;
+    solution: string;
     director: User;
     tasks: Task[];
     pseudo_start?: string

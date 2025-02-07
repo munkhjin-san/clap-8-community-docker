@@ -420,8 +420,11 @@ class TaskController extends Controller
                                 ->whereDate('date_end', '<=', $toInstance->endOfDay());
                     });
             });
-        })->orWhereNull('date_start') // Include projects with null date_start
-        ->orWhereNull('date_end')
+        })
+        ->when($unit !== 'year', function ($query){
+            $query->orWhereNull('date_start') 
+            ->orWhereNull('date_end');
+        })
         ->with(['members','manager' ])
         ->with(['project_conditions' => function ($q) use ($weekStartDate) {
             $q->where('week_start_date', $weekStartDate);

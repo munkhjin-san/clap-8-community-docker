@@ -281,7 +281,9 @@ const approveOutComeGoal = async(status: number) => {
     if(!answer) return
     try {
         await axios.put('/approve_outcome_goal', {id: props.goal.id, status: status})
-        refresh()
+        if (typeof refresh === 'function') {
+            refresh()
+        }
         emit('close')
         info(info_message)
         badge.getProjectBadge()
@@ -321,7 +323,9 @@ const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
     if(!answer) return
     try {
         await axios.put('/approve_salary_issue', { id: issue.id, status: status})
-        refresh()
+        if (typeof refresh === 'function') {
+            refresh()
+        }
         emit('close')
         info(info_message)
         badge.getProjectBadge()
@@ -365,7 +369,9 @@ const deleteIssue = async(issue: SalaryIssue) => {
     if(!answer) return
     try {
         axios.delete(`/delete_issue?id=${issue.id}`)
-        refresh()
+        if (typeof refresh === 'function') {
+            refresh()
+        }
         emit('close')
         info('削除しました。')
     } catch (e) {
