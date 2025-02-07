@@ -264,7 +264,14 @@ const getSelectableUsers = async() => {
 }
 const getProjects = async() => {
     try {
-        projects.value = await axios.get('/get_projects').then(res => res.data)
+        const today = DateTime.now()
+        const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
+        const year = which_half ==='second' ? (today.year - 1).toString() : today.year.toString
+        const params = {
+            year: year,
+            which_half: which_half
+        }
+        projects.value = await axios.get('/get_projects', { params: params }).then(res => res.data)
         nextTick(() => {
             initialLoader.value = false
         })

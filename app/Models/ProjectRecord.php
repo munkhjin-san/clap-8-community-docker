@@ -12,11 +12,11 @@ class ProjectRecord extends Model
     use SoftDeletes;
 
     public function members(){
-        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')->wherePivot('authority', 0)->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg'])->withPivot(['authority', 'id'])->with('positions');
+        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')->wherePivot('authority', 0)->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position'])->withPivot(['authority', 'id'])->with('positions');
     }
 
     public function manager(){
-        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')->wherePivot('authority', 1)->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg'])->withPivot(['authority', 'id'])->with('positions');
+        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')->wherePivot('authority', 1)->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position'])->withPivot(['authority', 'id'])->with('positions');
     }
 
     public function director(){

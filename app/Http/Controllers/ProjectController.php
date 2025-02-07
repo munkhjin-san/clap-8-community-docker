@@ -44,6 +44,8 @@ class ProjectController extends Controller
     public function get_projects(Request $request) {
         $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
         $evaluation_date = $request->evaluation_date;
+        $year = $request->year;
+        $which_half = $request->which_half;
         $projects = ProjectRecord::with([
                         'project_conditions' => function ($q) use($weekStartDate) {
                             $q->where('week_start_date', $weekStartDate);
@@ -51,8 +53,12 @@ class ProjectController extends Controller
                         'manager' => function ($q)  {
                             $q->where('retire', 0);
                         },
-                        'members' => function ($q)  {
-                            $q->where('retire', 0);
+                        'members' => function ($q) use ($year, $which_half)  {
+                            $q->when($year && $which_half, function ($query) use($year, $which_half) {
+                                $query->where('retire', 0)->with(['evaluation' => function ($subQuery) use ($year, $which_half) {
+                                    $subQuery->where('year', $year)->where('which_half', $which_half)->with('mentor');
+                                }]);
+                            });
                         }
                     ])
                     ->with('director')

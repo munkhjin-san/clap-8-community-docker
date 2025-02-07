@@ -46,8 +46,8 @@ const selectedDate = ref({
 onMounted(() => {
     const options = detailedDateOptions()
     const today = DateTime.now()
-    const which_half = today.month > 3 && today.month < 9 ? 'second' : 'first'
-    const year = today.year.toString()
+    const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
+    const year = which_half ==='second' ? (today.year - 1).toString() : today.year.toString
     const foundOption = options.find(option => option.year == year && option.which_half == which_half)
     if (foundOption) {
         selectedDate.value = foundOption

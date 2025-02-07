@@ -91,7 +91,7 @@
                             <div class="project-cell cell-width">雇用形態</div>
                             <div class="project-cell cell-width">職階</div>
                             <div class="project-cell cell-width">メンター</div>
-                            <div class="project-cell cell-width">担当業務</div>
+                            <div class="project-cell cell-width">職務レベル</div>
                             
                             <div class="project-cell cell-width">成果目標・昇給課題</div>
                             <div class="project-cell cell-width">人事考課</div>
