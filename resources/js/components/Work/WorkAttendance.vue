@@ -127,6 +127,14 @@
                             <span>{{ attendanceData.oda_leave + '日' }}</span>
                         </div>
                     </div>
+                    <div class="attendance-row" v-if="attendanceData.user.position_id == 6">
+                        <div class="attendance-title">
+                            <span>代休</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.comp_holiday + '日' }}</span>
+                        </div>
+                    </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>残業</span>
