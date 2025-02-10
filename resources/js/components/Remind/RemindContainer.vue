@@ -471,6 +471,9 @@ const performTasksOnMounted = async () => {
         initialLoader.value = false
         const savedOrder = localStorage.getItem('savedSortOrder') ? JSON.parse(localStorage.getItem('savedSortOrder')!) : null;
         if (savedOrder) {
+            if (savedOrder.length !== combinedData.value.length) {
+                saveSortOrder()
+            }
             reorderDataBySavedOrder(savedOrder);
         }
     } catch (e) {
