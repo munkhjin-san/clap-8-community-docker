@@ -436,9 +436,9 @@ class WorkController extends Controller
         $user = User::with(['evaluation' => function ($query) use($evaluationDate) {
                         $query->where('date', $evaluationDate);
                     }])
-                    ->select('user_code', 'position_id', 'id')->findOrFail($users_list[0]);
+                    ->select('user_code', 'position_id', 'id', 'general_position')->findOrFail($users_list[0]);
         $user_code = $user->user_code;
-        $general_position = $user->evaluation->general_position ?? null;
+        $general_position = $user->general_position ?? null;
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->where('user_id', $users_list[0])
@@ -1189,7 +1189,7 @@ class WorkController extends Controller
         $annual_full = $shiftRecords
             ->filter(fn($record) => 
                 $record->shiftType?->full_day === 2 &&
-                !in_array($record->shift_type, [14, 15, 16])
+                !in_array($record->shift_type, [14, 15, 16, 17])
             )
             ->count();
 
@@ -1199,6 +1199,7 @@ class WorkController extends Controller
         $condolence_leave = $user->shift_records->where('shift_type', 14)->count();
         $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
         $oda_leave = $user->shift_records->where('shift_type', 16)->count();
+        $comp_holiday = $user->shift_records->where('shift_type', 17)->count();
         $over_time = $user->time_card_records->sum('over_time');
         $annual_costs = 0;
         $annual_incentive = 0;
@@ -1243,6 +1244,7 @@ class WorkController extends Controller
             'annual_leave' => $annual_leave,
             'condolence_leave' => $condolence_leave,
             'transfer_leave' => $transfer_leave,
+            'comp_holiday' => $comp_holiday,
             'oda_leave' => $oda_leave,
             'month_over_time' => $month_over_time > 0 ? $month_over_time : 0,
             'over_time' => $over_time,
