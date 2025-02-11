@@ -299,6 +299,7 @@ class CustomFormController extends Controller
 
                     $main[] = $data;
                 }
+                $main = collect($main)->sortByDesc('created_at')->values()->all();
                 return response()->json($main);
             }
         
