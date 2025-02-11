@@ -30,10 +30,12 @@
                     <div class="mt-[20px]">
                         <div class="mt-[10px] flex flex-col gap-[30px]">
                             <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" v-for="answer in answersByUser">
-                                <div class="flex items-center">
+                                <label class="flex items-center">
                                     <UserPanel v-if="answer.user" :user="answer.user" with-name disable-instant/>
-                                </div>
-                                <div class="flex flex-col gap-[20px]">
+                                    <p class="jump-link ml-[15px] text-[13px]">表示・非表示</p>
+                                    <input type="checkbox" v-model="openedUsers" :value="`by_user_${answer.user.id}`" class="hidden"/>
+                                </label>
+                                <div v-if="openedUsers.includes(`by_user_${answer.user.id}`)" class="flex flex-col gap-[20px]">
                                     <div v-for="block in answer.data" >
                                         <div class="text-[16px]">{{ block.question }}</div>
                                         <div class="ml-[10px] mt-[10px] leading-normal text-[13px]">
@@ -51,8 +53,12 @@
                 <div v-if="tab == 1 && answersByBlock" >
                     <div class="mt-[10px] flex flex-col gap-[30px]">
                         <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" v-for="block in answersByBlock.blocks" >
-                            <div class="text-[16px]">{{ block.question }}</div>
-                            <div class="ml-[10px] mt-[10px] ">
+                            <label class="flex items-center">
+                                <div class="text-[16px]">{{ block.question }}</div>
+                                <p class="jump-link ml-[15px] text-[13px]">表示・非表示</p>
+                                <input type="checkbox" v-model="openedQuestions" :value="`by_block_${block.id}`" class="hidden"/>
+                            </label>
+                            <div class="ml-[10px] mt-[10px]" v-if="openedQuestions.includes(`by_block_${block.id}`)">
                                                                
                                 <div v-if="simpleTypes.includes(block.type)">
                                     <div class="flex flex-col gap-[10px]">
@@ -92,10 +98,11 @@
                             <div class="flex flex-col gap-[20px] ml-[20px] text-[13px]">
                                 <div v-for="element in block.elements" class="flex gap-[10px] flex-col">
                                     <div>{{ element.value }}</div>
-                                    <div class="flex">
-                                        <div v-for="el_answer in element.answers" class="flex items-center gap-[10px]">
+                                    <div class="flex items-center" v-if="element.answers" @click="setViewUsers({title: element.value, users: element.answers.map( a => a.user) as User[]})">
+                                        <div v-for="el_answer in element.answers?.slice(0,3)" class="flex items-center gap-[10px]">
                                             <UserPanel v-if="el_answer.user" size="15" :user="el_answer.user" disable-instant/>
                                         </div>
+                                        <p class="ml-[3px] mt-[3px]" v-if="element.answers && element.answers?.length > 3">{{ `...(${element.answers?.length}人)` }}</p>
                                     </div>
                                 </div>
                             </div>
@@ -108,11 +115,23 @@
         </div>
         
     </div>
+    <Modal @close="setViewUsers({title: '', users: []})" v-if="viewUsers.users.length > 0">
+        <template #title>
+            <p>{{ viewUsers.title }}</p>
+        </template>
+        <template #content>
+            <div class="flex flex-col">
+                <div v-for="user in viewUsers.users" class="flex items-center p-[10px] hover:bg-[var(--bg3)]">
+                    <UserPanel :user="user" size="30" with-name disable-instant/>
+                </div>                    
+            </div>
+        </template>
+    </Modal>
 </div>
 </template>
 <script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue';
-import { CustomForm, CustomFormBlock, SurveyAnswer } from '@/interface/customFormInterface';
+import { CustomForm, CustomFormBlock, CustomFormBlockElement, SurveyAnswer } from '@/interface/customFormInterface';
 import { User } from '@/interface/globalInterface';
 import axios from 'axios';
 import { computed, onMounted, ref } from 'vue';
@@ -123,6 +142,7 @@ import { mkConfig, generateCsv, download } from "export-to-csv";
 import { DateTime } from 'luxon';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Back from '@/components/Icons/Back.vue';
+import Modal from '@/components/Global/Modal.vue';
 ChartJS.register(ArcElement, Tooltip, Legend, Colors )
 const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select']
 const props = defineProps<{
@@ -158,9 +178,17 @@ const tab = ref(0)
 const router = useRouter()
 const answersByUser = ref<SimpleAnswer[]>([])
 const answersByBlock = ref<CustomForm | null>(null)
+const viewUsers = ref<{title: string, users: User[]}>({title: '', users: []})
+
+const openedQuestions = ref<string[]>([])
+const openedUsers = ref<string[]>([])
 onMounted(() => {
     getSurveyAnswers()
 })
+
+const setViewUsers = (payload: {title: string, users: User[]}) => {
+    viewUsers.value = payload
+}
 
 const chartData = computed(() => {
     if(!answersByBlock.value) return []
