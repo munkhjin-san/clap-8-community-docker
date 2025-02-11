@@ -10,7 +10,7 @@
         </div>
     </template>
     <template #content>
-        <div class="">
+        <div v-if="contact" class="">
             <table class="contact-detail-table">
                 <tr>
                     <td>コンタクト種類</td>
