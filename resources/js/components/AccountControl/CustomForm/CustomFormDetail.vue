@@ -98,11 +98,11 @@
                             <div class="flex flex-col gap-[20px] ml-[20px] text-[13px]">
                                 <div v-for="element in block.elements" class="flex gap-[10px] flex-col">
                                     <div>{{ element.value }}</div>
-                                    <div class="flex items-center" v-if="element.answers" @click="setViewUsers({title: element.value, users: element.answers.map( a => a.user) as User[]})">
+                                    <div class="flex items-center cursor-pointer" v-if="element.answers" @click="setViewUsers({title: element.value, users: element.answers.map( a => a.user) as User[]})">
                                         <div v-for="el_answer in element.answers?.slice(0,3)" class="flex items-center gap-[10px]">
                                             <UserPanel v-if="el_answer.user" size="15" :user="el_answer.user" disable-instant/>
                                         </div>
-                                        <p class="ml-[3px] mt-[3px]" v-if="element.answers && element.answers?.length > 3">{{ `...(${element.answers?.length}人)` }}</p>
+                                        <p class="ml-[3px]" v-if="element.answers && element.answers?.length > 3">{{ `...(${element.answers?.length}人)` }}</p>
                                     </div>
                                 </div>
                             </div>
