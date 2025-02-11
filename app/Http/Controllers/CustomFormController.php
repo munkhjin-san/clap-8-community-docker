@@ -247,11 +247,11 @@ class CustomFormController extends Controller
             $survey = SurveyAnswer::where('custom_form_id', $request->custom_form_id)->get();
             $custom_form = CustomForm::with(['blocks' => function($q)  {
                 $q->with(['answers' => function($q) {
-                    $q->with('user');                    
+                    $q->with('user')->orderBy('created_at', 'desc');                    
                 }])
                 ->with(['elements' => function($q)  {
                     $q->with(['answers' => function($q)  {
-                        $q->with('user');                    
+                        $q->with('user')->orderBy('created_at', 'desc'); ;                    
                     }]);
                 }]);
             }])->findOrFail($request->custom_form_id);
