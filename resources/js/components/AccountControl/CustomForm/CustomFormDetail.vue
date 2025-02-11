@@ -34,6 +34,7 @@
                                     <UserPanel v-if="answer.user" :user="answer.user" with-name disable-instant/>
                                     <p class="jump-link ml-[15px] text-[13px]">表示・非表示</p>
                                     <input type="checkbox" v-model="openedUsers" :value="`by_user_${answer.user.id}`" class="hidden"/>
+                                    <p class="ml-auto text-[12px] text-[gray]">{{ DateTime.fromISO(answer.created_at).toLocaleString(DateTime.DATETIME_MED) }}</p>
                                 </label>
                                 <div v-if="openedUsers.includes(`by_user_${answer.user.id}`)" class="flex flex-col gap-[20px]">
                                     <div v-for="block in answer.data" >
