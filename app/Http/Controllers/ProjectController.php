@@ -358,7 +358,7 @@ class ProjectController extends Controller
                 ]));
             }
             $board->board_to_users()->where('admin_flag', 1)->whereNotIn('user_id', $manager)->delete();
-            $createIcon = $this->sharedService->createBoardDefaultIcon($board, $active_user->id);
+            // $createIcon = $this->sharedService->createBoardDefaultIcon($board, $active_user->id);
 
         }
         return response()->json($project);
@@ -774,7 +774,14 @@ class ProjectController extends Controller
                 return $projectGoals->groupBy('user_id')->map->count();
             })
             ->toArray();
-
+        $goalByWhich = $goals->groupBy('project_id')
+            ->map(function ($projectGoals) {
+                return $projectGoals->groupBy('user_id')
+                    ->map(function ($userGoals) {
+                        return $userGoals->groupBy(fn ($goal) => "{$goal['year']}-{$goal['which_half']}")
+                            ->map->count();
+                    });
+            })->toArray();
         $projectCounts = $goals->groupBy('project_id')
             ->map->count()
             ->all();
@@ -785,6 +792,7 @@ class ProjectController extends Controller
             'total_sum' => $totalSum,
             'project_counts' => $projectCounts,
             'goal_counts' => $goalCounts,
+            'year_half_counts' => $goalByWhich
         ];
     }
     public function get_managing_projects(Request $request)

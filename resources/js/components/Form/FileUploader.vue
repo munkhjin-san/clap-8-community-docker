@@ -1,12 +1,13 @@
 <template>
 
-    <div :class="['formFileUploadArea', {dropHereArea: entered}, {focused: uploadFiles.length}]"
+    <div :class="['formFileUploadArea', customClass, {dropHereArea: entered}, {focused: uploadFiles.length}]"
         @click="triggerUploader"
         @dragenter="setEnter(true)"
         @dragleave="setEnter(false)"
         @dragover.prevent
         @drop.prevent="dropFile"
-        style="position: relative;"
+        :style="customStyle"
+        style="position: relative"
         >   
 
         <div class="uploadMask" v-if="uploadingProgress"><div>アップロード中</div><div> {{uploadingProgress }}%</div></div>
@@ -54,7 +55,7 @@ import { onMounted, ref } from 'vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue'
 import { useSharingDataStore } from '@/store/sharingData'
     const sharingData = useSharingDataStore()
-    const props =  defineProps(['path'])
+    const props =  defineProps(['path', 'customClass', 'customStyle'])
     const emit = defineEmits(['updated'])
     const entered = ref(false)
     const uploadingProgress = ref(0)

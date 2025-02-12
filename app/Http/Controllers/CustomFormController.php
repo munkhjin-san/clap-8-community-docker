@@ -28,7 +28,7 @@ class CustomFormController extends Controller
 
             $survey = CustomForm::with(['blocks' => function($q) use($active_user)  {
                 $q->with(['answers' => function($q)use($active_user)  {
-                    $q->where('user_id', $active_user->id);                    
+                    $q->where('user_id', $active_user->id)->with('files');                    
                 }])->with(['elements' => function($q) use($active_user) {
                     $q->with(['answers' => function($q)use($active_user)  {
                         $q->where('user_id', $active_user->id);  
@@ -228,6 +228,7 @@ class CustomFormController extends Controller
                 "text_answer" => $block['text_answer'],
                 "custom_form_block_id" => $block['custom_form_block_id']
             ]);
+            $block_answer->files()->sync($block['files']);
             $elements = $block['element_answers'];
             foreach($elements as $element){
                 $block_answer->element_answers()->create([
@@ -247,7 +248,7 @@ class CustomFormController extends Controller
             $survey = SurveyAnswer::where('custom_form_id', $request->custom_form_id)->get();
             $custom_form = CustomForm::with(['blocks' => function($q)  {
                 $q->with(['answers' => function($q) {
-                    $q->with('user')->orderBy('created_at', 'desc');                    
+                    $q->with(['user', 'files'])->orderBy('created_at', 'desc');                    
                 }])
                 ->with(['elements' => function($q)  {
                     $q->with(['answers' => function($q)  {
@@ -276,6 +277,8 @@ class CustomFormController extends Controller
                             
                             if(in_array($block->type, $simpleTypes)){
                                 $anwsers[] = ['value' => $block_answer->text_answer];
+                            } else if($block->type === 'file'){
+                                $anwsers = $block_answer->files;
                             }else{
                                 $elements = $block->elements;
                                 foreach($elements as $element){
@@ -291,7 +294,7 @@ class CustomFormController extends Controller
                             $q = [
                                 'question' => $block->question,
                                 'type' => $block->type,
-                                'answers' => $anwsers
+                                'answers' => $anwsers,
                             ];
                             $data['data'][] = $q;
                         }

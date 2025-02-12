@@ -36,9 +36,9 @@ class PostController extends Controller
     private function delete_file_execute($list, $path){
         $files = FileRecord::whereIn('id', $list)->get();
         foreach($files as $file){
-            Storage::disk('local')->delete($path . '/' . $file->id . '_' . $file->user_id . '_' . $file->path . '.' . $file->extension);
-            Storage::disk('local')->delete($path . '/thumbnail/' . $file->id . '_' . $file->user_id . '_' . $file->path . '_thumbnail.' . $file->extension);
-            $file->update(["deleted_flag" => 1]);
+            Storage::disk('local')->delete("$path/{$file->id}_{$file->user_id}_{$file->path}.{$file->extension}");
+            Storage::disk('local')->delete("$path/thumbnail/{$file->id}_{$file->user_id}_{$file->path}_thumbnail.webp");
+            $file->delete();
         }
         return $files;
     }

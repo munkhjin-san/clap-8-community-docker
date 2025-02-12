@@ -54,6 +54,14 @@
             <div v-if="block.type == 'multitext'">
                 <textarea :class="['custom-a-input', {'invalid-input': hasError}, { 'date-color': theme.dark }]" v-model="blockData.text_answer" :placeholder="block.placeholder ? block.placeholder : '回答'" type="text"></textarea>
             </div>
+            <div v-if="block.type == 'file'">
+                <FileUploader 
+                    v-model="blockData.files"
+                    path="/survey_files"
+                    customClass="custom-a-input"
+                    customStyle="width: 50%"
+                />
+            </div>
         </div>
 
     </div>
@@ -64,6 +72,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { ComponentExposed } from 'vue-component-type-helpers';
 import 'styles/customForm.css'
 import { useTheme } from '@/store/theme';
+import FileUploader from '../Form/FileUploader.vue';
 const props = defineProps<{
     block: CustomFormBlock
 }>()
@@ -72,6 +81,7 @@ const blockData = reactive<SurveyBlockAnswer>({
     text_answer: '',
     element_answers: [],
     custom_form_block_id: props.block.id,
+    files: []
 })
 const radioModel = ref<number | string | null>(null)
 const checkboxModel = ref<(number | string)[]>([])

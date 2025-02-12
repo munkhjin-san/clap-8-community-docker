@@ -100,6 +100,11 @@
                                     :block="block"
                                     v-model:question="block.question"
                                 />
+                                <CustomFile
+                                    v-else-if="block.type == 'file'" 
+                                    :block="block"
+                                    v-model:question="block.question"
+                                />
                             </div>
                         </div>
                         
@@ -139,6 +144,7 @@ import CustomSingleText from '@/components/Form/CustomElements/CustomSingleText.
 import AddIcon from '@/components/Form/AddIcon.vue';
 import CustomMultiText from '@/components/Form/CustomElements/CustomMultiText.vue';
 import CustomSelect from '@/components/Form/CustomElements/CustomSelect.vue';
+import CustomFile from '@/components/Form/CustomElements/CustomFile.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import axios from 'axios';
 import { DialogMethods, User } from '@/interface/globalInterface';
@@ -166,6 +172,7 @@ const blockTypes:{label:string, value: CustomFormBlockType}[] = [
     {label: '長文', value: 'multitext'},
     {label: '日付', value: 'date'},
     {label: '時間', value: 'time'},
+    {label: 'ファイル', value: 'file'},
 ]
 const menu = useMenuStore()
 const blockMenuIndex = ref<number | null>(null)

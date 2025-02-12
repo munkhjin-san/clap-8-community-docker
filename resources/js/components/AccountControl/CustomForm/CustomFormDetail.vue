@@ -45,6 +45,7 @@
                                                 <div class="ml-[10px] text-[gray]">{{ ans.sub_text }}</div>
                                             </div>
                                         </div>
+                                        <Files v-if="block.type === 'file'" :items="block.answers" :path="'survey_files'"/>
                                     </div>
                                 </div>
                             </div>
@@ -66,6 +67,7 @@
                                         <div v-for="answer in block.answers" class="flex items-center gap-[10px]">
                                             <div><UserPanel v-if="answer.user" size="25" :user="answer.user" disable-instant with-name/></div>
                                             <div class="ml-[10px] text-[13px]">{{ answer.text_answer }}</div>
+                                            <Files v-if="block.type == 'file'" :items="answer.files" :path="'survey_files'"/>
                                         </div>
                                     </div>
                                 </div>
@@ -144,8 +146,9 @@ import { DateTime } from 'luxon';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Back from '@/components/Icons/Back.vue';
 import Modal from '@/components/Global/Modal.vue';
+import Files from '@/components/Global/Files.vue';
 ChartJS.register(ArcElement, Tooltip, Legend, Colors )
-const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select']
+const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select', 'file']
 const props = defineProps<{
     form: CustomForm
 }>()

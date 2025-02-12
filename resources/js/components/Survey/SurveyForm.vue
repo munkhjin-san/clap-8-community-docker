@@ -64,15 +64,18 @@ const sendSurvey = async() => {
         blockValid =  isValid && blockValid
     }
     if(!blockValid) return
-
-    const constructedBlocks = targets.map( t => {return t.extractedData})
+    
+    const constructedBlocks = targets.map(t => ({
+        ...t.extractedData,
+        files: t.extractedData.files.map(f => f.id)
+    }));
+    console.log(constructedBlocks)
 
     const params = {
         custom_form_id: props.survey.id,
         params: constructedBlocks
     }
     
-    console.log(constructedBlocks)
     try{
         sending.value = true
         await axios.post('/save_survey_answer', params)

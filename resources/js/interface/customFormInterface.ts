@@ -1,5 +1,6 @@
 
 import { User } from "./globalInterface"
+import { File } from "./trayInterface"
 
 export interface CustomForm {
     id: number	
@@ -30,7 +31,7 @@ export interface CustomFormBlock {
     order_number?: number
     placeholder?: string
 }
-export type CustomFormBlockType = 'checkbox' | 'radio' | 'singletext' | 'multitext' | 'date' | 'time' | 'select'
+export type CustomFormBlockType = 'checkbox' | 'radio' | 'singletext' | 'multitext' | 'date' | 'time' | 'select' | 'file'
 export type CustomFormBlockState = 'control' | 'live'
 
 export interface CustomFormBlockElement {
@@ -63,6 +64,7 @@ export interface SurveyBlockAnswer{
     element_answers: SurverBlockElementAnswer[]
     custom_form_block_id?: number
     user?: User
+    files: File[]
 }
 
 export interface SurverBlockElementAnswer{

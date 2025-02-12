@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class FileRecord extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     public function knowledgeRecords()
     {
         return $this->belongsToMany(KnowledgeRecord::class, 'knowledge_use_files', 'file_id', 'record_id');
