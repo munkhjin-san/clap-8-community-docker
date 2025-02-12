@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 class SurveyBlockAnswer extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
     protected $guarded = [];
     public function element_answers(){
         return $this->hasMany(SurveyBlockElementAnswer::class);
