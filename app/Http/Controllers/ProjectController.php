@@ -664,9 +664,9 @@ class ProjectController extends Controller
         
         $task_counts = $this->project_task_badge($user);
         $by_projects = $task_counts->groupBy('id')->mapWithKeys(function ($group, $key) {
-            return [$key => $group->count()];
+            return [$key => $group->sum(fn($task) => $task->tasks->count() ?? 0)];
         })->toArray();
-        $total_task_badge = $task_counts->count();
+        $total_task_badge = $task_counts->sum(fn($task) => $task->tasks->count() ?? 0);
         $grouped_task_badge = $task_counts->flatMap(function ($project) {
             return $project->tasks;
         })->groupBy('id')->map->count();
