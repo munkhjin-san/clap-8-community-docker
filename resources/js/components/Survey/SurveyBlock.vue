@@ -58,7 +58,7 @@
                 <FileUploader 
                     v-model="blockData.files"
                     path="/survey_files"
-                    customClass="custom-a-input"
+                    :customClass="['custom-a-input', {'invalid-file-input': hasError}]"
                     customStyle="width: 50%"
                 />
             </div>
@@ -76,7 +76,7 @@ import FileUploader from '../Form/FileUploader.vue';
 const props = defineProps<{
     block: CustomFormBlock
 }>()
-const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select']
+const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select', 'file']
 const blockData = reactive<SurveyBlockAnswer>({
     text_answer: '',
     element_answers: [],
@@ -120,13 +120,25 @@ const hasCheckError = computed(() => {
 });
 const hasError = computed(() => {
     if (!validateOn.value) return false;
-    return simpleTypes.includes(props.block.type) && props.block.is_required ? !blockData.text_answer : false
+    if (simpleTypes.includes(props.block.type) && props.block.is_required) {
+        if (props.block.type === 'file') {
+            return !Array.isArray(blockData.files) || blockData.files.length === 0
+        } else {
+            return !blockData.text_answer
+        }
+    }
+    return false
 });
 const isValid = ():boolean => {
 
     validateOn.value = true
     if(simpleTypes.includes(props.block.type)){
-        return !props.block.is_required ? true : blockData.text_answer ? true : false
+        if (!props.block.is_required) return true
+        if (props.block.type === 'file') {
+            return Array.isArray(blockData.files) && blockData.files.length > 0
+        } else {
+            return blockData.text_answer ? true : false
+        }
     }
     else{         
         let elementsValid = true
