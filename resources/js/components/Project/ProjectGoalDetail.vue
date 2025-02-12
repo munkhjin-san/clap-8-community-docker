@@ -44,7 +44,7 @@
                             </div>
                             <div v-if="goal?.salary_issue">
                                 <div>昇給課題ステータス</div>
-                                <div class="kadai-content">{{ statuses[goal?.salary_issue?.status] }}</div>
+                                <div class="kadai-content">{{ salaryIssueStatus[goal?.salary_issue?.status] }}</div>
                             </div>
                             
                             <div v-if="memberData && (auth.id === memberData.id || isManagerOrMember || auth.activeUser.id === 610 || auth.activeUser.id === 608) && goal?.status < 2" style="position: absolute;right: 10px;top: 10px;">                                            
@@ -94,6 +94,7 @@
                             :themeRecords="themeRecords"
                             :selectedDate="selectedDate"
                             :statuses="statuses"
+                            :salaryIssueStatus="salaryIssueStatus"
                             :evaluationData="evaluationData"
                         />
                     </transition>
@@ -161,6 +162,19 @@ const statuses = [
     '報告承認待ち',
     '報告差戻', 
     '目標達成'
+]
+const salaryIssueStatus = [
+    '作成中', 
+    '差戻中', 
+    '申請中', 
+    '人事申請中', 
+    '変更申請中', 
+    '人事承認済', 
+    '報告進行中',
+    '報告承認待ち',
+    '報告差戻',
+    '結果人事申請中', 
+    '結果人事承認済'
 ]
 watch(goalDate, async(newValue) => {
     // if(newValue){

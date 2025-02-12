@@ -56,7 +56,8 @@
                         <div class="kadai-content">{{ goal?.achievement_rate }}%</div>
                     </div>
                     <div v-if="goal?.report">
-                        <div>成果報告</div>
+                        <div class="post-separetor mt-[10px]"></div>
+                        <div class="mb-[10px]">成果報告</div>
                         <div class="kadai-content">{{ goal?.report }}</div>
                         <Files style="margin-top: 15px;" v-if="goal?.files?.length" :items="goal?.files" :path="'project_files'"/>
                     </div>
@@ -100,14 +101,15 @@
                     </div>
                     <div>
                         <div>ステータス</div>
-                        <div class="kadai-content">{{ statuses[goal?.salary_issue.status] }}</div>
+                        <div class="kadai-content">{{ salaryIssueStatus[goal?.salary_issue.status] }}</div>
                     </div>
                     <div>
                         <div>AI添削結果</div>
                         <div class="kadai-content">{{ goal?.salary_issue.review }}</div>
                     </div>
                     <div v-if="goal?.salary_issue?.status >= 6">
-                        <div>昇給課題結果</div>
+                        <div class="post-separetor mt-[10px]"></div>
+                        <div class="mb-[10px]">昇給課題結果</div>
                         <div class="kadai-content">{{ goal?.salary_issue.result }}</div>
                         <Files style="margin-top: 15px;" v-if="goal?.salary_issue?.files?.length" :items="goal?.salary_issue?.files" :path="'project_files'"/>
                     </div>
@@ -122,6 +124,10 @@
                     <div v-if="631 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'人事差戻'"/>
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'人事承認'"/>
+                    </div>
+                    <div v-if="631 === auth.id && goal?.salary_issue?.status == 9" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 6)" :content="'結果人事差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 10)" :content="'結果人事承認'"/>
                     </div>
                     <div v-if="610 === auth.activeUser.id && goal?.salary_issue?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'人事承認取消'"/>
@@ -208,7 +214,8 @@ const props = defineProps([
     'themeRecords',
     'selectedDate',
     'statuses',
-    'evaluationData'
+    'evaluationData',
+    'salaryIssueStatus'
 ])
 const emit = defineEmits(['close'])
 const auth = useAuthUserStore()
