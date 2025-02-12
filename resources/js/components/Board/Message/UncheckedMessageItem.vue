@@ -237,7 +237,8 @@ import { useBadgeStore } from "@/store/badge";
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }              
     }
-    const jumpToMessage = () => {
+    const jumpToMessage = (event) => {
+        if (event.target.tagName === 'A') return
         const link = document.createElement('a');
         link.href = `${window.location.origin}/board/${props.message.record_id}?m=${props.message.id}&jump_message=true`;                
         document.body.appendChild(link);            
