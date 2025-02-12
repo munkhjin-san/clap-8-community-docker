@@ -82,3 +82,6 @@
 .invalid-input:placeholder-shown {
     border: solid thin tomato;
 }
+.invalid-file-input {
+    border: solid thin tomato;
+}
