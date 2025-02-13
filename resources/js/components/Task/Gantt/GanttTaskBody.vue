@@ -14,7 +14,7 @@
                     </div>
                     <div class="flex">
                         <div :style="{width: task.sub_tasks?.length || isSubTask ? 'calc(100% - 19px)' : '100%'}" class="flex flex-col gap-[5px]">
-                            <div class="w-[fit-content] max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap leading-[1.4]" @click="emit('setFullText', {text: task.remarks as string, id: task.id as number, editable: includesMe || hasPrivilage})">{{task.remarks}}</div>
+                            <div class="w-[fit-content] max-w-full overflow-hidden overflow-ellipsis whitespace-nowrap leading-[1.4]" :class="mainTask ? 'text-[14px]' : 'text-[16px]'" @click="emit('setFullText', {text: task.remarks as string, id: task.id as number, editable: includesMe || hasPrivilage})">{{task.remarks}}</div>
                         </div>
                     </div>
                     <div class="text-[12px] relative w-fit">
