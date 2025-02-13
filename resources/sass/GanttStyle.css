@@ -209,11 +209,16 @@
 }
 .pop-body{
     width: 100%;
-    height: calc(100% - 60px);
+    height: 100%;
     display: flex;
     flex-direction: column;
-    min-height: calc(100% - 60px);
+    min-height: 100%;
 }
+.pop-body::-webkit-scrollbar {
+    width: 4px;
+    height: 0 !important;
+}
+  
 .max-task-inner{
     display: flex;
     flex-direction: column;
@@ -231,14 +236,14 @@
     min-height: 30px;
     display: flex;
     align-items: center;
-    padding: 0px 20px;
+    /* padding: 0px 20px; */
     font-size: 14px;
     position: sticky;
     top: 0;
     background: var(--background-color);
     z-index: 2;
     justify-content: space-between;
-    position: relative;
+    min-width: min-content;
 }
 .today-line{
     position: absolute;
@@ -247,6 +252,7 @@
     height: 100vh;
     background: gray;
     left: 50%;
+    transition: left 0.2s;
 }
 .today-chip{
     position: absolute;
@@ -295,6 +301,13 @@
 }
 .width-smooth{
     transition: width 0.2s;
+}
+
+.little-alert{
+    display: none;
+}
+.little-alert-mark:hover + .little-alert{
+    display: flex;
 }
 @media screen and (max-width: 959px) {
     .gantt-overlay-inner{

@@ -8,6 +8,7 @@
             :from="from"
             :mainTask="null"
             :project="project"
+            :scrollPosition="scrollPosition"
             @setFullText="(data) => emit('setFullText', data)"
             @set-commenting-task-id="(id) => emit('setCommentingTaskId', id)"
         />
@@ -22,6 +23,7 @@
                     :from="from"
                     :project="project"
                     :mainTask="task"
+                    :scrollPosition="scrollPosition"
                     @setFullText="(data) => emit('setFullText', data)"
                     @set-commenting-task-id="(id) => emit('setCommentingTaskId', id)"
                     />
@@ -41,6 +43,7 @@ const props = defineProps<{
     virtualSpan: VirtualSpan
     from?: string
     project: Project
+    scrollPosition: number
 }>()
 
 const emit = defineEmits<{

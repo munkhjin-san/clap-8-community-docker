@@ -1,7 +1,7 @@
 <template>
     <div class="relative">
-        <div @click.stop="menu.setMenu({parent: 'taskCategory'})" class="c-bar-button text-[13px] whitespace-nowrap">{{ selected }}</div>
-        <Transition>
+        <div @click.stop="menu.setMenu({parent: 'taskCategory'})" class="c-bar-button !text-[12px] whitespace-nowrap !px-[5px]">{{ selected }}</div>
+        <Transition name="slidePop">
             <div id="taskCategory" v-if="menu.parent == 'taskCategory'" class="min-w-[200px] absolute top-[40px] right-[0px] z-[15] shadow-me p-[10px] bg-[var(--background-color)]">
                 <div>
                     <div class="mb-[10px]">メンバー</div>

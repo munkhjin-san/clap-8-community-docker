@@ -1,6 +1,6 @@
 <template>
-    <div @click="run" class="c-button" :style="{background: backgrounds[status], cursor: viewType == 'status' ? 'not-allowed' : 'pointer'}">
-        <div class="primary-selection">{{ statuses[status] }}</div>
+    <div @click="run" class="c-button !h-[20px]" :style="{background: backgrounds[status], cursor: viewType == 'status' ? 'not-allowed' : 'pointer'}">
+        <div class="primary-selection !px-[5px]">{{ statuses[status] }}</div>
     </div>
 </template>
 <script setup lang="ts">
@@ -15,9 +15,6 @@ const props = defineProps<{
 const emit = defineEmits<{
     action: [flag: number]
 }>()
-onMounted(() => {
-    console.log(props.status)
-})
 const statuses = [
     "未対応",
     "対応中",

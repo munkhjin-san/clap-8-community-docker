@@ -3,7 +3,13 @@
         <Transition name="slidePop">        
             <div v-if="!route.params.span || picker" class="fixed top-0 left-0 w-full h-full bg-[var(--overlay)] z-[50] flex items-center justify-center">
                 <div class="p-[30px] bg-[var(--background-color)] flex flex-col gap-[20px] relative">
-                    <p>期間を選択してください。</p>
+                    <div class="flex items-center justify-between">
+                        <p>期間を選択してください。</p>
+                        <div class="cursor-pointer w-[30px] min-w-[30px] h-[30px] flex items-center justify-center" @click="router.back()">   
+                            <CloseIcon size="10"/>
+                        </div>                        
+                    </div>
+                    
                     <button @click="setOption(option)" v-for="option in dateOptionsData" class="border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer relative">
                         {{ option.name }}
                         <span class="side-notification" style="right: -5px; top: -5px; left: auto;" v-if="badgeByHalf?.[selectedProject?.id]?.[memberData?.id]?.[`${option.year}-${option.which_half}`]">{{ badgeByHalf?.[selectedProject?.id]?.[memberData?.id]?.[`${option.year}-${option.which_half}`] }}</span>
@@ -26,6 +32,7 @@
     </div>
 </template>
 <script setup lang="ts">
+import CloseIcon from '@/components/Form/CloseIcon.vue';
 import { useBadgeStore } from '@/store/badge';
 import { detailedDateOptions } from '@/utils/tools';
 import { computed, onMounted, reactive, ref } from 'vue';

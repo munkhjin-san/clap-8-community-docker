@@ -790,13 +790,14 @@ import UserPanel from '@/components/Global/UserPanel.vue'
         sharingFiles.value = sharingFiles.value.filter( obj => obj !== image)
         msgSave();   
     }
-    const enterSend = () => {
+    const enterSend = (event) => {
+        
         if(mentionBox.value && mentionBox.value.highlighted > -1){
             const user = mentionAbleList.value[mentionBox.value.highlighted]
             mentionBox.value.mentionUser(user, mentionBox.value.highlighted)
             event.preventDefault()
         }
-        if(event.altKey){
+        if(event.altKey || event.windowsKey || event.metaKey){
             commentSendConfirm(0)
         }
     }
