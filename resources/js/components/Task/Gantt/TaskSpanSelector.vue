@@ -4,9 +4,9 @@
         <Transition name="slidePop">
             <div id="taskSpanSelector" v-if="menu.parent == 'taskSpanSelector'" class="absolute top-[40px] -right-[50px] z-[15] shadow-me p-[10px] bg-[var(--background-color)] max-h-[200px] overflow-y-auto">
                 <div class="flex items-center gap-[10px] justify-end p-[5px] mb-[5px]">
-                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px]" @click="setSpan(null, null, true)">リセット</button>
-                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px]" @click="setSpan(DateTime.now().year, null, false)">今年</button>
-                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px]" @click="setSpan(DateTime.now().year, DateTime.now().month, false)">今月</button>
+                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px] whitespace-nowrap" @click="setSpan(null, null, true)">リセット</button>
+                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px] whitespace-nowrap" @click="setSpan(DateTime.now().year, null, false)">今年</button>
+                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px] whitespace-nowrap" @click="setSpan(DateTime.now().year, DateTime.now().month, false)">今月</button>
                 </div>
                 <div class="flex flex-col gap-[10px]">
                     <div v-for="block in selectableSpan" class="flex flex-col">
