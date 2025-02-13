@@ -728,8 +728,7 @@ class ProjectController extends Controller
     {
         
 
-        $managerIds = ProjectRecord::where('director_id', $user->id)
-            ->with('manager:id') 
+        $managerIds = ProjectRecord::with('manager:id') 
             ->get()
             ->flatMap(fn($project) => $project->manager->pluck('id'))
             ->unique()
@@ -745,9 +744,6 @@ class ProjectController extends Controller
             })
             ->orWhereHas('salaryIssue', function ($q) use ($user) {
                 $q->where('status', 2)->where('mentor_id', $user->id);
-            })
-            ->whereHas('project', function ($q) use ($user) {
-                $q->where('director_id', $user->id);
             })
             ->get();
 
