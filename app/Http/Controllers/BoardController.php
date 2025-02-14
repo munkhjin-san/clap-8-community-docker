@@ -812,7 +812,10 @@ class BoardController extends Controller
             }, $notify_ids);
             if(!empty($members)){
                 $deep_link = url('board/' . $boardRecord->id);
-                $icon = url('content_api/profile_icon/' . $user->icon_path . '_' . $user->id . '_200.jpg');
+                $icon = $user->icon_path 
+                    ? url("content_api/profile_icon_migrated/$user->icon_path.webp") 
+                    : url("user_default_thumbnail/" . urlencode(mb_substr($user->name, 0, 1)) . "/30/000000");
+                
                 $badge = url('/96x96.png');
                 if(!empty($boardRecord) && $boardRecord->private_flag == 1){
                     $push_title = $user->name;
