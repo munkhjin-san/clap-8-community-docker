@@ -18,7 +18,7 @@
     "dependencies": {
         "@cyhnkckali/vue3-color-picker": "^2.0.7",
         "@holiday-jp/holiday_jp": "^2.4.0",
-        "@pusher/push-notifications-web": "^1.1.0",
+        "@pusher/push-notifications-web": "^2.1.0",
         "@tiptap/extension-bullet-list": "^2.4.0",
         "@tiptap/extension-color": "^2.1.15",
         "@tiptap/extension-dropcursor": "^2.1.16",

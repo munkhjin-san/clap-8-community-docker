@@ -21,6 +21,7 @@
                         <div @click="step = 3" class="suggested-wrap p-setting-item" v-html="'マイサイン'"></div>
                         <div v-if="[540, 608 ,516, 604].includes(auth.activeUser.id)" @click="step = 4" class="suggested-wrap p-setting-item" v-html="'スケジュール設定'"></div>
                         <div @click="step = 5" class="suggested-wrap p-setting-item" v-html="'テーマ設定'"></div>
+                        <div @click="callInit" class="suggested-wrap p-setting-item" v-html="'通知設定(IOS)'"></div>
                         <div v-if="responsive.mobile" @click="step = 6" class="suggested-wrap p-setting-item" v-html="'フッターメニュー表示'"></div>
                         <div @click="logoutConfirm" class="suggested-wrap p-setting-item" v-html="'ログアウト'"></div>
                     </div>
@@ -158,6 +159,7 @@ import { useResponsive } from '@/store/responsive'
     const currentPasswordRef = ref(null)
     const newPasswordConfirmRef = ref(null)
     const newPasswordRef = ref(null)
+    const beamsInit = inject('beamsInit')
     onMounted(() => {
         if(auth.user && auth.user.ical_key){
             icalUrl.value = {
@@ -168,7 +170,9 @@ import { useResponsive } from '@/store/responsive'
         chosenColor.value = user.value ? user.value.color : (avialableColors ? avialableColors[0].id : '')
     })
             
-    
+    const callInit = () => {
+        beamsInit()
+    }
     const dark = computed({
       get() {
         themeChange.value; 

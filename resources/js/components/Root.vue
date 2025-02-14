@@ -396,5 +396,6 @@ import { endPlay } from '@/utils/tts';
     provide('refreshRemind', refreshRemind)
     provide('refreshMessage', refreshMessage)
     provide('resetInstantUser', resetInstantUser)
+    provide('beamsInit', beamsInit)
 </script>
 
