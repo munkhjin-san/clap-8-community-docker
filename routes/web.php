@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AssetController;
 use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
@@ -490,6 +491,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);
         Route::get('/welcome_message ', [AutoJobController::class, 'get_welcome_message']);
 
-        Route::get('combine_data', [ProjectController::class, 'combine_data']);
-        
+        // Asset
+        Route::get('/get_possible_projects', [AssetController::class, 'get_possible_projects']);
+        Route::get('/get_possible_members', [AssetController::class, 'get_possible_members']);
+        Route::post('/create_asset', [AssetController::class, 'create_asset']);
+        Route::get('/get_control_assets', [AssetController::class, 'get_control_assets']); 
+        Route::get('/get_assets', [AssetController::class, 'get_assets']);       
+        Route::delete('/delete_asset', [AssetController::class, 'delete_asset']);
 });

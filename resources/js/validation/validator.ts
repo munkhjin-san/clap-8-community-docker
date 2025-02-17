@@ -1,4 +1,4 @@
-type ValidationRule = 'required' | 'max' | 'min' | 'halfspace' | 'email';
+type ValidationRule = 'required' | 'max' | 'min' | 'halfspace' | 'email' | 'number';
 
 interface ValidationResult {
   isValid: boolean;
@@ -32,6 +32,12 @@ function validateRule(rule: ValidationRule, value: any | any[], params?: number)
       return {
         isValid: emailRegex.test(value),
         errorMessage: '有効なメールアドレスを入力してください。'
+      };
+    case 'number':
+      const numberRegex = /[a-zA-Z\uFF21-\uFF3A\uFF41-\uFF5A]/
+      return {
+        isValid: !numberRegex.test(value),
+        errorMessage: '有効な番号を入力してください。'
       }
     default:
       return { isValid: true };

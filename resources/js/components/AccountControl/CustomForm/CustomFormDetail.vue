@@ -211,14 +211,12 @@ const chartData = computed(() => {
         const numbers = <number[]>[]
         const colors = <string[]>[]
         elements.forEach(element => {
-            pieData.labels.push(element.value)
+            pieData.labels.push(element.value)           
             if(element.answers && element.answers.length){
                 const color = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`
                 colors.push(color)
                 numbers.push(element.answers.length)
-                // pieData.datasets.push({
-                //     data: [element.answers.length]
-                // })
+                pieData.datasets[0].backgroundColor = colors
             }
            
         });

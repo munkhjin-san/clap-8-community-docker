@@ -10,7 +10,11 @@
                     @search-start="(word) => {keywords = word}"
                 />                
             </div>
-            <router-link :to="{name: 'gantt-chart'}" class="c-bar-button ml-auto mr-[20px] whitespace-nowrap">ガントチャート</router-link>
+            <div class="flex gap-[10px] ml-auto mr-[20px]">
+                <router-link :to="{name: 'assets'}" class="c-bar-button whitespace-nowrap">物品</router-link>
+                <router-link :to="{name: 'gantt-chart'}" class="c-bar-button whitespace-nowrap">ガントチャート</router-link>
+            </div>
+            
         </div>
         <Transition name="modalFade">
             <div class="cal-month-loader" style="height: calc(100% - 60px); top: 60px;" v-if="initialLoader && route.name === 'project'">
