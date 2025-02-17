@@ -43,6 +43,16 @@
             ></Dialog>
         </Transition>
         <OverRide/>
+        <Transition name="footerPop">
+            <PWAPrompt 
+                :timeToShow="2" 
+                :isShown="promptShown && isIOS && !isPWA"
+                appIconPath="/icon-152x152.png"
+                @close="savePWAStatus"
+            />
+        </Transition>
+        
+
     </div>
 
 </template>
@@ -63,10 +73,12 @@ import { useFocused } from '@/store/focused';
 import InstantProfile from './Board/InstantProfile.vue';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useSkeleton } from '@/store/skeleton'
-import { useTitle } from '@vueuse/core'
+import { timestamp, useTitle } from '@vueuse/core'
 import axios from 'axios';
 import { instance as socket } from '@/utils/broadcaster'
 import { endPlay } from '@/utils/tts';
+import { PWAPrompt } from 'vue-ios-pwa-prompt'
+import { DateTime } from 'luxon';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -106,6 +118,9 @@ import { endPlay } from '@/utils/tts';
             badge.getPostBadge()
             badge.getProjectBadge()
             badge.getRemindBadge()
+        }
+        if (isIOS.value) {
+            savePWAStatus()
         }
         
     })
@@ -170,7 +185,31 @@ import { endPlay } from '@/utils/tts';
             return route.fullPath + auth.activeUser.id
         }
     })
+    const savePWAStatus = () => {
+        const oneMonthLater = DateTime.now().plus({ month: 1})
+        const data = {
+            pwa: isPWA.value || false,
+            timestamp: oneMonthLater,
+            shown: true
+        }
 
+        localStorage.setItem("pwa_status", JSON.stringify(data))
+    }
+    const isPWA = computed(() => {
+        return window.matchMedia('(display-mode: standalone)').matches || false
+    })
+    const isIOS = computed(() => {
+        const iosPwaPrompt = JSON.parse(localStorage.getItem('iosPwaPrompt') || '{}')
+        return iosPwaPrompt.isValidOS
+    })
+    const promptShown = computed(() => {
+        const today = DateTime.now().toISO()
+        const promptData = JSON.parse(localStorage.getItem("pwa_status") || "{}")
+        if (promptData) {
+            return !promptData.shown || (today > promptData.timestamp && !promptData.pwa)
+        }
+        return true
+    })
     watch(() => [route.fullPath], () => {
             resetInstantUser()
             endPlay()
@@ -216,6 +255,7 @@ import { endPlay } from '@/utils/tts';
         focused.setFocused(false)
     }
     const beamsInit = async () =>{
+        if (window.Notification.permission === 'granted') return
         const beamsClient = new PusherPushNotifications.Client({
             instanceId: import.meta.env.VITE_PUSHER_INSTANCE_ID,
         });

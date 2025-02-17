@@ -235,6 +235,15 @@ const routes = [
                         props: true
                     }
                 ],
+            },
+            {
+                path: 'assets',
+                name: 'assets',
+                meta: {
+                    title: 'CLAP - 物品'
+                },
+                props: true,
+                component: () => import('./components/Asset/AssetContainer.vue')
             }
         ]
     },
@@ -369,6 +378,13 @@ const routes = [
                         component: () => import('@/components/AccountControl/CustomForm/CustomFormDetail.vue'),
                     }
                 ]
+            },
+            {
+                path: 'asset-control',
+                name: 'asset-control',
+                meta: { head: '物品管理'},
+                props: true,
+                component: () => import('@/components/AccountControl/AssetControl/AssetControl.vue'),
             }
         ],
     },

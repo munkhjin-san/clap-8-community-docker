@@ -125,9 +125,12 @@
                         {title: '編集する', action: () => emit('edit', selectedProject)},
                     ]"/>
                 </div>
-                <div class="relative mt-[20px] w-fit">
-                    <router-link :to="{name: 'projectGanttDetail', params: {projectId: route.params.projectId }}" class="c-bar-button">ガントチャート</router-link>
-                    <span class="side-notification" style="left: auto; right: -5px; top: -5px;" v-if="ganttBadge?.[selectedProject?.id]">{{ ganttBadge[selectedProject.id] }}</span>
+                <div class="flex gap-[10px] mt-[20px] w-fit">
+                    <router-link :to="{name: 'assets', query: { project_id: route.params.projectId }}" class="c-bar-button">物品</router-link>
+                    <div class="relative">
+                        <router-link :to="{name: 'projectGanttDetail', params: {projectId: route.params.projectId }}" class="c-bar-button">ガントチャート</router-link>
+                        <span class="side-notification" style="left: auto; right: -5px; top: -5px;" v-if="ganttBadge?.[selectedProject?.id]">{{ ganttBadge[selectedProject.id] }}</span>
+                    </div>
                 </div>
             </div>
         </div>
