@@ -656,7 +656,7 @@ class ProjectController extends Controller
         $date = Carbon::now();
         if ($user->position_id == 6) {
             $response = $this->getMemberBadges($user, $date);
-        } elseif ($user->position_id < 6) {
+        } elseif ($user->position_id < 6 && ($user->id !== 610 || $user->id !== 608)) {
             $response = $this->getManagerBadges($user, $date);
         } else {
             $response = $this->remindedBadges($user);
