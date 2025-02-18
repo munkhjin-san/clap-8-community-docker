@@ -681,8 +681,15 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         getBoardList()
     }
     const setNotification = async(id) => {
-        await axios.post('/notification_board', {group_id: id})
-        getBoardList()
+        try {
+            const response = await axios.post('/notification_board', {group_id: id}).then(res => res.data)
+            getBoardList()
+            const flag = response?.notification || 0
+            const flags = ['OFF', 'ON']
+            info(`通知設定を${flags[flag]}にしました。`)
+        } catch (e) {
+                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            }
     }
     const leaveBoard = async(board) => {
         try {

@@ -84,7 +84,7 @@ import { useRouter } from 'vue-router';
         }
         addItem('詳細情報', () => detail(props.item))
         addItem(selfMember.value?.pin_flag == 1 ? 'ピン留めを外す' : 'ピン留め', () => pin(props.item))
-        addItem(selfMember.value?.notification == 1 ? '通知オフ' : '通知オン', () => setNotification(props.item))
+        addItem(selfMember.value?.notification == 1 ? '通知設定:ON' : '通知設定:OFF', () => setNotification(props.item, selfMember.value?.notification ))
         if(props.item.private_flag == 0){
             addItem('ボード退出', () => leave(props.item))
         }
@@ -94,7 +94,7 @@ import { useRouter } from 'vue-router';
         return list
     })
     const selfMember = computed(() => {
-        return props.item.board_to_users.find(obj => obj.user_id == auth.id)
+        return props.item.board_to_users.find(obj => obj.user_id == auth.activeUser.id)
     }) 
     const lastMessage = computed(() => {
         if(props.item.last_message){
