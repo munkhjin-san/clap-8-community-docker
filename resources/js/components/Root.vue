@@ -47,6 +47,11 @@
             <PWAPrompt 
                 :timeToShow="2" 
                 :isShown="promptShown && isIOS && !isPWA"
+                copy-title="ホーム画面に追加"
+                copy-description="ホーム画面に追加するとメンションなどのプッシュ追徴を受け取ることができます。"
+                copy-subtitle="https://clap-glowd.com"
+                copy-share-step="下の「シェア」ボタンを押してください。"
+                copy-add-to-home-screen-step="「ホーム画面に追加」ボタンを押してください。"
                 appIconPath="/icon-152x152.png"
                 @close="savePWAStatus"
             />
