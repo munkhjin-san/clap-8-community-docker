@@ -480,11 +480,25 @@ class WorkController extends Controller
             $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $planned_date);
             $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $work_temp->planned_days - $between_records;
         }
-        $shift_type = $user->position_id <= 11 || $user->position_id == 16
-                      ? $general_position > 'B' && $general_position != '一般職' ? 
-                      shiftType::get()
-                      : shiftType::whereNot('id', 17)->get()
-                      : shiftType::whereNotIn('id', [14, 15, 16, 17])->get();
+        $shift_type = shiftType::when(
+            $user->position_id == 15,
+            fn ($query) => $query->where('id', 5),
+            fn ($query) => $query->when(
+                $user->position_id <= 11 || $user->position_id == 16,
+                fn ($query) => $general_position > 'B' && $general_position != '一般職' 
+                    ? $query 
+                    : $query->where('id', '!=', 17),
+                fn ($query) => $query->whereNotIn('id', [14, 15, 16, 17])
+            )
+        )->get();
+        
+        
+        
+        // $shift_type = $user->position_id <= 11 || $user->position_id == 16
+        //               ? $general_position > 'B' && $general_position != '一般職' ? 
+        //               shiftType::get()
+        //               : shiftType::whereNot('id', 17)->get()
+        //               : shiftType::whereNotIn('id', [14, 15, 16, 17])->get();
 
         $data = [
             "shift_record" => $shift_record,

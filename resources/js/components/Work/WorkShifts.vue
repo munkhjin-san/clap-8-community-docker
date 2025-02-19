@@ -12,7 +12,7 @@
             <div class="shift-title" style="margin-bottom: 20px;">
                 <div class="sub-tab-container gap-5">
                     <div @click="checkLeave = 0" style="padding: 10px 0;" :class="['sub-tab-item', { 'selected-sub-tab': checkLeave == 0}]">予定入力</div>
-                    <div @click="checkLeave = 1" style="padding: 10px 0;" :class="['sub-tab-item', { 'selected-sub-tab': checkLeave == 1}]">計画有給確認</div>
+                    <div v-if="usersData[0].position_id !== 15" @click="checkLeave = 1" style="padding: 10px 0;" :class="['sub-tab-item', { 'selected-sub-tab': checkLeave == 1}]">計画有給確認</div>
                 </div>
                 <div v-if="selectedShiftType == 3 && checkLeave == 0" style="margin-left:auto;">
                     <MonthPicker 
@@ -301,10 +301,14 @@
         const month = shiftMonth.value + 1
         var lastDay = new Date(shiftYear.value, month, 0).getDate();
         var holidayNum;
-        if(lastDay > selectedShifts.value.length && selectedShiftType.value !== 3){
-            required.value = true 
-            return
-        } 
+        if (props.usersData[0].position_id !== 15) {
+            if(lastDay > selectedShifts.value.length && selectedShiftType.value !== 3){
+                required.value = true 
+                return
+            }
+            
+            
+        }
         if (month == 12 || month == 1) {
             holidayNum = (props.usersData[0].position_id <= 11) ? ((month == 12) ? 10 : 12) : 9;
         } else {
@@ -314,7 +318,7 @@
             notify('終業時間は始業時間より先にすることができません。')
             return
         }
-        if(holidayCount.value >= holidayNum || between.value){
+        if(holidayCount.value >= holidayNum || props.usersData[0].position_id === 15 || between.value){
             const targets = [startTimeRef.value, endTimeRef.value]
             let result = true
             for(const target of targets){            

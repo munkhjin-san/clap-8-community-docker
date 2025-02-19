@@ -116,6 +116,7 @@ import { useBadgeStore } from '@/store/badge';
         let headersArray = [
             { title: '日付'},
             { title: 'メンバー'},
+            { title: '予定' },
             { title: '出勤'},
             { title: '退勤'},
             { title: '労働時間'},
@@ -132,9 +133,6 @@ import { useBadgeStore } from '@/store/badge';
             { title: 'ステータス'},
             { title: '報告'},
         ];
-        if(auth.user.position_id !== 15){
-            headersArray.splice(2, 0, {title: '予定'})
-        }
         if(includeRegistered.value){
             const index = headersArray.findIndex(element => element.title == 'ステータス')
             headersArray.splice(index, 0, {title: 'インセンティブ'})
