@@ -87,7 +87,7 @@
                             <span>{{ attendanceData.unapproved_shift_count ? attendanceData.unapproved_shift_count + '日' : '--'}}</span>
                         </div>
                     </div>
-                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
+                    <div class="attendance-row">
                         <div class="attendance-title">
                             <span>年休</span>
                         </div>
