@@ -97,29 +97,22 @@ import { useRouter } from 'vue-router';
         return props.item.board_to_users.find(obj => obj.user_id == auth.activeUser.id)
     }) 
     const lastMessage = computed(() => {
-        if(props.item.last_message){
-            if(props.item.last_message.message){
-                return mentionFormatter(props.item.last_message.message, true)        
-            }else if(props.item.last_message.message_files_exists){
-                return 'ファイルメッセージ'
-            }else{
-                return '現在メッセージはありません'
-            }
-        }else{
-            return '現在メッセージはありません'
+        const { last_message } = props.item;
+        if (!last_message) {
+            return '現在メッセージはありません';
         }
-        
-    })
-    const pinCheckOn = computed(() => {            
-        const record = props.item.board_to_users.filter(obj => obj.user_id == auth.activeUser.id);
-        return (record && record[0].pin_flag == 1)
-    })
-    const isAdmin = computed(() => {
-        return props.item.board_to_users.find(u => u.user_id == auth.activeUser.id && u.admin_flag == 1) ? true : false
-    })
-    const closeMenu = () => {
-        menu.setMenu({name: null, id: null})
-    }       
+        if (last_message.message) {
+            return mentionFormatter(last_message.message, true);
+        }
+        const messageTypes = [
+            { key: 'message_files_exists', label: 'ファイルメッセージ' },
+            { key: 'message_quot_exists', label: '引用メッセージ' },
+            { key: 'message_forward_exists', label: '転送メッセージ' }
+        ];
+
+        const foundType = messageTypes.find(type => last_message[type.key]);
+        return foundType ? foundType.label : '現在メッセージはありません';
+    });
     
     const titleHoverIn = (event) => {         
             

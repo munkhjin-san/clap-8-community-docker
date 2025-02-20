@@ -35,7 +35,9 @@ class boardRecord extends Model
         ->latest('created_at')
         ->select('id', 'message', 'message_text', 'record_id')
         ->where('draft_flag', 0)
-        ->withExists('message_files');
+        ->withExists('message_files')
+        ->withExists('message_forward')
+        ->withExists('message_quot');
     }
     public function icons(){
         return $this->hasOne(Icons::class, 'id', 'icon_path');
