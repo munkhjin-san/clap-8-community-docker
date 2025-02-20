@@ -37,7 +37,7 @@
                     
                 </div>
                 <div class="project-cell-row" v-for="project in sortedProjects">
-                    <div class="project-cell" style="border-bottom: none;" >
+                    <div class="project-cell" >
                         
                         <div class="flex justify-between w-full">
                             <div class="user-link flex gap-2 items-center" style="position: relative" @click="router.push({name: 'projectdetail', params: { projectId: project?.id}})">
@@ -315,96 +315,3 @@ provide('authProjects', authProjects)
 // provide('metricDate', metricDate)
 provide('getProjects', getProjects)
 </script>
-<style lang="scss">
-    .project-table {
-        display: table;
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 13px;
-        background-color: var(--background-color);
-        color: var(--primary-color);
-    }
-
-    .project-cell {
-        display: table-cell;
-        border: 1px solid var(--calendarBorder);
-        text-align: left;
-        padding: 5px 15px;
-        line-height: normal;
-        max-width: 250px;
-        height: 40px;
-        vertical-align: middle;
-    }
-    .text-wrap {
-        white-space: break-spaces;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        word-break: break-word;
-        max-height: 40px;
-    }
-    .project-header-row {
-
-        display: table-row;
-        position: sticky;
-        top: -1px;
-        background-color: var(--background-color);
-        z-index: 1;
-    }
-    .project-cell-row {
-        display: table-row;
-    }
-    .project-cell-row:hover{
-        background-color: var(--bg3);
-        cursor: pointer;
-    }
-    .project-search-wrap {
-        margin-left: 20px;
-        width: 30%;
-    }
-    @media screen and (max-width: 959px)  {
-        // .project-table {
-        //     overflow-x: auto;
-        //     white-space: nowrap;
-        //     display: block;
-        //     scrollbar-width: none;
-        // }
-        .project-search-wrap {
-            width: calc(100% - 65px);
-            margin-left: unset;
-        }
-        .project-table {
-            display: block; /* Display block for cards */
-            background-color: unset;
-        }
-
-        .project-header-row {
-            display: none; /* Hide the header on mobile */
-        }
-
-        .project-cell-row {
-            display: block;
-            border: 1px solid var(--calendarBorder);
-            margin-bottom: 10px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 10px;
-            background-color: var(--background-color);
-        }
-
-        .project-cell {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border: none;
-            border-bottom: 1px solid var(--calendarBorder);
-            max-width: 100%;
-            word-break: keep-all;
-        }
-
-        .project-cell:last-child {
-            border-bottom: none; /* Remove bottom border for the last item */
-        }
-        
-        
-    }
-</style>

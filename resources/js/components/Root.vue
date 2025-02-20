@@ -45,7 +45,7 @@
         <OverRide/>
         <Transition name="footerPop">
             <PWAPrompt 
-                :timeToShow="2" 
+                :timeToShow="1" 
                 :isShown="promptShown && isIOS && !isPWA"
                 copy-title="ホーム画面に追加"
                 copy-description="ホーム画面に追加するとメンションなどのプッシュ追徴を受け取ることができます。"

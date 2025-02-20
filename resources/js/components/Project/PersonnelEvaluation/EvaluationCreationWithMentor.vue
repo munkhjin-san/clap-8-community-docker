@@ -59,7 +59,7 @@
                             v-model="evaluationParams.children.checklist"
                         />
                     </div>
-                    <div class="si-box">
+                    <div v-if="evaluationParams.children.candidate.includes('昇格（職階）')" class="si-box">
                         <LongInput 
                             placeHolder="昇格後のビジョン"
                             v-model="evaluationParams.params.vision"

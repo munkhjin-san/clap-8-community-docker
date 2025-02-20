@@ -1,5 +1,5 @@
 <template>
-    <div class="post-container scrollable" style="height: calc(100% - 126px);">
+    <div class="post-container scrollable project-table-container" style="height: calc(100% - 126px);">
         <div class="project-table">
             <div class="project-header-row">
                 <div class="project-cell">プロジェクト名</div>
@@ -160,40 +160,3 @@ const viewUsers = (members: User[]) => {
     
 }
 </script>
-<style scoped lang="scss">
-    .project-table {
-        display: table;
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 13px;
-        background-color: var(--background-color);
-    }
-
-    .project-cell {
-        display: table-cell;
-        border: 1px solid var(--calendarBorder);
-        text-align: left;
-        padding: 5px;
-        line-height: normal;
-        max-width: 250px;
-        height: 25px;
-        vertical-align: middle;
-    }
-    .text-wrap {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        word-break: break-word;
-    }
-    .project-header-row {
-
-        display: table-row;
-    }
-    .project-cell-row {
-        display: table-row;
-    }
-    .project-cell-row:hover{
-        background-color: var(--bg3);
-        cursor: pointer;
-    }
-</style>

@@ -209,31 +209,15 @@ const chartData = computed(() => {
         const pieData = <PieData>{labels: [], datasets: [{data: []}]} 
         const elements = block.elements
         const numbers = <number[]>[]
-        const colors = <string[]>[]
         elements.forEach(element => {
-            pieData.labels.push(element.value)           
-            if(element.answers && element.answers.length){
-                const color = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`
-                colors.push(color)
-                numbers.push(element.answers.length)
-                pieData.datasets[0].backgroundColor = colors
-            }
-           
+            pieData.labels.push(element.value.length > 15 ? element.value.slice(0, 15) + '...' : element.value)       
+            numbers.push(element.answers?.length || 0)          
         });
         pieData.datasets[0].data = numbers
         block.chartData = pieData
         
     })
     return chartable
-    // return {
-    //     labels: ['VueJs', 'EmberJs', 'ReactJs', 'AngularJs'],
-    //     datasets: [
-    //         {
-    //         backgroundColor: ['#41B883', '#E46651', '#00D8FF', '#DD1B16'],
-    //         data: [40, 20, 80, 10]
-    //         }
-    //     ]
-    // }
 })
 const memberAnswer = (blockId: number, answer:SurveyAnswer,) => {
     const answerBlock = answer.block_answers.find(block => block.custom_form_block_id == blockId)
