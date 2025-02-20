@@ -85,36 +85,38 @@
                     </div>
                 </div>
                 <div class="project-detail-header" style="margin-bottom: 0;">
-                    <div class="project-table">
-                        <div class="project-header-row">
-                            <div class="project-cell cell-width">メンバー</div>
-                            <div class="project-cell cell-width">雇用形態</div>
-                            <div class="project-cell cell-width">職階</div>
-                            <div class="project-cell cell-width">メンター</div>
-                            <div class="project-cell cell-width">職務レベル</div>
-                            
-                            <div class="project-cell cell-width">成果目標・昇給課題</div>
-                            <div class="project-cell cell-width">人事考課</div>
-                        </div>
-                        <div class="project-cell-row" v-for="member in [...(selectedProject?.manager || []), ...(selectedProject?.members || [])]">
-                            <div class="project-cell cell-width" data-label="メンバー">
-                                <div style="position: relative; width: fit-content;">
-                                    {{ member.name }}
-                                </div>
+                    <div class="project-table-container">
+                        <div class="project-table">
+                            <div class="project-header-row">
+                                <div class="project-cell cell-width">メンバー</div>
+                                <div class="project-cell cell-width">雇用形態</div>
+                                <div class="project-cell cell-width">職階</div>
+                                <div class="project-cell cell-width">メンター</div>
+                                <div class="project-cell cell-width">職務レベル</div>
                                 
+                                <div class="project-cell cell-width">成果目標・昇給課題</div>
+                                <div class="project-cell cell-width">人事考課</div>
                             </div>
-                            <div class="project-cell cell-width" data-label="雇用形態">{{ member?.positions?.name }}</div>
-                            <div class="project-cell cell-width" data-label="職階">{{ member?.evaluation?.general_position }}</div>
-                            <div class="project-cell cell-width" data-label="メンター">{{ member?.evaluation?.mentor?.name }}</div>
-                            <div class="project-cell cell-width" data-label="職務評価基準">{{ member?.evaluation?.current_level }}</div>
-                            
-                            <div class="project-cell cell-width" style="position: relative;" data-label="成果目標・昇給課題">
-                                <router-link class="user-link" :to="{name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}}">閲覧</router-link>
-                                <span class="side-notification from-left" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
-                            </div>
-                            <div class="project-cell cell-width" data-label="人事考課">
-                                <div>
-                                    <router-link class="user-link" :to="{name: 'evaluation', params: { projectId: route.params.projectId, memberId: member.id }}">閲覧</router-link >
+                            <div class="project-cell-row" v-for="member in [...(selectedProject?.manager || []), ...(selectedProject?.members || [])]">
+                                <div class="project-cell cell-width" data-label="メンバー">
+                                    <div style="position: relative; width: fit-content;">
+                                        {{ member.name }}
+                                    </div>
+                                    
+                                </div>
+                                <div class="project-cell cell-width" data-label="雇用形態">{{ member?.positions?.name }}</div>
+                                <div class="project-cell cell-width" data-label="職階">{{ member?.evaluation?.general_position }}</div>
+                                <div class="project-cell cell-width" data-label="メンター">{{ member?.evaluation?.mentor?.name }}</div>
+                                <div class="project-cell cell-width" data-label="職務評価基準">{{ member?.evaluation?.current_level }}</div>
+                                
+                                <div class="project-cell cell-width" style="position: relative;" data-label="成果目標・昇給課題">
+                                    <router-link class="user-link" :to="{name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}}">閲覧</router-link>
+                                    <span class="side-notification from-left" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
+                                </div>
+                                <div class="project-cell cell-width" data-label="人事考課">
+                                    <div>
+                                        <router-link class="user-link" :to="{name: 'evaluation', params: { projectId: route.params.projectId, memberId: member.id }}">閲覧</router-link >
+                                    </div>
                                 </div>
                             </div>
                         </div>
