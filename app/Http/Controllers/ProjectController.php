@@ -658,6 +658,8 @@ class ProjectController extends Controller
             $response = $this->getMemberBadges($user, $date);
         } elseif ($user->position_id < 6 && ($user->id !== 610 && $user->id !== 608)) {
             $response = $this->getManagerBadges($user, $date);
+        } elseif ($user->id === 631) {
+            $response = $this->getChangeBadge($date);
         } else {
             $response = $this->remindedBadges($user);
         }
@@ -708,7 +710,7 @@ class ProjectController extends Controller
                 $q->where('users.id', $user->id);
             })
             ->where(function ($query) use ($date) {
-                $query->whereIn('status', [2, 4])
+                $query->where('status', 2)
                     ->orWhere(function ($subQuery) use ($date) {
                         $subQuery->where('end_date', '<', $date)->where('status', 7);
                     });
@@ -737,7 +739,7 @@ class ProjectController extends Controller
 
         $goals = ProjectGoal::whereIn('user_id', $managerIds)
             ->where(function ($query) use ($date) {
-                $query->whereIn('status', [2, 4])
+                $query->where('status', 2)
                     ->orWhere(function ($subQuery) use ($date) {
                         $subQuery->where('end_date', '<', $date)->where('status', 7);
                     });
@@ -762,7 +764,19 @@ class ProjectController extends Controller
                 ->get();
         return $this->calculateGoalStats($goals);
     }
-
+    private function getChangeBadge($date) 
+    {
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $user_ids = User::where('deleted_flag', 0)
+        ->where('retire', 0)
+        ->whereNotIn('name', $ng_list)
+        ->select('id', 'name', 'icon_path', 'icon_bg')
+        ->pluck('id')
+        ->toArray();
+        $goals = ProjectGoal::whereIn('user_id', $user_ids)
+                            ->where('status', 4)->get();
+        return $this->calculateGoalStats($goals);
+    }
     private function calculateGoalStats($goals)
     {
         $goalCounts = $goals->groupBy('project_id')

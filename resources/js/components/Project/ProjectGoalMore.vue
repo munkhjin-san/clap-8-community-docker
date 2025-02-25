@@ -70,9 +70,12 @@
                         <LoaderButton v-if="managerOrDirector && goal?.status === 7" @click="progressReport(true)" style="margin: 0;" :content="'進捗報告承認'"/>
                     </div>
 
-                    <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && (goal?.status == 2 || goal?.status == 4)" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && (goal?.status == 2)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'差戻'"/>
                         <LoaderButton v-if="goal?.status == 2" style="margin: 0;" @click="approveOutComeGoal(3)" :content="'承認'"/>
+                    </div>
+                    <div v-if="goal?.status == 4 && (auth.activeUser.id === 610 || auth.activeUser.id === 631)">
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'差戻'"/>
                     </div>
                     <div v-if="631 === auth.id && goal?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'人事差戻'"/>
