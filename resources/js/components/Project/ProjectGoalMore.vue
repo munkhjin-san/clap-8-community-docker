@@ -84,6 +84,9 @@
                     <div v-if="610 === auth.activeUser.id && goal?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'人事承認取消'"/>
                     </div>
+                    <div v-if="610 === auth.activeUser.id && goal?.status > 6" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(6)" :content="'差戻（管理本部用）'"/>
+                    </div>
                 </div>
                 <div style="display:flex; gap: 20px; flex-direction: column;" v-if="goal?.salary_issue && sub_tab === 1">
                     <div>
@@ -281,10 +284,10 @@ const approveOutComeGoal = async(status: number) => {
             info_message = '人事承認しました。'
             break
         case 6: 
-            content = 'この昇給課題は達成でよろしいですか？'
+            content = '差戻しますか。'
             break
         default:
-            content = 'エラーが発生しました'
+            content = 'よろしいですか。'
             break
     }
     const answer = await confirm(content)
