@@ -75,7 +75,7 @@
                                 <div v-for="skill in baseSkills">
                                     <div class="flex gap-3">
                                         <div>
-                                            <svg v-if="Array.isArray(evaluationData?.checklist) && evaluationData.checklist.find((c: any) => c.content == skill)"
+                                            <svg v-if="Array.isArray(evaluationData?.checklist) && evaluationData.checklist.map(d => d.content.replace(/ /g, '')).includes(skill.replace(/ /g, ''))"
                                                 fill="var(--primary-color)" version="1.1" xmlns="http://www.w3.org/2000/svg"
                                                 height="10" viewBox="0 0 38 32">
                                                 <path
@@ -91,7 +91,7 @@
                                         </div>
 
                                         <div
-                                            :class="Array.isArray(evaluationData?.checklist) && evaluationData.checklist.find((c: any) => c.content == skill) ? 'text-[var(--primary-color)]' : 'text-[gray]'">
+                                            :class="Array.isArray(evaluationData?.checklist) && evaluationData.checklist.map(d => d.content.replace(/ /g, '')).includes(skill.replace(/ /g, '')) ? 'text-[var(--primary-color)]' : 'text-[gray]'">
                                             {{ skill }}</div>
                                     </div>
                                 </div>
