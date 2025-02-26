@@ -282,7 +282,7 @@ class ProjectController extends Controller
                             $q->with(['evaluation' => function ($q) use($params) {
                                 $q->where('year', $params['year'])
                                     ->where('which_half', $params['which_half'])
-                                    ->with('mentor');
+                                    ->with('mentor', 'candidate');
                             }]);
                         })                        
                         ->with('positions')
