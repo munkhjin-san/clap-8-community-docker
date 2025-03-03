@@ -77,7 +77,7 @@ const detailedDateOptions = () => {
         { name: '2025年下期（2025.10.1～2026.3.31）', year: '2025', which_half: 'second', short_name: '2025年下期'},
         { name: '2026年上期（2026.4.1～2026.9.30）', year: '2026', which_half: 'first', short_name: '2026年上期'},
         { name: '2026年下期（2026.10.1～2027.3.31）', year: '2026', which_half: 'second', short_name: '2026年下期' },
-    ]
+    ].reverse()
 
     // for (let yearOffset = 2027; yearOffset <= currentYear + 1; yearOffset++) {
     //     const year = yearOffset;
