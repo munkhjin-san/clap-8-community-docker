@@ -32,8 +32,36 @@
                     <div class="project-cell">戦略</div>
                     <div class="project-cell">期間</div>
                     <!-- <div class="project-cell cursor-pointer" @click="sortType = 2">取締役<span v-if="sortType === 2">▲</span></div> -->
-                    <div class="project-cell cursor-pointer" @click="sortType = 3">管理者<span v-if="sortType === 3">▲</span></div>
-                    <div class="project-cell cursor-pointer" @click="sortType = 1">メンバー<span v-if="sortType === 1">▲</span></div>
+                    <div class="project-cell cursor-pointer relative">
+                        <div @click.stop="menu.setMenu({parent: 'projectManagerSelect'})">管理者</div>
+                        <div class="flex flex-wrap">
+                            <UserPanel v-for="member in activeManagers" disable-instant :user="member" size="15"/>
+                        </div>
+                        <Transition name="slidePop">
+                            <ProjectMemberSort 
+                                v-if="menu.parent == 'projectManagerSelect'" 
+                                id="projectManagerSelect" 
+                                :members="sortableUsers('manager')" 
+                                v-model:selected-users="selectedManagers"
+                                custom-place-holder="管理者検索"
+                            />
+                        </Transition>
+                    </div>
+                    <div class="project-cell cursor-pointer relative">
+                        <div @click.stop="menu.setMenu({parent: 'projectMemberSelect'})">メンバー</div>
+                        <div class="flex flex-wrap">
+                            <UserPanel v-for="member in activeMembers" disable-instant :user="member" size="15"/>
+                        </div>
+                        <Transition name="slidePop">
+                            <ProjectMemberSort 
+                                v-if="menu.parent == 'projectMemberSelect'" 
+                                id="projectMemberSelect" 
+                                :members="sortableUsers('members')" 
+                                v-model:selected-users="selectedMembers"
+                                custom-place-holder="メンバー検索"
+                            />
+                        </Transition>                        
+                    </div>
                     
                 </div>
                 <div class="project-cell-row" v-for="project in sortedProjects">
@@ -155,6 +183,7 @@ import { ComponentExposed } from 'vue-component-type-helpers'
 import ProjectCreate from '../AccountControl/ProjectControl/ProjectCreate.vue';
 import FloatButton from '../Global/FloatButton.vue';
 import WeatherIcon from '../Global/WeatherIcon.vue';
+import ProjectMemberSort from './ProjectMemberSort.vue';
 const projects = ref<Project[]>([])
 const keywords = ref('')
 const initialLoader = ref(true)
@@ -171,6 +200,8 @@ const projectUsers = useProjectUsers()
 const userList = ref([])
 const editData = ref(null)
 const createWindow = ref(false)
+const selectedManagers = ref<number[]>([])
+const selectedMembers = ref<number[]>([])
 const badge = useBadgeStore()
 const taskComponent = useTemplateRef<ComponentExposed<typeof TaskComponent>>('taskComponent')
 onMounted(async() => {
@@ -223,40 +254,19 @@ const searchResults = computed(() => {
     return sortByPosition.value
 })
 const sortedProjects = computed(() => {
-    const authId = auth.id;
-
-    return [...searchResults.value].sort((a, b) => {
-        let priorityA = 0;
-        let priorityB = 0;
-
-        switch (sortType.value) {
-            case 1:
-                priorityA = a.members?.some(member => member.id === authId) ? -1 : 0;
-                priorityB = b.members?.some(member => member.id === authId) ? -1 : 0;
-                break;
-            case 2:
-                priorityA = a.director?.id === authId ? -1 : 0;
-                priorityB = b.director?.id === authId ? -1 : 0;
-                break;
-            case 3:
-                priorityA = a.manager?.some(manager => manager.id === authId) ? -1 : 0;
-                priorityB = b.manager?.some(manager => manager.id === authId) ? -1 : 0;
-                break;
-            case 4:
-                priorityA = a.members?.some(
-                    member => member.evaluation?.mentor?.id === authId
-                ) ? -1 : 0;
-                priorityB = b.members?.some(
-                    member => member.evaluation?.mentor?.id === authId
-                ) ? -1 : 0;
-                break;
-            default:
-                return 0;
+    const hitManagers = searchResults.value.filter(project => {
+        if (selectedManagers.value.length) {
+            return project.manager.some(manager => selectedManagers.value.includes(manager.id));
         }
-
-        return priorityA - priorityB;
+        return true;
     });
-    
+    const hitMembers = hitManagers.filter(project => {
+        if (selectedMembers.value.length) {
+            return project.members.some(member => selectedMembers.value.includes(member.id));
+        }
+        return true;
+    });
+    return hitMembers    
 })
 const getSelectableUsers = async() => {
     try {
@@ -311,6 +321,37 @@ const viewUsers = (members: User[]) => {
     projectUsers.setProjectUsers(data)
     
 }
+
+const sortableUsers = (which:string) => {
+    const selectable = <User[]>[]
+    projects.value.map(project => {
+        const targets = project[which]
+        if(targets){
+            targets.forEach(manager => {
+                if(!selectable.some(ob => ob.id === manager.id)){
+                    selectable.push(manager)
+                }
+            })
+        }
+    })
+    const findIndexAuth = selectable.findIndex(ob => ob.id === auth.id)
+    const authUser = selectable[findIndexAuth]
+    if(authUser && findIndexAuth > -1){
+        selectable.splice(findIndexAuth, 1)
+        selectable.unshift(authUser)
+    }
+    return selectable
+}
+const activeManagers = computed(() => {
+    const target = projects.value.flatMap(project => project.manager).filter(m => selectedManagers.value.includes(m.id))
+    const uniqueTargets = target.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
+    return uniqueTargets
+})
+const activeMembers = computed(() => {
+    const target = projects.value.flatMap(project => project.members).filter(m => selectedMembers.value.includes(m.id))
+    const uniqueTargets = target.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
+    return uniqueTargets
+})
 provide('authProjects', authProjects)
 // provide('metricDate', metricDate)
 provide('getProjects', getProjects)
