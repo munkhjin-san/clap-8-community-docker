@@ -12,7 +12,7 @@
                     
                     <button @click="setOption(option)" v-for="option in dateOptionsData" class="border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer relative">
                         {{ option.name }}
-                        <span class="side-notification" style="right: -5px; top: -5px; left: auto;" v-if="badgeByHalf?.[selectedProject?.id]?.[memberData?.id]?.[`${option.year}-${option.which_half}`]">{{ badgeByHalf?.[selectedProject?.id]?.[memberData?.id]?.[`${option.year}-${option.which_half}`] }}</span>
+                        <span class="side-notification" style="right: 2px; top: 6px; left: auto;" v-if="badgeByHalf?.[selectedProject?.id]?.[memberData?.id]?.[`${option.year}-${option.which_half}`]">{{ badgeByHalf?.[selectedProject?.id]?.[memberData?.id]?.[`${option.year}-${option.which_half}`] }}</span>
                     </button>
                 </div>
             </div>

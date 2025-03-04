@@ -18,7 +18,7 @@
                 </div>
                 
                 <div class="project-nav-bar">
-                    <div @click="jumpRoute(item)" v-for="(item, index) in pathGenerator">
+                    <div @click="jumpRoute(item)" v-for="(item, index) in pathGenerator" class="flex items-center">
                         <span class="project-path">{{ item.label }}</span>
                         <span v-if="index + 1 !== pathGenerator.length">／</span>
                     </div>
@@ -111,7 +111,7 @@
                                 
                                 <div class="project-cell cell-width" style="position: relative;" data-label="成果目標・昇給課題">
                                     <router-link class="user-link" :to="{name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}}">閲覧</router-link>
-                                    <span class="side-notification from-left" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
+                                    <span class="side-notification" style="position: unset" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
                                 </div>
                                 <div class="project-cell cell-width" data-label="人事考課">
                                     <div>
@@ -348,6 +348,7 @@ import DOMPurify from 'dompurify';
         line-height: 1.5;
     }
     @media screen and (max-width: 959px) {
+
         .from-left {
             left: auto !important;
             right: -17px;
@@ -362,7 +363,8 @@ import DOMPurify from 'dompurify';
             
         }
         .project-path {
-            font-size: 14px;
+            font-size: 12px;
+            white-space: nowrap;
         }
         .cell-width::before {
             content: attr(data-label);
@@ -371,6 +373,23 @@ import DOMPurify from 'dompurify';
             color: var(--secondary-color);
             margin-right: 10px;
             text-transform: capitalize;
+        }
+    }
+</style>
+<style scoped>
+    @media screen and (max-width: 959px) {
+        .project-cell-row:last-child .project-cell {
+            border-bottom: 1px solid var(--calendarBorder) !important;
+        }
+        .project-table-container{
+            border: none !important;
+        }
+        .project-cell:last-child{
+            border-bottom: none !important;
+        }
+        .project-cell-row{
+            margin-bottom: 20px !important;
+            box-shadow: none !important;
         }
     }
 </style>

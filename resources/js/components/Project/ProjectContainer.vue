@@ -356,3 +356,15 @@ provide('authProjects', authProjects)
 // provide('metricDate', metricDate)
 provide('getProjects', getProjects)
 </script>
+<style scoped>
+    @media screen and (max-width: 959px) {
+        .project-cell{
+            border-bottom: none;
+            
+        }
+        .project-cell-row{
+            margin: 0 15px 15px 15px !important;
+            box-shadow: none !important;
+        }
+    }
+</style>
