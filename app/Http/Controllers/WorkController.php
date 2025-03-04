@@ -157,7 +157,16 @@ class WorkController extends Controller
         foreach($user_record as $user){
             switch ($user->position_id) {
                 case 12:
-                    $holidayNum = 9;
+                    switch ($lastDay) {
+                        case 29: 
+                            $holidayNum = 8.5;
+                            break;
+                        case 28: 
+                            $holidayNum = 8;
+                            break;
+                        default:
+                            $holidayNum = 9;
+                    }
                     break;
                 default: 
                     switch ($currentMonth) {
@@ -206,7 +215,9 @@ class WorkController extends Controller
                 'user_name' => $user->name,
                 'user_id' => $user->id,
                 'work_type' => $user->work_type,
-                'access_csv' => $active_user->id == 610 || $active_user->id == 608 || $active_user->position_id == 6
+                'access_csv' => $active_user->id == 610 || $active_user->id == 608 || $active_user->position_id == 6,
+                'shift_work_hours' => $shift_work_hours,
+                'workdayNum' => $workdayNum,
             ];
         }
         $responseArray = [
