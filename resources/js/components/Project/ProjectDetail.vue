@@ -110,8 +110,10 @@
                                 <div class="project-cell cell-width" data-label="職務評価基準">{{ member?.evaluation?.current_level }}</div>
                                 
                                 <div class="project-cell cell-width" style="position: relative;" data-label="成果目標・昇給課題">
-                                    <router-link class="user-link" :to="{name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}}">閲覧</router-link>
-                                    <span class="side-notification" style="position: unset" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
+                                    <div class="flex items-center gap-[5px]">                                    
+                                        <router-link class="user-link" :to="{name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}}">閲覧</router-link>
+                                        <span class="side-notification" style="position: unset;width: fit-content;" v-if="goalBadge?.[selectedProject?.id]?.[member?.id]">{{ goalBadge[selectedProject.id][member.id] }}</span>
+                                    </div>
                                 </div>
                                 <div class="project-cell cell-width" data-label="人事考課">
                                     <div>
