@@ -153,6 +153,26 @@ const decidedAnswers = [
     '十分に理解できているが、実務での応用に不安がある', 
     'ほとんど理解できていない'
 ]
+
+
+
+const DATE_FORMATS = [
+  "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'", // ISO 8601 with microseconds
+  "yyyy-MM-dd HH:mm:ss",             // SQL-like format
+];
+
+function customParser(dateStr: string, zone: string = "Asia/Tokyo"): DateTime {
+  for (const format of DATE_FORMATS) {
+    const dt = DateTime.fromFormat(dateStr, format, { zone });
+    if (dt.isValid) return dt;
+  }
+
+  // Fallback to ISO parsing if it wasn't matched in formats
+  const dtISO = DateTime.fromISO(dateStr, { zone });
+  if (dtISO.isValid) return dtISO;
+
+  throw new Error(`Invalid date format: ${dateStr}`);
+}
 export { 
     debounce, 
     mentionFormatter, 
@@ -165,5 +185,6 @@ export {
     taskStatusBackgrounds,
     DateParser,
     decidedAnswers,
-    useDebouncedRef
+    useDebouncedRef,
+    customParser
 }

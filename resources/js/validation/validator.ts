@@ -9,7 +9,11 @@ function validateRule(rule: ValidationRule, value: any | any[], params?: number)
   switch (rule) {
     case 'required':
       return {
-        isValid: (typeof value === 'string' && value.length > 0) || (Array.isArray(value) && value.length > 0) || (typeof value === 'number' && value !== null && value !== undefined),
+        isValid: (typeof value === 'string' && value.length > 0) 
+        || (Array.isArray(value) && value.length > 0) 
+        || (typeof value === 'number' && value !== null && value !== undefined)
+        || (typeof value === 'object' && value !== null && value !== undefined)
+        ,
         errorMessage: '必須です',
       };
     case 'max':

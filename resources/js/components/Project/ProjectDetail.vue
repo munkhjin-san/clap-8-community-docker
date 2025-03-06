@@ -61,8 +61,8 @@
                     <div class="leading-normal" v-html="sanitized(selectedProject?.innovation)"></div>
                 </div>
                 <div class="project-detail-header">
-                    <div style="margin-bottom: 10px">ソリューション</div> 
-                    <div class="leading-normal" v-html="sanitized(selectedProject?.solution)"></div>
+                    <div style="margin-bottom: 10px">ストラテジー</div> 
+                    <div class="leading-normal" v-html="sanitized(selectedProject?.strategy)"></div>
                 </div>
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">オペレーション</div> 

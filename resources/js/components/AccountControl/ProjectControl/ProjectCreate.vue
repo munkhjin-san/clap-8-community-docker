@@ -60,7 +60,7 @@
                         v-model="overview"
                         placeHolder="概要"
                         ref="projectOverview"
-                        rules="required"
+                        rules="required"                        
                     />
                     
                     
@@ -82,6 +82,7 @@
                         name="mission"
                         v-model="mission"
                         placeHolder="ミッション"
+                        :key="aiResponseKey"
                     />
                 </div>
                 <div class="si-box">
@@ -89,14 +90,16 @@
                         name="innovation"
                         v-model="innovation"
                         placeHolder="イノベーション"
+                        :key="aiResponseKey"
                     />
                 </div>
                 
                 <div class="si-box">
                     <LongInput 
-                        name="solution"
-                        v-model="solution"
-                        placeHolder="ソリューション"
+                        name="strategy"
+                        v-model="strategy"
+                        placeHolder="ストラテジー"
+                        :key="aiResponseKey"
                     />
                 </div>
                 <div class="si-box">
@@ -104,6 +107,7 @@
                         name="operation"
                         v-model="operation"
                         placeHolder="オペレーション"
+                        :key="aiResponseKey"
                     />
 
                 </div>
@@ -228,7 +232,6 @@ const miso = ref(props.editData?.miso ?? '')
 const mission = ref(props.editData?.mission ?? '')
 const innovation = ref(props.editData?.innovation ?? '')
 const operation = ref(props.editData?.operation ?? '')
-const solution = ref(props.editData?.solution ?? '')
 const director = ref<User>(props.editData?.director ?? null)
 const manager = ref<User[] | TaskUser[]>(props.editData?.manager ?? [])
 const member = ref<User[]>(props.editData?.members ?? [])
@@ -246,6 +249,7 @@ const projectTitle = useTemplateRef<ComponentExposed<typeof ShortInput>>('projec
 const projectManager = useTemplateRef<ComponentExposed<typeof MemberSelector>>('projectManager')
 const projectOverview = useTemplateRef<ComponentExposed<typeof LongInput>>('projectOverview')
 const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainTaskRef')
+const aiResponseKey = ref(0)
 const { notify } = inject('dialog') as DialogMethods
 const directorOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id < 6 && user.position_id !== null)
@@ -292,12 +296,13 @@ const generateMiso = async() => {
             .on('end', () => {
                 try {
                     const parsedData = JSON.parse(jsonBuffer);
-                    
+                    console.log(parsedData)
                     mission.value = parsedData?.mission
                     innovation.value = parsedData?.innovation
-                    solution.value = parsedData?.solution
+                    strategy.value = parsedData?.strategy
                     operation.value = parsedData?.operation
                     misoCreating.value = false
+                    aiResponseKey.value++
                 } catch (error) {
                     console.error("JSON Parsing Error:", error);
                 }
@@ -325,7 +330,7 @@ const createProject = async() => {
             date_start: dateStart.value,
             date_end: dateEnd.value,
             overview: overview.value,
-            solution: solution.value,
+            strategy: strategy.value,
             mission: mission.value,
             innovation: innovation.value,
             operation: operation.value,
@@ -354,7 +359,7 @@ const generateTasks = async() => {
     const validate = await validation()
     const managerValidate = await managerValidation()
     if(!validate || !managerValidate) return
-    if (!mission.value && !innovation.value && !solution.value && !operation.value) {
+    if (!mission.value && !innovation.value && !strategy.value && !operation.value) {
         notify('タスクを生成するには、ミッション、イノベーション、ソリューション、オペレーションのいずれかが必要です。')
         return
     }
@@ -366,7 +371,7 @@ const generateTasks = async() => {
         });       
         const assistant = await openai.beta.assistants.retrieve("asst_YTY2p8rPF9oE6IcOXU40yfuV");
         const thread = await openai.beta.threads.create();
-        const text = `mission: ${mission.value}\n innovation: ${innovation.value}\n solution: ${solution.value}\n operation: ${operation.value}`;
+        const text = `mission: ${mission.value}\n innovation: ${innovation.value}\n strategy: ${strategy.value}\n operation: ${operation.value}`;
         await openai.beta.threads.messages.create(thread.id, { role: "user", content: text });
         let jsonBuffer = ''; 
 

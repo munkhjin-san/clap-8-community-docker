@@ -280,7 +280,7 @@ const getProjects = async() => {
     try {
         const today = DateTime.now()
         const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
-        const year = which_half ==='second' ? (today.year - 1).toString() : today.year.toString
+        const year = which_half ==='second' ? (today.year - 1).toString() : today.year.toString()
         const params = {
             year: year,
             which_half: which_half
