@@ -62,7 +62,7 @@
                 </div>
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">ストラテジー</div> 
-                    <div class="leading-normal" v-html="sanitized(selectedProject?.strategy)"></div>
+                    <div class="leading-normal" v-html="sanitized(selectedProject?.strategy_miso)"></div>
                 </div>
                 <div class="project-detail-header">
                     <div style="margin-bottom: 10px">オペレーション</div> 

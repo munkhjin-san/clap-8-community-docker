@@ -30,20 +30,25 @@
                 <div class="row justify-content-center">
                    
                     <table id="customers">
-                        <tr style="position: sticky;top: 0;">
-                            <th>氏名</th>
-                            <th>ポスト</th>
-                            <th>コメント</th>
-                            <th>ポートフォリオ</th>
-                            <th>合計</th>
-                        </tr>
-                        <tr v-for="data in clapData">
-                            <td>{{data.name}}</td>
-                            <td>{{data.post}}</td>
-                            <td>{{data.comment}}</td>
-                            <td>{{data.portfolio}}</td>
-                            <td>{{data.sum}}</td>
-                        </tr>
+                        <thead style="position: sticky;top: 0;">
+                            <tr>
+                                <th>氏名</th>
+                                <th>ポスト</th>
+                                <th>コメント</th>
+                                <th>ポートフォリオ</th>
+                                <th>合計</th>
+                            </tr>
+                        </thead>    
+                        <tbody>
+                            <tr v-for="data in clapData">
+                                <td>{{data.name}}</td>
+                                <td>{{data.post}}</td>
+                                <td>{{data.comment}}</td>
+                                <td>{{data.portfolio}}</td>
+                                <td>{{data.sum}}</td>
+                            </tr>
+                        </tbody>
+                        
                     </table>
                 </div>
             </div>
@@ -97,10 +102,13 @@ import { mkConfig, generateCsv, download } from "export-to-csv";
 #customers {
   
   border-collapse: collapse;
-  width: 100%;
   font-size: 14px;
+  width: -webkit-fill-available;
+  width: -moz-available;
 }
-
+#customers tr {
+    border: 1px solid var(--formBorder);
+}
 #customers td, #customers th {
   border: 1px solid var(--formBorder);
   padding: 8px;

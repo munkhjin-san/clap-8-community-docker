@@ -51,7 +51,7 @@
                 <div class="si-box">
                     <LongInput 
                         name="strategy"
-                        v-model="strategy"
+                        v-model="strategy_miso"
                         placeHolder="戦略"
                     />
                 </div>
@@ -117,7 +117,7 @@ const emit = defineEmits(['close'])
 const props = defineProps(['userList', 'editData'])
 const name = ref(props.editData?.name ?? '')
 const overview = ref(props.editData?.overview ?? '')
-const strategy = ref(props.editData?.strategy ?? '')
+const strategy_miso = ref(props.editData?.strategy_miso ?? '')
 const kpi = ref(props.editData?.kpi ?? '')
 const kgi = ref(props.editData?.kgi ?? '')
 const director = ref<User>(props.editData?.director ?? null)
@@ -147,7 +147,7 @@ const createProject = async() => {
            date_start: dateStart.value,
            date_end: dateEnd.value,
            overview: overview.value,
-           strategy: strategy.value,
+           strategy_miso: strategy_miso.value,
            kgi: kgi.value,
            kpi: kpi.value,  
         }

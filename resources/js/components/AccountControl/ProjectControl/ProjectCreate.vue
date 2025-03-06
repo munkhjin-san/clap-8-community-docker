@@ -97,7 +97,7 @@
                 <div class="si-box">
                     <LongInput 
                         name="strategy"
-                        v-model="strategy"
+                        v-model="strategy_miso"
                         placeHolder="ストラテジー"
                         :key="aiResponseKey"
                     />
@@ -225,7 +225,7 @@ const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
 const name = ref(props.editData?.name ?? '')
 const overview = ref(props.editData?.overview ?? '')
-const strategy = ref(props.editData?.strategy ?? '')
+const strategy_miso = ref(props.editData?.strategy_miso ?? '')
 const kpi = ref(props.editData?.kpi ?? '')
 const kgi = ref(props.editData?.kgi ?? '')
 const miso = ref(props.editData?.miso ?? '')
@@ -299,7 +299,7 @@ const generateMiso = async() => {
                     console.log(parsedData)
                     mission.value = parsedData?.mission
                     innovation.value = parsedData?.innovation
-                    strategy.value = parsedData?.strategy
+                    strategy_miso.value = parsedData?.strategy
                     operation.value = parsedData?.operation
                     misoCreating.value = false
                     aiResponseKey.value++
@@ -330,7 +330,7 @@ const createProject = async() => {
             date_start: dateStart.value,
             date_end: dateEnd.value,
             overview: overview.value,
-            strategy: strategy.value,
+            strategy_miso: strategy_miso.value,
             mission: mission.value,
             innovation: innovation.value,
             operation: operation.value,
@@ -359,7 +359,7 @@ const generateTasks = async() => {
     const validate = await validation()
     const managerValidate = await managerValidation()
     if(!validate || !managerValidate) return
-    if (!mission.value && !innovation.value && !strategy.value && !operation.value) {
+    if (!mission.value && !innovation.value && !strategy_miso.value && !operation.value) {
         notify('タスクを生成するには、ミッション、イノベーション、ソリューション、オペレーションのいずれかが必要です。')
         return
     }
@@ -371,7 +371,7 @@ const generateTasks = async() => {
         });       
         const assistant = await openai.beta.assistants.retrieve("asst_YTY2p8rPF9oE6IcOXU40yfuV");
         const thread = await openai.beta.threads.create();
-        const text = `mission: ${mission.value}\n innovation: ${innovation.value}\n strategy: ${strategy.value}\n operation: ${operation.value}`;
+        const text = `mission: ${mission.value}\n innovation: ${innovation.value}\n strategy: ${strategy_miso.value}\n operation: ${operation.value}`;
         await openai.beta.threads.messages.create(thread.id, { role: "user", content: text });
         let jsonBuffer = ''; 
 
