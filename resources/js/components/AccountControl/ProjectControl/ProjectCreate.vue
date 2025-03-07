@@ -423,7 +423,10 @@ const createProject = async() => {
     const validate = await validation()
     const managerValidate = await managerValidation()
 
-    if(!validate || !managerValidate) return
+    if(!validate || !managerValidate) {
+        notify('必須項目を入力してください。')
+        return
+    }
 
     const params = {
         id: props.editData?.id,
