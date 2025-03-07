@@ -1002,4 +1002,88 @@ class ProjectController extends Controller
 
         return response()->json($taskRecords);
     }
+    public function get_manuals(Request $request) {
+        $request->validate([
+            'project_name' => 'required',
+        ]);
+        $project_name = $request->project_name;
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        // dd($user_name);
+        $queryParams = [
+            'app' => '1181',
+            "query" => "部門 like \"{$project_name}\""
+        ];
+        
+        $queryString = http_build_query($queryParams);
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryString";
+
+        $headers = [
+            'Authorization' => 'Basic',
+            'X-Cybozu-Authorization' => $x_token
+        ];
+
+
+        $response = Http::withHeaders($headers)->get($url);
+        $responseContent = $response->body();
+        $responseData = $response->json();
+
+        $records = $responseData['records'] ?? [];
+        // return response()->json($records);
+        $fields = [
+            '作業'                   => '作業',
+            '作業詳細'               => '作業詳細',
+            '持ち出し備品利用ツール' => '持ち出し備品利用ツール',
+            '対応者・対応部署'       => '対応者対応部署',
+            '危険源の洗い出し'       => '危険源の洗い出し',
+            'リスク対策'             => 'リスク対策',
+            '関連法令'               => '関連法令',
+            '期日'                   => '期日',
+            'リスクレベル'           => 'リスクレベル',
+            '損害レベル'             => '損害レベル',
+            '評価'                   => '評価',
+            '懲罰区分'               => '懲罰区分',
+
+        ];
+        
+        $manuals = array_map(function ($record) use ($fields) {
+            $table = $record['テーブル1']['value'] ?? [];
+        
+            $rules = array_map(function ($item) use ($fields) {
+                $rule = [];
+                $rule['id'] = $item['id'] ?? '';
+                $rule['job'] = [];
+                foreach ($fields as $key => $path) {
+                    $value = $item['value'][$path]['value'] ?? '';
+                    // if ($value !== '') {
+                        $rule['job'][$key] = $value;
+                    // }
+                }
+                return $rule;
+            }, $table);
+        
+            return [
+                'title' => $record['タイトル']['value'] ?? '',
+                'id' => $record['$id']['value'] ?? '',
+                'rules' => $rules,
+            ];
+        }, $records);
+        return response()->json($manuals);
+    }
+    public function build_projects(){
+        $projects = ProjectRecord::all();
+        foreach($projects as $project){
+            $details = '';
+            $details .= $project->overview ? '概要'."\n". $project->overview . "\n" : '';
+            $details .= $project->strategy ? '戦略'."\n".$project->strategy . "\n" : '';
+            $details .= $project->kgi ? 'KGI'."\n".$project->kgi . "\n" : '';
+            $details .= $project->kpi ? 'KPI'."\n".$project->kpi . "\n" : '';
+            $project->timestamps = false;
+            $project->update(attributes: ['description' => $details]);
+            $project->timestamps = true;
+        }
+        echo 'done';
+    }
 } 

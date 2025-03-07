@@ -57,9 +57,105 @@
                     </div>
                 </div>
                 <div class="si-box">
+                    <div style="background:inherit;">        
+                        <div style="position:relative;background:inherit;">
+                            <div style="position: relative;background:inherit;border: 1px solid var(--primary-color);" ref="serviceCategoryRef">
+                                <v-autocomplete
+                                    chips
+                                    :items="serviceCategories"
+                                    :multiple="true"
+                                    closable-chips
+                                    flat
+                                    tile
+                                    bg-color="var(--background-color)"
+                                    clear-on-select
+                                    hide-details
+                                    hide-selected
+                                    hide-no-data
+                                    focused
+                                    eager
+                                    label="サービスカテゴリ"
+                                    :menu-props="{ scrollStrategy: 'close'}"
+                                    v-model="selectedCategories"
+                                >
+                                    <template v-slot:chip="{ props, item }">
+                                        <v-chip
+                                            closable
+                                            v-bind="props"
+                                            :text="item.title"
+                                            :close-icon="CloseIcon"
+                                            rounded="0"
+                                            density="compact"
+                                        >
+                                        </v-chip>
+                                    </template>
+                                    <template v-slot:item="{ props, item }">
+                                        <!-- <v-list-item :width="serviceCategoryRef && serviceCategoryRef?.clientWidth ? serviceCategoryRef?.clientWidth - 32 : undefined" v-bind="props" :subtitle="item.raw.subtitle" :text="item.raw" rounded="0" density="compact" :ripple="false" variant="flat"></v-list-item>                     -->
+                                        <div v-bind="props" class="text-[14px] py-[15px] hover:bg-[var(--bg2)] cursor-pointer" :style="{width: serviceCategoryRef && serviceCategoryRef?.clientWidth ? `${serviceCategoryRef?.clientWidth}px` : undefined}">
+                                            <div class="px-[15px]">
+                                                {{ item.title }}
+                                            </div>
+                                            <div class="text-gray-500 text-[10px] px-[30px] mt-[10px]">
+                                                {{ item.raw.subtitle }}
+                                            </div>
+                                        </div>
+                                    </template>
+                                </v-autocomplete>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="si-box flex flex-col gap-[15px]">
+                    <p class="mb-[10px]">顧客企業</p>
+                    <div v-for="(customer, index) in customers" class="flex gap-[10px] items-center">
+                        <div class="flex-[1]">
+                            <ShortInput 
+                                name="customer"
+                                v-model="customers[index]"
+                                placeHolder="顧客企業（正式名称）"
+                                :key="index"
+                            />
+                        </div>                        
+                        <div class="flex">
+                            <div title="顧客企業追加" @click="addCustomer(index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
+                                <AddIcon size="10"/>
+                            </div>
+                            <div title="顧客企業削除" @click="removeCustomer(index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
+                                <CloseIcon size="8"/>
+                            </div>                                
+                        </div> 
+                      
+                    </div>
+                </div>
+
+                <div class="si-box flex flex-col gap-[15px]">
+                    <p class="mb-[10px]">パートナー企業</p>
+                    <div v-for="(partner, index) in partners" class="flex gap-[10px] items-center">
+                        <div class="flex-[1]">
+                            <ShortInput 
+                                name="customer"
+                                v-model="partners[index]"
+                                placeHolder="パートナー企業（正式名称）"
+                                :key="index"
+                            />
+                        </div>                        
+                        <div class="flex">
+                            <div title="パートナー企業追加" @click="addPartner(index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
+                                <AddIcon size="10"/>
+                            </div>
+                            <div title="パートナー企業削除" @click="removePartner(index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
+                                <CloseIcon size="8"/>
+                            </div>                                
+                        </div> 
+                      
+                    </div>
+                </div>
+
+                <div class="si-box">
                     <LongInput 
-                        name="overview"
-                        v-model="overview"
+                        name="description"
+                        v-model="description"
                         placeHolder="概要"
                         ref="projectOverview"
                         rules="required"                        
@@ -113,29 +209,6 @@
                     />
 
                 </div>
-                <!-- <div class="si-box">
-                    <LongInput 
-                        name="kpi"
-                        v-model="kpi"
-                        placeHolder="KPI"
-                    />
-                </div>
-                <div class="si-box">
-                    <LongInput 
-                        name="kgi"
-                        v-model="kgi"
-                        placeHolder="KGI"
-                    />
-                </div> -->
-                <!-- <div class="si-box">
-                    <MemberSelector 
-                        name="director"
-                        v-model="director"
-                        :options="directorOptions"
-                        :multiple="false"
-                        placeHolder="取締役"
-                    />
-                </div> -->
                 <div class="si-box">
                     <MemberSelector 
                         name="manager"
@@ -223,10 +296,14 @@ import OpenAI from 'openai';
 import SampleTask from '@/components/Task/Gantt/SampleTask.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { DateTime } from 'luxon';
+import CloseIcon from '@/components/Form/CloseIcon.vue';
+import 'styles/selector.css'
+import AddIcon from '@/components/Form/AddIcon.vue';
+
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
 const name = ref(props.editData?.name ?? '')
-const overview = ref(props.editData?.overview ?? '')
+const description = ref(props.editData?.description ?? '')
 const strategy_miso = ref(props.editData?.strategy_miso ?? '')
 const kpi = ref(props.editData?.kpi ?? '')
 const kgi = ref(props.editData?.kgi ?? '')
@@ -234,6 +311,7 @@ const miso = ref(props.editData?.miso ?? '')
 const mission = ref(props.editData?.mission ?? '')
 const innovation = ref(props.editData?.innovation ?? '')
 const operation = ref(props.editData?.operation ?? '')
+const selectedCategories = ref(props.editData?.category ?? [])
 const director = ref<User>(props.editData?.director ?? null)
 const manager = ref<User[] | TaskUser[]>(props.editData?.manager ?? [])
 const member = ref<User[]>(props.editData?.members ?? [])
@@ -252,6 +330,17 @@ const projectManager = useTemplateRef<ComponentExposed<typeof MemberSelector>>('
 const projectOverview = useTemplateRef<ComponentExposed<typeof LongInput>>('projectOverview')
 const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainTaskRef')
 const aiResponseKey = ref(0)
+const customers = ref<string[]>(props.editData?.customers ?? [''])
+const partners = ref<string[]>(props.editData?.customers ?? [''])
+const serviceCategoryRef = useTemplateRef('serviceCategoryRef')
+const serviceCategories = [
+    {title: "営業・マーケティング支援", subtitle: 'テレマーケティング、訪問営業、オンライン営業、イベント・プロモーション支援、代理店連携など', value: "営業・マーケティング支援"},
+    {title: "IT・システムサービス", subtitle: 'システム導入、クラウドサービス、ネットワーク保守・運用、ICT支援、初期設定サポートなど', value: "IT・システムサービス"},
+    {title: "業務改善・プロセスコンサルティング", subtitle: '業務プロセスの標準化、プロジェクトマネジメント、戦略立案、デジタル化推進、RPA導入など', value: "業務改善・プロセスコンサルティング"},
+    {title: "アウトソーシング・人材派遣", subtitle: '定型業務のアウトソーシング、派遣業務、業務委託、採用支援・人材育成、リソース調整など', value: "アウトソーシング・人材派遣"},
+    {title: "輸入食品・流通支援", subtitle: '外国産食品などの輸入調達、物流、国内販売促進など、食材に関する全般的なサポート', value: "輸入食品・流通支援"},
+]
+
 const { notify, info,  } = inject('dialog') as DialogMethods
 const directorOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id < 6 && user.position_id !== null)
@@ -286,7 +375,7 @@ const generateMiso = async() => {
         });       
         const assistant = await openai.beta.assistants.retrieve("asst_S9jC52PggATrcVT4QoEX8NYd");
         const thread = await openai.beta.threads.create();
-        const text = `project_name: ${name.value}\n project_overview: ${overview.value}\n project-period: ${dateStart.value} ~ ${dateEnd.value}`;
+        const text = `project_name: ${name.value}\n project_description: ${description.value}\n project-period: ${dateStart.value} ~ ${dateEnd.value}`;
         await openai.beta.threads.messages.create(thread.id, { role: "user", content: text });
         let jsonBuffer = ''; 
 
@@ -345,11 +434,14 @@ const createProject = async() => {
             director_id: director.value?.id,
             date_start: dateStart.value,
             date_end: dateEnd.value,
-            overview: overview.value,
+            description: description.value,
             strategy_miso: strategy_miso.value,
             mission: mission.value,
+            category: selectedCategories.value,
             innovation: innovation.value,
             operation: operation.value,
+            customers: customers.value,
+            partners: partners.value,
             kgi: kgi.value,
             kpi: kpi.value,  
         },
@@ -497,6 +589,22 @@ const deleteTask = (id: number) => {
                 task.sub_tasks.splice(subtaskIndex, 1);
             }
         });
+    }
+}
+const addCustomer = (index: number) => {
+    customers.value.splice(index + 1, 0, '')
+}
+const removeCustomer = (index: number) => {
+    if(customers.value.length && customers.value.length > 1){
+        customers.value.splice(index, 1)
+    }
+}
+const addPartner = (index: number) => {
+    partners.value.splice(index + 1, 0, '')
+}
+const removePartner = (index: number) => {
+    if(partners.value.length && partners.value.length > 1){
+        partners.value.splice(index, 1)
     }
 }
 </script>

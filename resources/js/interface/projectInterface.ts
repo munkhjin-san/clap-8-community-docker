@@ -18,6 +18,7 @@ interface Project {
     mission: string;
     innovation: string;
     operation: string;
+    strategy_miso: string;
     director: User;
     tasks: Task[];
     pseudo_start?: string
@@ -28,6 +29,10 @@ interface Project {
     tasks_count: number;
     director_id: number;
     project_conditions: ProjectCondition[]
+    category: string[]
+    partners: string[]
+    customers: string[]
+    description: string
 }
 interface ProjectCondition {
     project_record_id: number;
@@ -87,6 +92,7 @@ interface Evaluation {
     after_salary_rank: string;
     mentor: User
     general_position: number;
+    current_level: string
 }
 interface Increase {
     id: number;

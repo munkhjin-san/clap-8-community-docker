@@ -449,6 +449,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/update_project_conditions', [ProjectController::class, 'updateConditions']);
         Route::get('/check_evaluation_for_user_in_span ', [ProjectController::class, 'check_evaluation_for_user_in_span']);
         Route::post('/create_project_tasks', [ProjectController::class, 'create_project_tasks']);
+        Route::get('/get_manuals', [ProjectController::class, 'get_manuals']);
+        Route::get('/build_projects', [ProjectController::class, 'build_projects']);
 
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
@@ -493,9 +495,17 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         // Asset
         Route::get('/get_possible_projects', [AssetController::class, 'get_possible_projects']);
+        Route::get('/get_possible_projects_by_user', [AssetController::class, 'get_possible_projects_by_user']);
+
         Route::get('/get_possible_members', [AssetController::class, 'get_possible_members']);
         Route::post('/create_asset', [AssetController::class, 'create_asset']);
-        Route::get('/get_control_assets', [AssetController::class, 'get_control_assets']); 
         Route::get('/get_assets', [AssetController::class, 'get_assets']);       
         Route::delete('/delete_asset', [AssetController::class, 'delete_asset']);
+        Route::post('/asset_apply_request', [AssetController::class, 'asset_apply_request']);
+        Route::get('/get_assets_history', [AssetController::class, 'get_assets_history']);
+        Route::put('/asset_request_status', [AssetController::class, 'asset_request_status']);
+        Route::get('/get_possible_offices', [AssetController::class, 'get_possible_offices']);
+        Route::post('/asset_recieve_request', [AssetController::class, 'asset_recieve_request']);
+        Route::post('/asset_move_request', [AssetController::class, 'asset_move_request']);
+        Route::post('/asset_approve', [AssetController::class, 'asset_approve']);
 });

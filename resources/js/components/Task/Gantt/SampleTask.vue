@@ -1,7 +1,6 @@
 <template>
     <div class="sub-task-item">         
-        <div class="width-smooth"></div>
-        <div class="sub-task-inner task-card-inner width-smooth" style="min-width: 24rem;" :id="`gantt-sub-${task.id}`" :style="{ background: background }"> 
+        <div class="sub-task-inner task-card-inner width-smooth" style="min-width: 24rem;" :id="`gantt-sub-${task.id}`" :style="{ background: background, color: color }"> 
             <div class="flex h-full">
                 
                 <div class="flex flex-col gap-[5px] h-full w-full">
@@ -15,7 +14,6 @@
                         <CloseIcon @click="emit('delete', task.id)"/>       
                     </div>
                     <div class="flex">
-                        <div class="lg-triangle self-center mr-[10px]" :title="task.sub_tasks?.length ? `サブタスク${task.sub_tasks.length}件` : 'サブタスク'" :style="{transform: `rotate(${task.sub_tasks?.length ? 90 : 0}deg)`}" v-if="task.sub_tasks?.length || isSubTask"></div>
                         <div :style="{width: task.sub_tasks?.length || isSubTask ? 'calc(100% - 19px)' : '100%'}" class="flex flex-col gap-[5px]">
                             <div ref="remarksRef" contenteditable="true" class="w-[fit-content] editable-remark max-w-full overflow-hidden overflow-ellipsis whitespace-pre-line leading-[1.5] break-all p-1">{{task.remarks}}</div>
                             
@@ -38,12 +36,14 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import colors from 'assets/colors.json'
 import { useAuthUserStore } from '@/store/auth';
 import CloseIcon from '@/components/Form/CloseIcon.vue';
+import { useTheme } from '@/store/theme';
 const auth = useAuthUserStore()
 const emit = defineEmits(['delete'])
 const remarksRef = useTemplateRef('remarksRef')
 const props = defineProps<{
         task: any,
     }>()
+const theme = useTheme()
 const computedTaskId = computed(() => {
     return props.task.id
 })
@@ -53,6 +53,9 @@ const isSubTask = computed(() => {
 const background = computed(() => {
     const colorIndex:number = auth.user && auth.user.color ? auth.user.color : 0
     return  colors[colorIndex]?.light
+})
+const color = computed(() => {
+    return theme.dark ? 'var(--background-color)' : 'var(--primary-color)'
 })
 defineExpose({remarksRef, computedTaskId})
 </script>

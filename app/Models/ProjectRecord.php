@@ -32,4 +32,10 @@ class ProjectRecord extends Model
         return $this->hasMany(ProjectCondition::class);
     }
     protected $guarded = [];
+
+    protected $casts = [
+        'category' => 'array',
+        'partners' => 'array',
+        'customers' => 'array',
+    ];
 }

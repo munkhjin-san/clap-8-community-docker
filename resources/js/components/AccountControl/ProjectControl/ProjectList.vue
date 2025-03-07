@@ -3,11 +3,12 @@
         <div class="project-table">
             <div class="project-header-row">
                 <div class="project-cell">プロジェクト名</div>
-                <div class="project-cell">概要</div>
-                <div class="project-cell">戦略</div>
                 <div class="project-cell">期間</div>
-                <div class="project-cell">取締役</div>
-                <!-- <div class="project-cell">管理者</div> -->
+                <div class="project-cell">サービスカテゴリ</div>
+                <div class="project-cell">顧客企業</div>
+                <div class="project-cell">パートナー企業</div>
+                <div class="project-cell">概要</div>
+                <div class="project-cell">管理者</div>
                 <div class="project-cell">メンバー</div>
                 <div class="project-cell">アクション</div>
             </div>
@@ -17,36 +18,41 @@
                         {{ project.name }}
                     </div>
                 </div>
+                <div class="project-cell pc">
+                    <div v-if="project?.date_start">{{ project.date_start }} ～ {{ project.date_end }}</div>
+                </div>
+                <div class="project-cell pc">
+                    <div style="position: relative;">
+                        <div class="text-wrap">
+                            <p v-for="cat in project.category || []">{{ cat }}</p>
+                        </div>
+                    </div>                        
+                </div>
+                <div class="project-cell pc">
+                    <div style="position: relative;">
+                        <div class="text-wrap">
+                            <p v-for="customer in project.customers || []">{{ customer }}</p>
+                        </div>
+                    </div>                        
+                </div>
+                <div class="project-cell pc">
+                    <div style="position: relative;">
+                        <div class="text-wrap">
+                            <p v-for="partner in project.partners || []">{{ partner }}</p>
+                        </div>
+                    </div>                        
+                </div>
                 <div class="project-cell">
                     <div style="position: relative;">
                         <div class="text-wrap" @click.stop="menu.setMenu({name: 'overviewBox', id: project?.id})">
-                            {{ project.overview }}
+                            {{ project.description }}
                         </div>
                         <div @click="menu.close()" style="width: 100%" class="comment-box" id="overviewBox" v-if="menu.name == 'overviewBox' && menu.id == project?.id">
-                            <div style="word-break: break-word;">{{ project.overview }}</div>                              
+                            <div style="word-break: break-word;">{{ project.description }}</div>                              
                         </div>
                     </div>
                     
                 </div>
-                <div class="project-cell">
-                    <div style="position: relative">
-                        <div class="text-wrap" @click.stop="menu.setMenu({name: 'strategyBox', id: project?.id})">
-                            {{ project.strategy }}
-                        </div>
-                        <div @click="menu.close()" style="width: 100%" class="comment-box" id="strategyBox" v-if="menu.name == 'strategyBox' && menu.id == project?.id">
-                            <div style="word-break: break-word;">{{ project.strategy }}</div>                              
-                        </div>
-                    </div>
-                    
-                </div>
-                <div class="project-cell">
-                    <div v-if="project?.date_start">{{ project.date_start }} ～ {{ project.date_end }}</div>
-                </div>
-                <!-- <div class="project-cell">
-                    <div>
-                        <UserPanel v-if="project?.director" imgClass="u_icon_20" :user="project?.director" size="20"/>
-                    </div>
-                </div> -->
                 <div class="project-cell">
                     <div style="display: flex;" @click="viewUsers(project.manager)">
                         <UserPanel v-for="member in project.manager" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
