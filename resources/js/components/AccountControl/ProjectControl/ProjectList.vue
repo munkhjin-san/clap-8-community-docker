@@ -19,7 +19,7 @@
                     </div>
                 </div>
                 <div class="project-cell pc">
-                    <div v-if="project?.date_start">{{ project.date_start }} ～ {{ project.date_end }}</div>
+                    <div v-if="project?.date_start">{{ DateTime.fromISO(project.date_start).toLocaleString(DateTime.DATE_SHORT) }} ~ {{ DateTime.fromISO(project.date_end).toLocaleString(DateTime.DATE_SHORT) }}</div>
                 </div>
                 <div class="project-cell pc">
                     <div style="position: relative;">
@@ -106,6 +106,7 @@ import ProjectCreate from './ProjectCreate.vue';
 import axios from 'axios';
 import { useProjectUsers } from '@/store/projectUsers';
 import { Dialog, User } from '@/interface/globalInterface';
+import { DateTime } from 'luxon';
 const projects = ref<Project[]>([])
 const menu = useMenuStore()
 const createWindow = ref(false)
