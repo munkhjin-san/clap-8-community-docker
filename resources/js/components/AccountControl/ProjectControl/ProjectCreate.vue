@@ -10,11 +10,13 @@
                 </div> 
             </div>
             <div v-if="taskCreating || misoCreating" class="fixed w-full h-full bg-[#00000061] flex items-center justify-center z-[15] top-0 left-0">
-                <div class="bg-[#00000085] flex gap-[15px] p-[15px]">
+                <div class="bg-[#00000085] flex flex-col justify-center items-center gap-[15px] p-[15px]">
                     <div id="loaderMini" style="width: fit-content;">
                         <div class="spinner-micro" style="border-color: transparent #fff #fff"></div>
                     </div>
-                    <p class="text-white leading-normal" v-html="taskCreating ? 'ガントチャート用のタスクをAIで自動生成しています。<br>今しばらくお待ちください。' : 'MISOをAIで自動生成しています。<br>今しばらくお待ちください。'">
+                    <p class="text-white leading-normal text-center" v-html="taskCreating ? 
+                        'ガントチャート用のタスクをAIで自動生成中です。<br>この処理には数分かかる場合があります。' : 
+                        'MISOをAIで自動生成中です。<br>この処理には数分かかる場合があります。'">
                         
                     </p>
                 </div>
@@ -185,7 +187,7 @@
                                 ref="mainTaskRef"
                                 @delete="deleteTask"
                             />
-                            <div v-if="task.sub_tasks.length" class="sub-task-wrap">
+                            <div v-if="task.sub_tasks.length" class="sub-task-wrap !ml-[15px]">
                                 <div class="sub-task-container">
                                     <SampleTask 
                                         v-for="subTask in task.sub_tasks"
@@ -250,7 +252,7 @@ const projectManager = useTemplateRef<ComponentExposed<typeof MemberSelector>>('
 const projectOverview = useTemplateRef<ComponentExposed<typeof LongInput>>('projectOverview')
 const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainTaskRef')
 const aiResponseKey = ref(0)
-const { notify } = inject('dialog') as DialogMethods
+const { notify, info,  } = inject('dialog') as DialogMethods
 const directorOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id < 6 && user.position_id !== null)
 })
@@ -305,11 +307,25 @@ const generateMiso = async() => {
                     aiResponseKey.value++
                 } catch (error) {
                     console.error("JSON Parsing Error:", error);
+                    notify(`MISOの自動生成に失敗しました。<br>${error?.message ? error.message : ''}`)
+                    misoCreating.value = false
                 }
             });
         
-    } catch (e) {
-
+    } catch (err) {
+        if (err instanceof OpenAI.APIError) {
+            console.log(err.status); 
+            console.log(err); 
+            if(err.status == 500){
+                notify('MISOの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+            }else{
+                notify('MISOの自動生成に失敗しました。>' + err?.message)
+            }
+            
+        } else {
+            notify('MISOの自動生成に失敗しました。<br>' + err)
+        }
+        misoCreating.value = false
     }
 
 }
@@ -388,11 +404,24 @@ const generateTasks = async() => {
                     console.log(aiResponse.value) 
                 } catch (error) {
                     console.error("JSON Parsing Error:", error);
+                    notify(`タスクの自動生成に失敗しました。<br>${error?.message ? error.message : ''}`)
                 }
             });
         
-    } catch (e) {
-
+    } catch (err) {
+        if (err instanceof OpenAI.APIError) {
+            console.log(err.status); 
+            console.log(err); 
+            if(err.status == 500){
+                notify('タスクの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+            }else{
+                notify('タスクの自動生成に失敗しました。>' + err?.message)
+            }
+            
+        } else {
+            notify('タスクの自動生成に失敗しました。<br>' + err)
+        }
+        taskCreating.value = false
     }
 }
 const prepareSampleTasks = computed(() => {
