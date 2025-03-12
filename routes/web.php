@@ -150,7 +150,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::prefix('cdn')->group(function () {
         Route::get('/{any?}', [ContentController::class, 'fileTransferAll'])->where('any', '.*');
     });
-    
+    Route::get('/kintone_file', [ContentController::class, 'kintone_file']);
     Route::post('/auth_check', function (Request $request) {
         $r = Auth::id() == $request->id;
         if($r){
@@ -450,7 +450,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/check_evaluation_for_user_in_span ', [ProjectController::class, 'check_evaluation_for_user_in_span']);
         Route::post('/create_project_tasks', [ProjectController::class, 'create_project_tasks']);
         Route::get('/get_manuals', [ProjectController::class, 'get_manuals']);
-        Route::get('/build_projects', [ProjectController::class, 'build_projects']);
+        Route::post('/update_manuals', [ProjectController::class, 'update_manuals']);
+        Route::post('/create_manual_rule', [ProjectController::class, 'create_manual_rule']);
+        Route::post('/create_manual_record', [ProjectController::class, 'create_manual_record']);
+        Route::post('/delete_manual_rule', [ProjectController::class, 'delete_manual_rule']);
+        Route::post('/delete_manual_record', [ProjectController::class, 'delete_manual_record']);
+
+        Route::get('/get_contracts', [ProjectController::class, 'get_contracts']);
 
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
@@ -508,4 +514,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/asset_recieve_request', [AssetController::class, 'asset_recieve_request']);
         Route::post('/asset_move_request', [AssetController::class, 'asset_move_request']);
         Route::post('/asset_approve', [AssetController::class, 'asset_approve']);
+
+
+        Route::get('/updateMentorId', [MemberController::class, 'updateMentorId']);
 });
