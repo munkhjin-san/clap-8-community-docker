@@ -23,4 +23,16 @@ class SalaryIssue extends Model
     public function project_goal(){
         return $this->belongsTo(ProjectGoal::class, 'project_goal_id', 'id');
     }
+    public function evaluation()
+    {
+        return $this->hasOneThrough(
+            EvaluationRecord::class,
+            ProjectGoal::class,
+            'id', // Foreign key on ProjectGoal (matches SalaryIssue's project_goal_id)
+            'user_id', // Foreign key on EvaluationRecord
+            'project_goal_id', // Local key on SalaryIssue
+            'user_id' // Local key on ProjectGoal
+        )->whereColumn('project_goals.year', 'evaluation_records.year')
+         ->whereColumn('project_goals.which_half', 'evaluation_records.which_half');
+    }
 }

@@ -716,7 +716,9 @@ class ProjectController extends Controller
                     });
             })
             ->orWhereHas('salaryIssue', function ($q) use ($user) {
-                $q->whereIn('status', [2, 7])->where('mentor_id', $user->id);
+                $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
+                    $subQuery->where('mentor_id', $user->id);
+                });
             })
             ->orWhere(function ($query) use ($user) {
                 $query->where('user_id', $user->id)->where('status', 1);
@@ -745,7 +747,9 @@ class ProjectController extends Controller
                     });
             })
             ->orWhereHas('salaryIssue', function ($q) use ($user) {
-                $q->whereIn('status', [2, 7])->where('mentor_id', $user->id);
+                $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
+                    $subQuery->where('mentor_id', $user->id);
+                });
             })
             ->get();
 
@@ -759,7 +763,9 @@ class ProjectController extends Controller
                             ->orWhere('status', 8);
                         });
                 })->orWhereHas('salaryIssue', function ($q) use ($user) {
-                    $q->whereIn('status', [2, 7])->where('mentor_id', $user->id);
+                    $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
+                        $subQuery->where('mentor_id', $user->id);
+                    });
                 })
                 ->get();
         return $this->calculateGoalStats($goals);

@@ -849,13 +849,4 @@ class MemberController extends Controller
         $responseData = $response->json();
         return response()->json($responseData['records']);
     }
-    public function updateMentorId(){
-        $records = SalaryIssue::whereNull('mentor_id')->whereHas('project_goal')->with('project_goal')->get();
-        dd($records);
-        foreach($records as $record){
-            dd($record);
-            // $record->mentor_id = 1;
-            // $record->save();
-        }
-    }
 }
