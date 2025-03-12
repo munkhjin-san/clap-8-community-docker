@@ -20,4 +20,7 @@ class SalaryIssue extends Model
     public function mentor() {
         return $this->hasOne(User::class, 'id', 'mentor_id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
+    public function project_goal(){
+        return $this->belongsTo(ProjectGoal::class, 'project_goal_id', 'id');
+    }
 }
