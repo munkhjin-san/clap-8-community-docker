@@ -716,7 +716,7 @@ class ProjectController extends Controller
                     });
             })
             ->orWhereHas('salaryIssue', function ($q) use ($user) {
-                $q->where('status', 2)->where('mentor_id', $user->id);
+                $q->whereIn('status', [2, 7])->where('mentor_id', $user->id);
             })
             ->orWhere(function ($query) use ($user) {
                 $query->where('user_id', $user->id)->where('status', 1);
@@ -745,7 +745,7 @@ class ProjectController extends Controller
                     });
             })
             ->orWhereHas('salaryIssue', function ($q) use ($user) {
-                $q->where('status', 2)->where('mentor_id', $user->id);
+                $q->whereIn('status', [2, 7])->where('mentor_id', $user->id);
             })
             ->get();
 
@@ -759,7 +759,7 @@ class ProjectController extends Controller
                             ->orWhere('status', 8);
                         });
                 })->orWhereHas('salaryIssue', function ($q) use ($user) {
-                    $q->where('status', 2)->where('mentor_id', $user->id);
+                    $q->whereIn('status', [2, 7])->where('mentor_id', $user->id);
                 })
                 ->get();
         return $this->calculateGoalStats($goals);
@@ -1007,11 +1007,7 @@ class ProjectController extends Controller
             'project_name' => 'required',
         ]);
         $project_name = $request->project_name;
-        $user_name = config('app.kintone_user_name');
-        $password = config('app.kintone_password');
-        $string = $user_name. ':'. $password;
-        $x_token = base64_encode($string);
-        // dd($user_name);
+
         $queryParams = [
             'app' => '1181',
             "query" => "部門 like \"{$project_name}\""
@@ -1020,18 +1016,11 @@ class ProjectController extends Controller
         $queryString = http_build_query($queryParams);
         $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryString";
 
-        $headers = [
-            'Authorization' => 'Basic',
-            'X-Cybozu-Authorization' => $x_token
-        ];
 
-
-        $response = Http::withHeaders($headers)->get($url);
-        $responseContent = $response->body();
+        $response = Http::withHeaders($this->kintone_headers())->get($url);
         $responseData = $response->json();
 
         $records = $responseData['records'] ?? [];
-        // return response()->json($records);
         $fields = [
             '作業'                   => '作業',
             '作業詳細'               => '作業詳細',
@@ -1068,22 +1057,345 @@ class ProjectController extends Controller
                 'title' => $record['タイトル']['value'] ?? '',
                 'id' => $record['$id']['value'] ?? '',
                 'rules' => $rules,
+                'files' => $record['添付ファイル']['value'] ?? [],
             ];
         }, $records);
         return response()->json($manuals);
     }
-    public function build_projects(){
-        $projects = ProjectRecord::all();
-        foreach($projects as $project){
-            $details = '';
-            $details .= $project->overview ? '概要'."\n". $project->overview . "\n" : '';
-            $details .= $project->strategy ? '戦略'."\n".$project->strategy . "\n" : '';
-            $details .= $project->kgi ? 'KGI'."\n".$project->kgi . "\n" : '';
-            $details .= $project->kpi ? 'KPI'."\n".$project->kpi . "\n" : '';
-            $project->timestamps = false;
-            $project->update(attributes: ['description' => $details]);
-            $project->timestamps = true;
+    private function kintone_token() {
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        return $x_token;
+    }
+    private function manual_data($record_id){
+        $queryParams = [
+            'app' => '1181',
+            'id' => $record_id,
+        ];        
+        $queryString = http_build_query($queryParams);
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
+
+        $response = Http::withHeaders($this->kintone_headers())->get($url);
+        $responseData = $response->json();
+        return $responseData;
+    }
+    public function update_manuals(Request $request) {
+        $record_id = $request->manual['id'] ?? null;
+        
+        if(!$record_id){
+            throw ValidationException::withMessages(['message' => 'エラーが発生しました。']);
         }
-        echo 'done';
+        $responseData = $this->manual_data($record_id);
+        $rules = collect($request->manual['rules']);
+        $risks = $responseData['record']['テーブル1']['value'] ?? [];
+        $exists = [];
+        foreach($risks as $risk){
+            $prev_risk = $risk['value']['危険源の洗い出し']['value'];
+            $prev_management = $risk['value']['リスク対策']['value'];
+            
+            $updated_value = $rules->where('id', $risk['id'])->first();
+            if($updated_value){
+                $prev_risk = $updated_value['job']['危険源の洗い出し'] ;
+                $prev_management = $updated_value['job']['リスク対策'];
+            }
+            $prep = [
+                "id" => $risk['id'],
+                "value" => [
+                    "危険源の洗い出し" => [
+                        "value" => $prev_risk
+                    ],
+                    "リスク対策" => [
+                        "value" => $prev_management
+                    ],
+                ]
+            ];
+            array_push($exists, $prep);
+        }
+
+        $data = [
+            "app" => 1181,
+            "id" => $record_id,
+            "record" => [
+                "テーブル1" => [
+                    "value" => $exists                    
+                ]
+            ]
+        ];
+        $queryParams = [
+            'app' => '1181',
+            'id' => $record_id,
+        ];
+        
+        $queryString = http_build_query($queryParams);
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
+
+        $response = Http::withHeaders($this->kintone_headers())->put($url,$data);
+        $responseData = $response->json();
+        return response()->json($responseData);
+    }
+    public function create_manual_rule(Request $request){
+        $request->validate([
+            'manual_id' => 'required',
+            'job' => 'required|array',
+        ]);
+        $record_id = $request->manual_id ?? null;
+        $responseData = $this->manual_data($record_id);
+        $rules = collect($responseData['record']['テーブル1']['value'] ?? []);
+        $job = $request->job;
+        if($job['id']){
+            $updated = $rules->map(function($rule) use ($job){
+                if($rule['id'] == $job['id']){
+                    $values = $job['job'];
+                    foreach($values as $key => $value){
+                        $rule['value'][$key]['value'] = $value;
+                    }
+                }
+                return $rule;
+            });
+            $response = $this->update_manual_record_table($updated, $record_id);
+            return response()->json($response);
+            
+        }else{
+            $new_rule = [
+                "id" => "",
+                "value" => []                    
+            ];
+            foreach($job['job'] as $key => $value){
+                $new_rule['value'][$key] = [
+                    "value" => $value
+                ];
+            }
+            $updated = $rules->push($new_rule);
+            $response = $this->update_manual_record_table($updated, $record_id);
+            return response()->json($response);
+            
+        }        
+
+    }
+    public function create_manual_record(Request $request){
+        $request->validate([
+            'project_id' => 'required',
+            'title' => 'required',
+        ]);
+
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $data = ["app" => 1181];
+        
+        if($request->id){
+            $data['id'] = $request->id;
+            $data['record'] = [
+                "タイトル" => [
+                    "value" => $request->title
+                ]
+            ];
+        }else{
+            $data['record'] = [
+                "タイトル" => [
+                    "value" => $request->title
+                ],
+                "部門" => [
+                    "value" => $project->name
+                ]
+            ];
+        }
+        $queryParams = [
+            'app' => '1181',
+        ];
+        if($request->id){
+            $queryParams['id'] = $request->id;
+        }
+        $queryString = http_build_query($queryParams);
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
+
+        try {
+            $method = $request->id ? 'put' : 'post';
+            $response = Http::withHeaders($this->kintone_headers())->$method($url, $data);
+            $responseData = $response->json();
+            if(isset($response['revision'])){
+                return $responseData;
+            }
+            else{
+                throw ValidationException::withMessages(['message' => $response['message'] ?? 'エラーが発生しました。']);
+            }
+        } catch (\Exception $e) {
+            throw ValidationException::withMessages(['message' => 'API request failed: ' . $e->getMessage()]);
+        }     
+    }
+    private function update_manual_record_table ($rules, $record_id){
+        $data = [
+            "app" => 1181,
+            "id" => $record_id,
+            "record" => [
+                "テーブル1" => [
+                    "value" => $rules                    
+                ]
+            ]
+        ];
+        $queryParams = [
+            'app' => '1181',
+            'id' => $record_id,
+        ];        
+        $queryString = http_build_query($queryParams);
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
+        $response = Http::withHeaders($this->kintone_headers())->put($url,$data);
+        $responseData = $response->json();
+        if(isset($response['revision'])){
+            return $responseData;
+        }
+        else{
+            throw ValidationException::withMessages(['message' => $response['message'] ?? 'エラーが発生しました。']);
+        }
+    }
+    public function delete_manual_rule(Request $request){
+        $request->validate([
+            'manual_id' => 'required',
+            'rule_id' => 'required',
+        ]);
+        $record_id = $request->manual_id;
+        $responseData = $this->manual_data($record_id);
+        $rules = collect($responseData['record']['テーブル1']['value'] ?? []);
+        $updated = $rules->filter(function($rule) use ($request){
+            return $rule['id'] != $request->rule_id;
+        });
+        $updated = $updated->values();
+        // dd($updated);
+        $response = $this->update_manual_record_table($updated, $record_id);
+        return response()->json($response);
+    }
+    public function delete_manual_record(Request $request){
+        $request->validate([
+            'manual_id' => 'required',
+        ]);
+        $record_id = $request->manual_id;
+        $data = [
+            'app' => '1181',
+            'ids' => [$record_id],
+        ];
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json";
+
+        $response = Http::withHeaders($this->kintone_headers())->delete($url,$data);
+        $responseData = $response->json();
+        if(isset($response['revision'])){
+            return $responseData;
+        }
+        else{
+            throw ValidationException::withMessages(['message' => $response['message'] ?? 'エラーが発生しました。']);
+        }
+    }
+    
+
+    public function get_contracts(Request $request) {
+        $request->validate([
+            'project_name' => 'required',
+        ]);
+        $project_name = $request->project_name;
+
+        $queryParams = [
+            
+            "query" => "部門 like \"{$project_name}\"",
+        ];
+        
+        $contractValues = $this->contract_fetch($queryParams);       
+
+        $contract_ids = array_map(function($record){
+            return $record['契約書id']['value'] ?? '';
+        }, $contractValues);
+        $contract_ids = implode(',', $contract_ids);
+
+        // $partner_ids = array_map(function($record){
+        //     return $record['取引先id']['value'] ?? '';
+        // }, $contractValues);
+        // $partner_ids = implode(',', $partner_ids);
+
+        // $queryParamsPartners = [
+        //     "query" => "取引先id in ({$partner_ids}) limit 500",
+        // ];
+        // $partnerContracts = $this->contract_fetch($queryParamsPartners);
+
+        // dd($partnerContracts);
+        $queryParamsSpecs = [
+            'app' => 156,
+            "query" => "契約書id in ({$contract_ids})",
+        ];
+        $queryStringSpecs = http_build_query($queryParamsSpecs);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
+        $specs = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $specsData = $specs->json();
+        // dd($specsData);
+        $specsValues = $specsData['records'] ?? [];
+        $specsClean = array_map(function ($record) {
+            $spec = [];
+            foreach ($record as $key => $value) {
+                $spec[$key] = $value['value'] ?? '';
+            }
+            return $spec;
+        }, $specsValues);
+        
+
+        $contractsClean = array_map(function ($record) use ($specsClean) {
+            $contract = [];
+            foreach ($record as $key => $value) {
+                $contract[$key] = $value['value'] ?? '';
+            }
+            $contract['specs'] = array_values(array_filter($specsClean, function($spec) use ($contract){
+                return $spec['契約書id'] == $contract['契約書id'];
+            }));
+            return $contract;
+        }, $contractValues);
+
+        $column_types = [
+            "array" => ['specs', '契約終了'],
+            "file" => ['お見積書','添付ファイル', '契約書原本データ', '契約書確認用データ', '覚書・変更契約書_原本データ', '覚書・変更契約書_確認データ', '誓約書・通知書_原本データ', '誓約書・通知書_確認用データ'],
+            "date" => ['契約期間終了日', '契約期間開始日', '契約締結日'],
+            "html" => ['メモ'],
+            "action" => ['詳細']
+        ];
+        $table_columns = [
+            "レコード番号", 
+            "契約案件名",
+            "案件担当者",
+            "取引先",
+            "契約期間開始日",
+            "契約期間終了日",
+            "詳細"
+
+        ];
+        return response()->json([
+            'contracts' => $contractsClean,
+            'specs' => $specsClean,
+            'column_types' => $column_types,
+            'table_columns' => $table_columns
+        ]);
+    }
+    private function contract_fetch($query){   
+        
+        $contract_fields = [
+            "レコード番号", "担当者", "取引先検索", "取引先", "役職名", "代表者名", "契約案件名", "甲会社名", "甲役職", "甲代表者名", "取引先検索_1", "部門", "乙会社名", "乙役職", "乙代表者名",
+            "契約締結日", "契約期間開始日", "契約期間終了日", "契約終了",
+            "契約書確認用データ", "契約書原本データ", "誓約書・通知書_確認用データ", "誓約書・通知書_原本データ","覚書・変更契約書_確認データ", "覚書・変更契約書_原本データ", "お見積書", "メモ",
+            "契約書id", "取引先id", "ルックアップ検索用id", '添付ファイル', 'ステータス', '案件担当者'
+        ];
+
+        $query['fields'] = $contract_fields;
+        $query['app'] = 138;
+        $queryString = http_build_query($query);
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryString";
+        $contracts = Http::withHeaders($this->kintone_headers())->get($url);
+        $contractsData = $contracts->json();
+        $contractValues = $contractsData['records'] ?? [];
+        return $contractValues;
+    }
+    private function kintone_headers() {
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        $headers = [
+            'Authorization' => 'Basic',
+            'X-Cybozu-Authorization' => $x_token
+        ];
+        return $headers;
     }
 } 
