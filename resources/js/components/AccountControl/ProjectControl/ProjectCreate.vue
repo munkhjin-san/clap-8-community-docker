@@ -92,7 +92,7 @@
                                     <template v-slot:item="{ props, item }">
                                         <!-- <v-list-item :width="serviceCategoryRef && serviceCategoryRef?.clientWidth ? serviceCategoryRef?.clientWidth - 32 : undefined" v-bind="props" :subtitle="item.raw.subtitle" :text="item.raw" rounded="0" density="compact" :ripple="false" variant="flat"></v-list-item>                     -->
                                         <div v-bind="props" class="text-[14px] py-[15px] hover:bg-[var(--bg2)] cursor-pointer" :style="{width: serviceCategoryRef && serviceCategoryRef?.clientWidth ? `${serviceCategoryRef?.clientWidth}px` : undefined}">
-                                            <div class="px-[15px]">
+                                            <div class="px-[15px] text-[var(--primary-color)]">
                                                 {{ item.title }}
                                             </div>
                                             <div class="text-gray-500 text-[10px] px-[30px] mt-[10px]">
@@ -331,7 +331,7 @@ const projectOverview = useTemplateRef<ComponentExposed<typeof LongInput>>('proj
 const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainTaskRef')
 const aiResponseKey = ref(0)
 const customers = ref<string[]>(props.editData?.customers ?? [''])
-const partners = ref<string[]>(props.editData?.customers ?? [''])
+const partners = ref<string[]>(props.editData?.partners ?? [''])
 const serviceCategoryRef = useTemplateRef('serviceCategoryRef')
 const serviceCategories = [
     {title: "営業・マーケティング支援", subtitle: 'テレマーケティング、訪問営業、オンライン営業、イベント・プロモーション支援、代理店連携など', value: "営業・マーケティング支援"},
