@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\positionRecord;
 use App\Models\User;
 use App\Models\SalaryIssue;
+use App\Models\ProjectGoal;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -388,17 +389,28 @@ class MemberController extends Controller
         return response()->json($record);
     }
     public function save_kadai_template(Request $request){
+        $request->validate([
+            'goal_id' => 'required',
+            'theme' => 'required',
+        ]);
+        $theme = $request->theme;
         if($request->editId){
             $record = SalaryIssue::findOrFail($request->editId);
-            // if($record->content !== $request->content){
-            //     throw ValidationException::withMessages(['message' => '昇給課題の内容に変更がある場合、ChatGPT添削結果削除']);
-            // }
         }else{
-            $record = new SalaryIssue;
-            $check_exists = SalaryIssue::where('theme', $request->theme)->where('date', $request->date)->where('user_id', Auth::id())->exists();
-            if($check_exists){
+            $goal = ProjectGoal::findOrFail($request->goal_id);
+
+            $other_goals_with_salary_issue = ProjectGoal::where('user_id', Auth::id())
+            ->where('id', '!=', $goal->id)
+            ->where('year', $goal->year)
+            ->where('which_half', $goal->which_half)
+            ->whereHas('salaryIssue', function($q)use($theme){
+                $q->where('theme', $theme);
+            })->exists();
+            if($other_goals_with_salary_issue){
                 throw ValidationException::withMessages(['message' => 'このテーマで既に昇給課題が作られています。']);
             }
+            $record = new SalaryIssue;
+            
         }
         
         $record->user_id = $request->user_id;
