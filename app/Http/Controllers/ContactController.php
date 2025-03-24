@@ -34,7 +34,7 @@ class ContactController extends Controller
     }
     private function get_company_name($image)
     {
-        $apiKey = env("GEMINI_API_KEY");
+        $apiKey = config('app.gemini_api_key');
     
         if (empty($apiKey)) {
             throw ValidationException::withMessages(['message' => 'APIキーが設定されていません。']);
@@ -118,7 +118,7 @@ class ContactController extends Controller
         return $jsonData;
     }
     public function company_data_gemini($cardData){
-        $apiKey = env("GEMINI_API_KEY", );
+        $apiKey = config('app.gemini_api_key');
         if (empty($apiKey)) {
             throw ValidationException::withMessages(['message' => 'APIキーが設定されていません。']);
         }

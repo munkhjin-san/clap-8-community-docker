@@ -84,7 +84,7 @@ class AutoJobController extends Controller
     }
     public function generate_welcome_message(){
        
-        $apiKey = env("GEMINI_API_KEY");
+        $apiKey = config('app.gemini_api_key');
 
         $thisMonth = Carbon::now()->format('m');
         $thisMonthWithoutzero = ltrim($thisMonth, '0');

@@ -27,7 +27,7 @@ class GenerateWelcomeMessage implements ShouldQueue
      */
     public function handle(): void
     {
-        $apiKey = env("GEMINI_API_KEY");
+        $apiKey = config('app.gemini_api_key');
 
         $thisMonth = Carbon::now()->format('m');
         $thisMonthWithoutzero = ltrim($thisMonth, '0');

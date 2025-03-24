@@ -30,6 +30,10 @@ return [
     'twilio_auth_token' => env('TWILIO_AUTH_TOKEN'),
     'twilio_verify_sid' => env('TWILIO_VERIFY_SID'),
 
+    'kintone_user_name' => env('KINTONE_USER_NAME'),
+    'kintone_password' => env('KINTONE_PASSWORD'),
+    'gemini_api_key' => env('GEMINI_API_KEY'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
