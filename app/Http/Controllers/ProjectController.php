@@ -564,7 +564,14 @@ class ProjectController extends Controller
         ]);
         $id = $request->id;
         $status = $request->status;
-        SalaryIssue::findOrFail($id)->update(['status' => $status]);
+        $comment = $request->comment;
+        $issue = SalaryIssue::findOrFail($id);
+        $issue->update(['status' => $status]);
+        if($comment) {
+            $current_comment = $issue->comment ?? '';
+            $new_comment = $current_comment ? "{$current_comment}\n{$comment}" : $comment;
+            $issue->update(['comment' => $new_comment]);
+        }
 
         return response()->json(['message' => 'Successfully approved!']); 
     }
@@ -592,7 +599,14 @@ class ProjectController extends Controller
         ]);
         $id = $request->id;
         $status = $request->status;
-        ProjectGoal::findOrFail($id)->update(['status' => $status]);
+        $comment = $request->comment;
+        $goal = ProjectGoal::findOrFail($id);
+        $goal->update(['status' => $status]);
+        if($comment) {
+            $current_comment = $goal->comment ?? '';
+            $new_comment = $current_comment ? "{$current_comment}\n{$comment}" : $comment;
+            $goal->update(['comment' => $new_comment]);
+        }
         return response()->json(['message' => 'Successfully approved!']); 
     }
     public function update_issue_report(Request $request) {

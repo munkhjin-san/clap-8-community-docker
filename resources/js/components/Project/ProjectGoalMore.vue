@@ -52,6 +52,10 @@
                         <div class="kadai-content">{{ goal?.expected_effect }}</div>
                     </div>
                     <div>
+                        <div>コメント</div>
+                        <div class="kadai-content">{{ goal?.comment }}</div>
+                    </div>
+                    <div>
                         <div>AI判定とフィードバック</div>
                         <div class="kadai-content">{{ goal?.ai_review }}</div>
                     </div>
@@ -75,21 +79,21 @@
                     </div>
 
                     <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && (goal?.status == 2)" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'差戻'"/>
-                        <LoaderButton v-if="goal?.status == 2" style="margin: 0;" @click="approveOutComeGoal(3)" :content="'承認'"/>
+                        <LoaderButton style="margin: 0;" @click="openGoalApproveWindow(1)" :content="'差戻'"/>
+                        <LoaderButton v-if="goal?.status == 2" style="margin: 0;" @click="openGoalApproveWindow(3)" :content="'承認'"/>
                     </div>
                     <div v-if="goal?.status == 4 && (auth.activeUser.id === 610 || auth.activeUser.id === 631)">
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="openGoalApproveWindow(1)" :content="'差戻'"/>
                     </div>
                     <div v-if="631 === auth.id && goal?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(1)" :content="'人事差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(5)" :content="'人事承認'"/>
+                        <LoaderButton style="margin: 0;" @click="openGoalApproveWindow(1)" :content="'人事差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="openGoalApproveWindow(5)" :content="'人事承認'"/>
                     </div>
                     <div v-if="610 === auth.activeUser.id && goal?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(3)" :content="'人事承認取消'"/>
+                        <LoaderButton style="margin: 0;" @click="openGoalApproveWindow(3)" :content="'人事承認取消'"/>
                     </div>
                     <div v-if="610 === auth.activeUser.id && goal?.status > 6" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveOutComeGoal(6)" :content="'差戻（管理本部用）'"/>
+                        <LoaderButton style="margin: 0;" @click="openGoalApproveWindow(6)" :content="'差戻（管理本部用）'"/>
                     </div>
                 </div>
                 <div style="display:flex; gap: 20px; flex-direction: column;" v-if="goal?.salary_issue && sub_tab === 1">
@@ -114,6 +118,10 @@
                         <div class="kadai-content">{{ salaryIssueStatus[goal?.salary_issue.status] }}</div>
                     </div>
                     <div>
+                        <div>コメント</div>
+                        <div class="kadai-content">{{ goal?.salary_issue.comment }}</div>
+                    </div>
+                    <div>
                         <div>AI添削結果</div>
                         <div class="kadai-content">{{ goal?.salary_issue.review }}</div>
                     </div>
@@ -128,19 +136,19 @@
                         <LoaderButton style="margin: 0;" @click="deleteIssue(goal.salary_issue)" :content="'削除'"/>
                     </div>
                     <div v-if="evaluationData?.mentor_id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'承認'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 1)" :content="'差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 3)" :content="'承認'"/>
                     </div>
                     <div v-if="631 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 1)" :content="'人事差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 5)" :content="'人事承認'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 1)" :content="'人事差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 5)" :content="'人事承認'"/>
                     </div>
                     <div v-if="631 === auth.id && goal?.salary_issue?.status == 9" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 6)" :content="'結果人事差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 10)" :content="'結果人事承認'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 6)" :content="'結果人事差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 10)" :content="'結果人事承認'"/>
                     </div>
                     <div v-if="610 === auth.activeUser.id && goal?.salary_issue?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="approveSalaryIssue(goal?.salary_issue, 3)" :content="'人事承認取消'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 3)" :content="'人事承認取消'"/>
                     </div>
                     <div style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton v-if="salaryIssueReport" style="margin: 0;" :content="'成果報告'" @click="addIssueReport(false, goal)"/>
@@ -199,11 +207,43 @@
                 @reload="issueReport = null, emit('close')"
             />
         </Transition>
+        <Transition name="modalFade">
+            <Modal v-if="goalDecisionData.active && goalDecisionData.status" @close="goalDecisionData.active = false, goalDecisionData.status = null">
+                <template #title>
+                </template>
+                <template #content>
+                    <div>判断: <strong>{{ [1,6].includes(goalDecisionData.status) ? '差戻' : [5,3].includes(goalDecisionData.status) ? '承認' : ''  }}</strong></div>
+                    <div class="si-box">
+                        <LongInput v-model="goalDecisionData.comment" name="comment" place-holder="コメント・差し戻し理由" />
+                    </div>
+                    <div class="si-box">
+                        <LoaderButton @triggered="approveOutComeGoal(goalDecisionData.status)" :content="'保存'" />
+                    </div>
+                </template>
+
+            </Modal>
+        </Transition>
+        <Transition name="modalFade">
+            <Modal v-if="salaryIssueData.active && salaryIssueData.status && salaryIssueData.id" @close="salaryIssueData.active = false, salaryIssueData.status = null">
+                <template #title>
+                </template>
+                <template #content>
+                    <div>判断: <strong>{{ [1,6].includes(salaryIssueData.status) ? '差戻' : [5,3,10].includes(salaryIssueData.status) ? '承認' : ''  }}</strong></div>
+                    <div class="si-box">
+                        <LongInput v-model="salaryIssueData.comment" name="comment" place-holder="コメント・差し戻し理由" />
+                    </div>
+                    <div class="si-box">
+                        <LoaderButton @triggered="approveSalaryIssue(salaryIssueData.id, salaryIssueData.status)" :content="'保存'" />
+                    </div>
+                </template>
+
+            </Modal>
+        </Transition>
     </div>
 </template>
 <script setup lang="ts">
 import { useAuthUserStore } from '@/store/auth';
-import { computed, inject, ref } from 'vue';
+import { computed, inject, reactive, ref } from 'vue';
 import moment from 'moment';
 import LoaderButton from '../Global/LoaderButton.vue';
 import ProjectReport from './ProjectReport.vue';
@@ -216,6 +256,8 @@ import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
 import { useBadgeStore } from '@/store/badge'
 import { useRouter } from 'vue-router';
+import Modal from '../Global/Modal.vue';
+import LongInput from '../Form/LongInput.vue';
 const props = defineProps([
     'goal', 
     'memberData', 
@@ -271,6 +313,27 @@ const selectThemeConfirm = (level, theme) => {
 const evalutionsValues = computed(() => {
     return props.themeRecords
 })
+const goalDecisionData = reactive({
+    comment: '',
+    status: <number| null>null,
+    active: false
+})
+
+const salaryIssueData = reactive({
+    id: <number | null>null,
+    comment: '',
+    status: <number| null>null,
+    active: false
+})
+const openGoalApproveWindow = (status: number) => {
+    goalDecisionData.status = status
+    goalDecisionData.active = true
+}
+const openSalaryIssueApproveWindow = (issue: SalaryIssue, status: number) => {
+    salaryIssueData.status = status
+    salaryIssueData.id = issue.id
+    salaryIssueData.active = true    
+}
 const approveOutComeGoal = async(status: number) => {
     let content = ''
     let info_message = ''
@@ -297,7 +360,7 @@ const approveOutComeGoal = async(status: number) => {
     const answer = await confirm(content)
     if(!answer.value) return
     try {
-        await axios.put('/approve_outcome_goal', {id: props.goal.id, status: status})
+        await axios.put('/approve_outcome_goal', {id: props.goal.id, status: status, comment: goalDecisionData.comment})
         if (typeof refresh === 'function') {
             refresh()
         }
@@ -311,11 +374,14 @@ const approveOutComeGoal = async(status: number) => {
             badge.getRemindBadge()
             refreshRemind('not_approved_projects')
         }
+        goalDecisionData.active = false
+        goalDecisionData.status = null
+        goalDecisionData.comment = ''
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
-const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
+const approveSalaryIssue = async(id: number, status: number) => {
     let content = ''
     let info_message = ''
     switch (status) {
@@ -338,11 +404,11 @@ const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
             content = 'エラーが発生しました'
             break
     }
-    if(!issue) return
+    if(!id) return
     const answer = await confirm(content)
     if(!answer.value) return
     try {
-        await axios.put('/approve_salary_issue', { id: issue.id, status: status})
+        await axios.put('/approve_salary_issue', { id: id, status: status, comment: salaryIssueData.comment })
         if (typeof refresh === 'function') {
             refresh()
         }
@@ -353,6 +419,10 @@ const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
             badge.getRemindBadge()
             refreshRemind('not_approved_projects')
         }
+        salaryIssueData.active = false
+        salaryIssueData.status = null
+        salaryIssueData.comment = ''
+        salaryIssueData.id = null
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
