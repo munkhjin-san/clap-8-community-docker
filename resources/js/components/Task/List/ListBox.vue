@@ -12,7 +12,7 @@
                         <p class="text-sm overflow-hidden text-ellipsis whitespace-nowrap">{{item.project.name}}</p>
                     </div>
                     <div class="flex items-center gap-[10px] text-sm overflow-hidden" @click.stop="jumpToTask" v-else-if="item.board">
-                        <BoardIcon :item="item.board" :imgClass="'userNormalIcon'"/>
+                        <BoardIcon :item="item.board" size="30"/>
                         <BoardTitle class="whitespace-nowrap" :item="item.board"/>
                     </div>
                     <svg v-if="!isBoard" :fill="taskColor.mycolor === myColor ? '#000' : 'var(--primary-color)'" style="transform: rotate(180deg);" version="1.1" width="11" height="11" class="cursor-pointer" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">

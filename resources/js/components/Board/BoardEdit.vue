@@ -69,7 +69,7 @@
                             </div>                            
                         </div>
                         <div class="flex flex-col items-center gap-[10px] w-fit m-auto" v-else-if="targetBoard.icon_path">
-                            <BoardIcon :item="targetBoard" :imgClass="'boardNormalIcon'" :imgStyle="'width:45px;height:45px'"/>
+                            <BoardIcon :item="targetBoard"/>
                             <CommandButton 
                                 :buttons="[{title: 'アイコン初期化', action:() => {targetBoard.icon_path = null, iconType = 0}}]"
                             />

@@ -34,7 +34,7 @@
         </div>
         <div v-if="targetedSearch" style="padding: 0 20px;margin-bottom: 15px;">
             <div v-for="board in targetBoards" class="chat-search-select">
-                <BoardIconPreLoad :item="boardItem(board.id)" imgStyle="min-width:25px;" :imgClass="'userMidIcon'"/>
+                <BoardIcon :item="boardItem(board.id)" size="25"/>
                 <BoardTitlePreLoad style="overflow:hidden" :item="boardItem(board.id)" titleStyle="line-height: 1.3;font-size: 12px;"/>
                 <span style="white-space: nowrap;font-size:12px;">({{board.occurence}}件)</span>
                 <div @click="resetTargetSearch" style="width:15px;height:15px;margin:auto 0;display: flex;cursor:pointer">
@@ -70,7 +70,7 @@
             <div :key="board.id" class="srgByBoard" v-for="board in viewBoardList">
                 <div @click="searchInTarget(board)" style="display:flex;align-items:center;cursor:pointer;padding:10px">
                     
-                    <BoardIconPreLoad imgClass="userNormalIcon" :item="boardItem(board.id)"/>
+                    <BoardIcon size="30" :item="boardItem(board.id)"/>
                     <div style="max-width:80%">
                         <BoardTitlePreLoad :item="boardItem(board.id)" titleStyle="margin-left:5px;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;"/>  
                     </div>
@@ -97,7 +97,7 @@
 <script setup>
 import moment from 'moment'
 import BoardTitlePreLoad from '../Mixed/BoardTitle.vue'
-import BoardIconPreLoad from '../Mixed/BoardIcon.vue'
+import BoardIcon from '../Mixed/BoardIcon.vue'
 import PostSearchPager from '../../Post/PostSearchPager.vue'
 
 import LoaderButton from '../../Global/LoaderButton.vue';

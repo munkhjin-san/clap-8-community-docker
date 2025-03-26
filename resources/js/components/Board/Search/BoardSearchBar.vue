@@ -41,7 +41,7 @@
                         <p style="padding: 10px;font-size: 13px;">検索結果</p>
                         <div @click="open(board), searchBoxFocus = false" style="padding:10px;cursor:pointer" v-for="board in boardSearchResult">
                             <div style="display:flex;align-items:center;font-size:14px;overflow: hidden;">
-                                <BoardIcon :item="board" imgClass="userNormalIcon"/> 
+                                <BoardIcon :item="board" size="30"/> 
                                 <BoardTitle :item="board" titleStyle="margin-left:5px;white-space: nowrap;"/>   
                             </div>
                         </div>

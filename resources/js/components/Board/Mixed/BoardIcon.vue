@@ -1,28 +1,45 @@
 <template>
     <div >
-        <img v-if="item.private_flag == 0 && boardIcon" draggable="false" loading="lazy" :class="[imgClass]" :src="boardIcon" :style="imgStyle">
-        <UserPanel v-if="item.private_flag > 0 && correspondUser" :disableInstant="true" :user="correspondUser" :imgClass="imgClass" size="45"/>
-        <svg v-if="!boardIcon && !correspondUser" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :class="[imgClass]">
-            <circle cx="15" cy="15" r="15" fill="#ddd"/>
+        <img 
+            v-if="item.private_flag == 0 && boardIcon" 
+            draggable="false" loading="lazy" 
+            class="rounded-full" 
+            :src="boardIcon"
+            :style="{
+                width: computedSize + 'px',
+                height: computedSize + 'px',
+                minWidth: computedSize + 'px',
+                minHeight: computedSize + 'px',
+            }"
+        >
+        <UserPanel v-if="item.private_flag > 0 && correspondUser" :disableInstant="true" :user="correspondUser" :size="computedSize"/>
+        <svg v-if="item.private_flag > 0 && !correspondUser" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :width="`${computedSize}px`" :height="`${computedSize}px`">
+            <circle cx="15" cy="15" r="15" fill="var(--secondary-background)"/>
         </svg>
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { useAuthUserStore } from '@/store/auth'
+import { Board } from '@/interface/globalInterface';
     const auth = useAuthUserStore()
-    const props = defineProps(['item', 'imgClass', 'imgStyle'])
+    const props = defineProps<{
+        item: Board
+        size?: string
+    }>()
     const correspondUser = computed(() => {
-        if(props.item.private_flag == 1){
-            var user = props.item.board_to_users.filter(obj => obj.user_id !== auth.activeUser.id);
-            return user && user.length && user[0].user? user[0].user : null
-            
-        }else if(props.item.private_flag == 3){
-            var me = props.item.board_to_users.filter(obj => obj.user_id == auth.activeUser.id);
-            return me && me.length && me[0].user ? me[0].user : null
+        if (props.item.private_flag === 1) {
+            const user = props.item.board_to_users.find(obj => obj.user_id !== auth.activeUser.id);
+            return user?.user || null;
+        } else if (props.item.private_flag === 3) {
+            const me = props.item.board_to_users.find(obj => obj.user_id === auth.activeUser.id);
+            return me?.user || null;
         }
-        return null
+        return null;
+    });
+    const computedSize = computed(() => {
+        return props.size ? Number(props.size) : 45 
     })
     const boardIcon = computed(() => {
         if (props.item.icon_path) {

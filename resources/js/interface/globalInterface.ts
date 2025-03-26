@@ -28,6 +28,8 @@ export interface Board {
     created_at: string
     user?: User
     project: Project | null
+    icon_text: string | null
+    icon_bg: string | null
 
 }
 interface LastMessage {

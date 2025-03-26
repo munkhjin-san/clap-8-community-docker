@@ -30,7 +30,7 @@
             <div style="position:relative">
                 <span v-if="badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[item.id]" class="notification" style="top: -3px;left: auto;right: -3px;">{{badgeFilter(badge.activeUsersBoardBadge[item.id])}}</span>
              
-                <BoardIconPreLoad :item="item" :imgClass="'boardNormalIcon'"/>
+                <BoardIcon :item="item"/>
             </div>
             <div @mouseenter="titleHoverIn" @mouseleave="titleHoverOut" style="width:100%;align-self: center;margin:0 10px;overflow:hidden">
                 
@@ -52,7 +52,7 @@
 </template>
 
 <script setup>
-import BoardIconPreLoad from './Mixed/BoardIcon.vue'
+import BoardIcon from './Mixed/BoardIcon.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import BoardTitlePreLoad from './Mixed/BoardTitle.vue'
 import { computed, inject } from 'vue';

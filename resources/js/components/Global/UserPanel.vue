@@ -26,7 +26,7 @@ import { useTheme } from '@/store/theme';
         user: User | TaskUser
         imgClass?: string
         imgStyle?: string
-        size?: string
+        size?: string | number
         disableInstant?: boolean
         withName?: boolean 
         forceColor?: string

@@ -10,7 +10,7 @@
             :class="{mUsrSlctdPc: highlighted == index}
         ">                                    
             <div class="column-01">  
-                <BoardIcon v-if="user.id == -1" imgClass="userMidIcon" :item="board"/> 
+                <BoardIcon v-if="user.id == -1" size="30" :item="board"/> 
                 <UserPanel :disableInstant="true" v-else size="30" :user="user" imgClass="userMidIcon"/>  
             </div>
             <p  class="cursor-pointer" style="padding:5px;font-size:13px;">{{user.name}}</p>                                   
