@@ -26,7 +26,7 @@
                 
             </div>
             <div class="si-box">
-                <ShortInput 
+                <!-- <ShortInput 
                     name="itemName"
                     place-holder="品名"
                     rules="required"
@@ -34,7 +34,11 @@
                     ref="itemNameRef"
                     type="text"
                     v-model="item_name"
-                />
+                /> -->
+                <AssetTypePicker 
+                    placeHolder="品名"
+                    v-model="item_name"
+                />  
             </div>
             <div class="si-box">
                 <LongInput 
@@ -122,6 +126,7 @@ import { useRoute } from 'vue-router';
 import AssetClass from 'assets/AssetClass.json'
 import AssetStatus from 'assets/AssetStatus.json'
 import LongInput from '../Form/LongInput.vue';
+import AssetTypePicker from './AssetTypePicker.vue';
 const emit = defineEmits<{
     close:[flag: boolean]
 }>()
@@ -137,7 +142,7 @@ const loading = ref(false)
 
 const { notify, info } = inject('dialog') as DialogMethods
 const gl_number = ref('')
-const item_name = ref(props.editData?.item_name ?? '')
+const item_name = ref(props.editData?.item_name ?? null)
 const model_number = ref(props.editData?.model_number ?? '')
 const classification = ref(props.editData?.classification ?? 1)
 const value = ref(props.editData?.value ?? '')
@@ -148,8 +153,7 @@ const selectedUser = ref<User | null>(props.editData?.current_user ? props.editD
 const projects = ref<number | null>(props.editData?.current_project?.id ?? null)
 const memberSelectRef = useTemplateRef('memberSelectRef')
 const projectSelectRef = useTemplateRef('projectSelectRef')
-const itemNameRef = useTemplateRef('itemNameRef')
-
+const assetTypes = ref([])
 onMounted(() => {
     if (!props.editData) {
         projects.value = route.params.projectId ? Number(route.params.projectId) : null
@@ -168,12 +172,11 @@ const createAsset = async() => {
             const glVal = await glNumberRef.value?.validate()
             if (!glVal?.valid) return
         }
-        const [memberVal, nameVal, projectVal] = await Promise.all([
+        const [memberVal, projectVal] = await Promise.all([
             memberSelectRef.value?.validate(),
-            itemNameRef.value?.validate(),
             projectSelectRef.value?.validate()
         ]);
-        if (!memberVal?.valid || !nameVal?.valid || !projectVal?.valid) return
+        if (!memberVal?.valid || !projectVal?.valid) return
         const params = {
             id: convertToHalfWidth(gl_number.value),
             params : {

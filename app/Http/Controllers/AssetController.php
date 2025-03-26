@@ -6,6 +6,7 @@ use App\Imports\AssetImport;
 use App\Models\AssetRecord;
 use App\Models\AssetRequest;
 use App\Models\AssetRequestStep;
+use App\Models\AssetType;
 use App\Models\officeRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
@@ -67,6 +68,7 @@ class AssetController extends Controller
             $params['created_by'] = $this->active_user()->id;
         }
         $asset = AssetRecord::updateOrCreate(["id" => $id], $params);
+        AssetType::firstOrCreate(['value' => $params['item_name']])->increment('used_count');
 
         return response()->json($asset);
     }
@@ -326,6 +328,28 @@ class AssetController extends Controller
 
 
     }
+    public function get_asset_types(Request $request){
+        $keyword = $request->key ?? null;
+        $super = $request->super ?? null;
 
+        $types = AssetType::query();
+        if($keyword){
+            $types->where('value', 'like', "%$keyword%");
+        }
+        if($super){
+            // take latest 10 items
+            $types->orderBy('used_count', 'desc')->orderBy('id', 'desc')->take(10);
+        }
+        $data = $types->get();
+        $data = $data->map(function($item){
+            return $item->value;
+        })->toArray();
+        if($keyword){
+            if(!in_array($keyword, $data )){
+                array_unshift($data, $keyword);
+            }
+        }
+        return response()->json($data);
+    }
 
 }

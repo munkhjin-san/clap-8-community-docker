@@ -526,6 +526,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/asset_recieve_request', [AssetController::class, 'asset_recieve_request']);
         Route::post('/asset_move_request', [AssetController::class, 'asset_move_request']);
         Route::post('/asset_approve', [AssetController::class, 'asset_approve']);
+        Route::post('/get_asset_types', [AssetController::class, 'get_asset_types']);
         Route::get('/get_asset_badge', [ProjectController::class, 'get_asset_badge']);
         Route::get('/get_asset_recieve_requests', [RemindController::class, 'get_asset_recieve_requests']);
 });
