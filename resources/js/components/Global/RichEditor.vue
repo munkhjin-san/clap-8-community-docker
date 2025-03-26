@@ -86,7 +86,7 @@
                 </Transition>
             </div>
 
-            <button @click.stop="filePickerView = true" :class="['toolbar-button']">
+            <button @click.stop="viewFilePicker" :class="['toolbar-button']">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 8L9.00319 2H19.9978C20.5513 2 21 2.45531 21 2.9918V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5501 3 20.9932V8ZM10 4V9H5V20H19V4H10Z"></path></svg>
             </button>
         </div>
@@ -133,9 +133,9 @@ const fileList = ref<string[]>([])
 const activeFile = ref<string>('')
 const filePicker = ref<HTMLInputElement| null>(null)
 const uploading = ref(false)
+const fileFetchCount = ref(0)
 onMounted(() =>{
-    console.log(props.initilaValue)
-    getFileList()
+    // getFileList()
 })
 defineExpose({editor})
 const colorShadesArray = [
@@ -236,6 +236,13 @@ const deleteFile = () => {
         activeFile.value = ''
     })
 }
+const viewFilePicker = () => {
+    filePickerView.value = !filePickerView.value
+    if(filePickerView.value && fileFetchCount.value == 0){
+        getFileList()
+        fileFetchCount.value++
+    }
+}
 </script>
 <style scoped>
 .file-picker{
@@ -295,13 +302,14 @@ const deleteFile = () => {
 }
 .tiptap{
     outline: none;
+    min-height: 100px;
 }
 .editor-toolbar{
     padding: 10px;
     background: var(--bg2);
 }
 .editor-wrap{
-    line-height: 1.3;
+    line-height: 1.5;
     padding: 15px;
 }
 .editor-wrap h1, h2, h3 {
@@ -333,7 +341,7 @@ const deleteFile = () => {
 }
 .toolbar-root{
     display: flex;
-    
+    flex-wrap: wrap;
     background: var(--bg3);
     position: relative;
     position: sticky;

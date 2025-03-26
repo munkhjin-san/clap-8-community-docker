@@ -263,7 +263,7 @@ import axios from 'axios'
     const closeNineWindow = async (flag) => {
         if (flag) {
             const answer = await confirm('グラウドナインを中止しますか？\n中止した場合再度挑戦することはできません。');
-            if (!answer) return;
+            if (!answer.value) return;
         }
         playNineWindow.value = false;
         completeTask(taskId.value, 1, 0);

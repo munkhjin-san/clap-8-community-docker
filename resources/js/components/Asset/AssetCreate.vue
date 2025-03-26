@@ -1,5 +1,5 @@
 <template>
-    <Modal @close="emit('close')">
+    <Modal @close="emit('close', false)">
         <template #title>
             <p>物品作成</p>
         </template>
@@ -37,6 +37,13 @@
                 />
             </div>
             <div class="si-box">
+                <LongInput 
+                    name="specs"
+                    place-holder="詳細（スペックなど）"
+                    v-model="specs"
+                />
+            </div>
+            <div class="si-box">
                 <ShortInput 
                     name="modelNumber"
                     place-holder="型番号"
@@ -55,7 +62,8 @@
                     label="name"
                     :closeOnSelect="true"
                     :reduce="option => option.id"
-                    :options="choosAbleProjects"
+                    :options="allProjects"
+                    :multiple="false"
                     rules="required"
                     ref="projectSelectRef"
                 />
@@ -63,8 +71,8 @@
             <div class="si-box">
                 <MemberSelector 
                     place-holder="使用者"
-                    v-model="users"
-                    :multiple="true"
+                    v-model="selectedUser"
+                    :multiple="false"
                     :options="choosAbleMembers"
                     rules="required"
                     ref="memberSelectRef"
@@ -80,17 +88,20 @@
             <div class="si-box">
                 <p class="mb-[10px]">分類</p>
                 <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="classification">
-                    <option v-for="(classification, index) in classifications" :value="classification.value">{{ classification.label }}</option>
+                    <option v-for="(classification, index) in AssetClass" :value="classification.value">{{ classification.label }}</option>
                 </select>
             </div>
             <div class="si-box">
                 <p class="mb-[10px]">ステータス</p>
                 <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="status">
-                    <option v-for="(status, index) in statuses" :value="status.value">{{ status.label }}</option>
+                    <option v-for="(status, index) in AssetStatus" :value="status.value">{{ status.label }}</option>
                 </select>
             </div>
-            <div class="si-box">
+            <div class="si-box" v-if="auth.activeUser.id === 610 || auth.activeUser.id === 608">
                 <LoaderButton content="作成する" :loading="loading" @triggered="createAsset"/>
+            </div>
+            <div class="si-box" v-else>
+                <LoaderButton content="申請する" :loading="loading" @triggered="createAsset"/>
             </div>
         </template>
     </Modal>    
@@ -101,37 +112,55 @@ import MemberSelector from '@/components/Form/MemberSelector.vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Modal from '@/components/Global/Modal.vue';
+import { Asset } from '@/interface/assetInterface';
 import { DialogMethods, User } from '@/interface/globalInterface';
 import { Project } from '@/interface/projectInterface'
+import { useAuthUserStore } from '@/store/auth';
 import axios from 'axios';
 import { inject, reactive, ref, useTemplateRef, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
+import AssetClass from 'assets/AssetClass.json'
+import AssetStatus from 'assets/AssetStatus.json'
+import LongInput from '../Form/LongInput.vue';
 const emit = defineEmits<{
-    (e: 'close'): void
-    (e: 'getAssets'): void
+    close:[flag: boolean]
 }>()
 const props = defineProps([
-    'statuses', 
-    'classifications', 
     'editData',
     'allMembers',
-    'allProjects'
+    'allProjects',
 ])
+const route = useRoute()
+const auth = useAuthUserStore()
 const gl_exists = ref(0)
 const loading = ref(false)
-const padNumber = inject('padNumber') as Function
+
 const { notify, info } = inject('dialog') as DialogMethods
-const gl_number = ref(padNumber(props.editData?.id) ?? '')
+const gl_number = ref('')
 const item_name = ref(props.editData?.item_name ?? '')
 const model_number = ref(props.editData?.model_number ?? '')
 const classification = ref(props.editData?.classification ?? 1)
 const value = ref(props.editData?.value ?? '')
+const specs = ref(props.editData?.specs ?? '')
 const status = ref(props.editData?.status ?? 1)
 const glNumberRef = useTemplateRef('glNumberRef')
-const users = ref<User[]>(props.editData?.users ?? [])
-const projects = ref<Project[]>(props.editData?.projects ?? [])
+const selectedUser = ref<User | null>(props.editData?.current_user ? props.editData?.current_user : auth.user ? auth.user : null )
+const projects = ref<number | null>(props.editData?.current_project?.id ?? null)
 const memberSelectRef = useTemplateRef('memberSelectRef')
 const projectSelectRef = useTemplateRef('projectSelectRef')
 const itemNameRef = useTemplateRef('itemNameRef')
+
+onMounted(() => {
+    if (!props.editData) {
+        projects.value = route.params.projectId ? Number(route.params.projectId) : null
+    }
+    if(props.editData) {
+        gl_number.value = padNumber(props.editData?.id)?.toString() ?? ''
+    }
+})
+const padNumber = (num: number | null) => {
+    return num?.toString().padStart(5, "0")
+}
 const createAsset = async() => {
     
     try {
@@ -139,13 +168,12 @@ const createAsset = async() => {
             const glVal = await glNumberRef.value?.validate()
             if (!glVal?.valid) return
         }
-        const [memberVal, projectVal, nameVal] = await Promise.all([
+        const [memberVal, nameVal, projectVal] = await Promise.all([
             memberSelectRef.value?.validate(),
-            projectSelectRef.value?.validate(),
             itemNameRef.value?.validate(),
+            projectSelectRef.value?.validate()
         ]);
-        if ((!memberVal.valid || !projectVal?.valid) && !nameVal?.valid) return
-        
+        if (!memberVal?.valid || !nameVal?.valid || !projectVal?.valid) return
         const params = {
             id: convertToHalfWidth(gl_number.value),
             params : {
@@ -153,32 +181,25 @@ const createAsset = async() => {
                 model_number: model_number.value,
                 classification: classification.value,
                 value: value.value,
-                status: status.value
-            },
-            user_ids: users.value?.map(ob => ob.id),
-            project_ids: projects.value
+                status: status.value,
+                project_id: projects.value || null,
+                user_id: selectedUser.value?.id,
+                specs: specs.value
+
+            }
         }
         await axios.post('/create_asset', params)
         info('作成しました。')
-        emit('close')
-        emit('getAssets')
+        emit('close', true)
     } catch (e) {
-        notify('')
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
-const choosAbleProjects = computed(() => {
-    if (!users.value?.length) return props.allProjects
-
-    const user_ids = users.value.map(user => user.id)
-    return props.allProjects.filter(project => 
-        project.members.some(member => user_ids.includes(member.id))
-    )
-})
-
 
 const choosAbleMembers = computed(() => {
-    if (!projects.value?.length) return props.allMembers
-})
+    return props.allMembers
+});
+
 const convertToHalfWidth = (num: string) => {
     return num.normalize("NFKC")
 }

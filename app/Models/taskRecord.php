@@ -35,7 +35,7 @@ class taskRecord extends Model
         return $this->hasOne(TaskRepeat::class, 'record_id', 'repeat_id');
     }
     public function sub_tasks() {
-        return $this->hasMany(taskRecord::class,  'parent_task_id')->orderBy('start_at', 'asc')->with(['executors', 'comments']);
+        return $this->hasMany(taskRecord::class,  'parent_task_id')->orderBy('start_at', 'asc')->with(['executors']);
     }
     public function main_task(){
         return $this->belongsTo(taskRecord::class, 'parent_task_id');

@@ -242,15 +242,15 @@ const copySummary = (summary: SummaryData) => {
     });
 }
 const deleteSummary = async(summary: SummaryData) => {
+    const answer = await confirm('削除しますか？')
+    if(!answer.value) return
     try {
-        if(await confirm('削除しますか？')){
-            await axios.delete('/delete_schedule_summary', { params: {
-                id: summary.id
-            }}).then(() => {
-                info('削除しました。')
-                getSummareis(1)
-            })
-        }
+        await axios.delete('/delete_schedule_summary', { params: {
+            id: summary.id
+        }}).then(() => {
+            info('削除しました。')
+            getSummareis(1)
+        })        
         
     } catch (e) {   
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')

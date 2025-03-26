@@ -53,6 +53,7 @@ export interface Tag {
     id: number;
 }
 export interface User {
+    positions: any
     id: number;
     name: string | null;
     icon_path: string | null | undefined;
@@ -228,6 +229,7 @@ export interface Task {
     project_record_id?: number
     board?: Board
     project?: Project 
+    comments_count?: number
 }
 
 export interface GanttColumnData {

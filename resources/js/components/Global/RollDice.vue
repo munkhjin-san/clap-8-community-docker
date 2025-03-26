@@ -90,7 +90,7 @@ import axios from 'axios';
       ]
     };
     const answer = await confirm('大か小', options);
-    greater.value = answer ?? null;
+    greater.value = answer.value ?? null;
   };
   const beginDiceRolling = () => {
     rolling.value = true;
@@ -159,12 +159,6 @@ import axios from 'axios';
     
   };
   const savePrize = async() => {
-    // const options = {
-    //   answers: [{ label: '賞金を受け取る', value: true }]
-    // }
-    // const text = hit.value === 800 ? `最高額おめでとう！${hit.value}円分のリフレッシュ補助金を獲得しました。<br> 賞金は翌月のリフレッシュ補助金に増額されます。` : `${hit.value}円分のリフレッシュ補助金を獲得しました。<br>賞金は翌月のリフレッシュ補助金に増額されます。`
-    // const answer = await confirm(text, options)
-    // if (!answer) return
     const params = {
       task_id: props.taskId,
       params: {
@@ -182,7 +176,7 @@ import axios from 'axios';
       answers: [{ label: 'OK', value: true }]
     };
     const answer = await confirm(`アタリ${hit.value}円`, options);
-    if (answer) {
+    if (answer.value) {
       setTimeout(doubleUp, 1000);
     }
   };
@@ -195,7 +189,7 @@ import axios from 'axios';
       ]
     };
     const answer = await confirm('ダブルアップに挑戦しますか？　（アタリ×２倍　ハズレ×０倍）', options);
-    if (answer) {
+    if (answer.value) {
       setTimeout(startRolling, 500);
     } else {
       savePrize()
@@ -203,15 +197,6 @@ import axios from 'axios';
     }
   };
 
-  // const missed = async() => {
-  //   const options = {
-  //       answers: [{label: 'OK', value: true}]
-  //   }
-  //   const answer = await confirm('ハズレ　次回もお楽しみに！', options);
-  //   if (answer) {
-  //     closeWithUpdate(false)
-  //   }
-  // }
   const closeWithUpdate = (flag: boolean) => {
     emit('close', flag) 
     // updateTryFlag()  

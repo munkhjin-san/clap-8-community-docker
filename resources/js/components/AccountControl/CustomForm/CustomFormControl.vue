@@ -104,16 +104,18 @@ const closeCreate = (flag:boolean) => {
     }
 }
 const deleteForm = async(id: number) => {
-    if(await confirm('削除しますか？')){
-        await axios.delete('/delete_custom_form', {params: {id: id}})
-        getForms()
-    }
+    const answer = await confirm('削除しますか？')
+    if(!answer.value) return
+    await axios.delete('/delete_custom_form', {params: {id: id}})
+    getForms()
+    
 }
 const duplicateForm = async(id: number) => {
-    if(await confirm('再利用しますか？')){
-        await axios.post('/duplicate_custom_form', {id: id})
-        getForms()
-    }
+    const answer = await confirm('再利用しますか？')
+    if(!answer.value) return
+    await axios.post('/duplicate_custom_form', {id: id})
+    getForms()
+    
 }
 const setViewUsers = (payload: {title: string, users: CustomFormUser[]}) => {
     viewUsers.value = payload

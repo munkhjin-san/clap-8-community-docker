@@ -222,9 +222,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::put('/task_update_flag', [TaskController::class, 'task_update_flag']);
     Route::put('/task_update_pin', [TaskController::class, 'task_update_pin']);
     Route::post('/update_task_comment_check', [TaskController::class, 'update_task_comment_check']); 
+    Route::get('/get_task_comment_list', [TaskController::class, 'get_task_comment_list']);
     Route::put('/task_comment', [TaskController::class, 'task_comment']); 
     Route::delete('/task_comment', [TaskController::class, 'task_comment_delete']); 
-    Route::post('/update_task_comment_check', [TaskController::class, 'update_task_comment_check']); 
     Route::put('/task_comment_update', [TaskController::class, 'task_comment_update']); 
     Route::post('/add_board_task', [TaskController::class, 'addBoardTask']); 
         // Admin Panel User:
@@ -448,13 +448,23 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_managing_projects', [ProjectController::class, 'get_managing_projects']);
         Route::post('/update_project_conditions', [ProjectController::class, 'updateConditions']);
         Route::get('/check_evaluation_for_user_in_span ', [ProjectController::class, 'check_evaluation_for_user_in_span']);
-        Route::post('/create_project_tasks', [ProjectController::class, 'create_project_tasks']);
         Route::get('/get_manuals', [ProjectController::class, 'get_manuals']);
         Route::post('/update_manuals', [ProjectController::class, 'update_manuals']);
         Route::post('/create_manual_rule', [ProjectController::class, 'create_manual_rule']);
         Route::post('/create_manual_record', [ProjectController::class, 'create_manual_record']);
         Route::post('/delete_manual_rule', [ProjectController::class, 'delete_manual_rule']);
         Route::post('/delete_manual_record', [ProjectController::class, 'delete_manual_record']);
+        Route::get('/get_yearly_plan', [ProjectController::class, 'get_yearly_plan']);
+        Route::get('/get_profit', [ProjectController::class, 'get_profit']);
+        Route::get('/get_settlement', [ProjectController::class, 'get_settlement']);
+        Route::post('/get_partners_tags', [ProjectController::class, 'get_partners_tags']);
+        Route::get('/get_task_comment_badge', [ProjectController::class, 'get_task_comment_badge']);
+        Route::get('/get_dispatch_data', [ProjectController::class, 'get_dispatch_data']);
+
+
+        Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
+        Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);
+        Route::get('/get_salary_issue_badge', [ProjectController::class, 'get_salary_issue_badge']);
 
         Route::get('/get_contracts', [ProjectController::class, 'get_contracts']);
 
@@ -506,15 +516,16 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_possible_members', [AssetController::class, 'get_possible_members']);
         Route::post('/create_asset', [AssetController::class, 'create_asset']);
         Route::get('/get_assets', [AssetController::class, 'get_assets']);       
+        Route::get('/admin_asset_list', [AssetController::class, 'admin_asset_list']);       
         Route::delete('/delete_asset', [AssetController::class, 'delete_asset']);
         Route::post('/asset_apply_request', [AssetController::class, 'asset_apply_request']);
+        Route::post('/asset_return_request', [AssetController::class, 'asset_return_request']);
         Route::get('/get_assets_history', [AssetController::class, 'get_assets_history']);
         Route::put('/asset_request_status', [AssetController::class, 'asset_request_status']);
         Route::get('/get_possible_offices', [AssetController::class, 'get_possible_offices']);
         Route::post('/asset_recieve_request', [AssetController::class, 'asset_recieve_request']);
         Route::post('/asset_move_request', [AssetController::class, 'asset_move_request']);
         Route::post('/asset_approve', [AssetController::class, 'asset_approve']);
-
-
-        Route::get('/updateMentorId', [MemberController::class, 'updateMentorId']);
+        Route::get('/get_asset_badge', [ProjectController::class, 'get_asset_badge']);
+        Route::get('/get_asset_recieve_requests', [RemindController::class, 'get_asset_recieve_requests']);
 });

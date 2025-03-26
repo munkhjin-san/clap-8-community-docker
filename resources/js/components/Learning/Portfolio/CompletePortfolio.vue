@@ -137,7 +137,7 @@
         if(result.valid && title_result.valid && valid){
             const answer = await confirm('ポートフォリオを完了にしますか。\n完了後は編集ができません。')
                                       
-            if(!answer) return
+            if(!answer.value) return
             await savePortfolio('next')
             setTimeout(() => {                    
                 processing.value = false
@@ -152,7 +152,7 @@
             answers: [{label: '戻る', value: true}]
         }
         const answer = await confirm('グループディスカッションを完了してください。', options)                       
-        if(answer){
+        if(answer.value){
             router.go(-1)
         }
     }

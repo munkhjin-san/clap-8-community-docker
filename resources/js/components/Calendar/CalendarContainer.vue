@@ -392,8 +392,8 @@ import MeetingSummary from './MeetingSummary.vue';
             answers: record.repetition_type > 0 ? answers : null
         }
         const answer = await confirm(question, options)
-        if(answer == false) return
-        const all_delete = answer == 'all'
+        if(answer.value === false) return
+        const all_delete = answer.value == 'all'
         try{
             await axios.post('/calendar_delete_record',{id:record.id, all_delete: all_delete})
             const date = moment([selectedYear.value, selectedMonth.value, 1]).format('YYYY-MM-DD')
@@ -438,7 +438,7 @@ import MeetingSummary from './MeetingSummary.vue';
                 ]
             }
             const answer = await confirm('繰り返しスケジュールのすべてのレコードが編集しますか。', options)
-            edit_all_record.value = answer
+            edit_all_record.value = answer.value
             editTarget.value = record
             createWindow.value = true
         }else{

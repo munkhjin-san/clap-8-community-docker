@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Imports\YearlyPlanImport;
+use App\Models\AssetRecord;
+use App\Models\AssetRequest;
 use App\Models\boardRecord;
 use App\Models\EvaluationRecord;
 use App\Models\ProjectCondition;
@@ -15,7 +18,6 @@ use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Validation\ValidationException;
-use DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
@@ -24,6 +26,9 @@ use App\Services\SharedService;
 use App\Imports\EvaluationImport;
 use Illuminate\Database\Eloquent\Collection;
 use Maatwebsite\Excel\Facades\Excel;
+use Google_Client;
+use Google_Service_Sheets;
+use Google\Service\Exception as GoogleServiceException;
 class ProjectController extends Controller
 {
     //
@@ -301,65 +306,29 @@ class ProjectController extends Controller
     public function create_project(Request $request) {
         $id = $request->id ?? null;
         $params = $request->params;
-        $active_user = $this->active_user();
-        $project = ProjectRecord::updateOrCreate(['id' => $id], $params);
-        $members = $request->member_ids;
-        $manager = $request->manager_ids;
+        $filteredParams = collect($params)->only([
+            'name',
+            'description',
+            'private_memo',
+            'mission',
+            'innovation',
+            'strategy_miso',
+            'operation',
+            'date_start',
+            'date_end',
+            'category',
+            'partners',
+            'customers'
+        ])->toArray();
+
+        $project = ProjectRecord::updateOrCreate(['id' => $id], $filteredParams);
+        $members = collect($params['members'])->pluck('id')->toArray();
+        $manager = collect($params['manager'])->pluck('id')->toArray();
         $project->members()->sync($members);
         $project->manager()->syncWithPivotValues($manager, ['authority' => 1]);
-        if($request->board_link){
-
-            
-            $board = boardRecord::updateOrCreate(['id' => $project->board_id], [
-                "title" => $params['name']
-            ]);
-            $project->update(['board_id' => $board->id]);
-          
-            
-
-
-            $board_members_id = $board->board_to_users()->pluck('user_id')->toArray();
-            if (isset($params['director_id'])) {
-                $manager[] = $params['director_id'];
-            }
-            $unite = array_merge($members, $manager);
-            $remove_members = array_diff($board_members_id, $unite);
-            $add_members = array_diff( $unite, $board_members_id);
-            
-            $unique_add_members = array_unique($add_members);
-
-            foreach($unique_add_members as $member) {
-                $this->boardController->groupAddMember(new Request([
-                    "record_id" => $board->id,
-                    "user_id" => $member,
-                    "from_project" => true
-                ]));
-            }
-
-
-            foreach($manager as $mg) {
-
-
-                $this->boardController->setAdminRole(new Request([
-                    'flag' => 1,
-                    "user_id" => $mg,
-                    "record_id" => $board->id,
-                    "from_project" => true
-
-                ]));
-            }
-            
-
-
-            foreach($remove_members as $remove_member){
-                $this->boardController->removeGroupMember(new Request([
-                    "user_id" => $remove_member,
-                    "record_id" => $board->id
-                ]));
-            }
-            $board->board_to_users()->where('admin_flag', 1)->whereNotIn('user_id', $manager)->delete();
-            // $createIcon = $this->sharedService->createBoardDefaultIcon($board, $active_user->id);
-
+        $tasks = $request->tasks ?? [];
+        if(count($tasks)) {
+            $this->create_generated_project_tasks($tasks, $project->id);
         }
         return response()->json($project);
     }
@@ -650,7 +619,112 @@ class ProjectController extends Controller
        
         return response()->json(['message' => 'Successfully deleted!']);
     }
+    private function members_of_project_managed_by_user($user){
+        $projects = ProjectRecord::whereHas('manager', fn($q) => $q->where('users.id', $user->id))
+        ->with('members:id')
+        ->get();
+        $s = $projects->map(fn($project) => [
+            "project_id" => $project->id,
+            "members" => $project->members->pluck('id')->toArray(),
+            "type" => "manager"
+        ])->toArray();
+        return $s;
+    }
+    private function projects_participate_by_user($user){
+        $projects = ProjectRecord::whereHas('members', fn($q) => $q->where('users.id', $user->id))
+        ->get();
+        $s = $projects->map(fn($project) => [
+            "project_id" => $project->id,
+            "members" => [$user->id],
+            "type" => "member"
+        ])->toArray();
+        return $s;
+    }
+    public function get_members_goals_badge(Request $request){
+        $user = $this->active_user();
+        $date = Carbon::now();
+        $managinProjectData = $this->members_of_project_managed_by_user($user);
+        $selfProjects = $this->projects_participate_by_user($user);
+        $projectData = array_merge($managinProjectData, $selfProjects);
+        if(empty($projectData)){
+            return response()->json([]);
+        }
+        $goals = $this->goals_fetch_by_users($projectData, $date);
 
+        return response()->json($goals);
+    }
+
+    public function get_managers_goals_badge(Request $request){
+        $projects = ProjectRecord::whereHas('manager')
+            ->with('manager:id')
+            ->get();
+        $projectsData = $projects->map(function($project) {
+            return [
+                "project_id" => $project->id,
+                "members" => $project->manager->pluck('id')->toArray(),
+                "type" => "manager"
+            ];
+        })->toArray();
+        if(empty($projectData)){
+            return response()->json([]);
+        }
+        $goals = $this->goals_fetch_by_users($projectsData, Carbon::now());
+
+        return response()->json($goals);
+    }
+    private function goals_fetch_by_users(array $projectData, Carbon $date){
+        $goals = ProjectGoal::where(function ($query) use ($projectData, $date) {
+            foreach($projectData as $project){
+                $query->orWhere(function ($subQuery) use ($project, $date) {
+                    $subQuery->where('project_id', $project['project_id'])->whereIn('user_id', $project['members'])
+                    ->when($project['type'] == 'manager', function ($q) use($date) {
+                        $q->whereNotIn('user_id', [Auth::id()])->whereIn('status', [2, 7]);
+                    })
+                    ->when($project['type'] == 'member', function ($q) {
+                        $q->whereIn('status', [1, 8]);
+                    });
+                });
+            }
+        })->select('id', 'project_id', 'user_id', 'year', 'which_half', 'status')->get();
+        return $goals;
+    }
+    public function get_salary_issue_badge(Request $request){
+        $user = $this->active_user();
+        $date = Carbon::now();
+        $year = $date->year;
+        $years = [ $year - 1, $year, $year +1];
+        $mentee_id = EvaluationRecord::where('mentor_id', $user->id)
+            ->whereIn('year', $years)
+            ->pluck('user_id')
+            ->toArray();
+        $salary_issues = SalaryIssue::whereHas('project_goal', function ($q) use($years) {
+                $q->whereIn('year', $years);
+            })->whereHas('project_goal')
+            ->where(function ($query) use ($mentee_id) {
+                $query->where(function ($query) use ($mentee_id){
+                    $query->whereIn('status', [2, 7])->whereIn('user_id', $mentee_id);
+                })->orWhere(function($query){
+                    $query->whereIn('status', [1, 8])->where('user_id', Auth::id());
+                });
+            })            
+            ->with('project_goal')
+            ->get();
+        
+        $data = [];
+        foreach($salary_issues as $issue) {
+            $data[] = [
+                'issue_id' => $issue->id,
+                'goal_id' => $issue->project_goal->id,
+                'project_id' => $issue->project_goal->project_id,
+                'user_id' => $issue->user_id,
+                'year' => $issue->project_goal->year,
+                'which_half' => $issue->project_goal->which_half,
+                'status' => $issue->status,
+            ];
+        }           
+
+        return response()->json($data);
+    }
     public function get_project_badge() {
         $user = $this->active_user();
         $date = Carbon::now();
@@ -665,6 +739,8 @@ class ProjectController extends Controller
         }
         
         $task_counts = $this->project_task_badge($user);
+        $asset_badge = $this->asset_badge($user);
+
         $by_projects = $task_counts->groupBy('id')->mapWithKeys(function ($group, $key) {
             return [$key => $group->sum(fn($task) => $task->tasks->count() ?? 0)];
         })->toArray();
@@ -685,15 +761,27 @@ class ProjectController extends Controller
 
         $data = array_merge(
             [
-            'by_projects' => $by_projects,
-            'grouped_task_badge' => $grouped_task_badge
+                'by_projects' => $by_projects,
+                'grouped_task_badge' => $grouped_task_badge,
+                'asset_badge' => $asset_badge,
             ],
-            $response
+            $response,
+            
         );
         
        
         
         return response()->json($data);
+    }
+    private function asset_badge($user){
+        $managing_projects = ProjectRecord::whereHas('manager', fn($q) => $q->where('users.id', $user->id))->pluck('id')->toArray();
+        $asset_requests = AssetRequest::where(function($q) use($managing_projects, $user) {
+            $q->whereIn('from_project', $managing_projects)->where('status', 1);
+
+        })
+        ->where('status', 1)
+        ->get();
+        return $asset_requests;
     }
     private function getMemberBadges($user, $date)
     {
@@ -970,22 +1058,17 @@ class ProjectController extends Controller
             $increase->checklist()->update(['evaluation_record_id' => $evaluation->id]);
         }
     }
-    public function create_project_tasks(Request $request) {
-        $request->validate([
-            'project_id' => 'required',
-            'tasks' => 'required|array',
-        ]);
+    public function create_generated_project_tasks(array $tasks, int $project_id) {
 
-        $project = ProjectRecord::with('manager')->findOrFail($request->project_id);
+        $project = ProjectRecord::with('manager')->findOrFail($project_id);
         $managerIds = $project->manager->pluck('id')->toArray();
-        $tasks = $request->tasks;
         $active_user = $this->active_user();
         $taskRecords = [];
         foreach ($tasks as $task) {
             $taskRecord = taskRecord::create([
                 'remarks' => $task['remarks'],
-                'start_at' => Carbon::now()->format('Y-m-d'),
-                'end_at' => Carbon::now()->addDays($task['duration'])->format('Y-m-d'),
+                'start_at' => $task['start_at'],
+                'end_at' =>  $task['end_at'],
                 'project_record_id' => $project->id,
                 'user_id' => $active_user->id,
                 'updated_user' => $active_user->id
@@ -994,8 +1077,8 @@ class ProjectController extends Controller
             foreach($task['sub_tasks'] as $sub_task) {
                 $subTask = taskRecord::create([
                     'remarks' => $sub_task['remarks'],
-                    'start_at' => Carbon::now()->format('Y-m-d'),
-                    'end_at' => Carbon::now()->addDays($sub_task['duration'])->format('Y-m-d'),
+                    'start_at' => $sub_task['start_at'],
+                    'end_at' => $sub_task['end_at'],
                     'project_record_id' => $project->id,
                     'user_id' => $active_user->id,
                     'updated_user' => $active_user->id,
@@ -1016,7 +1099,7 @@ class ProjectController extends Controller
 
         $queryParams = [
             'app' => '1181',
-            "query" => "部門 like \"{$project_name}\""
+            "query" => "部門 = \"{$project_name}\""
         ];
         
         $queryString = http_build_query($queryParams);
@@ -1032,14 +1115,9 @@ class ProjectController extends Controller
             '作業詳細'               => '作業詳細',
             '持ち出し備品利用ツール' => '持ち出し備品利用ツール',
             '対応者・対応部署'       => '対応者対応部署',
-            '危険源の洗い出し'       => '危険源の洗い出し',
+            'リスク'       => 'リスク',
             'リスク対策'             => 'リスク対策',
-            '関連法令'               => '関連法令',
             '期日'                   => '期日',
-            'リスクレベル'           => 'リスクレベル',
-            '損害レベル'             => '損害レベル',
-            '評価'                   => '評価',
-            '懲罰区分'               => '懲罰区分',
 
         ];
         
@@ -1053,7 +1131,7 @@ class ProjectController extends Controller
                 foreach ($fields as $key => $path) {
                     $value = $item['value'][$path]['value'] ?? '';
                     // if ($value !== '') {
-                        $rule['job'][$key] = $value;
+                        $rule['job'][$path] = $value;
                     // }
                 }
                 return $rule;
@@ -1098,18 +1176,18 @@ class ProjectController extends Controller
         $risks = $responseData['record']['テーブル1']['value'] ?? [];
         $exists = [];
         foreach($risks as $risk){
-            $prev_risk = $risk['value']['危険源の洗い出し']['value'];
+            $prev_risk = $risk['value']['リスク']['value'];
             $prev_management = $risk['value']['リスク対策']['value'];
             
             $updated_value = $rules->where('id', $risk['id'])->first();
             if($updated_value){
-                $prev_risk = $updated_value['job']['危険源の洗い出し'] ;
+                $prev_risk = $updated_value['job']['リスク'] ;
                 $prev_management = $updated_value['job']['リスク対策'];
             }
             $prep = [
                 "id" => $risk['id'],
                 "value" => [
-                    "危険源の洗い出し" => [
+                    "リスク" => [
                         "value" => $prev_risk
                     ],
                     "リスク対策" => [
@@ -1300,7 +1378,7 @@ class ProjectController extends Controller
 
         $queryParams = [
             
-            "query" => "部門 like \"{$project_name}\"",
+            "query" => "部門 = \"{$project_name}\"",
         ];
         
         $contractValues = $this->contract_fetch($queryParams);       
@@ -1404,4 +1482,278 @@ class ProjectController extends Controller
         ];
         return $headers;
     }
+
+    public function get_yearly_plan(Request $request){
+        $request->validate([
+            'project_id' => 'required',
+            'year' => 'required',
+        ]);
+        
+        $project = ProjectRecord::findOrFail($request->project_id);
+
+        $year = $request->year;
+        $month = $request->month;
+        $project_name = $project->name;
+
+        $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
+        $file_exists = file_exists($file_path);
+        if(!$file_exists){
+            return response()->json([]);   
+        }
+        $file = Excel::toCollection(new YearlyPlanImport, $file_path);
+        $data = $file[0];
+        $data->shift()->toArray();
+        $month_headers = $data->shift()->toArray();
+        $month_headers = array_filter($month_headers, function($header) use ($year, $month){
+            return $header == "{$year}年{$month}月";
+        });
+
+        $sub_headers = $data->shift()->toArray();
+        $target_header_keys = array_keys($month_headers);
+        $sub_headers_for_target_month = array_filter($sub_headers, function ($key) use($target_header_keys) {
+            return in_array($key, $target_header_keys);
+        }, ARRAY_FILTER_USE_KEY);
+        $plan_sales_index_1 = array_search('合計 売上高', $sub_headers_for_target_month);
+        $plan_sales_index_2 = array_search('合計 内部売上高合計', $sub_headers_for_target_month);
+        $plan_expense_index_1 = array_search('合計 給料手当', $sub_headers_for_target_month);
+        $plan_expense_index_2 = array_search('合計 外注費', $sub_headers_for_target_month);
+        $plan_expense_index_3 = array_search('合計 販管費その他', $sub_headers_for_target_month);
+        $plan_expense_index_4 = array_search('合計 間接費配賦', $sub_headers_for_target_month);
+
+        $profit_index = array_search('利益', $sub_headers_for_target_month);
+        $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
+        
+        $projectsData = $data->filter(function ($row) use ($project_name) {
+            return $row[1] === $project_name; 
+        });
+
+        $allPlanData = [];
+        
+        foreach($projectsData as $project){
+            $planData = [];
+            $totalSales = (int) $project[$plan_sales_index_1] + (int) $project[$plan_sales_index_2];
+            $totalExpense = (int) $project[$plan_expense_index_1] + (int) $project[$plan_expense_index_2] + (int) $project[$plan_expense_index_3] + (int) $project[$plan_expense_index_4];
+            $planData = [
+                "sales" => $totalSales,
+                "expense" => $totalExpense,
+                "profit" => (int) $project[$profit_index],
+                "profit_rate" => (int) $project[$profit_rate_index],
+            ];
+            $allPlanData[] = $planData;
+        } 
+
+        return response()->json($allPlanData);
+
+    }
+    public function get_profit(Request $request){
+        $request->validate([
+            'project_id' => 'required',
+            'year' => 'required',
+        ]);
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $year = $request->year;
+        $month = $request->month;
+        $project_name = $project->name;
+        $dateInstance = Carbon::createFromDate($year, $month, 1);
+        $endOfMonth = $dateInstance->endOfMonth()->toDateString();
+
+        $queryParamsSpecs = [
+            'app' => 1068,
+            "query" => "部門 = \"{$project_name}\" and 日付 = \"{$endOfMonth}\"",
+        ];
+        $queryStringSpecs = http_build_query($queryParamsSpecs);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
+        $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $profitsData = $profits->json();
+        $profitRecords = $profitsData['records'] ?? [];
+
+        $profitResponse = [];
+        foreach($profitRecords as $profit){
+
+            $totalSales = (int) $profit['売上高合計']['value'] ?? 0 + (int) $profit['内部売上高合計']['value'] ?? 0;
+            $totalExpense = (int) $profit['販売管理費合計']['value'] ?? 0 + (int) $profit['間接費配賦']['value'] ?? 0;
+            $profitData = [
+
+                "sales" => $totalSales,
+                "expense" => $totalExpense,
+                "profit" => (int) $profit['利益']['value'] ?? 0,
+                "profit_rate" => (int) $profit['利益率']['value'] ?? 0,
+            ];
+            $profitResponse[] = $profitData;
+        }
+        return response()->json($profitResponse);
+    }
+    public function get_settlement(Request $request){
+        $request->validate([
+            'project_id' => 'required',
+            'year' => 'required',
+        ]);
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $year = $request->year;
+        $month = $request->month;
+        $tabName = sprintf('%04d%02d', $year, $month);
+        $project_name = $project->name;
+     
+        $client = new Google_Client();
+        $client->setApplicationName('Google Sheets API');
+        $client->setScopes([Google_Service_Sheets::SPREADSHEETS_READONLY]);
+        $client->setAuthConfig(storage_path('app/spread_json_key/gen-lang-client-0333646800-e777adab076d.json')); // Path to your Service Account credentials file
+        $client->setAccessType('offline');
+        $service = new Google_Service_Sheets($client);
+        try {
+            $response = $service->spreadsheets_values->get('1HTacPGjBDtg3KAK0hToBeJW__fqCp9iH01a38Ihjet8', $tabName);
+        } catch (GoogleServiceException $e) {
+            // return response()->json([
+            //     'error' => true,
+            //     'message' => '実績データ見つかりません<br>' . $e->getErrors()[0]['message'],
+            // ], $e->getCode() ?: 500);
+            return response()->json([]);
+        }
+        $settlements = $response->getValues();
+        $settlement_headers = $settlements[1];
+        $settlement_data = array_slice($settlements, 2);
+
+        $settlement_sales_index = array_search('収入', $settlement_headers);
+        $settlement_expense_index = array_search('支出', $settlement_headers);
+        $settlement_additional_expense_index = array_search('間接費配賦', $settlement_headers);
+        $settlement_profit_index = array_search('利益', $settlement_headers);
+        $settlement_profit_rate_index = array_search('利益率', $settlement_headers);
+        $settlement_for_project = array_filter($settlement_data, function($settlement) use ($project_name){
+            return $settlement[1] == $project_name;
+        });
+        
+        $settlementResponse = [];
+
+        foreach($settlement_for_project as $settlement){
+            $totalExpense = (float) str_replace(',', '', $settlement[$settlement_expense_index]) + (float) str_replace(',', '', $settlement[$settlement_additional_expense_index]);
+            $settlementData = [
+                'sales' => (float) str_replace(',', '', $settlement[$settlement_sales_index]),
+                'expense' => $totalExpense ?? 0,
+                'profit' => (float) str_replace(',', '', $settlement[$settlement_profit_index]),
+                'profit_rate' => (float) str_replace('%', '', $settlement[$settlement_profit_rate_index]),
+            ];
+            $settlementResponse[] = $settlementData;
+        }
+        return response()->json($settlementResponse);
+    }
+    public function get_asset_badge(Request $request){
+        $active_user = $this->active_user();
+        $projects = $this->members_of_project_managed_by_user($active_user);
+        if(empty($projects) && $active_user->id != 610 && $active_user->id != 608){
+            return response()->json([]);
+        }
+        $project_ids = array_map(function($project){
+            return $project['project_id'];
+        }, $projects);
+
+        $target_assets = AssetRecord::where(function ($query) use ($active_user, $project_ids) {
+            $query->whereHas('requests', function ($query) use ($active_user, $project_ids) {
+                $query->where('status', 1)
+                ->where(function($query) use ($project_ids){
+                    $query->whereIn('from_project', $project_ids)
+                    ->whereHas('steps', function($query){
+                        $query->where('value', 1)->whereNull('approved_by');
+                    });
+                })->orWhere(function($query) use ($project_ids){
+                    $query->whereIn('to_project', $project_ids)
+                    ->whereHas('steps', function($query){
+                        $query->where('value', 3)->whereNull('approved_by');
+                    });
+                })->orWhere(function($query) use ($active_user){
+                    $query->when($active_user->id == 610 || $active_user->id == 608, function($query){
+                        $query->whereHas('steps', function($query){
+                            $query->where('value', 4)->whereNull('approved_by');
+                        });
+                    });
+                });
+            });
+        })
+        // ->orWhere(function($query) use ($active_user, $project_ids){
+        //     $query->whereHas('requests', function ($query) use ($active_user) {
+        //         $query->where('status', 1);
+        //     });
+        // })
+        ->with('requests')->get();
+        return response()->json($target_assets);
+    }
+    public function get_partners_tags(Request $request){
+        $partnersQuery = [
+            'app' => 118,
+            'fields' => ['会社名', '$id']
+        ];
+        $keyword = $request->key;
+        $super = $request->super;
+        if($keyword){
+            $partnersQuery['query'] = "会社名 like \"{$keyword}%\"";
+        }
+        if($super){
+            $partnersQuery['query'] = "order by \$id desc limit 10";
+        }
+        $queryStringPartners = http_build_query($partnersQuery);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringPartners";
+        $partnersResponse = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $partnersData = $partnersResponse->json();
+        $partnersRecords = $partnersData['records'] ?? [];
+        $data = array_map(fn($record) => $record['会社名']['value'] ?? '', $partnersRecords);
+        if($keyword){
+            if(!in_array($keyword, $data)){
+                array_unshift($data, $keyword);
+            }
+        }
+        
+        return response()->json($data);
+
+    }
+    public function get_task_comment_badge(Request $request){
+        $user = $this->active_user();
+
+        $badge_counts = taskRecord::whereHas('taskUsers', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->whereHas('taskRecord.comments', function ($q) use($user) {
+                        $q->whereColumn('task_comments.created_at', '>', 'task_users.checked_at')->whereNot('task_comments.user_id', $user->id);
+                    });
+            })->with(['comments' => function ($query) use ($user) {
+                $query->where('user_id', '!=', $user->id);
+            }])->get();
+
+        $data = $badge_counts->map(function($task) use($user){
+            $comments = $task->comments;
+            $task_user = $task->taskUsers->where('user_id', $user->id)->first();
+            $comments = $comments->filter(function($comment) use($user, $task_user){
+                return $comment->user_id != $user->id && $comment->created_at > $task_user->checked_at;
+            });
+            return [
+                'task_id' => $task->id,
+                'comments' => count($comments),
+                'project_id' => $task->project_record_id
+            ];
+        });
+        return response()->json($data);
+    }
+    public function get_dispatch_data(Request $request){
+        $request->validate([
+            'project_id' => 'required',
+        ]);
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $project_name = $project->name;
+
+        $queryParamsDispatch = [
+            'app' => 262,
+            "query" => "部門 = \"{$project_name}\"",
+        ];
+        $queryStringDispatch = http_build_query($queryParamsDispatch);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringDispatch";
+        $response = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $responseData = $response->json();
+        $dispatchRecords = $responseData['records'] ?? [];
+        $dispatchClean = array_map(function ($record) {
+            $spec = [];
+            foreach ($record as $key => $value) {
+                $spec[$key] = $value['value'] ?? '';
+            }
+            return $spec;
+        }, $dispatchRecords);
+        return response()->json($dispatchClean);
+    }
+
 } 

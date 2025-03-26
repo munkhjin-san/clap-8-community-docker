@@ -1,0 +1,5 @@
+[
+    { "value": 1, "label": "資産" },
+    { "value": 2, "label": "消耗品" },
+    { "value": 3, "label": "重要資産" }
+]

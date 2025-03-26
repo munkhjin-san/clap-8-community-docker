@@ -256,7 +256,7 @@ import Back from '../Icons/Back.vue';
     
     const deleteRecordConfirm = async(record) => {
         const answer = await confirm(`${appNameJp.value}を削除しますか。`)
-        if(!answer) return
+        if(!answer.value) return
         postDelete(record)
     }
     const postDelete = (record) => {

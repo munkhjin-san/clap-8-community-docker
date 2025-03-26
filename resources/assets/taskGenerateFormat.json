@@ -1,0 +1,89 @@
+{
+    "type": "object",
+    "required": [
+        "tasks"
+    ],
+    "properties": {
+        "tasks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": [
+                    "id",
+                    "remarks",
+                    "duration",
+                    "sub_tasks",
+                    "start_at",
+                    "end_at"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "description": "Generated unique identifier for the task. e.g main_1, main_2"
+                    },
+                    "remarks": {
+                        "type": "string",
+                        "description": "Content of the task."
+                    },
+                    "duration": {
+                        "type": "integer",
+                        "description": "Duration of the task in days."
+                    },
+                    "start_at": {
+                        "type": "string",
+                        "description": "Start date of Task"
+                    },
+                    "end_at": {
+                        "type": "string",
+                        "description": "End date of Task"
+                    },
+                    "sub_tasks": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "id",
+                                "remarks",
+                                "duration",
+                                "start_at",
+                                "end_at",
+                                "parent_task_id"
+                            ],
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "description": "Generated unique identifier for the subtask. e.g sub_1_1, sub_1_2"
+                                },
+                                "remarks": {
+                                    "type": "string",
+                                    "description": "Content of the task."
+                                },
+                                "duration": {
+                                    "type": "integer",
+                                    "description": "Duration of the task in days."
+                                },
+                                "start_at": {
+                                    "type": "string",
+                                    "description": "Start date of Task"
+                                },
+                                "end_at": {
+                                    "type": "string",
+                                    "description": "End date of Task"
+                                },
+                                "parent_task_id": {
+                                    "type": "integer",
+                                    "description": "Id of the parent task"
+                                }
+                            },
+                            "additionalProperties": false
+                        },
+                        "description": "List of subtasks for the main task."
+                    }
+                },
+                "additionalProperties": false
+            },
+            "description": "Main tasks with their respective subtasks."
+        }
+    },
+    "additionalProperties": false
+}

@@ -89,7 +89,7 @@ import { useResponsive } from '@/store/responsive';
         if(!signaturePad.value.isEmpty()){
             const signImage = signaturePad.value.toDataURL();
             const answer = await confirm('このサインをマイサインとして保存しますか? \n保存するとマイサインを何度でも使用することができます。')
-            if(!answer) return            
+            if(!answer.value) return            
             
             try{
                 await axios.post('/save_user_signature', {sign: signImage})

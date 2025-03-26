@@ -5,15 +5,15 @@
             <Hamburger v-if="responsive.mobile"/>
             <div v-if="[608, 610].includes(auth.activeUser.id) || auth.activeUser.position_id <= 6" class="admin-tab-container">
                 <div class="pc" style="font-size: 16px;margin: 20px 0px 0px 15px;padding-bottom: 10px;"></div>
-                <div v-if="[608, 610].includes(auth.activeUser.id)">
+                <div v-if="[608, 610].includes(auth.activeUser.id)" class="admin-tab-container">
                     <div class="admin-tab-item" @click="router.push({name: 'account'})" :class="{'selected-tab' : route.name == 'account' }">アカウント</div>
                     <div class="admin-tab-item" @click="router.push({name: 'attendance'})" :class="{'selected-tab' : route.path.includes('workcontrol')}">タイムシート</div>
                     <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div>
                     <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修</div>
                     <div class="admin-tab-item" @click="router.push({name: 'projectlist'})" :class="{'selected-tab' : route.path.includes('projectcontrol')}">プロジェクト</div>
                     <div class="admin-tab-item" @click="router.push({name: 'glowdnine'})" :class="{'selected-tab' : route.name == 'glowdnine'}">グラウドナイン</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'asset-control'})" :class="{'selected-tab' : route.name == 'asset-control'}">物品</div>
                     <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
-                    <div class="admin-tab-item" @click="router.push({name: 'asset-control'})" :class="{'selected-tab' : route.name == 'asset-control'}">物品管理</div>
                 </div>
                 <div v-else class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
             </div>

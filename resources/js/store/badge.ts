@@ -6,8 +6,12 @@ interface State {
     post: number
     task: number[]
     notice: number
-    project: any,
     remind: any,
+    members_goals: any[]
+    managers_goals: any[]
+    salary_issue: any[]
+    asset: []
+    task_comment: {project_id: number, task_id: number, comments: number}[]
 }
 
 export const useBadgeStore = defineStore('badge', {
@@ -16,8 +20,12 @@ export const useBadgeStore = defineStore('badge', {
         post: 0,
         task: [],
         notice: 0,
-        project: [],
-        remind: {}
+        remind: {},
+        members_goals: [],
+        managers_goals: [],
+        salary_issue: [],
+        asset: [],
+        task_comment: []
     }),
     actions: {
         setTaskBadge(payload: number[]){
@@ -53,13 +61,29 @@ export const useBadgeStore = defineStore('badge', {
             const data = await axios.get('/task_badge').then(response => response.data)       
             this.task = data    
         },
-        async getProjectBadge(){
-            const data = await axios.get('/project_badge').then(response => response.data)
-            this.project = data
-        },
         async getRemindBadge() {
             const data = await axios.get('/get_remind_badge').then(response => response.data)
             this.remind = data
+        },
+        async getMembersGoalsBadge(){
+            const data = await axios.get('/get_members_goals_badge').then(response => response.data)
+            this.members_goals = data
+        },
+        async getManagersGoalsBadge(){
+            const data = await axios.get('/get_managers_goals_badge').then(response => response.data)
+            this.managers_goals = data
+        },
+        async getSalaryIssueBadge(){
+            const data = await axios.get('/get_salary_issue_badge').then(response => response.data)
+            this.salary_issue = data
+        },
+        async getAssetBadge(){
+            const data = await axios.get('/get_asset_badge').then(response => response.data)
+            this.asset = data
+        },
+        async getTaskCommentBadge(){
+            const data = await axios.get('/get_task_comment_badge').then(response => response.data)
+            this.task_comment = data
         }
     },
     getters: {
@@ -100,7 +124,7 @@ export const useBadgeStore = defineStore('badge', {
                 return value
             }
         },
-        sumOfAll ()  {
+        sumOfAll(){
             const auth = useAuthUserStore()
             let sum = 0            
             this.board.forEach((p: { list: { [x: string]: number; }; }) => {                
@@ -108,11 +132,58 @@ export const useBadgeStore = defineStore('badge', {
                     sum = sum + p.list[i];
                 }
             });
-            const projectBadge = this.project.total_sum;
+            const projectBadge = this.projectTotal;
             const remindBadge = this.remind.total
             const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : this.post; 
             sum = sum + postBadge + projectBadge + remindBadge
             return sum
+        },
+        goalsBadge(){
+            return [...this.managers_goals, ...this.members_goals]
+        },
+        salaryIssueBadge(){
+            return this.salary_issue
+        },
+
+        goalsBadgeByFilter(state){
+            return (filterData: {by: string, value: any}[]) => {
+                const userGoals = [...state.managers_goals, ...state.members_goals]
+                return userGoals.filter((goal) => {
+                    return filterData.every((filter) => goal[filter.by] === filter.value)
+                })
+            }
+        },
+        salaryIssueByFilter(state){
+            return (filterData: {by: string, value: any}[]) => {
+                const userIssues = state.salary_issue
+                return userIssues.filter((issue) => {
+                    return filterData.every((filter) => issue[filter.by] === filter.value)
+                })
+            }
+        },
+        taskCommentBadgeByFilter(state){
+            return (filterData: {by: string, value: any}[]) => {
+                const userComments = state.task_comment
+                return userComments.filter((comment) => {
+                    return filterData.every((filter) => comment[filter.by] === filter.value)
+                })
+            }
+        },
+        goalAndSalaryTotal(state){
+            return state.managers_goals.length + state.members_goals.length + state.salary_issue.length
+        },
+        projectTotal(state){
+            return this.goalAndSalaryTotal + state.asset.length + state.task_comment.length
+        },
+        assetsBadgeByFilter(state){
+            return (filterData: {by: string, value: any}[]) => {
+                const userAssets = state.asset
+                return userAssets.filter((asset) => {
+                    return filterData.every((filter) => asset[filter.by] === filter.value)
+                })
+            }
         }
+
+        
     }
 })

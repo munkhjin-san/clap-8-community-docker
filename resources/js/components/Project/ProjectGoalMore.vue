@@ -4,8 +4,12 @@
             <div class="recordFormTitle" style="display:flex;"> 
                 <div class="admin-command-bar">            
                     <div class="sub-tab-container">
-                        <div @click="sub_tab = 0" :class="['sub-tab-item', { 'selected-sub-tab': sub_tab == 0 }]">成果目標</div>
-                        <div @click="sub_tab = 1" :class="['sub-tab-item', { 'selected-sub-tab': sub_tab == 1 }]">昇給課題</div>
+                        <div @click="sub_tab = 0" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 0 }]">成果目標
+                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length }}</span>
+                        </div>
+                        <div @click="sub_tab = 1" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 1 }]">昇給課題
+                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length }}</span>
+                        </div>
                     </div>       
                 </div>
                 <div class="cursor-pointer" @click="router.back()" style="position:unset; margin:auto 0 auto auto">
@@ -291,7 +295,7 @@ const approveOutComeGoal = async(status: number) => {
             break
     }
     const answer = await confirm(content)
-    if(!answer) return
+    if(!answer.value) return
     try {
         await axios.put('/approve_outcome_goal', {id: props.goal.id, status: status})
         if (typeof refresh === 'function') {
@@ -299,7 +303,10 @@ const approveOutComeGoal = async(status: number) => {
         }
         emit('close')
         info(info_message)
-        badge.getProjectBadge()
+        badge.getMembersGoalsBadge()
+        if(auth.user && auth.user?.position_id && auth.user?.position_id < 6){
+            badge.getManagersGoalsBadge()
+        }
         if (auth.id === 631) {
             badge.getRemindBadge()
             refreshRemind('not_approved_projects')
@@ -333,7 +340,7 @@ const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
     }
     if(!issue) return
     const answer = await confirm(content)
-    if(!answer) return
+    if(!answer.value) return
     try {
         await axios.put('/approve_salary_issue', { id: issue.id, status: status})
         if (typeof refresh === 'function') {
@@ -341,7 +348,7 @@ const approveSalaryIssue = async(issue: SalaryIssue, status: number) => {
         }
         emit('close')
         info(info_message)
-        badge.getProjectBadge()
+        badge.getSalaryIssueBadge()
         if (auth.id === 631) {
             badge.getRemindBadge()
             refreshRemind('not_approved_projects')
@@ -379,7 +386,7 @@ const editIssue = (issue: SalaryIssue) => {
 }
 const deleteIssue = async(issue: SalaryIssue) => {
     const answer = await confirm('昇給課題を削除します。よろしいですか？')
-    if(!answer) return
+    if(!answer.value) return
     try {
         axios.delete(`/delete_issue?id=${issue.id}`)
         if (typeof refresh === 'function') {

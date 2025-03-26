@@ -183,7 +183,7 @@ ${guide}
             answers: [{label: 'OK', value:true}]
         }
         const answer = await confirm(`サポート用の<a href="/board/${chatId}" target="_blank">ボード</a>が作成されました。<br>研修サポート担当からからの連絡をお待ちください。`, options)
-        if(answer){
+        if(answer.value){
             router.push({name: 'basic'})  
 
         }

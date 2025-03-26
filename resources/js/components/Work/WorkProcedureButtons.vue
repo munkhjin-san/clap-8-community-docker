@@ -115,7 +115,7 @@
     const respondOvertime = async(data, status, action) => {
         if(status == 0){
             const answer = await confirm(`${data?.overtime_day}申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。`)
-            if(!answer) return
+            if(!answer.value) return
         }
         const params = {
             id: data.id,      

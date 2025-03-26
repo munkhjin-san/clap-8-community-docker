@@ -363,13 +363,13 @@
         return new Promise(async(resolve) => {
             const overtime = shift.value.overtime_request.minutes + props.item?.work_time_day
             if(diffInMinutes.value > overtime){
-                resolve(await confirm(`申請した残業時間を超過しています。<strong>${diffInMinutes.value - props.item?.work_time_day}分</strong>で申請しますか`))
+                resolve(await confirm(`申請した残業時間を超過しています。<strong>${diffInMinutes.value - props.item?.work_time_day}分</strong>で申請しますか`).value)
                 
             }else if(diffInMinutes.value < overtime){
                 const workedOverTime = shift.value?.overtime_request.minutes - (overtime - diffInMinutes.value)
-                resolve(await confirm(`時間外は<strong>${workedOverTime < 0 ? 0 : workedOverTime}分</strong>になります。よろしいですか。`))               
+                resolve(await confirm(`時間外は<strong>${workedOverTime < 0 ? 0 : workedOverTime}分</strong>になります。よろしいですか。`).value)               
             } else {
-                resolve(await confirm('日報を申請します。申請後は修正できません。よろしいですか。'))
+                resolve(await confirm('日報を申請します。申請後は修正できません。よろしいですか。').value)
             }
         })
     }
@@ -398,11 +398,11 @@
         if(!validate) return
         if(shift.value?.overtime_request){
             const confirm = await confirmOvertime()
-            if(!confirm) return            
+            if(!confirm.value) return            
         } else if(status_flag === 1){
             await fifteenMinuteCalc()
             const answer = await confirm('日報を申請します。申請後は修正できません。よろしいですか。')
-            if(!answer) return
+            if(!answer.value) return
         }
         loading.value[status_flag] = true
         const params = await buildParams(status_flag)

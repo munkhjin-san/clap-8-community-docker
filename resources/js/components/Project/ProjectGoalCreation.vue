@@ -18,7 +18,7 @@
             </div>
             <div class="si-box">
                 <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">AI アドバイス</p>
-                <div class="leading-normal whitespace-break-spaces" v-html="aiAdvice"></div> 
+                <div class="leading-normal whitespace-break-spaces text-[13px]" v-html="aiAdvice"></div> 
             </div>
             <div class="si-box" style="margin-bottom: 10px;">
                 目標設定フォーム
@@ -94,9 +94,9 @@
             </div>
             
             <div style="background: var(--bg3);padding: 20px;margin-top: 30px;">
-                <div style="font-weight: 600;margin-bottom: 20px">AI判定とフィードバック</div>
+                <div class="mb-[15px]">AI判定とフィードバック</div>
 
-                <div style="margin-bottom: 20px" v-html="content_review"></div> 
+                <div class="mb-[20px] text-[13px] whitespace-break-spaces leading-normal" v-html="content_review"></div> 
                 <LoaderButton style="margin: 0" @triggered="getReview" :loading="reviewLoading" :content="'AI判定とフィードバック'"/>                               
             </div>
             <div class="si-box" v-if="content_review" style="justify-content: center;display: flex;gap:15px;flex-wrap: wrap;">
@@ -262,7 +262,7 @@ const saveOutcomeGoal = async(status: number) => {
     if(status == 2) {
         const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
         info_message = '申請しました。'
-        if(!answer) return
+        if(!answer.value) return
     }
     const span = route.params.span as string
     const [year, which_half] = span.split('-')
@@ -296,7 +296,7 @@ const saveOutcomeGoal = async(status: number) => {
         refresh()
         getProjects()
         info(info_message)
-        badge.getProjectBadge()
+        badge.getMembersGoalsBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

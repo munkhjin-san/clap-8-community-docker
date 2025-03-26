@@ -1,205 +1,210 @@
 <template>
     <div class="admin-window">
-        <div class="admin-sub-c-bar">
-            <PostSearchBar 
-                custom-place-holder="物品検索"
-                className="newChatMemberSearch" 
-                style="width:auto;min-width: 300px;"
-                @search-start="(word) => {keywords = word}"
-            />
-        </div>
-        <FloatButton @action="openModal = true" type="plus"/> 
-        <AssetCreate 
-            v-if="openModal" 
-            @close="openModal = false, editData = null"
-            :statuses="statuses"
-            :classifications="classifications"
-            :edit-data="editData"
-            :all-members="allMembers"
-            :all-projects="allProjects"
-            @getAssets="getAssets"
-        />
-        <div>
-            <table class="admin-asset-table">
-                <thead style="background:#363636;color:#fff;position:sticky; top:0px;">
-                    <tr style="border:1px solid rgb(102, 102, 102);">
-                        <td class="admin-asset-data">GL番号</td>
-                        <td class="admin-asset-data">品名</td>
-                        <td class="admin-asset-data">型番</td>
-                        <td class="admin-asset-data">使用プロジェクト</td>
-                        <td class="admin-asset-data">使用者</td>
-                        <td class="admin-asset-data">分類</td>
-                        <td class="admin-asset-data">価値</td>
-                        <td class="admin-asset-data">ステータス</td>
-                        <td class="admin-asset-data">アクション</td>
-                    </tr>
+        <div class="h-full w-full">
+            <div class="min-h-[80px]">
+
+            </div>
+            <div class="w-full h-[calc(100%-80px)] overflow-auto">            
+                <table class="asset-table">
+                    <thead style="background:#363636;color:#fff;position:sticky; top:0px;z-index: 1;">
+                        <tr style="border:1px solid rgb(102, 102, 102);">
+                            <td>GL番号</td>
+                            <td>品名</td>
+                            <td>型番</td>
+                            <td>使用プロジェクト</td>
+                            <td>使用者</td>
+                            <td>分類</td>
+                            <td>価値</td>
+                            <td>物品ステータス</td>
+                            <td>詳細</td>
+                        </tr>
+                    </thead>
+                    <tbody v-if="assetsData && assetsData.data">
+                        <template v-for="asset in assetsData.data">
+                            <tr>
+                                <td>{{ `GL${padNumber(asset.id)}` }}</td>
+                                <td class="max-w-[150px] overflow-hidden text-ellipsis">{{ asset.item_name }}</td>
+                                <td class="max-w-[150px] overflow-hidden text-ellipsis">{{ asset.model_number }}</td>
+                                <td>
+                                    <div class="leading-normal" v-if="asset.current_project">
+                                        <p>{{ asset.current_project.name }}</p>
+                                    </div>                            
+                                </td>
+                                <td>
+                                    <div v-if="asset.current_user">
+                                        <div class="leading-normal">
+                                            <p>{{ asset.current_user.name }}</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ AssetClass.find(ob => ob.value === asset.classification)?.label }}</td>
+                                <td>{{ asset.value }}</td>
+                                <td>{{ asset.requests.length ? '移動中' : AssetStatus.find(ob => ob.value === asset.status)?.label }}</td>
                     
-                </thead>
-                <tbody>
-                    <tr v-for="(item, index) in searchAssets" :key="index">
-                        <td>{{ `GL${padNumber(item.id)}` }}</td>
-                        <td>{{ item.item_name }}</td>
-                        <td>{{ item.model_number }}</td>
-                        <td>
-                            <div class="leading-normal" v-for="project in item.projects">
-                                <p>{{ project.name }}</p>
-                            </div>
-                           
-                        </td>
-                        <td>
-                            <div class="leading-normal" v-for="user in item.users">
-                                <p>{{ user.name }}</p>
-                            </div>
-                        </td>
-                        <td>{{ classifications.find(ob => ob.value === item.classification)?.label }}</td>
-                        <td>{{ item.value }}</td>
-                        <td>{{ statuses.find(ob => ob.value === item.status)?.label }}</td>
-                        <td>
-                            <div class="flex gap-[10px]">
-                                <CommandButton 
-                                    :buttons="[
-                                        { title: '変更', action: () => editAsset(item) },
-                                        { title: '削除', action: () => deleteAsset(item.id) }
-                                    ]"
-                                />
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+                                <!-- <td>
+                                    <div class="flex gap-[10px]">
+                                        <CommandButton 
+                                            :buttons="buttonCollection(asset)"
+                                        />
+                                    </div>
+                                    
+                                </td> -->
+                                <td>
+                                    <label class="cursor-pointer select-none jump-link">
+                                        <input type="checkbox" v-model="selectedAssetIds" :value="asset.id" class="hidden"/>
+                                        詳細
+                                    </label>
+                                    
+                                </td>
+                            </tr>
+                            <tr v-if="asset?.requests && asset.requests.length || selectedAssetIds.includes(asset.id)">
+                                <td colspan="9">
+                                    
+                                    <div v-if="asset?.requests && asset.requests.length" class="bg-[var(--bg2)]">
+                                        <AssetMovement 
+                                            :asset="asset" 
+                                            :assetRequest="assetRequest"
+                                            v-for="assetRequest in asset.requests
+                                        "/>
+                                    </div>
+                                    <div v-if="selectedAssetIds.includes(asset.id)">                                        
+                                        <AssetDetail 
+                                            :asset="asset" 
+                                            :possibleMembers="possibleMembers" 
+                                            :possibleProjects="possibleProjects"
+                                            @reload="getAdminAssetList(assetsData.current_page)"
+                                        />
+                                        <div class="flex gap-[10px] mt-[20px]">
+                                            <CommandButton
+                                                :buttons="[
+                                                    {title: '編集', action: () => editAsset(asset)},
+                                                    {title: '削除', action: () => removeAsset(asset.id)},
+                                                ]"
+                                            />
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
         </div>
+        <FloatButton type="plus" @action="createWindow = true"/>
+        <AssetCreate
+            v-if="createWindow"
+            :editData="editData"
+            :allMembers="possibleMembers"
+            :allProjects="possibleProjects"
+            mode="admin"
+            @close="closeModal"
+        />
     </div>
 </template>
-<script lang="ts" setup>
-import FloatButton from '@/components/Global/FloatButton.vue';
-import { computed, onMounted, ref, inject, provide } from 'vue';
-import AssetCreate from './AssetCreate.vue';
-import axios from 'axios';
+<script setup lang="ts">
 import { Asset } from '@/interface/assetInterface';
-import PostSearchBar from '@/components/Post/PostSearchBar.vue';
-import CommandButton from '@/components/Global/CommandButton.vue'
-import { DialogMethods } from '@/interface/globalInterface'
-const openModal = ref(false)
-const assets = ref<Asset[]>([])
-const statuses = [
-    { value: 1, label: '使用中' },
-    { value: 2, label: '故障' },
-    { value: 3, label: '廃棄' },
-    { value: 4, label: '保管' },
-    { value: 5, label: '移動' },
-    { value: 6, label: '返却' }
-]
-const classifications = [
-    { value: 1, label: '資産' },
-    { value: 2, label: '消耗品' },
-    { value: 3, label: '重要資産' }
-]
-const { confirm, info } = inject('dialog') as DialogMethods
-const keywords = ref('')
+import axios from 'axios';
+import { inject, onMounted, ref } from 'vue';
+import AssetClass from 'assets/AssetClass.json'
+import AssetStatus from 'assets/AssetStatus.json'
+import AssetDetail from '@/components/Asset/AssetDetail.vue';
+import AssetMovement from '@/components/Asset/AssetMovement.vue';
+import CommandButton from '@/components/Global/CommandButton.vue';
+import { DialogMethods } from '@/interface/globalInterface';
+import AssetCreate from '@/components/Asset/AssetCreate.vue';
+import FloatButton from '@/components/Global/FloatButton.vue';
+const assetsData = ref<{
+    data: Asset[],
+    first_page_url: string,
+    next_page_url: string | null,
+    prev_page_url: string | null,
+    last_page_url: string,
+    current_page: number,
+    last_page: number,
+    total: number
+}>({
+    data: [], 
+    first_page_url: '', 
+    next_page_url: null, 
+    prev_page_url: null, 
+    last_page_url: '', 
+    current_page: 1, 
+    last_page: 0, 
+    total: 0
+})
+const selectedAssetIds = ref<number[]>([])
+const possibleMembers = ref([])
+const possibleProjects = ref([])
 const editData = ref<Asset | null>(null)
-const allProjects = ref([])
-const allMembers = ref([])
-const searchAssets = computed(() => {
-    if (!keywords.value) return assets.value;
+const createWindow = ref(false)
+const { notify, info, confirm} = inject('dialog') as DialogMethods
 
-    const lowSearch = keywords.value.toLowerCase();
-
-    return assets.value.filter(asset => {
-        const formattedId = `GL${padNumber(asset.id)}`;
-        
-        if (formattedId.toLowerCase().includes(lowSearch)) {
-            return true;
-        }
-
-        const statusLabel = statuses.find(ob => ob.value === asset.status)?.label || ""
-        const classificationLabel = classifications.find(ob => ob.value === asset.classification)?.label || ""
-
-        if (statusLabel.toLowerCase().includes(lowSearch) || classificationLabel.toLowerCase().includes(lowSearch)) {
-            return true
-        }
-
-        const deepSearch = (obj) => {
-            if (typeof obj === 'string' || typeof obj === 'number') {
-                return String(obj).toLowerCase().includes(lowSearch);
-            } 
-            else if (Array.isArray(obj)) {
-                return obj.some(item => deepSearch(item));
-            } 
-            else if (typeof obj === 'object' && obj !== null) {
-                return Object.values(obj).some(val => deepSearch(val));
-            }
-            return false;
-        };
-
-        return deepSearch(asset);
-    });
+onMounted(() => {
+    getAdminAssetList()
+    getPossibleMembers()
+    getPossibleProjects()
 });
-
-const getAssets = async() => {
+const getPossibleMembers = async() => {
     try {
-        const response = await axios.get('/get_control_assets')
-        assets.value = response.data
+        const response = await axios.get('/get_possible_members')
+        possibleMembers.value = response.data
     } catch (e) {
 
     }
+}
+const editAsset = (asset: Asset) => {
+    editData.value = asset
+    createWindow.value = true
+}
+const getPossibleProjects = async() => {
+    try {
+        const response = await axios.get('/get_possible_projects')
+        possibleProjects.value = response.data
+    } catch (e) {
+
+    } 
+}
+const getAdminAssetList = async(page?:number) => {
+    const pageIndex = page ?? 1
+    assetsData.value = await axios.get(`/admin_asset_list?page=${pageIndex}`).then(res => res.data)
 }
 const padNumber = (num: number | null) => {
     return num?.toString().padStart(5, "0")
 }
-const editAsset = (asset: Asset) => {
-    editData.value = asset
-    openModal.value = true
-}
-const deleteAsset = async(id: number | null) => {
+const removeAsset = async(id: number) => {
+
     const answer = await confirm('物品を削除しますよろしいでか？')
-    if (!answer) return
+    if (!answer.value) return
     try {
         await axios.delete(`/delete_asset?id=${id}`)
         info('削除しました。')
+        getAdminAssetList(assetsData.value.current_page)
     } catch (e) {
-
-    }
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    }    
+    
 }
-const getProjects = async() => {
-    try {
-        const response = await axios.get('/get_possible_projects')
-        allProjects.value = response.data
-    } catch (e) {
-
+const closeModal = (reload: boolean) => {
+    createWindow.value = false
+    if (reload) {
+        getAdminAssetList(assetsData.value.current_page)
     }
+    editData.value = null
 }
-const getMembers = async() => {
-    try {
-        const response = await axios.get('/get_possible_members')
-        allMembers.value = response.data
-    } catch (e) {
-
-    }
-}
-onMounted(() => {
-    getAssets()
-    getProjects()
-    getMembers()
-})
-provide('padNumber', padNumber)
 </script>
 <style lang="scss" scoped>
-    .admin-asset-data{
-        font-size: 13px;
-        vertical-align: middle;
-    }
-    .admin-asset-header{
-
+    .asset-header{
         display: flex;
         gap:20px;
     }
-    .admin-asset-table{
+    .asset-table{
         background-color: var(--background-color);
         width: 100%;
         border-collapse: separate; 
         border-spacing: 0;
+        color: var(--primary-color);
     }
-    .admin-asset-table td{
+    .asset-table td{
         padding: 10px;
         font-size: 13px;
         border-bottom: 1px solid rgb(102, 102, 102);

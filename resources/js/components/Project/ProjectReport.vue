@@ -96,7 +96,7 @@ const progressReport = async(status: number) => {
     if (status === 7 || status === 8 || status === 9) {
         let confirm_message = status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
         const confirmResult = await confirm(`${confirm_message}しますか？`);
-        if (!confirmResult) return;
+        if (!confirmResult.value) return;
     }
     try {
         loading.value[loadstatus] = true
@@ -115,7 +115,10 @@ const progressReport = async(status: number) => {
         info(`${info_message}しました`)
         emit('reload')
         refresh()
-        badge.getProjectBadge()
+        if(auth.user && auth.user?.position_id && auth.user?.position_id < 6){
+            badge.getManagersGoalsBadge()
+        }
+        badge.getMembersGoalsBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

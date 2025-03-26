@@ -121,12 +121,21 @@ import { DateTime } from 'luxon';
         if(!auth.isPartner){
             badge.getNoticeBadge()
             badge.getPostBadge()
-            badge.getProjectBadge()
+            // badge.getProjectBadge()
             badge.getRemindBadge()
         }
         if (isIOS.value) {
             savePWAStatus()
         }
+        // if(auth.user?.position_id == 6){
+            badge.getMembersGoalsBadge()
+        // }
+        if(auth.user?.position_id < 6){
+            badge.getManagersGoalsBadge()
+        }
+        badge.getSalaryIssueBadge()
+        badge.getAssetBadge()
+        badge.getTaskCommentBadge()
         
     })
     const postHandler = () => {
@@ -164,6 +173,7 @@ import { DateTime } from 'luxon';
         socket.on("post:badge", postHandler)
         socket.on(`switch:${auth.id}`, activeAccountHandler)
         socket.on("refresh:badge", boardBadgeHandler)
+        socket.on("refresh:task_comment", taskCommentBadgeHandler)
     }
     const removeEventListener = () => {
         window.removeEventListener('resize', handleResize);
@@ -174,10 +184,20 @@ import { DateTime } from 'luxon';
         document.removeEventListener('visibilitychange', handleVisibilityChange)
         socket.off("post:badge", postHandler);
         socket.off(`switch:${auth.id}`, activeAccountHandler);
-        socket.off("refresh:badge", boardBadgeHandler);
+        socket.off("refresh:task_comment", taskCommentBadgeHandler)
+    }
+    const taskCommentBadgeHandler = (data) => {
+        console.log('taskCommentBadgeHandler', data)
+        if(data && data.length && data[0].members){
+            console.log('iyiyiyiiy', data)
+            const related = data[0].members
+            if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
+                badge.getTaskCommentBadge()
+            }
+        }
     }
     const footerView = computed(() =>{
-        const block_list = ['account-settings', 'personal-info-settings', 'salary-issue']
+        const block_list = ['account-settings', 'personal-info-settings']
         const find = block_list.filter(ob => ob === route.name)
         if(find && find.length) return false            
         return responsive.mobile && auth.user && auth.user.footer_view
@@ -370,10 +390,15 @@ import { DateTime } from 'luxon';
     }
     const confirm = async (question, options) => {
         resetPopup()
-        if(options){
+        if(options && options.answers && options.answers.length){
             confirmOptions.value = options
+        }else{
+            confirmOptions.value = {answers : [
+                {value: true, label: 'OK'},
+                {value: false, label: 'キャンセル'}
+            ]}
         }
-        userResponse.value = null
+        userResponse.value = {value: false, label: ''}
         notifyData.value = null
         confirmData.value = question;
         
@@ -389,6 +414,9 @@ import { DateTime } from 'luxon';
     };
     const notify = (message) => {
         resetPopup()
+        confirmOptions.value = {answers : [
+            {value: true, label: 'OK'}
+        ]}
         notifyData.value = message
     }
     const info = (message) => {
@@ -425,7 +453,7 @@ import { DateTime } from 'luxon';
             answers: [{label: 'OK', value: true}, {label: 'あとで', value: false}]
         }
         const answer = await confirm('アクティブアカウントが変更されています。ページを更新してください。', options)
-        if(answer){
+        if(answer.value){
             window.location.reload(true);
         }else{
             confused.value = true

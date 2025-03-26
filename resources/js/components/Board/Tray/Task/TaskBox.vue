@@ -332,8 +332,8 @@ import axios from 'axios';
             answers: props.item.repeat_id ? answers : null
         }
         const answer = await confirm(question, options)
-        if(answer == false) return
-        const all_delete = answer == 'all'
+        if(answer.value === false) return
+        const all_delete = answer.value == 'all'
         try{
             await axios.post('/task_delete_api', {task_id: props.item.id, all_delete: all_delete})
             info('削除しました。')

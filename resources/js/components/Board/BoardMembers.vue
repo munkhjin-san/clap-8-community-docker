@@ -145,7 +145,7 @@ import axios from 'axios';
 
     const removeMember = async(user) => {
         const confirmed = await confirm(`<strong>${user.name}</strong> をボードメンバーから削除してもよろしいですか?`)
-        if(!confirmed || lock.value) return 
+        if(!confirmed.value || lock.value) return 
         lock.value = true
         try{
             await axios.post('/remove_group_member', { record_id : props.board.id, user_id: user.id})
@@ -159,7 +159,7 @@ import axios from 'axios';
     }
     const setAdmin = async (user, flag) => {
         const confirmed = await confirm(flag == 1 ? `<strong>${user.name}</strong> を管理者に追加してよろしいですか?` : `<strong>${user.name}</strong> を管理者から削除してもよろしいですか?`)
-        if(lock.value || !confirmed) return
+        if(lock.value || !confirmed.value) return
         lock.value = true
         try{
             await axios.post('/set_admin_role',{ record_id : props.board.id, user_id: user.id, flag: flag }) 

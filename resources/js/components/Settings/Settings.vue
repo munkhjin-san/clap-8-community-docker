@@ -227,7 +227,7 @@ import { useResponsive } from '@/store/responsive'
     }
     const logoutConfirm = async() => {
         const answer = await confirm('ログアウトしますか。')
-        if(!answer) return
+        if(!answer.value) return
         logout()
     }
     const logout = () => {

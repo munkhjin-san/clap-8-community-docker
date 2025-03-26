@@ -1,30 +1,35 @@
 <template>
-    <div class="relative">
-        <div @click.stop="menu.setMenu({parent: 'taskSpanSelector'})" class="c-bar-button !text-[12px] whitespace-nowrap !px-[5px]">{{ selected }}</div>
-        <Transition name="slidePop">
-            <div id="taskSpanSelector" v-if="menu.parent == 'taskSpanSelector'" class="absolute top-[40px] -right-[50px] z-[15] shadow-me p-[10px] bg-[var(--background-color)] max-h-[200px] overflow-y-auto">
-                <div class="flex items-center gap-[10px] justify-end p-[5px] mb-[5px]">
-                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px] whitespace-nowrap" @click="setSpan(null, null, true)">リセット</button>
-                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px] whitespace-nowrap" @click="setSpan(DateTime.now().year, null, false)">今年</button>
-                    <button class="bg-[var(--bg2)] text-[12px] px-[10px] py-[3px] whitespace-nowrap" @click="setSpan(DateTime.now().year, DateTime.now().month, false)">今月</button>
-                </div>
-                <div class="flex flex-col gap-[10px]">
-                    <div v-for="block in selectableSpan" class="flex flex-col">
-                        <div class="flex">
-                            <div v-for="year in block" @click="selectedYear = selectedYear == year ? null : year" :key="year" class="p-[10px] hover:bg-[var(--bg3)] cursor-pointer" :class="{ 'bg-[var(--bg3)]': selectedYear == year }">
-                                <div class="text-[13px] whitespace-nowrap">{{ year }}年</div>
+    <div class="relative flex items-center gap-[20px]">
+        <Teleport to="#taskMenuHeader">
+            <div v-if="selectedYear || selectedMonth" class="flex items-center gap-[5px]">
+                <button @click="setIncrementOrDecrement(-1)" 
+                    class="flex items-center justify-center h-[30px] w-[30px] min-w-[30px] cursor-pointer">            
+                    <Back style="cursor: inherit;" size="13"/>
+                </button>
+                <div @click.stop="menu.setMenu({parent: 'taskSpanSelector'})" class="relative cursor-pointer">{{ selectedMonth ? `${selectedYear}年${selectedMonth}月` : `${selectedYear}年` }}
+                    <Transition name="slidePop">
+                        <div id="taskSpanSelector" v-if="menu.parent == 'taskSpanSelector'" class="absolute top-[40px] -right-[50px] z-[15] shadow-me p-[10px] bg-[var(--background-color)] max-h-[200px] overflow-y-auto">
+                            <div v-if="selectedYear && !selectedMonth" class="flex flex-col gap-[10px]">
+                                <div class="grid grid-cols-3 gap-1 w-max">
+                                    <div v-for="year in availableYears" :key="year" class="text-center min-w-[60px] transition-transform delay-100 cursor-pointer text-[13px] hover:font-semibold whitespace-nowrap py-[10px]" :class="{'font-semibold scale-[1.2]' : selectedMonth == year}" @click.stop="setSelectedYear(year)">{{ year }}年</div>
+                                </div>
+                            </div>
+                            <div v-if="selectedYear && selectedMonth" class="flex flex-col gap-[10px]">
+                                <div class="grid grid-cols-3 gap-1 w-max">
+                                    <div v-for="month in 12" :key="month" class="text-center min-w-[40px] transition-transform delay-100 cursor-pointer text-[13px] hover:font-semibold whitespace-nowrap py-[10px]" :class="{'font-semibold scale-[1.2]' : selectedMonth == month}" @click.stop="setSelectedMonth(month)">{{ month }}月</div>
+                                </div>
                             </div>  
                         </div>
-  
-                        <div v-if="selectedYear && block.includes(selectedYear)">
-                            <div class="grid grid-cols-3 gap-1 bg-[var(--bg3)]">
-                                <div v-for="month in 12" :key="month" class="text-center transition-transform delay-100 cursor-pointer text-[13px] hover:font-semibold whitespace-nowrap py-[10px]" :class="{'font-semibold scale-[1.2]' : selectedMonth == month}" @click.stop="selectMonth(month)">{{ month }}月</div>
-                            </div>
-                        </div>  
-                    </div>
+                    </Transition>
                 </div>
+                <button @click="setIncrementOrDecrement(1)" 
+                    class="flex items-center justify-center h-[30px] w-[30px] min-w-[30px] cursor-pointer">            
+                    <Back style="cursor: inherit;" size="13" class="rotate-180"/>
+                </button>
             </div>
-        </Transition>
+        </Teleport>
+        <div @click.stop="toggle" class="c-bar-button !text-[12px] whitespace-nowrap !px-[5px]">{{ selected }}</div>
+        <!--  -->
     </div>
 </template>
 <script setup lang="ts">
@@ -33,6 +38,7 @@ import { useMenuStore } from '@/store/menu';
 import { Project, VirtualSpan } from '@/interface/projectInterface';
 import { DateTime } from 'luxon';
 import CommandButton from '@/components/Global/CommandButton.vue';
+import Back from '@/components/Icons/Back.vue';
 const props = defineProps<{
     project: Project
 }>()
@@ -47,7 +53,7 @@ const selectedYear = defineModel<number | null>('year')
 const selectedMonth = defineModel<number | null>('month')
 
 
-const selectableSpan = computed<number[][]>(() => {
+const availableYears = computed<number[]>(() => {
     if (!props.project.date_start || !props.project.date_end) return [];
     
     const startYear = DateTime.fromISO(props.project.date_start).year;
@@ -58,16 +64,10 @@ const selectableSpan = computed<number[][]>(() => {
         years.push(year);
     }
 
-    // Group into chunks of 3
-    const chunkedYears: number[][] = [];
-    for (let i = 0; i < years.length; i += 3) {
-        chunkedYears.push(years.slice(i, i + 3));
-    }
-
-    return chunkedYears;
+    return years;
 });
 
-const selectMonth = (month: number) => {
+const setSelectedMonth = (month: number) => {
     selectedMonth.value = month;
     menu.close()
 }
@@ -80,22 +80,35 @@ const setSpan = (year:number | null, month:number | null, hasEmit: boolean) => {
     }
     menu.close()
 }
-
+const toggle = () => {
+    if(!selectedYear.value && !selectedMonth.value) {
+        setSpan(DateTime.now().year, null, false)
+    }
+    else if(!selectedMonth.value) {
+        setSpan(DateTime.now().year, DateTime.now().month, false)
+    }
+    else {
+        setSpan(null, null, true)
+    }
+}
     
-
-
-
-const selected = computed(() => {
-    const title = '期間 : ';
-    if (!selectedYear.value) {
-        return title + 'すべて';
+const setIncrementOrDecrement = (direction: number) => {
+    if (selectedYear.value && !selectedMonth.value) {
+        selectedYear.value += direction;
+    } else if (selectedYear.value && selectedMonth.value) {
+        const instance = DateTime.fromObject({ year: selectedYear.value, month: selectedMonth.value });
+        const accum = instance.plus({ months: direction });
+        selectedYear.value = accum.year;
+        selectedMonth.value = accum.month;        
     }
-    let period = `${selectedYear.value}年`;
-    if (selectedMonth.value) {
-        period += `${selectedMonth.value}月`;
-    }
-    return title + period;
-})
+}
+
+const setSelectedYear = (year: number) => {
+    selectedYear.value = year;
+    selectedMonth.value = null;
+    menu.close()
+}
+const selected = computed(() => selectedYear.value ? (selectedMonth.value ? '月単位' : '年単位') : '期間 : すべて');
 </script>
 <style scoped>
 .radio-group {

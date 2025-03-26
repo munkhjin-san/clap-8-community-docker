@@ -14,9 +14,9 @@
             </div>
             <div class="c-b">
                 <div class="c-b-l" ref="commentParent">
-                    <div class="post-no-comment-text" v-if="!task.comments.length">現在メッセージはありません。</div>
+                    <div class="post-no-comment-text" v-if="!commentsList.length">現在メッセージはありません。</div>
                     <GanttTaskCommentItem 
-                        v-for="comment in task.comments" 
+                        v-for="comment in commentsList" 
                         :editable="editingCommentId" 
                         :comment="comment" 
                         @edit="(val) => editingCommentId = val"
@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { Task } from '@/interface/globalInterface';
+import { Task, TaskComment } from '@/interface/globalInterface';
 import {  GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
 import axios from 'axios';
 import { nextTick, onMounted, ref, useTemplateRef } from 'vue'
@@ -55,14 +55,24 @@ const editingCommentId = ref(null)
 const commentParent = useTemplateRef('commentParent')
 const commentText = useTemplateRef('commentText')
 const badge = useBadgeStore()
+const commentsList = ref<TaskComment[]>([])
 onMounted(() => {
-    scrollToEnd('instant')
+    
     updateChecked()
+    getComments()
 })
+const getComments = async() => {
+    const res = await axios.get('/get_task_comment_list', {params: {task_record_id: props.task.id}})
+    commentsList.value = res.data
+    setTimeout(() => {
+        scrollToEnd('instant')
+    }, 100);
+    
+}
 const updateChecked = async() => {
     await axios.post('/update_task_comment_check', {task_id: props.task.id})
-    refreshProject({})
-    badge.getProjectBadge()
+    // refreshProject({})
+    badge.getTaskCommentBadge()
 }
 const send = async() => {
     const text = commentText.value?.innerText
@@ -75,6 +85,7 @@ const send = async() => {
         comment: text
     }).then( async () => {
         refresh()
+        getComments()
 
     }).finally(() => {
         sending.value = false

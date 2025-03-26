@@ -69,7 +69,7 @@ const createFinish = async(flag) => {
 const deleteAssistant = async() => {
 
     const answer = await confirm('アシスタンを削除しますか。')
-    if(answer) {
+    if(answer.value) {
         deleting.value = true
         try {
             const openai = new OpenAI({

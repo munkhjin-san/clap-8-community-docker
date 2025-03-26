@@ -240,7 +240,7 @@ import { getIcon } from 'assets/icons'
     }
     const deleteConfirm = async(group) => {
         const answer = await confirm('グループを削除しますか。')
-        if(!answer) return
+        if(!answer.value) return
         deleteExecute(group)
          
     }

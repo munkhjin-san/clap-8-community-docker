@@ -215,7 +215,7 @@ class TaskController extends Controller
         $end_limit = $project->date_end;
         if ($start_limit && $end_limit) {
             if($start < $start_limit || $end > $end_limit){
-                throw ValidationException::withMessages(['message' => 'プロジェクト期間内に設定してください。']);
+                throw ValidationException::withMessages(['message' => 'プロジェクト期間内に設定してください。<br>プロジェクトの期間は'.$start_limit.'から'.$end_limit.'までです。']);
             }
             if( $start > $end){
                 throw ValidationException::withMessages(['message' => '開始日は終了日より後にはできません。']);
@@ -314,6 +314,14 @@ class TaskController extends Controller
         ->toArray();
         return response()->json($taskCounts);
     }
+    public function get_task_comment_list(Request $request){
+        $request->validate([
+            'task_record_id' => 'required',
+        ]); 
+        $task = taskRecord::findOrFail($request->task_record_id);
+        $comments = $task->comments()->with('user')->get();
+        return response()->json($comments);
+    }
    
     public function task_comment(Request $request){
         $active_user = Auth::user();
@@ -321,11 +329,17 @@ class TaskController extends Controller
             'task_record_id' => 'required',
             'comment' => 'required',
         ]); 
+        $task = taskRecord::findOrFail($request->task_record_id);
         $data = $request->toArray();
         $data['user_id'] = $active_user->id;
-        $comment = TaskComment::create($data);
+        $comment = $task->comments()->create($data);
+        $related_users = $task->taskUsers()->pluck('user_id')->toArray();
         $socket = [];
+
+
         array_push($socket, ["event" => 'refresh:task', "data" => $request->task_record_id]);  
+        array_push($socket, ["event" => 'refresh:task_comment', "data" => ['task_id' => $request->task_record_id, 'members' => $related_users]]);
+
 
         // event(new MessageSent($rebound));    
         return response()->json([
@@ -377,16 +391,17 @@ class TaskController extends Controller
                         $q->where('progress_flag', $progress_flag);
                     });
                 });
-            })->with(['executors','files','supervisors', 'project','comments', 'sub_tasks' => function($q) use($user_id, $progress_flag){
+            })->with(['executors','files','supervisors', 'project', 'sub_tasks' => function($q) use($user_id, $progress_flag){
                 $q->when($user_id, function($q)use($user_id, $progress_flag){
                     $q->whereHas('executors', function($q) use($user_id, $progress_flag){
                         $q->where('users.id', $user_id)->when($progress_flag !== null && $progress_flag > -1, function($q) use($progress_flag){
                             $q->where('progress_flag', $progress_flag);
                         });
                     });
-                });
+                })->withCount('comments');
             }])
-            ->orderBy('start_at', 'asc');
+            ->withCount('comments')
+            ->orderBy('created_at', 'desc');
         },
         'project_conditions' => function ($q) use ($weekStartDate) {
             $q->where('week_start_date', $weekStartDate);

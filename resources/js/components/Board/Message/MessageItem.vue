@@ -427,7 +427,7 @@ import UserPanel from "@/components/Global/UserPanel.vue";
     }
     const resendConfrim = async() => {      
         const confirmed = await confirm('未確認者へ確認依頼のメールを送りますか。')
-        if(!confirmed) return
+        if(!confirmed.value) return
         try {
             const send_users = props.message.unchecked_users.map(ob => ob.id) 
             await axios.post('/send_reconfirm_email',{send_list: send_users, board_id: board.value.id, send_condition: 2, msg_id: props.message.id})
@@ -474,7 +474,7 @@ import UserPanel from "@/components/Global/UserPanel.vue";
     }
     const deleteMessage = async (id) => {
         const confirmed = await confirm('このメッセージを削除してもよろしいですか?')
-        if(!confirmed) return
+        if(!confirmed.value) return
         try{
             await axios.post('/chat_delete_api', {id: id})                  
             refreshMessages()
@@ -508,7 +508,7 @@ import UserPanel from "@/components/Global/UserPanel.vue";
                 const reacted =   checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
                 if(unchecked && reacted){     
                     const confirmed = await confirm('確認済みにしますか')
-                    if(confirmed){
+                    if(confirmed.value){
                         await axios.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
                         refreshMessages()    
                         info('確認済みにしました。') 

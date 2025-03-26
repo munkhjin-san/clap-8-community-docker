@@ -34,20 +34,6 @@ const routes = [
             }
         ],
     },
-    { 
-        path: '/members', 
-        name: 'members',  
-        meta: {
-            title: 'CLAP - メンバー',
-        }, 
-        component: () => import('./components/Members/MembersRoot.vue'),
-        beforeEnter: (to, from, next) => {
-            if(window.innerWidth < 959){
-                document.body.style.background = 'var(--background-color)'
-            }
-            next();
-        }, 
-    },
     {   
         path: '/user/:userId', 
         name: 'user',  
@@ -72,31 +58,6 @@ const routes = [
 
                     if (to.params.userId !== userId) {
                         const currentUserIdRoute = `/user/${userId}/personal-info-settings`;
-                        
-                        if (to.path !== currentUserIdRoute) {
-                            next(currentUserIdRoute);
-                        } else {
-                            next();
-                        }
-                    } else {
-                        next();
-                    }
-                },
-            },
-            {
-                path: 'salary-issue',
-                component: () => import('./components/Profile/Issue/Salary.vue'),
-                name: 'salary-issue',
-                props: true,
-                meta: {
-                    title: 'CLAP - 昇給課題',
-                },
-                beforeEnter: (to, from, next) => {
-                    const rootElement = document.getElementById('app');
-                    const userId = rootElement.getAttribute('data-user-id');
-
-                    if (to.params.userId !== userId) {
-                        const currentUserIdRoute = `/user/${userId}/salary-issue`;
                         
                         if (to.path !== currentUserIdRoute) {
                             next(currentUserIdRoute);
@@ -173,78 +134,133 @@ const routes = [
                 component: () => import('./components/Project/ProjectDetail.vue'),
                 children: [
                     {
-                        path: 'outcomegoal/:memberId',
-                        name: 'outcomegoal',
+                        path:'overview',
+                        name:'overview',
                         props: true,
-                        meta: {
-                            nameJp: '成果目標・昇給課題',
-                            pushTo: 'goal-span'
-                        },
+                        component: () => import('./components/Project/ProjectTabs/ProjectOverview.vue'),
                         
-                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationSpan.vue'),
-                        children: [
+                    },
+                    {
+                        path: 'project-members',
+                        name: 'project-members',
+                        props: true,
+                        component: () => import('./components/Project/ProjectTabs/Members.vue'),
+                        children:[
                             {
-                                path: ':span',
-                                name: 'goal-span',
+                                path: 'outcomegoal/:memberId',
+                                name: 'outcomegoal',
                                 props: true,
-                                component: () => import('./components/Project/ProjectGoalDetail.vue'),
-                                children:[
+                                meta: {
+                                    nameJp: '成果目標・昇給課題',
+                                    pushTo: 'goal-span'
+                                },
+                                
+                                component: () => import('./components/Project/PersonnelEvaluation/EvaluationSpan.vue'),
+                                children: [
                                     {
-                                        path: ':goalId',
-                                        name: 'goal-more',
+                                        path: ':span',
+                                        name: 'goal-span',
                                         props: true,
-                                        component: () => import('./components/Project/ProjectGoalMore.vue'),
+                                        component: () => import('./components/Project/ProjectGoalDetail.vue'),
+                                        children:[
+                                            {
+                                                path: ':goalId',
+                                                name: 'goal-more',
+                                                props: true,
+                                                component: () => import('./components/Project/ProjectGoalMore.vue'),
+                                            }
+                                        ]
+        
                                     }
                                 ]
-
-                            }
+                            },
+                            {
+                                path: 'evaluation/:memberId',
+                                name: 'evaluation',
+                                props: true,
+                                meta: {
+                                    nameJp: '人事考課',
+                                    pushTo: 'evalutation-span'
+                                },
+                                component: () => import('./components/Project/PersonnelEvaluation/EvaluationSpan.vue'),
+                                children: [
+                                    {
+                                        name: 'evalutation-span',
+                                        path: ':span',
+                                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationDetail.vue'),
+                                         
+                                    }
+                                ]
+                            },
                         ]
                     },
                     {
-                        path: 'evaluation/:memberId',
-                        name: 'evaluation',
+                        path: 'operation',
+                        name: 'operation',
                         props: true,
-                        meta: {
-                            nameJp: '人事考課',
-                            pushTo: 'evalutation-span'
-                        },
-                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationSpan.vue'),
-                        children: [
-                            {
-                                name: 'evalutation-span',
-                                path: ':span',
-                                component: () => import('./components/Project/PersonnelEvaluation/EvaluationDetail.vue'),
-                                 
-                            }
-                        ]
+                        component: () => import('./components/Project/ProjectTabs/Operation.vue'),
                     },
+                    {
+                        path: 'contracts',
+                        name: 'contracts',
+                        props: true,
+                        component: () => import('./components/Project/ProjectTabs/Contracts.vue'),
+                    },
+                    {
+                        path: 'finance',
+                        name: 'finance',
+                        props: true,
+                        component: () => import('./components/Project/ProjectTabs/Finance.vue'),
+                    },
+                    {
+                        path: 'dispatch',
+                        name: 'dispatch',
+                        props: true,
+                        component: () => import('./components/Project/ProjectTabs/Dispatch.vue'),
+                    },
+                    {
+                        path: 'assets',
+                        name: 'assets',
+                        meta: {
+                            title: 'CLAP - 物品'
+                        },
+                        props: true,
+                        component: () => import('./components/Asset/AssetContainer.vue'),
+                    },
+                    {
+                        path: 'task-calendar',
+                        name: 'task-calendar',
+                        props: true,
+                        component: () => import('./components/Project/ProjectTabs/TaskCalendar.vue'),
+                    }
+                    
                 ]
             },
-            {
-                path: 'gantt-chart',
-                name: 'gantt-chart',
-                meta: {
-                    title: 'CLAP - ガントチャート'
-                },
-                component: () => import('./components/Task/TaskComponent.vue'),
-                children: [
-                    {
-                        path: `:projectId`,
-                        component: () => import('./components/Task/Gantt/GanttTaskPopup.vue'),
-                        name: 'projectGanttDetail',
-                        props: true
-                    }
-                ],
-            },
-            {
-                path: 'assets',
-                name: 'assets',
-                meta: {
-                    title: 'CLAP - 物品'
-                },
-                props: true,
-                component: () => import('./components/Asset/AssetContainer.vue')
-            }
+            // {
+            //     path: 'gantt-chart',
+            //     name: 'gantt-chart',
+            //     meta: {
+            //         title: 'CLAP - ガントチャート'
+            //     },
+            //     component: () => import('./components/Task/TaskComponent.vue'),
+            //     children: [
+            //         {
+            //             path: `:projectId`,
+            //             component: () => import('./components/Task/Gantt/GanttTaskPopup.vue'),
+            //             name: 'projectGanttDetail',
+            //             props: true
+            //         }
+            //     ],
+            // },
+            // {
+            //     path: 'assets',
+            //     name: 'assets',
+            //     meta: {
+            //         title: 'CLAP - 物品'
+            //     },
+            //     props: true,
+            //     component: () => import('./components/Asset/AssetContainer.vue'),
+            // }
         ]
     },
     {
@@ -382,7 +398,7 @@ const routes = [
             {
                 path: 'asset-control',
                 name: 'asset-control',
-                meta: { head: '物品管理'},
+                meta: { head: '物品' },
                 props: true,
                 component: () => import('@/components/AccountControl/AssetControl/AssetControl.vue'),
             }

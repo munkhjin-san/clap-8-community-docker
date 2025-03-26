@@ -286,7 +286,7 @@ import Cropper from '@/components/Global/Cropper.vue';
     }
     const introMovDeleteConfirm = async(id) => {
         const answer = await confirm('自己紹介Movを削除しますか。')
-        if(!answer) return 
+        if(!answer.value) return 
         introMovDelete(id)
     }
     const introMovDelete = async(id) => {
@@ -346,7 +346,7 @@ import Cropper from '@/components/Global/Cropper.vue';
     const iconDeleteConfirm = async(id) => {
         const answer = await confirm('アイコンを削除してもよろしいですか？')
                    
-        if(!answer) return
+        if(!answer.value) return
         defaultIconCreate(id)
                   
     }

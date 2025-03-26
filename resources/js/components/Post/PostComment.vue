@@ -119,7 +119,7 @@ import { useMenuStore } from "@/store/menu";
     }    
     const commentDeleteConfirm = async(id) =>{        
         const answer = await confirm('コメントを削除しますか。')
-        if(!answer) return                    
+        if(!answer.value) return                    
         commentDelete(id)
     }
     const commentDelete = async(id) => {             

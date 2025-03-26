@@ -275,7 +275,7 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
     })
     const deleteTask = async() => {
         const confirmed = await confirm('タスクを削除しますか。')
-        if(!confirmed) return
+        if(!confirmed.value) return
 
         try{
             await axios.delete('/task_item', {data: {task_id: props.item.id}})
@@ -317,7 +317,7 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
     const closeNineWindow = async (flag) => {
         if (flag) {
             const answer = await confirm('グラウドナインを中止しますか？\n中止した場合再度挑戦することはできません。');
-            if (!answer) return;
+            if (!answer.value) return;
         }
         playNineWindow.value = false;
         updateStatus(2);

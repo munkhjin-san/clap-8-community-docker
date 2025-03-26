@@ -9,6 +9,7 @@ use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Illuminate\Support\Str;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 class ContentController extends Controller
 {
 
@@ -86,11 +87,7 @@ class ContentController extends Controller
         }
     }
     private function image_response($img){
-        return response($img->toWebp(), 200, [
-            'Content-Type' => 'image/webp',
-            'Cache-Control' => 'public, max-age=2628000',
-            'Expires' => gmdate('D, d M Y H:i:s \G\M\T', time() + 2628000),
-        ]);
+        return response($img->toWebp(), 200, );
     }
     public function user_icon_thumbnail($path, $size, $color = '000000'){   
         if($size == 'original'){
@@ -121,7 +118,7 @@ class ContentController extends Controller
         $bg = $color;
         $text_color = '#fff';
         $resize = $size ? (int) $size : 30;
-        $cacheKey = 'chat_image_' . md5($char.$color.$size);
+        $cacheKey = 'chat_image_7' . md5($char.$color.$size);
         if (Cache::has($cacheKey)) {
             $cachedImage = Cache::get($cacheKey);
             if(!empty($cachedImage)){
@@ -196,5 +193,31 @@ class ContentController extends Controller
         }
         $img = Image::read($path)->resize($size, $size);
         return $this->image_response($img);
+    }
+    public function kintone_file(Request $request){
+        $request->validate([
+            'key' => 'required',
+            'name' => 'required',
+        ]);
+        $file_key = $request->key;
+        $file_name = $request->name;
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/file.json";
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic', 
+            'X-Cybozu-Authorization' => $x_token,
+        ])->get($url, [
+            'fileKey' => $file_key
+        ]);
+        $fileContent = $response->body();
+        // dd($response->body());
+        return response()->streamDownload(function () use ($fileContent) {
+            echo $fileContent;
+        }, $file_name);
+        
     }
 }

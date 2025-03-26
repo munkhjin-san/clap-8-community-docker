@@ -33,6 +33,7 @@ interface Project {
     partners: string[]
     customers: string[]
     description: string
+    private_memo: string
 }
 interface ProjectCondition {
     project_record_id: number;

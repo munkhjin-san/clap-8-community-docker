@@ -128,7 +128,7 @@
     
     const nextStage = async() => {
         const answer = await confirm('グループディスカッションを完了にしますか。\n完了後は編集ができません。')
-        if(!answer) return
+        if(!answer.value) return
         await saveContent('next')
         setTimeout(() => {                    
             finishDiscussion()
@@ -140,7 +140,7 @@
             answers: [{label: 'OK', value: true}]
         }
         const answer = await confirm('グループディスカッションを完了にしまた。\nお疲れ様でした。', options)
-        if(answer){
+        if(answer.value){
             lesson()                        
             router.push({name: 'top'})
         }

@@ -114,7 +114,7 @@ import PostSearchBar from '../../Post/PostSearchBar.vue';
             work_group_id : item.id
         }
         const answer = await confirm('ワークグループを削除しますか？')
-        if(!answer) return
+        if(!answer.value) return
         try {
             await axios.post('/work_group_delete', params)
             getWorkGroups()

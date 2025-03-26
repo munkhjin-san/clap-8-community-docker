@@ -138,7 +138,7 @@ import Back from '../Icons/Back.vue';
     const props = defineProps(['selectedTopic'])
     const router = useRouter()
     const route = useRoute()
-    const theme = inject('getThemes')
+    const getThemes = inject('getThemes')
     const materials = ref([])
     const portfolio = ref(null)
     const Explain = defineAsyncComponent(() =>
@@ -170,7 +170,7 @@ import Back from '../Icons/Back.vue';
         return portfolio.value && portfolio.value.lesson_sections ? portfolio.value.lesson_sections : []
     })
     onBeforeRouteUpdate((to, from, next) => {
-        theme()
+        getThemes()
         next();
     })
     onMounted(async() => {

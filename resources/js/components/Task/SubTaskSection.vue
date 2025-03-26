@@ -72,7 +72,7 @@ import { DialogKey } from '@/interface/keys';
 
 const props = defineProps<{
     subTaskIndex?: number,
-    userOptions: User[]
+    userOptions: User[] | TaskUser[],
     multiple?: boolean
 }>()
 

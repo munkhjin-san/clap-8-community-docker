@@ -2,23 +2,14 @@
         
         <div class="goals-wrap">
             <div style="overflow: hidden; position: relative;height:100%;">
-                <div class="goals-inner">
-                    <div style="display: flex;justify-content: flex-end;padding: 20px 0;background-color:var(--background-color);position:sticky;top:-1;z-index: 7;">
-                        <!-- <h2>成果目標／昇給課題</h2> -->
-                        <!-- <div class="locale-selector" style="width: auto;">
-                            <select name="locales" v-model="goalDate" class="dropDownSelector cursor-pointer" style="width: fit-content; padding: 5px 10px;">
-                                <option :value="date.value" v-for="date in seikaOptions">{{date.name}}</option>
-                            </select>
-                        </div> -->
-                    </div>
-                    <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">
-                        
+                <div class="goals-inner" style="height: calc(100% - 20px); padding: 20px;">
+                    <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">                        
                         <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-more', params: { goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
                             <div>
                                 <div>該当部門</div>
                                 <div class="kadai-content flex items-center">
                                     {{ goal?.project?.name }}
-                                    <span class="side-notification" style="position: static;" v-if="badge.project?.which_goal?.[goal.id]">{{ badge.project?.which_goal[goal.id] }}</span>
+                                    
                                 </div>
                                 
                             </div>
@@ -32,7 +23,9 @@
                             </div>
                             <div>
                                 <div>成果目標ステータス</div>
-                                <div class="kadai-content">{{ statuses[goal?.status] }}</div>
+                                <div class="kadai-content flex items-center" :style="{color: badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ statuses[goal?.status] }}
+                                    <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
+                                </div>
                             </div>
                             <div v-if="goal?.achievement_rate !== null && goal?.status >= 6">
                                 <div>達成率</div>
@@ -44,7 +37,9 @@
                             </div>
                             <div v-if="goal?.salary_issue">
                                 <div>昇給課題ステータス</div>
-                                <div class="kadai-content">{{ salaryIssueStatus[goal?.salary_issue?.status] }}</div>
+                                <div class="kadai-content flex items-center" :style="{color: badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ salaryIssueStatus[goal?.salary_issue?.status] }}
+                                    <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
+                                </div>
                             </div>
                             
                             <div v-if="memberData && (auth.id === memberData.id || isManagerOrMember || auth.activeUser.id === 610 || auth.activeUser.id === 608) && goal?.status < 2" style="position: absolute;right: 10px;top: 10px;">                                            
@@ -82,24 +77,20 @@
                     
             </div>
             
-            <!-- <Transition name="modalFade"> -->
-                <router-view v-slot="{ Component }">
-                    <transition name="modalFade">
-                        <component
-                            :is="Component" 
-                            :goal="chosenGoal"
-                            :memberData="memberData"
-                            :selectedProject="selectedProject"
-                            :isManagerOrMember="isManagerOrMember"
-                            :themeRecords="themeRecords"
-                            :selectedDate="selectedDate"
-                            :statuses="statuses"
-                            :salaryIssueStatus="salaryIssueStatus"
-                            :evaluationData="evaluationData"
-                        />
-                    </transition>
-                    
-                </router-view>
+            <router-view v-slot="{ Component }">
+                <component
+                    :is="Component" 
+                    :goal="chosenGoal"
+                    :memberData="memberData"
+                    :selectedProject="selectedProject"
+                    :isManagerOrMember="isManagerOrMember"
+                    :themeRecords="themeRecords"
+                    :selectedDate="selectedDate"
+                    :statuses="statuses"
+                    :salaryIssueStatus="salaryIssueStatus"
+                    :evaluationData="evaluationData"
+                />                    
+            </router-view>
             <Transition name="modalFade">
                 <ProjectOutcomeGoal 
                     v-if="createOutcomeGoal"
@@ -239,7 +230,7 @@ const editGoal = async (goal: any) => {
 }
 const deleteGoal = async (goal: ProjectGoal) => {
     const answer = await confirm('成果目標の削除は、昇給課題と一緒に削除される場合があります。よろしいですか？')
-    if(!answer) return
+    if(!answer.value) return
     try {
         await axios.delete(`/delete_project_goal?id=${goal.id}`)
         fetchMemberData()

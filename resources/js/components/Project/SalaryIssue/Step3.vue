@@ -84,6 +84,7 @@ import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { useBadgeStore } from '@/store/badge';
+import { useAuthUserStore } from '@/store/auth';
 const emit = defineEmits([
     'close', 
     'next',
@@ -116,6 +117,7 @@ const refresh = inject('refresh') as Function
 const kadaiContent = ref<InstanceType<typeof LongInput> | null>(null)
 const kadaiTitle = ref<InstanceType<typeof ShortInput> | null>(null)
 const kadaiGoal = ref<InstanceType<typeof LongInput> | null>(null)
+const auth = useAuthUserStore()
 onMounted(() => {
     if(props.selectedTheme){
         getAdvice()
@@ -260,7 +262,7 @@ const saveTemplateConfirm = async() => {
         const editRecord = props.editData
         if(editRecord && editRecord.content !== content.value && editRecord.review && editRecord.review == content_review.value){
             const answer = await confirm('昇給課題の内容に変更がある場合、再度AI分析を行ってください。<br>このまま保存すると現在の添削結果は削除されます。')
-            if(!answer) return
+            if(!answer.value) return
             saveTemplate('empty_review', 0)
         }else{
             saveTemplate(null, 0)
@@ -294,7 +296,8 @@ const saveTemplate = async(action, status) => {
             title.value = content.value = content_goal.value = ''
             refresh()
             emit('close')
-            badge.getProjectBadge()
+
+            badge.getSalaryIssueBadge()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     } finally {
@@ -310,7 +313,7 @@ const applyToManagementConfirm = async() => {
     }
     
     const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
-    if(!answer) return
+    if(!answer.value) return
     await saveTemplate(null, 2)
 }
 const applyToManagement = async() => {

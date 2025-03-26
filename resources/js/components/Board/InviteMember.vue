@@ -94,7 +94,7 @@ import ShortInput from '../Form/ShortInput.vue';
     const selectToUser = async(user) => {
         if(invalidDate.value) return
         const confirmed = await confirm(`<strong>${user.name}</strong>さんをボードメンバーに追加しますか。<br><strong>${moment(view_from.value).format('YYYY/M/D')} 0時</strong>から閲覧可能になります。`)
-        if(lock.value || !confirmed) return
+        if(lock.value || !confirmed.value) return
         lock.value = true
         const params = { record_id : props.item.id, user_id: user.id, view_from: view_from.value }
         try{

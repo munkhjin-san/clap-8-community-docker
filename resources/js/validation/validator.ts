@@ -9,11 +9,16 @@ function validateRule(rule: ValidationRule, value: any | any[], params?: number)
   switch (rule) {
     case 'required':
       return {
-        isValid: (typeof value === 'string' && value.length > 0) 
-        || (Array.isArray(value) && value.length > 0) 
-        || (typeof value === 'number' && value !== null && value !== undefined)
-        || (typeof value === 'object' && value !== null && value !== undefined)
-        ,
+        isValid:
+        (typeof value === 'string' && value.length > 0) ||
+        (Array.isArray(value) && value.length > 0) ||
+        (typeof value === 'number' && !Number.isNaN(value)) ||
+        (typeof value === 'object' &&
+          value !== null &&
+          !(
+            (Array.isArray(value) && value.length === 0) || 
+            (Object.keys(value).length === 0) 
+          )),
         errorMessage: '必須です',
       };
     case 'max':

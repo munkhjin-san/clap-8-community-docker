@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AssetRecord;
 use App\Models\attendanceRecord;
 use App\Models\boardToUser;
 use App\Models\CustomForm;
@@ -612,6 +613,24 @@ class RemindController extends Controller
         ];
         return response()->json($data);
     }
+    public function get_asset_recieve_requests(){
+        $active_user = $this->active_user();
+
+        $target_assets = AssetRecord::where(function ($query) use ($active_user) {
+            $query->whereHas('requests', function ($query) use ($active_user) {
+                $query->where('status', 1)->where('to_user', $active_user->id)
+                ->whereHas('steps', function($query){
+                    $query->where('value', 2)->whereNull('approved_by');
+                });
+            });
+        })
+        ->with(['requests' => function($q){
+            $q->with(['send_user', 'recieve_user', 'steps' => function($q){
+                $q->where('value', 2)->with('approver');
+            }]);
+        }])->get();
+        return response()->json(["asset_receive_requests" => $target_assets]);
+    }
     public function get_remind_badge(Request $request) {
         $responses = [];
     
@@ -625,6 +644,7 @@ class RemindController extends Controller
         $responses['reminded_messages'] = $this->getRemindMessage()->getData(true);
         $responses['paid_leaves'] = $this->get_temp_data($request)->getData(true);
         $responses['not_answered_forms'] = $this->get_not_answered_forms()->getData(true);
+        $responses['asset_receive_requests'] = $this->get_asset_recieve_requests()->getData(true);
         $count = 0;
         $counts = [];
         foreach ($responses as $key => $response) {

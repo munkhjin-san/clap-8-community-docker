@@ -91,9 +91,10 @@
                     >
 
                         <template #node-custom="nodeProps">
-                            <Handle type="target" :position="Position.Left" :connectable="false" />
-                            <Handle type="source" :position="Position.Left" :connectable="false" />
-                            <GanttTaskBody v-if="project" 
+                            <Handle type="target" :position="Position.Left" :connectable="false" style="opacity: 0"/>
+                            <Handle type="source" :position="Position.Left" :connectable="false" style="opacity: 0"/>
+                            <GanttTaskBody v-if="project"
+                                :actual-width="nodeProps.data.task.actual_width" 
                                 :sub-task-count="0" 
                                 :task="nodeProps.data.task"
                                 :interval="virtualSpan.interval" 
@@ -488,7 +489,7 @@ const remove = async (task: Task) => {
         pattern = 'サブタスク'
     }
     const answer = await confirm(`${pattern}を削除しますか。`)
-    if (!answer) return
+    if (!answer.value) return
 
     try {
         axios.delete(`/task_item`, { params: { task_id: task.id } }).then(() => {

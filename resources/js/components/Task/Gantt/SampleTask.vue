@@ -1,6 +1,6 @@
 <template>
     <div class="sub-task-item">         
-        <div class="sub-task-inner task-card-inner width-smooth" style="min-width: 24rem;" :id="`gantt-sub-${task.id}`" :style="{ background: background, color: color }"> 
+        <div class="sub-task-inner task-card-inner width-smooth" style="min-width: 24rem;transform: translateX(-3px);" :id="`gantt-sub-${task.id}`" :style="{ background: background, color: color }"> 
             <div class="flex h-full">
                 
                 <div class="flex flex-col gap-[5px] h-full w-full">
@@ -15,7 +15,19 @@
                     </div>
                     <div class="flex">
                         <div :style="{width: task.sub_tasks?.length || isSubTask ? 'calc(100% - 19px)' : '100%'}" class="flex flex-col gap-[5px]">
-                            <div ref="remarksRef" contenteditable="true" class="w-[fit-content] editable-remark max-w-full overflow-hidden overflow-ellipsis whitespace-pre-line leading-[1.5] break-all p-1">{{task.remarks}}</div>
+                            <div 
+                                :id="task.id"
+                                ref="remarksRef" 
+                                contenteditable="true" 
+                                class="w-[fit-content] editable-remark max-w-full overflow-hidden overflow-ellipsis whitespace-pre-line leading-[1.5] break-all p-1"
+                                @input="emit('update', {
+                                    id: task.id,
+                                    column: 'remarks',
+                                    value: ($event.target as HTMLElement).innerText
+                                })"
+                            >
+                                {{task.remarks}}
+                            </div>
                             
                         </div>
                     </div>
@@ -38,7 +50,7 @@ import { useAuthUserStore } from '@/store/auth';
 import CloseIcon from '@/components/Form/CloseIcon.vue';
 import { useTheme } from '@/store/theme';
 const auth = useAuthUserStore()
-const emit = defineEmits(['delete'])
+const emit = defineEmits(['delete', 'update'])
 const remarksRef = useTemplateRef('remarksRef')
 const props = defineProps<{
         task: any,

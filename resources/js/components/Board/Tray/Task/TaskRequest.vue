@@ -94,7 +94,7 @@ import { dateDetail } from '@/utils/workApi';
         // validationFailed.value = !isValid.value.status || isValid.value.inputRequired
         // if(validationFailed.value && overdue.value) return 
         const answer = await confirm('タスクを申請しますか。')
-        if(!answer) return
+        if(!answer.value) return
         try {
             const params = {
                 file_ids: uploadedFiles.value ? uploadedFiles.value.map(ob => ob.id) : [],

@@ -142,7 +142,7 @@ import { useBadgeStore } from '@/store/badge';
     })
     const timeCardRemand = async(item) => {
         const answer = await confirm(item.day_full + "日報を差し戻しますか。")
-        if(!answer) return
+        if(!answer.value) return
         
         const params = {
             user_id: item.user_id,

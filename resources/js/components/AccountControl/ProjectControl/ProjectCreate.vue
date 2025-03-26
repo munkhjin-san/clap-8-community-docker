@@ -1,282 +1,306 @@
 <template>
-    <div class="overlay">
-        <div class="chatCreate scrollable">
-            <div class="recordFormTitle" style="display:flex;">
-                <p>プロジェクト作成</p>
-                <div class="cursor-pointer" @click="emit('close')" style="position:unset; margin:auto 0 auto auto">
-                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
-                        <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                    </svg>                        
-                </div> 
-            </div>
-            <div v-if="taskCreating || misoCreating" class="fixed w-full h-full bg-[#00000061] flex items-center justify-center z-[15] top-0 left-0">
-                <div class="bg-[#00000085] flex flex-col justify-center items-center gap-[15px] p-[15px]">
-                    <div id="loaderMini" style="width: fit-content;">
-                        <div class="spinner-micro" style="border-color: transparent #fff #fff"></div>
-                    </div>
-                    <p class="text-white leading-normal text-center" v-html="taskCreating ? 
-                        'ガントチャート用のタスクをAIで自動生成中です。<br>この処理には数分かかる場合があります。' : 
-                        'MISOをAIで自動生成中です。<br>この処理には数分かかる場合があります。'">
-                        
-                    </p>
+    <div class="overlay" @click="emit('close')">
+        <div class="projectModalInner" @click.stop>
+            <div class="projectModalMainHeader">
+                <p class="ml-[30px]">{{ editData ? 'プロジェクトを編集する' : '新しいプロジェクトを作成する' }}</p>
+                <div class="flex items-center justify-center w-[60px] h-[60px] min-w-[60px] ml-auto cursor-pointer" @click="emit('close')">
+                    <CloseIcon size="13"/>
                 </div>
             </div>
-            <div>
-                <div>
-                    <ShortInput 
-                        name="name"
-                        v-model="name"
-                        :rules="'required'"
-                        placeHolder="タイトル"
-                        type="text"
-                        ref="projectTitle"
-                    />
-                </div>
-                <div class="si-box">
-                    <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">期間</p>
-                    <div style="display:flex;position: relative;width:100%">
-                        <ShortInput 
-                            name="startDate" 
-                            :rules="'required'"
-                            :initialValue="dateStart"
-                            customClass="date"
-                            ref="startDateRef"
-                            type="date"
-                            v-model="dateStart"
-                        />
-                        <div style="align-self: center;margin: 0 20px;font-size: 14px;color: gray;">ー</div>
-                        <ShortInput 
-                            name="endDate" 
-                            :rules="'required'"
-                            :initialValue="dateEnd"
-                            customClass="date"
-                            ref="endDateRef"
-                            type="date"
-                            v-model="dateEnd"
-                        />
-                    </div>
-                </div>
-                <div class="si-box">
-                    <div style="background:inherit;">        
-                        <div style="position:relative;background:inherit;">
-                            <div style="position: relative;background:inherit;border: 1px solid var(--primary-color);" ref="serviceCategoryRef">
-                                <v-autocomplete
-                                    chips
-                                    :items="serviceCategories"
-                                    :multiple="true"
-                                    closable-chips
-                                    flat
-                                    tile
-                                    bg-color="var(--background-color)"
-                                    clear-on-select
-                                    hide-details
-                                    hide-selected
-                                    hide-no-data
-                                    focused
-                                    eager
-                                    label="サービスカテゴリ"
-                                    :menu-props="{ scrollStrategy: 'close'}"
-                                    v-model="selectedCategories"
-                                >
-                                    <template v-slot:chip="{ props, item }">
-                                        <v-chip
-                                            closable
-                                            v-bind="props"
-                                            :text="item.title"
-                                            :close-icon="CloseIcon"
-                                            rounded="0"
-                                            density="compact"
-                                        >
-                                        </v-chip>
-                                    </template>
-                                    <template v-slot:item="{ props, item }">
-                                        <!-- <v-list-item :width="serviceCategoryRef && serviceCategoryRef?.clientWidth ? serviceCategoryRef?.clientWidth - 32 : undefined" v-bind="props" :subtitle="item.raw.subtitle" :text="item.raw" rounded="0" density="compact" :ripple="false" variant="flat"></v-list-item>                     -->
-                                        <div v-bind="props" class="text-[14px] py-[15px] hover:bg-[var(--bg2)] cursor-pointer" :style="{width: serviceCategoryRef && serviceCategoryRef?.clientWidth ? `${serviceCategoryRef?.clientWidth}px` : undefined}">
-                                            <div class="px-[15px] text-[var(--primary-color)]">
-                                                {{ item.title }}
-                                            </div>
-                                            <div class="text-gray-500 text-[10px] px-[30px] mt-[10px]">
-                                                {{ item.raw.subtitle }}
-                                            </div>
-                                        </div>
-                                    </template>
-                                </v-autocomplete>
-                            </div>
+            <div class="projectModalContainer">                
+                <div class="projectModalSideMenu">
+                    <div class="projectModalSideMenuInner">
+                        <div 
+                            v-for="(title, index) in stepTitles" 
+                            :key="index" 
+                            class="projectModalSideMenuItem" 
+                            :class="{'active-step': title.hash == activeHash }" 
+                            @click="jumpTo(title.hash)">
+                            {{ title.name }}
                         </div>
                     </div>
 
                 </div>
-                <div class="si-box flex flex-col gap-[15px]">
-                    <p class="mb-[10px]">顧客企業</p>
-                    <div v-for="(customer, index) in customers" class="flex gap-[10px] items-center">
-                        <div class="flex-[1]">
-                            <ShortInput 
-                                name="customer"
-                                v-model="customers[index]"
-                                placeHolder="顧客企業（正式名称）"
-                                :key="index"
-                            />
-                        </div>                        
-                        <div class="flex">
-                            <div title="顧客企業追加" @click="addCustomer(index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
-                                <AddIcon size="10"/>
+                <div class="projectModalContent" @scroll="onScroll">
+                    <div class="projectModalContentInner">
+                        <AiLoader v-if="taskCreating || misoCreating" :message="taskCreating ? 
+                                    'ガントチャート用のタスクをAIで自動生成中です。<br>この処理には数分かかる場合があります。' : 
+                                    '自動生成中です。<br>この処理には数分かかる場合があります。'"/>
+                        <div id="basic" class="mb-[60px] section-hd">
+                            <p class="mb-[20px]"><strong>基本情報</strong></p>
+                            <div>
+                                <ShortInput 
+                                    name="name"
+                                    v-model="projectParams.name"
+                                    :rules="'required'"
+                                    placeHolder="タイトル"
+                                    type="text"
+                                    ref="projectTitle"
+                                />
                             </div>
-                            <div title="顧客企業削除" @click="removeCustomer(index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
-                                <CloseIcon size="8"/>
-                            </div>                                
-                        </div> 
-                      
-                    </div>
-                </div>
-
-                <div class="si-box flex flex-col gap-[15px]">
-                    <p class="mb-[10px]">パートナー企業</p>
-                    <div v-for="(partner, index) in partners" class="flex gap-[10px] items-center">
-                        <div class="flex-[1]">
-                            <ShortInput 
-                                name="customer"
-                                v-model="partners[index]"
-                                placeHolder="パートナー企業（正式名称）"
-                                :key="index"
-                            />
-                        </div>                        
-                        <div class="flex">
-                            <div title="パートナー企業追加" @click="addPartner(index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
-                                <AddIcon size="10"/>
+                            <div class="si-box">
+                                <MemberSelector 
+                                    name="manager"
+                                    rules="required"
+                                    v-model="projectParams.manager"
+                                    :options="managerOptions"
+                                    :multiple="true"
+                                    placeHolder="管理者"
+                                    ref="projectManager"
+                                />
                             </div>
-                            <div title="パートナー企業削除" @click="removePartner(index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
-                                <CloseIcon size="8"/>
-                            </div>                                
-                        </div> 
-                      
-                    </div>
-                </div>
-
-                <div class="si-box">
-                    <LongInput 
-                        name="description"
-                        v-model="description"
-                        placeHolder="概要"
-                        ref="projectOverview"
-                        rules="required"                        
-                    />
-                    
-                    
-                </div>
-                <div class="si-box">
-                    <div>
-                        <p :class="['form-title-small', 'form-title-active']">MISO自動生成</p>
-                    </div>
-                    <div class="mt-5">
-                        <CommandButton 
-                            :buttons="[
-                                { title: '生成する', action: generateMiso},
-                            ]"
-                        />
-                    </div>
-                </div>
-                <div class="si-box">
-                    <LongInput 
-                        name="mission"
-                        v-model="mission"
-                        placeHolder="ミッション"
-                        :key="aiResponseKey"
-                    />
-                </div>
-                <div class="si-box">
-                    <LongInput 
-                        name="innovation"
-                        v-model="innovation"
-                        placeHolder="イノベーション"
-                        :key="aiResponseKey"
-                    />
-                </div>
-                
-                <div class="si-box">
-                    <LongInput 
-                        name="strategy"
-                        v-model="strategy_miso"
-                        placeHolder="ストラテジー"
-                        :key="aiResponseKey"
-                    />
-                </div>
-                <div class="si-box">
-                    <LongInput 
-                        name="operation"
-                        v-model="operation"
-                        placeHolder="オペレーション"
-                        :key="aiResponseKey"
-                    />
-
-                </div>
-                <div class="si-box">
-                    <MemberSelector 
-                        name="manager"
-                        rules="required"
-                        v-model="manager"
-                        :options="managerOptions"
-                        :multiple="true"
-                        placeHolder="管理者"
-                        ref="projectManager"
-                    />
-                </div>
-                <div class="si-box">
-                    <MemberSelector 
-                        name="member"
-                        v-model="member"
-                        placeHolder="メンバー"
-                        :options="userList"
-                        :closeOnSelect="false"
-                        :multiple="true"
-                    />
-                </div>
-                <div class="si-box" style="position:relative;">
-                    <div>
-                        <p :class="['form-title-small', 'form-title-active']">ボード連携</p>
-                    </div>
-                    <div class="selectSwitchArea" style="width: fit-content;">    
-                        <input type="checkbox" id="release_flag" v-model="boardLink">
-                        <label for="release_flag" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer']"><span></span>
-                            <div class="switch-toggle"></div>
-                        </label>
-                    </div>  
-                </div> 
-                <div class="si-box" style="position:relative;">
-                    <div>
-                        <p :class="['form-title-small', 'form-title-active']">タスク自動生成</p>
-                    </div>
-                    <div class="mt-5 flex gap-[10px]">
-                        <CommandButton 
-                            :buttons="[
-                                { title: '生成する', action: generateTasks},
-                                ...(prepareSampleTasks.length > 0 ? [{ title: 'キャンセル', action: () => aiResponse = [] }] : [])
-                            ]"
-                        />
-                    </div>
-                    <div class="mt-5 flex flex-col gap-[20px]" v-if="prepareSampleTasks.length">
-                        <div class="max-w-sm" v-for="task in prepareSampleTasks">
-                            <SampleTask 
-                                :task="task"
-                                ref="mainTaskRef"
-                                @delete="deleteTask"
-                            />
-                            <div v-if="task.sub_tasks.length" class="sub-task-wrap !ml-[15px]">
-                                <div class="sub-task-container">
-                                    <SampleTask 
-                                        v-for="subTask in task.sub_tasks"
-                                        :task="subTask"
-                                        ref="mainTaskRef"
-                                        @delete="deleteTask"
+                            <div class="si-box">
+                                <MemberSelector 
+                                    name="member"
+                                    v-model="projectParams.members"
+                                    placeHolder="メンバー"
+                                    :options="userList"
+                                    :closeOnSelect="false"
+                                    :multiple="true"
+                                />
+                            </div>
+                            <div class="si-box">
+                                <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">期間</p>
+                                <div style="display:flex;position: relative;width:100%">
+                                    <ShortInput 
+                                        name="startDate" 
+                                        :rules="'required'"
+                                        :initialValue="projectParams.date_start"
+                                        customClass="date"
+                                        ref="startDateRef"
+                                        type="date"
+                                        v-model="projectParams.date_start"
+                                    />
+                                    <div style="align-self: center;margin: 0 20px;font-size: 14px;color: gray;">ー</div>
+                                    <ShortInput 
+                                        name="endDate" 
+                                        :rules="'required'"
+                                        :initialValue="projectParams.date_end"
+                                        customClass="date"
+                                        ref="endDateRef"
+                                        type="date"
+                                        v-model="projectParams.date_end"
                                     />
                                 </div>
                             </div>
                         </div>
-                    </div> 
-                    
-                </div>
-                
-                <div class="si-box">
-                    <LoaderButton @triggered="createProject" :loading="loading" content="作成する"/>
+                        <div id="overview" class="mb-[60px] section-hd">
+                            <p class="mb-[20px]"><strong>概要</strong></p>
+                            <div>
+                                <div style="background:inherit;">        
+                                    <div style="position:relative;background:inherit;">
+                                        <div style="position: relative;background:inherit;border: 1px solid var(--primary-color);" ref="serviceCategoryRef">
+                                            <v-autocomplete
+                                                chips
+                                                :items="serviceCategories"
+                                                :multiple="true"
+                                                closable-chips
+                                                flat
+                                                tile
+                                                bg-color="var(--background-color)"
+                                                clear-on-select
+                                                hide-details
+                                                hide-selected
+                                                hide-no-data
+                                                focused
+                                                eager
+                                                label="サービスカテゴリ"
+                                                :menu-props="{ scrollStrategy: 'close'}"
+                                                v-model="projectParams.category"
+                                                
+                                            >
+                                                <template v-slot:chip="{ props, item }">
+                                                    <v-chip
+                                                        closable
+                                                        v-bind="props"
+                                                        :text="item.title"
+                                                        :close-icon="CloseIcon"
+                                                        rounded="0"
+                                                        density="compact"
+                                                    >
+                                                    </v-chip>
+                                                </template>
+                                                <template v-slot:item="{ props, item }">
+                                                    <!-- <v-list-item :width="serviceCategoryRef && serviceCategoryRef?.clientWidth ? serviceCategoryRef?.clientWidth - 32 : undefined" v-bind="props" :subtitle="item.raw.subtitle" :text="item.raw" rounded="0" density="compact" :ripple="false" variant="flat"></v-list-item>                     -->
+                                                    <div v-bind="props" class="text-[14px] py-[15px] hover:bg-[var(--bg2)] cursor-pointer" :style="{width: serviceCategoryRef && serviceCategoryRef?.clientWidth ? `${serviceCategoryRef?.clientWidth}px` : undefined}">
+                                                        <div class="px-[15px] text-[var(--primary-color)]">
+                                                            {{ item.title }}
+                                                        </div>
+                                                        <div class="text-gray-500 text-[10px] px-[30px] mt-[10px]">
+                                                            {{ item.raw.subtitle }}
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </v-autocomplete>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <div class="si-box flex flex-col gap-[15px]">
+                                <PartnerSelector 
+                                    name="customer"
+                                    v-model="projectParams.customers!"
+                                    placeHolder="顧客企業（正式名称）"
+                                />
+                            </div>
+
+                            <div class="si-box flex flex-col gap-[15px]">
+                                <PartnerSelector 
+                                    name="customer"
+                                    v-model="projectParams.partners!"
+                                    placeHolder="パートナー企業（正式名称）"
+                                />
+                            </div>
+
+                            <div class="si-box relative">
+                                <LongInput 
+                                    name="private_memo"
+                                    v-model="projectParams.private_memo"
+                                    placeHolder="管理者用非公開メモ"
+                                    ref="projectMemo"
+                                    rules="required"                        
+                                />
+
+                            </div>
+                            <div class="si-box relative">
+                                <p class="mb-[15px]">概要</p>
+                                <RichEditor 
+                                    name="description"
+                                    :initila-value="projectParams.description"
+                                    placeHolder="概要"
+                                    :key="inputKeys.description"
+                                    @content-updated="(val) => projectParams.description = val"
+                                />
+                                <div @click="generateAutoText('概要', 'description')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <OpenAIIcon :loading="inputLoading.description"/>
+                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.description ? '生成中...' : '自動生成'}}</p>
+                                </div>
+                            </div>
+ 
+                        </div>
+                        <div class="mb-[60px] section-hd" id="miso">
+                            <p class="mb-[20px]"><strong>MISO</strong></p>
+                            <div class="relative">
+                                <p class="mb-[15px]">ミッション</p>
+                                <RichEditor 
+                                    name="mission"
+                                    :initila-value="projectParams.mission"
+                                    placeHolder="ミッション"
+                                    :key="inputKeys.mission"
+                                    @content-updated="(val) => projectParams.mission = val"
+                                />
+                                <div @click="generateAutoText('ミッション', 'mission')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <OpenAIIcon :loading="inputLoading.mission"/>
+                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.mission ? '生成中...' : '自動生成'}}</p>
+                                </div>
+                            </div>
+                            <div class="si-box">
+                                <p class="mb-[15px]">イノベーション</p>
+                                <RichEditor 
+                                    name="innovation"
+                                    :initila-value="projectParams.innovation"
+                                    placeHolder="イノベーション"
+                                    :key="inputKeys.innovation"
+                                    @content-updated="(val) => projectParams.innovation = val"
+                                />
+                                <div @click="generateAutoText('イノベーション', 'innovation')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <OpenAIIcon :loading="inputLoading.innovation"/>
+                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.innovation ? '生成中...' : '自動生成'}}</p>
+                                </div>
+                            </div>
+                            <div class="si-box">
+                                <p class="mb-[15px]">ストラテジー</p>
+                                <RichEditor 
+                                    name="strategy_miso"
+                                    :initila-value="projectParams.strategy_miso"
+                                    placeHolder="イノベーション"
+                                    :key="inputKeys.strategy_miso"
+                                    @content-updated="(val) => projectParams.strategy_miso = val"
+                                />
+                                <div @click="generateAutoText('ストラテジー', 'strategy_miso')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <OpenAIIcon :loading="inputLoading.strategy_miso"/>
+                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.strategy_miso ? '生成中...' : '自動生成'}}</p>
+                                </div>
+                            </div>
+                            <div class="si-box">
+                                <p class="mb-[15px]">オペレーション</p>
+                                <RichEditor 
+                                    name="operation"
+                                    :initila-value="projectParams.operation"
+                                    placeHolder="オペレーション"
+                                    :key="inputKeys.operation"
+                                    @content-updated="(val) => projectParams.operation = val"
+                                />
+                                <div @click="generateAutoText('オペレーション', 'operation')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <OpenAIIcon :loading="inputLoading.operation"/>
+                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.operation ? '生成中...' : '自動生成'}}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="section-hd" id="tasks">
+                            <p class="mb-[20px]"><strong>タスクの自動生成</strong></p>
+                            <div class="relative" ref="flowContainer">
+                                <div>
+                                    <p class="text-[13px] text-[gray] mt-[30px] leading-normal">
+                                        プロジェクトのMISO「ミッション、イノベーション、ストラテジー、オペレーション」を元にタスクを自動生成します。<br>
+                                    </p>
+                                </div>
+                                <div class="mt-5 flex gap-[10px]">
+                                    <CommandButton 
+                                        :buttons="[
+                                            { title: '生成する', action: generateTasks},
+                                            ...(generatedTasks.length > 0 ? [{ title: 'キャンセル', action: () => generatedTasks = [] }] : [])
+                                        ]"
+                                    />
+                                </div>
+                                <div class="mt-5 flex flex-col gap-[20px]" v-if="generatedTasks.length">
+                                    <VueFlow 
+                                        :nodes="flowTasks.nodes" 
+                                        :edges="flowTasks.edges" 
+                                        fit-view-on-init
+                                        :default-zoom="1" 
+                                        :min-zoom="1" 
+                                        :max-zoom="1" 
+                                        :nodes-draggable="false" 
+                                        :zoom-on-scroll="false"
+                                        :zoom-on-double-click="false" 
+                                        :zoom-on-pinching="false" 
+                                        :pan-on-drag="false"
+                                        :pan-on-scroll="false" 
+                                        :edges-deleteable="false" 
+                                        :default-viewport="{ x: 40, y: 80, zoom: 1 }"
+                                        @pane-ready="(vueFlowInstance) => flowInitilized(vueFlowInstance)"
+                                        :style="{ 
+                                            height: `${flowTasks.totalHeight}px`, 
+                                            minHeight: `${flowTasks.totalHeight}px`, 
+                                            minWidth: '100%' 
+                                        }"
+                                    >
+
+                                        <template #node-custom="nodeProps">
+                                            <Handle type="target" :position="Position.Left" :connectable="false" />
+                                            <Handle type="source" :position="Position.Left" :connectable="false" />                   
+                                                <SampleTask 
+                                                    :task="nodeProps.data.task"
+                                                    ref="mainTaskRef"
+                                                    @delete="deleteTask"
+                                                    @update="updateTask"
+                                                />
+                                        </template>
+
+                                        <template #edge-custom="edgeProps">
+                                            <CustomEdge v-bind="edgeProps" />
+                                        </template>
+                                    </VueFlow>
+                                </div> 
+                                
+                            </div>                            
+                            <div class="si-box">
+                                <LoaderButton @triggered="createProject" :loading="loading" content="保存する"/>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -287,51 +311,105 @@ import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { computed, inject, ref, useTemplateRef } from 'vue';
+import PartnerSelector from '@/components/Form/PartnerSelector.vue';
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, toRaw, useTemplateRef } from 'vue';
 import axios from 'axios';
 import { DialogMethods, Task, TaskUser, User } from '@/interface/globalInterface';
 import { ComponentExposed } from 'vue-component-type-helpers';
 import { Project } from '@/interface/projectInterface';
-import OpenAI from 'openai';
+import OpenAIIcon from '../../Icons/OpenAIIcon.vue';    
 import SampleTask from '@/components/Task/Gantt/SampleTask.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { DateTime } from 'luxon';
 import CloseIcon from '@/components/Form/CloseIcon.vue';
 import 'styles/selector.css'
 import AddIcon from '@/components/Form/AddIcon.vue';
+import Modal from '@/components/Global/Modal.vue';
+import { useAuthUserStore } from '@/store/auth';
+import OpenAI from 'openai';
+import RichEditor from '@/components/Global/RichEditor.vue';
+import {marked} from 'marked'
+import DOMPurify from 'dompurify';
+import taskGenerateFormat from '../../../../assets/taskGenerateFormat.json'
+import { type Node, type Edge, MarkerType, VueFlow, VueFlowStore, Position, Handle } from '@vue-flow/core';
+import CustomEdge from '@/components/Task/Gantt/CustomEdge.vue';
+import AiLoader from '@/components/Global/AiLoader.vue';
+import { useRoute, useRouter } from 'vue-router';
 
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
-const name = ref(props.editData?.name ?? '')
-const description = ref(props.editData?.description ?? '')
-const strategy_miso = ref(props.editData?.strategy_miso ?? '')
-const kpi = ref(props.editData?.kpi ?? '')
-const kgi = ref(props.editData?.kgi ?? '')
-const miso = ref(props.editData?.miso ?? '')
-const mission = ref(props.editData?.mission ?? '')
-const innovation = ref(props.editData?.innovation ?? '')
-const operation = ref(props.editData?.operation ?? '')
-const selectedCategories = ref(props.editData?.category ?? [])
-const director = ref<User>(props.editData?.director ?? null)
-const manager = ref<User[] | TaskUser[]>(props.editData?.manager ?? [])
-const member = ref<User[]>(props.editData?.members ?? [])
 const loading = ref(false)
-const dateStart = ref(props.editData?.date_start ?? '')
-const dateEnd = ref(props.editData?.date_end ?? '')
-const boardLink = ref(props.editData?.board_id ? true : false)
 const taskCreating = ref(false)
 const misoCreating = ref(false)
-const project = ref<Project | null>(null)
-const aiResponse = ref<Task[]>([])
+const auth = useAuthUserStore()
+const step = ref(0)
+const router = useRouter()
+const route = useRoute()
+const stepTitles = [
+    {name: '基本情報', hash: '#basic'},
+    {name: '概要', hash: '#overview'},
+    {name: 'MISO', hash: '#miso'},
+    {name: 'タスク自動生成', hash: '#tasks'}
+]
+const inputKeys = reactive({
+    mission: 0,
+    innovation: 0,
+    strategy_miso: 0,
+    operation: 0,
+    description: 0
+})
+
+const inputLoading = reactive({
+    mission: false,
+    innovation: false,
+    strategy_miso: false,
+    operation: false,
+    description: false
+})
+
+const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(props.editData) } : {
+    name: '',
+    description: '',
+    strategy_miso: '',
+    mission: '',
+    innovation: '',
+    operation: '',
+    category: [],
+    manager: [],
+    members: [],
+    date_start: '',
+    date_end: '',
+    board_id: null
+})
+const generatedTasks = ref<Task[]>([])
+const flowInstance = ref<VueFlowStore | null>(null)
+onMounted(() => {
+    if(projectParams.customers == null){
+        projectParams.customers = []
+    }
+    if(projectParams.partners == null){
+        projectParams.partners = []
+    }
+    if(!props.editData){
+        projectParams.date_start = DateTime.now().toISODate()
+        projectParams.date_end = DateTime.now().plus({ days: 30 }).toISODate()
+        if(auth.activeUser){
+            projectParams.manager = [auth.activeUser as User]
+        }
+        
+    }
+
+})
+
 const startDateRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('startDateRef')
 const endDateRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('endDateRef')
 const projectTitle = useTemplateRef<ComponentExposed<typeof ShortInput>>('projectTitle')
 const projectManager = useTemplateRef<ComponentExposed<typeof MemberSelector>>('projectManager')
 const projectOverview = useTemplateRef<ComponentExposed<typeof LongInput>>('projectOverview')
 const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainTaskRef')
-const aiResponseKey = ref(0)
-const customers = ref<string[]>(props.editData?.customers ?? [''])
-const partners = ref<string[]>(props.editData?.partners ?? [''])
+const projectMemo = useTemplateRef<ComponentExposed<typeof LongInput>>('projectMemo')
+const flowContainer = useTemplateRef('flowContainer')
+
 const serviceCategoryRef = useTemplateRef('serviceCategoryRef')
 const serviceCategories = [
     {title: "営業・マーケティング支援", subtitle: 'テレマーケティング、訪問営業、オンライン営業、イベント・プロモーション支援、代理店連携など', value: "営業・マーケティング支援"},
@@ -341,15 +419,75 @@ const serviceCategories = [
     {title: "輸入食品・流通支援", subtitle: '外国産食品などの輸入調達、物流、国内販売促進など、食材に関する全般的なサポート', value: "輸入食品・流通支援"},
 ]
 
-const { notify, info,  } = inject('dialog') as DialogMethods
-const directorOptions = computed(() => {
-    return props.userList.filter((user: { position_id: number; }) => user.position_id < 6 && user.position_id !== null)
-})
+const { notify, info, confirm} = inject('dialog') as DialogMethods
+
 const managerOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id <= 6)
 })
+const activeHash = ref('#basic');
+
+const flowTasks = computed(() => {
+    const nodes = <Node[]>[]
+    const edges = <Edge[]>[]
+    let topOffset = 20
+
+    const checkSelfIncluded = (taskRecord: Task) => {
+        const executors = taskRecord.executors.map(e => e.id)
+        return executors.includes(auth.activeUser.id!)
+    }
+    generatedTasks.value.forEach((task) => {
+        const offsetX = 0
+        nodes.push({
+            id: task.id.toString(),
+            type: 'custom',
+            label: task.title as string,
+            position: { x: offsetX, y: topOffset },
+            data: { task: task, mainTask: null },
+            style:{
+                width: `50%`,
+                minWidth: '60px',
+            }
+        })
+        topOffset += 116
+        task.sub_tasks.forEach((subTask) => {
+            topOffset += 15
+            nodes.push({
+                id: subTask.id.toString(),
+                type: 'custom',
+                label: subTask.title as string,
+                position: { x: 60, y: topOffset },
+                data: { task: subTask, mainTask: task },
+                connectable: false,
+                style:{
+                    width: `50%`,
+                    minWidth: '60px',
+                }
+            })
+
+            edges.push({
+                id: subTask.id.toString(),
+                source: task.id.toString(),
+                target: subTask.id.toString(),
+                type: 'smoothstep',
+                style:{
+                    strokeWidth: 2
+                },
+                markerEnd: MarkerType.ArrowClosed,
+            })
+            topOffset += 116
+
+        })
+        topOffset += 30
+    })
+    return {
+        nodes: nodes,
+        totalHeight: topOffset,
+        edges: edges,
+        totalWidth: flowContainer.value?.clientWidth
+    }
+})
 const validation = async() => {
-    const validationTargets = [startDateRef.value, endDateRef.value, projectTitle.value, projectOverview.value]
+    const validationTargets = [startDateRef.value, endDateRef.value, projectTitle.value]
     let result = true
     for(const target of validationTargets){                
         const val = await target?.validate() || {valid:false}
@@ -364,60 +502,7 @@ const managerValidation = async() => {
 
     return val.valid
 }
-const generateMiso = async() => {
-    const validate = await validation()
-    if(!validate) return
-    try {
-        misoCreating.value = true
-        const openai = new OpenAI({
-            apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-            dangerouslyAllowBrowser: true 
-        });       
-        const assistant = await openai.beta.assistants.retrieve("asst_S9jC52PggATrcVT4QoEX8NYd");
-        const thread = await openai.beta.threads.create();
-        const text = `project_name: ${name.value}\n project_description: ${description.value}\n project-period: ${dateStart.value} ~ ${dateEnd.value}`;
-        await openai.beta.threads.messages.create(thread.id, { role: "user", content: text });
-        let jsonBuffer = ''; 
 
-        openai.beta.threads.runs.stream(thread.id, { assistant_id: assistant.id })
-            .on('textDelta', (textDelta, snapshot) => {
-                const content = textDelta.value || '';
-                jsonBuffer += content;
-            })
-            .on('end', () => {
-                try {
-                    const parsedData = JSON.parse(jsonBuffer);
-                    console.log(parsedData)
-                    mission.value = parsedData?.mission
-                    innovation.value = parsedData?.innovation
-                    strategy_miso.value = parsedData?.strategy
-                    operation.value = parsedData?.operation
-                    misoCreating.value = false
-                    aiResponseKey.value++
-                } catch (error) {
-                    console.error("JSON Parsing Error:", error);
-                    notify(`MISOの自動生成に失敗しました。<br>${error?.message ? error.message : ''}`)
-                    misoCreating.value = false
-                }
-            });
-        
-    } catch (err) {
-        if (err instanceof OpenAI.APIError) {
-            console.log(err.status); 
-            console.log(err); 
-            if(err.status == 500){
-                notify('MISOの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-            }else{
-                notify('MISOの自動生成に失敗しました。>' + err?.message)
-            }
-            
-        } else {
-            notify('MISOの自動生成に失敗しました。<br>' + err)
-        }
-        misoCreating.value = false
-    }
-
-}
 const createProject = async() => {
     
     const validate = await validation()
@@ -430,78 +515,113 @@ const createProject = async() => {
 
     const params = {
         id: props.editData?.id,
-        manager_ids: manager.value.map(ob => ob.id),
-        member_ids: member.value.map(ob => ob.id),
-        params: {
-            name: name.value,
-            director_id: director.value?.id,
-            date_start: dateStart.value,
-            date_end: dateEnd.value,
-            description: description.value,
-            strategy_miso: strategy_miso.value,
-            mission: mission.value,
-            category: selectedCategories.value,
-            innovation: innovation.value,
-            operation: operation.value,
-            customers: customers.value,
-            partners: partners.value,
-            kgi: kgi.value,
-            kpi: kpi.value,  
-        },
-        board_link: boardLink.value
+        params: projectParams,
+        tasks: generatedTasks.value
     }
     loading.value = true
     try {
         const response = await axios.post('/create_project', params)
-        project.value = response.data
-        if (aiResponse.value.length) {
-            await editTasks()
-            await createTasks()
-        }
+
+        info('保存しました。')
         emit('close')
         loading.value = false
         
         emit('getProjects')
     } catch (e) {
-        
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        loading.value = false
+
     }
 }
 const generateTasks = async() => {
-    const validate = await validation()
+    // const validate = await validation()
     const managerValidate = await managerValidation()
-    if(!validate || !managerValidate) return
-    if (!mission.value && !innovation.value && !strategy_miso.value && !operation.value) {
-        notify('タスクを生成するには、ミッション、イノベーション、ソリューション、オペレーションのいずれかが必要です。')
+    if(!managerValidate) return
+    if (!projectParams.mission && !projectParams.innovation && !projectParams.strategy_miso && !projectParams.operation) {
+        notify('タスクを生成するには、ミッション、イノベーション、ストラテジー、オペレーションのいずれかが必要です。')
         return
     }
     try {
+        generatedTasks.value = []
         taskCreating.value = true
         const openai = new OpenAI({
             apiKey: import.meta.env.VITE_OPENAI_API_KEY,
             dangerouslyAllowBrowser: true 
         });       
-        const assistant = await openai.beta.assistants.retrieve("asst_YTY2p8rPF9oE6IcOXU40yfuV");
-        const thread = await openai.beta.threads.create();
-        const text = `mission: ${mission.value}\n innovation: ${innovation.value}\n strategy: ${strategy_miso.value}\n operation: ${operation.value}`;
-        await openai.beta.threads.messages.create(thread.id, { role: "user", content: text });
-        let jsonBuffer = ''; 
-
-        openai.beta.threads.runs.stream(thread.id, { assistant_id: assistant.id })
-            .on('textDelta', (textDelta, snapshot) => {
-                const content = textDelta.value || '';
-                jsonBuffer += content;
-            })
-            .on('end', () => {
-                try {
-                    const parsedData = JSON.parse(jsonBuffer);
-                    aiResponse.value = parsedData.tasks; 
-                    taskCreating.value = false
-                    console.log(aiResponse.value) 
-                } catch (error) {
-                    console.error("JSON Parsing Error:", error);
-                    notify(`タスクの自動生成に失敗しました。<br>${error?.message ? error.message : ''}`)
+        const instructionText = `あなたはプロジェクトのタスクを自動生成するアシスタントです。\n
+        プロジェクトの概要と期間と4つの様子があげられます。\n
+        「ミッション、イノベーション、ストラテジー、オペレーション」\n
+        各様子に1つのメインタスクを生成し、その中にサブタスクも生成します。\n
+        メインタスクの内容の前必ず様子を記載する必要がある。\n
+        例：【ミッション】タスク内容(remarks)\n
+        期間(duration)はプロジェクトの期間に合わせます。日数です。\n
+        (id)はタスクのIDです。メインタスクの場合は、main_{unique_id} とします。\nサブタスクの場合は、sub_{unique_id} とします。\n
+        (start_at)はタスクの開始日です。プロジェクトの期間にあわせます。\n
+        (end_at)はタスクの終了日です。プロジェクトの期間にあわせます。\n
+        必要に応じてサブタスク（sub_tasks）を追加。ただし、不要な場合は sub_tasks: [] を返すこと。実行可能なステップに分解します。\n
+        タスク間の親子関係を適切に設定:\n   
+        - sub_tasks → サブタスクの配列（必要な場合）。\n  
+        - parent_task_id → 親タスクのID（サブタスクの場合）。`
+        const userMessage = 
+        `
+        プロジェクト名 : ${projectParams.name}
+        プロジェクトの実施期間 : ${projectParams.date_start} ~ ${projectParams.date_end}
+        プロジェクトの概要 : ${projectParams.description}
+        ミッション : ${projectParams.mission}
+        イノベーション : ${projectParams.innovation}
+        ストラテジー : ${projectParams.strategy_miso}
+        オペレーション : ${projectParams.operation}
+        `
+        const response = await openai.responses.create({
+            model: "gpt-4o-mini",
+            input: [
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": instructionText
+                        }
+                    ]
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": userMessage
+                        }
+                    ]
                 }
-            });
+            ],
+            text: {
+                "format": {
+                    "type": "json_schema",
+                    "name": "tasks_schema",
+                    "strict": true,
+                    "schema": taskGenerateFormat
+                }
+            },
+        });
+
+        if(response.output[0].type == 'message' && response.output[0].content[0].type == "output_text"){
+     
+            const parsedData = JSON.parse(response.output[0].content[0].text);
+            generatedTasks.value = parsedData.tasks.map((task: Task) => {
+                return {
+                    ...task,
+                    executors: projectParams.manager,
+                    sub_tasks: task.sub_tasks.map((subTask: Task) => {
+                        return {
+                            ...subTask,
+                            executors: projectParams.manager,
+                        }
+                    })
+                }
+            })
+            console.log(generatedTasks)
+        }
+        taskCreating.value = false
         
     } catch (err) {
         if (err instanceof OpenAI.APIError) {
@@ -519,74 +639,19 @@ const generateTasks = async() => {
         taskCreating.value = false
     }
 }
-const prepareSampleTasks = computed(() => {
-    if (!aiResponse.value) return [];
 
-    return aiResponse.value.map(task => {
-        const startDate = DateTime.now().toISODate()
-        const endDate = DateTime.now().plus({ days: task.duration }).toISODate();
-
-        return {
-            ...task,
-            executors: manager.value,
-            start_at: startDate,
-            end_at: endDate,
-            sub_tasks: task.sub_tasks.map(subTask => {
-                const subTaskEndDate = DateTime.now()
-                    .plus({ days: subTask.duration })
-                    .toISODate();
-
-                return {
-                    ...subTask,
-                    executors: manager.value,
-                    start_at: startDate,
-                    end_at: subTaskEndDate,
-                };
-            }),
-        };
-    });
-});
-
-const createTasks = async() => {
-    if (!aiResponse.value.length && !project.value) return
-    try {
-        const params = {
-            project_id: project.value?.id,
-            tasks: aiResponse.value
-        }
-        await axios.post('/create_project_tasks', params)
-    } catch (e) {
-
-    }
+const flowInitilized = (vueFlowInstance: VueFlowStore) => {
+    flowInstance.value = vueFlowInstance
+    if (flowInstance.value)
+        flowInstance.value.setViewport({ x: 40, y: 0, zoom: 1 })
 }
-const editTasks = async() => {
-    
-    const tasks = aiResponse.value.map(task => {
-        const newContent = mainTaskRef.value?.find(sampleTask => sampleTask.computedTaskId === task.id)
-        if (newContent) {
-            const editedContent = newContent.remarksRef?.textContent
-            task.remarks = editedContent as string
-        }
-        task.sub_tasks.map(subTask => {
-            const newContent = mainTaskRef.value?.find(sampleTask => sampleTask.computedTaskId === subTask.id)
-            if (newContent) {
-                const editedContent = newContent.remarksRef?.textContent
-                subTask.remarks = editedContent as string
-            }
-            return subTask
-        })
-        return task
-    })
-    console.log(tasks)
-    return tasks
-   
-}
+
 const deleteTask = (id: number) => {
-    const index = aiResponse.value.findIndex(task => task.id === id);
+    const index = generatedTasks.value.findIndex(task => task.id === id);
     if (index !== -1) {
-        aiResponse.value.splice(index, 1);
+        generatedTasks.value.splice(index, 1);
     } else {
-        aiResponse.value.forEach(task => {
+        generatedTasks.value.forEach(task => {
             const subtaskIndex = task.sub_tasks.findIndex(subtask => subtask.id === id);
             if (subtaskIndex !== -1) {
                 task.sub_tasks.splice(subtaskIndex, 1);
@@ -594,20 +659,220 @@ const deleteTask = (id: number) => {
         });
     }
 }
-const addCustomer = (index: number) => {
-    customers.value.splice(index + 1, 0, '')
+
+const instruction = (val:string) => {
+    return `あなたはMISOフレームワークの自動生成アシスタントです。
+    MISOフレームワークとは
+    ■ Mission（ミッション：目的と背景の明確化）
+    ・プロジェクトの具体的な目的や存在意義を明確に記述
+    ・達成すべき定量的および定性的目標を設定
+    ・主要ステークホルダーとその具体的役割を示す
+
+    ■ Innovation（イノベーション：価値創造と差別化）
+    ・本質的な課題の分析と根本原因の明確化
+    ・競合との差別化を図るための独自かつ具体的なアイデアの提示
+
+    ■ Strategy（ストラテジー：戦略と施策の具体化）
+    ・プロジェクト成功に向けた具体的かつ実践可能な戦略
+    ・施策実施に必要なリソース、役割分担を具体的に提示
+    ・想定されるリスクへの対処戦略を具体的に明示
+
+    ■ Operation（オペレーション：実行と継続的改善）
+    ・実施プロセス（作業フロー）の具体的な提示
+    ・進捗管理と評価方法を具体的に設定
+    ・フィードバック収集手法と改善サイクルの具体的設計
+    ユーザーからは次のようなデータがあげられます。
+    プロジェクト名
+    プロジェクトの実施期間
+    プロジェクトの概要
+    あなたの役割はユーザーから挙げられたデータを分析し、MISOフレームワークの通り、プロジェクトの${val}を考え、具体的かつ実践的な${val}を生成することです。
+    ${val}のみを生成します。他の様子を別で生成するため今回はいりません。
+    不足情報がある場合は、AIが具体的に追加質問を行います。
+    
+    注意事項
+    テキストフォーマットはMarkdown形式で記述してください。ただし、
+    ・太文字やボルドやheadingを使わない。
+    ulの場合は、・を使って箇条書きを行ってください。
+    olの場合は、数字を使って箇条書きを行ってください。
+    よけな付け足すをしないでください。例: プロジェクト名や期間そしてプロジェクトの${val}などを記載しない
+    `
 }
-const removeCustomer = (index: number) => {
-    if(customers.value.length && customers.value.length > 1){
-        customers.value.splice(index, 1)
+
+const descriptionInstruction = `
+挙げられたプロジェクトの情報から、プロジェクトの概要を生成してください。
+プロジェクトの概要は、プロジェクトの目的、背景、目標、スコープ、成果物、リスク、課題、ステークホルダー、リソース、スケジュール、予算、コミュニケーション
+など、プロジェクトの全体像を示す内容を含めてください。
+    注意事項
+    テキストフォーマットはMarkdown形式で記述してください。ただし、
+    ・太文字やボルドやheadingを使わない。
+    ulの場合は、・を使って箇条書きを行ってください。
+    olの場合は、数字を使って箇条書きを行ってください。
+    よけな付け足すをしないでください。例: プロジェクト名や期間そして「プロジェクトの概要」などを記載しない
+`
+
+const generateAutoText = async(index:string, indexVal:string) => {
+    
+
+    if(inputLoading[indexVal]){
+        return
+    }
+    const validationTargets = [startDateRef.value, endDateRef.value, projectTitle.value]
+    let result = true
+    if(indexVal == 'description'){
+        validationTargets.push(projectMemo.value)
+    }else{
+        validationTargets.push(projectManager.value)
+    }
+
+    for(const target of validationTargets){                
+        const val = await target?.validate() || {valid:false}
+        result = result && val.valid
+    }
+    if(!result){
+        notify('必須項目を入力してください。')
+        return
+    }
+
+    let confirmed = {value: true}
+    if(projectParams[indexVal]){
+        confirmed = await confirm('既存の内容は上書きされます。よろしいですか？')
+    }
+    if(!confirmed.value){
+        return
+    }
+    inputLoading[indexVal] = true
+
+    const openai = new OpenAI({
+        apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+        dangerouslyAllowBrowser: true 
+    });  
+
+    let inputText = `
+        プロジェクト名 : ${projectParams.name}
+        プロジェクトの実施期間 : ${projectParams.date_start} ~ ${projectParams.date_end}
+        プロジェクトの概要 : ${projectParams.description}
+    `
+    if(projectParams.customers && projectParams.customers.length){
+        inputText += `顧客企業 : ${projectParams.customers.join(', ')}`
+    }
+    if(projectParams.partners && projectParams.partners.length){
+        inputText += `パートナー企業 : ${projectParams.partners.join(', ')}`
+    }
+    if(projectParams.category && projectParams.category.length){
+        inputText += `サービスカテゴリ : ${projectParams.category.join(', ')}`
+    }
+    const instructionText = indexVal == 'description' ? descriptionInstruction : instruction(index)
+    try{
+        const response = await openai.responses.create({
+            model: "gpt-4o-mini",
+            input: [
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": instructionText
+                        }
+                    ]
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": inputText
+                        }
+                    ]
+                }
+            ],
+            text: {
+                "format": {
+                    "type": "text"
+                }
+            },
+            stream: true
+        });
+        let rawText = '';
+        for await (const event of response) {
+            console.log(event);
+            if (event.type === 'response.output_text.delta') {
+                rawText += event.delta; 
+
+                const markedText = marked.parse(rawText) as string;
+                const sanitizedText = DOMPurify.sanitize(markedText);
+
+                projectParams[indexVal] = sanitizedText;
+                inputKeys[indexVal]++;
+            }
+        }
+    } catch (e) {
+        console.error(e);
+        notify('自動生成に失敗しました。')
+
+    } finally{
+        inputLoading[indexVal] = false
+    }
+
+}
+const shiftStep = async(from: number, to: number) => {
+    let valid = true
+    const validationTargets: (ComponentExposed<typeof ShortInput> | ComponentExposed<typeof LongInput> | null)[] = []
+    if(from == 0){
+        validationTargets.push(startDateRef.value, endDateRef.value, projectTitle.value, projectManager.value)
+    }
+    else if(from == 1){
+        validationTargets.push( projectMemo.value)
+    }
+    const filteredTargets = validationTargets.filter(target => target)
+    console.log(filteredTargets)
+    for(const target of filteredTargets){                
+        const val = await target?.validate() || {valid:false}
+        valid = valid && val.valid
+    }
+    if(!valid){
+        notify('必須項目を入力してください。')
+        return
+    }
+    step.value = to
+}
+const onScroll = (event) => {
+    const target = event.target as HTMLElement
+    const sections = document.querySelectorAll(".section-hd");
+    let currentSection = "";
+    sections.forEach((section) => {
+        const rect = section.getBoundingClientRect();
+        if (rect.top <= 200 && rect.bottom >= 200) {
+        currentSection = section.id;
+        }
+    });
+    if (target.scrollTop + target.clientHeight >= target.scrollHeight) {
+        currentSection = "tasks";
+    }
+
+    if (currentSection) {
+        activeHash.value = `#${currentSection}`;
     }
 }
-const addPartner = (index: number) => {
-    partners.value.splice(index + 1, 0, '')
+const jumpTo = (hash:string) => {
+    const elId = hash.replace('#', '')
+    const target = document.getElementById(elId)
+    if(target){
+        target.scrollIntoView({behavior: 'smooth', block: 'start'})
+    }
 }
-const removePartner = (index: number) => {
-    if(partners.value.length && partners.value.length > 1){
-        partners.value.splice(index, 1)
+
+const updateTask = (data) => {
+    console.log(data)
+    const task = generatedTasks.value.find(task => task.id === data.id)
+    if (task) {
+        task[data.column] = data.value
+    } else {
+        generatedTasks.value.forEach(task => {
+            const subTask = task.sub_tasks.find(subTask => subTask.id === data.id)
+            if (subTask) {
+                subTask[data.column] = data.value
+            }
+        });
     }
 }
 </script>

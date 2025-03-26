@@ -2,6 +2,8 @@ import Autolinker from 'autolinker';
 import moment from 'moment';
 import { DateTime } from 'luxon'
 import { customRef } from 'vue'
+import { filesize } from 'filesize';
+import { ManualFile } from '@/interface/operation';
 function useDebouncedRef(value:any, delay = 200) {
     let timeout:ReturnType<typeof setTimeout> | number = 300;
     return customRef((track, trigger) => {
@@ -173,6 +175,23 @@ function customParser(dateStr: string, zone: string = "Asia/Tokyo"): DateTime {
 
   throw new Error(`Invalid date format: ${dateStr}`);
 }
+
+const fileSizeParser = (bytes: number) => {
+    if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
+    else return filesize(bytes, {standard: "jedec", round: 0});
+}
+const kintoneFileUrlBuilder = (file:any) => {
+    const params = new URLSearchParams();
+    params.set('key', file.fileKey);
+    params.set('access', 'full');
+    params.set('name', file.name);
+    return `/kintone_file?${params.toString()}`
+}
+
+const amountOfMoneyParser = (amount: number) => {
+    if (Number.isNaN(amount)) return '-';
+    return new Intl.NumberFormat("ja-JP").format(amount);
+}
 export { 
     debounce, 
     mentionFormatter, 
@@ -186,5 +205,8 @@ export {
     DateParser,
     decidedAnswers,
     useDebouncedRef,
-    customParser
+    customParser,
+    fileSizeParser,
+    kintoneFileUrlBuilder,
+    amountOfMoneyParser
 }

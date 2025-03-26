@@ -213,7 +213,7 @@
                     title="プロジェクト承認漏れ" 
                     :length="data.not_approved_projects?.length" 
                     :expanded="expanded.not_approved_projects"
-                    @expand="expanded = !expanded"
+                    @expand="expanded.not_approved_projects = !expanded.not_approved_projects"
                 />
                 <div v-if="expanded.not_approved_projects" class="shift-submitted-masonry-inner mx-[20px]" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
                     <div v-for="user in data.not_approved_projects">
@@ -290,6 +290,24 @@
                     </div>
                 </div>
             </div>
+            <div v-if="data.asset_receive_requests?.length">
+                <RemindHeader 
+                    :offset="offset"
+                    :length="data.asset_receive_requests.length"
+                    title="物品受け取り依頼"
+                    :expanded="expanded.asset_receive_requests"
+                    @expand="expanded.asset_receive_requests = !expanded.asset_receive_requests"
+                />
+                <div v-if="expanded.asset_receive_requests" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.asset_receive_requests" class="bg-[var(--background-color)] p-[10px] text-[12px]">
+                        <div class="p-[10px] overflow-hidden break-words leading-normal">{{ item.item_name }}</div>
+                        <AssetMovement 
+                            :asset="item" 
+                            :asset-request="item.requests[0]"
+                        />
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div v-if="combinedData.every(item => Object.values(item).every(value => !value.length))" class="no-comment-text">現在リマインドはありません。</div>
@@ -322,6 +340,7 @@ import { useSurveyUsers } from '@/store/surveyUsers';
 import { useResponsive } from '@/store/responsive';
 import HamBurger from '../Global/HamBurger.vue';
 import { DateTime } from 'luxon';
+import AssetMovement from '../Asset/AssetMovement.vue';
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
 const combinedData = ref<{ [key: string]: any }[]>([])
@@ -341,7 +360,8 @@ const expanded = ref({
     paid_leaves: true,
     not_approved_projects: true,
     not_answered_forms: true,
-    not_approved_increases: true
+    not_approved_increases: true,
+    asset_receive_requests: true
 })
 const offset = ref(0)
 const prevScrollPosition = ref(0)
@@ -448,6 +468,14 @@ const getNotAnsweredForms = async() => {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
+const getAssetReceiveRequests = async() => {
+    try {
+        const response = await axios.get('/get_asset_recieve_requests')
+        return response.data
+    } catch (e) {
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    }
+}
 
 const performTasksOnMounted = async () => {
     try {
@@ -461,7 +489,8 @@ const performTasksOnMounted = async () => {
             getPlannedShifts(),
             getNotStartedTasks(),
             getNotCompletedTasks(),
-            getNotAnsweredForms()
+            getNotAnsweredForms(),
+            getAssetReceiveRequests()
         ]);
 
         combinedData.value = responses.map((response, index) => ({
@@ -526,6 +555,9 @@ const refreshData = async (dataType) => {
             case 'not_answered_forms': 
                 response = await getNotAnsweredForms();
                 break;
+            case 'asset_receive_requests': 
+                response = await getAssetReceiveRequests();
+                break;
             default:
                 throw new Error('Invalid data type');
         }
@@ -555,4 +587,6 @@ onMounted(() => {
 defineExpose({
     refreshData
 })
+
+provide('getAssets', () => refreshData('asset_receive_requests'))
 </script>

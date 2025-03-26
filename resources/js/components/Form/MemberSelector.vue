@@ -83,7 +83,9 @@ import { validator } from '@/validation/validator'
     })  
 
     const qualified_users = defineModel()
-
+    watch(() => props.options, () => {
+        options.value = props.options
+    })
     watch(() => props.path, () => {
         getPossibleMembers()
     })
@@ -114,6 +116,8 @@ import { validator } from '@/validation/validator'
         const { isValid, errorMessage }= await validator(props.rules, qualified_users.value)
         error.value = errorMessage
         trigger.value = true
+        console.log('ff',isValid)
+        console.log('fddf',qualified_users.value)
         return {valid: isValid}
         return new Promise((resolve) => {
             if (props.rules.includes('required') && !qualified_users.value.length) {

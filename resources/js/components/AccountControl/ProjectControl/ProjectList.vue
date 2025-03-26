@@ -149,7 +149,7 @@ const editProject = (project: Project) => {
 }
 const deleteProject = async(project: Project) => {
     const answer = await confirm('プロジェクトを削除しますよろしいでか？')
-    if (!answer) return
+    if (!answer.value) return
     try {
         await axios.delete(`/delete_project?id=${project?.id}`)
         getProjects()

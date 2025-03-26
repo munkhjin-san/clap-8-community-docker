@@ -247,7 +247,7 @@
             day : currentDay.value,
         }
         const answer = await confirm('本日の勤務を終業しますか。')
-        if(!answer) return
+        if(!answer.value) return
         try{
             const response = await axios.post('/daily_report_add', params)
             await fetchShiftDataTable()
@@ -290,7 +290,7 @@
     }
     const timeStampDelete = async(data) => {
         const answer = await confirm(`${data.day_full}の日報を削除しますか。`)
-        if(!answer) return
+        if(!answer.value) return
         const params = {
             date : data.day_full,
             userId: data.user_id,

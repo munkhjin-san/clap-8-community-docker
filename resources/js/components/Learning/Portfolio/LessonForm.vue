@@ -122,7 +122,7 @@
             answers : [{label: '戻る', value: true}]
         }
         const answer = await confirm('グループディスカッションを完了してください。', options)
-        if(answer){
+        if(answer.value){
             router.go(-1)
         }
     }

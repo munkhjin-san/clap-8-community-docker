@@ -98,7 +98,8 @@ const searchUsers = computed(() => {
   }
   table {
     border-collapse: collapse;
-    width: 100%;
+    width: -webkit-fill-available;
+    width: -moz-available;
     font-size: 13px;
     background-color: var(--background-color);
   }

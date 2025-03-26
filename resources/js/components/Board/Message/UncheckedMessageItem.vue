@@ -221,7 +221,7 @@ import { useBadgeStore } from "@/store/badge";
                 const reacted =   checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
                 if(unchecked && reacted){     
                     const confirmed = await confirm('確認済みにしますか')
-                    if(confirmed){
+                    if(confirmed.value){
                         await axios.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
                         emit('getUncheckedMessages')
                         info('確認済みにしました。') 

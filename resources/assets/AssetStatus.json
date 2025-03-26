@@ -1,0 +1,8 @@
+[
+    { "value": 1, "label": "使用中" },
+    { "value": 2, "label": "返却" },
+    { "value": 3, "label": "廃棄" },
+    { "value": 4, "label": "保管" },
+    { "value": 5, "label": "移動" },
+    { "value": 6, "label": "故障" }
+]

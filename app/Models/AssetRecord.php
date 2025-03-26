@@ -11,12 +11,24 @@ class AssetRecord extends Model
     use HasFactory, SoftDeletes;
 
     protected $guarded = [];
-    public function users()
-    {
-        return $this->belongsToMany(User::class, 'asset_users')->select(['users.id as id', 'users.name','users.icon_path', 'users.icon_bg']);
+
+    public function current_user(){
+        return $this->belongsTo(User::class, 'user_id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
-    public function projects()
+    public function current_project(){
+        return $this->belongsTo(ProjectRecord::class, 'project_id' )->select('id', 'name');
+    }
+    public function current_office()
     {
-        return $this->belongsToMany(ProjectRecord::class, 'asset_projects');
+        return $this->belongsTo(officeRecord::class, 'office_id');
+    }
+
+    public function requests()
+    {
+        return $this->hasMany(AssetRequest::class)->where('status', 1);
+    }
+    public function request_logs()
+    {
+        return $this->hasMany(AssetRequest::class)->where('status', '>', 1);
     }
 }

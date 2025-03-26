@@ -239,7 +239,7 @@
             user_id : props.usersCheckArray[0]
         }
         const answer = await confirm('今月の勤怠確定を取り消しますか?。')
-        if(!answer) return        
+        if(!answer.value) return        
         try{
             await axios.post('attendance_delete', params)
             info('勤怠確定を取り消しました。')

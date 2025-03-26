@@ -12,7 +12,11 @@
                     
                     <button @click="setOption(option)" v-for="option in dateOptionsData" class="border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer relative">
                         {{ option.name }}
-                        <span class="side-notification" style="right: 2px; top: 6px; left: auto;" v-if="badgeByHalf?.[selectedProject?.id]?.[memberData?.id]?.[`${option.year}-${option.which_half}`]">{{ badgeByHalf?.[selectedProject?.id]?.[memberData?.id]?.[`${option.year}-${option.which_half}`] }}</span>
+                        <span class="side-notification" 
+                            style="right: 2px; top: 6px; left: auto;" 
+                            v-if="badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length"
+                        >{{ badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length }}
+                    </span>
                     </button>
                 </div>
             </div>
@@ -46,6 +50,7 @@ const route = useRoute()
 const picker = ref(route.params.span ? false : true)
 const dateOptionsData = detailedDateOptions()
 const badge = useBadgeStore()
+
 onMounted(() => {
     const span = route.params.span as string
     if(span){
@@ -58,9 +63,7 @@ onMounted(() => {
         }
     }
 })
-const badgeByHalf = computed(() => {
-    return badge.project.year_half_counts || {}
-})
+const userId = computed(() => Number(route.params.memberId))
 const dateOptions = reactive({
     name: '',
     year: '',

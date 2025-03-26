@@ -190,7 +190,7 @@
             return
         }
         const answer = await confirm('選択中メンバー全員の勤怠予定を纏めて承認します。<br>よろしいですか。')
-        if(!answer) return
+        if(!answer.value) return
         const userIds = checkedUsers.value
         
         let yearMonth = moment([approveYear.value, approveMonth.value]).format('YYYY-MM')
@@ -207,7 +207,7 @@
     const shiftApprove = async(shift, status) => {
         if(!status){
             const answer = await confirm(`${shift?.shift_day}の勤怠予定を差戻します。よろしいでか。`)
-            if(!answer) return
+            if(!answer.value) return
         }
         const shiftId = shift?.id
         try {

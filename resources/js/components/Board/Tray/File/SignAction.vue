@@ -271,7 +271,7 @@ import { useBadgeStore } from '@/store/badge';
         processing.value = true
         try{         
             const answer = await confirm('一度サインすると、変更することはできません。よろしいですか?')  
-            if(!answer) return
+            if(!answer.value) return
                 const formData = new FormData()
                 const name = props.file.name
                 const file = new File([modifiedPdf], name, { type: 'application/pdf' });
@@ -293,7 +293,7 @@ import { useBadgeStore } from '@/store/badge';
         if(!signaturePad.value.isEmpty()){
             imgData.value = signaturePad.value.toDataURL();
             const answer = await confirm('このサインをマイサインとして保存しますか?')
-            if(answer) {
+            if(answer.value) {
                 const response = await axios.post('/save_user_signature', {sign: imgData.value})
                 // const response = await axios.post('/profile_get_update_user', {id: auth.activeUser.id}) 
                 if(response.data.sign_path){

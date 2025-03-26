@@ -67,7 +67,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
     }
     const deleteThemeConfirm = async(id) => {
         const answer = await confirm('削除しますか。')
-        if(!answer) return
+        if(!answer.value) return
         deleteTheme(id)
     }
 

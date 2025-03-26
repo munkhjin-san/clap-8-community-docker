@@ -107,7 +107,7 @@ import FileIcon from '../../Mixed/FileIcon.vue';
     const taskApprove = async(userId, status, progress_flag) => {
         if(status == 0){
             const answer = await confirm('申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。')
-            if(!answer) return
+            if(!answer.value) return
         }
         let info_message = status == 2 ? '承認' : '差戻'
         try {

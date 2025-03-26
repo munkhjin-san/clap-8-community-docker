@@ -23,7 +23,6 @@ const emit = defineEmits<{
 const dateItem = useTemplateRef('dateItem')
 const responsive = useResponsive()
 onMounted(() => {
-    console.log('mounted block')
     const today = DateTime.now()
     setTimeout(() => {
         const now = DateTime.now()

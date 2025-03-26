@@ -120,8 +120,8 @@ const send = async() => {
         result = result * val.valid
     }
     if (!result) return
-    const confirmed = target.value && target.value.status == 2 ? await confirm('「承認済み」の残業時間を編集すると、ステータスが「申請中」に戻ります。よろしいでしょうか。') : true
-    if (!confirmed) return
+    const confirmed = target.value && target.value.status == 2 ? await confirm('「承認済み」の残業時間を編集すると、ステータスが「申請中」に戻ります。よろしいでしょうか。') : {value: true}
+    if (!confirmed.value) return
     const minutes = overtime.value.hours * 60 + overtime.value.minutes
     if(!minutes){
         notify('残業時間は必須です')
@@ -150,7 +150,7 @@ const send = async() => {
 }
 const deleteRequest = async() => {
     const answer = await confirm('残業申請を削除しますか。')
-    if(!answer) return
+    if(!answer.value) return
     try{
         await axios.delete(`/request_overtime?id=${target.value.id}`).then(res => res.data)
         await fetchShiftDataTable()

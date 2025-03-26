@@ -103,7 +103,7 @@ import { useResponsive } from '@/store/responsive';
     }
     const deleteNoticeConfirm = async(val) => {
         const answer = await confirm('お知らせを削除しますか。')
-        if(!answer) return
+        if(!answer.value) return
         deleteNotice(val)
     }
     const deleteNotice = async(val) => {

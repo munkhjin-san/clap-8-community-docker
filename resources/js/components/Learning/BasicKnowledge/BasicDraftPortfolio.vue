@@ -121,7 +121,7 @@
             return
         }
         const answer = await confirm('基礎知識研修を完了にしますか。\n完了後は編集ができません。')
-        if(!answer) return  
+        if(!answer.value) return  
         await savePortfolio(1)
         setTimeout(() => {                    
             finishBasic()
@@ -133,7 +133,7 @@
             answers: [{label: 'OK', value: true}]
         }
         const answer = await confirm('基礎知識研修完了しました。\nお疲れ様でした。', options)
-        if(answer){
+        if(answer.value){
             loading.value[1] = false
             await lesson()                     
             router.push({name: 'top'})

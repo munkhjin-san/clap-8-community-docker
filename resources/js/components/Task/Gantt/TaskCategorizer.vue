@@ -1,12 +1,13 @@
 <template>
     <div class="relative">
-        <div @click.stop="menu.setMenu({parent: 'taskCategory'})" class="c-bar-button !text-[12px] whitespace-nowrap !px-[5px]">{{ selected }}</div>
+        <div class="flex gap-[15px]">
+            <div @click.stop="menu.setMenu({parent: 'taskCategory'})" class="c-bar-button !text-[12px] whitespace-nowrap !px-[5px]">{{ selected }}</div>
+            <div v-if="userModel" @click.stop="menu.setMenu({parent: 'taskStatusCategroy'})" class="c-bar-button !text-[12px] whitespace-nowrap !px-[5px]">{{ selectedStatus }}</div>
+        </div>
         <Transition name="slidePop">
             <div id="taskCategory" v-if="menu.parent == 'taskCategory'" class="min-w-[200px] absolute top-[40px] right-[0px] z-[15] shadow-me p-[10px] bg-[var(--background-color)]">
                 <div>
-                    <div class="mb-[10px]">メンバー</div>
-                    <div class="ml-[10px] flex flex-col gap-[10px] text-[13px] max-h-[40vh] overflow-y-auto">                        
-
+                    <div class="ml-[10px] flex flex-col gap-[10px] text-[13px] max-h-[40vh] overflow-y-auto">                       
                         <label :for="`u_all`" class="radio-button h-[30px]">
                             <input @change="emit('update')" v-model="userModel" class="fish-eye" type="radio" :id="`u_all`" name="u-select" :value="null"/>
                             <span class="custom-radio">
@@ -27,10 +28,12 @@
                             <span class="label-text"><UserPanel :user="user" size="25" disable-instant with-name :img-class="'userMidIcon'"/></span>
                         </label>
                     </div>
-
-                </div>
-                <div v-if="userModel !== null">
-                    <div class="my-[10px]">ステータス</div>
+                </div>       
+            </div>
+        </Transition>
+        <Transition name="slidePop">
+            <div id="taskStatusCategroy" v-if="menu.parent == 'taskStatusCategroy'" class="min-w-[200px] absolute top-[40px] right-[0px] z-[15] shadow-me p-[10px] bg-[var(--background-color)]">
+                <div>
                     <div class="ml-[10px] flex flex-col gap-[10px] text-[13px]">
                         <label v-for="status in statusOptions" class="radio-button" :for="`s_${status.value.toString()}`">
                             <input @change="emit('update')" class="fish-eye" v-model="statusModel" type="radio" :id="`s_${status.value.toString()}`" name="s-select" :value="status.value"/>
@@ -66,11 +69,15 @@ const statusModel = defineModel<number | null>('status')
 
 const selected = computed(() => {
     const user = userModel.value ? props.userOptions.find( u => u.id == userModel.value) : null
-    const name = user ? user.name : 'メンバ : すべて'
-    const status = props.statusOptions.find( s => s.value == statusModel.value)?.label
-    const label = userModel.value == null ? '' : ` : ${status}`
-    return `${name}${label}`        
+    const name = user ? user.name : 'メンバー : すべて'
+    return name     
 })    
+
+const selectedStatus = computed(() => {
+    const status = props.statusOptions.find( s => s.value == statusModel.value)
+    if(status?.value == -1) return 'ステータス : すべて'
+    return status?.label
+})
 </script>
 <style scoped>
 .radio-group {

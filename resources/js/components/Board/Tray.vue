@@ -17,8 +17,8 @@
                 </div>
             </div> 
             <div :style="{height: 'calc(100% - 35px)'}">
-                <GanttTaskPopup v-if="trayItemWhich == 1 && board.project" :from="'board'" :boardProject="board.project"/>
-                <TaskComponent v-else-if="trayItemWhich == 1" :from="'board'" :board="board" :maxInterval="totalSpan"/>
+                <!-- <GanttTaskPopup v-if="trayItemWhich == 1 && board.project" :from="'board'" :boardProject="board.project"/> -->
+                <TaskComponent v-if="trayItemWhich == 1" :from="'board'" :board="board" :maxInterval="totalSpan"/>
                 <FileContainer v-if="trayItemWhich == 0" @jumpToMessage="jumpToMessage"
                 />
             </div>            
@@ -28,10 +28,10 @@
 </template>
 <script setup>
 
-import TaskContainer from './Tray/Task/TaskContainer.vue'
+// import TaskContainer from './Tray/Task/TaskContainer.vue'
 import FileContainer from './Tray/File/FileContainer.vue'
 import { computed, inject } from 'vue';
-import GanttTaskPopup from '../Task/Gantt/GanttTaskPopup.vue';
+// import GanttTaskPopup from '../Task/Gantt/GanttTaskPopup.vue';
 import TaskComponent from '../Task/TaskComponent.vue';
 import { useBadgeStore } from '@/store/badge'
 import { DateTime, Interval } from 'luxon'

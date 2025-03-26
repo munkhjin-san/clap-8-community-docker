@@ -224,7 +224,7 @@
                     answers: [{label: 'OK', value: true}]
                 }
                 const answer = await confirm('理解度チェックの結果、「実務での応用に不安がある」または「理解できていない」を選択された方に向けて、研修内容を分かりやすくまとめた要約を表示します。要約をご覧いただき、理解を深めてください。', options)
-                if (answer) {
+                if (answer.value) {
                     showSummary.value = true
                     return
                 }

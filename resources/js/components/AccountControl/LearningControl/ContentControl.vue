@@ -110,7 +110,7 @@ const createFinish = (reload) => {
 }
 const deleteConfirm = async(id) => {    
     const answer = await confirm('削除しますか。')
-    if(!answer) return
+    if(!answer.value) return
     await axios.delete(`/lesson_remove_record?id=${id}`) 
     getLesson()              
 }
@@ -144,7 +144,7 @@ const editSummary = (summary) => {
 }
 const deleteSummary = async(id) => {
     const answer = await confirm('削除しますか。')
-    if(!answer) return
+    if(!answer.value) return
     await axios.delete(`/lesson_remove_summary?id=${id}`) 
     getLesson()              
 }

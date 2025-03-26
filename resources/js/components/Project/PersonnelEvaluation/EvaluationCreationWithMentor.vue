@@ -248,7 +248,7 @@ const nextStep = async() => {
         evaluationParams.params.current_level = evaluationLevelsRef.value?.selectedLevel || ''
         if(!evaluationParams.params.current_level){
             const confirmed = await confirm('職能レベルが選択されていません。続行しますか？')
-            if(!confirmed){
+            if(!confirmed.value){
                 return
             }
         }

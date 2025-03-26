@@ -1,99 +1,353 @@
 <template>
-    <div>
-        <div class="post-header justify-between">
-            <div class="cursor-pointer" style="display: flex;align-items: center;height: 50px;position: sticky;top: 0;background: var(--bg2);">
-                <div @click="router.go(-1)" style="height: 50px;width: 50px;min-width:50px;display: flex;justify-content: center;align-items: center;fill:var(--primary-color)">
-                    <svg version="1.1" width="15" height="15" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
-                    </svg>
-                </div>
-                
-                <div class="project-nav-bar">
-                    <div>
-                        <span class="project-path">物品</span>
-                    </div>
-                </div>
-            </div> 
-            <div class="flex gap-[10px] mr-5">
-                <Categorizer 
-                    path="get_possible_members"
-                    type="メンバー"
-                    v-model="selectedUser"
-                />
-                <Categorizer 
-                    path="get_possible_projects"
-                    type="プロジェクト"
-                    v-model="selectedProject"
-                />
-                <Categorizer
-                    path="" 
-                    type="分類"
-                    :selectable-options="classifications"
-                    v-model="selectedClassification"
-                />
-                <Categorizer 
-                    path=""
-                    type="ステータス"
-                    :selectable-options="statuses"
-                    v-model="selectedStatus"
-                />
+    <div class="bg-[var(--background-color)] h-full relative">
+        <div class="h-full overflow-y-auto">
+            <div class="min-h-[calc(100%-50px)]">
+                <table class="asset-table mx-[20px] mt-[20px] w-[calc(100%-40px)]">
+                    <thead ref="assetHeader" style="background:var(--third-color);color:var(--background-color);position:sticky; top:0px;z-index: 1;">
+                        <tr style="border:1px solid rgb(102, 102, 102);">
+                            <td>GL番号</td>
+                            <td>品名</td>
+                            <td>型番</td>
+                            <td>
+                                <div class="relative">
+                                    <div class="cursor-pointer" @click.stop="menu.setMenu({parent: 'assetUsersPick'})">使用者</div>
+                                    <div v-if="activeMembers.length" class="flex flex-wrap mt-[5px]">
+                                        <UserPanel v-for="member in activeMembers" disable-instant :user="member" size="15"/>
+                                    </div>
+                                    <Transition name="slidePop">
+                                        <ProjectMemberSort
+                                            v-if="menu.parent == 'assetUsersPick'" 
+                                            id="assetUsersPick" 
+                                            :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}"
+                                            :members="[...selectedProject?.members ?? [], ...selectedProject?.manager ?? []]" 
+                                            v-model:selected-users="userQuery"
+                                            custom-place-holder="管理者検索"
+                                        />
+                                    </Transition>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="relative">
+                                    <div class="cursor-pointer" @click.stop="menu.setMenu({parent: 'classPick'})">分類</div>
+                                    <div v-if="activeClasses.length" class="flex flex-wrap mt-[5px]">
+                                        <div v-for="classification in activeClasses" class="px-[5px] text-[11px]">{{ classification.label }}</div>
+                                    </div>
+                                    <Transition name="slidePop">
+                                        <div v-if="menu.parent == 'classPick'" id="classPick" class="absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
+                                            <button class="text-[11px]" @click.stop="classQuery = [], menu.close()">リセット</button>
+                                            <div v-for="classification in AssetClass">
+                                                <label class="cursor-pointer select-none whitespace-nowrap">
+                                                    <input type="checkbox" name="class-selector" v-model="classQuery" :value="classification.value" class="hidden"/>
+                                                    {{ classification.label }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </Transition>
+                                </div>
+                            </td>
+                            <td>価値</td>
+                            <td>
+                                <div class="relative">
+                                    <div class="cursor-pointer" @click.stop="menu.setMenu({parent: 'statusPick'})">ステータス</div>
+                                    <div v-if="activeStatus.length" class="flex flex-wrap mt-[5px]">
+                                        <div v-for="status in activeStatus" class="px-[5px] text-[11px]">{{ status.label }}</div>
+                                    </div>
+                                    <Transition name="slidePop">
+                                        <div v-if="menu.parent == 'statusPick'" id="statusPick" class="absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
+                                            <button class="text-[11px]" @click.stop="statusQuery = [], menu.close()">リセット</button>
+                                            <div v-for="statusData in AssetStatus">
+                                                <label class="cursor-pointer select-none whitespace-nowrap">
+                                                    <input type="checkbox" name="class-selector" v-model="statusQuery" :value="statusData.value" class="hidden"/>
+                                                    {{ statusData.label }}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </Transition>
+                                </div>
+                            </td>
+                            <td>詳細</td>
+                        </tr>
+                    </thead>
+                    <tbody v-if="assetsData && assetsData.data">
+                        <template v-if="assetsData.data.length">                    
+                            <template v-for="asset in assetsData.data">
+                                <tr>
+                                    <td><div class="inner-col"><span class="mobile">GL番号</span>{{ `GL${padNumber(asset.id)}` }}</div></td>
+                                    <td class="max-w-[150px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">品名</span>{{ asset.item_name }}</div></td>
+                                    <td class="max-w-[150px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">型番</span>{{ asset.model_number }}</div></td>
+                                    <td>
+                                        <div class="inner-col"><span class="mobile">使用者</span>
+                                            <div v-if="asset.current_user">
+                                                <div class="leading-normal">
+                                                    <p>{{ asset.current_user.name }}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><div class="inner-col"><span class="mobile">分類</span>{{ AssetClass.find(ob => ob.value === asset.classification)?.label }}</div></td>
+                                    <td><div class="inner-col"><span class="mobile">価値</span>{{ asset.value }}</div></td>
+                                    <td><div class="inner-col"><span class="mobile">ステータス</span>{{ asset.requests.length ? '移動中' : AssetStatus.find(ob => ob.value === asset.status)?.label }}</div></td>
+                                    <td>
+                                        <label class="cursor-pointer select-none jump-link">
+                                            <input type="checkbox" v-model="selectedAssetIds" :value="asset.id" class="hidden"/>
+                                            詳細
+                                        </label>
+                                        
+                                    </td>
+                                </tr>
+                                <tr class="additional-row" v-if="asset?.requests && asset.requests.length || selectedAssetIds.includes(asset.id)">
+                                    <td colspan="9">
+                                        <div v-if="asset?.requests && asset.requests.length" class="bg-[var(--bg3)]">
+                                            <AssetMovement 
+                                                :asset="asset" 
+                                                :assetRequest="assetRequest"
+                                                v-for="assetRequest in asset.requests
+                                            "/>
+                                        </div>
+                                        <div v-if="selectedAssetIds.includes(asset.id)">
+                                            <AssetDetail 
+                                                :asset="asset" 
+                                                :possibleMembers="possibleMembers" 
+                                                :possibleProjects="possibleProjects"
+                                                @reload="getAssets(assetsData.current_page)"
+                                            />
+                                        </div>
+                                    </td>
+
+                                </tr>
+                            </template>
+                        </template>
+                        <template v-else-if="fetchCount > 0">
+                            <tr>
+                                <td colspan="9" class="!text-center">データがありません</td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
             </div>
-            
+            <div>
+                <PostSearchPager 
+                    style="margin: 0;"
+                    :possiblePage="assetsData.last_page" 
+                    :activePath="assetsData.current_page" 
+                    @setNavi="(index) => getAssets(assetsData.current_page + index)"
+                    @setActivePage="(index) => getAssets(index)"/>
+            </div>
         </div>
-        
+
+        <FloatButton type="plus" @action="openModal = true"/>
+        <Transition name="modalFade">
+            <AssetCreate 
+                v-if="openModal" 
+                :edit-data="editData"
+                :all-members="possibleMembers"
+                :all-projects="possibleProjects"
+                @close="closeModal"
+            />
+        </Transition>
     </div>
 </template>
 <script lang="ts" setup>
 import axios from 'axios';
-import { computed, onMounted, ref, watch } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import Categorizer from '../Global/Categorizer.vue';
-import { useAuthUserStore } from '@/store/auth';
-const props = defineProps(['selectedProject'])
+import {  computed, inject, onMounted, provide, ref, useTemplateRef, watch, watchEffect } from 'vue';
+import { useRoute,  } from 'vue-router';
+import PostSearchBar from '../Post/PostSearchBar.vue';
+import { DialogMethods, User } from '@/interface/globalInterface';
+import { Asset,  } from '@/interface/assetInterface';
+import FloatButton from '../Global/FloatButton.vue';
+import AssetCreate from './AssetCreate.vue';
+import AssetDetail from './AssetDetail.vue';
+import AssetMovement from './AssetMovement.vue';
+import PostSearchPager from '../Post/PostSearchPager.vue';
+import { Project } from '@/interface/projectInterface';
+import AssetClass from 'assets/AssetClass.json'
+import AssetStatus from 'assets/AssetStatus.json'
+import ProjectMemberSort from '../Project/ProjectMemberSort.vue';
+import { useMenuStore } from '@/store/menu';
+import UserPanel from '../Global/UserPanel.vue';
+const props = defineProps<{
+    selectedProject: Project;
+    userList: any;
+}>();
+
 const route = useRoute()
-const router = useRouter()
-const statuses = [
-    { id: 1, name: '使用中' },
-    { id: 2, name: '故障' },
-    { id: 3, name: '廃棄' },
-    { id: 4, name: '保管' },
-    { id: 5, name: '移動' },
-    { id: 6, name: '返却' }
-]
-const classifications = [
-    { id: 1, name: '資産' },
-    { id: 2, name: '消耗品' },
-    { id: 3, name: '重要資産' },
-]
-const auth = useAuthUserStore()
-const projectId = computed(() => {
-    return Number(route.query?.project_id)
-})
-const selectedUser = ref(auth.id ?? null)
-const selectedProject = ref(projectId.value ?? null)
+const searchWindow = ref(false)
+const openModal = ref(false)
+const editData = ref<Asset | null>(null)
+const selectedUser = ref<User[]>([])
 const selectedClassification = ref(null)
 const selectedStatus = ref(null)
-onMounted(() => {
-    getAssets()
+const possibleProjects = ref([])
+const possibleMembers = ref([])
+const menu = useMenuStore()
+const userQuery = ref<number[]>([]) 
+const assetHeader = useTemplateRef('assetHeader')
+const classQuery = ref<number[]>([])
+const statusQuery = ref<number[]>([])
+const assetsData = ref<{
+    data: Asset[],
+    first_page_url: string,
+    next_page_url: string | null,
+    prev_page_url: string | null,
+    last_page_url: string,
+    current_page: number,
+    last_page: number,
+    total: number
+}>({
+    data: [], 
+    first_page_url: '', 
+    next_page_url: null, 
+    prev_page_url: null, 
+    last_page_url: '', 
+    current_page: 1, 
+    last_page: 0, 
+    total: 0
 })
 
-watch([selectedUser, selectedProject, selectedClassification, selectedStatus], () => {
-    console.log('user: ', selectedUser.value)
-    console.log('project: ', selectedProject.value)
-    console.log('classification: ', selectedClassification.value)
-    console.log('status: ', selectedStatus.value)
+const fetchCount = ref(0)
+const { confirm, info, notify } = inject('dialog') as DialogMethods
+
+const selectedAssetIds = ref<number[]>([])
+const setLoader = inject('setLoader') as (flag: boolean) => void
+watch([userQuery, classQuery, statusQuery], () => {
+    getAssets()
 })
-const getAssets = async() => {
+onMounted(() => {
+    setLoader(true);
+    getAssets()
+    getPossibleMembers()
+    getPossibleProjects()
+})
+
+
+const getAssets = async(page?:number) => {
+    const pageIndex = page ?? assetsData.value.current_page
     try {
         const params = {
-            memberId: selectedUser.value,
-            projectId: selectedProject.value,
+            memberId: selectedUser.value.map(ob => ob.id),
+            projectId: props.selectedProject?.id,
             classification: selectedClassification.value,
-            status: selectedStatus.value
+            status: selectedStatus.value,
+            user_ids: userQuery.value,
+            class_ids: classQuery.value,
+            status_ids: statusQuery.value
         }
-        const response = await axios.get('/get_assets', {params: {params}})
+        const response = await axios.get(`/get_assets?page=${pageIndex}`, {params})
+        assetsData.value = response.data
+        fetchCount.value++
+        setLoader(false)
     } catch (e) {
 
     }
 }
+const getPossibleMembers = async() => {
+    try {
+        const response = await axios.get('/get_possible_members')
+        possibleMembers.value = response.data
+    } catch (e) {
+
+    }
+}
+const getPossibleProjects = async() => {
+    try {
+        const response = await axios.get('/get_possible_projects')
+        possibleProjects.value = response.data
+    } catch (e) {
+
+    } 
+}
+const padNumber = (num: number | null) => {
+    return num?.toString().padStart(5, "0")
+}
+
+
+const closeModal = (flag: boolean) => {
+    openModal.value = false
+    if(flag) getAssets()
+}
+const activeMembers = computed(() => {
+    const allMembers = [...props.selectedProject?.members ?? [], ...props.selectedProject?.manager ?? []]
+    return allMembers.filter(ob => userQuery.value.includes(ob.id))
+})
+const activeClasses = computed(() => {
+    return AssetClass.filter(ob => classQuery.value.includes(ob.value))
+})
+const activeStatus = computed(() => {
+    return AssetStatus.filter(ob => statusQuery.value.includes(ob.value))
+})
+provide('getAssets', () => getAssets(assetsData.value.current_page))
 </script>
+<style lang="scss">
+    .asset-header{
+        display: flex;
+        gap:20px;
+    }
+    .asset-table{
+        background-color: var(--background-color);
+        width: 100%;
+        border-collapse: separate; 
+        border-spacing: 0;
+        color: var(--primary-color);
+    }
+    .asset-table td{
+        padding: 10px;
+        font-size: 13px;
+        border-bottom: solid thin var(--calendarBorder);
+        // border-bottom: 1px solid rgb(102, 102, 102);
+        //border-right: 1px solid rgb(102, 102, 102);
+    }
+    // table td:first-child {
+    //     border-left: 1px solid rgb(102, 102, 102);
+    // }
+    // thead td:first-child{
+    //     border-left: 1px solid rgb(102, 102, 102);
+    // }
+    @media screen and (max-width: 959px) {
+    .asset-table{
+        thead{
+            display: none;
+        }
+        tbody{
+            tr{
+                display: block;
+                margin-bottom: 20px;
+                td{
+                    display: block;
+                    border-left: solid thin var(--calendarBorder);
+                    border-right: solid thin var(--calendarBorder);
+                    border-bottom: none;
+                    max-width: 100%;
+                }
+                border-bottom: solid thin var(--calendarBorder);
+                border-top: solid thin var(--calendarBorder);
+            }
+            tr:first-of-type{
+                margin-top: 20px;
+            }
+        }
+    }   
+    .h-cell{
+        width: auto;
+        text-align: start;
+        border-right: none;
+        border-left: none;
+    }
+    .inner-col{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 5px;
+        width: 100%;
+    }
+    .additional-row{
+        margin-top: -21px;
+    }
+    .inner-col{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 5px;
+        width: 100%;
+    }
+}
+</style>

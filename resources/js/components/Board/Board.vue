@@ -309,7 +309,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
     }
     const boardDelete = async(item) => {       
         const confirmed = await confirm(`ボードを削除しますか。`);
-        if(!confirmed) return 
+        if(!confirmed.value) return 
         try{
             await axios.post('/board_delete', { id: item.id })
             if(openedBoard.value && openedBoard.value.id == item.id){                                
@@ -694,7 +694,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
     const leaveBoard = async(board) => {
         try {
             const confirmed = await confirm(`<strong>${board.title}</strong> ボードを退出します。よろしいですか?`)
-            if(!confirmed) return
+            if(!confirmed.value) return
             await axios.post('/leave_board', {id: board.id})
             if(openedBoard.value && openedBoard.value.id == board.id){
                 closeMessageContainer()
