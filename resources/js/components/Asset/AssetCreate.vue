@@ -134,6 +134,7 @@ const props = defineProps([
     'editData',
     'allMembers',
     'allProjects',
+    'mode'
 ])
 const route = useRoute()
 const auth = useAuthUserStore()
@@ -172,11 +173,14 @@ const createAsset = async() => {
             const glVal = await glNumberRef.value?.validate()
             if (!glVal?.valid) return
         }
-        const [memberVal, projectVal] = await Promise.all([
-            memberSelectRef.value?.validate(),
-            projectSelectRef.value?.validate()
-        ]);
-        if (!memberVal?.valid || !projectVal?.valid) return
+        if(props.mode !== 'admin'){
+            const [memberVal, projectVal] = await Promise.all([
+                memberSelectRef.value?.validate(),
+                projectSelectRef.value?.validate()
+            ]);
+            if (!memberVal?.valid || !projectVal?.valid) return
+        }
+
         const params = {
             id: convertToHalfWidth(gl_number.value),
             params : {
@@ -185,8 +189,8 @@ const createAsset = async() => {
                 classification: classification.value,
                 value: value.value,
                 status: status.value,
-                project_id: projects.value || null,
-                user_id: selectedUser.value?.id,
+                project_id: projects.value ?? null,
+                user_id: selectedUser.value?.id ?? null,
                 specs: specs.value
 
             }

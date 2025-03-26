@@ -138,7 +138,7 @@ class AssetController extends Controller
             },
             'current_office'
         ]);
-        $data = $assets->orderBy('id', 'desc')->paginate(30);
+        $data = $assets->orderBy('created_at', 'desc')->paginate(30);
         return response()->json($data);
     }
 
