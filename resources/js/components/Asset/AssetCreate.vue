@@ -88,7 +88,7 @@
                     <option v-for="(classification, index) in AssetClass" :value="classification.value">{{ classification.label }}</option>
                 </select>
             </div>
-            <p class="mt-[10px] text-[12px] leading-normal text-[gray]">※消耗品（取得価格が10万円未満の物品）<br>資産(取得価格が10万円以上の物品)<br>重要資産(カード類、鍵)</p>
+            <p class="mt-[10px] text-[12px] leading-normal text-[gray]">消耗品（取得価格が10万円未満の物品）<br>資産(取得価格が10万円以上の物品)<br>重要資産(カード類、鍵)</p>
             <div class="si-box">
                 <p class="mb-[10px]">ステータス</p>
                 <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="status">
