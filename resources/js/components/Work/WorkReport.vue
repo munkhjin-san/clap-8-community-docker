@@ -363,13 +363,13 @@
         return new Promise(async(resolve) => {
             const overtime = shift.value.overtime_request.minutes + props.item?.work_time_day
             if(diffInMinutes.value > overtime){
-                resolve(await confirm(`申請した残業時間を超過しています。<strong>${diffInMinutes.value - props.item?.work_time_day}分</strong>で申請しますか`).value)
+                resolve(await confirm(`申請した残業時間を超過しています。<strong>${diffInMinutes.value - props.item?.work_time_day}分</strong>で申請しますか`))
                 
             }else if(diffInMinutes.value < overtime){
                 const workedOverTime = shift.value?.overtime_request.minutes - (overtime - diffInMinutes.value)
-                resolve(await confirm(`時間外は<strong>${workedOverTime < 0 ? 0 : workedOverTime}分</strong>になります。よろしいですか。`).value)               
+                resolve(await confirm(`時間外は<strong>${workedOverTime < 0 ? 0 : workedOverTime}分</strong>になります。よろしいですか。`))               
             } else {
-                resolve(await confirm('日報を申請します。申請後は修正できません。よろしいですか。').value)
+                resolve(await confirm('日報を申請します。申請後は修正できません。よろしいですか。'))
             }
         })
     }
