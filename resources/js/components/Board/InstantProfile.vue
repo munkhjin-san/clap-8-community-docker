@@ -11,7 +11,7 @@
                 <div style="display:flex;flex-direction:column;overflow: hidden;font-size:14px;overflow: hidden;font-size: 14px;margin-left: 13px;min-height: 72px;place-content: center;">   
                     <div style="font-weight:600;margin-bottom:10px;display: flex;">
                         <router-link class="user-link" :to="'/user/' + user.id">{{user.name}}</router-link>
-                        <img v-if="user.weathers" style="margin-left:10px" :src="'/images/icon_' + user.weathers.value_int + '.svg'" alt="Weather Icon" width="16" height="16">
+                        <img v-if="user.today_weather" style="margin-left:10px" :src="'/images/icon_' + user.today_weather.value_int + '.svg'" alt="Weather Icon" width="16" height="16">
                     </div>
                     <div v-if="user.work_email" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'mailto:' + user.work_email">{{user.work_email}}</a></div>
                     <div v-if="user.phone_number" style="margin-bottom:10px;height:14px"><a class="prvt" :href="'tel:' + user.phone_number">{{user.phone_number}}</a></div>   

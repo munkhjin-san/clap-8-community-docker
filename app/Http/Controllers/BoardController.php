@@ -1587,9 +1587,7 @@ class BoardController extends Controller
     }
     public function getInstantUser(Request $request){
         $today = Carbon::now()->format('Y-m-d');
-        $user = User::where('id', $request->id)->orWhere('name', $request->name)->where('id', '>', 105)->where('retire', 0)->with(['weathers' => function($q) use ($today){
-            $q->where('type_id', 43)->where('date', $today);
-        }])->select('id', 'name', 'phone_number', 'work_email', 'icon_path')->first();
+        $user = User::where('id', $request->id)->orWhere('name', $request->name)->where('id', '>', 105)->where('retire', 0)->with('today_weather')->select('id', 'name', 'phone_number', 'work_email', 'icon_path')->first();
         if($user){
 
             $res = [
