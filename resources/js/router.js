@@ -712,6 +712,11 @@ const routes = [
                 component: () => import('./components/Global/CheckEvaluation.vue'),
             }
         ]
+    },
+    {
+        path: '/asset-partner',
+        name: 'asset-partner',
+        component: () => import('./components/Asset/Partner/PartnerAssetContainer.vue'),
     }
 
     

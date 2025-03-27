@@ -135,13 +135,14 @@
             </div>
         </div>
 
-        <FloatButton type="plus" @action="openModal = true"/>
+        <FloatButton v-if="createAble" type="plus" @action="openModal = true"/>
         <Transition name="modalFade">
             <AssetCreate 
                 v-if="openModal" 
                 :edit-data="editData"
                 :all-members="possibleMembers"
                 :all-projects="possibleProjects"
+                :mode="mode"
                 @close="closeModal"
             />
         </Transition>
@@ -165,9 +166,11 @@ import AssetStatus from 'assets/AssetStatus.json'
 import ProjectMemberSort from '../Project/ProjectMemberSort.vue';
 import { useMenuStore } from '@/store/menu';
 import UserPanel from '../Global/UserPanel.vue';
+import { useAuthUserStore } from '@/store/auth';
 const props = defineProps<{
-    selectedProject: Project;
+    selectedProject?: Project;
     userList: any;
+    mode?: string;
 }>();
 
 const route = useRoute()
@@ -184,6 +187,7 @@ const userQuery = ref<number[]>([])
 const assetHeader = useTemplateRef('assetHeader')
 const classQuery = ref<number[]>([])
 const statusQuery = ref<number[]>([])
+const auth = useAuthUserStore()
 const assetsData = ref<{
     data: Asset[],
     first_page_url: string,
@@ -209,16 +213,26 @@ const { confirm, info, notify } = inject('dialog') as DialogMethods
 
 const selectedAssetIds = ref<number[]>([])
 const setLoader = inject('setLoader') as (flag: boolean) => void
+
 watch([userQuery, classQuery, statusQuery], () => {
     getAssets()
 })
 onMounted(() => {
-    setLoader(true);
+    //check setLoader is function and injected properly
+
+
+    if (typeof setLoader === 'function') {
+        setLoader(true);
+    } 
     getAssets()
     getPossibleMembers()
     getPossibleProjects()
 })
-
+const createAble = computed(() => {
+    const privilage = props.mode === 'admin' || props.mode === 'partner' 
+    const allMembers = [...props.selectedProject?.members ?? [], ...props.selectedProject?.manager ?? []]
+    return privilage || allMembers.some(ob => ob.id === auth.activeUser.id)
+})
 
 const getAssets = async(page?:number) => {
     const pageIndex = page ?? assetsData.value.current_page
@@ -230,12 +244,15 @@ const getAssets = async(page?:number) => {
             status: selectedStatus.value,
             user_ids: userQuery.value,
             class_ids: classQuery.value,
-            status_ids: statusQuery.value
+            status_ids: statusQuery.value,
+            mode: props.mode
         }
         const response = await axios.get(`/get_assets?page=${pageIndex}`, {params})
         assetsData.value = response.data
         fetchCount.value++
-        setLoader(false)
+        if (typeof setLoader === 'function') {
+            setLoader(false)
+        }
     } catch (e) {
 
     }

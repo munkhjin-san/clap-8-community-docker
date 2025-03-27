@@ -26,18 +26,11 @@
                 
             </div>
             <div class="si-box">
-                <!-- <ShortInput 
-                    name="itemName"
-                    place-holder="品名"
-                    rules="required"
-                    custom-class="full"
-                    ref="itemNameRef"
-                    type="text"
-                    v-model="item_name"
-                /> -->
                 <AssetTypePicker 
                     placeHolder="品名"
                     v-model="item_name"
+                    rules="required"
+                    ref="itemNameRef"
                 />  
             </div>
             <div class="si-box">
@@ -50,7 +43,7 @@
             <div class="si-box">
                 <ShortInput 
                     name="modelNumber"
-                    place-holder="型番号"
+                    :place-holder="numberRequiredNames.includes(item_name) ? `${item_name}番号` : `型番号`"
                     rules="required"
                     custom-class="full"
                     ref="modelNumberRef"
@@ -95,6 +88,7 @@
                     <option v-for="(classification, index) in AssetClass" :value="classification.value">{{ classification.label }}</option>
                 </select>
             </div>
+            <p class="mt-[10px] text-[12px] leading-normal text-[gray]">※消耗品（取得価格が10万円未満の物品）<br>資産(取得価格が10万円以上の物品)<br>重要資産(カード類、鍵)</p>
             <div class="si-box">
                 <p class="mb-[10px]">ステータス</p>
                 <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="status">
@@ -140,12 +134,17 @@ const route = useRoute()
 const auth = useAuthUserStore()
 const gl_exists = ref(0)
 const loading = ref(false)
-
+const numberRequiredNames = [
+    '業務端末',
+    'ガソリンカード',
+    'レンタカーカード',
+    'セキュリティカード',
+]
 const { notify, info } = inject('dialog') as DialogMethods
 const gl_number = ref('')
-const item_name = ref(props.editData?.item_name ?? null)
+const item_name = ref(props.editData?.item_name ?? '')
 const model_number = ref(props.editData?.model_number ?? '')
-const classification = ref(props.editData?.classification ?? 1)
+const classification = ref(props.editData?.classification ?? 2)
 const value = ref(props.editData?.value ?? '')
 const specs = ref(props.editData?.specs ?? '')
 const status = ref(props.editData?.status ?? 1)
@@ -154,6 +153,8 @@ const selectedUser = ref<User | null>(props.editData?.current_user ? props.editD
 const projects = ref<number | null>(props.editData?.current_project?.id ?? null)
 const memberSelectRef = useTemplateRef('memberSelectRef')
 const projectSelectRef = useTemplateRef('projectSelectRef')
+const modelNumberRef = useTemplateRef('modelNumberRef')
+const itemNameRef = useTemplateRef('itemNameRef')
 const assetTypes = ref([])
 onMounted(() => {
     if (!props.editData) {
@@ -169,18 +170,21 @@ const padNumber = (num: number | null) => {
 const createAsset = async() => {
     
     try {
+        const validTargets = [modelNumberRef.value, itemNameRef.value, props.mode !== 'admin' && props.mode !== 'partner' ? projectSelectRef.value : null]
         if (gl_exists.value === 0) {
-            const glVal = await glNumberRef.value?.validate()
-            if (!glVal?.valid) return
-        }
-        if(props.mode !== 'admin'){
-            const [memberVal, projectVal] = await Promise.all([
-                memberSelectRef.value?.validate(),
-                projectSelectRef.value?.validate()
-            ]);
-            if (!memberVal?.valid || !projectVal?.valid) return
-        }
+            validTargets.push(glNumberRef.value)
+        }        
 
+        let result = true
+        for(const target of validTargets.filter(target => target !== null)){                
+            const val = await target?.validate()
+            const valid = val && val?.valid ? true : false
+            result = result && valid
+        }
+        if (!result) {
+            notify('必須項目を入力してください。')
+            return
+        }
         const params = {
             id: convertToHalfWidth(gl_number.value),
             params : {

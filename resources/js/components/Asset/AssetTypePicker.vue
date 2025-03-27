@@ -27,7 +27,7 @@
                     
                 >
                     <template v-slot:chip="{ props, item }">
-                        <v-chip closable v-bind="props" :text="item.raw" :close-icon="CloseIcon" rounded="0" density="compact"></v-chip>
+                        <v-chip closable v-bind="props" v-if="item.raw" :text="item.raw" :close-icon="CloseIcon" rounded="0" density="compact"></v-chip>
                     </template>
                     <template v-slot:item="{ props, item }">
                         <v-list-item v-bind="props" :text="item.raw" rounded="0" density="compact" :ripple="false" variant="flat"></v-list-item>                    
@@ -40,7 +40,8 @@
                         </Transition>
                     </template>
                 </v-autocomplete>                  
-            </div>            
+            </div>   
+            <p v-if="error" class="i-error">{{error}}</p>         
         </div>
     </div>
 </template>
@@ -50,12 +51,15 @@ import { onMounted, ref, watch, } from 'vue';
 import 'styles/selector.css';
 import { useDebouncedRef } from '@/utils/tools'
 import CloseIcon from '@/components/Form/CloseIcon.vue';
+import { validator } from '@/validation/validator';
     const props = defineProps<{
         placeHolder?: string
         modelValue: string[]
+        rules?: string
     }>()
     const tagOptions = ref<string[]>([])
-  
+    const error = ref('')
+    const trigger = ref(false)
     const selectedTag = defineModel<string[]>()
     const tagSelectorRef = ref<HTMLElement | null>(null)
     const searching = ref(false)
@@ -102,8 +106,16 @@ import CloseIcon from '@/components/Form/CloseIcon.vue';
         console.log(newTag)
         searchKey.value = newTag
     }
+    const validate = async (passive?:boolean) => {
+        if(passive && !trigger.value) return
 
+        const { isValid, errorMessage }= await validator(props.rules ? props.rules : '', selectedTag.value)
+        error.value = errorMessage!
+        trigger.value = true
+        return {valid: isValid}
+    };
 
+    defineExpose({validate})
 
 </script>
 <style lang="scss">

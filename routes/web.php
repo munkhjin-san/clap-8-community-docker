@@ -139,7 +139,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'project', 
         'survey', 
         'remind',
-        'contact'
+        'contact',
+        'asset-partner'
     ])->where('any', '.*')->name('board');
     Route::get('/user_icon_thumbnail/{path}/{size}/{color?}', [ContentController::class, 'user_icon_thumbnail']);
     Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController::class, 'user_default_thumbnail']);

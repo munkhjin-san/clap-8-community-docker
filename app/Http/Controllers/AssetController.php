@@ -98,17 +98,23 @@ class AssetController extends Controller
     }
     public function get_assets(Request $request) 
     {
-        $request->validate([
-            'projectId' => 'required|integer',
-        ]);
+        // $request->validate([
+        //     'projectId' => 'required|integer',
+        // ]);
+        $mode = $request->mode ?? 'normal';
         $projectId = $request->projectId ?? null;
         $memberId = $request->user_ids ?? [];
+        if($mode == 'partner'){
+            $memberId = [Auth::id()];
+            $projectId = null;
+        }
         $classification = $request->class_ids ?? [];
         $status = $request->status_ids ?? [];
         $assets = AssetRecord::query();
 
-
-        $assets->where('project_id', $projectId);
+        if($projectId){
+            $assets->where('project_id', $projectId);
+        }        
         if (!empty($memberId)) {
             $assets->whereIn('user_id', $memberId );
         }
@@ -340,7 +346,7 @@ class AssetController extends Controller
             // take latest 10 items
             $types->orderBy('used_count', 'desc')->orderBy('id', 'desc')->take(10);
         }
-        $data = $types->get();
+        $data = $types->where('value', '!=', '')->whereNotNull('value')->get();
         $data = $data->map(function($item){
             return $item->value;
         })->toArray();
