@@ -62,7 +62,7 @@
                             @reload="emit('updateUser')"/>
                     </Transition>
                 </div>
-                <div style="display:flex; font-size:12px;justify-content:center;" v-if="userDaysWeather.length">
+                <div style="display:flex; font-size:12px;justify-content:center;align-items: center;" v-if="userDaysWeather.length">
                     <div v-for="(weather, index) in userDaysWeather" :key="index">
                         <div style="display:flex;align-items:center;margin-right:5px;">
                             <p>{{dateFormat(weather.date)}}</p>
