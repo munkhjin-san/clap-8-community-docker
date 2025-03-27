@@ -30,7 +30,7 @@
                 <tbody>
                     <template v-if="!loader.yearlyPlan">
                         <tr v-for="data in yearlyPlanData">
-                            <td class="h-cell">年間計画</td>
+                            <td class="h-cell">年度予算</td>
                             <td>
                                 <div class="inner-col"><span class="mobile">売上</span>
                                     {{ amountOfMoneyParser(data.sales) }}
@@ -55,19 +55,19 @@
                     </template>
                     <template v-else>
                         <tr>
-                            <td class="h-cell">年間計画</td>
+                            <td class="h-cell">年度予算</td>
                             <CellLoader :order="num" v-for="num in 4"/>
                         </tr>
                     </template>
                     <template v-if="!loader.profit">
                         <tr v-for="data in profitData">                        
-                            <td class="h-cell">損益</td>
+                            <td class="h-cell">損益計画</td>
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(data.sales)}}</div>
                                     <div v-if="data.sales && yearlyPlanData[0].sales && data.sales - yearlyPlanData[0].sales !== 0" class="text-[11px] whitespace-nowrap ml-[5px]" :style="{
                                         color: data.sales - yearlyPlanData[0].sales < 0 ? 'tomato' : 'green'
-                                    }">{{ `${data.sales - yearlyPlanData[0].sales > 0 ? '↑' : ' ↓ '}${amountOfMoneyParser(data.sales - (yearlyPlanData[0].sales || 0) )}` }}</div>
+                                    }">{{ `${data.sales - yearlyPlanData[0].sales > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.sales - (yearlyPlanData[0].sales || 0) )}` }}</div>
                                 </div>
                                 
                             </td>
@@ -76,7 +76,7 @@
                                     <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(data.expense)}}</div>
                                     <div v-if="data.expense && yearlyPlanData[0].expense && data.expense - yearlyPlanData[0].expense !== 0" class="text-[11px] whitespace-nowrap ml-[5px]" :style="{
                                         color: data.expense - yearlyPlanData[0].expense > 0 ? 'tomato' : 'green'
-                                    }">{{ `${data.expense - yearlyPlanData[0].expense > 0 ? '↑' : ' ↓ '}${amountOfMoneyParser(data.expense - (yearlyPlanData[0].expense || 0) )}` }}</div>
+                                    }">{{ `${data.expense - yearlyPlanData[0].expense > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.expense - (yearlyPlanData[0].expense || 0) )}` }}</div>
                                 </div>
                             </td>
                             <td>
@@ -84,7 +84,7 @@
                                     <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(data.profit) }}</div>
                                     <div class="text-[11px] whitespace-nowrap ml-[5px]" v-if="data.profit && yearlyPlanData[0].profit && data.profit - yearlyPlanData[0].profit !== 0" :style="{
                                         color: data.profit - yearlyPlanData[0].profit > 0 ? 'green' : 'tomato'
-                                    }">{{ `${data.profit - yearlyPlanData[0].profit > 0 ? '↑' : ' ↓ '}${amountOfMoneyParser(data.profit - (yearlyPlanData[0].profit || 0) )}` }}</div>
+                                    }">{{ `${data.profit - yearlyPlanData[0].profit > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.profit - (yearlyPlanData[0].profit || 0) )}` }}</div>
                                 </div>    
                             </td>
                             <td>
@@ -92,14 +92,14 @@
                                     <div class="inner-col"><span class="mobile">利益率</span>{{ Number.isNaN(data.profit_rate) ? '-' : `${data.profit_rate}%` }}</div>
                                     <div class="text-[11px] whitespace-nowrap ml-[5px]" v-if="data.profit_rate && yearlyPlanData[0].profit_rate && data.profit_rate - yearlyPlanData[0].profit_rate !== 0" :style="{
                                         color: data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? 'green' : 'tomato'
-                                    }">{{ `${data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? '↑' : ' ↓ '}${(data.profit_rate - (yearlyPlanData[0].profit_rate || 0)).toFixed(2)}` }}%</div>
+                                    }">{{ `${data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? ' ↑ ' : ' ↓ '}${(data.profit_rate - (yearlyPlanData[0].profit_rate || 0)).toFixed(2)}` }}%</div>
                                 </div>
                             </td>
                         </tr>
                     </template>
                     <template v-else>
                         <tr>
-                            <td class="h-cell">損益</td>
+                            <td class="h-cell">損益計画</td>
                             <CellLoader :order="num" v-for="num in 4"/>
                         </tr>
                     </template>
@@ -111,7 +111,7 @@
                                     <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(data.sales)}}</div>
                                     <div v-if="data.sales && yearlyPlanData[0].sales && data.sales - yearlyPlanData[0].sales !== 0" class="text-[11px] whitespace-nowrap ml-[5px]" :style="{
                                         color: data.sales - yearlyPlanData[0].sales < 0 ? 'tomato' : 'green'
-                                    }">{{ `${data.sales - yearlyPlanData[0].sales > 0 ? '↑' : ' ↓ '}${amountOfMoneyParser(data.sales - (yearlyPlanData[0].sales || 0) )}` }}</div>
+                                    }">{{ `${data.sales - yearlyPlanData[0].sales > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.sales - (yearlyPlanData[0].sales || 0) )}` }}</div>
                                 </div>
                                 
                             </td>
@@ -120,7 +120,7 @@
                                     <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(data.expense)}}</div>
                                     <div v-if="data.expense && yearlyPlanData[0].expense && data.expense - yearlyPlanData[0].expense !== 0" class="text-[11px] whitespace-nowrap ml-[5px]" :style="{
                                         color: data.expense - yearlyPlanData[0].expense > 0 ? 'tomato' : 'green'
-                                    }">{{ `${data.expense - yearlyPlanData[0].expense > 0 ? '↑' : ' ↓ '}${amountOfMoneyParser(data.expense - (yearlyPlanData[0].expense || 0) )}` }}</div>
+                                    }">{{ `${data.expense - yearlyPlanData[0].expense > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.expense - (yearlyPlanData[0].expense || 0) )}` }}</div>
                                 </div>
                             </td>
                             <td>
@@ -128,7 +128,7 @@
                                     <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(data.profit) }}</div>
                                     <div class="text-[11px] whitespace-nowrap ml-[5px]" v-if="data.profit && yearlyPlanData[0].profit && data.profit - yearlyPlanData[0].profit !== 0" :style="{
                                         color: data.profit - yearlyPlanData[0].profit > 0 ? 'green' : 'tomato'
-                                    }">{{ `${data.profit - yearlyPlanData[0].profit > 0 ? '↑' : ' ↓ '}${amountOfMoneyParser(data.profit - (yearlyPlanData[0].profit || 0) )}` }}</div>
+                                    }">{{ `${data.profit - yearlyPlanData[0].profit > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.profit - (yearlyPlanData[0].profit || 0) )}` }}</div>
                                 </div>    
                             </td>
                             <td>
@@ -136,7 +136,7 @@
                                     <div class="inner-col"><span class="mobile">利益率</span>{{ Number.isNaN(data.profit_rate) ? '-' : `${data.profit_rate}%` }}</div>
                                     <div class="text-[11px] whitespace-nowrap ml-[5px]" v-if="data.profit_rate && yearlyPlanData[0].profit_rate && data.profit_rate - yearlyPlanData[0].profit_rate !== 0" :style="{
                                         color: data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? 'green' : 'tomato'
-                                    }">{{ `${data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? '↑' : ' ↓ '}${(data.profit_rate - (yearlyPlanData[0].profit_rate || 0)).toFixed(2)}` }}%</div>
+                                    }">{{ `${data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? ' ↑ ' : ' ↓ '}${(data.profit_rate - (yearlyPlanData[0].profit_rate || 0)).toFixed(2)}` }}%</div>
                                 </div>
                             </td>
                         </tr>

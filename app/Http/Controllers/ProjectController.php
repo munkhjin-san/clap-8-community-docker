@@ -1584,8 +1584,8 @@ class ProjectController extends Controller
         $profitResponse = [];
         foreach($profitRecords as $profit){
 
-            $totalSales = (int) $profit['売上高合計']['value'] ?? 0 + (int) $profit['内部売上高合計']['value'] ?? 0;
-            $totalExpense = (int) $profit['販売管理費合計']['value'] ?? 0 + (int) $profit['間接費配賦']['value'] ?? 0;
+            $totalSales = (int) $profit['売上高合計']['value'] + (int) $profit['内部売上高合計']['value'];
+            $totalExpense = (int) $profit['販売管理費合計']['value'] + (int) $profit['間接費配賦']['value'];
             $profitData = [
 
                 "sales" => $totalSales,
