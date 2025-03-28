@@ -1518,14 +1518,32 @@ class ProjectController extends Controller
         $data = $file[0];
         $data->shift()->toArray();
         $month_headers = $data->shift()->toArray();
-        $month_headers = array_filter($month_headers, function($header) use ($year, $month){
-            return $header == "{$year}年{$month}月";
-        });
+
+        $month_found = false;
+        $month_target_indexes = [];
+        foreach($month_headers as $key => $header){
+            if(!$month_found){
+                if($header == "{$year}年{$month}月"){
+                    $month_found = true;  
+                    $month_target_indexes[] = $key;      
+                }
+            }else{
+                if($header == null || $header == "{$year}年{$month}月"){
+                    $month_target_indexes[] = $key; 
+                }else{
+                    break;
+                }
+            }
+            
+        }
+        // $month_headers = array_filter($month_headers, function($header) use ($year, $month){
+        //     return $header == "{$year}年{$month}月";
+        // });
 
         $sub_headers = $data->shift()->toArray();
-        $target_header_keys = array_keys($month_headers);
-        $sub_headers_for_target_month = array_filter($sub_headers, function ($key) use($target_header_keys) {
-            return in_array($key, $target_header_keys);
+        // $target_header_keys = array_keys($month_headers);
+        $sub_headers_for_target_month = array_filter($sub_headers, function ($key) use($month_target_indexes) {
+            return in_array($key, $month_target_indexes);
         }, ARRAY_FILTER_USE_KEY);
         $plan_sales_index_1 = array_search('合計 売上高', $sub_headers_for_target_month);
         $plan_sales_index_2 = array_search('合計 内部売上高合計', $sub_headers_for_target_month);
@@ -1547,12 +1565,13 @@ class ProjectController extends Controller
         foreach($projectsData as $project){
             $planData = [];
             $totalSales = (int) $project[$plan_sales_index_1] + (int) $project[$plan_sales_index_2];
-            $totalExpense = (int) $project[$plan_expense_index_1] + (int) $project[$plan_expense_index_2] + (int) $project[$plan_expense_index_3] + (int) $project[$plan_expense_index_4];
+            $totalExpense = (int) $project[$plan_expense_index_1] + (int) $project[$plan_expense_index_2] + (int) $project[$plan_expense_index_3] + (int) $project[$plan_expense_index_4] + (int) $project[$plan_expense_index_5];
             $planData = [
                 "sales" => $totalSales,
                 "expense" => $totalExpense,
                 "profit" => (int) $project[$profit_index],
                 "profit_rate" => (int) $project[$profit_rate_index],
+                "month_target_indexes" => $month_target_indexes
             ];
             $allPlanData[] = $planData;
         } 
