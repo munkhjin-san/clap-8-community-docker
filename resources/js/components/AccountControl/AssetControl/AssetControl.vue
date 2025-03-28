@@ -1,7 +1,7 @@
 <template>
     <div class="admin-window">
         <div class="h-full w-full">
-            <div class="w-full h-full overflow-auto">            
+            <div class="w-full h-[calc(100%-30px)] overflow-auto">            
                 <table class="asset-table" style="margin: 20px;width: calc(100% - 40px);">
                     <thead style="background:#363636;color:#fff;position:sticky; top:0px;z-index: 1;">
                         <tr style="border:1px solid rgb(102, 102, 102);">
