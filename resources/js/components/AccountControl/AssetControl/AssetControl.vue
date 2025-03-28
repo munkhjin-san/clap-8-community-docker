@@ -1,10 +1,7 @@
 <template>
     <div class="admin-window">
         <div class="h-full w-full">
-            <div class="min-h-[80px]">
-
-            </div>
-            <div class="w-full h-[calc(100%-80px)] overflow-auto">            
+            <div class="w-full h-[calc(100%-100px)] overflow-auto">            
                 <table class="asset-table">
                     <thead style="background:#363636;color:#fff;position:sticky; top:0px;z-index: 1;">
                         <tr style="border:1px solid rgb(102, 102, 102);">
@@ -89,6 +86,15 @@
                     </tbody>
                 </table>
             </div>
+
+            <div>
+                <PostSearchPager 
+                    style="margin: 0;"
+                    :possiblePage="assetsData.last_page" 
+                    :activePath="assetsData.current_page" 
+                    @setNavi="(index) => getAdminAssetList(assetsData.current_page + index)"
+                    @setActivePage="(index) => getAdminAssetList(index)"/>
+            </div>
         </div>
         <FloatButton type="plus" @action="createWindow = true"/>
         <AssetCreate
@@ -113,6 +119,7 @@ import CommandButton from '@/components/Global/CommandButton.vue';
 import { DialogMethods } from '@/interface/globalInterface';
 import AssetCreate from '@/components/Asset/AssetCreate.vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
+import PostSearchPager from '@/components/Post/PostSearchPager.vue';
 const assetsData = ref<{
     data: Asset[],
     first_page_url: string,
