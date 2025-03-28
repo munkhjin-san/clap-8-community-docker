@@ -1533,6 +1533,7 @@ class ProjectController extends Controller
         $plan_expense_index_2 = array_search('合計 外注費', $sub_headers_for_target_month);
         $plan_expense_index_3 = array_search('合計 販管費その他', $sub_headers_for_target_month);
         $plan_expense_index_4 = array_search('合計 間接費配賦', $sub_headers_for_target_month);
+        $plan_expense_index_5 = array_search('合計 内部発注合計', $sub_headers_for_target_month);
 
         $profit_index = array_search('利益', $sub_headers_for_target_month);
         $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
@@ -1574,6 +1575,7 @@ class ProjectController extends Controller
         $queryParamsSpecs = [
             'app' => 1068,
             "query" => "部門 = \"{$project_name}\" and 日付 = \"{$endOfMonth}\"",
+            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率"],
         ];
         $queryStringSpecs = http_build_query($queryParamsSpecs);
         $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
@@ -1768,6 +1770,86 @@ class ProjectController extends Controller
             return $spec;
         }, $dispatchRecords);
         return response()->json($dispatchClean);
+    }
+    public function get_total_finance(Request $request){
+        $request->validate([
+            "projects" => "required|array",
+        ]);
+        $project_ids = $request->projects;
+        $projects = ProjectRecord::whereIn('id', $project_ids)->get();
+        $project_names = $projects->pluck('name')->toArray();
+
+
+        $project_names_str = implode('","', $project_names);
+        $year = $request->year;
+        $month = $request->month;
+        $dateInstance = Carbon::createFromDate($year, $month, 1);
+        $endOfMonth = $dateInstance->endOfMonth()->toDateString();
+
+        $queryParamsSpecs = [
+            'app' => 1068,
+            "query" => "部門 in (\"{$project_names_str}\") and 日付 = \"{$endOfMonth}\"",
+            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門'],
+        ];
+        
+        $queryStringSpecs = http_build_query($queryParamsSpecs);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
+        $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $profitsData = $profits->json();
+        $profitRecords = $profitsData['records'] ?? [];
+        $profitDataClean = array_map(function ($record) {
+            $spec = [];
+            foreach ($record as $key => $value) {
+                $spec[$key] = $value['value'] ?? '';
+            }
+            return $spec;
+        }, $profitRecords);
+
+
+
+
+
+
+
+        $year = $request->year;
+        $month = $request->month;
+
+        $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
+        $file_exists = file_exists($file_path);
+        if(!$file_exists){
+            return response()->json([]);   
+        }
+        $file = Excel::toCollection(new YearlyPlanImport, $file_path);
+        $data = $file[0];
+        $data->shift()->toArray();
+        $month_headers = $data->shift()->toArray();
+        $month_headers = array_filter($month_headers, function($header) use ($year, $month){
+            return $header == "{$year}年{$month}月";
+        });
+
+        $sub_headers = $data->shift()->toArray();
+        $target_header_keys = array_keys($month_headers);
+        $sub_headers_for_target_month = array_filter($sub_headers, function ($key) use($target_header_keys) {
+            return in_array($key, $target_header_keys);
+        }, ARRAY_FILTER_USE_KEY);
+        $plan_sales_index_1 = array_search('合計 売上高', $sub_headers_for_target_month);
+        $plan_sales_index_2 = array_search('合計 内部売上高合計', $sub_headers_for_target_month);
+        $plan_expense_index_1 = array_search('合計 給料手当', $sub_headers_for_target_month);
+        $plan_expense_index_2 = array_search('合計 外注費', $sub_headers_for_target_month);
+        $plan_expense_index_3 = array_search('合計 販管費その他', $sub_headers_for_target_month);
+        $plan_expense_index_4 = array_search('合計 間接費配賦', $sub_headers_for_target_month);
+
+        $profit_index = array_search('利益', $sub_headers_for_target_month);
+        $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
+        
+        $projectsData = $data->filter(function ($row) use ($project_names) {
+            // return $row[1] === $project_name; 
+            return in_array($row[1], $project_names);
+        });
+
+
+
+        return response()->json($projectsData);
     }
 
 } 
