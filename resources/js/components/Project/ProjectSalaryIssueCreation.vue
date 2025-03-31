@@ -16,8 +16,9 @@
             </div>
             <div class="kadai-root">
                 <div>
-                    <div class="locale-selector" style="width: 100%;">
-                        {{ selectedDate.name }}
+                    <div style="width: 100%;">
+                        <p>{{ selectedDate.name }}</p>
+                        <p>メンター: {{ evaluation?.mentor?.name ?? '' }}</p>
                     </div>
                 </div>
                 <Step2 

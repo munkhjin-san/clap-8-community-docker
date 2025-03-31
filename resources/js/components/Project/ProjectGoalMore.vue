@@ -102,6 +102,10 @@
                         <div>{{ goal?.salary_issue.theme }}</div>
                     </div>
                     <div>
+                        <div>メンター</div>
+                        <div class="kadai-content">{{ evaluationData?.mentor?.name ?? '未設定' }}</div>
+                    </div>
+                    <div>
                         <div>タイトル</div>
                         <div class="kadai-content">{{ goal?.salary_issue.title }}</div>
                     </div>
@@ -193,7 +197,7 @@
                 :selectedDate="selectedDate"
                 :editData="editData"
                 :chosenGoal="goal"
-                :evaluation="memberData.evaluation"
+                :evaluation="evaluationData"
             />
         </Transition>
         <Transition name="modalFade">

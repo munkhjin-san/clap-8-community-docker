@@ -144,7 +144,7 @@ class ProjectController extends Controller
                                     ->get();
         $evalutaionRecord = EvaluationRecord::where('year', $year)
                                     ->where('which_half', $which_half)
-                                    ->where('user_id', $user_id)->first();
+                                    ->where('user_id', $user_id)->with('mentor')->first();
         $data = [
             'project_goals' => $project_goals,
             'evaluation' => $evalutaionRecord,
