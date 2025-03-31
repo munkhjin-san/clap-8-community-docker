@@ -91,9 +91,11 @@ import { useAuthUserStore } from '@/store/auth'
         required.value = selectedMembers.value.length === 0
     }
     const checkRequest = async() => {
+        
         validateSelection()
         if(required.value) return
-        const confirmed = props.requestType == 'confirm' ? await confirm('確認依頼をオンにします。\n選択したメンバーへ確認依頼の通知メールが送信されます。\nよろしいですか。') : true
+        const message = props.requestType == 'sign' ? 'サイン依頼をオンにします。\n選択したメンバーへサイン依頼の通知メールが送信されます。\nよろしいですか。' : '確認依頼をオンにします。\n選択したメンバーへ確認依頼の通知メールが送信されます。\nよろしいですか。'
+        const confirmed = await confirm(message)
         if(!confirmed.value || processing.value) return
         processing.value = true
         let params = {

@@ -1,5 +1,5 @@
 <template>
-    <div class="goals-wrap">
+    <div class="goals-wrap overflow-auto">
         <div class="absolute w-full h-full bg-[var(--background-color)] z-[10] flex items-center justify-center" v-if="initialLoader">
             <div id="loaderMini">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
