@@ -62,14 +62,10 @@
                             @reload="emit('updateUser')"/>
                     </Transition>
                 </div>
-                <div style="display:flex; font-size:12px;justify-content:center;align-items: center;" v-if="userDaysWeather.length">
-                    <div v-for="(weather, index) in userDaysWeather" :key="index">
-                        <div style="display:flex;align-items:center;margin-right:5px;">
-                            <p>{{dateFormat(weather.date)}}</p>
-                            <!-- <img :src="'/images/icon_' + weather.value_int + '.svg'" alt="Weather Icon" width="16" height="16" />                             -->
-                            <WeatherIcon :key="`weather_${weather.value_int}`" :which="weather.value_int" size="16"/>
-                        </div>
-                        
+                <div v-if="userDaysWeather.length" class="flex text-[12px] justify-center items-center gap-[8px]">
+                    <div v-for="(weather, index) in userDaysWeather" :key="index" class="flex items-center">       
+                        <p>{{DateTime.fromISO(weather.date).toFormat("d(EEE)")}}</p>
+                        <WeatherIcon :key="`weather_${weather.value_int}`" :which="weather.value_int" size="16"/>  
                     </div>
                 </div>                
                 <div v-if="UserAllData.name_kana" class="bar02">
@@ -173,6 +169,7 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import Modal from '@/components/Global/Modal.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Cropper from '@/components/Global/Cropper.vue';
+import { DateTime } from 'luxon';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const { confirm, notify } = inject('dialog')
