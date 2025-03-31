@@ -1,7 +1,11 @@
 <template>
     <div class="w-full h-full overflow-y-auto">
         <div class="m-[20px] p-[20px] bg-[var(--background-color)] text-[var(--primary-color)] leading-normal flex flex-col gap-[20px] text-[14px]">
-            <div class="text-[12px] ml-auto">ステータス : <span v-if="hasAnswer" class="text-[green]">回答済み</span><span v-else class="text-[gray]">未回答</span></div>
+            <div class="text-[12px] ml-auto">ステータス : 
+                <span v-if="hasAnswer && hasAnswer.status == 2" class="text-[green]">回答済み</span>
+                <span v-else-if="hasAnswer && hasAnswer.status == 1" class="text-[orange]">一時保存</span>
+                <span v-else class="text-[gray]">未回答</span>
+            </div>
             <div class="text-[16px]">{{ survey.title }}</div>
             <div v-html="urlCheck(survey.description)"></div>
             <div class="flex flex-col gap-[30px]">
@@ -10,8 +14,9 @@
                 </div>
                 
             </div>
-            <div class="si-box">
-                <LoaderButton content="送信する" :loading="sending" @triggered="sendSurvey"/>
+            <div class="si-box flex justify-center gap-[20px]">
+                <LoaderButton content="一時保存する" style="margin:0" :loading="loading[1]" @triggered="sendSurvey(1)"/>
+                <LoaderButton content="送信する" style="margin:0" :loading="loading[2]" @triggered="sendSurvey(2)"/>
             </div>
         </div>
     </div>
@@ -43,8 +48,7 @@ const answer = reactive<SurveyAnswer>({
     block_answers: []
 })
 
-const sending = ref(false)
-
+const loading = ref([false, false, false])
 onMounted(() => {
     const myAnswer = props.survey?.survey_answers ? props.survey.survey_answers[0] : null
     if(myAnswer){
@@ -54,13 +58,12 @@ onMounted(() => {
 const hasAnswer = computed(() => {
     return props.survey.survey_answers && props.survey.survey_answers.length ? props.survey.survey_answers[0] : null
 })
-const sendSurvey = async() => {
+const sendSurvey = async(status:number) => {
     const targets = blocks.value && blocks.value.length ? blocks.value : []
     let blockValid = true
     
     for(const block of targets){
         const isValid = block.isValid()
-        console.log('rrr',isValid, block.blockData)
         blockValid =  isValid && blockValid
     }
     if(!blockValid) return
@@ -69,20 +72,20 @@ const sendSurvey = async() => {
         ...t.extractedData,
         files: t.extractedData.files.map(f => f.id)
     }));
-    console.log(constructedBlocks)
-
     const params = {
         custom_form_id: props.survey.id,
-        params: constructedBlocks
+        params: constructedBlocks,
+        status: status
     }
     
     try{
-        sending.value = true
+        const messages = ['', '保存しました。', '送信しました。']
+        loading[status] = true
         await axios.post('/save_survey_answer', params)
         setTimeout(() => {
             emit('saved')
-            info('保存しました。')
-            sending.value = false
+            info(messages[status])
+            loading[status] = false
             badge.getRemindBadge()  
         }, 300);
 

@@ -157,6 +157,13 @@
                 :edit-data="editData"
             />
         </Transition>
+        <Transition name="modalFade">
+            <ProjectTotalFinance 
+                v-if="totalFinanceWindow"
+                :projects="projects.filter(pr => pr.name !== '役員')"
+                @close="totalFinanceWindow = false"
+            />
+        </Transition>
 
     </div>
     
@@ -172,9 +179,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 import HamBurger from '../Global/HamBurger.vue';
 import { useResponsive } from '@/store/responsive';
-import moment from 'moment';
 import { Dialog, User } from '@/interface/globalInterface';
-import { detailedDateOptions } from '@/utils/tools';
 import { useProjectUsers } from '@/store/projectUsers';
 import { useBadgeStore } from '@/store/badge';
 import { DateTime, Interval } from 'luxon';
@@ -184,6 +189,7 @@ import ProjectCreate from '../AccountControl/ProjectControl/ProjectCreate.vue';
 import FloatButton from '../Global/FloatButton.vue';
 import WeatherIcon from '../Global/WeatherIcon.vue';
 import ProjectMemberSort from './ProjectMemberSort.vue';
+import ProjectTotalFinance from './ProjectTotalFinance.vue';
 const projects = ref<Project[]>([])
 const keywords = ref('')
 const initialLoader = ref(true)
@@ -192,10 +198,7 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthUserStore()
 const responsive = useResponsive()
-const evaluationDate = reactive({year: '', which_half: ''})
 const { notify } = inject<Dialog>('dialog')!
-const options = detailedDateOptions()
-const sortType = ref(0)
 const projectUsers = useProjectUsers()
 const userList = ref([])
 const editData = ref(null)
@@ -204,6 +207,7 @@ const selectedManagers = ref<number[]>([])
 const selectedMembers = ref<number[]>([])
 const badge = useBadgeStore()
 const taskComponent = useTemplateRef<ComponentExposed<typeof TaskComponent>>('taskComponent')
+const totalFinanceWindow = ref(false)
 onMounted(async() => {
     await getProjects();
     getSelectableUsers()
@@ -363,6 +367,7 @@ provide('authProjects', authProjects)
 // provide('metricDate', metricDate)
 provide('getProjects', getProjects)
 provide('editProjects', (rec) => {editData.value = rec; createWindow.value = true})
+provide('setTotalFinanceWindow', (flag:boolean) => {totalFinanceWindow.value = flag})
 </script>
 <style scoped>
     @media screen and (max-width: 959px) {

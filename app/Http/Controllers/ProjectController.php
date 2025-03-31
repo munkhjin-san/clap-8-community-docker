@@ -17,6 +17,7 @@ use App\Models\taskRecord;
 use App\Models\User;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -1791,24 +1792,66 @@ class ProjectController extends Controller
         return response()->json($dispatchClean);
     }
     public function get_total_finance(Request $request){
+        //validation
         $request->validate([
             "projects" => "required|array",
         ]);
+
+        //prepration
         $project_ids = $request->projects;
         $projects = ProjectRecord::whereIn('id', $project_ids)->get();
         $project_names = $projects->pluck('name')->toArray();
+        $months_array = [1,2,3,4,5,6,7,8,9,10,11,12];
+        $year = $request->year;     
+        $this_month = $request->month;  
+        $project_names_str = implode('","', $project_names); 
 
 
-        $project_names_str = implode('","', $project_names);
-        $year = $request->year;
-        $month = $request->month;
-        $dateInstance = Carbon::createFromDate($year, $month, 1);
-        $endOfMonth = $dateInstance->endOfMonth()->toDateString();
+        //get settlement data
+        $client = new Google_Client();
+        $client->setApplicationName('Google Sheets API');
+        $client->setScopes([Google_Service_Sheets::SPREADSHEETS_READONLY]);
+        $client->setAuthConfig(storage_path('app/spread_json_key/gen-lang-client-0333646800-e777adab076d.json')); // Path to your Service Account credentials file
+        $client->setAccessType('offline');
+        $service = new Google_Service_Sheets($client);
+        $sheet_id = '1HTacPGjBDtg3KAK0hToBeJW__fqCp9iH01a38Ihjet8';
+        $spreadsheet = $service->spreadsheets->get($sheet_id);
+        $sheets = $spreadsheet->getSheets();
+
+        $needed_ranges = [];
+        foreach($months_array as $month){
+            $tabName = sprintf('%04d%02d', $year, $month);
+            $needed_ranges[] = $tabName;
+        }   
+
+        $ranges = [];
+        foreach ($sheets as $sheet) {
+            if(in_array($sheet['properties']['title'], $needed_ranges)){
+                $ranges[] = $sheet['properties']['title'];
+            }             
+        }
+        
+        $response = $service->spreadsheets_values->batchGet($sheet_id, ['ranges' => $ranges]);
+        $batchSettlementData = [];
+        foreach ($response->getValueRanges() as $index => $range) {
+            $batchSettlementData[$ranges[$index]] = $range->getValues();
+        }
+        //get settlement data
+
+
+
+
+
+
+        //get profit data
+        $dateInstance = Carbon::createFromDate($year, $this_month, 1);
+        $startOfYear = $dateInstance->startOfYear()->toDateString();
+        $endOfYear = $dateInstance->endOfYear()->toDateString();
 
         $queryParamsSpecs = [
             'app' => 1068,
-            "query" => "部門 in (\"{$project_names_str}\") and 日付 = \"{$endOfMonth}\"",
-            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門'],
+            "query" => "部門 in (\"{$project_names_str}\") and 日付 >= \"{$startOfYear}\" and 日付 <= \"{$endOfYear}\"",
+            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付'],
         ];
         
         $queryStringSpecs = http_build_query($queryParamsSpecs);
@@ -1823,52 +1866,171 @@ class ProjectController extends Controller
             }
             return $spec;
         }, $profitRecords);
+        $profitDataCollection = collect($profitDataClean);
+        //get profit data
 
 
-
-
-
-
-
-        $year = $request->year;
-        $month = $request->month;
-
+        
+        //get yearly plan data
         $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
         $file_exists = file_exists($file_path);
-        if(!$file_exists){
-            return response()->json([]);   
-        }
         $file = Excel::toCollection(new YearlyPlanImport, $file_path);
-        $data = $file[0];
-        $data->shift()->toArray();
-        $month_headers = $data->shift()->toArray();
-        $month_headers = array_filter($month_headers, function($header) use ($year, $month){
-            return $header == "{$year}年{$month}月";
-        });
-
-        $sub_headers = $data->shift()->toArray();
-        $target_header_keys = array_keys($month_headers);
-        $sub_headers_for_target_month = array_filter($sub_headers, function ($key) use($target_header_keys) {
-            return in_array($key, $target_header_keys);
-        }, ARRAY_FILTER_USE_KEY);
-        $plan_sales_index_1 = array_search('合計 売上高', $sub_headers_for_target_month);
-        $plan_sales_index_2 = array_search('合計 内部売上高合計', $sub_headers_for_target_month);
-        $plan_expense_index_1 = array_search('合計 給料手当', $sub_headers_for_target_month);
-        $plan_expense_index_2 = array_search('合計 外注費', $sub_headers_for_target_month);
-        $plan_expense_index_3 = array_search('合計 販管費その他', $sub_headers_for_target_month);
-        $plan_expense_index_4 = array_search('合計 間接費配賦', $sub_headers_for_target_month);
-
-        $profit_index = array_search('利益', $sub_headers_for_target_month);
-        $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
+        $yearlyPlanData = $file[0];
+        $yearlyPlanData->shift()->toArray();
+        $month_headers = $yearlyPlanData->shift()->toArray();
+        $sub_headers = $yearlyPlanData->shift()->toArray();  
+        //get yearly plan data 
         
-        $projectsData = $data->filter(function ($row) use ($project_names) {
-            // return $row[1] === $project_name; 
-            return in_array($row[1], $project_names);
-        });
+        
+        $plan_res_data = [];
+        $default_data = [
+            "sales" => 0,
+            "expense" => 0,
+            "profit" => 0,
+            "profit_rate" => 0,
+        ];
+        $this_month_total = [
+            "yearly_plan" => $default_data,
+            "profit" => $default_data,
+            "settlement" => $default_data,
+        ];
+
+        //process each data for each project
+        foreach($project_names as $project_name){
+            $projectsData = $yearlyPlanData->first(fn($row) => $row[1] === $project_name);
+            foreach($months_array as $month){
+
+                if($projectsData){
+                    $month_target_indexes = [];
+                    $month_found = false;
+                    foreach($month_headers as $key => $header){
+                        if(!$month_found){
+                            if($header == "{$year}年{$month}月"){
+                                $month_found = true;  
+                                $month_target_indexes[] = $key;      
+                            }
+                        }else{
+                            if($header == null || $header == "{$year}年{$month}月"){
+                                $month_target_indexes[] = $key; 
+                            }else{
+                                break;
+                            }
+                        }                        
+                    }
+                    $sub_headers_for_target_month = array_filter($sub_headers, function ($key) use($month_target_indexes) {
+                        return in_array($key, $month_target_indexes);
+                    }, ARRAY_FILTER_USE_KEY);
+                    $plan_sales_index_1 = array_search('合計 売上高', $sub_headers_for_target_month);
+                    $plan_sales_index_2 = array_search('合計 内部売上高合計', $sub_headers_for_target_month);
+                    $plan_expense_index_1 = array_search('合計 給料手当', $sub_headers_for_target_month);
+                    $plan_expense_index_2 = array_search('合計 外注費', $sub_headers_for_target_month);
+                    $plan_expense_index_3 = array_search('合計 販管費その他', $sub_headers_for_target_month);
+                    $plan_expense_index_4 = array_search('合計 間接費配賦', $sub_headers_for_target_month);
+                    $plan_expense_index_5 = array_search('合計 内部発注合計', $sub_headers_for_target_month);
+
+                    $profit_index = array_search('利益', $sub_headers_for_target_month);
+                    $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
+                    $totalSales = (int) $projectsData[$plan_sales_index_1] + (int) $projectsData[$plan_sales_index_2];
+                    $totalExpense = (int) $projectsData[$plan_expense_index_1] + (int) $projectsData[$plan_expense_index_2] + (int) $projectsData[$plan_expense_index_3] + (int) $projectsData[$plan_expense_index_4] + (int) $projectsData[$plan_expense_index_5];
+                    $planData = [
+                        "sales" => $totalSales,
+                        "expense" => $totalExpense,
+                        "profit" => (int) $projectsData[$profit_index],
+                        "profit_rate" => (int) $projectsData[$profit_rate_index],
+                    ];
+                    $plan_res_data[$project_name][$month]['yearly_plan'] = $planData;
+                }
+                else{
+                    $plan_res_data[$project_name][$month]['yearly_plan']  = $default_data;
+                }
 
 
 
-        return response()->json($projectsData);
+
+                
+                $dateInstance = Carbon::createFromDate($year, $month, 1);
+                $profitData = $profitDataCollection->where('部門', $project_name)
+                ->filter(function ($item) use ($year, $month) {
+                    return Carbon::parse($item['日付'])->year == $year &&
+                            Carbon::parse($item['日付'])->month == $month;
+                })
+                ->first();
+                if($profitData){
+                    $profitData = [
+                        "sales" => (int) $profitData['売上高合計'],
+                        "expense" => (int) $profitData['販売管理費合計'] + (int) $profitData['間接費配賦'],
+                        "profit" => (int) $profitData['利益'],
+                        "profit_rate" => (int) $profitData['利益率'],
+                    ];
+                    $plan_res_data[$project_name][$month]['profit'] = $profitData;
+                }
+                else{
+                    $plan_res_data[$project_name][$month]['profit'] = $default_data;
+                }        
+                
+
+
+
+
+                $settle_tab_index = sprintf('%04d%02d', $year, $month);
+                $settlements = $batchSettlementData[$settle_tab_index] ?? [];
+                if (!empty($settlements )) {
+                    $settlement_headers = $settlements[1];
+                    $settlement_data = array_slice($settlements, 2);
+                    $project_index_in_settlement = array_search($project_name, array_column($settlement_data, 1)); 
+
+                    if($project_index_in_settlement){
+                        $settlementOfProject = $settlement_data[$project_index_in_settlement];
+                        $settlement_sales_index = array_search('収入', $settlement_headers);
+                        $settlement_expense_index = array_search('支出', $settlement_headers);
+                        $settlement_additional_expense_index = array_search('間接費配賦', $settlement_headers);
+                        $settlement_profit_index = array_search('利益', $settlement_headers);
+                        $settlement_profit_rate_index = array_search('利益率', $settlement_headers);                                
+ 
+            
+                        $totalExpense = (int) str_replace(',', '', $settlementOfProject[$settlement_expense_index]) + (int) str_replace(',', '', $settlementOfProject[$settlement_additional_expense_index]);
+                        $plan_res_data[$project_name][$month]['settlement']= [
+                            'sales' => (int) str_replace(',', '', $settlementOfProject[$settlement_sales_index]),
+                            'expense' => $totalExpense ?? 0,
+                            'profit' => (int) str_replace(',', '', $settlementOfProject[$settlement_profit_index]),
+                            'profit_rate' => (int) str_replace('%', '', $settlementOfProject[$settlement_profit_rate_index]),
+                        ];
+                 
+                    }else{
+                        $plan_res_data[$project_name][$month]['settlement'] = $default_data;
+                    }                    
+                    
+
+                }else{
+                    $plan_res_data[$project_name][$month]['settlement'] = $default_data;
+                }
+
+                
+                if($month == $this_month){
+
+                    $this_month_total['yearly_plan']['sales'] += $plan_res_data[$project_name][$month]['yearly_plan']['sales'];
+                    $this_month_total['yearly_plan']['expense'] += $plan_res_data[$project_name][$month]['yearly_plan']['expense'];
+
+                    $this_month_total['profit']['sales'] += $plan_res_data[$project_name][$month]['profit']['sales'];
+                    $this_month_total['profit']['expense'] += $plan_res_data[$project_name][$month]['profit']['expense'];
+
+                    $this_month_total['settlement']['sales'] = $plan_res_data[$project_name][$month]['settlement']['sales'];
+                    $this_month_total['settlement']['expense'] = $plan_res_data[$project_name][$month]['settlement']['expense'];
+                }
+
+
+            }
+
+            
+        }
+
+        $final_data = [
+            'plan_res_data' => $plan_res_data,
+            'this_month_total' => $this_month_total
+        ];
+        return response()->json( $final_data);
+
+
     }
 
 } 

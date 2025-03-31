@@ -12,6 +12,9 @@ class SurveyBlockElementAnswer extends Model
     protected $casts = [
         "checked" => 'boolean'
     ];
+    public function survey_block_answer(){
+        return $this->belongsTo(SurveyBlockAnswer::class);
+    }
     public function element(){
         return $this->hasOne(CustomFormBlockElement::class);
     }

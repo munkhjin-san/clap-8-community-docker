@@ -9,6 +9,10 @@ class SurveyBlockAnswer extends Model
 {
     use HasFactory, SoftDeletes;
     protected $guarded = [];
+
+    public function survey_answer(){
+        return $this->belongsTo(SurveyAnswer::class);
+    }
     public function element_answers(){
         return $this->hasMany(SurveyBlockElementAnswer::class);
     }

@@ -5,6 +5,7 @@
     -moz-appearance: none;
     width: 15px;
     height: 15px;
+    min-width: 15px;
     border: 1px solid var(--primary-color);
     background-color: var(--background-color);
     position: relative;

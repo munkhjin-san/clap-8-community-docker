@@ -149,7 +149,10 @@
                     </template>
                 </tbody>
             </table>
-
+            <div class="my-[20px] flex justify-end px-[20px]">
+                <LoaderButton @triggered="viewTotalFinance" style="margin: 0;" content="事業部門総計" :loading="false"/>
+            </div>
+            
         </div>
     </div>
 </template>
@@ -164,6 +167,7 @@ import { inject, onMounted, reactive, ref } from 'vue';
 import { amountOfMoneyParser } from '@/utils/tools';
 import CellLoader from './Finance/CellLoader.vue';
 import { useRoute } from 'vue-router';
+import LoaderButton from '@/components/Global/LoaderButton.vue';
 const props = defineProps<{
     selectedProject: Project;
     userList: any;
@@ -190,6 +194,8 @@ const yearlyPlanData = ref<BalanceColumn[]>([{sales: NaN, expense: NaN, profit: 
 const settlementData = ref<BalanceColumn[]>([{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}])
 
 const profitData = ref<BalanceColumn[]>([{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}])
+
+const setTotalFinanceWindow = inject('setTotalFinanceWindow') as (flag: boolean) => void
 
 onMounted(() => {
     getYearlyPlan();
@@ -270,6 +276,11 @@ const setDate = (date: {year:number, month: MonthNumbers}) => {
     getSettlement()
 }
 
+const viewTotalFinance = () => {
+    if(typeof setTotalFinanceWindow === 'function'){
+        setTotalFinanceWindow(true)
+    }
+}
 </script>
 
 <style scoped lang="scss">

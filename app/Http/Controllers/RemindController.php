@@ -399,38 +399,38 @@ class RemindController extends Controller
     }
     private function getAdminMembers() {
         return User::whereHas('outcome_goals', function ($query) {
-                $query->where('status', 3)
-                      ->orWhereHas('salaryIssue', function ($query) {
-                          $query->where(function ($subQuery) {
-                            $subQuery->where('status', 3)
-                                    ->orWhere('status', 9);
-                          });
-                      });
-            })
-            ->orWhereHas('salary_issues', function ($query) {
-                $query->where(function ($subQuery) {
-                    $subQuery->where('status', 3)
-                            ->orWhere('status', 9);
-                  });
-            })
-            ->with([
-                'outcome_goals' => function ($query) {
-                    $query->where('status', 3)
-                          ->orWhereHas('salaryIssue', function ($query) {
-                            $query->where(function ($subQuery) {
-                                $subQuery->where('status', 3)
-                                        ->orWhere('status', 9);
-                              });
-                          })
-                          ->with(['salaryIssue', 'project']);
-                },
-                'salary_issues' => function ($query) {
+            $query->where('status', 3)
+                ->orWhereHas('salaryIssue', function ($query) {
                     $query->where(function ($subQuery) {
                         $subQuery->where('status', 3)
+                            ->orWhere('status', 9);
+                    });
+                });
+        })
+        ->orWhereHas('salary_issues', function ($query) {
+            $query->where(function ($subQuery) {
+                $subQuery->where('status', 3)
+                    ->orWhere('status', 9);
+            });
+        })
+        ->with([
+            'outcome_goals' => function ($query) {
+                $query->where('status', 3)
+                    ->orWhereHas('salaryIssue', function ($query) {
+                        $query->where(function ($subQuery) {
+                            $subQuery->where('status', 3)
                                 ->orWhere('status', 9);
-                      });
-                }
-            ])
+                        });
+                    })
+                    ->with(['salaryIssue', 'project']);
+            },
+            'salary_issues' => function ($query) {
+                $query->where(function ($subQuery) {
+                    $subQuery->where('status', 3)
+                        ->orWhere('status', 9);
+                });
+            }
+        ])
             ->get();
     }
     

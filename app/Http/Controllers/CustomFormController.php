@@ -214,12 +214,14 @@ class CustomFormController extends Controller
         $active_user = $this->active_user();
         $survey = SurveyAnswer::firstOrCreate([
             "custom_form_id" => $request->custom_form_id,
-            "user_id" => $active_user->id
+            "user_id" => $active_user->id,
         ]);
         $survey->block_answers->each(function($block_answer){
             $block_answer->element_answers()->delete();
         });
         $survey->block_answers()->delete();
+
+        $survey->update(['status' => $request->status]);    
 
         $params = $request->params;
         foreach($params as $block){
@@ -245,14 +247,20 @@ class CustomFormController extends Controller
     }
     public function get_survey_answers(Request $request){
 
-            $survey = SurveyAnswer::where('custom_form_id', $request->custom_form_id)->get();
+            $survey = SurveyAnswer::where('custom_form_id', $request->custom_form_id)->where('status', 2)->get();
             $custom_form = CustomForm::with(['blocks' => function($q)  {
                 $q->with(['answers' => function($q) {
-                    $q->with(['user', 'files'])->orderBy('created_at', 'desc');                    
+                    $q->whereHas('survey_answer', function($q){
+                        $q->where('status', 2);
+                    })->with(['user', 'files'])->orderBy('created_at', 'desc');                    
                 }])
                 ->with(['elements' => function($q)  {
                     $q->with(['answers' => function($q)  {
-                        $q->with('user')->orderBy('created_at', 'desc'); ;                    
+                        $q->whereHas('survey_block_answer', function($q){
+                            $q->whereHas('survey_answer', function($q){
+                                $q->where('status', 2);
+                            });
+                        })->with('user')->orderBy('created_at', 'desc'); ;                    
                     }]);
                 }]);
             }])->findOrFail($request->custom_form_id);

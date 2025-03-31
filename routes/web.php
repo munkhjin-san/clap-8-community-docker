@@ -461,6 +461,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_partners_tags', [ProjectController::class, 'get_partners_tags']);
         Route::get('/get_task_comment_badge', [ProjectController::class, 'get_task_comment_badge']);
         Route::get('/get_dispatch_data', [ProjectController::class, 'get_dispatch_data']);
+        Route::get('/get_total_finance', [ProjectController::class, 'get_total_finance']);
 
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);

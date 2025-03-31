@@ -54,6 +54,7 @@ export interface SurveyAnswer{
     updated_at?: string	
     block_answers: SurveyBlockAnswer[]
     user?: User
+    status?: number
 }
 
 export interface SurveyBlockAnswer{

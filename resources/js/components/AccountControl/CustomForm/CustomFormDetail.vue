@@ -226,7 +226,7 @@ const memberAnswer = (blockId: number, answer:SurveyAnswer,) => {
 }
 const getSurveyAnswers = async() => {
     try {
-        const response = await axios.get(`/get_survey_answers/`, {
+        const response = await axios.get(`/get_survey_answers`, {
             params: {
                 custom_form_id: props.form.id,
                 sort: tab.value == 0 ? 'user' : 'block'
