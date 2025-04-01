@@ -3,71 +3,20 @@
         <div class="h-full overflow-y-auto">
             <div class="min-h-[calc(100%-50px)]">
                 <table class="asset-table mx-[20px] mt-[20px] w-[calc(100%-40px)]">
-                    <thead ref="assetHeader" style="background:var(--third-color);color:var(--background-color);position:sticky; top:0px;z-index: 1;">
-                        <tr style="border:1px solid rgb(102, 102, 102);">
-                            <td>GL番号</td>
-                            <td>品名</td>
-                            <td>型番</td>
-                            <td>
-                                <div class="relative">
-                                    <div class="cursor-pointer" @click.stop="menu.setMenu({parent: 'assetUsersPick'})">使用者</div>
-                                    <div v-if="activeMembers.length" class="flex flex-wrap mt-[5px]">
-                                        <UserPanel v-for="member in activeMembers" disable-instant :user="member" size="15"/>
-                                    </div>
-                                    <Transition name="slidePop">
-                                        <ProjectMemberSort
-                                            v-if="menu.parent == 'assetUsersPick'" 
-                                            id="assetUsersPick" 
-                                            :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}"
-                                            :members="[...selectedProject?.members ?? [], ...selectedProject?.manager ?? []]" 
-                                            v-model:selected-users="userQuery"
-                                            custom-place-holder="管理者検索"
-                                        />
-                                    </Transition>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="relative">
-                                    <div class="cursor-pointer" @click.stop="menu.setMenu({parent: 'classPick'})">分類</div>
-                                    <div v-if="activeClasses.length" class="flex flex-wrap mt-[5px]">
-                                        <div v-for="classification in activeClasses" class="px-[5px] text-[11px]">{{ classification.label }}</div>
-                                    </div>
-                                    <Transition name="slidePop">
-                                        <div v-if="menu.parent == 'classPick'" id="classPick" class="absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
-                                            <button class="text-[11px]" @click.stop="classQuery = [], menu.close()">リセット</button>
-                                            <div v-for="classification in AssetClass">
-                                                <label class="cursor-pointer select-none whitespace-nowrap">
-                                                    <input type="checkbox" name="class-selector" v-model="classQuery" :value="classification.value" class="hidden"/>
-                                                    {{ classification.label }}
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </Transition>
-                                </div>
-                            </td>
-                            <td>価値</td>
-                            <td>
-                                <div class="relative">
-                                    <div class="cursor-pointer" @click.stop="menu.setMenu({parent: 'statusPick'})">ステータス</div>
-                                    <div v-if="activeStatus.length" class="flex flex-wrap mt-[5px]">
-                                        <div v-for="status in activeStatus" class="px-[5px] text-[11px]">{{ status.label }}</div>
-                                    </div>
-                                    <Transition name="slidePop">
-                                        <div v-if="menu.parent == 'statusPick'" id="statusPick" class="absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
-                                            <button class="text-[11px]" @click.stop="statusQuery = [], menu.close()">リセット</button>
-                                            <div v-for="statusData in AssetStatus">
-                                                <label class="cursor-pointer select-none whitespace-nowrap">
-                                                    <input type="checkbox" name="class-selector" v-model="statusQuery" :value="statusData.value" class="hidden"/>
-                                                    {{ statusData.label }}
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </Transition>
-                                </div>
-                            </td>
-                            <td>詳細</td>
-                        </tr>
-                    </thead>
+                    <AssetTableHeader 
+                        :columns="['GL番号', '品名', '型番', '使用者', '分類', '価値', 'ステータス']"
+                        :projects="[]" 
+                        :users="[...selectedProject?.members ?? [], ...selectedProject?.manager ?? []]"
+                        :offices="[]"
+                        v-model:user_id="searchQuery.user_id"
+                        v-model:project_id="searchQuery.project_id"
+                        v-model:classification="searchQuery.classification"
+                        v-model:status="searchQuery.status"
+                        v-model:office_id="searchQuery.office_id"
+                        v-model:item_name="searchQuery.item_name"
+                        v-model:model_number="searchQuery.model_number"
+                        v-model:gl_number="searchQuery.gl_number"
+                    />
                     <tbody v-if="assetsData && assetsData.data">
                         <template v-if="assetsData.data.length">                    
                             <template v-for="asset in assetsData.data">
@@ -150,10 +99,7 @@
 </template>
 <script lang="ts" setup>
 import axios from 'axios';
-import {  computed, inject, onMounted, provide, ref, useTemplateRef, watch, watchEffect } from 'vue';
-import { useRoute,  } from 'vue-router';
-import PostSearchBar from '../Post/PostSearchBar.vue';
-import { DialogMethods, User } from '@/interface/globalInterface';
+import {  computed, inject, onMounted, provide, reactive, ref, watch } from 'vue';
 import { Asset,  } from '@/interface/assetInterface';
 import FloatButton from '../Global/FloatButton.vue';
 import AssetCreate from './AssetCreate.vue';
@@ -163,31 +109,36 @@ import PostSearchPager from '../Post/PostSearchPager.vue';
 import { Project } from '@/interface/projectInterface';
 import AssetClass from 'assets/AssetClass.json'
 import AssetStatus from 'assets/AssetStatus.json'
-import ProjectMemberSort from '../Project/ProjectMemberSort.vue';
-import { useMenuStore } from '@/store/menu';
-import UserPanel from '../Global/UserPanel.vue';
 import { useAuthUserStore } from '@/store/auth';
+import AssetTableHeader from '../AccountControl/AssetControl/AssetTableHeader.vue';
+import { useRoute } from 'vue-router';
 const props = defineProps<{
     selectedProject?: Project;
     userList: any;
     mode?: string;
 }>();
 
-const route = useRoute()
-const searchWindow = ref(false)
+
 const openModal = ref(false)
 const editData = ref<Asset | null>(null)
-const selectedUser = ref<User[]>([])
-const selectedClassification = ref(null)
-const selectedStatus = ref(null)
 const possibleProjects = ref([])
 const possibleMembers = ref([])
-const menu = useMenuStore()
 const userQuery = ref<number[]>([]) 
-const assetHeader = useTemplateRef('assetHeader')
 const classQuery = ref<number[]>([])
 const statusQuery = ref<number[]>([])
 const auth = useAuthUserStore()
+const route = useRoute()
+const searchQuery = reactive({
+    item_name: '',
+    model_number: '',
+    classification: <number[]>[],
+    status: <number[]>[],
+    office_id: <number[]>[],
+    user_id: <number[]>[],
+    project_id: <number[]>[Number(route.params.projectId)],
+    gl_number: '',
+})
+
 const assetsData = ref<{
     data: Asset[],
     first_page_url: string,
@@ -209,10 +160,10 @@ const assetsData = ref<{
 })
 
 const fetchCount = ref(0)
-const { confirm, info, notify } = inject('dialog') as DialogMethods
 
 const selectedAssetIds = ref<number[]>([])
 const setLoader = inject('setLoader') as (flag: boolean) => void
+
 
 watch([userQuery, classQuery, statusQuery], () => {
     getAssets()
@@ -227,6 +178,7 @@ onMounted(() => {
     getAssets()
     getPossibleMembers()
     getPossibleProjects()
+
 })
 const createAble = computed(() => {
     const privilage = props.mode === 'admin' || props.mode === 'partner' 
@@ -237,17 +189,13 @@ const createAble = computed(() => {
 const getAssets = async(page?:number) => {
     const pageIndex = page ?? assetsData.value.current_page
     try {
-        const params = {
-            memberId: selectedUser.value.map(ob => ob.id),
-            projectId: props.selectedProject?.id,
-            classification: selectedClassification.value,
-            status: selectedStatus.value,
-            user_ids: userQuery.value,
-            class_ids: classQuery.value,
-            status_ids: statusQuery.value,
-            mode: props.mode
-        }
-        const response = await axios.get(`/get_assets?page=${pageIndex}`, {params})
+        
+        const response = await axios.get(`/get_assets?page=${pageIndex}`, {
+            params: {
+                ...searchQuery,
+                mode: props.mode,
+            }
+        })
         assetsData.value = response.data
         fetchCount.value++
         if (typeof setLoader === 'function') {
@@ -282,16 +230,9 @@ const closeModal = (flag: boolean) => {
     openModal.value = false
     if(flag) getAssets()
 }
-const activeMembers = computed(() => {
-    const allMembers = [...props.selectedProject?.members ?? [], ...props.selectedProject?.manager ?? []]
-    return allMembers.filter(ob => userQuery.value.includes(ob.id))
-})
-const activeClasses = computed(() => {
-    return AssetClass.filter(ob => classQuery.value.includes(ob.value))
-})
-const activeStatus = computed(() => {
-    return AssetStatus.filter(ob => statusQuery.value.includes(ob.value))
-})
+watch(searchQuery, () => {
+    getAssets()
+}, { deep: true })
 provide('getAssets', () => getAssets(assetsData.value.current_page))
 </script>
 <style lang="scss">

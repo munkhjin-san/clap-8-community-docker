@@ -25,7 +25,7 @@
                 </div>    
                 
             </div>
-            <div v-else style="height: calc(100% - 128px); display: flex; align-items: center; justify-content: center;white-space: nowrap;font-size: 13px;padding: 30px;">
+            <div v-else class="h-[calc(100%-128px)] flex items-center justify-center whitespace-nowrap text-[13px] p-[30px] text-[var(--primary-color)]">
                 検索結果はありません。
             </div>                      
         </div>

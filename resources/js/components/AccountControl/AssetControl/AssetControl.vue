@@ -3,19 +3,20 @@
         <div class="h-full w-full">
             <div class="w-full h-[calc(100%-30px)] overflow-auto">            
                 <table class="asset-table" style="margin: 20px;width: calc(100% - 40px);">
-                    <thead style="background:#363636;color:#fff;position:sticky; top:0px;z-index: 1;">
-                        <tr style="border:1px solid rgb(102, 102, 102);">
-                            <td>GL番号</td>
-                            <td>品名</td>
-                            <td>型番</td>
-                            <td>使用プロジェクト</td>
-                            <td>使用者</td>
-                            <td>分類</td>
-                            <td>価値</td>
-                            <td>物品ステータス</td>
-                            <td>詳細</td>
-                        </tr>
-                    </thead>
+                    <AssetTableHeader 
+                        :columns="['GL番号', '品名', '型番', '使用プロジェクト', '使用者', '分類', '価値', 'ステータス', '保管場所']"
+                        :projects="possibleProjects" 
+                        :users="possibleMembers"
+                        :offices="possibleOffices"
+                        v-model:user_id="searchQuery.user_id"
+                        v-model:project_id="searchQuery.project_id"
+                        v-model:classification="searchQuery.classification"
+                        v-model:status="searchQuery.status"
+                        v-model:office_id="searchQuery.office_id"
+                        v-model:item_name="searchQuery.item_name"
+                        v-model:model_number="searchQuery.model_number"
+                        v-model:gl_number="searchQuery.gl_number"
+                    />                   
                     <tbody v-if="assetsData && assetsData.data">
                         <template v-for="asset in assetsData.data">
                             <tr>
@@ -37,26 +38,21 @@
                                 <td>{{ AssetClass.find(ob => ob.value === asset.classification)?.label }}</td>
                                 <td>{{ asset.value }}</td>
                                 <td>{{ asset.requests.length ? '移動中' : AssetStatus.find(ob => ob.value === asset.status)?.label }}</td>
-                    
-                                <!-- <td>
-                                    <div class="flex gap-[10px]">
-                                        <CommandButton 
-                                            :buttons="buttonCollection(asset)"
-                                        />
+                                <td>
+                                    <div class="leading-normal">
+                                        <p>{{ asset?.current_office?.name }}</p>
                                     </div>
-                                    
-                                </td> -->
+                                </td>
                                 <td>
                                     <label class="cursor-pointer select-none jump-link">
-                                        <input type="checkbox" v-model="selectedAssetIds" :value="asset.id" class="hidden"/>
+                                        <input type="checkbox" name="asset-collector" v-model="selectedAssetIds" :value="asset.id" class="hidden"/>
                                         詳細
                                     </label>
                                     
                                 </td>
                             </tr>
                             <tr v-if="asset?.requests && asset.requests.length || selectedAssetIds.includes(asset.id)">
-                                <td colspan="9">
-                                    
+                                <td colspan="9">                                    
                                     <div v-if="asset?.requests && asset.requests.length" class="bg-[var(--bg2)]">
                                         <AssetMovement 
                                             :asset="asset" 
@@ -110,16 +106,19 @@
 <script setup lang="ts">
 import { Asset } from '@/interface/assetInterface';
 import axios from 'axios';
-import { inject, onMounted, ref } from 'vue';
+import { inject, onMounted, reactive, ref, watch } from 'vue';
 import AssetClass from 'assets/AssetClass.json'
 import AssetStatus from 'assets/AssetStatus.json'
 import AssetDetail from '@/components/Asset/AssetDetail.vue';
 import AssetMovement from '@/components/Asset/AssetMovement.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
-import { DialogMethods } from '@/interface/globalInterface';
+import { DialogMethods, Office } from '@/interface/globalInterface';
 import AssetCreate from '@/components/Asset/AssetCreate.vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import PostSearchPager from '@/components/Post/PostSearchPager.vue';
+import AssetTableHeader from './AssetTableHeader.vue';
+
+const { notify, info, confirm} = inject('dialog') as DialogMethods
 const assetsData = ref<{
     data: Asset[],
     first_page_url: string,
@@ -139,18 +138,38 @@ const assetsData = ref<{
     last_page: 0, 
     total: 0
 })
+const searchQuery = reactive({
+    item_name: '',
+    model_number: '',
+    classification: <number[]>[],
+    status: <number[]>[],
+    office_id: <number[]>[],
+    user_id: <number[]>[],
+    project_id: <number[]>[],
+    gl_number: '',
+})
 const selectedAssetIds = ref<number[]>([])
 const possibleMembers = ref([])
 const possibleProjects = ref([])
 const editData = ref<Asset | null>(null)
 const createWindow = ref(false)
-const { notify, info, confirm} = inject('dialog') as DialogMethods
 
+
+const possibleOffices = ref<Office[]>([])
 onMounted(() => {
     getAdminAssetList()
     getPossibleMembers()
     getPossibleProjects()
+    getPossibleOffice()
 });
+const getPossibleOffice = async() => {
+    try {
+        const response = await axios.get('/get_possible_offices')
+        possibleOffices.value = response.data
+    } catch (e) {
+
+    }
+}
 const getPossibleMembers = async() => {
     try {
         const response = await axios.get('/get_possible_members')
@@ -173,7 +192,9 @@ const getPossibleProjects = async() => {
 }
 const getAdminAssetList = async(page?:number) => {
     const pageIndex = page ?? 1
-    assetsData.value = await axios.get(`/admin_asset_list?page=${pageIndex}`).then(res => res.data)
+    assetsData.value = await axios.get(`/get_assets?page=${pageIndex}`, {
+        params: searchQuery
+    }).then(res => res.data)
 }
 const padNumber = (num: number | null) => {
     return num?.toString().padStart(5, "0")
@@ -198,6 +219,9 @@ const closeModal = (reload: boolean) => {
     }
     editData.value = null
 }
+watch(searchQuery, () => {
+    getAdminAssetList()
+}, { deep: true })
 </script>
 <style lang="scss" scoped>
     .asset-header{

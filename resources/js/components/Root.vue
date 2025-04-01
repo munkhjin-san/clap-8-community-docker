@@ -253,14 +253,15 @@ import { DateTime } from 'luxon';
         }
 
         await auth.setActiveUser(id)
-        skeleton.setSkeleton(0)
-        badge.getRemindBadge()
-        nextTick(() => {
-            setTimeout(() => {
-                switchLoader.value = false
-            }, 300);
+        window.location.reload(true)
+        // skeleton.setSkeleton(0)
+        // badge.getRemindBadge()
+        // nextTick(() => {
+        //     setTimeout(() => {
+        //         switchLoader.value = false
+        //     }, 300);
             
-        })
+        // })
         
 
     }

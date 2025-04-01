@@ -55,7 +55,7 @@ class AssetController extends Controller
     }
     public function get_possible_offices()
     {
-        $offices = officeRecord::all();
+        $offices = officeRecord::get();
         return response()->json($offices);
     }
 
@@ -98,23 +98,39 @@ class AssetController extends Controller
     }
     public function get_assets(Request $request) 
     {
-        // $request->validate([
-        //     'projectId' => 'required|integer',
-        // ]);
+
         $mode = $request->mode ?? 'normal';
-        $projectId = $request->projectId ?? null;
-        $memberId = $request->user_ids ?? [];
+        $projectId = $request->project_id ? [$request->project_id] : [];
+        $memberId = $request->user_id ? [$request->user_id] : [];
+        $officeId = $request->office_id ?? [];
+        
+        $classification = $request->classification ?? [];
+        $status = $request->status ?? [];
+
         if($mode == 'partner'){
             $memberId = [Auth::id()];
-            $projectId = null;
+            $projectId = [];
         }
-        $classification = $request->class_ids ?? [];
-        $status = $request->status_ids ?? [];
         $assets = AssetRecord::query();
+        
+        if($request->item_name){
+            $assets->where('item_name', 'like', "%{$request->item_name}%");
+        }
+        if($request->model_number){
+            $assets->where('model_number', 'like', "%{$request->model_number}%");
+        }
+        if($request->gl_number){
+            $number = (int) $request->gl_number;
+            $number_remove_leading_zero = preg_replace('/^0+/', '', $number);
+            $assets->where('id', $number_remove_leading_zero);
+        }
 
-        if($projectId){
-            $assets->where('project_id', $projectId);
-        }        
+        if(!empty($projectId)){
+            $assets->whereIn('project_id', $projectId);
+        }    
+        if(!empty($officeId)){
+            $assets->whereIn('office_id', $officeId);
+        }    
         if (!empty($memberId)) {
             $assets->whereIn('user_id', $memberId );
         }
@@ -323,7 +339,8 @@ class AssetController extends Controller
             $asset_request->asset->update([
                 'user_id' => null,
                 'project_id' => null,
-                'status' => 2
+                'status' => 2,
+                'office_id' => $request->office_id ?? null
             ]);
             $asset_step->update([
                 'approved_by' => Auth::id(),

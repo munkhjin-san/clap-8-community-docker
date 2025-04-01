@@ -96,7 +96,7 @@
                 <div v-if="!item.approver && isAuthorized" class="flex gap-[10px] mt-[10px] items-center">
                     <div>経営管理本部承認待ち</div>
                     <CommandButton :buttons="[
-                        {title: '承認', action: () => receiverManagerDecision('承認', 2)},
+                        {title: '承認', action: () => setStorePlace()},
                         {title: '差戻', action: () => receiverManagerDecision('差し戻し', 3)}
                     ]"/>
                 </div>
@@ -141,14 +141,39 @@
             </template>
         </Modal>
     </Teleport> 
+    <Teleport to="body">
+        <Modal v-if="officeSelector" @close="officeSelector = false">
+            <template #title>
+                <p>物品を保管する場所を選択</p>
+            </template>
+            <template #content>
+                <div class="si-box">
+                    <ItemSelector 
+                        :path="`get_possible_offices`"
+                        :clearable="true"
+                        label="name"
+                        :reduce="option => option.id"
+                        :closeOnSelect=true
+                        :multiple="false"
+                        place-holder="保管場所を選択"
+                        rules="required"
+                        ref="officeSelectorRef"
+                        v-model="selectedOffice"
+                    />
+                </div>
+                <div class="si-box">
+                    <LoaderButton :loading="loading" @triggered="receiverManagerDecision('承認', 2, {office_id: selectedOffice})" content="保存する"/>
+
+                </div>
+            </template>
+        </Modal>
+    </Teleport> 
 
     
 </div>
 </template>
 <script setup lang="ts">
 import { AssetRequest, AssetRequestStep } from '@/interface/assetInterface';
-import { DateTime } from 'luxon';
-import UserPanel from '../Global/UserPanel.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { DialogMethods } from '@/interface/globalInterface';
 import { inject, ref, useTemplateRef } from 'vue';
@@ -173,8 +198,11 @@ const { confirm, info, notify } = inject('dialog') as DialogMethods
 const getAssets = inject('getAssets') as () => void
 const selectedProject = ref(props.assetRequest.to_project || null)
 const projectSelector = ref(false)
+const officeSelector = ref(false)
 const loading = ref(false)
 const projectSelectorRef = useTemplateRef<ComponentExposed<typeof ItemSelector>>('projectSelectorRef')
+const officeSelectorRef = useTemplateRef<ComponentExposed<typeof ItemSelector>>('officeSelectorRef')
+const selectedOffice = ref('')
 const managerDecision = async(message: string, status: number) => {
     const title = `${message}しますか？`
     const confirmed = await confirm(title)
@@ -204,6 +232,9 @@ const receiverDecision = async(message:string, status:number) => {
     info(`${message}しました。`)
         
 }
+const setStorePlace = () => {
+    officeSelector.value = true
+}
 const acceptAsset = async() => {
     const validate = await projectSelectorRef.value?.validate()
     if(!validate?.valid){
@@ -220,13 +251,26 @@ const acceptAsset = async() => {
     projectSelector.value = false
     info('承認しました。')
 }
-const receiverManagerDecision = async(message:string, status:number) => {
+const receiverManagerDecision = async(message:string, status:number, additionalParams?:{[key:string]: any}) => {
     const title = `${message}しますか？`
+    if(additionalParams && 'office_id' in additionalParams){
+        const valid = await officeSelectorRef.value?.validate()
+        if(!valid?.valid){
+            notify('保管場所を選択してください。')
+            return
+        }
+    }
     const confirmed = await confirm(title)
     if(!confirmed.value) return
-    const params = {
+    let params = {
         step_id: props.item.id,
         status: status
+    }
+    if(additionalParams){
+        params = {
+            ...params,
+            ...additionalParams
+        }
     }
     await updateAsset(params)
     info(`${message}しました。`)
