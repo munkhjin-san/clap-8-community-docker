@@ -1698,7 +1698,7 @@ class ProjectController extends Controller
                 })->orWhere(function($query) use ($active_user){
                     $query->when($active_user->id == 610 || $active_user->id == 608, function($query){
                         $query->whereHas('steps', function($query){
-                            $query->where('value', 4)->whereNull('approved_by');
+                            $query->whereIn('value', [4,7])->whereNull('approved_by');
                         });
                     });
                 });

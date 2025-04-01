@@ -90,13 +90,4 @@ const overTimeFormat = computed(() => {
     }
 })
 
-const hasCondition = computed(() => {
-    const index = props.data?.month_weather_average
-    const mobileTitle = responsive.mobile ? 'コンディション : ' : ''
-    if(index != null){
-        return `<div class="condition-area"><div>${mobileTitle}</div><img class="condition-img" src="images/icon_${index}.svg" width="17" height="17"/></div>`
-    }
-    return ''
-    
-})
 </script>
