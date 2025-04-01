@@ -101,7 +101,7 @@ class AssetController extends Controller
 
         $mode = $request->mode ?? 'normal';
         $projectId = $request->project_id ? [$request->project_id] : [];
-        $memberId = $request->user_id ? [$request->user_id] : [];
+        $memberId = $request->user_id ? $request->user_id : [];
         $officeId = $request->office_id ?? [];
         
         $classification = $request->classification ?? [];
