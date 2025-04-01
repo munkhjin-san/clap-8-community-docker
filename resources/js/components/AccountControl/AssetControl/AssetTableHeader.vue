@@ -50,7 +50,7 @@
                     <div v-if="menu.parent == 'projectPick'" id="projectPick" class="shadow-me absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px] max-h-[40vh] overflow-auto" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
                         <div class="flex items-center">
                             <input name="model-selector" type="text" class="custom-o-input" v-model="projectNameSearch" placeholder="プロジェクト名検索"/>
-                            <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="officeQuery = [], menu.close(), projectNameSearch = ''">リセット</button>
+                            <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="projectQuery = [], menu.close(), projectNameSearch = ''">リセット</button>
                         </div>
                         <div v-for="projectData in projects.filter(project => project.name.toLowerCase().includes(projectNameSearch.toLowerCase()))">
                             <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
