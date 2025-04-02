@@ -44,6 +44,7 @@ import CalendarCard from '../CalendarCard.vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
+import { DateTime } from 'luxon';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
@@ -82,18 +83,19 @@ import { useResponsive } from '@/store/responsive';
         const expanded = computed(() => {
             return menu.parent == unique.value
         })
+        
         const recordWidth = computed(() => {
             if(expanded.value){
                 return '250%'
             }else{
-                const minutesDifference = Math.abs(moment(props.record.date_start).diff(moment(props.record.date_end), 'minutes'))
+                const minutesDifference = Math.abs(calendarDateInstances.value.start.diff(calendarDateInstances.value.end, 'minutes').toObject().minutes)
                 const steps = Math.ceil(minutesDifference / 15)
                 return `calc(100% / 4 * ${steps} + ${Math.floor(minutesDifference / 60)}px - 3px)`
             }
             
         })
         const recordLeft = computed(() => {
-            const diff = Math.abs(moment(props.record.date_start).diff(moment(props.record.date_start).startOf('hour'), 'minutes'))
+            const diff = Math.abs(calendarDateInstances.value.start.diff(calendarDateInstances.value.start.startOf('hour'), 'minutes').toObject().minutes)
             const steps = Math.floor(diff / 15) 
             const unit = responsive.mobile ? '500vw' : '120vw'
             return `calc(((${unit}  - 30px) / 96 * ${steps}) + 1px)`
@@ -137,13 +139,16 @@ import { useResponsive } from '@/store/responsive';
                     const compare_value = document.getElementById('listViewSpacer')?.clientWidth || 110
                     const final = compare_value + responsive.mobile ? 0 : 60                    
                     if(rect.x < (compare_value + final)){
-                        const val = moment(record.date_start).isAfter(moment(record.date_start).startOf('day').add(2, 'hour')) ? 2 : 0
-                        const time = moment(record.date_start).subtract(val, 'hour').startOf('hour').hour()
+                        // const val = moment(record.date_start).isAfter(moment(record.date_start).startOf('day').add(2, 'hour')) ? 2 : 0
+                        const startOfDay = calendarDateInstances.value.start.startOf('day')
+                        const val = calendarDateInstances.value.start.diff(startOfDay.plus({hour: 2}), 'hours').toObject().hours
+                        // const time = moment(record.date_start).subtract(val, 'hour').startOf('hour').hour()
+                        const time = calendarDateInstances.value.start.hour - val
                         if(time <= 1){
                             document.getElementById(`cal_list_view`)?.scrollTo({ left: 0, behavior: 'smooth'})
                         }else{
                             // document.getElementById(`w_day_${time}`)?.scrollIntoView({behavior: 'smooth'})
-                            const realTime =  moment(record.date_start).hour()
+                            const realTime =  calendarDateInstances.value.start.hour
                             const index = el.parentElement.clientWidth * realTime
                             document.getElementById(`cal_list_view`)?.scrollTo({ left: index, behavior: 'smooth'})
                         }                       
@@ -163,6 +168,10 @@ import { useResponsive } from '@/store/responsive';
             })
 
         }
-    
+        const calendarDateInstances = computed(() => {
+            const start = DateTime.fromSQL(props.record.date_start)
+            const end = DateTime.fromSQL(props.record.date_end)
+            return {start, end}
+        })
 
 </script>

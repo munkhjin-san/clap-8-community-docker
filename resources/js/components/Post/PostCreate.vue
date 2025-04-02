@@ -167,7 +167,6 @@
 <script setup>      
 import TagSelector from '../Form/TagSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
-import moment from 'moment'
 import { computed, inject, onMounted, ref } from 'vue'
 import ShortInput from '../Form/ShortInput.vue'
 import LongInput from '../Form/LongInput.vue'
@@ -176,6 +175,7 @@ import { useAuthUserStore } from '@/store/auth'
 import { useSharingDataStore } from '@/store/sharingData'
 import FileUploader from '../Form/FileUploader.vue'
 import PostIcon from './PostIcon.vue'
+import { DateTime } from 'luxon'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -220,7 +220,7 @@ import PostIcon from './PostIcon.vue'
     })
     const dateComparsionError = computed(() =>{
         if(date_start.value && date_end.value){
-            const wrongDuration = moment(date_start.value).isAfter(date_end.value, 'day');                    
+            const wrongDuration = DateTime.fromISO(date_start.value).diff(DateTime.fromISO(date_end.value), 'days').toObject().days > 0               
             return{
                 hasError: wrongDuration,
                 message: wrongDuration ? '終了日は開始日より前にすることはできません。' : ''

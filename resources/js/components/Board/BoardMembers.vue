@@ -46,7 +46,7 @@
                                     <UserPanel :user="member.user" imgClass="userNormalIcon" size="30"/>
                                     <div>
                                         <router-link :to="`/user/${member.user.id}`" class="suggested-user-name user-link">{{ member.user.name }}</router-link>
-                                        <div v-if="checkAdminAccess" style="font-size: 11px;color: gray;margin: 5px 0 0 5px;">閲覧制限日付:{{ viewFrom(member) }}</div>
+                                        <div v-if="checkAdminAccess" style="font-size: 11px;color: gray;margin: 5px 0 0 5px;">閲覧制限日付:{{ DateTime.fromSQL(member.view_from ).toISODate() ?? DateTime.fromISO(member.created_at).toISODate() }}</div>
                                         <div v-if="editingMember && editingMember.id == member.id" style="margin-top: 10px;">
                                             <div style="position: relative;">
                                                 <ShortInput 
@@ -57,7 +57,7 @@
                                                     :max="setMax()" 
                                                     v-model="editingMember.view_from"
                                                 />
-                                                <p v-if="invalidDate" class="i-error">{{ `日付は${setMin(member)}以上${setMax()}以下である必要があります。` }}</p>
+                                                <p v-if="invalidDate" class="i-error">{{ `${setMin(member)} - ${setMax()}の間のみ設定可能です。` }}</p>
                                             </div>
                                             
                                             <div style="display: flex;gap: 10px;" :style="{marginTop: invalidDate ? '20px' : '10px'}">
@@ -101,13 +101,11 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
 import { computed, inject, ref } from 'vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { useAuthUserStore } from '@/store/auth'
-import { useMenuStore } from "@/store/menu";
 import ItemMenu from '@/components/Global/ItemMenu.vue';
-import moment from 'moment';
 import ShortInput from '../Form/ShortInput.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import axios from 'axios';
-    const menu = useMenuStore()
+import { DateTime } from 'luxon';
     const auth = useAuthUserStore()
     const props = defineProps(['board'])
     const emit = defineEmits(['close', 'afterRequestHandled',  ])
@@ -176,18 +174,14 @@ import axios from 'axios';
             emit('close')
         }
     }   
-    const viewFrom = (member) => {
-        return moment(member.view_from ?? member.created_at).format('YYYY-MM-DD')
-    }
     const startEditViewFrom = (member) => {
         editingMember.value = member
     }
     const setMin = (member) => {
-        const min =  moment(member.created_at).subtract(1, 'year').format('YYYY-MM-DD')
-        return min
+        return DateTime.fromISO(member.created_at).toISODate()
     }
     const setMax = () => {
-        return moment().format('YYYY-MM-DD')
+        return DateTime.now().toISODate()
     }
     const updateViewFrom = async() => {
         if (invalidDate.value) return
@@ -203,7 +197,7 @@ import axios from 'axios';
         const selectedDate = editingMember.value.view_from
         const minDate = setMin(member)
         const maxDate = setMax()
-        if (moment(selectedDate).isBetween(minDate, maxDate, undefined, [])) {
+        if (DateTime.fromISO(selectedDate) >= DateTime.fromISO(minDate) && DateTime.fromISO(selectedDate) <= DateTime.fromISO(maxDate)) {
             invalidDate.value = false
         } else {
             invalidDate.value = true

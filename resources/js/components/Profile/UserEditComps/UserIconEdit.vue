@@ -154,7 +154,6 @@
     </div>
 </template>
 <script setup>
-import moment from 'moment';
 import UserIntroFile from './UserIntroFile.vue';
 import UserAlbumByTags from '../UserAlbumByTags.vue';
 import WeatherUpdater from '../../Global/WeatherUpdater.vue';
@@ -276,10 +275,6 @@ import { DateTime } from 'luxon';
     }
     const isMov = (type) => {
         return type.includes('video') 
-    }
-    const dateFormat = (day) => {
-        const date = moment(day)
-        return date.locale('ja').format('D ddd')
     }
     const introMovDeleteConfirm = async(id) => {
         const answer = await confirm('自己紹介Movを削除しますか。')

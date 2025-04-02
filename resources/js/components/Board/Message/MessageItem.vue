@@ -6,13 +6,9 @@
         :style="{marginBottom: editing && mIndex == 0 ? '25px' : '0'}"
         v-if="!message.draft_flag || (message.draft_flag && message.user_id === auth.activeUser.id)">
         <div class="infoMessageInner" v-if="message.info_flag > 0">   
-            <p v-if="showDate">{{momentMessage}}</p>       
+            <p v-if="showDate">{{DateParser(message.created_at)}}</p>       
             <p style="cursor:pointer" @click="showDate = !showDate" v-html="infoMessage"></p>        
         </div>
-        <!-- <div class="infoMessageInner" v-if="message.info_flag == 2">   
-            <p v-if="showDate">{{momentMessage}}</p>       
-            <p style="cursor:pointer" @click="showDate = !showDate" v-html="taskInfoMessage"></p>        
-        </div> -->
          <div 
             v-else-if="message.info_flag == 0" 
             :style="{
@@ -145,7 +141,6 @@
 
 import MessageQuoteReply from "./MessageQuoteReply.vue";
 import MessageFiles from "./MessageFiles.vue";
-import moment from 'moment';
 import { computed, inject, nextTick, onMounted, ref } from 'vue'
 import { useRouter } from "vue-router";
 import { useAuthUserStore } from '@/store/auth'
@@ -158,7 +153,7 @@ import { useUrlMessage } from "@/store/urlMessage";
 import { useBadgeStore } from '@/store/badge'
 import MessageEditor from './MessageEditor.vue'
 import ItemMenu from "@/components/Global/ItemMenu.vue";
-import { mentionFormatter } from "@/utils/tools";
+import { DateParser, mentionFormatter } from "@/utils/tools";
 import { useMessageSchedule } from "@/store/messageSchedule"
 import { convertToSpeech, endPlay, stopPlay } from "@/utils/tts";
 import { useTtsStore } from "@/store/ttsStore";
@@ -329,31 +324,14 @@ import UserPanel from "@/components/Global/UserPanel.vue";
     })
     const messageKind = computed(() => {
         if (props.message.draft_flag && props.message.reserved_at !== null) {
-            return reservedMessage.value + 'に送信予定'
+            return DateParser(props.message.reserved_at) + 'に送信予定'
         } else if (props.message.draft_flag) {
             return '下書き'
         } else {
-            return momentMessage.value
+            return DateParser(props.message.created_at)
         }
     })
-    const reservedMessage = computed(() => {
-        moment.locale('ja')
-        const date = props.message.reserved_at
-        return moment(props.message.reserved_at).isSame(moment(), 'day') ? 
-        moment(date).format('HH:mm') : 
-        moment(date).isSame(moment(), 'year') ? 
-        moment(date).format('M / D (ddd) HH:mm') : 
-        moment(date).format('YYYY / M / D (ddd) HH:mm')  
-    })
-    const momentMessage = computed(() => {
-        moment.locale('ja')
-        const date = props.message.created_at
-        return moment(props.message.created_at).isSame(moment(), 'day') ? 
-        moment(date).format('HH:mm') : 
-        moment(date).isSame(moment(), 'year') ? 
-        moment(date).format('M / D (ddd) HH:mm') : 
-        moment(date).format('YYYY / M / D (ddd) HH:mm')                       
-    }) 
+
     const reactButtonView = computed(() => {
         return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users.length)
     })

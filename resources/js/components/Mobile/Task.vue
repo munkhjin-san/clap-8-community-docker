@@ -30,7 +30,6 @@
 <script setup>
 import GanttTaskPopup from '../Task/Gantt/GanttTaskPopup.vue';
 import TaskComponent from '../Task/TaskComponent.vue';
-import TaskContainer from '../Board/Tray/Task/TaskContainer.vue'
 import BoardTitlePre from '../Board/Mixed/BoardTitle.vue'
 import { inject, computed } from 'vue';
 import { useRouter } from 'vue-router';

@@ -4,30 +4,33 @@
     </div>  
 </template>
 
-<script setup> 
-    import moment from 'moment';
+<script setup lang="ts"> 
+    import { Post } from '@/interface/postInterface';
     import { computed } from 'vue';
-    moment.locale('ja');  
-    const props = defineProps(['record', 'dateClass'])
+    import { DateTime } from 'luxon';
+    const props = defineProps<{
+        record: Post;
+        dateClass: string;
+    }>()
         
      
     const dateConverted = computed(() => {
+        const now = DateTime.now();
+    
         if(props.record.app_type == 2){
-            const startYear = moment(props.record.date_start).format('YYYY')
-            const endYear = moment(props.record.date_end).format('YYYY')
-            const thisYear = moment().format('YYYY')
-            if((startYear == endYear) && (endYear == thisYear)){
-                return `${moment(props.record.date_start).format('M / D')}  ―  ${moment(props.record.date_end).format('M / D')}`
+            const startDate = DateTime.fromISO(props.record.date_start);
+            const endDate = DateTime.fromISO(props.record.date_end);
+            
+            if(startDate.year === endDate.year && endDate.year === now.year){
+                return `${startDate.toFormat('M / d')}  ―  ${endDate.toFormat('M / d')}`;
             }
-            return `${moment(props.record.date_start).format('YYYY / M / D')}  ―  ${moment(props.record.date_end).format('YYYY / M / D')}`
-        }else{
-            return moment(props.record.created_at).isSame(moment(), 'year') ? 
-            moment(props.record.created_at).format('M / D (dd)') : 
-            moment(props.record.created_at).format('YYYY / M / D (dd)')
+            return `${startDate.toFormat('yyyy / M / d')}  ―  ${endDate.toFormat('yyyy / M / d')}`;
+        } else {
+            const createdDate = DateTime.fromISO(props.record.created_at);
+            return createdDate.year === now.year ? 
+                createdDate.toFormat('M / d (ccc)') : 
+                createdDate.toFormat('yyyy / M / d (ccc)');
         }
         
-    })
-
-        
-    
+    })   
 </script>

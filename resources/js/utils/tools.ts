@@ -145,7 +145,7 @@ const parseDate = (date: string | Date) => {
 }
 const taskStatusBackgrounds = ['black', '#eb7a00', 'green']
 const DateParser = (date:string) => {
-    const instance = DateTime.fromISO(date)
+    const instance = customParser(date)
     const today = DateTime.now()
     const format = instance.hasSame(today, 'day') ? 'T' : instance.hasSame(today, 'year') ? 'M / d (ccc) HH:mm' : 'y / M / d (ccc) HH:mm'      
     return instance.toFormat(format)  

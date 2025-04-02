@@ -296,6 +296,7 @@ class AdminAccountController extends Controller
                 ->where('hide_flag', 0)
                 ->where('deleted_flag', 0)
                 ->where('partner_flag', 0)
+                ->select('id', 'name', 'icon_path', 'icon_bg')
                 ->get();
        
         return response()->json($users);

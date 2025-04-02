@@ -107,7 +107,6 @@ import UserPanel from '@/components/Global/UserPanel.vue'
 import PostDate from './PostDate.vue'
 import Autolinker from 'autolinker';
 import PostTag from './PostTag.vue';
-import moment from 'moment';
 import ClapButton from './ClapButton.vue';
 import PostComment from './PostComment.vue'
 import PostFiles from './PostFiles.vue';
@@ -119,6 +118,8 @@ import { useResponsive } from '@/store/responsive';
 import { useMessageUsers } from '@/store/messageUsers'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import PostIcon from './PostIcon.vue';
+import { DateTime } from 'luxon';
+import { customParser } from '@/utils/tools';
     const messageUsers = useMessageUsers()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -162,33 +163,15 @@ import PostIcon from './PostIcon.vue';
         return responsive.mobile && props.record && props.record.to_users && props.record.to_users.length > 1
     })
     const status = computed(() => {
-        if(props.record.app_type == 2){
-            var todayDate = (moment().format("YYYY-MM-DD"));
-                                
-            if(todayDate <= props.record.date_end && props.record.status_flag == 0){
-                var statusText = '実施中';
-                return statusText;
-            }                
-            else if(props.record.status_flag == 1)
-            {
-                var statusText = '達成';
-                return statusText;
-            }
-            else if(props.record.status_flag == 2)
-            {
-                var statusText = '未達成';
-                return statusText;
-            } else if(props.record.status_flag == 3)
-            {
-                var statusText = '中止';
-                return statusText;
-            }
-            else if(todayDate > props.record.date_end){
-                var statusText = '結果待ち';
-                return statusText;
-            }
-        }
-    })
+        if (props.record.app_type !== 2) return;
+        const statusMap = {
+            0: DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち',
+            1: '達成',
+            2: '未達成',
+            3: '中止'
+        };
+        return statusMap[props.record.status_flag];
+    });
     const supporters = computed(() => {
         if(props.record.app_type == 2){
             const amounts = props.record.awards
@@ -206,22 +189,20 @@ import PostIcon from './PostIcon.vue';
         }
         return ''
     })
-    const challengeButtonSwitch = computed(() => {
-        var todayDate = (moment().format("YYYY-MM-DD"));                
+    const challengeButtonSwitch = computed(() => {               
         var charged_user = props.record.awards.filter(obj => obj.id == auth.id);
-        if(todayDate <= props.record.date_end && props.record.status_flag == 0 && charged_user.length == 0){
+        if(DateTime.now() <= customParser(props.record.date_end) && props.record.status_flag == 0 && charged_user.length == 0){
             return true
         }                
     })
     const canNotCharge = computed(() => {
-        const todayDate = (moment().format("YYYY-MM-DD"));
         if(props.record.status_flag > 0){
             return 'チャレンジの結果が確定しました'
         }else{
             const charged_user = props.record.awards.filter(obj => obj.id == auth.id);
             if(charged_user.length){
                 return '既にチャージしています'
-            }else if(todayDate > props.record.date_end){
+            }else if(DateTime.now() > customParser(props.record.date_end)){
                 return 'チャージ期間を終了しました'
             }
         }

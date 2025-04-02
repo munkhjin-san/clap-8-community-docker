@@ -6,7 +6,7 @@
                     <UserPanel size="30" :user="comment.user" imgClass="userNormalIcon"/>                   
                     <div @click.stop="pushInstantUser($event, comment.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ comment?.user?.name }}</div>     
                 </div>     
-                <div class="m-date">{{momentMessage}}</div> 
+                <div class="m-date">{{DateParser(comment.created_at)}}</div> 
                 <div class="messageIconContainer">
                     <ItemMenu v-if="comment.user_id == auth.id && !editing" :items="[
                         {title: '編集する', action: () => editing = true},
@@ -33,11 +33,10 @@
 import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import ClapButton from './ClapButton.vue';
-import moment from 'moment';
-import { computed, defineAsyncComponent, ref, inject } from 'vue';
+import { defineAsyncComponent, ref, inject } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
-import { urlCheck } from '@/utils/tools';
+import { DateParser, urlCheck } from '@/utils/tools';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const Editor = defineAsyncComponent(() => import ('./Editor.vue'))
@@ -45,19 +44,6 @@ import { urlCheck } from '@/utils/tools';
     const emit = defineEmits(['deleteComment', 'editComment', 'editCancel', 'editSend'])
     const editing = ref(false)
     const pushInstantUser = inject('pushInstantUser')
-    const reload = inject('reload')
-    const momentMessage = computed(() => {
-        moment.locale('ja')
-        const date = props.comment.created_at
-        return moment(props.comment.created_at).isSame(moment(), 'day') ? 
-        moment(date).format('HH:mm') : 
-        moment(date).isSame(moment(), 'year') ? 
-        moment(date).format('M / D (ddd) HH:mm') : 
-        moment(date).format('YYYY / M / D (ddd) HH:mm')                       
-    })
-
-    const closeMenu = () =>{
-        menu.setMenu( { name: '', id : null})
-    }   
+    const reload = inject('reload') 
 
 </script>

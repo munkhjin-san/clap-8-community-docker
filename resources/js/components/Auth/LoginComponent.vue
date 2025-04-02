@@ -57,16 +57,11 @@
 <script setup>
     import Logo from '../Global/Logo.vue'
     import { onMounted, ref } from 'vue';
-    import WeatherIcon from '../Global/WeatherIcon.vue';
-    import moment from 'moment';
-    import { useResponsive } from '@/store/responsive';
     const props = defineProps(['message', 'errors'])
-    const viewCondition = ref(false)
     const errorMessage = ref(null)
     const tempNum = ref(null)
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content
     const loginForm = ref(null)
-    const responsive = useResponsive()
     onMounted(() => {
         window.document.title = `CLAP - ログイン`; 
         if(props.message){
@@ -76,35 +71,9 @@
             sessionStorage.removeItem('loginError')    
         }
         localStorage.removeItem('hiding_alerts')
-        tempNum.value = getFromLocalStorage('condition');
+
     })     
-    const saveWeather = (num) => {
-        tempNum.value = num
-        sessionStorage.setItem('condition_for_session', num)
-        handleSubmit()
-    }  
-    const handleSubmit = () => {
-        if (tempNum.value == null) {
-            errorMessage.value = 'コンディションを教えてください'
-        } else {
-            loginForm.value.submit()
-        }
-    }
-    const getFromLocalStorage = (key) => {
-        const dataString = localStorage.getItem(key);
-        if (!dataString) return null;
 
-        const data = JSON.parse(dataString);
-        const now = moment();
-        const expirationTime = moment(data.expiration);
-
-        if (now.isAfter(expirationTime)) {
-            localStorage.removeItem(key); 
-            return null;
-        }
-
-        return data.value; 
-    };
 
 </script>
 

@@ -24,7 +24,7 @@
                         <div style="vertical-align: middle;display:flex;margin:0 20px;width: 100%;overflow: hidden;">
                             <!-- <span :style="unreadNoticeTitle(notice.read_users)" class="notice-title">{{notice.title}}</span> -->
                             <span :style="{fontWeight: isUnread(notice)}" class="notice-title">{{notice.title}}</span>
-                            <span style="margin-left:auto;padding-left:5px;font-size:12px;">{{momentMessage(notice.created_at)}}</span>
+                            <span style="margin-left:auto;padding-left:5px;font-size:12px;">{{noticeDate(notice.created_at)}}</span>
                         </div>  
                     </router-link>
                     <div v-if="noticeData && noticeData.total == 0" style="height: 100%;width: 100%;text-align: center;margin-top: 35vh;color: gray;">
@@ -62,13 +62,14 @@
 <script setup>
 import HamBurger from '../Global/HamBurger.vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
-import moment from 'moment';
 import PostSearchPager from '../Post/PostSearchPager.vue';
 import NoticeCreate from './NoticeCreate.vue'
 import { computed, onMounted, ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
+import { customParser } from '@/utils/tools';
+import { DateTime } from 'luxon';
     const auth = useAuthUserStore()
     const responsive = useResponsive()
     const router = useRouter()
@@ -132,31 +133,22 @@ import { useResponsive } from '@/store/responsive';
         getNotices()
     }
     const isUnread = (notice) => {
-        // const line = moment('2023-10-01')
-
-        // if()
         const list = notice.readers.map(ob => ob.id)
         const read = list.includes(auth.activeUser.id)
         return read ? '400' : '600'
     }
-    const momentMessage = (date) => {
-        moment.locale('ja')
-        return moment(date).isSame(moment(), 'day') ? 
-        moment(date).format('HH:mm') : 
-        moment(date).isSame(moment(), 'year') ? 
-        moment(date).format('M月D日') : 
-        moment(date).format('YYYY年M月D日')       
-    }
-    const unreadNoticeTitle = (list) => {
-                
-         
-        var userCheck = JSON.parse("[" + list + "]"); 
-        if(!list || list == null || userCheck.indexOf(auth.activeUser.id) == -1){
-            return 'font-weight: 600;'
-        }  
+    const noticeDate = (date) => {
         
-        
+        const instance = customParser(date)
+        const now = DateTime.now()
+        return instance.hasSame(now, 'day') ? 
+            instance.toFormat('HH:mm') : 
+            instance.hasSame(now, 'year') ? 
+            instance.toFormat('M月d日') : 
+            instance.toFormat('yyyy年M月d日')
+
     }
+
        
     const getNotices = () => {
         const key = keyword.value ? `&keyword=${keyword.value}` : ''

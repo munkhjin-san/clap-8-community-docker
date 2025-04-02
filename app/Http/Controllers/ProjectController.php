@@ -276,7 +276,26 @@ class ProjectController extends Controller
         $template = SalaryIssue::find($request->record_id)->update(['status' => 2]);
         return response()->json($template);
     }
+    public function get_previous_evaluation (Request $request){
+        $request->validate([
+            'year' => 'required',
+            'which_half' => 'required',
+            'user_id' => 'required',
+        ]);
+        $year = $request->year;
+        $which_half = $request->which_half;
+        $previous_which_half = $which_half == 'first' ? 'second' : 'first';
+        $previous_year = $which_half == 'first' ? $year - 1 : $year;
+        $user_id = $request->user_id;
 
+        $evaluation = EvaluationRecord::where('year', $previous_year)
+                                        ->where('which_half', $previous_which_half)
+                                        ->where('user_id', $user_id)
+                                        ->with(['mentor', 'checklist'])
+                                        ->first();
+        
+        return response()->json($evaluation);
+    }
     public function get_selectable_users(Request $request) {
         $params = $request->params;
         $userList = User::where('retire', 0)
@@ -334,26 +353,16 @@ class ProjectController extends Controller
         return response()->json($project);
     }
     public function get_salary_options() {
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
-        $string = "{$user_name}:{$password}";
-        $x_token = base64_encode($string);
-        $headers = [
-            'Authorization' => 'Basic', 
-            'X-Cybozu-Authorization' => $x_token,
-        ];
-        $appId = '166';
-        $fields = ['文字列__1行_', '基本給', '新等級'];
-        $queryParams = [
-            'app' => $appId,
-            'fields' => $fields
+        $queryParamsSpecs = [
+            'app' => 166,
+            "fields" => ['文字列__1行_', '基本給', '新等級'],
         ];
         
-        $queryString = http_build_query($queryParams);
-        $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?{$queryString}";
-        
-        $response = Http::withHeaders($headers)->get($url);
-        $responseData = $response->json();
+        $queryStringSpecs = http_build_query($queryParamsSpecs);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
+        $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $responseData = $profits->json();
+
         $recieve = [];
         if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])) {
             $records = $responseData['records'];

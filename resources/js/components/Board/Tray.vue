@@ -28,10 +28,8 @@
 </template>
 <script setup>
 
-// import TaskContainer from './Tray/Task/TaskContainer.vue'
 import FileContainer from './Tray/File/FileContainer.vue'
 import { computed, inject } from 'vue';
-// import GanttTaskPopup from '../Task/Gantt/GanttTaskPopup.vue';
 import TaskComponent from '../Task/TaskComponent.vue';
 import { useBadgeStore } from '@/store/badge'
 import { DateTime, Interval } from 'luxon'

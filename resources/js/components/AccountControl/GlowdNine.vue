@@ -40,27 +40,23 @@
   
 <script lang="ts" setup>
 import { ref, onMounted, computed } from 'vue';
-import moment from 'moment';
 import PostSearchBar from '@/components/Post/PostSearchBar.vue'
 import YearPicker from '@/components/Global/YearPicker.vue'
 import axios from 'axios';
-import { User } from '@/interface/globalInterface';
+import { DateTime } from 'luxon';
 const months = ref<string[]>([]);
 const keywords = ref('')
-const year = ref(moment().year())
+const year = ref(DateTime.now().year)
 const users = ref<any[]>([])
 onMounted(() => {
-    moment.locale('ja');
-    months.value = Array.from({ length: 12 }, (_, i) =>
-      moment().month(i).format('YYYY-MM')
-    );
-    getMonthlyPrizes()
+    setDate({year: year.value})
 });
 const setDate = (val) => {
     year.value = val.year
-    months.value = Array.from({ length: 12 }, (_, i) =>
-      moment().year(year.value).month(i).format('YYYY-MM')
-    );
+    months.value = Array.from({ length: 12 }, (_, i) => {
+        const month = (i + 1).toString().padStart(2, '0'); 
+        return `${year.value}-${month}`;
+    });
     getMonthlyPrizes()
 }
 const getMonthlyPrizes = async() => {
@@ -75,18 +71,18 @@ const getMonthlyPrizes = async() => {
     }
 }
 const monthFormat = (yearMonth: string) => {
-  return moment(yearMonth).format('M月')
+    return DateTime.fromFormat(yearMonth, 'yyyy-MM').toFormat('M月')
 }
 
 const searchUsers = computed(() => {
-  if(keywords.value){
-      let lowSearch = keywords.value.toLowerCase()
-      return users.value.filter(user => Object.values(user).some(val => 
-              String(val).toLowerCase().includes(lowSearch)
-          )
-      )
-  }         
-  return users.value
+    if(keywords.value){
+        let lowSearch = keywords.value.toLowerCase()
+        return users.value.filter(user => Object.values(user).some(val => 
+                String(val).toLowerCase().includes(lowSearch)
+            )
+        )
+    }         
+    return users.value
   
 })
   

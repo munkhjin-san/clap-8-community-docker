@@ -17,9 +17,9 @@
                 <div class="admin-button" @click="expenseCSV">経費CSV出力</div>
                 <div class="admin-button" @click="vehicleCSV">車両CSV出力</div>
                 <div class="admin-month-wrapper">
-                    <MonthPicker 
-                        :selectedYear="selectedYear"
-                        :selectedMonth="selectedMonth"
+                    <MonthPickerNew
+                        v-model:month="selectedMonth"
+                        v-model:year="selectedYear"
                         :right="responsive.mobile ? 'auto' : '0'"
                         @setDate="setDate"
                     />
@@ -84,17 +84,17 @@
     </div>
 </template>
 <script setup>
-    import moment from 'moment';
-    import MonthPicker from '../../Global/MonthPicker.vue'
-    import { computed, inject, onMounted, ref } from 'vue';
-    import { useResponsive } from '@/store/responsive';
-    import { mkConfig, generateCsv, download } from "export-to-csv";
-    import PostSearchBar from '../../Post/PostSearchBar.vue';
-    import WeatherIcon from '@/components/Global/WeatherIcon.vue';
-    import { vehicleAsOptions } from '@/utils/workApi';
+import { computed, inject, onMounted, ref } from 'vue';
+import { useResponsive } from '@/store/responsive';
+import { mkConfig, generateCsv, download } from "export-to-csv";
+import PostSearchBar from '../../Post/PostSearchBar.vue';
+import WeatherIcon from '@/components/Global/WeatherIcon.vue';
+import { vehicleAsOptions } from '@/utils/workApi';
+import { DateTime } from 'luxon';
+import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
     const keywords = ref('')
-    const selectedYear = ref(moment().year())
-    const selectedMonth = ref(moment().month())
+    const selectedYear = ref(DateTime.now().year)
+    const selectedMonth = ref(DateTime.now().month)
     const attendance_record_items = ref([])
     const paid_holiday_record = ref([])
     const month_work_time = ref([])
@@ -107,14 +107,16 @@
     const responsive = useResponsive()
     const { notify } = inject('dialog')
     const fetch = ref(0)
-    const costOptions = [{label: '交通費', value: 1},
-                    {label:'通信費', value: 2},
-                    {label:'宿泊費', value: 3},
-                    {label: '旅費交通費', value: 4},
-                    {label:'消耗品費', value: 5},
-                    {label:'交際費', value: 6},
-                    {label:'支払手数料', value: 7},
-                    {label:'福利厚生費', value: 8}]
+    const costOptions = [
+        {label: '交通費', value: 1},
+        {label:'通信費', value: 2},
+        {label:'宿泊費', value: 3},
+        {label: '旅費交通費', value: 4},
+        {label:'消耗品費', value: 5},
+        {label:'交際費', value: 6},
+        {label:'支払手数料', value: 7},
+        {label:'福利厚生費', value: 8}
+    ]
     onMounted(async() => {
         await getData()
         fetch.value ++
@@ -128,7 +130,7 @@
         return result
     })
     const dayFormat = (date) => {
-        return moment(date).locale('ja').format('Do')
+        return DateTime.fromISO(date).toFormat('d日')
     }
     const hasIncident = (user) => {
         let days = ''
@@ -155,7 +157,7 @@
         return days
     }
     const vehicleCSV = () => {
-        const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const date = DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value}).toFormat('yyyy-MM')
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `車両_${date}月`})
         const data = []
         users.value.forEach(user => {
@@ -183,13 +185,13 @@
             const csv = generateCsv(csvConfig)(data)
             download(csvConfig)(csv);
         } else {
-            notify('車両記録ないです。')
+            notify('出力するデータはありません。')
             return
         }
 
     }
     const departmentCSV = () => {
-        const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const date = selectedDate.value
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `部門_${date}月`});
         const data = []
         departmentCount.value.forEach(department => {
@@ -205,12 +207,12 @@
             const csv = generateCsv(csvConfig)(data)
             download(csvConfig)(csv);
         } else {
-            notify('経費記録ないです。')
+            notify('出力するデータはありません。')
             return
         }
     }
     const expenseCSV = () => {
-        const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const date = selectedDate.value
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `経費_${date}月`});
         const data = []
         timecard_costs.value.forEach(cost => {
@@ -227,12 +229,12 @@
             const csv = generateCsv(csvConfig)(data)
             download(csvConfig)(csv);
         } else {
-            notify('経費記録ないです。')
+            notify('出力するデータはありません。')
             return
         }
     }
     const exportCSV = () => {
-        const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+        const date = selectedDate.value
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `勤怠_${date}月`});
         const data = []
         attendance_record_items.value.forEach(item => {     
@@ -282,7 +284,7 @@
             const csv = generateCsv(csvConfig)(data)
             download(csvConfig)(csv);
         } else {
-            notify('勤怠記録ないです。')
+            notify('出力するデータはありません。')
             return
         }
         
@@ -291,7 +293,7 @@
 
     const getData = async() => {
         try{
-            const date = moment([selectedYear.value, selectedMonth.value]).format('YYYY-MM')
+            const date = selectedDate.value
             const params = {
                 month : date
             }
@@ -325,7 +327,7 @@
     }
     const setDate = (date) => {
         selectedYear.value = date.year
-        selectedMonth.value = date.month - 1
+        selectedMonth.value = date.month
         getData()
     }
     const computedHoliday = (userId, type) => {
@@ -341,6 +343,9 @@
         }
         return days
     }
+    const selectedDate = computed(() => {
+        return DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value}).toFormat('yyyy-MM')
+    })
 </script>
 <style lang="scss" scoped>
     .admin-table-data{

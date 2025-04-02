@@ -60,7 +60,7 @@
                         <span style="margin-left:5px;">{{ messageUserName(message) }}</span>
                     </div>
                     <div style="margin-left:auto">
-                        <p class="dateText" style="font-size:12px;color:grey">{{ momentMessage(message.created_at) }}</p>
+                        <p class="dateText" style="font-size:12px;color:grey">{{ DateParser(message.created_at) }}</p>
                     </div>
                 </div>
                 <div style="white-space: break-spaces;line-height: 1.4;" v-html="searchMessageBody(message.message_text)"></div>                
@@ -95,7 +95,6 @@
 </template>
 
 <script setup>
-import moment from 'moment'
 import BoardTitlePreLoad from '../Mixed/BoardTitle.vue'
 import BoardIcon from '../Mixed/BoardIcon.vue'
 import PostSearchPager from '../../Post/PostSearchPager.vue'
@@ -103,7 +102,7 @@ import PostSearchPager from '../../Post/PostSearchPager.vue'
 import LoaderButton from '../../Global/LoaderButton.vue';
 import { computed, inject, onMounted, watch, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
-import { urlCheck } from '@/utils/tools';
+import { DateParser, urlCheck } from '@/utils/tools';
 import UserPanel from '@/components/Global/UserPanel.vue'
     const auth = useAuthUserStore()
 
@@ -342,15 +341,6 @@ import UserPanel from '@/components/Global/UserPanel.vue'
         targetedSearch.value = true
         getMessageSearch(keyword.value, -1)
         resultGroupBy.value = 'all'
-    }
-    const momentMessage = (date) => {
-        moment.locale('ja');  
-        
-        return moment(date).isSame(moment(), 'day') ? 
-        moment(date).format('HH:mm') : 
-        moment(date).isSame(moment(), 'year') ? 
-        moment(date).format('M / D (dd) HH:mm') : 
-        moment(date).format('YYYY / M / D (dd) HH:mm')                       
     }
     const closeMessageSearch = () => {
         window.removeEventListener('touchstart', onClickSearch);

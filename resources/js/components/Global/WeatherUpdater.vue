@@ -10,24 +10,20 @@
 </template>
 <script setup>
 
-import moment from 'moment';
-import { inject, ref } from 'vue';
-import { useAuthUserStore } from '@/store/auth'
+import { inject } from 'vue';
 import { useMenuStore } from '@/store/menu'
 import WeatherIcon from './WeatherIcon.vue'
-const auth = useAuthUserStore()
+import { DateTime } from 'luxon';
 const { notify } = inject('dialog')
 const emit = defineEmits(['reload'])
-const weatherSelect = ref(null)
 const menu = useMenuStore()
 const saveWeather = async (value) => {
-    let today = moment().local().format('YYYY-MM-DD')
+    const today = DateTime.now().toISODate()
     try {
-        await axios.post('/save_weather', { today, value: value })
-        const user_id = auth.id
+        await axios.post('/save_weather', { today: today, value: value })
         sessionStorage.setItem('condition_for_session', value)
         emit('reload')
-        menu.setMenu({ id: null, name: '' })
+        menu.close()
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }

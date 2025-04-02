@@ -62,7 +62,6 @@
 
 </template>
 <script setup>
-import moment from 'moment';
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
 import * as PusherPushNotifications from "@pusher/push-notifications-web";
@@ -78,7 +77,7 @@ import { useFocused } from '@/store/focused';
 import InstantProfile from './Board/InstantProfile.vue';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useSkeleton } from '@/store/skeleton'
-import { timestamp, useTitle } from '@vueuse/core'
+import { useTitle } from '@vueuse/core'
 import axios from 'axios';
 import { instance as socket } from '@/utils/broadcaster'
 import { endPlay } from '@/utils/tts';
@@ -308,14 +307,14 @@ import { DateTime } from 'luxon';
     }
     const checkActivity = async() => {            
         const before = localStorage.getItem('notification_check')
-        if(!before || moment().diff(moment(before), 'minutes') > 1){
+        if(!before || DateTime.now().diff(DateTime.fromSQL(before), 'minutes').minutes > 1){
             authCheck();
             await badge.getBoardBadge();
             if(mainRef.value.getBoardList){
                 mainRef.value.getBoardList()
                 mainRef.value.unreadLineTrigger()
             }            
-            const time = moment().format('YYYY-MM-DD HH:mm:ss')
+            const time = DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss')
             localStorage.setItem('notification_check', time)
         }
     }

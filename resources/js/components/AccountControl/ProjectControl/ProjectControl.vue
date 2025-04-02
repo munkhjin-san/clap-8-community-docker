@@ -29,7 +29,6 @@ import PostSearchBar from '@/components/Post/PostSearchBar.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { User } from '@/interface/globalInterface';
 import axios from 'axios';
-import moment from 'moment';
 import { detailedDateOptions } from '@/utils/tools';
 import { DateTime } from 'luxon';
 const keywords = ref('')

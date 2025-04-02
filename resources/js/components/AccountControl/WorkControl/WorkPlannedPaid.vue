@@ -97,13 +97,13 @@
 </template>
 
 <script setup>
-    import CommandButton from '../../Global/CommandButton.vue';
-    import YearPicker from '../../Global/YearPicker.vue'
-    import LoaderButton from '../../Global/LoaderButton.vue';
-    import { computed, inject, onMounted, ref } from 'vue';
-    import { useTheme } from '@/store/theme';
-    import PostSearchBar from '../../Post/PostSearchBar.vue';
-    import moment from 'moment';
+import CommandButton from '../../Global/CommandButton.vue';
+import YearPicker from '../../Global/YearPicker.vue'
+import LoaderButton from '../../Global/LoaderButton.vue';
+import { computed, inject, onMounted, ref } from 'vue';
+import { useTheme } from '@/store/theme';
+import PostSearchBar from '../../Post/PostSearchBar.vue';
+import { DateTime } from 'luxon';
     const keywords = ref('')
     const plannedShifts = ref([])
     const year = ref(new Date().getFullYear())
@@ -138,9 +138,9 @@
         editUser.value = val
     }
     const formatDate = (givenDate) => {
-        const date = moment(givenDate, 'YYYY-MM-DD');
-        const newDate = date.year(year.value)
-        return newDate.format('YYYY-MM-DD')
+        const date = DateTime.fromISO(givenDate);
+        const newDate = date.set({ year: year.value });
+        return newDate.toISODate()
     }
     const getShift = (val, id) => {
         const existingShiftIndex = changedShifts.value.findIndex(s => s.id === id);
@@ -154,15 +154,6 @@
     const saveShift = async() => {
         processing.value = true
         const startDate = formatDate(editUser.value?.work_temps?.date);
-        const endDate = moment(startDate).add(1, 'year').subtract(1, 'day').format('YYYY-MM-DD');
-        // const allShiftsValid = changedShifts.value.every(shift => 
-        //     isShiftDayInRange(shift.shift_day, startDate, endDate)
-        // );
-        // if (!allShiftsValid) {
-        //     notify(`${startDate}から${endDate}の間で選択してください。`);
-        //     processing.value = false;
-        //     return;
-        // }
         try {
             await axios.post('/change_planned_shifts', 
                 {
@@ -180,12 +171,6 @@
         processing.value = false
         
     }
-    const isShiftDayInRange = (shiftDay, startDate, endDate) => {
-        const shiftDate = moment(shiftDay, 'YYYY-MM-DD');
-        const start = moment(startDate, 'YYYY-MM-DD');
-        const end = moment(endDate, 'YYYY-MM-DD');
-        return shiftDate.isBetween(start, end, 'day', '[]'); 
-    };
 </script>
 <style scoped>
 

@@ -202,7 +202,6 @@
 <script setup>
 import ReplyQuotWindow from './ReplyQuotWindow.vue'
 import ForwardWindowMessage from './ForwardWindowMessage.vue'
-import moment from 'moment'
 import EmojiPicker from 'vue3-emoji-picker'
 import FileIcon from '../Mixed/FileIcon.vue'
 import OpenAI from "openai";
@@ -215,6 +214,7 @@ import { useMenuStore } from "@/store/menu";
 import { useQuoteReply } from '@/store/quoteReply'
 import { useSharingDataStore } from '@/store/sharingData'
 import UserPanel from '@/components/Global/UserPanel.vue'
+import { DateTime } from 'luxon'
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -468,7 +468,7 @@ import UserPanel from '@/components/Global/UserPanel.vue'
             message_reply: message_reply,
             message_forward: message_forward,
             message_attachments: attachedFiles.value && attachedFiles.value.length ? attachedFiles.value : [],
-            created_at: moment().format(),
+            created_at: DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss'),
             error: false,
             u_id: `${Date.now().toString()}_${Math.random().toString(36).substring(5)}`,
             sharing_files: sharingFiles.value,

@@ -812,7 +812,7 @@ class WorkController extends Controller
              
             $start = Carbon::createFromFormat('H:i:s', $timecard_break->start_time);
             $end = Carbon::createFromFormat('H:i:s', $breakTime);
-            $diffinMinutes = $start->diffInMinutes($end);
+            $diffinMinutes = (int) $start->diffInSeconds($end, true);
 
             $timecard_break->update([
                 'break_by_minute' => ceil($diffinMinutes / 15) * 15,
@@ -886,18 +886,18 @@ class WorkController extends Controller
         $shift_time_difference_seconds = $user->work_time_day * 60;
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
         
-        $time_difference_seconds = $start->diffInSeconds($end);
+        $time_difference_seconds = (int) $start->diffInSeconds($end, true);
         $time_difference_seconds -= $request->breakTime * 60;
         $time_difference_seconds = max(0, $time_difference_seconds);
         
         $night_difference_seconds = 0;
         $overtimeMinutes = 0;
         if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
-            $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? $start->diffInSeconds($end) : $start->diffInSeconds($nightOvertimeEnd);
+            $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? (int) $start->diffInSeconds($end, true) : (int) $start->diffInSeconds($nightOvertimeEnd, true);
         } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
-            $night_difference_seconds = $nightOvertimeStart->diffInSeconds($end);
+            $night_difference_seconds = (int) $nightOvertimeStart->diffInSeconds($end, true) ;
         } else if ($end->greaterThan($todayNightOverTime)){
-            $night_difference_seconds = $todayNightOverTime->diffInSeconds($end);
+            $night_difference_seconds = (int) $todayNightOverTime->diffInSeconds($end, true);
         } else {
             $night_difference_seconds = 0;
         }

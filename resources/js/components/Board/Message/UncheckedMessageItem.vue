@@ -11,8 +11,7 @@
                         </svg>
                     </div>                      
                     <p :id="'messageSender_' + message.id" class="userName" @dragstart.prevent style="margin-left:10px;">{{ messageUserName }}</p>     
-                    <p @dragstart.prevent class="dateText" style="font-size:12px;color:grey;position:absolute;right:-10px;top:-10px">{{momentMessage}}</p>
-                    <!-- <ItemMenu v-if="remindedUsers" style="margin-left: auto;" :items="messageMenuItems" fit="boardListInner"/>                  -->
+                    <p @dragstart.prevent class="dateText" style="font-size:12px;color:grey;position:absolute;right:-10px;top:-10px">{{DateParser(message.created_at)}}</p>
                 </div>                             
                                 
                     
@@ -30,11 +29,6 @@
                         >
                         <p ref="messageBodyRef" v-html="mentionFormatter(messageBody, true)"></p>
                         </div>
-                        <!-- <MessageEditor 
-                            v-else
-                            :message="message" 
-                            @cancel="editing = false"
-                        />                         -->
                     </div>
                      
                     <div @click="setTruncate" class="jump-link" style="margin-top:10px; font-size: 14px;" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '170px' ? '続きを表示する' : '閉じる' }}</div>
@@ -80,17 +74,11 @@
 </template>
 
 <script setup>
-import MessageQuoteReply from "./MessageQuoteReply.vue";
 import MessageFiles from "./MessageFiles.vue";
-import moment from 'moment';
-import Autolinker from 'autolinker';
 import { computed, inject, onMounted, ref } from "vue";
 import { useAuthUserStore } from '@/store/auth'
 import { useMessageUsers } from "../../../store/messageUsers";
-import { mentionFormatter } from "@/utils/tools";
-import ItemMenu from "@/components/Global/ItemMenu.vue";
-import MessageEditor from "./MessageEditor.vue";
-import { useMenuStore } from "@/store/menu";
+import { DateParser, mentionFormatter } from "@/utils/tools";
 import UserPanel from "@/components/Global/UserPanel.vue";
 import { useBadgeStore } from "@/store/badge";
     const auth = useAuthUserStore()
@@ -100,8 +88,6 @@ import { useBadgeStore } from "@/store/badge";
     const reacting = ref(false)
     const { notify, confirm, info } = inject('dialog')
     const editing = ref(false)
-    const truncate = ref(null)
-    const menu = useMenuStore()
     const dynamicHeight = ref('auto')
     const messageBodyRef = ref(null)
     const badge = useBadgeStore()
@@ -118,18 +104,7 @@ import { useBadgeStore } from "@/store/badge";
     const authorized = computed(() => {
         return props.message.user_id == auth.activeUser.id
     })
-    const messageMenuItems = computed(() => {
-        const list= []; 
-        function addItem(title, action) {
-            list.push({ title, action });
-        }
-        if(authorized.value){
-            addItem('編集する', () => editing.value = true )
-        } 
-        addItem('リマインドから外す', () => emit('remindRequest', props.message))     
 
-        return list
-    })
     const remindedUsers = computed(() => {
         return props.message.message_remind_users && props.message.message_remind_users.length ? props.message.message_remind_users.find(val => val.user_id == auth.activeUser.id) : null
     })
@@ -156,24 +131,6 @@ import { useBadgeStore } from "@/store/badge";
         return props.message.reacted_users && props.message.reacted_users.length ? props.message.reacted_users : []                
     }) 
 
-    const momentMessage =computed(() => {
-        moment.locale('ja')
-        const date = props.message.created_at
-        return moment(props.message.created_at).isSame(moment(), 'day') ? 
-        moment(date).format('HH:mm') : 
-        moment(date).isSame(moment(), 'year') ? 
-        moment(date).format('M / D (ddd) HH:mm') : 
-        moment(date).format('YYYY / M / D (ddd) HH:mm')                       
-    })
-    const urlCheck = (text) => {
-        if(text){                
-            var linkedText = Autolinker.link(text, {stripPrefix: false});       
-            const catch_tag = '<a href=/app/public/user?id=' 
-            const rep_tag = '<a class="mntuser" style="cursor:pointer" id=' 
-            linkedText = linkedText.replaceAll(catch_tag, rep_tag);
-            return linkedText;                
-        }            
-    }
     const reactButtonView = computed(() => {
         return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users.length)
     })

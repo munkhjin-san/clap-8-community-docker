@@ -58,14 +58,14 @@
 </template>
 <script setup>
 
-import moment from 'moment'
 import ShortInput from '../Form/ShortInput.vue';
 import { onMounted, ref, watch } from 'vue';
 import { mkConfig, generateCsv, download } from "export-to-csv";
+import { DateTime } from 'luxon';
 
     const clapData = ref([])
     const startDate = ref('2020-12-01')
-    const endDate = ref(moment().format('YYYY-MM-DD'))
+    const endDate = ref(DateTime.now().toISODate())
     const fetch = ref(0)
 
     onMounted(async() => {

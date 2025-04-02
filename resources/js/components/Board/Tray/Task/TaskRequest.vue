@@ -43,7 +43,6 @@
 </template>
 <script setup>
 import { ref, computed, inject } from 'vue';
-import moment from 'moment';
 import LongInput from '../../../Form/LongInput.vue';
 import LoaderButton from '../../../Global/LoaderButton.vue';
 import axios from 'axios';
@@ -64,35 +63,12 @@ import { dateDetail } from '@/utils/workApi';
     const uploadedFiles = ref(file.value ? file.value : [])
     const { info, confirm, notify } = inject('dialog')
     
-    const answers = [
-        { label: 'タスク対応に時間がかかった', value: 1, id:"incomplete_ans1"},
-        { label: 'タスクの優先順位を変更した', value: 2, id:"incomplete_ans2"},
-        { label: '完了ボタンを押し忘れていた', value: 3, id:"incomplete_ans3"},
-        { label: 'タスクを認識していなかった', value: 4, id:"incomplete_ans4"},
-        { label: 'このタスクの担当者ではない', value: 5, id:"incomplete_ans5"},
-        { label: 'その他', value: 6, id:"incomplete_ans6"}
-    ]
-    const selectedAnswer = ref(0)
-    const validationFailed = ref(false)
-    const lateAnswerCustom = ref('')
-    const isValid = computed(() => {
-        return {
-            status: selectedAnswer.value > 0,
-            inputRequired : selectedAnswer.value == 6 && !lateAnswerCustom.value.length
-        }
-    })
-    const overdue = computed(() => {
-        const today = moment().format('YYYY-MM-DD')
-        const end = moment(taskRequest.data.end_at).format('YYYY-MM-DD')
-        return today > end
-    })
+
     const approveRequest = async() => {
         if(uploadedFiles.value.length > 1){
             notify('ファイルを 1 つだけアップロードしてください。')
             return
         }
-        // validationFailed.value = !isValid.value.status || isValid.value.inputRequired
-        // if(validationFailed.value && overdue.value) return 
         const answer = await confirm('タスクを申請しますか。')
         if(!answer.value) return
         try {
@@ -118,42 +94,3 @@ import { dateDetail } from '@/utils/workApi';
         taskRequest.setTaskRequest(data)
     }
 </script>
-<style scoped lang="scss">
-    .feedbackArea{
-        resize: none;
-        border: solid thin #c5c5c5;
-        width: -webkit-fill-available;
-        color: var(--primary-color);
-        height: 40px;
-        padding: 10px;
-        font-size: 14px;
-        margin-top: 10px;
-
-    }
-    .feedbackAreaToggle-enter-active,
-    .feedbackAreaToggle-leave-active {
-        height: 77px;
-        transition: height 0.2s;
-        opacity: 1;
-    }
-
-    .feedbackAreaToggle-enter,
-    .feedbackAreaToggle-leave-to {
-        height: 0;
-        opacity: 0;
-        transition: height 0.2s;
-
-    }
-    .feedbackArea::-webkit-input-placeholder {
-        font-size: 14px;
-    }
-    .feedbackArea::-moz-placeholder {
-        font-size: 14px;
-    }
-    .feedbackArea:-ms-input-placeholder {
-        font-size: 14px;
-    }
-    .feedbackArea::placeholder {
-        font-size: 14px !important;
-    }
-</style>

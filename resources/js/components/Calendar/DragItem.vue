@@ -34,13 +34,13 @@
     
 </template>
 <script setup>
-import moment from 'moment';
 import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
 import colors from '../../../assets/colors.json'
 import { useAuthUserStore } from '@/store/auth'
 import { useTheme } from '@/store/theme';
 import { useResponsive } from '@/store/responsive'
 import UserPanel from '@/components/Global/UserPanel.vue'
+import { customParser } from '@/utils/tools';
     const auth = useAuthUserStore()
     const responsive = useResponsive()
     const theme = useTheme()
@@ -89,7 +89,7 @@ import UserPanel from '@/components/Global/UserPanel.vue'
         })     
                
         const time = computed(() => {
-            return `${moment(record.value.date_start).format('H:mm')} ~ ${moment(record.value.date_end).format('H:mm')}`
+            return `${customParser(record.value.date_start).toFormat('H:mm')} ~ ${customParser(record.value.date_end).toFormat('H:mm')}`
         })
         
 

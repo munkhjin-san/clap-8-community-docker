@@ -89,7 +89,6 @@
     </div>
 </template>
 <script setup>
-import moment from 'moment';
 import Autolinker from 'autolinker';
 import CalendarFiles from './CalendarFiles.vue';
 import { ref, computed, onMounted, inject } from 'vue'
@@ -101,6 +100,7 @@ import { useTheme } from '@/store/theme';
 import { useTempRecord } from '@/store/tempRecord';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import { timeFormat } from '@/utils/tools';
+import { DateTime } from 'luxon';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const tempRecord = useTempRecord()
@@ -117,15 +117,15 @@ import { timeFormat } from '@/utils/tools';
                              
         }
     })
-    const createdDate = computed(() => { return props.record.created_at ? moment(props.record.created_at).format('YYYY/M/D HH:mm:ss') : ''})
+    const createdDate = computed(() => props.record.created_at && DateTime.fromISO(props.record.created_at).toLocaleString(DateTime.DATETIME_MED))
 
-    const creator = computed(() => { return props.record.created_by ? props.record.created_by.name : '' })
+    const creator = computed(() => props.record.created_by && props.record.created_by.name)
 
-    const updatedDate = computed(() => { return props.record.created_at ? moment(props.record.updated_at).format('YYYY/M/D HH:mm:ss') : ''})
+    const updatedDate = computed(() => props.record.updated_at && DateTime.fromISO(props.record.updated_at).toLocaleString(DateTime.DATETIME_MED))
 
-    const updater = computed(() => { return props.record.updated_by ? props.record.updated_by.name : '' })
+    const updater = computed(() => props.record.updated_by && props.record.updated_by.name)
     
-    const listTruncate = computed(() => { return !truncate.value ? props.record.calendar_users : props.record.calendar_users.slice(0, 6)})
+    const listTruncate = computed(() => truncate.value ? props.record.calendar_users.slice(0, 6) : props.record.calendar_users)
     
     const remove = inject('deleteCalendar')
 
@@ -199,52 +199,51 @@ import { timeFormat } from '@/utils/tools';
         var linkedText = Autolinker.link(text, {stripPrefix: false});              
         return linkedText;                
     })
-
+    const calendarDateInstances = computed(() => {
+        const start = DateTime.fromSQL(props.record.date_start)
+        const end = DateTime.fromSQL(props.record.date_end)
+        return {start, end}
+    })
     const time = computed(() => {
-        const start = moment(props.record.date_start)
-        const end = moment(props.record.date_end)
+
         if(props.record.task){
             const task = props.record.task               
-            return timeFormat(task.response_time)
-        }
-        return fullDay.value ? '終日' : `${start.format('H:mm')} ~ ${end.format('H:mm')}`
+            return timeFormat(task.response_time)        }
+        return fullDay.value ? '終日' : `${calendarDateInstances.value.start.toLocaleString(DateTime.TIME_24_SIMPLE)} ~ ${calendarDateInstances.value.end.toLocaleString(DateTime.TIME_24_SIMPLE)}`
     })
 
     const timeDetailed = computed(() => {
-        const start = moment(props.record.date_start)
-        const end = moment(props.record.date_end)
         if(props.record.task){
             const task = props.record.task               
             return timeFormat(task.response_time)
         }
-        return fullDay.value ? '終日' : `${start.format('YYYY/M/D(ddd) H:mm')} ~ ${end.format('H:mm')}`
+        return fullDay.value ? '終日' : `${calendarDateInstances.value.start.toLocaleString(DateTime.DATETIME_MED_WITH_WEEKDAY)} ~ ${calendarDateInstances.value.end.toLocaleString(DateTime.TIME_24_SIMPLE)}`
     })
 
     const fullDay = computed(() => {
-        const start = moment(props.record.date_start)
-        const end = moment(props.record.date_end)
-        const diff = Math.abs(start.diff(end, 'hours')) >= 23 
-        return diff
+        const diff = Math.abs(calendarDateInstances.value.start.diff(calendarDateInstances.value.end, 'hours'));
+        console.log(diff)
+        return diff >= 23;
     })
 
     const repeatInformation = computed(() => {
         if(props.record.repetition_type == 0){
-            return `${moment(props.record.date_start).format('H:mm')} ~ ${moment(props.record.date_end).format('H:mm')}`
+            return `${calendarDateInstances.value.start.toLocaleString(DateTime.TIME_24_SIMPLE)} ~ ${calendarDateInstances.value.end.toLocaleString(DateTime.TIME_24_SIMPLE)}`
         }else if(props.record.repetition_type == 1){
             if(props.record.repeat_week && props.record.expiration_start && props.record.expiration_end){
                 const days = props.record.repeat_week.split(',').map(Number);
                 let days_list = [];
                 for(const i in days){
-                    const dayOfWeekString = moment().day(days[i]).format('ddd');
+                    const dayOfWeekString = DateTime.now().set({ weekday: days[i] }).toFormat('ccc');
                     days_list.push(dayOfWeekString)
                 }
-                const until = moment(props.record.expiration_end).format('YYYY/M/D')
+                const until = DateTime.fromSQL(props.record.expiration_end).toFormat('yyyy/M/d')
                 const daysString = days_list.join('・');
                 return `${until}まで毎週<strong>${daysString}</strong>`
             }            
         }else if(props.record.repetition_type == 2){
             if(props.record.repeat_days && props.record.expiration_start && props.record.expiration_end){
-                const until = moment(props.record.expiration_end).format('YYYY/M/D')
+                const until = DateTime.fromSQL(props.record.expiration_end).toFormat('yyyy/M/d')
                 return `${until}まで毎月<strong>${props.record.repeat_days}日</strong>`
             }
         }else if(props.record.repetition_type == 3){

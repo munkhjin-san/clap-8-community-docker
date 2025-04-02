@@ -52,7 +52,7 @@
                         <div class="divTableRow  wrap-mb">
                             <div class="divTableCell mb-title">作成日</div>
                             <span class="mobile">:</span>
-                            <div class="divTableCell">{{momentMessage}}</div>
+                            <div class="divTableCell">{{DateTime.fromISO(board.created_at).toLocaleString(DateTime.DATETIME_MED)}}</div>
                         </div>   
                         <div class="divTableRow  wrap-mb" v-if="board.user"> 
                             <div class="divTableCell mb-title">作成者</div>
@@ -76,9 +76,9 @@
 </template>
 
 <script setup>
-import moment from 'moment'
 import { computed, ref } from 'vue';
 import BoardTitle from './Mixed/BoardTitle.vue';
+import { DateTime } from 'luxon';
 
     const props = defineProps(['board'])
     const emit = defineEmits('close')
@@ -93,11 +93,6 @@ import BoardTitle from './Mixed/BoardTitle.vue';
     })
     const members = computed(() => {
         return props.board.board_to_users.map( ob => ob.user)
-    })
-    const momentMessage = computed(() => {
-        moment.locale('ja');
-        const date = props.board.created_at
-        return moment(date).format('LLL')                    
     })
     const boardType = computed(() => {
         return props.board.private_flag == 0 ? 'グループボード' : props.board.private_flag == 1 ? '個別ボード' : props.board.private_flag == 3 ? 'マイボード' : ''

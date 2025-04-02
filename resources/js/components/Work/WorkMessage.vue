@@ -27,14 +27,7 @@
     .shift-submitted-masonry-inner p{
         font-size: 14px;
     }
-    button.shift-button{
-        padding: 5px 10px 5px 10px;
-        font-size: 12px;
-        line-height: 1.5;
-        border-radius: 0px;
-        background: var(--primary-button);
-        color: #e4e6eb;
-    }
+
 </style>
 <script setup lang="ts">
     import { useRouter } from 'vue-router';

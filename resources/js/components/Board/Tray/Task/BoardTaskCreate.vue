@@ -67,8 +67,8 @@
                         :initialValue="taskEndDate"
                         customClass="date"
                         ref="recordDateStart"
-                        :max="moment().add(5, 'years').format('YYYY-MM-DD')"
-                        :min="moment().format('YYYY-MM-DD')"
+                        :max="DateTime.now().plus({ years: 5 }).toISODate()"
+                        :min="DateTime.now().toISODate()"
                         type="date"
                         v-model="taskEndDate"
                     />                   
@@ -177,7 +177,6 @@
 </template>
 <script setup>
 
-import moment from 'moment'
 import LoaderButton from '../../../Global/LoaderButton.vue';
 import LongInput from '../../../Form/LongInput.vue';
 import MemberSelector from '../../../Form/MemberSelector.vue';
@@ -186,7 +185,7 @@ import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useSharingDataStore } from '@/store/sharingData'
 import OptionSelector from '@/components/Form/OptionSelector.vue';
-import { reactive } from 'vue';
+import { DateTime } from 'luxon';
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -197,8 +196,7 @@ import { reactive } from 'vue';
     const supervisors = ref(props.editTaskData && props.editTaskData.supervisors ? props.editTaskData.supervisors : [])
     const loading = ref(false)
     const endDateComp = computed(() => {
-        return props.editTaskData && props.editTaskData.end_at 
-                                    ? props.editTaskData.end_at : moment().format('YYYY-MM-DD')
+        return props.editTaskData && props.editTaskData.end_at ? props.editTaskData.end_at : DateTime.now().toISODate()
     }) 
     const taskEndDate = ref(endDateComp.value)
     const supervisorSelected = ref(props.editTaskData && props.editTaskData.supervisors.length ? true : false)
@@ -219,27 +217,6 @@ import { reactive } from 'vue';
         hours: props.editTaskData && props.editTaskData.response_time ? Math.floor(props.editTaskData.response_time / 60) : 1,
         minutes: props.editTaskData && props.editTaskData.response_time ? props.editTaskData.response_time % 60 : 0
     })
-    const repeatData = reactive({
-        repeat_type: props.editTaskData && props.editTaskData.repeat ? props.editTaskData.repeat.repeat_type : 1,
-        day_of_week: props.editTaskData && props.editTaskData.repeat && props.editTaskData.repeat.day_of_week ? props.editTaskData.repeat.day_of_week : [moment().isoWeekday()],
-        day_of_month: props.editTaskData && props.editTaskData.repeat ? props.editTaskData.repeat.day_of_month : moment().date(),
-        month: props.editTaskData && props.editTaskData.repeat ? props.editTaskData.repeat.month : moment().month() + 1,
-    })
-    const repeatPatterns = [
-        {value: 1, label: '1回のみ'},
-        {value: 2, label: '毎週'},
-        {value: 3, label: '毎月'},
-        {value: 4, label: '毎年'}
-    ]
-    const weekTemplate = [
-        { num: 1, name: '月'},
-        { num: 2, name: '火'},
-        { num: 3, name: '水'},
-        { num: 4, name: '木'},
-        { num: 5, name: '金'},
-        { num: 6, name: '土'},
-        { num: 7, name: '日'}
-    ]
     onMounted(() => {
         if(!props.editTaskData && sharingData.active){
             content.value = sharingData?.message?.message_text
@@ -263,19 +240,6 @@ import { reactive } from 'vue';
     const setTaskTitle = () => {
         syncToSchedule.value ? taskTitle.value = content.value.slice(0, 10) : taskTitle.value = ''
     }
-    const handleDate = (event) => {
-        const value = event.target.value
-        dateErrors.value = []
-        if (!moment(value).isBetween(moment(), moment().add(5, 'years'), 'day', '[]')) {
-            dateErrors.value.push(`${moment().format('YYYY-MM-DD')} - ${moment().add(5, 'years').format('YYYY-MM-DD')}間の有効な日付を入力してください。`)
-        }
-        taskEndDate.value = value
-        
-        // console.log(event.target.value)
-    }
-    const avialableDay = computed(() => {       
-        return Array.from({ length: 31 }, (_, index) => index + 1);   
-    })
     
     const setExecutor = computed({
         get(){
@@ -341,9 +305,7 @@ import { reactive } from 'vue';
             task_end_date: isTask.value ? taskEndDate.value : '',
             board_id: board.value.id,
             edit_id: props.editTaskData ? props.editTaskData.id : null,
-            // repeat_id: props.editTaskData && props.editTaskData.repeat_id ? props.editTaskData.repeat_id : '',
             supervisors: supervisorSelected.value ? supervisors.value.map(ob => ob.id) : [],
-            // repeat: repeatData,
             response_time: tasktime.value,
             sync_to_schedule: syncToSchedule.value,
             title: taskTitle.value,

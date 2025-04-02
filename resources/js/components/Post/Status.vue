@@ -42,8 +42,9 @@
 import LoaderButton from '../Global/LoaderButton.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import LongInput from '../Form/LongInput.vue';
-import moment from 'moment';
 import { computed, inject, ref } from 'vue';
+import { customParser } from '@/utils/tools';
+import { DateTime } from 'luxon';
     const props = defineProps(['record'])
     const emit = defineEmits(['close'])
     const { notify } = inject('dialog')
@@ -51,11 +52,9 @@ import { computed, inject, ref } from 'vue';
     const uploadedFiles = ref(props.record.result_files && props.record.result_files.length ? props.record.result_files : [])
     const resultMessage = ref(props.record.result ? props.record.result : '')
     const processing = ref(false)
-    const statuses = computed(() => {
-        var todayDate = (moment().format("YYYY-MM-DD"));            
-        const active_status = todayDate <= props.record.date_end ? '実施中' : '結果待ち'
+    const statuses = computed(() => {           
         return [
-            { id: 0, state :active_status },
+            { id: 0, state : DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち' },
             { id: 1, state : '達成' },
             { id: 2, state : '未達成' },
             { id: 3, state : '中止' }

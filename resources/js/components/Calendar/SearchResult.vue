@@ -18,14 +18,13 @@
 </div>
 </template>
 <script setup>
-import moment from 'moment';
-import { urlCheck } from '@/utils/tools';
+import { customParser, urlCheck } from '@/utils/tools';
     const props = defineProps(['searchResult', 'searchFetch'])
     const emit = defineEmits(['jumpToRecord'])
     
         const time = (item) => {
-            const from = moment(item.date_start).format('YYYY/MM/DD(ddd) H:mm')
-            const to = moment(item.date_end).format('H:mm')
+            const from = customParser(item.date_start).toFormat('yyyy/MM/dd(EEE) H:mm')
+            const to = customParser(item.date_end).toFormat('H:mm')
             return `${from} ~ ${to}`
         }
 </script>

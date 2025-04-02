@@ -41,9 +41,9 @@
                     :clearable="true"
                 /> -->
             </div>
-            <div class="si-box">
+            <!-- <div class="si-box">
                 <ItemSelector 
-                    place-holder="現在の号俸"
+                    place-holder="等級"
                     :options="salary_options"
                     v-model="grade"
                     :reduce="option => option['salary_grade']"
@@ -52,7 +52,7 @@
                     :multiple="false"
                     :clearable="true"
                 />
-            </div>
+            </div> -->
             <div class="si-box">
                 <ItemSelector 
                     place-holder="現在の号俸"
@@ -86,11 +86,10 @@
 <script setup lang="ts">
 import { inject, markRaw, onMounted, ref } from 'vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { User } from '@/interface/globalInterface';
+import { DialogMethods, User } from '@/interface/globalInterface';
 import axios from 'axios';
 import { generalPositions } from '@/utils/tools';
 import ItemSelector from '@/components/Form/ItemSelector.vue';
-import EvaluationLevels from '@/components/Project/EvaluationLevels.vue';
 import Modal from '@/components/Global/Modal.vue';
 const props = defineProps([
     'user', 
@@ -100,17 +99,14 @@ const props = defineProps([
     'editData'
 ])
 const positions = generalPositions()
-const employmentStatuses = ([
-    '正社員',
-    '契約社員'
-])
+
 const emit = defineEmits(['close'])
 const current_salary = ref(props.editData?.current_salary_rank ?? '')
 const after_salary = ref(props.editData?.after_salary_rank ?? '')
 const general_position = ref(props.editData?.general_position ?? '')
-const checkedCriteria = ref(props.editData?.current_level ?? '')
 const grade = ref(props.editData?.grade ?? '')
 const refresh = inject('refresh') as Function
+const { info } = inject('dialog') as DialogMethods;
 const saveGrade = async() => {
     
     const params = {
@@ -130,12 +126,29 @@ const saveGrade = async() => {
     try {
         await axios.post('/save_evaluation_grade', params)
         emit('close')
+        info('保存しました')
         refresh()
+    } catch (e) {
+        
+    }
+}
+onMounted(() => {
+    getPreviousEvaluation()
+})
+const getPreviousEvaluation = async() => {
+    const params = {
+        user_id: props.user.id,
+        year: props.selectedDate.year,
+        which_half: props.selectedDate.which_half,
+    }
+    try {
+        const data = await axios.post('/get_previous_evaluation', params).then(res => res.data)
+        if(data && data?.id){
+            current_salary.value = data.after_salary_rank
+        }
+        
     } catch (e) {
 
     }
 }
-// onMounted(() => {
-//     firstFetch()
-// })
 </script>

@@ -33,11 +33,12 @@
                                             <ShortInput 
                                                 @change="validateDate(user)" 
                                                 custom-class="date"
-                                                type="date" :min="setMin()" 
-                                                :max="setMax()" 
+                                                type="date" 
+                                                :min="setMin" 
+                                                :max="setMax" 
                                                 v-model="view_from"
                                             />
-                                            <p v-if="invalidDate" class="i-error">{{ `日付は${setMin()}以上${setMax()}以下である必要があります。` }}</p>
+                                            <p v-if="invalidDate" class="i-error">{{ `${setMin}-${setMax}の間のみ設定可能です。` }}</p>
                                             <div style="display: flex;gap: 10px;" :style="{marginTop: invalidDate ? '20px' : '10px'}">
                                                 <CommandButton :buttons="[
                                                     {title: '追加', action: () => {selectToUser(user)}},
@@ -63,8 +64,8 @@ import PostSearchBar from '../Post/PostSearchBar.vue'
 import { computed, inject, nextTick, onMounted, ref } from 'vue'
 import CommandButton from '../Global/CommandButton.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
-import moment from 'moment';
 import ShortInput from '../Form/ShortInput.vue';
+import { DateTime } from 'luxon';
     const props = defineProps(['item'])
     const emit = defineEmits(['close'])    
     const possibleMemberList = ref([])
@@ -74,7 +75,7 @@ import ShortInput from '../Form/ShortInput.vue';
     const { reload } = inject('boardItem') 
     const { confirm, notify, info } = inject('dialog')
     const inviteModal = ref(null)
-    const view_from = ref(moment().format('YYYY-MM-DD'))
+    const view_from = ref(DateTime.now().toISODate())
     const invalidDate = ref(false)
     const selectedMember = ref(null)
     onMounted(() => {
@@ -93,7 +94,7 @@ import ShortInput from '../Form/ShortInput.vue';
     })
     const selectToUser = async(user) => {
         if(invalidDate.value) return
-        const confirmed = await confirm(`<strong>${user.name}</strong>さんをボードメンバーに追加しますか。<br><strong>${moment(view_from.value).format('YYYY/M/D')} 0時</strong>から閲覧可能になります。`)
+        const confirmed = await confirm(`<strong>${user.name}</strong>さんをボードメンバーに追加しますか。<br><strong>${DateTime.fromSQL(view_from.value).toLocaleString(DateTime.DATE_SHORT)} 0時</strong>から閲覧可能になります。`)
         if(lock.value || !confirmed.value) return
         lock.value = true
         const params = { record_id : props.item.id, user_id: user.id, view_from: view_from.value }
@@ -107,10 +108,6 @@ import ShortInput from '../Form/ShortInput.vue';
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
             lock.value = false
         }
-    }
-    const searchStart = (key) => {
-        keyword.value = key
-        searching.value = 2
     }
     const getMembers = async() => {
         try{
@@ -128,24 +125,22 @@ import ShortInput from '../Form/ShortInput.vue';
             emit('close')
         }
     }      
-    const setMin = () => {
-        const min =  moment().subtract(1, 'year').format('YYYY-MM-DD')
-        return min
-    }
-    const setMax = () => {
-        return moment().format('YYYY-MM-DD')
-    }
-    const validateDate = (member) => {
+    const setMin = computed(() => {
+        return DateTime.now().minus({year: 1}).toISODate()
+    })
+    const setMax = computed(() => {
+        return DateTime.now().toISODate()
+    })
+    const validateDate = () => {
         const selectedDate = view_from.value
-        const minDate = setMin(member)
-        const maxDate = setMax()
-        if (moment(selectedDate).isBetween(minDate, maxDate, undefined, [])) {
+        const minDate = setMin.value
+        const maxDate = setMax.value
+        if (DateTime.fromISO(selectedDate) >= DateTime.fromISO(minDate) && DateTime.fromISO(selectedDate) <= DateTime.fromISO(maxDate)) {
             invalidDate.value = false
         } else {
             invalidDate.value = true
         }
     }
-        
     
 </script>
 <style lang="scss">

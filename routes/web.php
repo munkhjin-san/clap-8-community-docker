@@ -431,6 +431,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/update_project_progress', [ProjectController::class, 'update_project_progress']);
         Route::put('/apply_kadai', [ProjectController::class, 'apply_kadai']);
         Route::post('/get_selectable_users', [ProjectController::class, 'get_selectable_users']);
+        Route::post('/get_previous_evaluation', [ProjectController::class, 'get_previous_evaluation']);
         Route::post('/create_project', [ProjectController::class, 'create_project']);
         Route::get('/get_salary_options', [ProjectController::class, 'get_salary_options']);
         Route::post('/get_evaluations', [ProjectController::class, 'get_evaluations']);

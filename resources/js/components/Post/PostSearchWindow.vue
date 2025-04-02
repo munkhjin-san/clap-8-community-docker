@@ -204,7 +204,6 @@
 </template>
 
 <script setup>
-import moment from 'moment'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import PostSearchPager from './PostSearchPager.vue'
 import SearchHistory from './SearchHistory.vue'
@@ -213,7 +212,7 @@ import MemberSelector from '../Form/MemberSelector.vue';
 import ShortInput from '../Form/ShortInput.vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
-import { urlCheck } from '@/utils/tools';
+import { customParser, urlCheck } from '@/utils/tools';
 import PostIcon from './PostIcon.vue';
     const props = defineProps(['appName', 'appTitle'])
     const emit = defineEmits(['closePostSearch'])
@@ -287,34 +286,16 @@ import PostIcon from './PostIcon.vue';
     const isMultipleUsers = (item) => {
         return responsive.mobile && item && item.to_users && item.to_users.length > 1
     }
-    const status = (item) => {
-        if(item.app_type == 4){
-            var todayDate = (moment().format("YYYY-MM-DD"));
-                                
-            if(todayDate <= item.date_end && item.status_flag == 0){
-                var statusText = '実施中';
-                return statusText;
-            }                
-            else if(item.status_flag == 1)
-            {
-                var statusText = '達成';
-                return statusText;
-            }
-            else if(item.status_flag == 2)
-            {
-                var statusText = '未達成';
-                return statusText;
-            } else if(item.status_flag == 3)
-            {
-                var statusText = '中止';
-                return statusText;
-            }
-            else if(todayDate > item.date_end){
-                var statusText = '結果待ち';
-                return statusText;
-            }
-        }
-    }
+    const status = computed(() => {
+        if (props.record.app_type !== 2) return;
+        const statusMap = {
+            0: DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち',
+            1: '達成',
+            2: '未達成',
+            3: '中止'
+        };
+        return statusMap[props.record.status_flag];
+    });
     const tagInfinite = () => {
         var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);   
         if(percent > 99 && !infineLock.value){
