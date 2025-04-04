@@ -112,9 +112,10 @@ export const convertToSpeech = async (textContent: string, id: number) => {
                 const textChunks = chunkText(textContent, 4000);
                 for (const chunk of textChunks) {
                     const response = await openai.audio.speech.create({
-                        model: "tts-1",
+                        model: "gpt-4o-mini-tts",
                         voice: "nova",
-                        input: chunk
+                        input: chunk,
+                        instructions: "発音: ほとんど日本語ですので、日本語の発音に注意ください。ネイティブ日本語っぽく。 声: 温かみがあり、共感的で、プロフェッショナルな口調で、お客様の問題が理解され解決されることをお客様に安心させます。\n\n句読点: 自然な間を置いた構造で、明瞭で安定した落ち着いた流れを実現します。\n\n話し方: 落ち着いて辛抱強く、聞き手に思いやりのあるサポートと理解のある口調で話します。\n\n言い回し: 明確かつ簡潔で、専門用語を避けながらプロ意識を維持し、お客様にわかりやすい言葉を使用します。\n\n口調: 共感的でソリューション重視で、理解と積極的な支援の両方を重視します。"
                     });
 
                     const reader = response?.body?.getReader();

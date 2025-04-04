@@ -688,8 +688,8 @@ import { useKeyboardStore } from '@/store/keyboardStore'
             const flags = ['OFF', 'ON']
             info(`通知設定を${flags[flag]}にしました。`)
         } catch (e) {
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            }
+            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        }
     }
     const leaveBoard = async(board) => {
         try {
