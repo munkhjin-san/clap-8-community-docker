@@ -112,4 +112,30 @@ const deleteContact = () => {
         
     }
 }
+@media screen and (max-width: 959px) {
+    .contact-detail-table{
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+       
+        tr{
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            border-bottom: none;
+            &:last-child{
+                border-bottom: solid thin lightgray;
+            }
+            td{
+                border: none;
+            }
+            td:first-of-type{
+                border: none;    
+                padding-bottom: 0;            
+            }
+            
+        }
+    }
+    
+}
 </style>
