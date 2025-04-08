@@ -44,7 +44,7 @@
                 </div>               
                 
                 <div :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease', marginTop: '10px'}">
-                    <p ref="taskBody" style="line-height: 1.5;white-space: pre-line;word-break: break-all;" v-html="truncatedRemarks"></p>
+                    <p ref="taskBody" style="line-height: 1.5;white-space: break-spaces;word-break: break-all;" v-html="truncatedRemarks"></p>
                 </div>  
                 <div @click="setTruncate" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '162px' ? '続きを表示する' : '閉じる' }}</div>
 

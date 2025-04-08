@@ -71,6 +71,7 @@
     font-size: 16px;
     min-height: 80px;
     display: inline-block;
+    white-space: pre-wrap;
 }
 textarea:focus + label{
     font-size: 11px;
