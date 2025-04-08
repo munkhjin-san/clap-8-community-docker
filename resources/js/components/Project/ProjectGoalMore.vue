@@ -218,7 +218,7 @@
                 <template #content>
                     <div>判断: <strong>{{ [1,6].includes(goalDecisionData.status) ? '差戻' : [5,3].includes(goalDecisionData.status) ? '承認' : ''  }}</strong></div>
                     <div class="si-box">
-                        <LongInput v-model="goalDecisionData.comment" name="comment" place-holder="コメント・差し戻し理由" />
+                        <LongInput v-model="goalDecisionData.comment" name="comment" place-holder="コメント" />
                     </div>
                     <div class="si-box">
                         <LoaderButton @triggered="approveOutComeGoal(goalDecisionData.status)" :content="'保存'" />
@@ -234,7 +234,7 @@
                 <template #content>
                     <div>判断: <strong>{{ [1,6].includes(salaryIssueData.status) ? '差戻' : [5,3,10].includes(salaryIssueData.status) ? '承認' : ''  }}</strong></div>
                     <div class="si-box">
-                        <LongInput v-model="salaryIssueData.comment" name="comment" place-holder="コメント・差し戻し理由" />
+                        <LongInput v-model="salaryIssueData.comment" name="comment" place-holder="コメント" />
                     </div>
                     <div class="si-box">
                         <LoaderButton @triggered="approveSalaryIssue(salaryIssueData.id, salaryIssueData.status)" :content="'保存'" />

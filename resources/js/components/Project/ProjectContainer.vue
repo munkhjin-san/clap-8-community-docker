@@ -67,16 +67,15 @@
                     
                 </div>
                 <div @click="router.push({name: route.name == 'project' ? 'overview' : route.name, params: { projectId: project?.id}})" class="project-cell-row" :class="[{'selected-project-cell' : Number(route.params.projectId) == project.id}]" v-for="project in sortedProjects">
-                    <div class="project-cell" style="min-width: 200px;width: 200px;">                        
-                        <div class="flex justify-between w-full">
-                            <div class="flex gap-2 items-center" style="position: relative;">
-                                <p>{{ project.name }}</p>
-                                <WeatherIcon v-if="project.project_conditions.length" :which="project.project_conditions[0].value" size="15" style="margin-top: 3px;"/>
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <span class="side-notification" style="position: unset;width:15px" v-if="totalBadges(project.id) > 0">{{ totalBadges(project.id) }}</span>
-                            </div>
-                            
+                    <div class="project-cell project-title-cell">                        
+                        <div class="flex w-full">
+                            <div class="flex gap-2 items-center relative w-full">
+                                <p class="max-w-[calc(100%-60px)] overflow-hidden whitespace-nowrap text-ellipsis">{{ project.name }}</p>
+                                <WeatherIcon v-if="project.project_conditions.length" :which="project.project_conditions[0].value" size="15"/>
+                                <div class="flex items-center">
+                                    <span class="side-notification" style="position: unset;width:15px" v-if="totalBadges(project.id) > 0">{{ totalBadges(project.id) }}</span>
+                                </div>
+                            </div>                           
                         </div>
                     </div>
                     <div class="project-cell pc">
@@ -370,6 +369,10 @@ provide('editProjects', (rec) => {editData.value = rec; createWindow.value = tru
 provide('setTotalFinanceWindow', (flag:boolean) => {totalFinanceWindow.value = flag})
 </script>
 <style scoped>
+    .project-title-cell{
+        min-width: 200px;
+        max-width: 200px;
+    }
     @media screen and (max-width: 959px) {
         .project-cell{
             border-bottom: none;
@@ -378,6 +381,10 @@ provide('setTotalFinanceWindow', (flag:boolean) => {totalFinanceWindow.value = f
         .project-cell-row{
             margin: 0 15px 15px 15px !important;
             box-shadow: none !important;
+        }
+        .project-title-cell{
+            min-width: 100%;
+            max-width: 100%;
         }
     }
 </style>
