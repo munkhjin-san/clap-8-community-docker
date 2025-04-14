@@ -716,35 +716,71 @@ class ProjectController extends Controller
         $user = $this->active_user();
         $date = Carbon::now();
         $year = $date->year;
+        $current_half = Carbon::now()->between(Carbon::createFromDate($year, 4, 1), Carbon::createFromDate($year, 9, 30)) ? 'first' : 'second';
+        $previous_half = $current_half == 'first' ? 'second' : 'first';
+        $previous_year = $current_half == 'first' ? $year - 1 : $year;
         $years = [ $year - 1, $year, $year +1];
-        $mentee_id = EvaluationRecord::where('mentor_id', $user->id)
-            ->whereIn('year', $years)
-            ->pluck('user_id')
-            ->toArray();
-        $salary_issues = SalaryIssue::whereHas('project_goal', function ($q) use($years) {
-                $q->whereIn('year', $years);
-            })->whereHas('project_goal')
-            ->where(function ($query) use ($mentee_id) {
-                $query->where(function ($query) use ($mentee_id){
-                    $query->whereIn('status', [2, 7])->whereIn('user_id', $mentee_id);
-                })->orWhere(function($query){
-                    $query->whereIn('status', [1, 8])->where('user_id', Auth::id());
+        $evaluations = EvaluationRecord::where('mentor_id', $user->id)
+            ->where(function ($query) use($previous_year, $previous_half, $year, $current_half) {
+                $query->where(function ($q) use($previous_year, $previous_half) {
+                    $q->where('year', $previous_year)->where('which_half', $previous_half);
+                })->orWhere(function ($q) use($year, $current_half) {
+                    $q->where('year', $year)->where('which_half', $current_half);
                 });
-            })            
-            ->with('project_goal')
-            ->get();
+            })->get();
+            // dd($evaluations);
+        $mentee_id = $evaluations->pluck('user_id')->toArray();
+        $salary_issues = SalaryIssue::whereHas('project_goal', function ($q) use($previous_year, $previous_half, $year, $current_half) {
+            $q->where(function ($query) use($previous_year, $previous_half, $year, $current_half) {
+                $query->where(function ($q) use($previous_year, $previous_half) {
+                    $q->where('year', $previous_year)->where('which_half', $previous_half);
+                })->orWhere(function ($q) use($year, $current_half) {
+                    $q->where('year', $year)->where('which_half', $current_half);
+                });
+            });
+        })->whereHas('project_goal')
+        ->where(function ($query) use ($mentee_id) {
+            $query->where(function ($query) use ($mentee_id){
+                $query->whereIn('status', [2, 7])->whereIn('user_id', $mentee_id);
+            })->orWhere(function($query){
+                $query->whereIn('status', [1, 8])->where('user_id', Auth::id());
+            });
+        })            
+        ->with('project_goal')
+        ->get();
         
         $data = [];
+
+        // return response()->json($salary_issues);
+
         foreach($salary_issues as $issue) {
-            $data[] = [
-                'issue_id' => $issue->id,
-                'goal_id' => $issue->project_goal->id,
-                'project_id' => $issue->project_goal->project_id,
-                'user_id' => $issue->user_id,
-                'year' => $issue->project_goal->year,
-                'which_half' => $issue->project_goal->which_half,
-                'status' => $issue->status,
-            ];
+            $issue_year = $issue->project_goal->year;
+            $issue_half = $issue->project_goal->which_half;
+
+            $is_my_mentee = $evaluations->contains(function ($evaluation) use ($issue_year, $issue_half, $user) {
+                return $evaluation->mentor_id == $user->id && $evaluation->year == $issue_year && $evaluation->which_half == $issue_half;
+            });
+
+            if($is_my_mentee || ($issue->user_id == Auth::id() && ($issue->status == 1 || $issue->status == 8))) {
+                $data[] = [
+                    'issue_id' => $issue->id,
+                    'goal_id' => $issue->project_goal->id,
+                    'project_id' => $issue->project_goal->project_id,
+                    'user_id' => $issue->user_id,
+                    'year' => $issue_year,
+                    'which_half' => $issue_half,
+                    'status' => $issue->status,
+                ];
+            }
+                // $data[] = [
+                //     'issue_id' => $issue->id,
+                //     'goal_id' => $issue->project_goal->id,
+                //     'project_id' => $issue->project_goal->project_id,
+                //     'user_id' => $issue->user_id,
+                //     'year' => $issue->project_goal->year,
+                //     'which_half' => $issue->project_goal->which_half,
+                //     'status' => $issue->status,
+                // ];
         }           
 
         return response()->json($data);
@@ -2041,5 +2077,18 @@ class ProjectController extends Controller
 
 
     }
+    public function get_projects_external(Request $request){
+        $projects = ProjectRecord::get();
+        return response()->json($projects);
+    }
+    public function get_team_external(Request $request){
+        $users = User::where('retire', 0)
+        ->where('hide_flag', 0)
+        ->where('partner_flag', 0)
+        ->where('id', '>', 105 )
+        ->select('id', 'name', 'name_kana', 'motto', 'icon_path', 'icon_bg', 'icon_bg', 'icon_bg', 'office_id', 'position_id')->with(['positions'])
+        ->get();
+        return response()->json($users);
+    }   
 
 } 
