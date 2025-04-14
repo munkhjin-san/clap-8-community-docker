@@ -757,8 +757,11 @@ class ProjectController extends Controller
             $issue_year = $issue->project_goal->year;
             $issue_half = $issue->project_goal->which_half;
 
-            $is_my_mentee = $evaluations->contains(function ($evaluation) use ($issue_year, $issue_half, $user) {
-                return $evaluation->mentor_id == $user->id && $evaluation->year == $issue_year && $evaluation->which_half == $issue_half;
+            $is_my_mentee = $evaluations->contains(function ($evaluation) use ($issue_year, $issue_half, $user, $issue) {
+                return $evaluation->mentor_id == $user->id 
+                && $evaluation->year == $issue_year 
+                && $evaluation->which_half == $issue_half
+                && $evaluation->user_id == $issue->user_id;
             });
 
             if($is_my_mentee || ($issue->user_id == Auth::id() && ($issue->status == 1 || $issue->status == 8))) {
@@ -772,15 +775,6 @@ class ProjectController extends Controller
                     'status' => $issue->status,
                 ];
             }
-                // $data[] = [
-                //     'issue_id' => $issue->id,
-                //     'goal_id' => $issue->project_goal->id,
-                //     'project_id' => $issue->project_goal->project_id,
-                //     'user_id' => $issue->user_id,
-                //     'year' => $issue->project_goal->year,
-                //     'which_half' => $issue->project_goal->which_half,
-                //     'status' => $issue->status,
-                // ];
         }           
 
         return response()->json($data);
