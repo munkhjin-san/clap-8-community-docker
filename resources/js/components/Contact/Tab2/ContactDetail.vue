@@ -111,12 +111,12 @@ const deleteContact = () => {
         vertical-align: baseline;
         
     }
+    width: calc(100% - 2px);
 }
 @media screen and (max-width: 959px) {
     .contact-detail-table{
         display: flex;
         flex-direction: column;
-        width: 100%;
        
         tr{
             display: flex;
