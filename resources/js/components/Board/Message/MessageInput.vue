@@ -406,7 +406,6 @@ import DOMPurify from 'dompurify';
                 });
                 let rawText = '';
                 for await (const event of response) {
-                    console.log(event);
                     if (event.type === 'response.output_text.delta') {
                         rawText += event.delta; 
 
@@ -420,17 +419,6 @@ import DOMPurify from 'dompurify';
                         aiResponseCustomize.value = true   
                     }
                 }
-                // const assistant = await openai.beta.assistants.retrieve("asst_00ym17kRKEnOWvM0y9Mnaah7");
-                // const thread = await openai.beta.threads.create();
-                // await openai.beta.threads.messages.create(thread.id, {role: "user", content: text});
-                // openai.beta.threads.runs.stream(thread.id, { assistant_id: assistant.id })
-                // .on('textDelta', (textDelta, snapshot) => {
-                //     const content = textDelta.value || ''
-                //     aiResponse.value = aiResponse.value + content
-                // }).on('end', () => {
-                //     editing.value = false
-                //     aiResponseCustomize.value = true   
-                // })
             }catch(err){
                 if (err instanceof OpenAI.APIError) {
                     console.log(err.status); 
