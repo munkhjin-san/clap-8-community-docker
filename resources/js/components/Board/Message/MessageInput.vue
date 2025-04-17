@@ -215,6 +215,8 @@ import { useQuoteReply } from '@/store/quoteReply'
 import { useSharingDataStore } from '@/store/sharingData'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { DateTime } from 'luxon'
+import {marked} from 'marked'
+import DOMPurify from 'dompurify';
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -364,18 +366,71 @@ import { DateTime } from 'luxon'
                 const openai = new OpenAI({
                     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
                     dangerouslyAllowBrowser: true 
-                });       
-                const assistant = await openai.beta.assistants.retrieve("asst_00ym17kRKEnOWvM0y9Mnaah7");
-                const thread = await openai.beta.threads.create();
-                await openai.beta.threads.messages.create(thread.id, {role: "user", content: text});
-                openai.beta.threads.runs.stream(thread.id, { assistant_id: assistant.id })
-                .on('textDelta', (textDelta, snapshot) => {
-                    const content = textDelta.value || ''
-                    aiResponse.value = aiResponse.value + content
-                }).on('end', () => {
-                    editing.value = false
-                    aiResponseCustomize.value = true   
-                })
+                });     
+                
+                const instructionText = `あなたは日本語の文章を添削するAIです。以下の文章を添削してください。
+                注意点：
+                1. 文法や表現の誤りを指摘し、正しい表現に修正してください。
+                2. 編集したテキストのみを出力してください。「修正後のテキストは以下の通りです。」などの前置きは不要です。
+                4. [To: $user_name :] こういうのがメンションのフォーマットですのでそのまま変更せず返してください。
+                5. URLやメールアドレスなどのURLはそのままにしてください。
+                `
+                const response = await openai.responses.create({
+                    model: "gpt-4.1-mini",
+                    input: [
+                        {
+                            "role": "system",
+                            "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": instructionText
+                                }
+                            ]
+                        },
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": text
+                                }
+                            ]
+                        }
+                    ],
+                    text: {
+                        "format": {
+                            "type": "text"
+                        }
+                    },
+                    stream: true
+                });
+                let rawText = '';
+                for await (const event of response) {
+                    console.log(event);
+                    if (event.type === 'response.output_text.delta') {
+                        rawText += event.delta; 
+
+                        const markedText = marked.parse(rawText);
+                        const sanitizedText = DOMPurify.sanitize(markedText);
+
+                        aiResponse.value = sanitizedText;
+                    }
+                    if (event.type === 'response.completed') {
+                        editing.value = false
+                        aiResponseCustomize.value = true   
+                    }
+                }
+                // const assistant = await openai.beta.assistants.retrieve("asst_00ym17kRKEnOWvM0y9Mnaah7");
+                // const thread = await openai.beta.threads.create();
+                // await openai.beta.threads.messages.create(thread.id, {role: "user", content: text});
+                // openai.beta.threads.runs.stream(thread.id, { assistant_id: assistant.id })
+                // .on('textDelta', (textDelta, snapshot) => {
+                //     const content = textDelta.value || ''
+                //     aiResponse.value = aiResponse.value + content
+                // }).on('end', () => {
+                //     editing.value = false
+                //     aiResponseCustomize.value = true   
+                // })
             }catch(err){
                 if (err instanceof OpenAI.APIError) {
                     console.log(err.status); 

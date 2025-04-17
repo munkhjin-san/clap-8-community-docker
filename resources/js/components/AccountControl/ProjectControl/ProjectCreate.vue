@@ -573,7 +573,7 @@ const generateTasks = async() => {
         オペレーション : ${projectParams.operation}
         `
         const response = await openai.responses.create({
-            model: "gpt-4o-mini",
+            model: "gpt-4.1-mini",
             input: [
                 {
                     "role": "system",
@@ -695,6 +695,7 @@ const instruction = (val:string) => {
     ulの場合は、・を使って箇条書きを行ってください。
     olの場合は、数字を使って箇条書きを行ってください。
     よけな付け足すをしないでください。例: プロジェクト名や期間そしてプロジェクトの${val}などを記載しない
+    文書はあまり長くせず少し要点をまとめた文章にしてください。
     `
 }
 
@@ -764,7 +765,7 @@ const generateAutoText = async(index:string, indexVal:string) => {
     const instructionText = indexVal == 'description' ? descriptionInstruction : instruction(index)
     try{
         const response = await openai.responses.create({
-            model: "gpt-4o-mini",
+            model: "gpt-4.1-mini",
             input: [
                 {
                     "role": "system",
