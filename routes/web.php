@@ -37,6 +37,10 @@ use App\Models\User;
 | contains the "web" middleware group. Now create something great!
 |
 */
+
+//for home page
+Route::get('get_team_external', [ProjectController::class, 'get_team_external']);
+Route::get('get_projects_external', [ProjectController::class, 'get_projects_external']);
 Route::match(['get', 'post'],'/zoom3_event', [AutoJobController::class, 'zoom_event']);
 Route::match(['get', 'post'],'/zoom2_event', [AutoJobController::class, 'zoom_event']);
 Route::match(['get', 'post'],'/zoom1_event', [AutoJobController::class, 'zoom_event']);
@@ -529,6 +533,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/asset_recieve_request', [AssetController::class, 'asset_recieve_request']);
         Route::post('/asset_move_request', [AssetController::class, 'asset_move_request']);
         Route::post('/asset_approve', [AssetController::class, 'asset_approve']);
+        Route::get('/export_asset_csv', [AssetController::class, 'export_asset_csv']);
+
         Route::post('/get_asset_types', [AssetController::class, 'get_asset_types']);
         Route::get('/get_asset_badge', [ProjectController::class, 'get_asset_badge']);
         Route::get('/get_asset_recieve_requests', [RemindController::class, 'get_asset_recieve_requests']);

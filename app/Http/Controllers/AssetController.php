@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AssetData;
 use App\Imports\AssetImport;
 use App\Models\AssetRecord;
 use App\Models\AssetRequest;
@@ -106,6 +107,7 @@ class AssetController extends Controller
         
         $classification = $request->classification ?? [];
         $status = $request->status ?? [];
+        $mode = $request->mode ?? 'normal';
 
         if($mode == 'partner'){
             $memberId = [Auth::id()];
@@ -160,7 +162,14 @@ class AssetController extends Controller
             },
             'current_office'
         ]);
-        $data = $assets->orderBy('created_at', 'desc')->paginate(30);
+        $data = $assets->orderBy('created_at', 'desc');
+
+        if($mode == 'normal'){
+            $data = $data->paginate(30);
+        }else{
+            $data = $data->get();
+        }
+
         return response()->json($data);
     }
 
@@ -373,6 +382,41 @@ class AssetController extends Controller
             }
         }
         return response()->json($data);
+    }
+    public function export_asset_csv(Request $request) 
+    {
+        $assets = $this->get_assets($request);
+        $assets = $assets->getData();
+        $classification = [
+            1 => "資産", 
+            2 => "消耗品" ,
+            3 => "重要資産" 
+        ];
+        $statuses = [
+            1 => "使用中" ,
+            2 => "返却" ,
+            3 => "廃棄" ,
+            4 => "保管" ,
+            5 => "移動" ,
+            6 => "故障" 
+        ];
+
+        $rawData = collect($assets)->map(function ($asset) use ($classification, $statuses) {
+            $gl_number = 'GL' . str_pad($asset->id, 5, '0', STR_PAD_LEFT);
+            return [
+                "GL番号" => $gl_number,
+                "品名" => $asset->item_name,
+                "型番" => $asset->model_number,
+                "使用プロジェクト" => $asset->current_project?->name,
+                "使用者" => $asset->current_user?->name,
+                "分類" => $classification[$asset->classification] ?? null,
+                "価値" => $asset->value,
+                "ステータス" => $statuses[$asset->status] ?? null,
+                "保管場所" => $asset->current_office?->name,
+            ];
+        })->toArray();
+        return Excel::download(new AssetData($rawData), 'user_data.xlsx');
+        // return response()->json($rawData);
     }
 
 }

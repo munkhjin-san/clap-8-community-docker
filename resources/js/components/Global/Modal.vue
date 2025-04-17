@@ -10,7 +10,10 @@
                     <CloseIcon size="13"/>                      
                 </div>                 
             </div>
-            <slot name="content"></slot>
+            <div class="w-[calc(100%-2px)]">
+                <slot name="content"></slot>
+            </div>
+            
         </div>
     </div>
 </template>

@@ -1,8 +1,11 @@
 <template>
     <div class="admin-window">
         <div class="h-full w-full">
-            <div class="w-full h-[calc(100%-30px)] overflow-auto">            
-                <table class="asset-table" style="margin: 20px;width: calc(100% - 40px);">
+            <div class="flex justify-end my-[20px] mr-[20px]">
+                <LoaderButton content="CSV出力" style="margin: 0" :loading="loading" @triggered="exportCSV"/>
+            </div>
+            <div class="w-full h-[calc(100%-105px)] overflow-auto">            
+                <table class="asset-table" style="margin:0 20px; width: calc(100% - 40px);">
                     <AssetTableHeader 
                         :columns="['GL番号', '品名', '型番', '使用プロジェクト', '使用者', '分類', '価値', 'ステータス', '保管場所']"
                         :projects="possibleProjects" 
@@ -117,6 +120,8 @@ import AssetCreate from '@/components/Asset/AssetCreate.vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import PostSearchPager from '@/components/Post/PostSearchPager.vue';
 import AssetTableHeader from './AssetTableHeader.vue';
+import LoaderButton from '@/components/Global/LoaderButton.vue';
+import { DateTime } from 'luxon';
 
 const { notify, info, confirm} = inject('dialog') as DialogMethods
 const assetsData = ref<{
@@ -153,7 +158,7 @@ const possibleMembers = ref([])
 const possibleProjects = ref([])
 const editData = ref<Asset | null>(null)
 const createWindow = ref(false)
-
+const loading = ref(false)
 
 const possibleOffices = ref<Office[]>([])
 onMounted(() => {
@@ -218,6 +223,30 @@ const closeModal = (reload: boolean) => {
         getAdminAssetList(assetsData.value.current_page)
     }
     editData.value = null
+}
+
+const exportCSV = async() => {
+    try{
+        loading.value = true
+        const response = await axios.get('/export_asset_csv', {
+            params: {...searchQuery, mode: 'export'},
+            responseType: 'blob'
+        })
+        const url = window.URL.createObjectURL(new Blob([response.data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `物品${DateTime.now().toLocaleString(DateTime.DATETIME_SHORT)}.xlsx`) 
+        document.body.appendChild(link)
+        link.click()
+
+    }catch(e) {
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    }finally{
+        setTimeout(() => {
+            loading.value = false
+        }, 100);
+    }
+
 }
 watch(searchQuery, () => {
     getAdminAssetList()
