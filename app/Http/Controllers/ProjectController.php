@@ -670,7 +670,7 @@ class ProjectController extends Controller
         $managinProjectData = $this->members_of_project_managed_by_user($user);
         $selfProjects = $this->projects_participate_by_user($user);
         $projectData = array_merge($managinProjectData, $selfProjects);
-        if(empty($projectData)){
+        if(!count($projectData)){
             return response()->json([]);
         }
         $goals = $this->goals_fetch_by_users($projectData, $date);
@@ -689,7 +689,8 @@ class ProjectController extends Controller
                 "type" => "manager"
             ];
         })->toArray();
-        if(empty($projectData)){
+        
+        if(!count($projectsData)){
             return response()->json([]);
         }
         $goals = $this->goals_fetch_by_users($projectsData, Carbon::now());
