@@ -109,7 +109,9 @@ export const convertToSpeech = async (textContent: string, id: number) => {
             };
 
             try {
-                const textChunks = chunkText(textContent, 4000);
+
+                const textChunks = chunkText(textContent, 1400);
+
                 for (const chunk of textChunks) {
                     const response = await openai.audio.speech.create({
                         model: "gpt-4o-mini-tts",

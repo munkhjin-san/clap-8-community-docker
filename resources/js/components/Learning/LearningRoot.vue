@@ -311,11 +311,12 @@ import { useResponsive } from '@/store/responsive';
     position: absolute;
     background-color: var(--primary-button);
     color: #ffffff;
-    padding: 5px;
+    padding: 10px;
     right: 50px;
     cursor: pointer;
     font-size: 13px;
     transition: transform 0.1s;
+    display: flex;
 }
 @media screen and (max-width: 959px) {
     .section-inner{
