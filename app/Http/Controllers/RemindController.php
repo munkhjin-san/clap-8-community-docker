@@ -597,10 +597,19 @@ class RemindController extends Controller
         $active_user = $this->active_user();
         $forms = CustomForm::whereHas('users', function ($q) use ($active_user) {
             $q->where('users.id', $active_user->id);
-        })->whereDoesntHave('survey_answers')
-            ->with(['users', 'admins', 'survey_answers' => function ($query) {
-                $query->select('user_id', 'custom_form_id'); // Load only necessary fields
-            }])->get();
+        })->where(function($q) use ($active_user) {
+            $q->whereDoesntHave('survey_answers', function ($q) use ($active_user) {
+                $q->where('user_id', $active_user->id);
+            })->orWhere(function ($q) use ($active_user) {
+                $q->whereHas('survey_answers', function ($q) use ($active_user) {
+                    $q->where('user_id', $active_user->id)->where('status', '<', 2);
+                });
+            });
+        })
+        
+        ->with(['users', 'admins', 'survey_answers' => function ($query) {
+            $query->select('user_id', 'custom_form_id'); // Load only necessary fields
+        }])->get();
         
         $forms->each(function ($form) {
             $answeredUserIds = $form->survey_answers->pluck('user_id')->toArray();
