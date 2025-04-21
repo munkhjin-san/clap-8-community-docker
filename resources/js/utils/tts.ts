@@ -258,7 +258,8 @@ const setupAudioEventHandlers = () => {
  */
 const audioEndedHandler = () => {
     console.log('Audio finished');
-    cleanupMediaSource(false);
+    // Use intentional stop when audio ends naturally to prevent error cascade
+    cleanupMediaSource(true);
     ttsStore.setTtsStore(closeData);
 };
 
