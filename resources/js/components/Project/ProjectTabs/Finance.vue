@@ -173,7 +173,7 @@ const props = defineProps<{
     userList: any;
 }>();
 const windowWidth = window.innerWidth;
-const month = ref<MonthNumbers>(3)
+const month = ref<MonthNumbers>(DateTime.now().month)
 const year = ref(2025)
 const loader = reactive({
     yearlyPlan: true,
