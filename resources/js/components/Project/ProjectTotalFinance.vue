@@ -246,7 +246,7 @@
                 </div>
                 <div v-if="tab == 'pie' || tab == 'bar'">
                     <div class="px-[20px]">
-                            <div class="flex gap-[15px] mt-[10px]">
+                        <div v-if="tab == 'pie'" class="flex gap-[15px] mt-[10px]">
                             <label v-for="item in possibleScenarios" class="flex items-center gap-[10px] text-[12px]">
                                 <input type="radio" class="custom-f-radio" name="scenario" :value="item.value" v-model="activeScenario">
                                 <span>{{ item.label }}</span>
