@@ -8,7 +8,7 @@
             </div>
         </div>
         <div class="projectModalContainer relative">      
-            <div class="mobile px-[20px]">
+            <div class="mobile px-[20px] mt-[20px] mb-[5px]">
                 <LoaderButton :loading="false" content="プロジェクト選択" style="margin: 0;" @click.stop="menu.setMenu({parent: 'mb-p-select'})"/>
             </div>          
             <div class="projectModalSideMenu" id="mb-p-select" v-if="menu.parent == 'mb-p-select' || !responsive.mobile">
@@ -53,7 +53,7 @@
                         <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
                     </div>
                 </div>
-                <div class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-[60px] flex justify-between items-center px-[20px] flex-wrap gap-[10px]">  
+                <div class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-[60px] flex justify-between items-center px-[20px] flex-wrap gap-[10px] pb-[20px]">  
                     <div class="sub-tab-container">
                         <button @click="tab = 'table'" :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table'}]">テーブル</button>              
                         <button @click="tab = 'pie'" :class="['sub-tab-item', { 'selected-sub-tab': tab == 'pie'}]">円グラフ</button>                
