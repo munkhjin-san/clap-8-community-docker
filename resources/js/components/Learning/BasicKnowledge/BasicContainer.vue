@@ -175,7 +175,7 @@
         loading: loading
     })
     const basicStatus = computed(() => {
-        const filtered = props.materials.filter(ob => ob.material_type == '基礎知識')
+        const filtered = props.materials.filter(ob => ob.material_type == '基礎知識' && ob.priority == 1)
         if (filtered.length) {
             return filtered.every(ob => ob.answer?.status == 2)
         }
