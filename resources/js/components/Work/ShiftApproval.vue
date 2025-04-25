@@ -30,7 +30,7 @@
                         :workGroups="workGroups"
                         :loading="loading"
                         customStyle="width: fit-content; left:0; top:40px; max-width: 100%;"
-                        v-model="checkedUsers"
+                        v-model:users="checkedUsers"
                     />
                 </Transition>
             </div>
@@ -136,6 +136,7 @@
     const statuses = ['', '', ' : 申請中', ' : 承認済']
     const { notify, confirm, info } = inject('dialog')
     onMounted(async() => {
+        console.log('usersCheckArray', props.usersCheckArray)
         await fetchWorkGroups()
         const exist = workUsers.value.filter(ob => props.usersCheckArray.includes(ob.id))
         checkedUsers.value = exist.map(ob => ob.id)

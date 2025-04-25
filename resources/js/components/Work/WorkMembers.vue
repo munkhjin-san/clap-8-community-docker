@@ -18,7 +18,7 @@
             <div v-if="searchUsers.length">
                 <div style="padding:0 15px;display:flex;" v-if="byWorkGroups == 0">                                
                     <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
-                        <input @change="selectAll" :checked="searchUsers.length && searchUsers.length == value.length"  name="memberCheckBox" type="checkbox">
+                        <input @change="selectAll"  name="memberCheckBox" type="checkbox">
                         <span class="work-check-mark" style="top: 13px;"></span>
                         <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
                                     
