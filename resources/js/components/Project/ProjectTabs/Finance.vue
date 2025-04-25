@@ -17,6 +17,9 @@
             </div>
         </div>
         <div class="h-[calc(100%-60px)] mt-[15px] overflow-y-auto">
+            <div class="mb-[20px] flex justify-end px-[20px]">
+                <LoaderButton @triggered="viewTotalFinance" style="margin: 0;" content="集計" :loading="false"/>
+            </div>
             <table>
                 <thead>
                     <tr>
@@ -65,34 +68,26 @@
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(data.sales)}}</div>
-                                    <div v-if="data.sales && yearlyPlanData[0].sales && data.sales - yearlyPlanData[0].sales !== 0" class="text-[11px] whitespace-nowrap ml-[5px]" :style="{
-                                        color: data.sales - yearlyPlanData[0].sales < 0 ? 'tomato' : 'green'
-                                    }">{{ `${data.sales - yearlyPlanData[0].sales > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.sales - (yearlyPlanData[0].sales || 0) )}` }}</div>
+                                    <DeltaNumbers type="sales" :actual="data.sales" :planned="yearlyPlanData[0].sales"/>
                                 </div>
                                 
                             </td>
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(data.expense)}}</div>
-                                    <div v-if="data.expense && yearlyPlanData[0].expense && data.expense - yearlyPlanData[0].expense !== 0" class="text-[11px] whitespace-nowrap ml-[5px]" :style="{
-                                        color: data.expense - yearlyPlanData[0].expense > 0 ? 'tomato' : 'green'
-                                    }">{{ `${data.expense - yearlyPlanData[0].expense > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.expense - (yearlyPlanData[0].expense || 0) )}` }}</div>
+                                    <DeltaNumbers type="expense" :actual="data.expense" :planned="yearlyPlanData[0].expense"/>
                                 </div>
                             </td>
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(data.profit) }}</div>
-                                    <div class="text-[11px] whitespace-nowrap ml-[5px]" v-if="data.profit && yearlyPlanData[0].profit && data.profit - yearlyPlanData[0].profit !== 0" :style="{
-                                        color: data.profit - yearlyPlanData[0].profit > 0 ? 'green' : 'tomato'
-                                    }">{{ `${data.profit - yearlyPlanData[0].profit > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.profit - (yearlyPlanData[0].profit || 0) )}` }}</div>
+                                    <DeltaNumbers type="profit" :actual="data.profit" :planned="yearlyPlanData[0].profit"/>
                                 </div>    
                             </td>
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">利益率</span>{{ Number.isNaN(data.profit_rate) ? '-' : `${data.profit_rate}%` }}</div>
-                                    <div class="text-[11px] whitespace-nowrap ml-[5px]" v-if="data.profit_rate && yearlyPlanData[0].profit_rate && data.profit_rate - yearlyPlanData[0].profit_rate !== 0" :style="{
-                                        color: data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? 'green' : 'tomato'
-                                    }">{{ `${data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? ' ↑ ' : ' ↓ '}${(data.profit_rate - (yearlyPlanData[0].profit_rate || 0)).toFixed(2)}` }}%</div>
+                                    <DeltaNumbers type="profit_rate" :actual="data.profit_rate" :planned="yearlyPlanData[0].profit_rate"/>
                                 </div>
                             </td>
                         </tr>
@@ -109,34 +104,26 @@
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(data.sales)}}</div>
-                                    <div v-if="data.sales && yearlyPlanData[0].sales && data.sales - yearlyPlanData[0].sales !== 0" class="text-[11px] whitespace-nowrap ml-[5px]" :style="{
-                                        color: data.sales - yearlyPlanData[0].sales < 0 ? 'tomato' : 'green'
-                                    }">{{ `${data.sales - yearlyPlanData[0].sales > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.sales - (yearlyPlanData[0].sales || 0) )}` }}</div>
+                                    <DeltaNumbers type="sales" :actual="data.sales" :planned="yearlyPlanData[0].sales"/>
                                 </div>
                                 
                             </td>
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(data.expense)}}</div>
-                                    <div v-if="data.expense && yearlyPlanData[0].expense && data.expense - yearlyPlanData[0].expense !== 0" class="text-[11px] whitespace-nowrap ml-[5px]" :style="{
-                                        color: data.expense - yearlyPlanData[0].expense > 0 ? 'tomato' : 'green'
-                                    }">{{ `${data.expense - yearlyPlanData[0].expense > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.expense - (yearlyPlanData[0].expense || 0) )}` }}</div>
+                                    <DeltaNumbers type="expense" :actual="data.expense" :planned="yearlyPlanData[0].expense"/>
                                 </div>
                             </td>
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(data.profit) }}</div>
-                                    <div class="text-[11px] whitespace-nowrap ml-[5px]" v-if="data.profit && yearlyPlanData[0].profit && data.profit - yearlyPlanData[0].profit !== 0" :style="{
-                                        color: data.profit - yearlyPlanData[0].profit > 0 ? 'green' : 'tomato'
-                                    }">{{ `${data.profit - yearlyPlanData[0].profit > 0 ? ' ↑ ' : ' ↓ '}${amountOfMoneyParser(data.profit - (yearlyPlanData[0].profit || 0) )}` }}</div>
+                                    <DeltaNumbers type="profit" :actual="data.profit" :planned="yearlyPlanData[0].profit"/>
                                 </div>    
                             </td>
                             <td>
                                 <div class="flex items-center gap-[5px]">
                                     <div class="inner-col"><span class="mobile">利益率</span>{{ Number.isNaN(data.profit_rate) ? '-' : `${data.profit_rate}%` }}</div>
-                                    <div class="text-[11px] whitespace-nowrap ml-[5px]" v-if="data.profit_rate && yearlyPlanData[0].profit_rate && data.profit_rate - yearlyPlanData[0].profit_rate !== 0" :style="{
-                                        color: data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? 'green' : 'tomato'
-                                    }">{{ `${data.profit_rate - yearlyPlanData[0].profit_rate > 0 ? ' ↑ ' : ' ↓ '}${(data.profit_rate - (yearlyPlanData[0].profit_rate || 0)).toFixed(2)}` }}%</div>
+                                    <DeltaNumbers type="profit_rate" :actual="data.profit_rate" :planned="yearlyPlanData[0].profit_rate"/>
                                 </div>
                             </td>
                         </tr>
@@ -149,9 +136,6 @@
                     </template>
                 </tbody>
             </table>
-            <div class="my-[20px] flex justify-end px-[20px]">
-                <LoaderButton @triggered="viewTotalFinance" style="margin: 0;" content="事業部門総計" :loading="false"/>
-            </div>
             
         </div>
     </div>
@@ -168,6 +152,7 @@ import { amountOfMoneyParser } from '@/utils/tools';
 import CellLoader from './Finance/CellLoader.vue';
 import { useRoute } from 'vue-router';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
+import DeltaNumbers from './Finance/DeltaNumbers.vue';
 const props = defineProps<{
     selectedProject: Project;
     userList: any;

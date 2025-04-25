@@ -5,7 +5,7 @@
             <div @click.stop="openMonthPicker" id="activateButton" class="g-y-pick">{{ formatDate }}</div>
             <div></div>            
         </div>
-        <div id="taskYearPicker" class="month-grid" v-if="menu.id == uniqueId && menu.name == 'taskYearPicker'" :style="{right : right ? right : 'auto'}">
+        <div id="taskYearPicker" class="month-grid" ref="menuRef" v-if="menu.id == uniqueId && menu.name == 'taskYearPicker'">
             <div class="grid-container">
                 <div @click.stop="decreaseYear" class="grid-item grid-picker">
                     <svg version="1.1" width="13" height="13" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
@@ -31,11 +31,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, } from 'vue'   
+import { computed, onMounted, ref, useTemplateRef, } from 'vue'   
 import { useMenuStore } from "@/store/menu";
 import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
     const props = defineProps<{
-        right: string;
+        right?: string;
+        left?: string;
     }>()
     
     const emit = defineEmits<{
@@ -48,6 +49,8 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
     const uniqueId = ref(Math.floor(100000 + Math.random() * 900000))
 
     const menu = useMenuStore()
+
+    const menuRef = useTemplateRef('menuRef')
 
     const yearList = computed(() => {
         const year = DateTime.now().year
@@ -73,6 +76,10 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
             return
         }
         menu.setMenu( { name: 'taskYearPicker', id: uniqueId.value})
+        setTimeout(() => {
+            align()
+        }, 0) 
+
     }
     const setYear = (y: number) => {
         year.value = y
@@ -84,5 +91,35 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
         menu.close()
         emit('setDate', {year: Number(year.value), month: m as MonthNumbers, select: true})
 
+    }
+    const align = () => {
+        if(menuRef.value){
+            const rect = menuRef.value.getBoundingClientRect();
+            const windowWidth = window.innerWidth;
+            console.log('menuRef',rect)
+            if (rect.left < 0) {
+                // If overflowing left, ignore right prop and set left to 0
+                console.log('left', rect.left)
+                menuRef.value.style.left = '0px';
+                menuRef.value.style.right = 'auto';
+            } else {
+                // Check if overflowing on the right
+                if (rect.right > windowWidth) {
+                    // Set right to 0 and left to auto
+                    menuRef.value.style.right = '0px';
+                    menuRef.value.style.left = 'auto';
+                } else {
+                    // Use props if provided, otherwise default to right: 0
+                    if (props.left) {
+                        menuRef.value.style.left = props.left;
+                        menuRef.value.style.right = 'auto';
+                    } else {
+                        menuRef.value.style.right = props.right || '0px';
+                        menuRef.value.style.left = 'auto';
+                    }
+                }
+            }
+
+        }
     }
 </script>

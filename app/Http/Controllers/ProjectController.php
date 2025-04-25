@@ -20,6 +20,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BoardController;
@@ -30,6 +31,7 @@ use Maatwebsite\Excel\Facades\Excel;
 use Google_Client;
 use Google_Service_Sheets;
 use Google\Service\Exception as GoogleServiceException;
+use App\Http\Requests\FinanceRequest;
 class ProjectController extends Controller
 {
     //
@@ -383,7 +385,7 @@ class ProjectController extends Controller
         $evaluations = EvaluationRecord::where('year', $request->year)
         ->where('which_half', $request->which_half)
         ->where('user_id', $request->user_id)
-        ->with('mentor')->get();
+        ->with(['mentor', 'checklist'])->get();
         return response()->json($evaluations);
     }
     public function check_evaluation_for_user_in_span(Request $request) {
@@ -1605,13 +1607,13 @@ class ProjectController extends Controller
         
         foreach($projectsData as $project){
             $planData = [];
-            $totalSales = (int) $project[$plan_sales_index_1] + (int) $project[$plan_sales_index_2];
-            $totalExpense = (int) $project[$plan_expense_index_1] + (int) $project[$plan_expense_index_2] + (int) $project[$plan_expense_index_3] + (int) $project[$plan_expense_index_4] + (int) $project[$plan_expense_index_5];
+            $totalSales = round((float) $project[$plan_sales_index_1] + (float) $project[$plan_sales_index_2], 0, PHP_ROUND_HALF_UP);
+            $totalExpense = round((float)  $project[$plan_expense_index_1] + (float) $project[$plan_expense_index_2] + (float) $project[$plan_expense_index_3] + (float) $project[$plan_expense_index_4] + (float) $project[$plan_expense_index_5], 0, PHP_ROUND_HALF_UP);
             $planData = [
                 "sales" => $totalSales,
                 "expense" => $totalExpense,
-                "profit" => (int) $project[$profit_index],
-                "profit_rate" => (int) $project[$profit_rate_index],
+                "profit" => (float) $project[$profit_index],
+                "profit_rate" => (float) $project[$profit_rate_index],
                 "month_target_indexes" => $month_target_indexes
             ];
             $allPlanData[] = $planData;
@@ -1646,14 +1648,14 @@ class ProjectController extends Controller
         $profitResponse = [];
         foreach($profitRecords as $profit){
 
-            $totalSales = (int) $profit['売上高合計']['value'] + (int) $profit['内部売上高合計']['value'];
-            $totalExpense = (int) $profit['販売管理費合計']['value'] + (int) $profit['間接費配賦']['value'];
+            $totalSales = round((float) (float) $profit['売上高合計']['value'] + (float) $profit['内部売上高合計']['value'], 0, PHP_ROUND_HALF_UP);
+            $totalExpense = round((float)  $profit['販売管理費合計']['value'] + (float) $profit['間接費配賦']['value'], 0, PHP_ROUND_HALF_UP);
             $profitData = [
 
                 "sales" => $totalSales,
                 "expense" => $totalExpense,
-                "profit" => (int) $profit['利益']['value'] ?? 0,
-                "profit_rate" => (int) $profit['利益率']['value'] ?? 0,
+                "profit" => (float) $profit['利益']['value'] ?? 0,
+                "profit_rate" => (float) $profit['利益率']['value'] ?? 0,
             ];
             $profitResponse[] = $profitData;
         }
@@ -1672,7 +1674,7 @@ class ProjectController extends Controller
      
         $client = new Google_Client();
         $client->setApplicationName('Google Sheets API');
-        $client->setScopes([Google_Service_Sheets::SPREADSHEETS_READONLY]);
+        $client->setScopes(['https://www.googleapis.com/auth/spreadsheets.readonly']);
         $client->setAuthConfig(storage_path('app/spread_json_key/gen-lang-client-0333646800-e777adab076d.json')); // Path to your Service Account credentials file
         $client->setAccessType('offline');
         $service = new Google_Service_Sheets($client);
@@ -1701,9 +1703,10 @@ class ProjectController extends Controller
         $settlementResponse = [];
 
         foreach($settlement_for_project as $settlement){
-            $totalExpense = (float) str_replace(',', '', $settlement[$settlement_expense_index]) + (float) str_replace(',', '', $settlement[$settlement_additional_expense_index]);
+            $totalExpense = round((float)  str_replace(',', '', $settlement[$settlement_expense_index]) + (float) str_replace(',', '', $settlement[$settlement_additional_expense_index]), 0, PHP_ROUND_HALF_UP);
+            $totalSales = round((float)  str_replace(',', '', $settlement[$settlement_sales_index]), 0, PHP_ROUND_HALF_UP);
             $settlementData = [
-                'sales' => (float) str_replace(',', '', $settlement[$settlement_sales_index]),
+                'sales' => $totalSales,
                 'expense' => $totalExpense ?? 0,
                 'profit' => (float) str_replace(',', '', $settlement[$settlement_profit_index]),
                 'profit_rate' => (float) str_replace('%', '', $settlement[$settlement_profit_rate_index]),
@@ -1831,27 +1834,30 @@ class ProjectController extends Controller
         }, $dispatchRecords);
         return response()->json($dispatchClean);
     }
-    public function get_total_finance(Request $request){
-        //validation
-        $request->validate([
-            "projects" => "required|array",
-        ]);
+    private function profitCollector(Carbon $startInstance, Carbon $endInstance, string $offset, string $project_names_str)
+    {
+        $startDate = $startInstance->copy()->startOfMonth()->toDateString();
+        $endDate = $endInstance->copy()->endOfMonth()->toDateString();
 
-        //prepration
-        $project_ids = $request->projects;
-        $projects = ProjectRecord::whereIn('id', $project_ids)->get();
-        $project_names = $projects->pluck('name')->toArray();
-        $months_array = [1,2,3,4,5,6,7,8,9,10,11,12];
-        $year = $request->year;     
-        $this_month = $request->month;  
-        $project_names_str = implode('","', $project_names); 
+        $queryParamsSpecs = [
+            'app' => 1068,
+            "query" => "部門 in (\"{$project_names_str}\") and 日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\" limit 500 offset {$offset}",
+            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付'],
+            "totalCount" => "true",
+        ];
+        
+        $queryStringSpecs = http_build_query($queryParamsSpecs);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
+        $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $profitsData = $profits->json();
+        return $profitsData;
 
-
-        //get settlement data
+    }
+    private function settlementCollector(Carbon $startInstance, Carbon $endInstance){
         $client = new Google_Client();
         $client->setApplicationName('Google Sheets API');
-        $client->setScopes([Google_Service_Sheets::SPREADSHEETS_READONLY]);
-        $client->setAuthConfig(storage_path('app/spread_json_key/gen-lang-client-0333646800-e777adab076d.json')); // Path to your Service Account credentials file
+        $client->setScopes(['https://www.googleapis.com/auth/spreadsheets.readonly']);
+        $client->setAuthConfig(storage_path('app/spread_json_key/gen-lang-client-0333646800-e777adab076d.json')); 
         $client->setAccessType('offline');
         $service = new Google_Service_Sheets($client);
         $sheet_id = '1HTacPGjBDtg3KAK0hToBeJW__fqCp9iH01a38Ihjet8';
@@ -1859,11 +1865,14 @@ class ProjectController extends Controller
         $sheets = $spreadsheet->getSheets();
 
         $needed_ranges = [];
-        foreach($months_array as $month){
-            $tabName = sprintf('%04d%02d', $year, $month);
+        
+        $sDate = $startInstance->copy();
+        $eDate = $endInstance->copy();
+        while ($sDate->lessThanOrEqualTo($eDate)) {
+            $tabName = sprintf('%04d%02d', $sDate->year, $sDate->month);
             $needed_ranges[] = $tabName;
-        }   
-
+            $sDate->addMonth();
+        }
         $ranges = [];
         foreach ($sheets as $sheet) {
             if(in_array($sheet['properties']['title'], $needed_ranges)){
@@ -1873,54 +1882,111 @@ class ProjectController extends Controller
         
         $response = $service->spreadsheets_values->batchGet($sheet_id, ['ranges' => $ranges]);
         $batchSettlementData = [];
+
         foreach ($response->getValueRanges() as $index => $range) {
             $batchSettlementData[$ranges[$index]] = $range->getValues();
         }
-        //get settlement data
-
-
-
-
-
-
-        //get profit data
-        $dateInstance = Carbon::createFromDate($year, $this_month, 1);
-        $startOfYear = $dateInstance->startOfYear()->toDateString();
-        $endOfYear = $dateInstance->endOfYear()->toDateString();
-
-        $queryParamsSpecs = [
-            'app' => 1068,
-            "query" => "部門 in (\"{$project_names_str}\") and 日付 >= \"{$startOfYear}\" and 日付 <= \"{$endOfYear}\"",
-            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付'],
-        ];
-        
-        $queryStringSpecs = http_build_query($queryParamsSpecs);
-        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
-        $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
-        $profitsData = $profits->json();
-        $profitRecords = $profitsData['records'] ?? [];
-        $profitDataClean = array_map(function ($record) {
+        return $batchSettlementData;
+    }
+    private function kintone_record_cleaner($records){
+        $cleaned = array_map(function ($record) {
             $spec = [];
             foreach ($record as $key => $value) {
                 $spec[$key] = $value['value'] ?? '';
             }
             return $spec;
-        }, $profitRecords);
-        $profitDataCollection = collect($profitDataClean);
-        //get profit data
+        }, $records);
+        return $cleaned;
+    }
+    public function get_total_finance(FinanceRequest $request): JsonResponse{
 
+        $interval = $request->getInterval();
+        $project_ids = $request->getProjectIds();
 
+        $startInstance = Carbon::createFromDate($interval['startYear'], $interval['startMonth'], 1);
+        $endInstance = Carbon::createFromDate($interval['endYear'], $interval['endMonth'], 1);
+        $durationByMonth = (int) $startInstance->diffInMonths($endInstance, );
         
+        if($durationByMonth < 0){
+            return response()->json([
+                'error' => true,
+                'message' => '開始日付は終了日付より前で設定してください。',
+            ], 422);
+        }
+        if($durationByMonth > 12){
+            return response()->json([
+                'error' => true,
+                'message' => '最大12ヶ月まで選択できます。',
+            ], 422);
+        }        
+        
+        $projects = ProjectRecord::whereIn('id', $project_ids)->get();
+        $project_names = $projects->pluck('name')->toArray();   
+
+        $project_names_str = implode('","', $project_names); 
+
+
+        //get settlement data
+        $batchSettlementData = $this->settlementCollector($startInstance, $endInstance);
+        //get settlement data
+
+
+        $profitDataCollection = collect();
+        $firstLoad = $this->profitCollector($startInstance, $endInstance, '0', $project_names_str);
+        $totalCount = $firstLoad['totalCount'] ?? 0;
+        $fisrtData = $firstLoad['records'] ?? [];
+        $firstDataClean = $this->kintone_record_cleaner($fisrtData);
+
+        if(count($firstDataClean)){
+            $profitDataCollection = collect($firstDataClean);
+        }
+        if($totalCount > 500){
+            $offset = 500;
+            while($offset < $totalCount){
+                $profitData = $this->profitCollector($startInstance, $endInstance, $offset, $project_names_str);
+                $totalCount = $profitData['totalCount'] ?? 0;
+                $profitRecords = $profitData['records'] ?? [];
+                if(count($profitRecords)){
+                    $profitRecordsClean = $this->kintone_record_cleaner($profitRecords);
+                    if(count($profitRecordsClean)){
+                        $profitDataCollection->push(...$profitRecordsClean);
+                    }
+                }
+                if($offset > 10000){
+                    break;
+                }
+                $offset += 500;
+            }
+        }        
         //get yearly plan data
-        $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
-        $file_exists = file_exists($file_path);
-        $file = Excel::toCollection(new YearlyPlanImport, $file_path);
-        $yearlyPlanData = $file[0];
-        $yearlyPlanData->shift()->toArray();
-        $month_headers = $yearlyPlanData->shift()->toArray();
-        $sub_headers = $yearlyPlanData->shift()->toArray();  
-        //get yearly plan data 
-        
+
+        // Calculate years between startInstance and endInstance
+        $startYear = $startInstance->year;
+        $endYear = $endInstance->year;
+        $yearlyPlanData = [];
+        $month_headers = [];
+        $sub_headers = [];
+        // Create an array of years
+        for ($year = $startYear; $year <= $endYear; $year++) {
+            $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
+            $file_exists = file_exists($file_path);
+            if($file_exists){              
+            
+                $file = Excel::toCollection(new YearlyPlanImport, $file_path);
+                $yearlyPlanData[$year] = $file[0];
+                $yearlyPlanData[$year]->shift()->toArray();
+                $month_headers = $yearlyPlanData[$year]->shift()->toArray();
+                $sub_headers = $yearlyPlanData[$year]->shift()->toArray();  
+            }else{
+                $yearlyPlanData[$year] = collect();
+                $month_headers[$year] = [];
+                $sub_headers[$year] = [];
+
+            }
+            
+        }    
+
+        //get yearly plan data        
         
         $plan_res_data = [];
         $default_data = [
@@ -1929,17 +1995,36 @@ class ProjectController extends Controller
             "profit" => 0,
             "profit_rate" => 0,
         ];
-        $this_month_total = [
-            "yearly_plan" => $default_data,
-            "profit" => $default_data,
-            "settlement" => $default_data,
+
+        $defaultSumData = [
+            'yearly_plan' => [
+                'sales' => 0,
+                'expense' => 0,
+            ],
+            'profit' => [
+                'sales' => 0,
+                'expense' => 0,
+            ],
+            'settlement' => [
+                'sales' => 0,
+                'expense' => 0,
+            ],
         ];
+        $sumData = [];
+        $summarizeData = $defaultSumData;
 
         //process each data for each project
         foreach($project_names as $project_name){
-            $projectsData = $yearlyPlanData->first(fn($row) => $row[1] === $project_name);
-            foreach($months_array as $month){
-
+            
+            $stDate = $startInstance->copy();
+            $etDate = $endInstance->copy();
+            $sumData[$project_name] = $defaultSumData;
+            // foreach($months_array as $month){
+            while ($stDate->lessThanOrEqualTo($etDate)) {
+                $month = $stDate->month;
+                $year = $stDate->year;
+                $settle_tab_index = sprintf('%04d%02d', $year, $month);
+                $projectsData = $yearlyPlanData[$year]->first(fn($row) => $row[1] === $project_name);
                 if($projectsData){
                     $month_target_indexes = [];
                     $month_found = false;
@@ -1970,15 +2055,21 @@ class ProjectController extends Controller
 
                     $profit_index = array_search('利益', $sub_headers_for_target_month);
                     $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
-                    $totalSales = (int) $projectsData[$plan_sales_index_1] + (int) $projectsData[$plan_sales_index_2];
-                    $totalExpense = (int) $projectsData[$plan_expense_index_1] + (int) $projectsData[$plan_expense_index_2] + (int) $projectsData[$plan_expense_index_3] + (int) $projectsData[$plan_expense_index_4] + (int) $projectsData[$plan_expense_index_5];
+                    $totalSales = round((float) $projectsData[$plan_sales_index_1] + (float) $projectsData[$plan_sales_index_2], 0, PHP_ROUND_HALF_UP);
+                    $totalExpense = round((float)  $projectsData[$plan_expense_index_1] + (float) $projectsData[$plan_expense_index_2] + (float) $projectsData[$plan_expense_index_3] + (float) $projectsData[$plan_expense_index_4] + (float) $projectsData[$plan_expense_index_5], 0, PHP_ROUND_HALF_UP);
                     $planData = [
                         "sales" => $totalSales,
                         "expense" => $totalExpense,
-                        "profit" => (int) $projectsData[$profit_index],
-                        "profit_rate" => (int) $projectsData[$profit_rate_index],
+                        "profit" => (float) $projectsData[$profit_index],
+                        "profit_rate" => (float) $projectsData[$profit_rate_index],
                     ];
                     $plan_res_data[$project_name][$month]['yearly_plan'] = $planData;
+
+                    
+                    $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
+                    $sumData[$project_name]['yearly_plan']['expense'] = ($sumData[$project_name]['yearly_plan']['expense'] ?? 0) + $totalExpense;
+                    $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
+                    $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
                 }
                 else{
                     $plan_res_data[$project_name][$month]['yearly_plan']  = $default_data;
@@ -1996,13 +2087,19 @@ class ProjectController extends Controller
                 })
                 ->first();
                 if($profitData){
+                    $totalSales = round((float) (float) $profitData['売上高合計'], 0, PHP_ROUND_HALF_UP);
+                    $totalExpense = round((float)  $profitData['販売管理費合計'] + (float) $profitData['間接費配賦'], 0, PHP_ROUND_HALF_UP);
                     $profitData = [
-                        "sales" => (int) $profitData['売上高合計'],
-                        "expense" => (int) $profitData['販売管理費合計'] + (int) $profitData['間接費配賦'],
-                        "profit" => (int) $profitData['利益'],
-                        "profit_rate" => (int) $profitData['利益率'],
+                        "sales" => $totalSales,
+                        "expense" => $totalExpense,
+                        "profit" => (float) $profitData['利益'],
+                        "profit_rate" => (float) $profitData['利益率'],
                     ];
                     $plan_res_data[$project_name][$month]['profit'] = $profitData;
+                    $sumData[$project_name]['profit']['sales'] = ($sumData[$project_name]['profit']['sales'] ?? 0) + $totalSales;
+                    $sumData[$project_name]['profit']['expense'] = ($sumData[$project_name]['profit']['expense'] ?? 0) + $totalExpense;
+                    $summarizeData['profit']['sales'] = ($summarizeData['profit']['sales'] ?? 0) + $totalSales;
+                    $summarizeData['profit']['expense'] = ($summarizeData['profit']['expense'] ?? 0) + $totalExpense;
                 }
                 else{
                     $plan_res_data[$project_name][$month]['profit'] = $default_data;
@@ -2012,7 +2109,6 @@ class ProjectController extends Controller
 
 
 
-                $settle_tab_index = sprintf('%04d%02d', $year, $month);
                 $settlements = $batchSettlementData[$settle_tab_index] ?? [];
                 if (!empty($settlements )) {
                     $settlement_headers = $settlements[1];
@@ -2027,14 +2123,18 @@ class ProjectController extends Controller
                         $settlement_profit_index = array_search('利益', $settlement_headers);
                         $settlement_profit_rate_index = array_search('利益率', $settlement_headers);                                
  
-            
-                        $totalExpense = (int) str_replace(',', '', $settlementOfProject[$settlement_expense_index]) + (int) str_replace(',', '', $settlementOfProject[$settlement_additional_expense_index]);
+                        $totalSales = round((float) str_replace(',', '', $settlementOfProject[$settlement_sales_index]), 0, PHP_ROUND_HALF_UP);
+                        $totalExpense = round((float) str_replace(',', '', $settlementOfProject[$settlement_expense_index]) + (float) str_replace(',', '', $settlementOfProject[$settlement_additional_expense_index]), 0, PHP_ROUND_HALF_UP);
                         $plan_res_data[$project_name][$month]['settlement']= [
-                            'sales' => (int) str_replace(',', '', $settlementOfProject[$settlement_sales_index]),
+                            'sales' => $totalSales,
                             'expense' => $totalExpense ?? 0,
-                            'profit' => (int) str_replace(',', '', $settlementOfProject[$settlement_profit_index]),
-                            'profit_rate' => (int) str_replace('%', '', $settlementOfProject[$settlement_profit_rate_index]),
+                            'profit' => (float) str_replace(',', '', $settlementOfProject[$settlement_profit_index]),
+                            'profit_rate' => (float) str_replace('%', '', $settlementOfProject[$settlement_profit_rate_index]),
                         ];
+                        $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $totalSales;
+                        $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $totalExpense;
+                        $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
+                        $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
                  
                     }else{
                         $plan_res_data[$project_name][$month]['settlement'] = $default_data;
@@ -2045,20 +2145,7 @@ class ProjectController extends Controller
                     $plan_res_data[$project_name][$month]['settlement'] = $default_data;
                 }
 
-                
-                if($month == $this_month){
-
-                    $this_month_total['yearly_plan']['sales'] += $plan_res_data[$project_name][$month]['yearly_plan']['sales'];
-                    $this_month_total['yearly_plan']['expense'] += $plan_res_data[$project_name][$month]['yearly_plan']['expense'];
-
-                    $this_month_total['profit']['sales'] += $plan_res_data[$project_name][$month]['profit']['sales'];
-                    $this_month_total['profit']['expense'] += $plan_res_data[$project_name][$month]['profit']['expense'];
-
-                    $this_month_total['settlement']['sales'] = $plan_res_data[$project_name][$month]['settlement']['sales'];
-                    $this_month_total['settlement']['expense'] = $plan_res_data[$project_name][$month]['settlement']['expense'];
-                }
-
-
+                $stDate->addMonth();
             }
 
             
@@ -2066,7 +2153,8 @@ class ProjectController extends Controller
 
         $final_data = [
             'plan_res_data' => $plan_res_data,
-            'this_month_total' => $this_month_total
+            'sumData' => $sumData,
+            'summarizeData' => $summarizeData,
         ];
         return response()->json( $final_data);
 

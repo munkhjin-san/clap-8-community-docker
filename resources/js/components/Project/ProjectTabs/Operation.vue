@@ -6,7 +6,7 @@
                 <div v-for="manual in manualData" class="border-[1px] border-solid border-[var(--border-color)] p-[20px]">
                     <div class="mb-[15px] relative">
                         <strong>{{ manual.title }}</strong>
-                        <div class="absolute top-0 right-0 flex" v-if="isManager">
+                        <div class="absolute top-0 right-0 flex" v-if="isManager || isMember">
                             <div title="作業追加" @click="editJob.manual = manual, editJob.job = null" class="w-[25px] min-w-[25px] h-[25px] flex items-center justify-center cursor-pointer hover:bg-[var(--bg3)] rounded-full">
                                 <AddIcon size="13"/>
                             </div>
@@ -27,7 +27,7 @@
                                     <input type="checkbox" v-model="activeRules" class="hidden" :value="rule.id">
                                     <span>{{ rule.job['作業'] }}</span>
                                 </label>
-                                <div class="flex gap-[10px]" v-if="activeRules.includes(rule.id) && isManager">
+                                <div class="flex gap-[10px]" v-if="activeRules.includes(rule.id) && (isManager || isMember)">
                                     <CommandButton :buttons="[
                                         {title: '編集', action: () => { editJob.job = rule; editJob.manual = manual}},
                                         {title: '削除', action: () => { deleteJob(manual.id, rule.id) }},
@@ -67,7 +67,7 @@
             </div>       
         </div>     
     </div>
-    <FloatButton :style="{position: 'fixed', bottom: auth.user?.footer_view && responsive.mobile ? '65px' : '20px'}" @action="createWindow = true" type="plus"/>
+    <FloatButton v-if="isManager || isMember" :style="{position: 'fixed', bottom: auth.user?.footer_view && responsive.mobile ? '65px' : '20px'}" @action="createWindow = true" type="plus"/>
     <ManualCreate v-if="createWindow" @close="(flag) => manualCreateFinish(flag)" :edit-data="editData"/>
     <RuleCreate v-if="editJob.manual" @close="(flag) => ruleCreateFinish(flag)" :edit-data="editJob"/>
 </div>
@@ -177,5 +177,17 @@ const isManager = computed(() => {
     const managerIds = projectManagers.map(manager => manager.id);
     const mergedManagerIds = [ ...managerIds, ...[608, 610]]
     return mergedManagerIds.includes(activeUserId);
+});
+
+const isMember = computed(() => {
+    const activeUserId = auth.activeUser?.id;
+    const projectMembers = props.selectedProject?.members || [];
+    
+    if (!activeUserId) {
+        return false;
+    }
+    
+    const memberIds = projectMembers.map(member => member.id);
+    return memberIds.includes(activeUserId);
 });
 </script>
