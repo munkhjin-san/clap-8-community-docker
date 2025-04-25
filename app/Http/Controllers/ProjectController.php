@@ -672,6 +672,7 @@ class ProjectController extends Controller
         $managinProjectData = $this->members_of_project_managed_by_user($user);
         $selfProjects = $this->projects_participate_by_user($user);
         $projectData = array_merge($managinProjectData, $selfProjects);
+
         if(!count($projectData)){
             return response()->json([]);
         }
@@ -700,6 +701,7 @@ class ProjectController extends Controller
         return response()->json($goals);
     }
     private function goals_fetch_by_users(array $projectData, Carbon $date){
+        $user = $this->active_user();
         $goals = ProjectGoal::where(function ($query) use ($projectData, $date) {
             foreach($projectData as $project){
                 $query->orWhere(function ($subQuery) use ($project, $date) {
@@ -712,7 +714,11 @@ class ProjectController extends Controller
                     });
                 });
             }
-        })->select('id', 'project_id', 'user_id', 'year', 'which_half', 'status')->get();
+        })
+        ->when($user->id == 631 || $user->id == 604, function($q) {
+            $q->orWhere('status', 4);
+        })
+        ->select('id', 'project_id', 'user_id', 'year', 'which_half', 'status')->get();
         return $goals;
     }
     public function get_salary_issue_badge(Request $request){
