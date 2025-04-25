@@ -1612,7 +1612,7 @@ class ProjectController extends Controller
             $planData = [
                 "sales" => $totalSales,
                 "expense" => $totalExpense,
-                "profit" => (float) $project[$profit_index],
+                "profit" => round((float) $project[$profit_index], 0, PHP_ROUND_HALF_UP),
                 "profit_rate" => (float) $project[$profit_rate_index],
                 "month_target_indexes" => $month_target_indexes
             ];
@@ -1654,7 +1654,7 @@ class ProjectController extends Controller
 
                 "sales" => $totalSales,
                 "expense" => $totalExpense,
-                "profit" => (float) $profit['利益']['value'] ?? 0,
+                "profit" => round((float) $profit['利益']['value'], 0, PHP_ROUND_HALF_UP) ?? 0,
                 "profit_rate" => (float) $profit['利益率']['value'] ?? 0,
             ];
             $profitResponse[] = $profitData;
@@ -1708,7 +1708,7 @@ class ProjectController extends Controller
             $settlementData = [
                 'sales' => $totalSales,
                 'expense' => $totalExpense ?? 0,
-                'profit' => (float) str_replace(',', '', $settlement[$settlement_profit_index]),
+                'profit' => round((float) str_replace(',', '', $settlement[$settlement_profit_index]), 0, PHP_ROUND_HALF_UP),
                 'profit_rate' => (float) str_replace('%', '', $settlement[$settlement_profit_rate_index]),
             ];
             $settlementResponse[] = $settlementData;
@@ -2060,7 +2060,7 @@ class ProjectController extends Controller
                     $planData = [
                         "sales" => $totalSales,
                         "expense" => $totalExpense,
-                        "profit" => (float) $projectsData[$profit_index],
+                        "profit" => round((float) $projectsData[$profit_index], 0, PHP_ROUND_HALF_UP),
                         "profit_rate" => (float) $projectsData[$profit_rate_index],
                     ];
                     $plan_res_data[$project_name][$month]['yearly_plan'] = $planData;
@@ -2092,7 +2092,7 @@ class ProjectController extends Controller
                     $profitData = [
                         "sales" => $totalSales,
                         "expense" => $totalExpense,
-                        "profit" => (float) $profitData['利益'],
+                        "profit" => round((float)(float) $profitData['利益'], 0, PHP_ROUND_HALF_UP),
                         "profit_rate" => (float) $profitData['利益率'],
                     ];
                     $plan_res_data[$project_name][$month]['profit'] = $profitData;
@@ -2128,7 +2128,7 @@ class ProjectController extends Controller
                         $plan_res_data[$project_name][$month]['settlement']= [
                             'sales' => $totalSales,
                             'expense' => $totalExpense ?? 0,
-                            'profit' => (float) str_replace(',', '', $settlementOfProject[$settlement_profit_index]),
+                            'profit' => round((float)(float) str_replace(',', '', $settlementOfProject[$settlement_profit_index]), 0, PHP_ROUND_HALF_UP),
                             'profit_rate' => (float) str_replace('%', '', $settlementOfProject[$settlement_profit_rate_index]),
                         ];
                         $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $totalSales;
