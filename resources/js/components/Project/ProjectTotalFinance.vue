@@ -34,7 +34,7 @@
                         </label>
                         <div v-if="selectedManagers.includes(manager.id)" class="project-selector-left">
                             <label class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                                <input type="checkbox" class="custom-f-checkbox" name="project-selector" @change="selectedProjects = managersProjects(manager).map(p => p.id)">
+                                <input type="checkbox" class="custom-f-checkbox" name="project-selector" @change="toggleByManager($event, manager)" :checked="isChecked(manager)">
                                 <span>全て選択</span>
                             </label>
                             <label v-for="project in managersProjects(manager)" class="flex items-center gap-[15px] text-[14px] cursor-pointer">
@@ -429,6 +429,21 @@ const managersProjects = (manager: User) => {
 watch(() => [selectedProjects.value], () => {
     getTotalFinance()
 })
+
+const toggleByManager = (event: Event, manager: User) => {
+    const target = event.target as HTMLInputElement
+    if(target.checked){
+        selectedProjects.value = managersProjects(manager).map(project => project.id)
+    }else{
+        selectedProjects.value = []
+    }
+}
+const isChecked = (manager: User) => {
+    const managerProjectIds = managersProjects(manager).map(project => project.id)
+    return managerProjectIds.length === selectedProjects.value.length && 
+        managerProjectIds.every(id => selectedProjects.value.includes(id)) && 
+        selectedProjects.value.every(id => managerProjectIds.includes(id))
+}
 </script>
 
 <style scoped lang="scss">
