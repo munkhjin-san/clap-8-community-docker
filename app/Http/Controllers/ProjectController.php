@@ -2120,8 +2120,7 @@ class ProjectController extends Controller
                     $settlement_headers = $settlements[1];
                     $settlement_data = array_slice($settlements, 2);
                     $project_index_in_settlement = array_search($project_name, array_column($settlement_data, 1)); 
-
-                    if($project_index_in_settlement){
+                    if($project_index_in_settlement !== false){
                         $settlementOfProject = $settlement_data[$project_index_in_settlement];
                         $settlement_sales_index = array_search('収入', $settlement_headers);
                         $settlement_expense_index = array_search('支出', $settlement_headers);
