@@ -1,291 +1,451 @@
 <template>
-<div class="overlay">
-    <div class="projectModalInner" style="width: 100%;height: 100%;">
-        <div class="projectModalMainHeader !bg-[var(--bg3)]">
-            <p class="ml-[30px]">集計</p>
-            <div class="flex items-center justify-center w-[60px] h-[60px] min-w-[60px] ml-auto cursor-pointer" @click="emit('close')">
-                <CloseIcon size="13"/>
-            </div>
-        </div>
-        <div class="projectModalContainer relative">      
-            <div class="mobile px-[20px] mt-[20px] mb-[5px]">
-                <LoaderButton :loading="false" content="プロジェクト選択" style="margin: 0;" @click.stop="menu.setMenu({parent: 'mb-p-select'})"/>
-            </div>          
-            <div class="projectModalSideMenu" id="mb-p-select" :style="{opacity: responsive.mobile && loader ? '0' : '1'}" v-if="(menu.parent == 'mb-p-select' || !responsive.mobile)">
-                <div class="sub-tab-container sticky top-0 z-[5] bg-[var(--bg3)]">
-                    <button @click="leftTab = 'project'" :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'project'}]">プロジェクト別</button>
-                    <button @click="leftTab = 'manager'" :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'manager'}]">管理者別</button>                  
-                </div> 
-                <div v-if="leftTab == 'project'" class="project-selector-left">
-                    <label class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                        <input type="checkbox" class="custom-f-checkbox" name="project-selector" @change="selectAllProjects" :checked="selectedProjects.length === projects.length">
-                        <span>全て選択</span>
-                    </label>
-                    <label v-for="project in projects" class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                        <input type="checkbox" class="custom-f-checkbox" name="project-selector" :value="project.id" v-model="selectedProjects">
-                        <span>{{project.name}}</span>
-                    </label>     
+    <div class="overlay">
+        <div class="projectModalInner" style="width: 100%;height: 100%;">
+            <div class="projectModalMainHeader !bg-[var(--bg3)]">
+                <p class="ml-[30px]">集計</p>
+                <div class="flex items-center justify-center w-[60px] h-[60px] min-w-[60px] ml-auto cursor-pointer"
+                    @click="emit('close')">
+                    <CloseIcon size="13" />
                 </div>
-                <div v-if="leftTab == 'manager'" class="project-selector-left">
-                    <div v-for="manager in managers">
+            </div>
+            <div class="projectModalContainer relative">
+                <div class="mobile px-[20px] mt-[20px] mb-[5px]">
+                    <LoaderButton :loading="false" content="プロジェクト選択" style="margin: 0;"
+                        @click.stop="menu.setMenu({ parent: 'mb-p-select' })" />
+                </div>
+                <div class="projectModalSideMenu" id="mb-p-select"
+                    :style="{ opacity: responsive.mobile && loader ? '0' : '1' }"
+                    v-if="(menu.parent == 'mb-p-select' || !responsive.mobile)">
+                    <div class="sub-tab-container sticky top-0 z-[5] bg-[var(--bg3)]">
+                        <button @click="leftTab = 'project'"
+                            :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'project' }]">プロジェクト別</button>
+                        <button @click="leftTab = 'manager'"
+                            :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'manager' }]">管理者別</button>
+                    </div>
+                    <div v-if="leftTab == 'project'" class="project-selector-left">
                         <label class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                            <input type="checkbox" class="custom-f-checkbox" name="project-selector-by-manager" v-model="selectedManagers" :value="manager.id">
-                            <UserPanel :user="manager" size="30" with-name disable-instant/>
+                            <input type="checkbox" class="custom-f-checkbox" name="project-selector"
+                                @change="selectAllProjects" :checked="selectedProjects.length === projects.length">
+                            <span>全て選択</span>
                         </label>
-                        <div v-if="selectedManagers.includes(manager.id)" class="project-selector-left">
+                        <label v-for="project in projects"
+                            class="flex items-center gap-[15px] text-[14px] cursor-pointer">
+                            <input type="checkbox" class="custom-f-checkbox" name="project-selector" :value="project.id"
+                                v-model="selectedProjects">
+                            <span>{{ project.name }}</span>
+                        </label>
+                    </div>
+                    <div v-if="leftTab == 'manager'" class="project-selector-left">
+                        <div v-for="manager in managers">
                             <label class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                                <input type="checkbox" class="custom-f-checkbox" name="project-selector" @change="toggleByManager($event, manager)" :checked="isChecked(manager)">
-                                <span>全て選択</span>
+                                <input type="checkbox" class="custom-f-checkbox" name="project-selector-by-manager"
+                                    v-model="selectedManagers" :value="manager.id">
+                                <UserPanel :user="manager" size="30" with-name disable-instant />
                             </label>
-                            <label v-for="project in managersProjects(manager)" class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                                <input type="checkbox" class="custom-f-checkbox" name="project-selector" :value="project.id" v-model="selectedProjects">
-                                <span>{{project.name}}</span>
-                            </label>
-                            
+                            <div v-if="selectedManagers.includes(manager.id)" class="project-selector-left">
+                                <label class="flex items-center gap-[15px] text-[14px] cursor-pointer">
+                                    <input type="checkbox" class="custom-f-checkbox" name="project-selector"
+                                        @change="toggleByManager($event, manager)" :checked="isChecked(manager)">
+                                    <span>全て選択</span>
+                                </label>
+                                <label v-for="project in managersProjects(manager)"
+                                    class="flex items-center gap-[15px] text-[14px] cursor-pointer">
+                                    <input type="checkbox" class="custom-f-checkbox" name="project-selector"
+                                        :value="project.id" v-model="selectedProjects">
+                                    <span>{{ project.name }}</span>
+                                </label>
+
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            
-            <div class="projectModalContent relative !overflow-hidden">
-                <div class="cal-month-loader" style="height: 100%; top: 0;" v-if="loader">
-                    <div id="loaderMini">
-                        <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+
+                <div class="projectModalContent relative !overflow-hidden">
+                    <div class="cal-month-loader" style="height: 100%; top: 0;" v-if="loader">
+                        <div id="loaderMini">
+                            <div class="spinner-mini"
+                                style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                        </div>
                     </div>
-                </div>
-                <div class="overflow-auto h-full">
-                    <div class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-[60px] flex justify-between items-center px-[20px] flex-wrap gap-[10px] pb-[20px]">  
-                        <div class="sub-tab-container">
-                            <button @click="tab = 'table'" :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table'}]">テーブル</button>              
-                            <button @click="tab = 'pie'" :class="['sub-tab-item', { 'selected-sub-tab': tab == 'pie'}]">円グラフ</button>                
-                            <button @click="tab = 'bar'" :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar'}]">棒グラフ</button>                
-                        </div>        
-                        <div class="flex items-center gap-[20px]">
-                            
-                            <MonthPickerNew
-                                v-model:month="interval.startMonth"
-                                v-model:year="interval.startYear"
-                                :right="windowWidth < 425 ? 'auto' : '0'" 
-                                @setDate="setStartDate"
-                            />
-                            <div>~</div>
-                            <MonthPickerNew
-                                v-model:month="interval.endMonth"
-                                v-model:year="interval.endYear"
-                                :right="windowWidth < 425 ? 'auto' : '0'" 
-                                @setDate="setEndDate"
-                            />
-                        </div>        
-                    </div>
-                    <div v-if="tab == 'table'">
-                        <table>
-                            <thead class="!top-[80px]">
-                                <tr>
-                                    <th>プロジェクト名</th>
-                                    <th>区分</th>
-                                    <th>売上</th>
-                                    <th>販管費</th>
-                                    <th>利益</th>
-                                    <th>利益率</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <template v-for="(data, projectName) in financeData" :key="projectName">
+                    <div class="overflow-auto h-full">
+                        <div
+                            class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-[60px] flex justify-between items-center px-[20px] flex-wrap gap-[10px] pb-[20px] after:flex-auto after:content-['']">
+                            <div class="sub-tab-container">
+                                <button @click="tab = 'table'"
+                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table' }]">テーブル</button>
+                                <button @click="tab = 'pie'"
+                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'pie' }]">円グラフ</button>
+                                <button @click="tab = 'bar'"
+                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar' }]">棒グラフ</button>
+                            </div>
+                            <div class="flex items-center gap-[20px] relative w-full justify-end">
+                                <button @click.stop="menu.setMenu({parent: 'intervalPicker'})" class="cursor-pointer">{{ `${interval.startYear}年${interval.startMonth}月  ~  ${interval.endYear}年${interval.endMonth}月` }}</button>
+                                <Transition name="slidePop">
+                                    <div v-if="menu.parent == 'intervalPicker'" id="intervalPicker" class="absolute top-[30px] right-0 shadow-me p-[20px] z-[5] bg-[var(--background-color)]">
+                                        <div class="flex items-center gap-[20px]">
+                                            <CommandButton :buttons="[
+                                                {
+                                                    title: '今月', action: () => {
+                                                        interval.startYear = interval.endYear = DateTime.now().year
+                                                        interval.startMonth = interval.endMonth = DateTime.now().month
+                                                        getTotalFinance()
+                                                    }
+                                                },
+                                                {
+                                                    title: '今年', action: () => {
+                                                        interval.startYear = interval.endYear = DateTime.now().year
+                                                        interval.startMonth = 1
+                                                        interval.endMonth = 12
+                                                        getTotalFinance()
+                                                    }
+                                                }
+                                            ]" />
+                                        </div>
+                                        <div class="flex flex-wrap mt-[20px] items-center w-max">
+                                            <div class="flex items-center">
+                                                <!-- Start Year -->
+                                                <select ref="startYearRef" :value="interval.startYear"
+                                                    class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
+                                                    :class="[{ 'date-color': theme.dark }]">
+                                                    <option
+                                                        v-for="year in years"
+                                                        :key="year.value" :value="year.value">
+                                                        {{ year.label }}
+                                                    </option>
+                                                </select>
+
+                                                <!-- Start Month -->
+                                                <select ref="startMonthRef" :value="interval.startMonth"
+                                                    class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer ml-[-1px]"
+                                                    :class="[{ 'date-color': theme.dark }]">
+                                                    <option v-for="month in months" :key="month.value" :value="month.value">
+                                                        {{ month.label }}
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <div class="mx-[10px]">~</div>
+
+                                            <div class="flex items-center">
+                                                <!-- End Year -->
+                                                <select ref="endYearRef" :value="interval.endYear"
+                                                    class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
+                                                    :class="[{ 'date-color': theme.dark }]">
+                                                    <option
+                                                        v-for="year in years"
+                                                        :key="year.value" :value="year.value">
+                                                        {{ year.label }}
+                                                    </option>
+                                                </select>
+
+                                                <!-- End Month -->
+                                                <select ref="endMonthRef" :value="interval.endMonth"
+                                                    class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer ml-[-1px]"
+                                                    :class="[{ 'date-color': theme.dark }]">
+                                                    <option v-for="month in months" :key="month.value" :value="month.value">
+                                                        {{ month.label }}
+                                                    </option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="mt-[20px]">
+                                            <CommandButton :buttons="[{title: '決定', action: () => setIntervalData()}]"/>
+                                        </div>
+                                    </div>
+                                </Transition>
+                            </div>
+                        </div>
+                        <div v-if="tab == 'table'">
+                            <table>
+                                <thead class="!top-[80px]">
                                     <tr>
-                                        <td class="p-name" :rowspan="3">{{ projectName }}</td>
-                                        <td class="sub-name">年度予算</td>
-                                        <td><div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(data.yearly_plan.sales) }}</div></td>
-                                        <td><div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(data.yearly_plan.expense) }}</div></td>
-                                        <td><div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(data.yearly_plan.sales - data.yearly_plan.expense) }}</div></td>
-                                        <td><div class="inner-col"><span class="mobile">利益率</span>{{ percentizer(data.yearly_plan).display }}</div></td>
+                                        <th>プロジェクト名</th>
+                                        <th>区分</th>
+                                        <th>売上</th>
+                                        <th>販管費</th>
+                                        <th>利益</th>
+                                        <th>利益率</th>
                                     </tr>
-                                    <tr>
-                                        
+                                </thead>
+                                <tbody>
+                                    <template v-for="(data, projectName) in financeData" :key="projectName">
+                                        <tr>
+                                            <td class="p-name" :rowspan="3">{{ projectName }}</td>
+                                            <td class="sub-name">年度予算</td>
+                                            <td>
+                                                <div class="inner-col"><span class="mobile">売上</span>{{
+                                                    amountOfMoneyParser(data.yearly_plan.sales) }}</div>
+                                            </td>
+                                            <td>
+                                                <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    amountOfMoneyParser(data.yearly_plan.expense) }}</div>
+                                            </td>
+                                            <td>
+                                                <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    amountOfMoneyParser(data.yearly_plan.sales -
+                                                    data.yearly_plan.expense) }}</div>
+                                            </td>
+                                            <td>
+                                                <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                    percentizer(data.yearly_plan).display }}</div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+
+                                            <td class="sub-name">損益計画</td>
+                                            <td>
+                                                <div class="flex items-center gap-[5px]">
+                                                    <div class="inner-col"><span class="mobile">売上</span>{{
+                                                        amountOfMoneyParser(data.profit.sales) }}</div>
+                                                    <DeltaNumbers type="sales" :planned="data.yearly_plan.sales"
+                                                        :actual="data.profit.sales" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex items-center gap-[5px]">
+                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                        amountOfMoneyParser(data.profit.expense) }}</div>
+                                                    <DeltaNumbers type="expense" :planned="data.yearly_plan.expense"
+                                                        :actual="data.profit.expense" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex items-center gap-[5px]">
+                                                    <div class="inner-col"><span class="mobile">利益</span>{{
+                                                        amountOfMoneyParser(data.profit.sales - data.profit.expense) }}
+                                                    </div>
+                                                    <DeltaNumbers type="profit"
+                                                        :planned="data.yearly_plan.sales - data.yearly_plan.expense"
+                                                        :actual="data.profit.sales - data.profit.expense" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex items-center gap-[5px]">
+                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                        percentizer(data.profit).display }}</div>
+                                                    <DeltaNumbers type="profit_rate"
+                                                        :planned="percentizer(data.yearly_plan).value"
+                                                        :actual="percentizer(data.profit).value" />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="sub-name">実績</td>
+                                            <td>
+                                                <div class="flex items-center gap-[5px]">
+                                                    <div class="inner-col"><span class="mobile">売上</span>{{
+                                                        amountOfMoneyParser(data.settlement.sales) }}</div>
+                                                    <DeltaNumbers type="sales" :planned="data.yearly_plan.sales"
+                                                        :actual="data.settlement.sales" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex items-center gap-[5px]">
+                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                        amountOfMoneyParser(data.settlement.expense) }}</div>
+                                                    <DeltaNumbers type="expense" :planned="data.yearly_plan.expense"
+                                                        :actual="data.settlement.expense" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex items-center gap-[5px]">
+                                                    <div class="inner-col"><span class="mobile">利益</span>{{
+                                                        amountOfMoneyParser(data.settlement.sales -
+                                                        data.settlement.expense) }}</div>
+                                                    <DeltaNumbers type="profit"
+                                                        :planned="data.yearly_plan.sales - data.yearly_plan.expense"
+                                                        :actual="data.settlement.sales - data.settlement.expense" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex items-center gap-[5px]">
+                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                        percentizer(data.settlement).display }}</div>
+                                                    <DeltaNumbers type="profit_rate"
+                                                        :planned="percentizer(data.yearly_plan).value"
+                                                        :actual="percentizer(data.settlement).value" />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                    <tr class="bg-[var(--bg3)]">
+                                        <td class="p-name" rowspan="3">集計</td>
+                                        <td class="sub-name">年度予算</td>
+                                        <td>
+                                            <div class="flex items-center gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">売上</span>{{
+                                                    amountOfMoneyParser(summarizeData.yearly_plan.sales)
+                                                    }}</div>
+                                                <DeltaNumbers type="sales" :planned="summarizeData.yearly_plan.sales"
+                                                    :actual="summarizeData.yearly_plan.sales" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="flex items-center gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    amountOfMoneyParser(summarizeData.yearly_plan.expense) }}</div>
+                                                <DeltaNumbers type="expense"
+                                                    :planned="summarizeData.yearly_plan.expense"
+                                                    :actual="summarizeData.yearly_plan.expense" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="flex items-center gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    amountOfMoneyParser(summarizeData.yearly_plan.sales
+                                                    - summarizeData.yearly_plan.expense) }}</div>
+                                                <DeltaNumbers type="profit"
+                                                    :planned="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense"
+                                                    :actual="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="flex items-center gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                    percentizer(summarizeData.yearly_plan).display }}
+                                                </div>
+                                                <DeltaNumbers type="profit_rate"
+                                                    :planned="percentizer(summarizeData.yearly_plan).value"
+                                                    :actual="percentizer(summarizeData.yearly_plan).value" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="bg-[var(--bg3)]">
                                         <td class="sub-name">損益計画</td>
                                         <td>
                                             <div class="flex items-center gap-[5px]">
-                                                <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(data.profit.sales) }}</div>
-                                                <DeltaNumbers type="sales" :planned="data.yearly_plan.sales" :actual="data.profit.sales" />
+                                                <div class="inner-col"><span class="mobile">売上</span>{{
+                                                    amountOfMoneyParser(summarizeData.profit.sales) }}
+                                                </div>
+                                                <DeltaNumbers type="sales" :planned="summarizeData.yearly_plan.sales"
+                                                    :actual="summarizeData.profit.sales" />
                                             </div>
                                         </td>
                                         <td>
                                             <div class="flex items-center gap-[5px]">
-                                                <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(data.profit.expense) }}</div>
-                                                <DeltaNumbers type="expense" :planned="data.yearly_plan.expense" :actual="data.profit.expense" />
+                                                <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    amountOfMoneyParser(summarizeData.profit.expense)
+                                                    }}</div>
+                                                <DeltaNumbers type="expense"
+                                                    :planned="summarizeData.yearly_plan.expense"
+                                                    :actual="summarizeData.profit.expense" />
                                             </div>
                                         </td>
                                         <td>
-                                            <div class="flex items-center gap-[5px]">
-                                                <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(data.profit.sales - data.profit.expense) }}</div>
-                                                <DeltaNumbers type="profit" :planned="data.yearly_plan.sales - data.yearly_plan.expense" :actual="data.profit.sales - data.profit.expense" />
+                                            <div class="flex items gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    amountOfMoneyParser(summarizeData.profit.sales -
+                                                    summarizeData.profit.expense) }}</div>
+                                                <DeltaNumbers type="profit"
+                                                    :planned="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense"
+                                                    :actual="summarizeData.profit.sales - summarizeData.profit.expense" />
                                             </div>
                                         </td>
                                         <td>
-                                            <div class="flex items-center gap-[5px]">
-                                                <div class="inner-col"><span class="mobile">利益率</span>{{ percentizer(data.profit).display }}</div>
-                                                <DeltaNumbers type="profit_rate" :planned="percentizer(data.yearly_plan).value" :actual="percentizer(data.profit).value" />
-                                            </div>
-                                        </td>
-                                    </tr>                                
-                                    <tr>
-                                        <td class="sub-name">実績</td>
-                                        <td>
-                                            <div class="flex items-center gap-[5px]">
-                                                <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(data.settlement.sales) }}</div>
-                                                <DeltaNumbers type="sales" :planned="data.yearly_plan.sales" :actual="data.settlement.sales" />
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="flex items-center gap-[5px]">
-                                                <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(data.settlement.expense) }}</div>
-                                                <DeltaNumbers type="expense" :planned="data.yearly_plan.expense" :actual="data.settlement.expense" />
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="flex items-center gap-[5px]">
-                                                <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(data.settlement.sales - data.settlement.expense) }}</div>
-                                                <DeltaNumbers type="profit" :planned="data.yearly_plan.sales - data.yearly_plan.expense" :actual="data.settlement.sales - data.settlement.expense" />
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="flex items-center gap-[5px]">
-                                                <div class="inner-col"><span class="mobile">利益率</span>{{ percentizer(data.settlement).display }}</div>
-                                                <DeltaNumbers type="profit_rate" :planned="percentizer(data.yearly_plan).value" :actual="percentizer(data.settlement).value" />
+                                            <div class="flex items gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                    percentizer(summarizeData.profit).display }}</div>
+                                                <DeltaNumbers type="profit_rate"
+                                                    :planned="percentizer(summarizeData.yearly_plan).value"
+                                                    :actual="percentizer(summarizeData.profit).value" />
                                             </div>
                                         </td>
                                     </tr>
-                                </template>
-                                <tr class="bg-[var(--bg3)]">
-                                    <td class="p-name" rowspan="3">集計</td>
-                                    <td class="sub-name">年度予算</td>
-                                    <td>
-                                        <div class="flex items-center gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(summarizeData.yearly_plan.sales) }}</div>
-                                            <DeltaNumbers type="sales" :planned="summarizeData.yearly_plan.sales" :actual="summarizeData.yearly_plan.sales" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items-center gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(summarizeData.yearly_plan.expense) }}</div>
-                                            <DeltaNumbers type="expense" :planned="summarizeData.yearly_plan.expense" :actual="summarizeData.yearly_plan.expense" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items-center gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense) }}</div>
-                                            <DeltaNumbers type="profit" :planned="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense" :actual="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items-center gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">利益率</span>{{ percentizer(summarizeData.yearly_plan).display }}</div>
-                                            <DeltaNumbers type="profit_rate" :planned="percentizer(summarizeData.yearly_plan).value" :actual="percentizer(summarizeData.yearly_plan).value" />
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr class="bg-[var(--bg3)]">
-                                    <td class="sub-name">損益計画</td>
-                                    <td>
-                                        <div class="flex items-center gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(summarizeData.profit.sales) }}</div>
-                                            <DeltaNumbers type="sales" :planned="summarizeData.yearly_plan.sales" :actual="summarizeData.profit.sales" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items-center gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(summarizeData.profit.expense) }}</div>
-                                            <DeltaNumbers type="expense" :planned="summarizeData.yearly_plan.expense" :actual="summarizeData.profit.expense" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(summarizeData.profit.sales - summarizeData.profit.expense) }}</div>
-                                            <DeltaNumbers type="profit" :planned="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense" :actual="summarizeData.profit.sales - summarizeData.profit.expense" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">利益率</span>{{ percentizer(summarizeData.profit).display }}</div>
-                                            <DeltaNumbers type="profit_rate" :planned="percentizer(summarizeData.yearly_plan).value" :actual="percentizer(summarizeData.profit).value" />
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr class="bg-[var(--bg3)]">
-                                    <td class="sub-name">実績</td>
-                                    <td>
-                                        <div class="flex items gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(summarizeData.settlement.sales) }}</div>
-                                            <DeltaNumbers type="sales" :planned="summarizeData.yearly_plan.sales" :actual="summarizeData.settlement.sales" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(summarizeData.settlement.expense) }}</div>
-                                            <DeltaNumbers type="expense" :planned="summarizeData.yearly_plan.expense" :actual="summarizeData.settlement.expense" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(summarizeData.settlement.sales - summarizeData.settlement.expense) }}</div>
-                                            <DeltaNumbers type="profit" :planned="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense" :actual="summarizeData.settlement.sales - summarizeData.settlement.expense" />
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="flex items gap-[5px]">
-                                            <div class="inner-col"><span class="mobile">利益率</span>{{ percentizer(summarizeData.settlement).display }}</div>
-                                            <DeltaNumbers type="profit_rate" :planned="percentizer(summarizeData.yearly_plan).value" :actual="percentizer(summarizeData.settlement).value" />
-                                        </div>
-                                    </td>
-                                </tr>
+                                    <tr class="bg-[var(--bg3)]">
+                                        <td class="sub-name">実績</td>
+                                        <td>
+                                            <div class="flex items gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">売上</span>{{
+                                                    amountOfMoneyParser(summarizeData.settlement.sales)
+                                                    }}</div>
+                                                <DeltaNumbers type="sales" :planned="summarizeData.yearly_plan.sales"
+                                                    :actual="summarizeData.settlement.sales" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="flex items gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    amountOfMoneyParser(summarizeData.settlement.expense) }}</div>
+                                                <DeltaNumbers type="expense"
+                                                    :planned="summarizeData.yearly_plan.expense"
+                                                    :actual="summarizeData.settlement.expense" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="flex items gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    amountOfMoneyParser(summarizeData.settlement.sales -
+                                                    summarizeData.settlement.expense) }}</div>
+                                                <DeltaNumbers type="profit"
+                                                    :planned="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense"
+                                                    :actual="summarizeData.settlement.sales - summarizeData.settlement.expense" />
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="flex items gap-[5px]">
+                                                <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                    percentizer(summarizeData.settlement).display }}
+                                                </div>
+                                                <DeltaNumbers type="profit_rate"
+                                                    :planned="percentizer(summarizeData.yearly_plan).value"
+                                                    :actual="percentizer(summarizeData.settlement).value" />
+                                            </div>
+                                        </td>
+                                    </tr>
 
-                            </tbody>
-        
-                                
-                    
-                        </table>
+                                </tbody>
 
-                    </div>
-                    <div v-if="tab == 'pie' || tab == 'bar'">
-                        <div class="px-[20px]">
-                            <div v-if="tab == 'pie'" class="flex gap-[15px] mt-[10px]">
-                                <label v-for="item in possibleScenarios" class="flex items-center gap-[10px] text-[12px]">
-                                    <input type="radio" class="custom-f-radio" name="scenario" :value="item.value" v-model="activeScenario">
-                                    <span>{{ item.label }}</span>
-                                </label>
-                            </div>
-                            <div class="flex my-[20px] gap-[15px]">
-                                <label v-for="item in possibleTypes" class="flex items-center gap-[10px] text-[12px]">
-                                    <input type="radio" name="type" class="custom-f-radio" :value="item.value" v-model="activeType">
-                                    <span>{{ item.label }}</span>
-                                </label>
-                            </div>
+
+
+                            </table>
+
                         </div>
-                        
-                    
-                        <div v-if="tab == 'pie'">
-                            
-                            <div class="p-pie-chart">
-                                <PieChart :projectsData="financeData" :activeScenario="activeScenario" :activeType="activeType"/>
+                        <div v-if="tab == 'pie' || tab == 'bar'">
+                            <div class="px-[20px]">
+                                <div v-if="tab == 'pie'" class="flex gap-[15px] mt-[10px]">
+                                    <label v-for="item in possibleScenarios"
+                                        class="flex items-center gap-[10px] text-[12px]">
+                                        <input type="radio" class="custom-f-radio" name="scenario" :value="item.value"
+                                            v-model="activeScenario">
+                                        <span>{{ item.label }}</span>
+                                    </label>
+                                </div>
+                                <div class="flex my-[20px] gap-[15px]">
+                                    <label v-for="item in possibleTypes"
+                                        class="flex items-center gap-[10px] text-[12px]">
+                                        <input type="radio" name="type" class="custom-f-radio" :value="item.value"
+                                            v-model="activeType">
+                                        <span>{{ item.label }}</span>
+                                    </label>
+                                </div>
                             </div>
-                            
-                        </div>
-                        <div v-if="tab == 'bar'">
-                            <div>
-                                <BarChart :projectsData="financeData" :activeView="activeType"/>
+
+
+                            <div v-if="tab == 'pie'">
+
+                                <div class="p-pie-chart">
+                                    <PieChart :projectsData="financeData" :activeScenario="activeScenario"
+                                        :activeType="activeType" />
+                                </div>
+
                             </div>
-                            
+                            <div v-if="tab == 'bar'">
+                                <div>
+                                    <BarChart :projectsData="financeData" :activeView="activeType" />
+                                </div>
+
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 </template>
 <script setup lang="ts">
 import { Project, YearlyFinancialData } from '@/interface/projectInterface';
 import CloseIcon from '../Form/CloseIcon.vue';
-import { computed, inject, onMounted, reactive, ref, watch } from 'vue';
+import { computed, inject, onMounted, reactive, ref, useTemplateRef, watch } from 'vue';
 import 'styles/customForm.css'
 import axios from 'axios';
 import { MonthNumbers, DateTime } from 'luxon';
@@ -300,6 +460,9 @@ import DeltaNumbers from '@/components/Project/ProjectTabs/Finance/DeltaNumbers.
 import UserPanel from '../Global/UserPanel.vue';
 import BarChart from './ProjectTabs/Finance/BarChart.vue';
 import PieChart from './ProjectTabs/Finance/PieChart.vue';
+import CommandButton from '../Global/CommandButton.vue';
+import OptionSelector from '../Form/OptionSelector.vue';
+import { useTheme } from '@/store/theme';
 
 
 
@@ -307,17 +470,27 @@ const props = defineProps<{
     projects: Project[]
 }>()
 const emit = defineEmits<{
-    close:[]
+    close: []
 }>()
-
-
+const months = Array.from({ length: 12 }, (_, index) => ({
+    label: `${index + 1}月`,
+    value: index + 1
+}));
+const years = Array.from({ length: DateTime.now().year - 2024 + 2 }, (_, index) => {
+    const year = 2024 + index;
+    return {
+        label: `${year}年`, // label as string (optional)
+        value: year
+    };
+});
 interface UnitData {
     expense: number,
     sales: number,
 }
-const windowWidth = window.innerWidth;
+
 const selectedProjects = ref<number[]>([])
 const financeData = ref<YearlyFinancialData>({})
+const theme = useTheme()
 const summarizeData = ref<{
     profit: UnitData,
     yearly_plan: UnitData,
@@ -351,12 +524,17 @@ const route = useRoute()
 const responsive = useResponsive()
 const menu = useMenuStore()
 const leftTab = ref<'project' | 'manager'>('project')
+const startYearRef = useTemplateRef('startYearRef')
+const endYearRef = useTemplateRef('endYearRef')
+const startMonthRef = useTemplateRef('startMonthRef')
+const endMonthRef = useTemplateRef('endMonthRef')
+
 onMounted(() => {
     selectedProjects.value = route.params.projectId ? [Number(route.params.projectId)] : props.projects && props.projects.length ? [props.projects[0].id] : []
 })
 const { notify, info, confirm } = inject('dialog') as DialogMethods
-const possibleTypes = [{value: 'sales', label: '売上'}, {value: 'expense', label: '販管費'}, {value: 'profit', label: '利益'}]
-const possibleScenarios = [{value: 'yearly_plan', label: '年度予算'}, {value: 'profit', label: '損益計画'}, {value: 'settlement', label: '実績'}]
+const possibleTypes = [{ value: 'sales', label: '売上' }, { value: 'expense', label: '販管費' }, { value: 'profit', label: '利益' }]
+const possibleScenarios = [{ value: 'yearly_plan', label: '年度予算' }, { value: 'profit', label: '損益計画' }, { value: 'settlement', label: '実績' }]
 const activeType = ref('sales')
 const activeScenario = ref('yearly_plan')
 
@@ -372,51 +550,52 @@ const managers = computed(() => {
 })
 const selectAllProjects = (event: Event) => {
     const target = event.target as HTMLInputElement
-    if(target.checked){
+    if (target.checked) {
         selectedProjects.value = props.projects.map(project => project.id)
-    }else{
+    } else {
         selectedProjects.value = []
     }
 }
 
-const getTotalFinance = async() => {
-    try{
+const getTotalFinance = async () => {
+    try {
         loader.value = true
-        const res = await axios.get('/get_total_finance', {params: {projects: selectedProjects.value, interval: interval}})
+        const res = await axios.get('/get_total_finance', { params: { projects: selectedProjects.value, interval: interval } })
         financeData.value = res.data.sumData
         summarizeData.value = res.data.summarizeData
-    }catch(e){
+    } catch (e) {
         console.log(e)
         financeData.value = {}
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }finally{
+    } finally {
+        menu.close()
         setTimeout(() => {
             loader.value = false
         }, 300);
     }
-    
+
 
 }
 
 
-const setStartDate = (date: {year:number, month: MonthNumbers}) => {
+const setStartDate = (date: { year: number, month: MonthNumbers }) => {
     interval.startYear = date.year
     interval.startMonth = date.month
     getTotalFinance()
 }
-const setEndDate = (date: {year:number, month: MonthNumbers}) => {
+const setEndDate = (date: { year: number, month: MonthNumbers }) => {
     interval.endYear = date.year
     interval.endMonth = date.month
     getTotalFinance()
 }
-const percentizer = (data:UnitData) => {
+const percentizer = (data: UnitData) => {
     let ret = {
         value: 0,
         display: ''
     }
-    if(data.sales === 0) return ret
+    if (data.sales === 0) return ret
     const percent = ((data.sales - data.expense) / data.sales * 100).toFixed(2)
-    if(Number.isNaN(percent)) return ret
+    if (Number.isNaN(percent)) return ret
     return {
         value: Number(percent),
         display: `${percent}%`
@@ -434,23 +613,31 @@ watch(() => [selectedProjects.value], () => {
 
 const toggleByManager = (event: Event, manager: User) => {
     const target = event.target as HTMLInputElement
-    if(target.checked){
+    if (target.checked) {
         selectedProjects.value = managersProjects(manager).map(project => project.id)
-    }else{
+    } else {
         selectedProjects.value = []
     }
 }
 const isChecked = (manager: User) => {
     const managerProjectIds = managersProjects(manager).map(project => project.id)
-    return managerProjectIds.length === selectedProjects.value.length && 
-        managerProjectIds.every(id => selectedProjects.value.includes(id)) && 
+    return managerProjectIds.length === selectedProjects.value.length &&
+        managerProjectIds.every(id => selectedProjects.value.includes(id)) &&
         selectedProjects.value.every(id => managerProjectIds.includes(id))
+}
+const setIntervalData = () => {
+    if (startYearRef.value && endYearRef.value && startMonthRef.value && endMonthRef.value) {
+        interval.startYear = Number(startYearRef.value.value)
+        interval.endYear = Number(endYearRef.value.value)
+        interval.startMonth = Number(startMonthRef.value.value) as MonthNumbers
+        interval.endMonth = Number(endMonthRef.value.value) as MonthNumbers
+        getTotalFinance()
+    }
 }
 </script>
 
 <style scoped lang="scss">
-
-.project-selector-left{
+.project-selector-left {
     display: flex;
     gap: 20px;
     flex-direction: column;
@@ -458,43 +645,50 @@ const isChecked = (manager: User) => {
     user-select: none;
     line-height: 1.5;
 }
-table{
+
+table {
     margin: 0 20px;
     width: calc(100% - 40px);
     border-collapse: separate;
     font-size: 13px;
     line-height: 1.5;
-    thead{
-        th{
+
+    thead {
+        th {
             padding: 10px;
             font-weight: 500;
             text-align: left;
             background-color: var(--bg3);
         }
+
         position: sticky;
         top: 0;
         background-color: var(--background-color);
         z-index: 1;
     }
-    tbody{
-        tr{
-            td{
+
+    tbody {
+        tr {
+            td {
                 padding: 10px;
                 border-bottom: 1px solid var(--calendarBorder);
                 font-weight: 400;
                 text-align: left;
                 border-left: none;
-                span{
+
+                span {
                     display: block;
                 }
             }
-            td:last-of-type{
+
+            td:last-of-type {
                 border-right: solid thin var(--calendarBorder);
             }
         }
     }
 }
-.h-cell{
+
+.h-cell {
     width: 60px;
     min-width: 60px;
     background-color: var(--bg3);
@@ -504,35 +698,42 @@ table{
     left: 0;
     z-index: 1;
 }
-.p-name{
+
+.p-name {
     max-width: 150px;
     border-right: solid thin var(--calendarBorder);
     border-left: solid thin var(--calendarBorder);
 }
-.projectModalSideMenu{
+
+.projectModalSideMenu {
     overflow: auto;
     height: 100%;
     background: var(--bg3);
 }
-.p-pie-chart{
+
+.p-pie-chart {
     width: 100%;
     display: flex;
     justify-content: center;
     margin: auto;
 }
+
 @media screen and (max-width: 959px) {
-    .p-pie-chart{
+    .p-pie-chart {
         width: 80%;
     }
-    .p-name{
+
+    .p-name {
         max-width: 100%;
         text-align: center;
         background: var(--bg3);
     }
-    .sub-name{
+
+    .sub-name {
         text-align: center;
     }
-    .projectModalSideMenu{
+
+    .projectModalSideMenu {
         position: absolute;
         z-index: 5;
         max-height: 60vh;
@@ -544,40 +745,48 @@ table{
         z-index: 10;
         top: 45px;
     }
-    table{
-        thead{
+
+    table {
+        thead {
             display: none;
         }
-        tbody{
-            tr{
+
+        tbody {
+            tr {
                 display: block;
                 margin-bottom: -1px;
-                td{
+
+                td {
                     display: block;
                     border-left: solid thin var(--calendarBorder);
                     border-right: solid thin var(--calendarBorder);
                     border-bottom: none;
                 }
-                td:last-of-type{
+
+                td:last-of-type {
                     border-bottom: solid thin var(--calendarBorder);
                 }
-                td:first-of-type{
+
+                td:first-of-type {
                     border-top: solid thin var(--calendarBorder);
                 }
-                
+
             }
+
             tr:nth-child(3n) {
                 margin-bottom: 20px;
             }
         }
-    }   
-    .h-cell{
+    }
+
+    .h-cell {
         width: auto;
         text-align: start;
         border-right: none;
         border-left: none;
     }
-    .inner-col{
+
+    .inner-col {
         display: flex;
         align-items: center;
         justify-content: space-between;
