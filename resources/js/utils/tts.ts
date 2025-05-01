@@ -141,7 +141,7 @@ const processWithFallback = async (textContent: string, openai: OpenAI) => {
                 // Used to accumulate audio data until we have enough to play
                 const audioBufferChunks: Uint8Array[] = [];
                 let accumulatedBytes = 0;
-                const MIN_PLAYABLE_CHUNK = 32 * 1024; // 32KB minimum to start playing
+                const MIN_PLAYABLE_CHUNK = 512 * 1024; // 32KB minimum to start playing
                 
                 // Streaming loop for each API response
                 while (true) {
@@ -150,7 +150,6 @@ const processWithFallback = async (textContent: string, openai: OpenAI) => {
                     const { done, value } = await reader.read();
                     
                     if (done) break;
-                    
                     if (value && value.byteLength > 0) {
                         audioBufferChunks.push(value);
                         accumulatedBytes += value.byteLength;
