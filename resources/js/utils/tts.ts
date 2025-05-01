@@ -93,7 +93,7 @@ export const convertToSpeech = async (textContent: string, id: number) => {
             await processWithFallback(textContent, openai);
         } else {
             // Use MediaSource method (for fully supported browsers)
-            // await processWithMediaSource(textContent, openai);
+            await processWithMediaSource(textContent, openai);
         }
 
     } catch (error) {
