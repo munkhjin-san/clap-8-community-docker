@@ -18,9 +18,9 @@ export default defineConfig({
         }),
         vuetify(),
     ],
-    // define: {
-    //     __VUE_PROD_DEVTOOLS__: true, // Enable Vue Devtools in production
-    // },
+    define: {
+        __VUE_PROD_DEVTOOLS__: true, // Enable Vue Devtools in production
+    },
     resolve: {
         alias: {
             'vue': 'vue/dist/vue.esm-bundler.js',

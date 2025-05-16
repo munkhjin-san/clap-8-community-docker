@@ -64,7 +64,9 @@ export function useProject() {
         }
         if (project) {
             const membersArray = Array.isArray(project.members) ? project.members : [];
-            return membersArray.find((member: { id: number | null; }) => member && member.id === Number(userId))
+            const managerArray = Array.isArray(project.manager) ? project.manager : []
+            const mergedArray = [...membersArray, ...managerArray]
+            return mergedArray.find((member: { id: number | null; }) => member && member.id === Number(userId))
         }
         return null
     })
