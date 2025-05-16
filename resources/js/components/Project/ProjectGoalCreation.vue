@@ -579,6 +579,8 @@ const saveOutcomeGoal = async(status: number) => {
             title: goalParams.title,
             kgi: goalParams.kgi,
             miso: goalParams.miso,    
+            custom_instruction: goalParams.custom_instruction,
+            private_memo: goalParams.private_memo,
         }
         
     }
