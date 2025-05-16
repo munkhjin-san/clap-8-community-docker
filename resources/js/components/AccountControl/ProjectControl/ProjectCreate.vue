@@ -788,7 +788,7 @@ const generateAutoText = async(index:string, indexVal:string) => {
     let inputText = `
         プロジェクト名 : ${projectParams.name}
         プロジェクトの実施期間 : ${projectParams.date_start} ~ ${projectParams.date_end}
-        プロジェクトの概要 : ${projectParams.description}
+        プロジェクトの概要 : ${indexVal == 'description' ? projectParams.private_memo : projectParams.description}
     `
     if(projectParams.customers && projectParams.customers.length){
         inputText += `顧客企業 : ${projectParams.customers.join(', ')}`
