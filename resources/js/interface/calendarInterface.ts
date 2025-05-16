@@ -12,7 +12,11 @@ export interface CalendarGroupUser extends User{
         selected_as_calendar_member: number
     }
 }
-
+export interface NormalHourDay {
+    full: string, 
+    day: string, 
+    day_holiday: string | null
+}
 export interface CalendarRecord{
     id: number;
     release_flag: number;
@@ -45,7 +49,8 @@ export interface CalendarRecord{
     descendant_of: number;
     created_at: string;
     updated_at: string;
-    calendar_users: User[];
+    calendar_users: CalendarGroupUser[];
+    calendar_view_users: CalendarGroupUser[];
     updated_by: User;
     created_by: User;
     files: CommonFile[];
@@ -57,6 +62,7 @@ export interface CalendarRecord{
     active_user_id?: number;
     facilities: Facility[];
     task: Task;
+    members_only: number;
 }
 
 
@@ -114,5 +120,16 @@ interface YearlyRepeat{
     selected_day: number
     year_from: number
     year_to: number
+}
+
+export interface FacilityItem {
+    label: string;
+    value: number;
+    selected: boolean;
+  }
+export interface FacilityData {
+    qualified_car: FacilityItem[]
+    qualified_institution: FacilityItem[]
+    zoom_value: FacilityItem[]
 }
 

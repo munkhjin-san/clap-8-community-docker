@@ -20,7 +20,7 @@
         </div>
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import CalendarCard from './CalendarCard.vue';
 import { computed } from 'vue'
 import { useAuthUserStore } from '@/store/auth'
@@ -30,8 +30,6 @@ import { useResponsive } from '@/store/responsive';
     const auth = useAuthUserStore()
     const responsive = useResponsive()
     const props = defineProps(['record', 'day'])
-    const emit = defineEmits('setDayIndex')
-
     const viewable = computed(() => {
         return (props.record.release_flag == 0 && props.record.members_only == 0) || editable.value
     })

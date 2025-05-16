@@ -75,7 +75,6 @@
 <script setup lang="ts">
 import FloatButton from '@/components/Global/FloatButton.vue';
 import Back from '@/components/Icons/Back.vue';
-import { Project } from '@/interface/projectInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useResponsive } from '@/store/responsive';
 import { urlCheck } from '@/utils/tools';
@@ -89,9 +88,9 @@ import RuleCreate from './Manual/RuleCreate.vue';
 import { DialogMethods } from '@/interface/keys';
 import { fileSizeParser, kintoneFileUrlBuilder } from '@/utils/tools';
 import AddIcon from '@/components/Form/AddIcon.vue';
+import { useProject } from '@/composables/project';
 
 const props = defineProps<{
-    selectedProject: Project;
     userList: any;
 }>();
 const auth = useAuthUserStore();
@@ -104,6 +103,7 @@ const activeRules = ref<string[]>([])
 const fetchCount = ref(0)
 const setLoader = inject('setLoader') as (flag: boolean) => void
 const { notify, info, confirm } = inject('dialog') as DialogMethods
+const { selectedProject } = useProject()
 
 const createWindow = ref(false)
 const editJob = ref<{
@@ -123,7 +123,7 @@ onMounted(async() => {
 });
    
 const getManuals = async() => {
-    const response = await axios.get('/get_manuals', {params: {project_name: props.selectedProject.name}}).then(res => res.data);
+    const response = await axios.get('/get_manuals', {params: {project_name: selectedProject.value?.name}}).then(res => res.data);
     manualData.value = response;
     fetchCount.value++
 }
@@ -168,7 +168,7 @@ const deleteManual = async(manualId: string) => {
 
 const isManager = computed(() => {
     const activeUserId = auth.activeUser?.id;
-    const projectManagers = props.selectedProject?.manager || [];
+    const projectManagers = selectedProject.value?.manager || [];
     
     if (!activeUserId) {
         return false;
@@ -181,7 +181,7 @@ const isManager = computed(() => {
 
 const isMember = computed(() => {
     const activeUserId = auth.activeUser?.id;
-    const projectMembers = props.selectedProject?.members || [];
+    const projectMembers = selectedProject.value?.members || [];
     
     if (!activeUserId) {
         return false;

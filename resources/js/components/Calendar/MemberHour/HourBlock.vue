@@ -13,22 +13,26 @@
         </div>
     </div>
 </template>
-<script setup>
-import moment from 'moment'
+<script setup lang="ts">
 import CardWrap from './CardWrap.vue';
-import { computed, inject, ref } from 'vue';
+import { computed, inject, Ref, ref } from 'vue';
+import { DateTime } from 'luxon';
+import { CalendarRecord, MemberHourDay } from '@/interface/calendarInterface';
+import { useCalendar } from '@/composables/calendar';
 
-    const props = defineProps(['data', 'fullDayIndex'])
+    const props = defineProps<{
+        data: MemberHourDay
+        fullDayIndex: number;
+    }>()
     const emit = defineEmits(['create'])
 
     const dragActive = ref(false)
     const beforeState = ref(0)
-    const draggingCalendar = inject('draggingCalendar')
+    const {draggingCalendar, setDraggingCalendar} = useCalendar()
     const layer = computed(() => {
-        const num = props.data.records.map(ob => ob.order)
+        const num = props.data.records.map(ob => Number(ob.order))
         const max = num.length ? Math.max(...num) + 1 : 0;
-        return max
-        
+        return max        
     })
     const hours = computed(() => {
         return [
@@ -49,15 +53,21 @@ import { computed, inject, ref } from 'vue';
     const setBeforeState = (event) => {
         beforeState.value = event.x     
     }
-    const dropFinish = inject('dropFinish')
+    const dropFinish = inject<Function>('dropFinish') as Function
     const gotMove = (val) => {
         if(draggingCalendar.value){
             const record = draggingCalendar.value
-            draggingCalendar.value = null
+            setDraggingCalendar(null)
             const date = props.data.date
-            const time = props.data.hour.split(":");
+            const time = props.data?.hour?.split(":") || 0;
             const min = val.val
-            const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
+            const merge = DateTime.fromISO(date)
+            .set({ 
+                hour: Number(time[0]),
+                minute: Number(min),
+                second: 0 
+            })
+            .toFormat('yyyy-MM-dd HH:mm:ss');
             dragActive.value = false
             if(dropFinish){
                 dropFinish(record, merge)
@@ -66,9 +76,15 @@ import { computed, inject, ref } from 'vue';
     }
     const fullDate = (val) => {
         const date = props.data.date
-        const time = props.data.hour.split(":");
+        const time = props.data?.hour?.split(":") || 0;
         const min = val.val
-        const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm');
+        const merge = DateTime.fromISO(date)
+            .set({ 
+                hour: Number(time[0]),
+                minute: Number(min),
+                second: 0 
+            })
+            .toFormat('yyyy-MM-dd HH:mm');
         return merge
     }
     const createAtTime = (event) => {
@@ -85,13 +101,19 @@ import { computed, inject, ref } from 'vue';
             min = '30'
         }
         const date = props.data.date
-        const time = props.data.hour.split(":");
-        const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
+        const time = props.data?.hour?.split(":") || 0;
+        const merge = DateTime.fromISO(date)
+            .set({ 
+                hour: Number(time[0]),
+                minute: Number(min),
+                second: 0 
+            })
+            .toFormat('yyyy-MM-dd HH:mm:ss');
         const d = {
             x: event.x,
             y: event.y,
             time: merge,
-            stamp: moment()
+            stamp: DateTime.now()
         }
         emit('create', d, props.data.user)
         

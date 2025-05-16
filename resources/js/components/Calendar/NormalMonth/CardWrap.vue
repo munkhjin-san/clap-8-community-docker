@@ -34,26 +34,27 @@
     </OnLongPress>
 </div>
 </template>
-<script setup>
-    import moment from 'moment';
-    import { nextTick, ref, computed, inject } from 'vue';
-    import { OnLongPress } from '@vueuse/components'
-    import CalendarCard from '../CalendarCard.vue';
-    import { useAuthUserStore } from '@/store/auth'
-    import { useMenuStore } from "@/store/menu";
-    import { useResponsive } from '@/store/responsive';
+<script setup lang="ts">
+import { nextTick, ref, computed, useTemplateRef } from 'vue';
+import { OnLongPress } from '@vueuse/components'
+import CalendarCard from '../CalendarCard.vue';
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useResponsive } from '@/store/responsive';
+import { DateTime } from 'luxon';
+import { useCalendar } from '@/composables/calendar';
     const responsive = useResponsive()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const props = defineProps(['record'])
     const emit = defineEmits(['setParentDroppable'])
-    const draggingCalendar = inject('draggingCalendar')
+    const {draggingCalendar, setDraggingCalendar} = useCalendar()
     const shiftRight = ref(0)
     const shiftBottom = ref(0)
     const beforeLeft = ref(0)
       
     const fullDay = computed(() => {
-        return Math.abs(moment(props.record.date_start).diff(moment(props.record.date_end), 'hours')) >= 23
+        return Math.abs(DateTime.fromISO(props.record.date_start).diff(DateTime.fromISO(props.record.date_start), 'hours').hours) >= 23;
     })
     const viewable = computed(() => {
         return (props.record.release_flag == 0 && props.record.members_only == 0) || editable.value
@@ -88,7 +89,7 @@
         const left = el ? el.scrollTop : 0
         beforeLeft.value = left          
     }
-    const sCard = ref(null)
+    const sCard = useTemplateRef('sCard')
     const dragStart = (event) => {
         if(editable.value && !expanded.value){
             const el = document.getElementById('cal_month_view')
@@ -103,20 +104,20 @@
             record['x'] = event.x
             record['y'] = event.y
             record['from'] = 'day'
-            draggingCalendar.value = record
+            if(draggingCalendar)
+            setDraggingCalendar(record)
             menu.setMenu( {id: null, name: ''})
             emit('setParentDroppable')
         }            
     }
-    const selectRecord = (record, from) => {
+    const selectRecord = (event:Event) => {
         menu.setMenu( {parent: unique.value})
 
         
         nextTick(() => {
             const el = document.getElementById(`m_rec_${props.record.id}`)
-            const parentEl = document.getElementById('cal_month_inner')
             if(el){                    
-                if(from == 'auto'){
+                if(!event){
                     el.scrollIntoView({block: 'center', behavior: 'instant'})                        
                 }                    
                 const rect = el.getBoundingClientRect();                    
@@ -125,13 +126,9 @@
                     shiftRight.value = window.innerWidth - right_check - 5
                 }
                 const bottom_check = rect.y + rect.height
-                const value = responsive.mobile && auth.user.footer_view ? 45 : 0
+                const value = responsive.mobile && auth.user?.footer_view ? 45 : 0
                 if(bottom_check > window.innerHeight - value){
                     shiftBottom.value = window.innerHeight - value - bottom_check - 10
-                }
-                const parentRect = parentEl.getBoundingClientRect();
-                if (rect.height > parentRect.height) {
-                    shiftBottom.value = parentRect.y - rect.y + 10;
                 }
             }
             

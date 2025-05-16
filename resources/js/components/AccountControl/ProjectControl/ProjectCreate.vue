@@ -57,6 +57,7 @@
                                     :options="userList"
                                     :closeOnSelect="false"
                                     :multiple="true"
+                                    
                                 />
                             </div>
                             <div class="si-box">
@@ -145,12 +146,59 @@
                                 />
                             </div>
 
-                            <div class="si-box flex flex-col gap-[15px]">
+                            <!-- <div class="si-box flex flex-col gap-[15px]">
                                 <PartnerSelector 
                                     name="customer"
                                     v-model="projectParams.partners!"
                                     placeHolder="パートナー企業（正式名称）"
                                 />
+                            </div> -->
+                            <div class=si-box>
+                                <div style="background:inherit;">        
+                                    <div style="position:relative;background:inherit;">
+                                        <div style="position: relative;background:inherit;border: 1px solid var(--primary-color);" ref="industryTypeRef">
+                                            <v-autocomplete
+                                                chips
+                                                :items="ProjectIndustryTypes"
+                                                :multiple="true"
+                                                closable-chips
+                                                flat
+                                                tile
+                                                bg-color="var(--background-color)"
+                                                clear-on-select
+                                                hide-details
+                                                hide-selected
+                                                hide-no-data
+                                                focused
+                                                eager
+                                                label="業種区分"
+                                                :menu-props="{ scrollStrategy: 'close'}"
+                                                v-model="projectParams.industry_type"
+                                                
+                                            >
+                                                <template v-slot:chip="{ props, item }">
+                                                    <v-chip
+                                                        closable
+                                                        v-bind="props"
+                                                        :text="item.title"
+                                                        :close-icon="CloseIcon"
+                                                        rounded="0"
+                                                        density="compact"
+                                                    >
+                                                    </v-chip>
+                                                </template>
+                                                <template v-slot:item="{ props, item }">
+                                                    <div v-bind="props" class="text-[14px] py-[15px] hover:bg-[var(--bg2)] cursor-pointer" :style="{width: industryTypeRef && industryTypeRef?.clientWidth ? `${industryTypeRef?.clientWidth}px` : undefined}">
+                                                        <div class="px-[15px] text-[var(--primary-color)]">
+                                                            {{ item.title }}
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </v-autocomplete>
+                                        </div>
+                                    </div>
+                                </div>
+
                             </div>
 
                             <div class="si-box relative">
@@ -323,8 +371,6 @@ import CommandButton from '@/components/Global/CommandButton.vue';
 import { DateTime } from 'luxon';
 import CloseIcon from '@/components/Form/CloseIcon.vue';
 import 'styles/selector.css'
-import AddIcon from '@/components/Form/AddIcon.vue';
-import Modal from '@/components/Global/Modal.vue';
 import { useAuthUserStore } from '@/store/auth';
 import OpenAI from 'openai';
 import RichEditor from '@/components/Global/RichEditor.vue';
@@ -334,7 +380,8 @@ import taskGenerateFormat from '../../../../assets/taskGenerateFormat.json'
 import { type Node, type Edge, MarkerType, VueFlow, VueFlowStore, Position, Handle } from '@vue-flow/core';
 import CustomEdge from '@/components/Task/Gantt/CustomEdge.vue';
 import AiLoader from '@/components/Global/AiLoader.vue';
-import { useRoute, useRouter } from 'vue-router';
+import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
+import ProjectIndustryTypes from 'assets/ProjectIndustryTypes.json'
 
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
@@ -343,8 +390,6 @@ const taskCreating = ref(false)
 const misoCreating = ref(false)
 const auth = useAuthUserStore()
 const step = ref(0)
-const router = useRouter()
-const route = useRoute()
 const stepTitles = [
     {name: '基本情報', hash: '#basic'},
     {name: '概要', hash: '#overview'},
@@ -377,6 +422,7 @@ const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(pro
     category: [],
     manager: [],
     members: [],
+    industry_type: [],
     date_start: '',
     date_end: '',
     board_id: null
@@ -393,8 +439,9 @@ onMounted(() => {
     if(!props.editData){
         projectParams.date_start = DateTime.now().toISODate()
         projectParams.date_end = DateTime.now().plus({ days: 30 }).toISODate()
-        if(auth.activeUser){
-            projectParams.manager = [auth.activeUser as User]
+        if(auth.activeUser && projectManager.value){
+            // projectParams.manager = [auth.activeUser as User]
+            projectManager.value.selectBy([auth.activeUser])
         }
         
     }
@@ -405,19 +452,13 @@ const startDateRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('startD
 const endDateRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('endDateRef')
 const projectTitle = useTemplateRef<ComponentExposed<typeof ShortInput>>('projectTitle')
 const projectManager = useTemplateRef<ComponentExposed<typeof MemberSelector>>('projectManager')
-const projectOverview = useTemplateRef<ComponentExposed<typeof LongInput>>('projectOverview')
 const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainTaskRef')
 const projectMemo = useTemplateRef<ComponentExposed<typeof LongInput>>('projectMemo')
 const flowContainer = useTemplateRef('flowContainer')
 
 const serviceCategoryRef = useTemplateRef('serviceCategoryRef')
-const serviceCategories = [
-    {title: "営業・マーケティング支援", subtitle: 'テレマーケティング、訪問営業、オンライン営業、イベント・プロモーション支援、代理店連携など', value: "営業・マーケティング支援"},
-    {title: "IT・システムサービス", subtitle: 'システム導入、クラウドサービス、ネットワーク保守・運用、ICT支援、初期設定サポートなど', value: "IT・システムサービス"},
-    {title: "業務改善・プロセスコンサルティング", subtitle: '業務プロセスの標準化、プロジェクトマネジメント、戦略立案、デジタル化推進、RPA導入など', value: "業務改善・プロセスコンサルティング"},
-    {title: "アウトソーシング・人材派遣", subtitle: '定型業務のアウトソーシング、派遣業務、業務委託、採用支援・人材育成、リソース調整など', value: "アウトソーシング・人材派遣"},
-    {title: "輸入食品・流通支援", subtitle: '外国産食品などの輸入調達、物流、国内販売促進など、食材に関する全般的なサポート', value: "輸入食品・流通支援"},
-]
+const industryTypeRef = useTemplateRef('industryTypeRef')
+const serviceCategories = ProjectServiceCategories
 
 const { notify, info, confirm} = inject('dialog') as DialogMethods
 
@@ -431,10 +472,6 @@ const flowTasks = computed(() => {
     const edges = <Edge[]>[]
     let topOffset = 20
 
-    const checkSelfIncluded = (taskRecord: Task) => {
-        const executors = taskRecord.executors.map(e => e.id)
-        return executors.includes(auth.activeUser.id!)
-    }
     generatedTasks.value.forEach((task) => {
         const offsetX = 0
         nodes.push({

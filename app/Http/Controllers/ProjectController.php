@@ -51,7 +51,6 @@ class ProjectController extends Controller
     }
     public function get_projects(Request $request) {
         $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
-        $evaluation_date = $request->evaluation_date;
         $year = $request->year;
         $which_half = $request->which_half;
         $projects = ProjectRecord::with([
@@ -139,9 +138,11 @@ class ProjectController extends Controller
         $project_goals = ProjectGoal::where('year', $year)
                                     ->where('which_half', $which_half)
                                     ->where('user_id', $user_id)
-                                    ->with(['project', 'files'])
+                                    ->with(['project', 'files', 'steps', 'reports' => function ($q) {
+                                        $q->with('user');
+                                    }])
                                     ->with(['salaryIssue' => function ($q) {
-                                        $q->with('files');
+                                        $q->with(['files', 'actions']);
                                     }])
                                     ->get();
         $evalutaionRecord = EvaluationRecord::where('year', $year)
@@ -237,9 +238,20 @@ class ProjectController extends Controller
     }
 
     public function save_project_goal(Request $request){
-        $id = $request->goal_id;
+        $id = $request->id;
         $params = $request->params;
         $projectGoal = ProjectGoal::updateOrCreate(['id' => $id], $params);
+        $steps = $request->steps ?? [];
+        if(count($steps)) {
+            $newSteps = [];
+            foreach($steps as $step) {
+                $stepRecord = $projectGoal->steps()->updateOrCreate(['id' => $step['id'] ?? null], [
+                    'content' => $step['content'],
+                ]);
+                $newSteps[] = $stepRecord->id;
+            }
+            $projectGoal->steps()->whereNotIn('id',  $newSteps)->delete();
+        }
         
         return response()->json($projectGoal);
     }
@@ -340,7 +352,8 @@ class ProjectController extends Controller
             'date_end',
             'category',
             'partners',
-            'customers'
+            'customers',
+            'industry_type',
         ])->toArray();
 
         $project = ProjectRecord::updateOrCreate(['id' => $id], $filteredParams);
@@ -536,7 +549,7 @@ class ProjectController extends Controller
                                                 ->where('status', 3);
                                         }])
                                         ->with(['candidate', 'checklist'])->first();
-        
+
         if(!$evalutaionRecord) {
             return;
         }
@@ -591,6 +604,7 @@ class ProjectController extends Controller
         $date = $request->date;
         $salary_issues = SalaryIssue::where('user_id', Auth::id())
                                     ->where('date', $date)
+                                    ->with(['actions'])
                                     ->get();
         return response()->json($salary_issues);
     }
@@ -2224,6 +2238,86 @@ class ProjectController extends Controller
         $chunks = collect(data_get($data, 'candidates.0.content.parts.0.text'));
         return response()->json($chunks);
 
+    }
+    public function set_project_goal_step_status(Request $request){
+        $request->validate([
+            'project_goal_id' => 'required',
+            'step_id' => 'required',
+            'status' => 'required|in:0,1',
+        ]);
+        $project_goal = ProjectGoal::findOrFail($request->project_goal_id);
+        $step = $project_goal->steps()->findOrFail($request->step_id);
+        $step->update([
+            'status' => $request->status,
+        ]);
+        return response()->json($step);
+    }
+    public function project_goal_report_create(Request $request){
+        $request->validate([
+            'project_goal_id' => 'required',
+            'content' => 'required',
+        ]);
+        $project_goal = ProjectGoal::findOrFail($request->project_goal_id);
+        $report = $project_goal->reports()->create([
+            'content' => $request->content,
+            'user_id' => auth()->user()->id,
+        ]);
+        return response()->json($report);
+    }
+    public function get_previous_goals(Request $request){
+        $request->validate([
+            'user_id' => 'required',
+            'year' => 'required',
+            'which_half' => 'required|in:first,second',
+        ]); 
+
+
+        $previous_goals = ProjectGoal::where('user_id', $request->user_id)
+        ->where('year', $request->year)
+        ->where('which_half', $request->which_half)
+        ->with(['steps'])
+        ->get();
+        return response()->json($previous_goals);
+
+
+    }
+    public function save_project_progress(Request $request){
+        $request->validate([
+            'goal_id' => 'required',
+            'type' => 'required',
+            'progress' => 'required|numeric|min:0|max:100',
+        ]);
+        $project_goal = ProjectGoal::findOrFail($request->goal_id);
+        if($request->type == 'kgi'){
+            
+            $project_goal->update([
+                'achievement_rate' => $request->progress,
+            ]);
+            return response([], 200); 
+        }
+        else if($request->type == 'kpi'){
+            $step = $project_goal->steps()->findOrFail($request->step_id);
+            $step->update([
+                'progress' => $request->progress,
+            ]);
+            return response([], 200); 
+        }
+        else{
+            return response()->json(['message' => 'Invalid type'], 422);
+        }       
+        
+    }
+    public function salary_issue_action_complete(Request $request){
+        $request->validate([
+            'issue_id' => 'required',
+            'action_id' => 'required',
+        ]);
+        $issue = SalaryIssue::findOrFail($request->issue_id);
+        $action = $issue->actions()->findOrFail($request->action_id);
+        $action->update([
+            'status' => $action->status == 1 ? 0 : 1,
+        ]);
+        return response([], 200);
     }
 
 } 

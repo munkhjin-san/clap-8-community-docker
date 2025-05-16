@@ -1,7 +1,7 @@
 <template>
 <div :class="['month-shifter', `to-${jumpTo}-month`]">{{ directions[jumpTo] }}</div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
     const props = defineProps(['jumpTo', 'viewType'])

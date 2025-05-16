@@ -26,8 +26,6 @@
         </div>
         <router-view v-slot="{ Component }">
             <component
-                :selected-project="selectedProject"
-                :member-data="memberData"
                 :date="dateOptions"
                 :is="Component"
                 :key="route.fullPath"
@@ -41,10 +39,7 @@ import { useBadgeStore } from '@/store/badge';
 import { detailedDateOptions } from '@/utils/tools';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-const props = defineProps([
-    'selectedProject',
-    'memberData'
-])
+
 const router = useRouter()
 const route = useRoute()
 const picker = ref(route.params.span ? false : true)

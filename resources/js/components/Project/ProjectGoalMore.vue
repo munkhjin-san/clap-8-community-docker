@@ -18,64 +18,122 @@
                     </svg>                        
                 </div> 
             </div>
-            <div class="kadai-root">
-                
-                <div v-if="sub_tab === 0" style="display:flex; gap: 20px; flex-direction: column;">
+            <div class="kadai-root">                
+                <div v-if="sub_tab === 0" class="flex flex-col gap-[30px] relative">
+
                     <div>
-                        <div>該当部門</div>
-                        <div class="kadai-content">{{ goal?.project?.name }}</div>
+                        <div class="text-[13px] font-semibold">該当部門 ／ 職能レベル ／ 担当者</div>
+                        <div class="kadai-content">{{ goal?.project?.name }} ／ {{ evaluationData?.current_level ?? '未設定' }} ／ {{ memberData?.name }}</div>
+                    </div>
+                    <div class="pc absolute top-0 right-0">
+                        <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px]">{{ statuses[goal?.status] }}</div>
+                    </div>
+                    <div class="mobile w-fit">
+                        <div class="text-[13px] font-semibold">ステータス</div>
+                        <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px] mt-[10px]">{{ statuses[goal?.status] }}</div>
                     </div>
                     <div>
-                        <div>成果目標</div>
+                        <div class="text-[13px] font-semibold">期間</div>
+                        <div class="kadai-content">{{ `${DateTime.fromISO(goal.start_date).toLocaleString()} ~ ${DateTime.fromISO(goal.end_date).toLocaleString()}` }}</div>
+                    </div>
+                    <div v-if="goal?.outcome_goal">
+                        <div class="text-[13px] font-semibold">成果目標</div>
                         <div class="kadai-content">{{ goal?.outcome_goal }}</div>
-                    </div>
-                    <div>
-                        <div>期間</div>
-                        <div class="kadai-content">{{ goal?.start_date }} ～ {{ goal?.end_date }}</div>
-                    </div>
-                    
-                    <div>
-                        <div>現状分析</div>
+                    </div>                    
+                    <div v-if="goal?.miso">
+                        <div class="text-[13px] font-semibold">MISO</div>
+                        <div class="kadai-content">{{ goal?.miso }}</div>
+                    </div>                    
+                    <!-- <div v-if="goal?.kgi">
+                        <div class="text-[13px] font-semibold">KGI</div>
+                        <div class="kadai-content">{{ goal?.kgi }}</div>
+                    </div>                     -->
+                    <div v-if="goal?.situation_analysis">
+                        <div class="text-[13px] font-semibold">現状分析</div>
                         <div class="kadai-content">{{ goal?.situation_analysis }}</div>
-                    </div>
-                    
-                    <div>
-                        <div>行動計画</div>
+                    </div>                    
+                    <div v-if="goal?.action_plan">
+                        <div class="text-[13px] font-semibold">行動計画</div>
                         <div class="kadai-content">{{ goal?.action_plan }}</div>
                     </div>
-                    <div>
-                        <div>ステータス</div>
-                        <div class="kadai-content">{{ statuses[goal?.status] }}</div>
-                    </div>
-                    <div>
-                        <div>期待される効果</div>
+                    <div v-if="goal?.expected_effect">
+                        <div class="text-[13px] font-semibold">期待される効果</div>
                         <div class="kadai-content">{{ goal?.expected_effect }}</div>
                     </div>
-                    <div>
-                        <div>コメント</div>
+                    <div v-if="goal?.comment">
+                        <div class="text-[13px] font-semibold">コメント</div>
                         <div class="kadai-content">{{ goal?.comment }}</div>
                     </div>
-                    <div>
-                        <div>AI判定とフィードバック</div>
+                    <div v-if="goal?.ai_review">
+                        <div class="text-[13px] font-semibold">AI判定とフィードバック</div>
                         <div class="kadai-content">{{ goal?.ai_review }}</div>
                     </div>
-                    <div v-if="goal?.achievement_rate !== null && goal?.status >= 6">
-                        <div>達成率</div>
-                        <div class="kadai-content">{{ goal?.achievement_rate }}%</div>
+                    <!-- <div>
+                        <div class="text-[13px] font-semibold">KGI達成率</div>
+                        <div class="mt-[10px]">
+                            <ProgressSlider :goal-id="goal.id" :disabled="!reviewReport" :progress="goal.achievement_rate" type="kgi"/>
+                        </div>                         
                     </div>
+                    <div v-if="goal.steps && goal.steps.length">
+                        <div class="mb-[10px] text-[13px] font-semibold">KPI達成率 {{ kpiCalculation(goal.steps) }}%</div>
+                        <div class="flex flex-col gap-[15px]">
+                            <div v-for="step in goal.steps" :key="step.id" class="kadai-content flex gap-[10px]">
+                                <ProgressSlider :goal-id="goal.id" :disabled="!reviewReport" :progress="step.progress" type="kpi" :step-id="step.id"/>
+                                <div>{{ step.content }}</div>
+                            </div>
+                        </div>
+                    </div> -->
+                    <div v-if="goal.steps && goal.steps.length">
+                        <div class="text-[13px] font-semibold mb-[10px]">成果指標</div>
+                        <table>
+                            <tbody>
+                                <tr>
+                                    <td>KGI</td>
+                                    <td>{{ goal?.kgi }}</td>
+                                    <td>
+                                        <ProgressSlider :goal-id="goal.id" :disabled="!reviewReport" :progress="goal.achievement_rate" type="kgi"/>
+                                    </td>
+                                </tr>                          
+                                <tr v-for="(step, index) in goal.steps" :key="index">
+                                    <td v-if="index == 0" :rowspan="goal.steps.length">KPI</td>
+                                    <td>{{ step.content }}</td>
+                                    <td>
+                                        <ProgressSlider :goal-id="goal.id" :disabled="!reviewReport" :progress="step.progress" type="kpi" :step-id="step.id"/>
+                                    </td>                                    
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <div class="text-[13px] font-semibold">合計</div>
+                        <div class="kadai-content">{{ overallScore }}点</div>
+                    </div>
+
+                    <div v-if="goal.reports && goal.reports.length">
+                        <div>
+                            <p class="text-[13px] font-semibold mb-[10px]">進捗報告</p>
+                            <div v-for="report in goal.reports" class="mb-[10px]">
+                                <div class="flex gap-[10px]">
+                                    <div><span class="text-[gray] text-[12px]">{{ `【${DateTime.fromISO(report.created_at).toFormat('yyyy/M/d')}】 :` }}</span></div>
+                                    <div v-html="report.content" class="whitespace-break-spaces leading-normal"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div v-if="goal?.report">
-                        <div class="post-separetor mt-[10px]"></div>
-                        <div class="mb-[10px]">成果報告</div>
+                        <div class="mb-[10px] text-[13px] font-semibold">結果報告</div>
                         <div class="kadai-content">{{ goal?.report }}</div>
                         <Files style="margin-top: 15px;" v-if="goal?.files?.length" :items="goal?.files" :path="'project_files'"/>
                     </div>
                     <div v-if="goal?.result">
-                        <div>成果結果</div>
+                        <div class="text-[13px] font-semibold">結果報告</div>
                         <div class="kadai-content">{{ goal?.result }}</div>
                     </div>
                     <div style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton v-if="reviewReport" @click="progressReport(false)" style="margin: 0;" :content="'成果報告'"/>
-                        <LoaderButton v-if="managerOrDirector && goal?.status === 7" @click="progressReport(true)" style="margin: 0;" :content="'進捗報告承認'"/>
+                        <LoaderButton v-if="reviewReport" @click="projectGoalReportCreate = goal" style="margin: 0;" :content="'進捗報告'"/>
+                        <LoaderButton v-if="reviewReport" @click="progressReport(false)" style="margin: 0;" :content="'結果申請'"/>
+                        <LoaderButton v-if="managerOrDirector && goal?.status === 7" @click="progressReport(true)" style="margin: 0;" :content="'結果承認'"/>
                     </div>
 
                     <div v-if="(selectedProject?.id === goal?.project?.id && isManagerOrMember || ( (auth.user?.position_id && auth.user?.position_id < 6) || (auth.activeUser.id === 610 || auth.activeUser.id === 608))) && (goal?.status == 2)" style="display: flex; gap: 20px;margin-bottom: 10px;">
@@ -96,67 +154,91 @@
                         <LoaderButton style="margin: 0;" @click="openGoalApproveWindow(6)" :content="'差戻（管理本部用）'"/>
                     </div>
                 </div>
-                <div style="display:flex; gap: 20px; flex-direction: column;" v-if="goal?.salary_issue && sub_tab === 1">
-                    <div>
-                        <div>評価課題</div>
-                        <div>{{ goal?.salary_issue.theme }}</div>
+                <div class="flex flex-col gap-[30px] relative" v-if="salaryIssueRecord && sub_tab === 1">
+                    <div class="pc absolute top-0 right-0">
+                        <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px]">{{ salaryIssueStatus[salaryIssueRecord.status] }}</div>
+                    </div>
+                    <div class="mobile w-fit">
+                        <div class="text-[13px] font-semibold">ステータス</div>
+                        <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px] mt-[10px]">{{ salaryIssueStatus[salaryIssueRecord.status] }}</div>
                     </div>
                     <div>
-                        <div>メンター</div>
+                        <div class="text-[13px] font-semibold">評価課題</div>
+                        <div>{{ salaryIssueRecord.theme }}</div>
+                    </div>
+                    <div>
+                        <div class="text-[13px] font-semibold">メンター</div>
                         <div class="kadai-content">{{ evaluationData?.mentor?.name ?? '未設定' }}</div>
                     </div>
                     <div>
-                        <div>タイトル</div>
-                        <div class="kadai-content">{{ goal?.salary_issue.title }}</div>
+                        <div class="text-[13px] font-semibold">タイトル</div>
+                        <div class="kadai-content">{{ salaryIssueRecord.title }}</div>
+                    </div>
+                    <div v-if="salaryIssueRecord.content">
+                        <div class="text-[13px] font-semibold">内容・詳細</div>
+                        <div class="kadai-content">{{ salaryIssueRecord.content }}</div>
                     </div>
                     <div>
-                        <div>内容・詳細</div>
-                        <div class="kadai-content">{{ goal?.salary_issue.content }}</div>
-                    </div>
+                        <div class="text-[13px] font-semibold">開発能力</div>
+                        <div class="kadai-content">{{ salaryIssueRecord.ability }}</div>
+                    </div>      
                     <div>
-                        <div>課題達成による取得能力</div>
-                        <div class="kadai-content">{{ goal?.salary_issue.ability }}</div>
+                        <div class="text-[13px] font-semibold mb-[10px]">能力評価基準</div>
+                        <div v-if="salaryIssueRecord.actions" class="flex flex-col gap-[15px]">
+                            <div v-for="action in salaryIssueRecord.actions" :key="action.id" class="kadai-content flex gap-[10px]">
+                                <select 
+                                    :disabled="!salaryIssueReport" 
+                                    :value="action.status" 
+                                    @change="salaryIssueActionComplete(action)" 
+                                    class="py-[5px] px-[10px]"
+                                    :style="{ background: action.status == 1 ? '#64bc44' : 'var(--bg3)', color: action.status == 1 ? 'white' : 'var(--primary-color)' }"
+                                >
+                                    <option :value="1">修得済み</option>
+                                    <option :value="0">未修得</option>
+                                </select>
+
+                                <div>
+                                    <div class="leading-[1.2]">{{ action.content }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>                                  
+                    <div v-if="salaryIssueRecord.comment">
+                        <div class="text-[13px] font-semibold">コメント</div>
+                        <div class="kadai-content">{{ salaryIssueRecord.comment }}</div>
                     </div>
-                    <div>
-                        <div>ステータス</div>
-                        <div class="kadai-content">{{ salaryIssueStatus[goal?.salary_issue.status] }}</div>
+                    <div v-if="salaryIssueRecord.review">
+                        <div class="text-[13px] font-semibold">AI添削結果</div>
+                        <div class="kadai-content">{{ salaryIssueRecord.review }}</div>
                     </div>
-                    <div>
-                        <div>コメント</div>
-                        <div class="kadai-content">{{ goal?.salary_issue.comment }}</div>
-                    </div>
-                    <div>
-                        <div>AI添削結果</div>
-                        <div class="kadai-content">{{ goal?.salary_issue.review }}</div>
-                    </div>
-                    <div v-if="goal?.salary_issue?.status >= 6">
+                    <div v-if="salaryIssueRecord?.status >= 6">
                         <div class="post-separetor mt-[10px]"></div>
-                        <div class="mb-[10px]">昇給課題結果</div>
-                        <div class="kadai-content">{{ goal?.salary_issue.result }}</div>
-                        <Files style="margin-top: 15px;" v-if="goal?.salary_issue?.files?.length" :items="goal?.salary_issue?.files" :path="'project_files'"/>
+                        <div class="mb-[10px] font-semibold text-[13px]">開発能力検証報告</div>
+                        <div class="kadai-content">{{ salaryIssueRecord.result }}</div>
+                        <Files style="margin-top: 15px;" v-if="salaryIssueRecord?.files?.length" :items="salaryIssueRecord?.files" :path="'project_files'"/>
                     </div>
-                    <div v-if="goal?.salary_issue.status < 2 && (auth.id === memberData?.id || evaluationData?.mentor_id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                    <div v-if="salaryIssueRecord.status < 2 && (auth.id === memberData?.id || evaluationData?.mentor_id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'変更'"/>
                         <LoaderButton style="margin: 0;" @click="deleteIssue(goal.salary_issue)" :content="'削除'"/>
                     </div>
-                    <div v-if="evaluationData?.mentor_id === auth.id && goal?.salary_issue?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 1)" :content="'差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 3)" :content="'承認'"/>
+                    <div v-if="evaluationData?.mentor_id === auth.id && salaryIssueRecord?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 1)" :content="'差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 3)" :content="'承認'"/>
                     </div>
-                    <div v-if="631 === auth.id && goal?.salary_issue?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 1)" :content="'人事差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 5)" :content="'人事承認'"/>
+                    <div v-if="631 === auth.id && salaryIssueRecord?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 1)" :content="'人事差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 5)" :content="'人事承認'"/>
                     </div>
-                    <div v-if="631 === auth.id && goal?.salary_issue?.status == 9" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 6)" :content="'結果人事差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 10)" :content="'結果人事承認'"/>
+                    <div v-if="631 === auth.id && salaryIssueRecord?.status == 9" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 6)" :content="'結果人事差戻'"/>
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 10)" :content="'結果人事承認'"/>
                     </div>
-                    <div v-if="610 === auth.activeUser.id && goal?.salary_issue?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(goal?.salary_issue, 3)" :content="'人事承認取消'"/>
+                    <div v-if="610 === auth.activeUser.id && salaryIssueRecord?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
+                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 3)" :content="'人事承認取消'"/>
                     </div>
                     <div style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton v-if="salaryIssueReport" style="margin: 0;" :content="'成果報告'" @click="addIssueReport(false, goal)"/>
-                        <LoaderButton style="margin: 0;" v-if="evaluationData?.mentor_id === auth.id && goal?.salary_issue?.status === 7" :content="'進捗報告承認'" @click="addIssueReport(true, goal)"/>
+                        <LoaderButton v-if="salaryIssueReport" style="margin: 0;" :content="'開発能力検証報告'" @click="addIssueReport(false, goal)"/>
+                        <LoaderButton style="margin: 0;" v-if="evaluationData?.mentor_id === auth.id && salaryIssueRecord?.status === 7" :content="'進捗報告承認'" @click="addIssueReport(true, goal)"/>
                     </div>
                 </div>
                 <div v-else-if="canCreateIssue && sub_tab === 1">
@@ -174,15 +256,20 @@
             </div>
         </div>
         <Transition name="modalFade">
-            <ProjectReport 
+            <ProjectGoalResult 
                 v-if="openReport"
                 :chosenGoal="goal"
-                :memberData="memberData"
-                :selectedProject="selectedProject"
-                :isManagerOrMember="isManagerOrMember"
                 :reviewing="reviewing"
                 @close="openReport = false"
                 @reload="openReport = false, emit('close')"
+            />
+        </Transition>
+        <Transition name="modalFade">
+            <ProjectGoalReportCreate 
+                v-if="projectGoalReportCreate"
+                :projectGoal="projectGoalReportCreate"
+                @close="projectGoalReportCreate = null"
+                @reload="projectGoalReportCreate = null, refresh(), emit('close')"
             />
         </Transition>
         <Transition name="modalFade">
@@ -193,7 +280,6 @@
                 :getIssues="getIssues"
                 @goback="selectedTheme = null"
                 :selectedTheme="selectedTheme"
-                :memberData="memberData"
                 :selectedDate="selectedDate"
                 :editData="editData"
                 :chosenGoal="goal"
@@ -204,8 +290,6 @@
             <Report 
                 v-if="issueReport"
                 :chosenIssue="issueReport"
-                :member-data="memberData"
-                :is-manager-or-member="isManagerOrMember"
                 :reviewing="reviewing"
                 @close="issueReport = null"
                 @reload="issueReport = null, emit('close')"
@@ -248,25 +332,25 @@
 <script setup lang="ts">
 import { useAuthUserStore } from '@/store/auth';
 import { computed, inject, reactive, ref } from 'vue';
-import moment from 'moment';
 import LoaderButton from '../Global/LoaderButton.vue';
-import ProjectReport from './ProjectReport.vue';
+import ProjectGoalResult from './ProjectGoalResult.vue';
 import ProjectSalaryIssueCreation from './ProjectSalaryIssueCreation.vue';
-import PostFiles from '../Post/PostFiles.vue';
 import Files from '../Global/Files.vue';
 import Report from './SalaryIssue/Report.vue';
-import { SalaryIssue } from '@/interface/projectInterface';
+import { ProjectGoal, SalaryIssue } from '@/interface/projectInterface';
 import axios from 'axios';
 import { Dialog } from '@/interface/globalInterface';
 import { useBadgeStore } from '@/store/badge'
 import { useRouter } from 'vue-router';
 import Modal from '../Global/Modal.vue';
 import LongInput from '../Form/LongInput.vue';
+import CommandButton from '../Global/CommandButton.vue';
+import ProjectGoalReportCreate from './ProjectGoalReportCreate.vue';
+import { DateTime } from 'luxon';
+import { useProject } from '@/composables/project';
+import ProgressSlider from './ProgressSlider.vue';
 const props = defineProps([
     'goal', 
-    'memberData', 
-    'selectedProject', 
-    'isManagerOrMember', 
     'themeRecords',
     'selectedDate',
     'statuses',
@@ -285,31 +369,37 @@ const { confirm, notify, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const refreshRemind = inject('refreshRemind') as Function
 const issueReport = ref(null)
+const { memberData, isManagerOrMember, selectedProject } = useProject()
+
+const projectGoalReportCreate = ref<ProjectGoal | null>(null)
 const badge = useBadgeStore()
 const router = useRouter()
 const canCreateIssue = computed(() => {
-    const start = props.goal?.start_date ? moment(props.goal.start_date) : null;
-    const end = props.goal?.end_date ? moment(props.goal.end_date) : null
-    if (start && end) {
-        const differenceInMonths = end.diff(start, 'months', true); 
-        const differenceInDays = end.diff(start, 'days');
+    const start = props.goal?.start_date ? DateTime.fromSQL(props.goal.start_date) : null;
+    const end = props.goal?.end_date ? DateTime.fromSQL(props.goal.end_date) : null
+    if (start?.isValid && end?.isValid) {
+        const differenceInMonths = end.diff(start, 'months').as('months'); 
+        const differenceInDays = end.diff(start, 'days').as('days');
         if (differenceInMonths >= 2.9 || differenceInDays >= 89) { 
             return true;
         }
     }
     return false
 })
+const salaryIssueRecord = computed(() => {
+    return props.goal?.salary_issue
+})
 const reviewReport = computed(() => {
-    return (props.memberData && auth.id === props.memberData.id 
+    return (memberData.value && auth.id === memberData.value.id 
             || managerOrDirector.value) 
             && (props.goal?.status >= 5 && props.goal?.status < 9 && props.goal?.status !== 7)
 })
 const managerOrDirector = computed(() => {
-    return (auth.user?.position_id && auth.user?.position_id < 6) || props.isManagerOrMember
+    return (auth.user?.position_id && auth.user?.position_id < 6) || isManagerOrMember.value
 })
 const salaryIssueReport = computed(() => {
-    return (props.goal?.salary_issue?.status >= 5 && props.goal?.salary_issue?.status < 9 && props.goal?.salary_issue?.status !== 7) 
-        && (auth.id === props.memberData?.id || props.evaluationData?.mentor_id === auth.id)
+    return (salaryIssueRecord.value?.status >= 5 && salaryIssueRecord.value?.status < 9 && salaryIssueRecord.value?.status !== 7) 
+        && (auth.id === memberData.value?.id || props.evaluationData?.mentor_id === auth.id)
 })
 const selectThemeConfirm = (level, theme) => {
     selectedTheme.value = getIssues(level, theme)[0]
@@ -480,6 +570,41 @@ const addIssueReport = (report: boolean, goal: any) => {
     reviewing.value = report
     issueReport.value = goal?.salary_issue
 }
+const kpiCalculation = (steps: any) => {
+    if(steps && steps.length){
+        const totalProgress = steps.reduce((acc: number, step: any) => {
+            return acc + step.progress
+        }, 0)
+        
+        const maxProgress = steps.length * 100
+        return Math.round((totalProgress / maxProgress) * 100)
+    }
+    return 0
+}
+const overallScore = computed(() => {
+    const kpi = kpiCalculation(props.goal.steps)
+    const kgi = props.goal.achievement_rate
+    const sum = kpi + kgi
+    return Math.round(sum / 2)
+})
+
+const salaryIssueActionComplete = async(record) => {
+    const status = record.status
+    const confirmMessage = status == 1 ? '能力評価基準を未修得にします。よろしいですか？' : '能力評価基準を修得済みにします。よろしいですか？'
+    const successMessage = status == 1 ? '未修得にしました。' : '修得済みしました。'
+    const answer = await confirm(confirmMessage)
+    if(!answer.value) return
+    try {
+        await axios.post('/salary_issue_action_complete', { action_id: record.id, issue_id: record.salary_issue_id })
+        if (typeof refresh === 'function') {
+            refresh()
+        }
+        emit('close')
+        info(successMessage)
+    } catch (e) {
+        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    }
+}
 </script>
 <style>
 .admin-command-bar{
@@ -498,5 +623,17 @@ const addIssueReport = (report: boolean, goal: any) => {
 }
 .sub-tab-container{
     display: flex;
+}
+</style>
+<style scoped>
+table{
+    width: 100%;
+    border-collapse: collapse;
+}
+td{
+    padding: 10px;
+    border: solid thin var(--calendarBorder);
+    vertical-align: top;
+
 }
 </style>

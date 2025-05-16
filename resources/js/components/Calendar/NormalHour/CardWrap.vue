@@ -5,7 +5,7 @@
         :class="[{'pop-cal-card' : expanded}]"
         :style="{
             minWidth: recordWidth, 
-            marginTop: `${(record.order * 60) + ((record.order + 1) * 10) + (fullDayIndex * 35)}px`,
+            marginTop: `${record.order ? (record.order * 60) + ((record.order + 1) * 10) + (fullDayIndex * 35) : '0'}px`,
             left: recordLeft,
             maxHeight: maxHeight,
             opacity: opacity,
@@ -33,32 +33,30 @@
 
     </OnLongPress>
 </template>
-<script setup>
-import moment from 'moment';
-import { computed, inject, nextTick, onMounted, ref } from 'vue';
+<script setup lang="ts">
+import { computed, inject, nextTick, Ref, ref, useTemplateRef } from 'vue';
 import { OnLongPress } from '@vueuse/components'
 import CalendarCard from '../CalendarCard.vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
-import { useTempRecord } from '@/store/tempRecord';
+import { CalendarRecord } from '@/interface/calendarInterface';
+import { DateTime } from 'luxon';
+import { useCalendar } from '@/composables/calendar';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
-    const tempRecord = useTempRecord()
-    const props = defineProps(['record', 'fullDayIndex'])
+    const props = defineProps<{
+        record: CalendarRecord
+        fullDayIndex: number
+    }>()
     const emit = defineEmits(['setParentDroppable', 'setDayIndex'])
-    const draggingCalendar = inject('draggingCalendar')
+    const {draggingCalendar, setDraggingCalendar} = useCalendar()
     const shiftRight = ref(0)
     const shiftBottom = ref(0)
     const beforeState = ref(0)
     const beforeLeft = ref(0)
-    const dayRecord = ref(null)
-    onMounted(() => {
-        // if(tempRecord.id && tempRecord.id == props.record.id){   
-        //     menu.setMenu( {id: props.record.id, name: `cal_${props.record.id}`})  
-        // }
-    })
+    const dayRecord = useTemplateRef('dayRecord')
 
     const viewable = computed(() => {
         return (props.record.release_flag == 0 && props.record.members_only == 0) || editable.value
@@ -91,18 +89,21 @@ import { useTempRecord } from '@/store/tempRecord';
         if(expanded.value){
             return '200%'
         }else{
-            const minutesDifference = Math.abs(moment(props.record.date_start).diff(moment(props.record.date_end), 'minutes'))
+            const startDateTime = DateTime.fromSQL(props.record.date_start);
+            const endDateTime = DateTime.fromSQL(props.record.date_end);
+            const minutesDifference = Math.abs(startDateTime.diff(endDateTime, 'minutes').as('minutes'))
             const steps = Math.ceil(minutesDifference / 15)
-            const until_start = Math.abs(moment(props.record.date_start).startOf('day').diff(moment(props.record.date_start), 'minutes'))                
+            const until_start = Math.abs(startDateTime.startOf('day').diff(startDateTime, 'minutes').as('minutes'))                
             const before_limiter = Math.ceil(until_start / 15) 
             const max_block = 96 - before_limiter
-            const computed_width = steps > max_block ? max_block : steps
+            const computed_width = steps > max_block ? max_block : steps    
             const unit = responsive.mobile ? '500vw' : '120vw'
             return `calc(((${unit} - 30px) / 96 * ${computed_width}) - 3px)`
         }        
     })
     const recordLeft = computed(() => {
-        const diff = Math.abs(moment(props.record.date_start).diff(moment(props.record.date_start).startOf('hour'), 'minutes'))
+        const startDateTime = DateTime.fromSQL(props.record.date_start);
+        const diff = Math.abs(startDateTime.diff(startDateTime.startOf('hour'), 'minutes').as('minutes'))
         const steps = Math.floor(diff / 15) 
         const unit = responsive.mobile ? '500vw' : '120vw'
         return `calc(((${unit} - 30px) / 96 * ${steps}) + 1px)`
@@ -116,7 +117,7 @@ import { useTempRecord } from '@/store/tempRecord';
         beforeState.value = event.x     
     }
     const dragStart = (event) => {
-        if(editable.value && !expanded.value){
+        if(editable.value && !expanded.value && draggingCalendar){
             const el = document.getElementById('cal_day_view')
             const left = el ? el.scrollLeft : 0
             if(left !== beforeLeft.value) return
@@ -126,7 +127,7 @@ import { useTempRecord } from '@/store/tempRecord';
             record['x'] = event.x
             record['y'] = event.y
             record['from'] = 'month'
-            draggingCalendar.value = record
+            setDraggingCalendar(record)
             menu.setMenu( {id: null, name: ''})
             emit('setParentDroppable')
         }            
@@ -142,8 +143,9 @@ import { useTempRecord } from '@/store/tempRecord';
                 const rect = el.getBoundingClientRect();
                 const compare_value = responsive.mobile ? 30 : 80
                 if(rect.x < compare_value){
-                    const val = moment(record.date_start).isAfter(moment(record.date_start).startOf('day').add(1, 'hour')) ? 1 : 0
-                    const time = moment(record.date_start).subtract(val, 'hour').startOf('hour').hour()
+                    const startDateTime = DateTime.fromSQL(props.record.date_start);  
+                    const val = startDateTime.diff(startDateTime.startOf('day').plus({ hours: 1 }), 'hours').as('hours') > 0 ? 1 : 0
+                    const time = startDateTime.minus({ hours: val }).startOf('hour').hour
                     
                     if(time <= 1){
                         document.getElementById(`cal_day_view`)?.scrollTo({ left: 0, behavior: 'smooth'})
@@ -158,7 +160,7 @@ import { useTempRecord } from '@/store/tempRecord';
                     }
                 }
                 const bottom_check = rect.y + rect.height
-                const value = responsive.mobile && auth.user.footer_view ? 45 : 0
+                const value = responsive.mobile && auth.user?.footer_view ? 45 : 0
                 if(bottom_check > window.innerHeight - value){
                     shiftBottom.value = window.innerHeight - value - bottom_check - 10
                 }

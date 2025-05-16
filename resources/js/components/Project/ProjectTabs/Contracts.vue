@@ -114,19 +114,16 @@
     </div>
 </template>
 <script setup lang="ts">
-import { DialogMethods } from '@/interface/globalInterface';
-import { Project } from '@/interface/projectInterface';
 import axios from 'axios';
 import { DateTime } from 'luxon';
 import { inject, onMounted, ref } from 'vue';
 import { kintoneFileUrlBuilder, fileSizeParser } from '@/utils/tools';
+import { useProject } from '@/composables/project';
 const props = defineProps<{
-    selectedProject: Project;
     userList: any;
     hasPrivilage: boolean;
 }>();
 const setLoader = inject('setLoader') as (flag: boolean) => void
-const { notify, info, confirm } = inject('dialog') as DialogMethods
 const contractsData = ref<any[]>([])
 const columnTypes = ref<{
     array: string[];
@@ -144,6 +141,7 @@ const columnTypes = ref<{
 const selectedContracts = ref<any[]>([])
 const tableColumns = ref<string[]>([])
 const fetchCount = ref(0)
+const { selectedProject } = useProject()
 onMounted(async() => {
     if(!props.hasPrivilage) return;
     setLoader(true)
@@ -154,7 +152,7 @@ onMounted(async() => {
 })
 
 const getContracts = async() => {
-    const response = await axios.get('/get_contracts', {params: {project_name: props.selectedProject.name}}).then(res => res.data);
+    const response = await axios.get('/get_contracts', {params: {project_name: selectedProject.value?.name}}).then(res => res.data);
     contractsData.value = response.contracts
     columnTypes.value = response.column_types
     tableColumns.value = response.table_columns

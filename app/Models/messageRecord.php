@@ -37,6 +37,9 @@ class messageRecord extends Model
     public function user(){
         return $this->belongsTo(User::class)->withTrashed()->select('id', 'icon_path', 'icon_bg', 'name', 'deleted_at');
     }
+    public function actual_sender(){
+        return $this->belongsTo(User::class, 'actual_sender_id')->withTrashed()->select('id', 'icon_path', 'icon_bg', 'name', 'deleted_at');
+    }
     public function board(){
         return $this->belongsTo(boardRecord::class, 'id', 'record_id');
     }   

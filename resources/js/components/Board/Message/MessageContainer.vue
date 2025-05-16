@@ -57,7 +57,7 @@
             <MessageHeader v-if="responsive.mobile && board"/>
         <Transition name="modalFade"> 
         <div v-if="microLoader" id="infiniteLoader">
-            <div class="spinner-micro color-change" style=""></div>
+            <div class="spinner-micro color-change"></div>
         </div>
         </Transition>
         <div id="floatButton" class="floatCheck hideout">

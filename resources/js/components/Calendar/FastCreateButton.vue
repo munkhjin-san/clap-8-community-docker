@@ -1,6 +1,6 @@
 <template>
     <div id="scheduleCreateFast" :style="{left: `${data.x - 15}px`, top: `${data.y -20}px`, minWidth: '35px'}" class="fastCreateButton">    
-        <AddIcon size="12" style="fill:inherit"/>
+        <AddIcon size="12" style="fill: var(--background-color);"/>
         {{ date }}
     </div>
 </template>
@@ -22,12 +22,12 @@ import AddIcon from '../Form/AddIcon.vue';
         if(!props.data.stamp?.isValid) return
         const differenceInSeconds = DateTime.now().diff(props.data.stamp, 'seconds').as('seconds');
         if(differenceInSeconds >= 4){
-            // emit('close')
+            emit('close')
         }
     }
     const date = computed(() => {
         const withTime = DateTime.fromFormat(props.data.time, 'yyyy-MM-dd HH:mm:ss');
         const dateOnly = DateTime.fromISO(props.data.time);
-        return withTime.isValid ? withTime.toFormat('yyyy-MM-dd HH:mm') : dateOnly.toFormat('yyyy-MM-dd')
+        return withTime.isValid ? withTime.toFormat('M / d (ccc) HH:mm') : dateOnly.toFormat('M / d (ccc)')
     })   
 </script>

@@ -37,5 +37,6 @@ class ProjectRecord extends Model
         'category' => 'array',
         'partners' => 'array',
         'customers' => 'array',
+        'industry_type' => 'array',
     ];
 }

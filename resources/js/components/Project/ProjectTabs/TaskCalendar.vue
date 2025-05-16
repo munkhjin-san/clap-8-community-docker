@@ -142,14 +142,12 @@ import TaskCreate from '@/components/Task/TaskCreate.vue';
 import TaskCategorizer from '@/components/Task/Gantt/TaskCategorizer.vue';
 import SubTaskControl from '@/components/Task/SubTaskControl.vue';
 import { useBadgeStore } from '@/store/badge';
-import WeatherIcon from '@/components/Global/WeatherIcon.vue';
 import GanttTaskBody from '@/components/Task/Gantt/GanttTaskBody.vue';
 import { useAuthUserStore } from '@/store/auth'
 import TaskSpanSelector from '@/components/Task/Gantt/TaskSpanSelector.vue';
 import DateBlock from '@/components/Task/Gantt/DateBlock.vue';
 import { useResponsive } from '@/store/responsive'
 const props = defineProps<{
-    selectedProject: Project;
     userList: any;
 }>();
 const auth = useAuthUserStore()

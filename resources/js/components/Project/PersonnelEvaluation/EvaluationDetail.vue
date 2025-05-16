@@ -36,7 +36,7 @@
                     </div>
 
                     <div class="flex gap-[20px] flex-wrap mt-[20px]"
-                        v-if="(auth.id === memberData.id || auth.id === evaluationData?.mentor?.id)">
+                        v-if="(auth.id === memberData?.id || auth.id === evaluationData?.mentor?.id)">
 
                         <div>
                             <div class="mb-[10px]">給料（非公開）</div>
@@ -136,8 +136,7 @@
         </div>
             <Transition name="modalFade">
                 <EvaluationCreationWithMentor 
-                    v-if="createWindow" 
-                    :memberData="memberData" 
+                    v-if="createWindow"  
                     :date="date"
                     @reload="reload" @close="createWindow = false" />
             </Transition>
@@ -149,13 +148,12 @@ import { computed, inject, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 import axios from 'axios';
-import { Increase } from '@/interface/projectInterface';
 import EvaluationCreationWithMentor from './EvaluationCreationWithMentor.vue';
 import {  Dialog, DialogMethods } from '@/interface/globalInterface'
 import { EvaluationRecord } from '@/interface/evaluationInterface';
 import CommandButton from '@/components/Global/CommandButton.vue';
+import { useProject } from '@/composables/project';
 const props = defineProps([
-    'memberData',
     'date',
 ])
 
@@ -165,6 +163,7 @@ const statuses = [
     {id: 2, name: '申請中', success: '申請しました。'},
     {id: 3, name: '承認済み', success: '承認しました。'},
 ]
+const { memberData } = useProject()
 const initialLoader = ref(true)
 const positions = generalPositions()
 const router = useRouter()
@@ -215,12 +214,12 @@ const updateStatus = async (status: number) => {
 }
 const getEvaluations = async () => {
     const span = route.params.span as string
-    if (props.memberData && span) {
+    if (memberData.value && span) {
         try {
             const params = {
                 year: span?.split('-')[0],
                 which_half: span?.split('-')[1],
-                user_id: props.memberData?.id
+                user_id: memberData.value?.id
             }
             const response = await axios.post('/get_evaluation_data', params)
             evaluationData.value = response.data.evaluation

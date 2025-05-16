@@ -36,10 +36,10 @@
     import { onMounted, computed, ref, provide } from 'vue';
     import WorkNotSubmitted from '../Work/WorkNotSubmitted.vue';
     import { useRoute } from 'vue-router';
-    import { useAuthUserStore } from '../../store/auth';
+    import { useAuthUserStore } from '@/store/auth';
     import { getCustomFields, getWorkGroup } from '../../utils/workApi';
 
-    import moment from 'moment';
+    import { DateTime, Interval } from 'luxon';
     const auth = useAuthUserStore()
     const shiftNotSubmittedList = ref([])
     const nextShiftNotSubmittedList = ref([])
@@ -55,11 +55,14 @@
         }        
     })
     const checkDay = () => {
-        const currentDate = moment()
-        const lastDayOfMonth = moment().endOf('month')
-        const twentyFifthOfMonth = moment().date(25)
-        if (currentDate.isBetween(twentyFifthOfMonth, lastDayOfMonth, null, '[]')){
-            checkNextMonthShift()
+        const currentDate = DateTime.now()
+        const lastDayOfMonth = currentDate.endOf('month').plus({days: 1})
+        const twentyFifthOfMonth = currentDate.set({day: 25})
+        const interval = Interval.fromDateTimes(twentyFifthOfMonth, lastDayOfMonth)
+        if(interval.isValid){
+            if(interval.contains(currentDate)){
+                checkNextMonthShift()
+            }
         }
     }
     const checkNextMonthShift = async() => {

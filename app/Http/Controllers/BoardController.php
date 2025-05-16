@@ -604,6 +604,7 @@ class BoardController extends Controller
         })
         ->with([
             'user',
+            'actual_sender',
             'message_files.unsignedUsers',
             'message_files.signedUsers',
             'message_reply',
@@ -652,6 +653,10 @@ class BoardController extends Controller
         }           
             $chat->record_id = $request->record_id;
             $chat->user_id = $request->override_user_id ?? $auth_user_id;
+
+            if(Auth::id() != $auth_user_id){
+                $chat->actual_sender_id = Auth::id();
+            }
             
             if($request->message){
                 $chat->message = $request->message;

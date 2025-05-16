@@ -483,7 +483,7 @@ progress {
 }
 
 .date-color {
-  color-scheme: dark;
+    color-scheme: dark;
 }
 
 .taskDateTimePicker {
@@ -4757,7 +4757,15 @@ input:-webkit-autofill:active {
 .bscOpen {
   width: 20%;
 }
-
+.g-y-pick{
+    white-space: nowrap;
+    font-size: 15px;
+    height: 30px;
+    line-height: 30px;
+    user-select: none;
+    cursor: pointer;
+    color: var(--primary-color);
+}
 .messageAreaContainer {
   z-index: 1;
   overflow: hidden;
@@ -6595,6 +6603,7 @@ input:autofill {
     display: flex;
     flex-direction: column;
     gap: 30px;
+    font-size: 14px;
 }
 .kadaiCreate{
     width: 90% !important;
@@ -6704,6 +6713,7 @@ button.shift-button{
     .project-slide-window{
         width: 100%;
         left: 0;
+        position: fixed;
     }
     .from-left {
         left: auto !important;

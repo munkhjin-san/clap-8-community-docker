@@ -370,4 +370,14 @@ class LessonController extends Controller
         }
         return response()->json($lesson_summary_answer);
     }
+    public function get_completed_lesson_themes(Request $request){
+        $themes = LessonTheme::where('id', '<=', 10)->whereHas('lesson_portfolio' , 
+            function ($q){
+                $q->where('user_id', Auth::id())
+                ->where('status', 3);
+            }
+        )->pluck('title')->toArray();
+
+        return response()->json($themes, 200, [], JSON_UNESCAPED_UNICODE);
+    }
 }

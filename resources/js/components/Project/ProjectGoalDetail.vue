@@ -5,60 +5,82 @@
                 <div class="goals-inner" style="height: calc(100% - 20px); padding: 20px;">
                     <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">                        
                         <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-more', params: { goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
+                     
                             <div>
                                 <div>該当部門</div>
                                 <div class="kadai-content flex items-center">
                                     {{ goal?.project?.name }}
                                     
-                                </div>
-                                
-                            </div>
-                            <div>
-                                <div>成果目標</div>
-                                <div class="kadai-content">{{ sliceGoal(goal?.outcome_goal) }}</div>
+                                </div>                                
                             </div>
                             <div>
                                 <div>期間</div>
-                                <div class="kadai-content">{{ goal?.start_date }} ～ {{ goal?.end_date }}</div>
+                                <div class="kadai-content">{{ `${DateTime.fromISO(goal.start_date).toLocaleString()} ~ ${DateTime.fromISO(goal.end_date).toLocaleString()}` }}</div>
                             </div>
-                            <div>
+                      
+                            <!-- <div>
                                 <div>成果目標ステータス</div>
                                 <div class="kadai-content flex items-center" :style="{color: badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ statuses[goal?.status] }}
                                     <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
                                 </div>
-                            </div>
-                            <div v-if="goal?.achievement_rate !== null && goal?.status >= 6">
+                            </div> -->
+                            <div v-if="goal?.outcome_goal">
+                                <div>成果目標</div>
+                                <div class="kadai-content">{{ sliceGoal(goal?.outcome_goal) }}</div>
+                            </div>                           
+                            <div v-if="goal?.miso">
+                                <div>MISO</div>
+                                <div class="kadai-content">{{ sliceGoal(goal?.miso) }}</div>
+                            </div>                           
+                            <div v-if="goal?.kgi">
+                                <div>KGI</div>
+                                <div class="kadai-content">{{ sliceGoal(goal?.kgi) }}</div>
+                            </div>                           
+
+                            <div>
                                 <div>達成率</div>
-                                <div class="kadai-content">{{ goal?.achievement_rate }}%</div>
+                                <div class="flex gap-[20px] kadai-content" v-if="goal.steps && goal.steps.length">
+                                    <div>KGI {{ `${goal.achievement_rate}%` }}</div>
+                                    <div>KPI {{ `${kpiCalculation(goal.steps)}%` }}</div>                                    
+                                    <div>合計 {{ `${overallScore(goal)}点` }}</div>
+                                </div>
+                                <div v-else-if="goal?.achievement_rate !== null" class="kadai-content">{{ goal?.achievement_rate }}%</div>                                
                             </div>
-                            <div v-if="goal?.salary_issue">
-                                <div>昇給課題</div>
-                                <div class="kadai-content">{{ goal?.salary_issue?.title }}</div>
-                            </div>
-                            <div v-if="goal?.salary_issue">
-                                <div>昇給課題ステータス</div>
-                                <div class="kadai-content flex items-center" :style="{color: badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ salaryIssueStatus[goal?.salary_issue?.status] }}
-                                    <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
+                            <div v-if="goal?.salary_issue" class="mt-[5px]">
+                                <div class="w-full h-[1px] bg-[var(--calendarBorder)] mb-[15px]"></div>
+                                <div class="mb-[10px]">
+                                    <div>昇給課題</div>
+                                    <div class="kadai-content">{{ goal?.salary_issue?.title }}</div>
+                                </div>
+                                <div>
+                                    <div>昇給課題ステータス</div>
+                                    <div class="kadai-content flex items-center" :style="{color: badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ salaryIssueStatus[goal?.salary_issue?.status] }}
+                                        <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
+                                    </div>
                                 </div>
                             </div>
+
                             
-                            <div v-if="memberData && (auth.id === memberData.id || isManagerOrMember || auth.activeUser.id === 610 || auth.activeUser.id === 608) && goal?.status < 2" style="position: absolute;right: 10px;top: 10px;">                                            
-                                <ItemMenu :items="[
-                                    {title: '編集する', action: () => editGoal(goal)},
-                                    {title: '削除する', action: () => deleteGoal(goal)}
-                                ]"/> 
-                            </div>
-                            <div v-else-if="memberData && auth.id === memberData.id && goal?.status >= 2 && goal?.status < 7 && goal?.status != 4" style="position: absolute;right: 10px;top: 10px;">
-                                <ItemMenu :items="[{title: '変更申請', action: () => applyEdit(goal)}]"/> 
-                            </div>
-                            <!-- <div>
-                                <CommandButton 
-                                    :buttons="[
-                                        { title: '表示する', action: () => chosenGoal = goal},
+                            <div class="absolute right-[10px] top-[10px] flex items-center gap-2">   
+                                <div>
+                                    <div class="p-[5px] bg-[var(--background-color)] text-[var(--primary-color)] text-[12px]">
+                                        <div class="flex items-center" :style="{color: badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ statuses[goal?.status] }}
+                                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
+                                        </div>
+                                    </div>
+                                </div>                                         
+                                <ItemMenu 
+                                    v-if="memberData && (auth.id === memberData.id || isManagerOrMember || auth.activeUser.id === 610 || auth.activeUser.id === 608) && goal?.status < 2"
+                                    :items="[
+                                        {title: '編集する', action: () => editGoal(goal)},
+                                        {title: '削除する', action: () => deleteGoal(goal)}
                                     ]"
-                                />
-                            </div> -->
-                            
+                                /> 
+                                <ItemMenu 
+                                    v-else-if="memberData && auth.id === memberData.id && goal?.status >= 2 && goal?.status < 7 && goal?.status != 4" 
+                                    :items="[{title: '変更申請', action: () => applyEdit(goal)}]"
+                                /> 
+                            </div>                            
                         </div>
                                 
                     
@@ -69,7 +91,7 @@
                         現在レコードはありません。
                     </div>
                 </div>
-                <div v-if="memberData && (auth.id === memberData.id || isManagerOrMember)" title="新規作成" id="boardCreate" class="createBoardButton fileNewButton" @click="createOutcomeGoal = true" :style="{zIndex: 7}">
+                <div v-if="memberData && (auth.id === memberData.id)" title="新規作成" id="boardCreate" class="createBoardButton fileNewButton" @click="createOutcomeGoal = true" :style="{zIndex: 7}">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="fill:#000;margin:auto;">
                         <path d="M30.044 14.14c-2.402-0.231-4.804-0.341-7.206-0.422-1.535-0.058-3.071-0.079-4.606-0.090-0.326-0.002-0.587-0.265-0.588-0.591-0.004-1.537-0.018-3.074-0.078-4.613-0.092-2.4-0.218-4.802-0.542-7.205-0.084-0.612-0.565-1.119-1.205-1.206-0.769-0.103-1.477 0.437-1.582 1.206-0.324 2.401-0.449 4.804-0.542 7.205-0.059 1.536-0.074 3.071-0.078 4.606-0.001 0.325-0.263 0.59-0.59 0.59-1.534 0.005-3.068 0.020-4.602 0.078-2.404 0.094-4.805 0.219-7.207 0.543-0.612 0.081-1.119 0.564-1.205 1.205-0.103 0.769 0.436 1.477 1.205 1.58 2.402 0.324 4.804 0.449 7.207 0.543 1.536 0.059 3.074 0.073 4.612 0.078 0.325 0.001 0.587 0.262 0.59 0.587 0.011 1.536 0.033 3.070 0.090 4.606 0.080 2.402 0.192 4.805 0.423 7.207 0.066 0.699 0.622 1.278 1.349 1.348 0.823 0.079 1.556-0.524 1.633-1.348 0.231-2.402 0.342-4.805 0.423-7.207 0.057-1.538 0.079-3.077 0.090-4.615 0.002-0.324 0.263-0.583 0.587-0.586 1.538-0.011 3.077-0.034 4.615-0.090 2.402-0.080 4.804-0.193 7.206-0.423 0.7-0.066 1.279-0.622 1.349-1.349 0.076-0.823-0.528-1.557-1.351-1.634z"></path>
                     </svg>
@@ -81,9 +103,6 @@
                 <component
                     :is="Component" 
                     :goal="chosenGoal"
-                    :memberData="memberData"
-                    :selectedProject="selectedProject"
-                    :isManagerOrMember="isManagerOrMember"
                     :themeRecords="themeRecords"
                     :selectedDate="selectedDate"
                     :statuses="statuses"
@@ -92,10 +111,9 @@
                 />                    
             </router-view>
             <Transition name="modalFade">
-                <ProjectOutcomeGoal 
+                <ProjectGoalCreation 
                     v-if="createOutcomeGoal"
                     :selectedDate="selectedDate"
-                    :selectedProject="selectedProject"
                     :editGoalData="editGoalData"
                     @close="createOutcomeGoal = false, editGoalData = null"
                 />
@@ -111,16 +129,14 @@ import ItemMenu from '../Global/ItemMenu.vue';
 import axios from 'axios';
 import { useAuthUserStore } from '@/store/auth';
 import { Dialog } from '@/interface/globalInterface';
-import ProjectOutcomeGoal from './ProjectGoalCreation.vue';
+import ProjectGoalCreation from './ProjectGoalCreation.vue';
 import { ProjectGoal } from '@/interface/projectInterface';
 import { detailedDateOptions } from '@/utils/tools'
-import moment from 'moment';
 import { useBadgeStore } from '@/store/badge';
 import { EvaluationRecord } from '@/interface/evaluationInterface';
-const props = defineProps([
-    'selectedProject', 
-    'memberData',
-])
+import { useProject } from '@/composables/project';
+import { DateTime } from 'luxon';
+
 interface Theme {
     issues: any;
     level: any;
@@ -128,7 +144,6 @@ interface Theme {
 interface Date {
     value: any;
 }
-const seikaOptions = detailedDateOptions()
 const auth = useAuthUserStore()
 const route = useRoute()
 const router = useRouter()
@@ -136,12 +151,12 @@ const initialLoader = defineModel()
 const createOutcomeGoal = ref(false)
 const themeRecords = ref<Theme[]>([])
 const editGoalData = ref<ProjectGoal | null>(null)
-// const selectedDate = inject('selectedDate') as Date
 const goalDate = ref('')
 const projectGoals = ref<ProjectGoal[]>([])
 const evaluationData = ref<EvaluationRecord | null>(null)
 const badge = useBadgeStore()
 const { notify, info, confirm } = inject<Dialog>('dialog')!;
+const { memberData, isManagerOrMember } = useProject()
 const statuses = [
     '作成中（本人対応中）', 
     '目標を差戻中（本人対応中）', 
@@ -183,6 +198,7 @@ const chosenGoal = computed(() => {
     return route.params && route.params.goalId ? projectGoals.value.find(ob => ob.id == Number(route.params.goalId)) : null
 })
 const sliceGoal = (content: string) => {
+    if (!content) return ''
     const truncatedGoal = content.length > 100 
     ? content.slice(0, 100) + '...' 
     : content;
@@ -196,21 +212,15 @@ const selectedDate = computed(() => {
     return goalDate
 })
 
-const isManagerOrMember = computed(() => {
-    if (props.memberData && props.memberData.pivot.authority === 1) {
-        return props.selectedProject?.director_id === auth.id
-    } 
-    return props.selectedProject?.manager.some((ob: { id: number | null; }) => ob.id === auth.id)
-})
 const fetchMemberData = async () => {
-    if (props.memberData) {
+    if (memberData.value) {
         try {
             const span = route.params.span as string
             const [year, which_half] = span.split('-')
             const params = {
                 year: year,
                 which_half: which_half,
-                user_id: props.memberData?.id
+                user_id: memberData.value?.id
             }
             const data = await axios.post('/get_outcome_goals', params).then(res => res.data)
             projectGoals.value = data.project_goals
@@ -258,6 +268,23 @@ const applyEdit = async (goal: ProjectGoal) => {
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
+}
+const kpiCalculation = (steps: any) => {
+    if(steps && steps.length){
+        const totalProgress = steps.reduce((acc: number, step: any) => {
+            return acc + step.progress
+        }, 0)
+        
+        const maxProgress = steps.length * 100
+        return Math.round((totalProgress / maxProgress) * 100)
+    }
+    return 0
+}
+const overallScore = (goal: ProjectGoal) => {
+    const kpi = kpiCalculation(goal.steps)
+    const kgi = goal.achievement_rate
+    const sum = kpi + kgi
+    return Math.round(sum / 2)
 }
 provide('refresh', fetchMemberData)
 </script>

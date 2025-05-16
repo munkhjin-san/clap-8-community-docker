@@ -30,33 +30,47 @@
     />
 </div>
 </template>
-<script setup>
-    import moment from 'moment';
-    import HourBlock from './HourBlock.vue';
-    import AllDayRecord from '../AllDayRecord.vue';
-    import { computed } from 'vue';
-    const props = defineProps(['day', 'hoursOfDay', 'records', 'orderCreator', 'activeDay'])
+<script setup lang="ts">
+import HourBlock from './HourBlock.vue';
+import AllDayRecord from '../AllDayRecord.vue';
+import { computed } from 'vue';
+import { DateTime } from 'luxon';
+import { NormalHourDay, CalendarRecord } from '@/interface/calendarInterface';
+    const props = defineProps<{
+        day: NormalHourDay;
+        hoursOfDay:string[];
+        records: CalendarRecord[]
+        orderCreator: Function
+        activeDay: DateTime | null
+    }>()
     const emit = defineEmits(['releaseScroll', 'load', 'create', 'setListView', 'setDayIndex'])
 
     const indexOrder = computed(() => {
         if(props.activeDay){
-            return props.activeDay.isSame(moment(props.day.full), 'day') ? 12 : 'unset'
+            return props.activeDay.hasSame(DateTime.fromSQL(props.day.full), 'day') ? 12 : 'unset'
         }
         return 'unset'
     })
     const isSaturday = computed(() => {
-        return moment(props.day.full).day() === 6
+        return DateTime.fromISO(props.day.full).weekday === 6
     })
     const specialDay = computed(() => {
-        return moment(props.day.full).day() === 0 || props.day.day_holiday
+        return DateTime.fromISO(props.day.full).weekday === 7 || props.day.day_holiday
     })
     const hourFulldayRecords = computed(() => {
-        if(props.records && props.records.length){   
-            return  props.records.filter(ob => moment(ob.date_start).isSame(moment(props.day.full), 'day') && Math.abs(moment(ob.date_start).diff(moment(ob.date_end), 'hours')) >= 23)            
-            
+        if (props.records && props.records.length) {
+            return props.records.filter((ob) => {
+                
+                const startDateTime = DateTime.fromSQL(ob.date_start);
+                const endDateTime = DateTime.fromSQL(ob.date_end);
+                const dayToCompare = DateTime.fromISO(props.day.full).startOf('day');
+                const isSameDay = startDateTime.equals(dayToCompare);
+                const durationInHours = Math.abs(startDateTime.diff(endDateTime, 'hours').hours);
+                return isSameDay && durationInHours >= 23;
+            });
         }
-        return []
-    })
+        return [];
+    });
     const layer = computed(() => {
         const num = dayRecords.value.map(ob => ob.order)
         const max = num.length ? Math.max(...num) + 1 : 0;
@@ -64,23 +78,29 @@
         
     })
     const isPastDay = computed(() => {
-        return moment(props.day.full).isBefore(moment(), 'day')
+        return DateTime.fromISO(props.day.full).diff(DateTime.now(), 'day').as('days') < 0
     })
     const isToday = computed(() => {
-        return moment(props.day.full).isSame(moment(), 'day')
-    })
-    const fistDayOfMonth = computed(() => {
-        return props.day.day == 1
+        const givenDate = DateTime.fromISO(props.day.full).startOf('day');
+        const today = DateTime.now().startOf('day');
+        return givenDate.equals(today);
     })
     const dayRecords = computed(() => {
         if(props.records && props.records.length){               
-            const list = props.records.filter(ob => moment(ob.date_start).isSame(moment(props.day.full), 'day') && Math.abs(moment(ob.date_start).diff(moment(ob.date_end), 'hours')) < 23)
+            const list = props.records.filter(ob => {
+                const startDateTime = DateTime.fromSQL(ob.date_start);
+                const endDateTime = DateTime.fromSQL(ob.date_end);
+                const dayToCompare = DateTime.fromISO(props.day.full).startOf('day');
+                const isSameDay = startDateTime.hasSame(dayToCompare, 'day');
+                const durationInHours = Math.abs(startDateTime.diff(endDateTime, 'hours').hours);
+                return isSameDay && durationInHours < 23
+            })
             const sortedList = list.slice().sort((a, b) => {
-                return new Date(a.date_start) - new Date(b.date_start) ||
-                new Date(a.updated_at) - new Date(b.updated_at);
+                return DateTime.fromSQL(a.date_start).toMillis() - DateTime.fromSQL(b.date_start).toMillis() ||
+                DateTime.fromSQL(a.updated_at).toMillis() - DateTime.fromSQL(b.updated_at).toMillis();
             });               
 
-            const ordered = props.orderCreator(0, sortedList, props.day.full)     
+            const ordered = props.orderCreator(0, sortedList, props.day.full)
             return ordered
         }
         return []
@@ -89,17 +109,16 @@
     const listView = (day) => {
         emit('setListView', day.full)
     }
-    const computedDay = (day) => {
-        moment.locale('ja')
-        const top = moment(day.full).format('D')
-        const bottom =  moment(day.full).format('ddd')
+    const computedDay = (day:NormalHourDay) => {
+        const top = DateTime.fromISO(day.full).toFormat('d')
+        const bottom =  DateTime.fromISO(day.full).toFormat('ccc')
         return `<span>${top}</span><span>${bottom}</span>`
     }
     
-    const hourRecords = (hour) => {
+    const hourRecords = (hour:number) => {
         if(dayRecords.value && dayRecords.value.length){               
-            return dayRecords.value.filter(ob => moment(ob.date_start).format('H') == hour && Math.abs(moment(ob.date_start).diff(moment(ob.date_end), 'hours')) < 23)
+            return dayRecords.value.filter(ob => DateTime.fromSQL(ob.date_start).hour == hour && Math.abs(DateTime.fromSQL(ob.date_start).diff(DateTime.fromSQL(ob.date_end), 'hours').hours) < 23)
         }
         return []
-    }   
+    }  
 </script>

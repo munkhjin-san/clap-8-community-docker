@@ -563,6 +563,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         trayComponentKey.value ++;
         searchWindowKey.value ++;
         routeWatchLock.value = true
+        microLoader.value = false
         router.push(`/board/${item.id}`);
         setTimeout(() => {
             routeWatchLock.value = false

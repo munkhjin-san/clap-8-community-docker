@@ -29,43 +29,46 @@
     /> 
 </div>
 </template>
-<script setup>
-    import HourBlock from './HourBlock.vue';
-    import moment from 'moment';
-    import UserPanel from '@/components/Global/UserPanel.vue'
-    import AllDayRecord from '../AllDayRecord.vue';
-    import { computed, inject } from 'vue';
-    import { useAuthUserStore } from '@/store/auth'
-    const auth = useAuthUserStore()
-
-    const props = defineProps (['userData', 'hideName', 'orderCreator'])
+<script setup lang="ts">
+import HourBlock from './HourBlock.vue';
+import UserPanel from '@/components/Global/UserPanel.vue'
+import AllDayRecord from '../AllDayRecord.vue';
+import { computed, inject } from 'vue';
+import { DateTime } from 'luxon';
+import { MemberHourDay } from '@/interface/calendarInterface';
+    
+    const props = defineProps<{
+        userData:MemberHourDay
+        hideName: boolean
+        orderCreator: Function
+    }>()
     const emit = defineEmits(['create', 'viewFull'])
     
     const fullDayRecords = computed(() => {
-        return props.userData.records.filter(ob => Math.abs(moment(ob.date_start).diff(moment(ob.date_end), 'hours')) >= 23)  
+        return props.userData.records.filter(ob => Math.abs(DateTime.fromSQL(ob.date_start).diff(DateTime.fromSQL(ob.date_end), 'hours').hours) >= 23)  
     })
     const hoursOfDay = computed(() => {
-        const hours = [];
-        let currentHour = moment().startOf('day');
+        const hours:MemberHourDay[] = [];
+        let currentHour = DateTime.now().startOf('day');
         for (let i = 0; i < 24; i++) {
-            const hourRecords = orderedData.value.filter(ob => moment(ob.date_start).format('H') == currentHour.format('H'))
-            hours.push({hour: currentHour.format('H:mm'), records: hourRecords, user: props.userData.user, date: props.userData.date});
-            currentHour.add(1, 'hour');
+            const hourRecords = orderedData.value.filter(ob => DateTime.fromSQL(ob.date_start).hour === currentHour.hour)
+            hours.push({hour: currentHour.toFormat('H:mm'), records: hourRecords, user: props.userData.user, date: props.userData.date});
+            currentHour = currentHour.plus({ hours: 1 });
         }
         return hours;
     })
     
     const orderedData = computed(() => {
-        const records = props.userData.records.filter(ob => Math.abs(moment(ob.date_start).diff(moment(ob.date_end), 'hours')) < 23)  
+        const records = props.userData.records.filter(ob => Math.abs(DateTime.fromSQL(ob.date_start).diff(DateTime.fromSQL(ob.date_end), 'hours').hours) < 23)  
         const sortedList = records.slice().sort((a, b) => {
-            return new Date(a.date_start) - new Date(b.date_start) ||
-            new Date(a.updated_at) - new Date(b.updated_at);
+            return DateTime.fromSQL(a.date_start).toUnixInteger() - DateTime.fromSQL(b.date_start).toUnixInteger() ||
+            DateTime.fromSQL(a.updated_at).toUnixInteger() - DateTime.fromSQL(b.updated_at).toUnixInteger();
         });         
-        const ordered = props.orderCreator(0, sortedList, props.userData.date, props.userData.user.id) 
+        const ordered = props.orderCreator(0, sortedList, props.userData.date, props.userData.user.id)
         return ordered
     })
 
-    const pushInstantUser = inject('pushInstantUser')
+    const pushInstantUser = inject<Function>('pushInstantUser') as Function
     
 
 

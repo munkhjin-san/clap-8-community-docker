@@ -33,62 +33,59 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import moment from 'moment'
 import { useMenuStore } from "@/store/menu";
 import Back from '../Icons/Back.vue';
+import { DateTime, MonthNumbers } from 'luxon';
     const menu = useMenuStore()
-    const props = defineProps(['selectedMonth', 'selectedYear','selectedDay', 'right'])
+    const props = defineProps([ 'right'])
     const emit = defineEmits(['setDate'])
 
-    const month = ref(props.selectedMonth + 1)
-    const year = ref(props.selectedYear)
-    const day = ref(props.selectedDay)
+    const month = defineModel<MonthNumbers>('month')
+    const year = defineModel<number>('year')
+    const day = defineModel<number>('day')
     const pickerIs = ref('day')        
-    watch(() => props.selectedMonth, (after) => { 
-        month.value = after + 1      
-    })
-        
-    watch(() => props.selectedYear, (after) => {
-        year.value = after            
-    })
-    watch(() => props.selectedDay, (after) => {            
-        day.value = after            
-    })
+
 
 
     const yearList = computed(() => {
-        const year = parseInt(moment().year())
+        const year = DateTime.now().year
         return Array.from({ length: 12 }, (_, i) => year - 5 + i);
     })
     const dayList = computed(() => {
-        const thisMonth = moment([year.value, month.value - 1]);
-        const firstDay = thisMonth.clone().startOf("isoWeek")
-        const lastDay = thisMonth.clone().endOf("month").endOf("isoWeek").add(1, 'weeks');
-        let calendar = [];
-        for (let i = firstDay; i.isBefore(lastDay); i.add(1, "day")) {
+        const thisMonth = DateTime.fromObject({year: year.value,month:  month.value});
+        if(!thisMonth.isValid) return []
+        const firstDay = thisMonth.startOf("week")
+        const lastDay = thisMonth.endOf("month").endOf("week").plus({weeks: 1});
+        const calendar:{day_short: string, day_full:string}[] = [];
+        let instance = firstDay
+        while (instance < lastDay) {
             calendar.push({ 
-                "day_short" : i.locale("ja").format("D"),
-                "day_full" : i.locale("ja").format("YYYY-MM-DD"),
+                "day_short" : instance.day.toString(),
+                "day_full" : instance.toISODate(),
             });
+            instance = instance.plus({days: 1})
         }
         return calendar
     })
     const formatDate = computed(() => {
-        const instance = moment([year.value, month.value - 1, day.value])
-        return moment([year.value, month.value - 1, day.value]).format('YYYY年M月D日')
+        const instance = DateTime.fromObject({ year: year.value, month: month.value, day: day.value})
+
+
+        return instance.isValid ? instance.toLocaleString() : ''
     })
 
-    const checkSide = (date) => {
-        const currentMonth = moment([year.value, month.value - 1])
-        const targetMont = moment(date)
-        return !currentMonth.isSame(targetMont, 'month')
+
+    const checkSide = (date:string) => {
+        const currentMonth = DateTime.fromObject({ year: year.value, month: month.value})
+        const targetMont = DateTime.fromISO(date)
+        return !currentMonth.hasSame(targetMont, 'month')
     }
-    const dayNavigation = (index) => {
-        const instance = moment([year.value, month.value - 1, day.value]).add(index, 'days').format('YYYY-MM-DD')
+    const dayNavigation = (index:number) => {
+        const instance = DateTime.fromObject({ year: year.value, month: month.value, day: day.value}).plus({days: index}).toISODate() as string
         setDate(instance, true)        
-    }    
+    }     
     
     const openMonthPicker = () => {
         pickerIs.value = 'day';
@@ -107,14 +104,15 @@ import Back from '../Icons/Back.vue';
         pickerIs.value = 'day'
 
     }
-    const setDate = (d, passive) => {
-        const selected = d.split('-')
-        day.value = parseInt(selected[2])
-        year.value = parseInt(selected[0])
-        month.value = parseInt(selected[1])
-        emit('setDate', {year: year.value, month: month.value, day: day.value, select: true})
+    const setDate = (dt:string, passive?:boolean) => {
+        const instance = DateTime.fromISO(dt)
+        if(!instance.isValid) return
+        day.value = instance.day
+        year.value = instance.year
+        month.value = instance.month
+        emit('setDate', {year: instance.year, month: instance.month, day: instance.day, select: true})
         if(!passive){
-            menu.setMenu({ name: '', id: null})
+            menu.close()
         }        
     }
         

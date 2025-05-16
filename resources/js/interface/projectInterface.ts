@@ -13,8 +13,16 @@ interface Project {
     budget: string;
     stakeholder: string;
     status: number;
-    members: User[];
-    manager: User[];
+    members: (User & {
+        pivot: {
+            authority: number;
+        }
+    })[];
+    manager: (User & {
+        pivot: {
+            authority: number;
+        }
+    })[];
     mission: string;
     innovation: string;
     operation: string;
@@ -32,6 +40,7 @@ interface Project {
     category: string[]
     partners: string[]
     customers: string[]
+    industry_type: string[]
     description: string
     private_memo: string
 }
@@ -55,6 +64,7 @@ interface ProjectGoal {
     project_id: number;
     user_id: number;
     employment_type: string;
+    title: string;
     start_date: string;
     end_date: string;
     target_period: string;
@@ -70,9 +80,27 @@ interface ProjectGoal {
     result: string;
     project: Project;
     salary_issue: SalaryIssue;
-    evaluation: Evaluation
-}
+    evaluation: Evaluation;
+    custom_instruction: string;
+    private_memo: string;
+    kgi: string;
+    miso: string;
+    steps: ProjectGoalStep[]
+    reports: ProjectGoalReport[]
+    
 
+}
+interface ProjectGoalReport {
+    content: string;
+    user: User;
+    created_at: string;
+}
+interface ProjectGoalStep {
+    id?: number; 
+    content: string;
+    status: number;
+    progress: number;
+}
 interface SalaryIssue {
     id: number;
     user_id: number;
@@ -128,4 +156,20 @@ interface SubTaskPreData {
     subTaskData: Partial<Task>
     active: boolean
 }
-export type { Project, ProjectGoal, Evaluation, SalaryIssue, Increase, VirtualSpan,  QuickEditText, SubTaskPreData}
+export interface FinancialData {
+    sales: number;
+    expense: number;
+    profit: number;
+    profit_rate: number;
+}
+  
+export interface MonthlyData {
+    yearly_plan: FinancialData;
+    profit: FinancialData;
+    settlement: FinancialData;
+}
+  
+export interface YearlyFinancialData {
+    [project_name: string]: MonthlyData;
+}
+export type { Project, ProjectGoal, Evaluation, SalaryIssue, Increase, VirtualSpan,  QuickEditText, SubTaskPreData, ProjectGoalStep, ProjectGoalReport}

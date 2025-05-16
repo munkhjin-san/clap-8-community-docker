@@ -1,6 +1,5 @@
 <template>
-    <div class="post-root">
-        
+    <div class="post-root">        
         <div class="post-header">
             <HamBurger v-if="responsive.mobile"/>
             <div class="project-search-wrap">
@@ -9,12 +8,7 @@
                     :customPlaceHolder="`プロジェクト検索`" 
                     @search-start="(word) => {keywords = word}"
                 />                
-            </div>
-            <!-- <div class="flex gap-[10px] ml-auto mr-[20px]">
-                <router-link :to="{name: 'assets'}" class="c-bar-button whitespace-nowrap">物品</router-link>
-                <router-link :to="{name: 'gantt-chart'}" class="c-bar-button whitespace-nowrap">ガントチャート</router-link>
-            </div> -->
-            
+            </div>            
         </div>
         <Transition name="modalFade">
             <div class="cal-month-loader" style="height: calc(100% - 60px); top: 60px;" v-if="initialLoader && route.name === 'project'">
@@ -31,7 +25,7 @@
                     <div class="project-cell">期間</div>
                     <div class="project-cell">サービスカテゴリ</div>
                     <div class="project-cell">顧客企業</div>
-                    <div class="project-cell">パートナー企業</div>
+                    <div class="project-cell">業種区分</div>
                     <div class="project-cell">概要</div>
 
                     <div class="project-cell cursor-pointer relative">
@@ -63,10 +57,9 @@
                                 custom-place-holder="メンバー検索"
                             />
                         </Transition>                        
-                    </div>
-                    
+                    </div>                    
                 </div>
-                <div @click="router.push({name: route.name == 'project' ? 'overview' : route.name, params: { projectId: project?.id}})" class="project-cell-row" :class="[{'selected-project-cell' : Number(route.params.projectId) == project.id}]" v-for="project in sortedProjects">
+                <div @click="jumpToProject(project)" class="project-cell-row" :class="[{'selected-project-cell' : Number(route.params.projectId) == project.id}]" v-for="project in sortedProjects">
                     <div class="project-cell project-title-cell">                        
                         <div class="flex w-full">
                             <div class="flex gap-2 items-center relative w-full">
@@ -98,7 +91,7 @@
                     <div class="project-cell pc">
                         <div style="position: relative;">
                             <div class="text-wrap">
-                                <p v-for="partner in project.partners || []">{{ partner }}</p>
+                                <p v-for="type in project.industry_type || []">{{ type }}</p>
                             </div>
                         </div>                        
                     </div>
@@ -107,42 +100,36 @@
                             <div class="text-wrap">
                                 {{ plainText(project.description) }}
                             </div>
-                        </div>
-                        
+                        </div>                        
                     </div>
-
-
                     <div class="project-cell pc">
-                        <div>
+                        <div class=flex>
                             <UserPanel v-for="member in project.manager" imgClass="u_icon_20" :user="member" size="20"/>
                         </div>
                     </div>
                     <div class="project-cell pc" style="overflow: hidden">
-                        <div style="display: flex;">
-                            <div style="display: flex;" @click="viewUsers(project.members)">
-                                <UserPanel v-for="member in project.members.slice(0, 10)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
+                        <div class="flex">
+                            <div class="flex" @click="viewUsers(project.members)">
+                                <UserPanel v-for="member in project.members.slice(0, 5)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
                             </div>
-                            <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="project.members.length > 10">...({{project.members.length}})</span>
-                        </div>
-                        
-                    </div>
-                    
-                </div>
-                
+                            <span class="my-[auto] ml-[5px] text-[12px] cursor-pointer whitespace-nowrap" v-if="project.members.length > 10">...({{project.members.length}})</span>
+                        </div>                        
+                    </div>                    
+                </div>                
             </div>
             <Transition name="lessonShift">
-                <div class="project-slide-window" v-if="route.name !== 'project'">
-                    <router-view v-slot="{ Component }">
-                        <component
-                            @getProjects="getProjects"
-                            :is="Component"
-                            :selectedProject="selectedProject"
-                            :userList="userList"
-                            :maxInterval="totalSpan"
-                            ref="taskComponent"
-                        />
-                    </router-view>
-                </div>
+                <Teleport to="body" :disabled="!responsive.mobile">
+                    <div class="project-slide-window" v-if="route.name !== 'project'">                       
+                        <router-view v-slot="{ Component }">
+                            <component
+                                :is="Component"
+                                :userList="userList"
+                                :maxInterval="totalSpan"
+                                ref="taskComponent"
+                            />
+                        </router-view>                        
+                    </div>
+                </Teleport>
             </Transition>
 
         </div>
@@ -159,7 +146,7 @@
         <Transition name="modalFade">
             <ProjectTotalFinance 
                 v-if="totalFinanceWindow"
-                :projects="projects.filter(pr => pr.name !== '役員')"
+                :projects="projectList.filter(pr => pr.name !== '役員')"
                 @close="totalFinanceWindow = false"
             />
         </Transition>
@@ -189,7 +176,7 @@ import FloatButton from '../Global/FloatButton.vue';
 import WeatherIcon from '../Global/WeatherIcon.vue';
 import ProjectMemberSort from './ProjectMemberSort.vue';
 import ProjectTotalFinance from './ProjectTotalFinance.vue';
-const projects = ref<Project[]>([])
+import { useProject } from '@/composables/project';
 const keywords = ref('')
 const initialLoader = ref(true)
 const menu = useMenuStore()
@@ -207,15 +194,17 @@ const selectedMembers = ref<number[]>([])
 const badge = useBadgeStore()
 const taskComponent = useTemplateRef<ComponentExposed<typeof TaskComponent>>('taskComponent')
 const totalFinanceWindow = ref(false)
+
+const { getProjects, projectList } = useProject()
 onMounted(async() => {
-    await getProjects();
+    await getProjectData();
     getSelectableUsers()
 })
 
 const totalSpan = computed(() => {
     let startPoint: DateTime = DateTime.now().startOf('year');
     let endPoint: DateTime = DateTime.now().plus({ year: 1 }).endOf('year');
-    projects.value.forEach((project: { date_start?: string; date_end?: string }) => {
+    projectList.value.forEach((project: { date_start?: string; date_end?: string }) => {
         const startDate = project.date_start ? DateTime.fromISO(project.date_start) : null;
         const endDate = project.date_end ? DateTime.fromISO(project.date_end) : null;
         if (startDate?.isValid) {
@@ -229,10 +218,10 @@ const totalSpan = computed(() => {
 })
 const sortByPosition = computed(() => {
     if (auth.user?.position_id === 13) {
-        return projects.value.filter(
+        return projectList.value.filter(
                 project => project?.members.some(member => member.id === auth.id))
     }
-    return projects.value
+    return projectList.value
 })
 
 const searchResults = computed(() => {
@@ -276,42 +265,28 @@ const getSelectableUsers = async() => {
 
     }
 }
-const getProjects = async() => {
+const getProjectData = async() => {
     try {
-        const today = DateTime.now()
-        const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
-        const year = which_half ==='second' ? (today.year - 1).toString() : today.year.toString()
-        const params = {
-            year: year,
-            which_half: which_half
-        }
-        projects.value = await axios.get('/get_projects', { params: params }).then(res => res.data)
+        await getProjects()
+        // const today = DateTime.now()
+        // const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
+        // const year = which_half ==='second' ? (today.year - 1).toString() : today.year.toString()
+        // const params = {
+        //     year: year,
+        //     which_half: which_half
+        // }
+        //  = await axios.get('/get_projects', { params: params }).then(res => res.data)
+
         nextTick(() => {
             initialLoader.value = false
         })
-        if(route.name == 'gantt-chart'){
-            taskComponent.value?.setDate()
-        }
     } catch (e) {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
-const activeId = computed(() => {
-    return route.params && route.params.projectId ?  (Array.isArray(route.params.projectId) ? parseInt(route.params.projectId[0]) : parseInt(route.params.projectId)) : null
-})
-const selectedProject = computed(() => {
-    return activeId.value ? projects.value.find(ob => ob.id == activeId.value) : null
-})
-const authProjects = computed(() => {
-    return projects.value.filter(project => {
-        const membersArray = Array.isArray(project.members) ? project.members : Object.values(project.members) as User[];
-        const managerArray = Array.isArray(project.manager) ? project.manager : Object.values(project.manager) as User[]
-        const director = project?.director
-        return membersArray.some((member: { id: number | null; }) => member && member.id === auth.id) 
-            || managerArray.some((member: { id: number | null; }) => member && member.id === auth.id)
-            || director?.id === auth.id;
-    });
-})
+
+
+
 const viewUsers = (members: User[]) => {
     const data = {
         active: true,
@@ -324,7 +299,7 @@ const viewUsers = (members: User[]) => {
 
 const sortableUsers = (which:string) => {
     const selectable = <User[]>[]
-    projects.value.map(project => {
+        projectList.value.map(project => {
         const targets = project[which]
         if(targets){
             targets.forEach(manager => {
@@ -343,12 +318,12 @@ const sortableUsers = (which:string) => {
     return selectable
 }
 const activeManagers = computed(() => {
-    const target = projects.value.flatMap(project => project.manager).filter(m => selectedManagers.value.includes(m.id))
+    const target = projectList.value.flatMap(project => project.manager).filter(m => selectedManagers.value.includes(m.id))
     const uniqueTargets = target.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
     return uniqueTargets
 })
 const activeMembers = computed(() => {
-    const target = projects.value.flatMap(project => project.members).filter(m => selectedMembers.value.includes(m.id))
+    const target = projectList.value.flatMap(project => project.members).filter(m => selectedMembers.value.includes(m.id))
     const uniqueTargets = target.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
     return uniqueTargets
 })
@@ -362,9 +337,15 @@ const totalBadges = (projectId: number) => {
     badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
     badge.taskCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
 }
-provide('authProjects', authProjects)
-// provide('metricDate', metricDate)
-provide('getProjects', getProjects)
+const jumpToProject = (project: Project) => {
+    const routeName = route.name === 'project' ? 'overview' : 
+                     (route.matched.some(rt => rt.name === 'project-members') ? 'project-members' : route.name);
+    
+    router.push({
+        name: routeName,
+        params: { projectId: project?.id }
+    });
+}
 provide('editProjects', (rec) => {editData.value = rec; createWindow.value = true})
 provide('setTotalFinanceWindow', (flag:boolean) => {totalFinanceWindow.value = flag})
 </script>

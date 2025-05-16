@@ -25,7 +25,7 @@
         </div>
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import {filesize} from "filesize";
 import FileIcon from "../Board/Mixed/FileIcon.vue";
 import { useFilePreview } from "@/store/filePreview";

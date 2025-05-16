@@ -113,7 +113,7 @@ import { useResponsive } from '@/store/responsive';
         return materials.every(ob => ob.answer?.status == 2)
     }
     const basicStatus = (materials) => {
-        const filtered = materials.filter(ob => ob.material_type == '基礎知識')
+        const filtered = materials.filter(ob => ob.material_type == '基礎知識' && ob.priority == 1)
         const completed = filtered.length && filtered.every(ob => ob.answer?.status == 2)
         const uncompleted = filtered.length && filtered.some(ob => ob.answer?.status == -1)
         return completed ? 'completed' : uncompleted ? 'uncompleted' : null

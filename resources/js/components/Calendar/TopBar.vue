@@ -1,11 +1,11 @@
 <template>
     <div class="c-bar-wrap">
         <Transition name="modalFade">
-            <div class="overlay" @mousedown="closeModal(false)" v-if="addUsersWindow">                         
+            <div class="overlay" @mousedown="closeModal" v-if="addUsersWindow">                         
                 <div class="chatCreate scrollable" @mousedown.stop>    
                     <div class="recordFormTitle" style="display:flex">                     
                         <p v-if="tempGroup || createWindow">{{ tempGroup ? 'グループを編集する' : '新しいグループ作成する' }}</p>
-                        <div class="cursor-pointer" @click="closeModal(false)" style="position:unset; margin:auto 0 auto auto">
+                        <div class="cursor-pointer" @click="closeModal" style="position:unset; margin:auto 0 auto auto">
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
                                 <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
                             </svg>                        
@@ -25,7 +25,6 @@
                                 name="groupTitle" 
                                 placeHolder="タイトルを入力（必須）" 
                                 :rules="'required'"
-                                :initialValue="editTarget ? editTarget.title : ''"
                                 customClass="full"
                                 ref="groupTitle"
                                 type="text"
@@ -66,26 +65,25 @@
                     <div v-if="myGroups.length">
                         <div v-for="group in myGroups">  
                             <div class="c-group-item">
-                                    <label class="cal-member-check">
-                                        <input @change="selectAll($event, group, 'byGroup')" :checked="group.selected ? true : false" name="memberRadioBox" type="checkbox">
-                                        <span class="cal-check-mark" style="top: 13px;"></span>
-                                        {{ group.name }}                                  
-                                    </label>                                 
-                                    <ItemMenu :items="[
-                                        {title: '編集する', action: () => editGroupStart(group)},
-                                        {title: '削除する', action: () => deleteConfirm(group)}
-                                    ]"/>
-                                
+                                <label class="cal-member-check">
+                                    <Back size="12" :class="selectedGroups.includes(group.id) ? '-rotate-90' : 'rotate-180'"/>
+                                    <input v-model="selectedGroups" :checked="group.selected ? true : false" :value="group.id" class="hidden" name="memberRadioBox" type="checkbox">
+                                    {{ group.name }}                                  
+                                </label>                                 
+                                <ItemMenu :items="[
+                                    {title: '編集する', action: () => editGroupStart(group)},
+                                    {title: '削除する', action: () => deleteConfirm(group)}
+                                ]"/>                                
                             </div>
                              
-                            <div class="active-group-members" v-if="group.selected">
+                            <div class="active-group-members" v-if="selectedGroups.includes(group.id)">
                                 <label class="cal-member-check">
                                     <input @change="selectAll($event, group, 'byMember')" :checked="allSelected(group)" name="memberCheckBox" type="checkbox">
                                     <span class="cal-check-mark" style="top: 13px;"></span>
                                     全員選択
                                 </label>
                                 <label :key="user.id" v-for="user in group.users" class="cal-member-check">
-                                    <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member" :value="user.id" name="memberCheckBox" type="checkbox">
+                                    <input @change="update($event, group)" :checked="user.pivot.selected_as_calendar_member ? true : false" :value="user.id" name="memberCheckBox" type="checkbox">
                                     <span class="cal-check-mark" style="top: 10px;"></span>
                                     <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
                                         <UserPanel :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>                      
@@ -110,7 +108,7 @@
                             <div style="margin: 10px 0;font-weight: 600;color: var(--primary-color);">{{ facilityTitle(index) }}</div>   
                             <div>                                                
                                 <label v-for="(facility, sub_index) in facilities" class="cal-member-check" style="align-self: center;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
-                                    <input :checked="facility.selected" @input="emit('setFacility', index, sub_index, $event.target.checked)" :value="facility.value" name="memberCheckBox" type="checkbox">
+                                    <input :checked="facility.selected" @input="updateFacility($event, index, sub_index)" :value="facility.value" name="memberCheckBox" type="checkbox">
                                     <span class="cal-check-mark" style="top: 5px;"></span>
                                     <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">                    
                                         <p class="userName">{{facility.label}}</p>                                    
@@ -139,8 +137,8 @@
                             
                         <div style="padding: 0 15px;">                                                
                             <label v-for="department in searchDepartment" class="cal-member-check" style="align-self: center;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
-                                <input :value="department.id" :checked="selectedDepartment.includes(department.id)" @input="emit('setDepartment', department.id)" name="memberCheckBox" type="checkbox">
-                                <span class="cal-check-mark" style="top: 5px;"></span>
+                            <input :value="department.id" :checked="selectedDepartment.map(d => d.id).includes(department.id)" @input="updateDepartment(department.id)" name="memberCheckBox" type="checkbox">
+                            <span class="cal-check-mark" style="top: 5px;"></span>
                                 <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">                    
                                     <p class="userName">{{department.name}}</p>                                    
                                 </div>
@@ -152,55 +150,59 @@
         </Transition>
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue'
 import MemberSelector from '../Form/MemberSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
 import ShortInput from '../Form/ShortInput.vue'
-import { computed, onMounted, ref, inject } from 'vue'
+import { computed, onMounted, ref, inject, useTemplateRef } from 'vue'
 import { useMenuStore } from "@/store/menu";
 import { useAuthUserStore } from '../../store/auth'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import PostSearchBar from '../Post/PostSearchBar.vue'
 import { getIcon } from 'assets/icons'
+import axios from 'axios'
+import { DialogMethods } from '@/interface/keys'
+import { CalendarGroup, FacilityData } from '@/interface/calendarInterface'
+import Back from '../Icons/Back.vue'
+import { useCalendar } from '@/composables/calendar'
     const menu = useMenuStore()
     const auth = useAuthUserStore()
-    const props = defineProps(['facilitiesList', 'selectedYear', 'selectedMonth', 'departmentsList', 'selectedDepartment'])
-    const emit = defineEmits(['jumpToday', 'updated', 'setFacility', 'setActiveMembers', 'setDepartment'])
-    const list = ref([])
+    const props = defineProps(['selectedYear', 'selectedMonth'])
+    const emit = defineEmits(['jumpToday', 'updated', 'setActiveMembers', 'refresh'])
+    const list = ref<CalendarGroup[]>([])
     const addUsersWindow = ref(false)
     const selectedUsers = ref([])
     const loading = ref(false)
-    const tempGroup = ref(null)
-    const editingUserList = ref([])
+    const tempGroup = ref<CalendarGroup | null>(null)
+    const editingUserList = ref<any[]>([])
     const title = ref('')
     const workGroupList = ref([])
     const myWorkGroupList = ref([])
     const allMembers = ref([])
     const createWindow = ref(false) 
     const menuId = ref(null)
-    const groupTitle = ref(null)
-    const groupUsers = ref(null)
+    const groupTitle = useTemplateRef('groupTitle')
+    const groupUsers = useTemplateRef('groupUsers')
     const keywords = ref('')
+    const { facilitiesList, setFacility, departmentsList, setSelectedDepartment, selectedDepartment } = useCalendar()
     const myGroups = computed(() => {
         return list.value ? list.value : []
     })        
-    const { notify, confirm, info } = inject('dialog')
+    const selectedGroups = ref<number[]>([])
+    const { notify, info, confirm} = inject('dialog') as DialogMethods
     onMounted(() => {
         getMyGroup()        
     })
     const searchDepartment = computed(() => {
-        const { departmentsList } = props;
         const keyword = keywords.value.toLowerCase();
         
-        if (keyword && Array.isArray(departmentsList)) {
-            return departmentsList.filter(department => {
-                return Object.values(department).some(value => {
-                    return typeof value === 'string' && value.toLowerCase().includes(keyword);
-                });
+        if (keyword && Array.isArray(departmentsList.value)) {
+            return departmentsList.value.filter(department => {
+                return department.name.toLowerCase().includes(keyword);
             });
         }
-        return departmentsList
+        return departmentsList.value
     })
 
     const editGroupStart = (group) => {
@@ -229,8 +231,8 @@ import { getIcon } from 'assets/icons'
             let result = true
             let checkRef = [groupTitle.value, groupUsers.value]
             for(const check of checkRef){
-                const validate = await check.validate()    
-                result = result * validate.valid            
+                const validate = await check?.validate() || {valid: false}  
+                result = result && validate.valid            
             }
             return result
         } catch (error) {
@@ -293,10 +295,10 @@ import { getIcon } from 'assets/icons'
         menu.setMenu( {name: 'calendarMemberSelector', id: 6})
     }
     
-    const getMyGroup = (flag) => {
+    const getMyGroup = (flag?:number) => {
         axios.post('/get_my_groups', {
             year: props.selectedYear,
-            month: props.selectedMonth + 1
+            month: props.selectedMonth
         }).then(response => {  
             
             list.value = response.data.my_groups
@@ -305,8 +307,8 @@ import { getIcon } from 'assets/icons'
             myWorkGroupList.value = response.data.my_work_groups
             allMembers.value = response.data.all_members
             const uniqueUserIds = new Set();
-            const memberList = [];
-            selectedUsers.value.forEach((group) => {
+            const memberList:CalendarGroup[] = [];
+            selectedUsers.value.forEach((group:any) => {
                 if(group.selected){
                     group.users.forEach(user => {
                         if (!uniqueUserIds.has(user.id) && user.pivot && user.pivot.selected_as_calendar_member) {
@@ -347,6 +349,16 @@ import { getIcon } from 'assets/icons'
         }).catch(function (error) {
             if (error.response) notify(error.response.data.message)                 
         });
+    }
+    const updateFacility = (event: Event, index:keyof FacilityData, sub_index:number) => {
+        const target = event.target as HTMLInputElement
+        const checked = target.checked
+        setFacility(index, sub_index, checked)
+        emit('refresh')
+    }
+    const updateDepartment = (id) => {
+        setSelectedDepartment(id)
+        emit('refresh')
     }
 </script>
 <style lang="scss">

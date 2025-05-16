@@ -71,15 +71,16 @@
     </Modal>
 </template>
 <script setup>
-    import { computed, inject, onMounted, ref, reactive, watch } from 'vue';
-    import LoaderButton from '../Global/LoaderButton.vue';
-    import { useTheme } from '@/store/theme';
-    import moment from 'moment';
-    import CustomField from './CustomField.vue'
-    import CostField from './CostField.vue';
-    import IncentiveField from './IncentiveField.vue'
-    import { useAuthUserStore } from '../../store/auth';
+import { computed, inject, onMounted, ref, reactive, watch } from 'vue';
+import LoaderButton from '../Global/LoaderButton.vue';
+import { useTheme } from '@/store/theme';
+import CustomField from './CustomField.vue'
+import CostField from './CostField.vue';
+import IncentiveField from './IncentiveField.vue'
+import { useAuthUserStore } from '../../store/auth';
 import Modal from '../Global/Modal.vue';
+import { DateTime } from 'luxon';
+import { customParser } from '@/utils/tools';
     const auth = useAuthUserStore()
     const fields = inject('customInfo')
     const emit = defineEmits(['reload', 'closeModal'])
@@ -223,14 +224,16 @@ import Modal from '../Global/Modal.vue';
     const shiftWorkTime = computed(() => {
         const shiftStartTime = shift.value ? shift.value?.start_time : '09:00:00'
         const shiftEndTime = shift.value ? shift.value?.end_time : '18:00:00'
-        const start = moment(shiftStartTime, 'HH:mm:ss')
-        const end = moment(shiftEndTime, 'HH:mm:ss')
-        return end.diff(start, 'minutes')
+        const start = DateTime.fromFormat(shiftStartTime, 'HH:mm:ss')
+        const end = DateTime.fromFormat(shiftEndTime, 'HH:mm:ss')
+        return end.diff(start, 'minutes').as('minutes')
     })
     const workedTime = computed(() => {
-        const start = moment(editStartTime.value, 'HH:mm:ss')
-        const end = moment(editEndTime.value, 'HH:mm:ss')
-        return end.diff(start, 'minutes')
+        const [fixedStartHour, fixedStartMinute] = editStartTime.value.split(':')
+        const [fixedEndHour, fixedEndMinute] = editEndTime.value.split(':')
+        const start = DateTime.fromFormat(`${fixedStartHour}:${fixedStartMinute}`, 'HH:mm')
+        const end = DateTime.fromFormat(`${fixedEndHour}:${fixedEndMinute}`, 'HH:mm')
+        return end.diff(start, 'minutes').as('minutes')
     })
     const filterCustomValues = computed(() => {
         if(workedTime.value > shiftWorkTime.value && props.item?.work_type == 1 && !shift.value?.overtime_request){
@@ -261,8 +264,7 @@ import Modal from '../Global/Modal.vue';
     }
     
     const formatedDay = computed(() => {
-        const date = new Date(props.item?.day_full)
-        return `${date.getMonth() + 1}月${date.getDate()}日`
+        return DateTime.fromISO(props.item?.day_full).toFormat('M月d日')
     })
     
     const showToastIfEmpty = async() => {
@@ -308,13 +310,8 @@ import Modal from '../Global/Modal.vue';
         return true;
     };
     const formatTime = (time) => { 
-        const timeFormat = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
-        if (timeFormat.test(time)) {
-            const parsedTime = moment(time, 'HH:mm:ss');
-            return parsedTime.format('HH:mm');
-        } else {
-            return time;
-        }
+        const [hours, minutes] = time.split(':')
+        return `${hours}:${minutes}`
     }
     
     const fifteenMinuteCalc = async() => {
@@ -345,12 +342,16 @@ import Modal from '../Global/Modal.vue';
 
     const diffInMinutes = computed(() => {
         const today = props.item?.day_full
-        const startInstance = moment(`${today} ${editStartTime.value}`)
-        const endInstance = moment(`${today} ${editEndTime.value}`)
-        if(endInstance.isBefore(startInstance)){
-            endInstance.add(1, 'day')
+        const [starthours, startminutes] = editStartTime.value.split(":");
+        const [endhours, endminutes] = editEndTime.value.split(":");
+        const stringStartTime = `${today} ${starthours}:${startminutes}:00`
+        const stringEndTime = `${today} ${endhours}:${endminutes}:00`
+        const startInstance = customParser(stringStartTime)
+        const endInstance = customParser(stringEndTime)
+        if(endInstance < startInstance){
+            endInstance.plus({days: 1})
         }
-        const differenceInMinutes = endInstance.diff(startInstance, 'minutes')
+        const differenceInMinutes = endInstance.diff(startInstance, 'minutes').as('minutes')
 
         return differenceInMinutes - breakTimeSelect.value;
     })

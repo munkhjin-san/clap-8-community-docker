@@ -17,8 +17,8 @@
                         name="recordDateStart" 
                         customClass="date"
                         ref="recordDateStart"
-                        :max="moment().add(5, 'years').format('YYYY-MM-DD')"
-                        :min="moment().format('YYYY-MM-DD')"
+                        :max="DateTime.now().plus({year: 5}).toISODate()"
+                        :min="DateTime.now().toISODate()"
                         type="date"
                         v-model="selectedDate"
                     />
@@ -50,15 +50,14 @@ import LoaderButton from '../Global/LoaderButton.vue'
 import { useMessageSchedule } from '@/store/messageSchedule'
 import ShortInput from '../Form/ShortInput.vue'
 import { ref, inject } from 'vue'
-import moment from 'moment'
-import OptionSelector from '../Form/OptionSelector.vue'
 import axios from 'axios'
 import { useTheme } from '@/store/theme'
 import { Dialog } from '@/interface/globalInterface'
+import { DateTime } from 'luxon'
 const theme = useTheme()
 const messageSchedule = useMessageSchedule()
-const selectedTime = ref(moment().add(1, 'hours').format('H'))
-const selectedDate = ref(moment().format('YYYY-MM-DD'))
+const selectedTime = ref(DateTime.now().plus({hours: 1}).hour)
+const selectedDate = ref(DateTime.now().toISODate())
 const error = ref('')
 const refreshMessage = inject('refreshMessage') as Function
 const availableHours = Array.from({ length: 24 }, (_, index) => index + 1);
@@ -70,22 +69,13 @@ const close = () => {
     }
     messageSchedule.setMessageSchedule(data)
 }
-const roundToNearestHour = () =>  {
-    const [hours, minutes] = selectedTime.value.split(":").map(Number);
 
-    if (minutes !== 0) {
-        error.value = 'スケジュールは時間単位で設定されます。'
-        const roundedHours = minutes >= 30 ? hours + 1 : hours;
-        selectedTime.value = `${String(roundedHours).padStart(2, '0')}:00`;
-    }
-    
-}
 const setSchedule = async() => {
     try {
-        const selectedDateTime = moment(`${selectedDate.value} ${selectedTime.value}`, 'YYYY-MM-DD HH:mm').local();
-        const result = selectedDateTime.isAfter(moment());
+        const selectedDateTime = DateTime.fromISO(selectedDate.value).set({hour: selectedTime.value, minute: 0, second: 0})
+        const result = selectedDateTime > DateTime.now();
         const message_id = messageSchedule.message_id
-        const formattedDateTime = selectedDateTime.format('YYYY-MM-DD HH:mm:ss'); 
+        const formattedDateTime = selectedDateTime.toFormat('yyyy-MM-dd HH:mm:ss'); 
         
         if (!result) {
             error.value = '将来のスケジュールのみ設定できます。'

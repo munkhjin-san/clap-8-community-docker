@@ -52,7 +52,6 @@
                             v-if="evaluationData"
                             :key="previousStats.current_level?.length || evaluationData.current_level?.length"
                             :initial="evaluationData.status == 0 ? previousStats.current_level : evaluationData.current_level" 
-                            :user="memberData" 
                             :selectedDate="date"
                             :auto-set="evaluationData.status !== 0"
                             ref="evaluationLevelsRef"
@@ -130,15 +129,17 @@ import EvaluationLevels from '../EvaluationLevels.vue';
 import Back from '@/components/Icons/Back.vue';
 import 'styles/customForm.css'
 import { EvaluationRecord } from '@/interface/evaluationInterface';
+import { useProject } from '@/composables/project';
 const props = defineProps([
     'evaluation', 
-    'memberData',
     'date',
 ])
 const emit = defineEmits([
     'close', 
     'reload', 
 ])
+
+const { memberData } = useProject()
 const increaseOptions = [
     '異動なし',
     '昇給（号俸）',
@@ -184,7 +185,7 @@ const previousStats = reactive<{
 
 })
 const { notify, info, confirm } = inject<Dialog>('dialog')!
-const getProjects = inject('getProjects') as Function
+const { getProjects } = useProject()
 onMounted(() => {
     checkMentorSelected()
 })
@@ -192,7 +193,7 @@ const checkMentorSelected = async() => {
     try{
         const response = await axios.get('/check_evaluation_for_user_in_span', {
             params: {
-                user_id: props.memberData?.id,
+                user_id: memberData.value?.id,
                 year: props.date.year,
                 which_half: props.date.which_half
             }

@@ -63,11 +63,11 @@
 </template>
 <script setup>
 import { computed, inject, onMounted, ref } from 'vue';
-import moment from 'moment';
 import OptionSelector from '../Form/OptionSelector.vue';
 import LongInput from '../Form/LongInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue'
 import { useAuthUserStore } from '@/store/auth';
+import { DateTime } from 'luxon';
 const statuses = ['差戻中', '申請中', '承認済']
 const auth = useAuthUserStore()
 const props = defineProps(['data'])
@@ -102,13 +102,13 @@ const avialAbleHours =  Array.from({ length: 11 }, (_, index) => index)
 const avialAbleMinutes = [0, 15, 30, 45]
 
 const day = computed(() => {
-    return props.data?.shift ? moment(props.data.shift.shift_day).format('M月D日') : ''
+    return props.data?.shift ? DateTime.fromSQL(props.data.shift.shift_day).toFormat('M月d日') : ''
 })
 const timeParser = (time) => {
     if(!time) return 
     const shift = props.data?.shift
-    const combined = moment(`${shift.shift_day} ${time}`)
-    return combined.format('M月D日 HH:mm')
+    const combined = DateTime.fromSQL(`${shift.shift_day} ${time}`)
+    return combined.toFormat('M月d日 HH:mm')
 }
 
 

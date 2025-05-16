@@ -23,4 +23,10 @@ class ProjectGoal extends Model
     public function files() {
         return $this->belongsToMany(FileRecord::class, 'project_use_files', 'project_goal_id', 'file_id');
     }
+    public function steps() {
+        return $this->hasMany(ProjectGoalStep::class);
+    }
+    public function reports() {
+        return $this->hasMany(ProjectGoalReport::class);
+    }
 }

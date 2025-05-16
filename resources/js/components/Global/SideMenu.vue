@@ -217,8 +217,8 @@ import WeatherIcon from '@/components/Global/WeatherIcon.vue';
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: border 0.2 ease;
-    position: relative
+    position: relative;
+    margin-left: -3px
 }
 .active-user-icon{
     border: 2px solid rgb(0, 128, 248);

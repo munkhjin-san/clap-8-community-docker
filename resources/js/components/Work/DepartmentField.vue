@@ -2,7 +2,7 @@
     <div class="overlay" @mousedown="emit('close')">
         <div class="chatCreate scrollable" @mousedown.stop style="min-width: 20%; width: fit-content; height: fit-content; min-height: 30%;">
             <div class="recordFormTitle">
-                <p style="font-size: 18px;">{{moment(shiftForDepartment.shift_day).format('M月D日')}}の部門作成</p>
+                <p style="font-size: 18px;">{{DateTime.fromSQL(shiftForDepartment.shift_day).toFormat('M月d日')}}の部門作成</p>
                 
                 <div @click="emit('close')" class="cursor-pointer" style="display:flex;align-items: center;margin: auto 0 auto auto;">
                     <svg class="modalWindowCloseButton" version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
@@ -33,9 +33,9 @@
 <script setup>
 import { computed, inject, ref } from 'vue'
 import { useAuthUserStore } from '@/store/auth'
-import moment from 'moment';
 import LoaderButton from '../Global/LoaderButton.vue'
 import ItemSelector from '../Form/ItemSelector.vue';
+import { DateTime } from 'luxon';
 const workGroups = inject('workGroups')
 const auth = useAuthUserStore()
 const props = defineProps(['shiftForDepartment'])

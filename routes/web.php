@@ -403,6 +403,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_portfolio_view', [LessonController::class, 'get_portfolio_view']);
         Route::get('/get_material_list', [LessonController::class, 'get_material_list']);
         Route::get('/get_material', [LessonController::class, 'get_material']);
+        Route::get('/get_completed_lesson_themes', [LessonController::class, 'get_completed_lesson_themes']);
 
         Route::post('/create_learning_theme', [LessonController::class, 'create_learning_theme']);
         Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);
@@ -467,6 +468,12 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_task_comment_badge', [ProjectController::class, 'get_task_comment_badge']);
         Route::get('/get_dispatch_data', [ProjectController::class, 'get_dispatch_data']);
         Route::get('/get_total_finance', [ProjectController::class, 'get_total_finance']);
+        Route::post('/gemini_preview', [ProjectController::class, 'gemini_preview']);
+        Route::post('/set_project_goal_step_status', [ProjectController::class, 'set_project_goal_step_status']);
+        Route::post('/project_goal_report_create', [ProjectController::class, 'project_goal_report_create']);
+        Route::post('/get_previous_goals', [ProjectController::class, 'get_previous_goals']);
+        Route::post('/save_project_progress', [ProjectController::class, 'save_project_progress']);
+        Route::post('/salary_issue_action_complete', [ProjectController::class, 'salary_issue_action_complete']);
 
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);

@@ -81,30 +81,32 @@ textarea:focus + label{
     transform: translateY(-50%);
 }
 .grow-wrap {
-  display: grid;
-  line-height: 1.6;
-  border: 1px solid var(--primary-color);
-  padding: 25px 0 20px;
-  transition: border 0.3s ease;
-  max-width: 100%;
-  position: relative;
+    display: grid;
+    line-height: 1.6;
+    border: 1px solid var(--primary-color);
+    padding: 25px 0 20px;
+    transition: border 0.3s ease;
+    max-width: 100%;
+    position: relative;
+
 }
 .grow-wrap::after {
-  content: attr(data-replicated-value) " ";
-  white-space: pre-wrap;
-  visibility: hidden;
+    content: attr(data-replicated-value) " ";
+    white-space: pre-wrap;
+    visibility: hidden;
 }
 .grow-wrap > textarea {
-  resize: none;
-  overflow: hidden;
+    resize: none;
+    overflow: hidden;
+    background: inherit;
 }
 .grow-wrap > textarea,
 .grow-wrap::after {
-  font: inherit;
-  grid-area: 1 / 1 / 2 / 2;
-  max-width: calc(100% - 30px);
-  word-break: break-word;
-  margin-left: 15px;
+    font: inherit;
+    grid-area: 1 / 1 / 2 / 2;
+    max-width: calc(100% - 30px);
+    word-break: break-word;
+    margin-left: 15px;
 }
 
 

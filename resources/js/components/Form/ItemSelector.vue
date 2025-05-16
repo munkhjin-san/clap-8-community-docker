@@ -41,8 +41,8 @@ import axios from 'axios';
         path?: string
         modelValue?: number | string
         clearable: boolean,
-        label: string,
-        reduce: (option: any) => any;
+        label?: string,
+        reduce?: (option: any) => any;
         closeOnSelect: boolean,
     }
     const props = withDefaults(defineProps<Props>(), {

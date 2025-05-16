@@ -58,17 +58,19 @@
     </div>
 </template>
 <script setup lang="ts">
+import { useProject } from '@/composables/project';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
 import { computed, provide, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-    const props = defineProps(['selectedProject', 'userList'])
+    const props = defineProps(['userList'])
     const route = useRoute()
     const router = useRouter()
     const badge = useBadgeStore()
     const initialLoader = ref(false)
     const auth = useAuthUserStore()
+    const { selectedProject, memberData } = useProject() 
     const tabs = [
         { name: '概要', path: 'overview'},
         { name: 'メンバー', path: 'project-members'},
@@ -88,21 +90,15 @@ import { useRoute, useRouter } from 'vue-router';
     const taskCommentBadge = computed(() => {
         return badge.taskCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
     })
-    const memberData = computed(() => {
-        const memberId = route.params.memberId
-        if (memberId){
-            return props.selectedProject?.members.find(ob => ob.id == memberId) || props.selectedProject?.manager.find(ob => ob.id == memberId)
-        }
-        
-    })
+
     const hasPrivilage = computed(() => {
-        return (props.selectedProject?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6) || auth.activeUser.id == 610 || auth.activeUser.id == 608) ? true : false
+        return (selectedProject.value?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6) || auth.activeUser.id == 610 || auth.activeUser.id == 608) ? true : false
     })
     const pathGenerator = computed(() => {
-        if(!props.selectedProject) return []
+        if(!selectedProject.value) return []
         const paths: { label: string; route: { name: string, params?: any } }[] = []
         const parent = {
-            label: props.selectedProject ? props.selectedProject.name : '',
+            label: selectedProject.value ? selectedProject.value.name : '',
             route: { name: 'projectdetail', params: { projectId: route.params.projectId } }
         }
         const outecome = {

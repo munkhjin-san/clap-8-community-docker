@@ -95,7 +95,7 @@
                         placeHolder="限定メンバー選択"
                         rules="required"
                         name="calendarUsers"
-                        ref="calendarUsers"
+                        ref="calendarviewUsers"
                         path="calendar_more_users"
                         :multiple="true"
                         :closeOnSelect="false"
@@ -123,7 +123,7 @@
                         <ShortInput 
                             name="calendarNormalDate" 
                             :rules="'required'"
-                            :initialValue="once_date"
+                            :initialValue="once_date ?? ''"
                             customClass="date"
                             ref="calendarNormalDate"
                             type="date"
@@ -190,11 +190,11 @@
                             v-if="!all_day"
                             name="calendarNormalTimeStart" 
                             :rules="'required'"
-                            :initialValue="set_start_time"
+                            :initialValue="time_start"
                             customClass="date"
                             ref="calendarNormalTimeStart"
                             type="time"
-                            v-model="set_start_time"
+                            v-model="time_start"
                         />
                         <ShortInput 
                             v-if="!all_day"
@@ -217,7 +217,7 @@
                             <ShortInput 
                                 name="calendarRepeatSpanStart" 
                                 :rules="'required'"
-                                :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_from"
+                                :initialValue="repeat_span[repetition_type == 2 ? 'monthly' : 'weekly'].repeat_date_from ?? ''"
                                 customClass="date"
                                 ref="calendarRepeatSpanStart"
                                 type="date"
@@ -371,11 +371,10 @@
     </div>
     
 </template>
-<script setup>
+<script setup lang="ts">
 import LoaderButton from '../Global/LoaderButton.vue'
 import FacilitySelector from '../Form/FacilitySelector.vue';
-import moment from 'moment';
-import { computed, onMounted, ref, inject, watch } from 'vue';
+import { computed, onMounted, ref, inject, watch, useTemplateRef } from 'vue';
 import ShortInput from '../Form/ShortInput.vue';
 import OptionSelector from '../Form/OptionSelector.vue';
 import MemberSelector from '../Form/MemberSelector.vue';
@@ -384,15 +383,18 @@ import LongInput from '../Form/LongInput.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import { useSharingDataStore } from '@/store/sharingData'
 import ItemSelector from '../Form/ItemSelector.vue';
+import { DateTime } from 'luxon';
+import { RepeatDataType } from '@/interface/calendarInterface';
+import axios from 'axios';
+import { DialogMethods } from '@/interface/keys';
+import { useCalendar } from '@/composables/calendar';
     const sharingData = useSharingDataStore()
 
     const props = defineProps([
         'editTarget', 
-        'facilitiesList', 
         'preSelected', 
         'edit_all_record', 
         'preSelectedMembers', 
-        'departmentsList',
         'preSelectedDepartment'
     ])
     const emit = defineEmits(['close'])
@@ -407,27 +409,27 @@ import ItemSelector from '../Form/ItemSelector.vue';
     const zoom_waiting_room = ref(props.editTarget && props.editTarget.zoom_waiting_room ? true : false)
     const zoom_ai_companion = ref(props.editTarget && props.editTarget.zoom_ai_companion ? true : false)
     const repetition_type = ref(props.editTarget && props.editTarget.repetition_type && props.edit_all_record ? props.editTarget.repetition_type : 0)            
-    const all_day = ref(props.editTarget &&  Math.abs(moment(props.editTarget.date_start).diff(moment(props.editTarget.date_end), 'hours')) >= 23 ? true : false)   
+    const all_day = ref(props.editTarget &&  Math.abs(DateTime.fromSQL(props.editTarget.date_start).diff(DateTime.fromSQL(props.editTarget.date_end), 'hours').as('hour')) >= 23 ? true : false)   
     
-    const time_start = ref(props.editTarget && props.editTarget.date_start ? moment(props.editTarget.date_start).format('HH:mm') : props.preSelected  ? moment(props.preSelected ).format('HH:mm') : moment().add(1, 'hour').startOf('hour').format('HH:mm'))
-    const time_end = ref(props.editTarget && props.editTarget.date_end ? moment(props.editTarget.date_end).format('HH:mm') : props.preSelected  ? moment(props.preSelected ).add(1, 'hour').format('HH:mm') : moment().add(2, 'hour').startOf('hour').format('HH:mm'))
-    const once_date = ref(props.editTarget && props.editTarget.date_end ? moment(props.editTarget.date_start).format('YYYY-MM-DD') : props.preSelected  ? moment(props.preSelected ).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'))
-    const repeat_span = ref({
+    const time_start = ref(props.editTarget && props.editTarget.date_start ? DateTime.fromSQL(props.editTarget.date_start).toFormat('HH:mm'): props.preSelected  ? DateTime.fromSQL(props.preSelected).toFormat('HH:mm'): DateTime.now().plus({hour: 1}).startOf('hour').toFormat('HH:mm'))
+    const time_end = ref(props.editTarget && props.editTarget.date_end ? DateTime.fromSQL(props.editTarget.date_end).toFormat('HH:mm'): props.preSelected  ? DateTime.fromSQL(props.preSelected ).plus({hour: 1}).toFormat('HH:mm'): DateTime.now().plus({hour: 2}).startOf('hour').toFormat('HH:mm'))
+    const once_date = ref<string>(props.editTarget && props.editTarget.date_end ? DateTime.fromSQL(props.editTarget.date_start).toISODate() as string : props.preSelected  ? DateTime.fromSQL(props.preSelected).toISODate() as string : DateTime.now().toISODate())
+    const repeat_span = ref<RepeatDataType>({
         weekly: {
             selected_days: [false, true, false, false, false, false, false],
-            repeat_date_from: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_start).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
-            repeat_date_to: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_end).format('YYYY-MM-DD') : moment().add(1, 'week').format('YYYY-MM-DD'),
+            repeat_date_from: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromFormat(props.editTarget.expiration_start, "yyyy-MM-dd HH:mm:ss").toISODate() as string : DateTime.now().toISODate(),
+            repeat_date_to: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromFormat(props.editTarget.expiration_end, "yyyy-MM-dd HH:mm:ss").toISODate() as string : DateTime.now().plus({week: 1}).toISODate(),
         },
         monthly: {
-            selected_day: props.editTarget && props.editTarget.repeat_days !== null ? parseInt(props.editTarget.repeat_days) : moment().date(), 
-            repeat_date_from: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_start).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
-            repeat_date_to: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_end).format('YYYY-MM-DD') : moment().add(1, 'month').format('YYYY-MM-DD'),
+            selected_day: props.editTarget && props.editTarget.repeat_days !== null ? parseInt(props.editTarget.repeat_days) : DateTime.now().day, 
+            repeat_date_from: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_start).toISODate() as string : DateTime.now().toISODate(),
+            repeat_date_to: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_end).toISODate() as string : DateTime.now().plus({month: 1}).toISODate(),
         },
         yearly: {
-            selected_month: moment().month() + 1,
-            selected_day: props.editTarget && props.editTarget.repeat_days !== null ? parseInt(props.editTarget.repeat_days) : moment().date(),
-            year_from: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_start).year() : moment().year(),
-            year_to: props.editTarget && props.editTarget.repetition_type > 0 ? moment(props.editTarget.expiration_start).year() : moment().add(1, 'year').year()
+            selected_month: DateTime.now().plus({month: 1}).month,
+            selected_day: props.editTarget && props.editTarget.repeat_days !== null ? parseInt(props.editTarget.repeat_days) : DateTime.now().day,
+            year_from: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_start).year : DateTime.now().year,
+            year_to: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_start).year : DateTime.now().plus({year: 1}).year
         }
     })
     const facility = ref({
@@ -440,6 +442,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
     const calendarRemark = ref(null)
     const department_id = ref(props.editTarget?.department_id ?? props.preSelectedDepartment?.id ?? '')
     const members_only = ref(props.editTarget?.members_only ? true : false)
+    const {  facilitiesList, departmentsList } = useCalendar()
     onMounted(() => {
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
             const repeats = props.editTarget.repeat_week.split(',').map(Number);
@@ -451,7 +454,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
         }
         if(!props.editTarget){
             const editAll = localStorage.getItem('editAllDefault')
-            if(editAll && editAll == 1){
+            if(editAll && Number(editAll) == 1){
                 edit_all.value = true
             }
         }
@@ -460,22 +463,14 @@ import ItemSelector from '../Form/ItemSelector.vue';
             department_id.value = Number(calendarDepartment)
         }
     })
-    const set_start_time = computed({
-        get(){
-            return time_start.value
-        },
-        set(value){
-            time_start.value = value
-            time_end.value = moment(time_start.value, 'HH:mm').add(1, 'hour').startOf('hour').format('HH:mm')
-        }
-    })
     const setEditAllDefault = (event) => {
         const val = event.target.checked ? 1 : 0
-        localStorage.setItem('editAllDefault', val)            
+        localStorage.setItem('editAllDefault', val.toString())            
     }
     
-    const setAllDay = () => {
-        if(event.target.checked){
+    const setAllDay = (event: Event) => {
+        const target = event.target as HTMLInputElement
+        if(target.checked){
             time_start.value = '00:00'
             time_end.value = '23:59'
         }
@@ -494,19 +489,20 @@ import ItemSelector from '../Form/ItemSelector.vue';
         sharingData.setSharingData(shareData)
         emit('close', val)
     }
-    const calendarUsers = ref(null)
-    const calendarTitle = ref(null)
-    const calendarNormalTimeStart = ref(null)
-    const calendarNormalTimeEnd = ref(null)
-    const calendarNormalDate = ref(null)
-    const calendarRepeatSpanEnd = ref(null)
-    const calendarRepeatSpanStart = ref(null)
-    const monthlyDaySelector = ref(null)
-    const yearSelectorSelectedDay = ref(null)
-    const yearSelectorSelectedMonth = ref(null)
-    const yearSelectorEnd = ref(null)
-    const yearSelectorStart = ref(null)
-    const { notify, info } = inject('dialog')
+
+    const calendarUsers = useTemplateRef<InstanceType<typeof MemberSelector>>('calendarUsers')
+    const calendarTitle = useTemplateRef<InstanceType<typeof ShortInput>>('calendarTitle')
+    const calendarNormalTimeStart = useTemplateRef<InstanceType<typeof ShortInput>>('calendarNormalTimeStart')
+    const calendarNormalTimeEnd = useTemplateRef<InstanceType<typeof ShortInput>>('calendarNormalTimeEnd')
+    const calendarNormalDate = useTemplateRef<InstanceType<typeof ShortInput>>('calendarNormalDate')
+    const calendarRepeatSpanEnd = useTemplateRef<InstanceType<typeof ShortInput>>('calendarRepeatSpanEnd')
+    const calendarRepeatSpanStart = useTemplateRef<InstanceType<typeof ShortInput>>('calendarRepeatSpanStart')
+    const monthlyDaySelector = useTemplateRef<InstanceType<typeof OptionSelector>>('monthlyDaySelector')
+    const yearSelectorSelectedDay = useTemplateRef<InstanceType<typeof OptionSelector>>('yearSelectorSelectedDay')
+    const yearSelectorSelectedMonth = useTemplateRef<InstanceType<typeof OptionSelector>>('yearSelectorSelectedMonth')
+    const yearSelectorEnd = useTemplateRef<InstanceType<typeof OptionSelector>>('yearSelectorEnd')
+    const yearSelectorStart = useTemplateRef<InstanceType<typeof OptionSelector>>('yearSelectorStart')
+    const { notify, info, confirm} = inject('dialog') as DialogMethods  
     const validateTargets = computed(() => {
         return [
             calendarUsers.value,
@@ -530,16 +526,12 @@ import ItemSelector from '../Form/ItemSelector.vue';
                 error: '開始時間と終了時間は同じにすることが出来ません。'
             }
         }else {
-            const model = moment().format('YYYY-MM-DD')
-            const a = `${model} ${time_end.value}:00`
-            const b = `${model} ${time_start.value}:00`
-            if(moment(a).isBefore(moment(b))){
+            if(DateTime.fromFormat(time_end.value, 'HH:mm') < DateTime.fromFormat(time_start.value, 'HH:mm')){
                 return {
                     valid: false,
                     error: '終了時間は開始時間より先にすることが出来ません。'
                 }
-            }
-            
+            }            
         }
         return {
             valid: true,
@@ -557,7 +549,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
         for(const target of targets){
             
             const val = await target?.validate() || {valid: false}
-            result = result * val.valid
+            result = result && val.valid
         }
         if (!result) return
         const second_validate = await second_validation()
@@ -635,7 +627,7 @@ import ItemSelector from '../Form/ItemSelector.vue';
             if (month === 2) {
                 return Array.from({ length: 28 }, (_, index) => index + 1);
             } else {
-                const is31DaysMonth = moment(`${moment().year()}-${month}-31`, 'YYYY-MM-DD').isValid();
+                const is31DaysMonth = DateTime.fromISO(`${DateTime.now().year}-${month}-31`).isValid;
                 return Array.from({ length: is31DaysMonth ? 31 : 30 }, (_, index) => index + 1);
             }
         }else{
@@ -655,14 +647,13 @@ import ItemSelector from '../Form/ItemSelector.vue';
         ]
     })
     const avialabeStartYear = computed(() => {
-        const thisYear = moment().year()
+        const thisYear = DateTime.now().year
         const limit = thisYear + 10
         const list = Array.from({ length: limit - thisYear + 1 }, (_, i) => thisYear + i);
         return list
     })
     const avialabeEndYear = computed(() => {
-        const index = repetition_type.value == 2 ? 'monthly' : 'yearly'
-        const thisYear = repeat_span.value[index].year_from
+        const thisYear = repeat_span.value.yearly.year_from
         const limit = thisYear + 10
         const list = Array.from({ length: limit - thisYear + 1 }, (_, i) => thisYear + i);
         return list

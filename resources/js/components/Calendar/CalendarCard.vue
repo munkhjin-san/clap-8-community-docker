@@ -88,7 +88,7 @@
 
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import Autolinker from 'autolinker';
 import CalendarFiles from './CalendarFiles.vue';
 import { ref, computed, onMounted, inject } from 'vue'
@@ -101,6 +101,7 @@ import { useTempRecord } from '@/store/tempRecord';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import { timeFormat } from '@/utils/tools';
 import { DateTime } from 'luxon';
+import { useCalendar } from '@/composables/calendar';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const tempRecord = useTempRecord()
@@ -127,31 +128,28 @@ import { DateTime } from 'luxon';
     
     const listTruncate = computed(() => truncate.value ? props.record.calendar_users.slice(0, 6) : props.record.calendar_users)
     
-    const remove = inject('deleteCalendar')
+    const remove = inject<Function>('deleteCalendar') as Function
 
     const removeItem = (rec) => {        
         remove(rec)        
     }
-    const edit = inject('editRecord')
+    const edit = inject<Function>('editRecord') as Function
 
-    const facilitiesList = inject('facilities')
-    const departmentsList = inject('selectedDepartment')
+    const { facilitiesList, departmentsList } = useCalendar()
 
-    const setSummaryViewing = inject('setSummaryViewing')
+    const setSummaryViewing = inject<Function>('setSummaryViewing') as Function
 
     const background = computed(() => {
-        if(selectedFacility.value.length){
+        if(selectedFacility.value.length || selectedDepartment.value){
             return '#606060'
         }
-        if(selectedDepartment.value){
-            return '#606060'
-        }
-        const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
-        return me.length ? colors[auth.activeUser.color]?.light : 'var(--task-background)'
+        const me = props.record.calendar_users.filter(ob => ob.id == auth.id)
+        const colorIndex:number = auth.user && auth.user.color ? auth.user.color : 0
+        return me.length ? colors[colorIndex]?.light : 'var(--task-background)'
     })
 
     const selectedFacilityExpaned = computed(() => {
-        const selected = []
+        const selected:string[] = []
         for(const index in facilitiesList.value){
             const rec_check = props.record[index]
             if(rec_check !== null && facilitiesList.value[index][rec_check]){
@@ -162,7 +160,7 @@ import { DateTime } from 'luxon';
     })
 
     const selectedFacility = computed(() => {
-        const selected = []
+        const selected:string[] = []
         for(const index in facilitiesList.value){
             const rec_check = props.record[index]
             if(rec_check !== null && facilitiesList.value[index][rec_check] && facilitiesList.value[index][rec_check].selected == true){
@@ -180,7 +178,8 @@ import { DateTime } from 'luxon';
         if(props.editable){
             const task = props.record.task
             const url = '/board/' + task.board_id + '?t='+ task.id + '&action=true'
-            window.open(url, '_blank').focus();
+            const newWindow = window.open(url, '_blank');
+            if (newWindow) newWindow.focus();
         }
     }
     const color = computed(() => {
@@ -221,8 +220,7 @@ import { DateTime } from 'luxon';
     })
 
     const fullDay = computed(() => {
-        const diff = Math.abs(calendarDateInstances.value.start.diff(calendarDateInstances.value.end, 'hours'));
-        console.log(diff)
+        const diff = Math.abs(calendarDateInstances.value.start.diff(calendarDateInstances.value.end, 'hours').hours);
         return diff >= 23;
     })
 
@@ -232,7 +230,7 @@ import { DateTime } from 'luxon';
         }else if(props.record.repetition_type == 1){
             if(props.record.repeat_week && props.record.expiration_start && props.record.expiration_end){
                 const days = props.record.repeat_week.split(',').map(Number);
-                let days_list = [];
+                const days_list:string[] = [];
                 for(const i in days){
                     const dayOfWeekString = DateTime.now().set({ weekday: days[i] }).toFormat('ccc');
                     days_list.push(dayOfWeekString)
@@ -259,6 +257,6 @@ import { DateTime } from 'luxon';
         }
         
     }
-    const pushInstantUser = inject('pushInstantUser')
+    const pushInstantUser = inject<Function>('pushInstantUser') as Function
 
 </script>

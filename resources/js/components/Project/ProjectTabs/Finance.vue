@@ -144,7 +144,6 @@
 import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
 import Back from '@/components/Icons/Back.vue';
 import { DialogMethods } from '@/interface/globalInterface';
-import { Project } from '@/interface/projectInterface';
 import axios from 'axios';
 import { DateTime, MonthNumbers } from 'luxon';
 import { inject, onMounted, reactive, ref } from 'vue';
@@ -154,7 +153,6 @@ import { useRoute } from 'vue-router';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import DeltaNumbers from './Finance/DeltaNumbers.vue';
 const props = defineProps<{
-    selectedProject: Project;
     userList: any;
 }>();
 const windowWidth = window.innerWidth;

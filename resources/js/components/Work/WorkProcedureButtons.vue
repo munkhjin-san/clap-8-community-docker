@@ -86,12 +86,12 @@
     </div>
 </template>
 <script setup>
-    import moment from 'moment';
     import { useAuthUserStore } from '../../store/auth';
     import LoaderButton from '../Global/LoaderButton.vue';
     import { inject, ref, computed, onMounted, onUnmounted } from 'vue';
     import OverTimeRequest from './OverTimeRequest.vue';
     import { useBadgeStore } from '@/store/badge';
+import { DateTime } from 'luxon';
     const overtimeRequestData = ref(null)
     const props = defineProps(['currentDay', 'statuses', 'item'])
     const emit = defineEmits(['reload', 'closeModal'])
@@ -134,8 +134,7 @@
         } 
     }
     const formatedDay = computed(() => {
-        const date = new Date(props.item?.day_full)
-        return `${date.getMonth() + 1}月${date.getDate()}日の報告`
+        return DateTime.fromISO(props.item?.day_full).toFormat('M月d日')
     })
 </script>
 <style scoped>

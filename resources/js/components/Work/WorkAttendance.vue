@@ -185,12 +185,12 @@
     </div>
 </template>
 <script setup>
-    import moment from 'moment'
-    import LoaderButton from '../Global/LoaderButton.vue'
-    import { computed, inject, onMounted, ref } from 'vue';
-    import { useAuthUserStore } from '@/store/auth';
-    import { getAttendanceData } from '../../utils/workApi';
-    import { timeFormat } from '@/utils/tools';
+import LoaderButton from '../Global/LoaderButton.vue'
+import { computed, inject, onMounted, ref } from 'vue';
+import { useAuthUserStore } from '@/store/auth';
+import { getAttendanceData } from '../../utils/workApi';
+import { timeFormat } from '@/utils/tools';
+import { DateTime } from 'luxon';
     
     const emit = defineEmits(['reload', 'closeModal'])
     const props = defineProps([
@@ -209,8 +209,12 @@
     onMounted(() => {
         fetchAttendanceData()
     })
+
+    const dateInstance = computed(() => {
+        return DateTime.fromObject({year: props.selectedYear, month: props.selectedMonth})
+    })
     const fetchAttendanceData = async() => {
-        let yearMonth = moment([props.selectedYear, props.selectedMonth]).format('YYYY-MM')
+        let yearMonth = dateInstance.value.toFormat('yyyy-MM')
         try{
             attendanceData.value  = await getAttendanceData(yearMonth, props.usersCheckArray)
             loading.value ++
@@ -233,7 +237,7 @@
     })
 
     const deleteAttendance = async() => {
-        const date = moment([props.selectedYear, props.selectedMonth]).format('YYYY-MM')
+        const date = dateInstance.value.toFormat('yyyy-MM')
         const params = {
             date_year_month : date,
             user_id : props.usersCheckArray[0]
@@ -250,8 +254,7 @@
         }   
     }
     const monthFormat = computed(() => {
-        let yearMonth = moment([props.selectedYear, props.selectedMonth]).format('YYYY-MM')
-        return moment(yearMonth).format("YYYY年M月");
+        return dateInstance.value.toFormat('yyyy年M月')
     })
     const shiftDay = (data) => {
         let days = data.shift_count + '日'
@@ -326,7 +329,7 @@
     }
     const attendanceConfirm = async() => {
         if(disableButton.value) return
-        let yearMonth = moment([props.selectedYear, props.selectedMonth]).format('YYYY-MM')
+        let yearMonth = dateInstance.value.toFormat('yyyy-MM')
         const params = {
             date_year_month: yearMonth,
             user: attendanceData.value.user,
@@ -361,7 +364,7 @@
         }
     }
     const attendanceCreate = async() => {
-        const date = moment([props.selectedYear, props.selectedMonth]).format('YYYY-MM')
+        const date = dateInstance.value.toFormat('yyyy-MM')
         
         const params = {
             date : date,

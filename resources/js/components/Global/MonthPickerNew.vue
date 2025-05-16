@@ -123,3 +123,52 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
         }
     }
 </script>
+<style lang="scss">
+    .grid-picker{
+        height: 40px !important; 
+        margin: 0 0;
+    }
+    .monthPicker{
+        user-select: none;
+        display:flex;
+        justify-content: center;
+        position: relative;
+        // border-left: solid thin var(--normalBorder) !important;
+    }
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        background-color: var(--message-background);
+    }
+    .month-grid{
+        position: absolute;
+        top: 40px;
+        box-shadow: 0 1px 2px 0 rgb(60 64 67 / 30%), 0 2px 6px 2px rgb(60 64 67 / 15%);
+        z-index: 25;
+    }
+    .grid-item {
+        height: 50px;
+        width: 80px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        color: var(--primary-color);
+        font-size: 14px;
+        text-align: center;
+        fill: var(--primary-color);
+    }
+    .grid-item:hover:not(#activateButton) {
+        background: var(--bg2);
+    }
+    .year-picker{
+        max-height: 200px;
+        overflow: hidden auto;
+    }
+
+    @media screen and (max-width: 959px){
+        .grid-container{
+            background-color: var(--message-background);
+        }
+    }
+</style>

@@ -22,29 +22,26 @@
                 <TopBar
                     @jumpToday="jumpToToday"
                     @updated="userUpdated"
-                    @setFacility="setFacility"
                     @setActiveMembers="val => activeMembers = val"
-                    @setDepartment="setDepartment"
-                    :facilitiesList="facilitiesList"
                     :selectedYear="selectedYear"
                     :selectedMonth="selectedMonth"
-                    :departmentsList="departmentsList"
-                    :selectedDepartment="selectedDepartment"
+                    @refresh="getCalendar(DateTime.now().toISOTime(), 'updated')"
+
                 />
                 <div style="margin: 0 15px 0 auto;">
                     <DayPicker
                         v-if="viewType == 3"
-                        :selectedMonth="selectedMonth"
-                        :selectedYear="selectedYear"
-                        :selectedDay="selectedDay"
+                        v-model:month="selectedMonth"
+                        v-model:year="selectedYear"
+                        v-model:day="selectedDay"
                         right="0"
                         @setDate="setDate"
                         ref="daypicker" 
                     />
-                    <MonthPicker 
+                    <MonthPickerNew 
                         v-else
-                        :selectedMonth="selectedMonth"
-                        :selectedYear="selectedYear"
+                        v-model:month="selectedMonth"
+                        v-model:year="selectedYear"
                         right="0"
                         @setDate="setDate"
                         ref="monthpicker"
@@ -84,7 +81,7 @@
             @scroll="scrollListen"            
             @create="createAtTime"
         />
-        <MemberMonth 
+        <MemberMonthLayout 
             v-if="viewType == 2"
             ref="memberMonthLayoutRef"
             :records="recordList"
@@ -149,8 +146,6 @@
             <CalendarCreate 
                 v-if="createWindow"   
                 :editTarget="editTarget"   
-                :facilitiesList="facilitiesList"
-                :departmentsList="departmentsList"
                 :preSelectedDepartment="preSelectedDepartment"  
                 :preSelected="preSelected"
                 :edit_all_record="edit_all_record"
@@ -164,17 +159,15 @@
         <DragItem v-if="draggingCalendar"/>
     </div>        
 </template>
-<script setup>
+<script setup lang="ts">
 import HamBurger from '../Global/HamBurger.vue';
 import PostSearchBar from '../Post/PostSearchBar.vue'
 import NormalHourLayout from './NormalHour/NormalHourLayout.vue';
-import moment from 'moment';
-import MonthPicker from '../Global/MonthPicker.vue'
 import { nextTick, ref, computed, onMounted, provide, onUnmounted, inject } from 'vue'
 import CalendarCreate from './CalendarCreate.vue';
 import TopBar from './TopBar.vue'
 import NormalMonthLayout from './NormalMonth/NormalMonthLayout.vue'
-import MemberMonth from './MemberMonth/MemberMonthLayout.vue'
+import MemberMonthLayout from './MemberMonth/MemberMonthLayout.vue'
 import MemberHourLayout from './MemberHour/MemberHourLayout.vue'
 import DayPicker from './DayPicker.vue';
 import SearchResult from './SearchResult.vue';
@@ -190,6 +183,13 @@ import { useSharingDataStore } from '@/store/sharingData'
 import { useTempRecord } from '@/store/tempRecord';
 import axios from 'axios';
 import MeetingSummary from './MeetingSummary.vue';
+import { DialogMethods, User } from '@/interface/globalInterface';
+import { DialogKey } from '@/interface/keys';
+import { DateTime, DayNumbers, MonthNumbers } from 'luxon';
+import { Project } from '@/interface/projectInterface';
+import { CalendarRecord, FacilityData, FacilityItem, FastCreateData, NormalHourDay } from '@/interface/calendarInterface';
+import MonthPickerNew from '../Global/MonthPickerNew.vue';
+import { useCalendar } from '@/composables/calendar';
     const viewMenu = [
         {title: '月（スケジュール）', value: 1},
         {title: '月（時間）', value: 0},
@@ -207,12 +207,12 @@ import MeetingSummary from './MeetingSummary.vue';
     const topOffset = ref(0)
     const bottomOffset = ref(0)
     const appendLock = ref(true)
-    const records = ref([])
-    const selectedMonth = ref(moment().month())
-    const selectedYear = ref(moment().year()) 
-    const selectedDay = ref(moment().date())
-    const activeMonth = ref(moment().month())
-    const activeYear = ref(moment().year()) 
+    const records = ref<CalendarRecord[]>([])
+    const selectedMonth = ref(DateTime.now().month)
+    const selectedYear = ref(DateTime.now().year) 
+    const selectedDay = ref(DateTime.now().day)
+    const activeMonth = ref(DateTime.now().month)
+    const activeYear = ref(DateTime.now().year) 
     const createWindow = ref(false)
     const editTarget = ref(null)
     const initialLoader = ref(true)
@@ -221,30 +221,29 @@ import MeetingSummary from './MeetingSummary.vue';
     const searchKey = ref('')
     const searchResult = ref([])
     const searchFetch = ref(0)
-    const facilitiesList = ref([])
-    const departmentsList = ref([])
-    const selectedDepartment = ref([])
+
+
     const searching = ref(0)
-    const preSelected = ref(null)
+    const preSelected = ref('')
     const prevScrollTop = ref(0)
     const prevScrollLeft = ref(0)
-    const jumpTo = ref(null)
-    const fastCreate = ref({
+    const jumpTo = ref<string | null>(null)
+    const fastCreate = ref<FastCreateData>({
         x: 0,
         y: 0,
-        time: null,
+        time: '',
         stamp: null
     })
     const edit_all_record = ref(true)
     const activeMembers = ref([])
-    const preSelectedMembers = ref([])
-    const draggingCalendar = ref(null)
-    const { notify, info, confirm } = inject('dialog')
-    const normalHourLayoutRef = ref(null)
-    const memberHourLayoutRef = ref(null)
-    const memberMonthLayoutRef = ref(null)
-    const normalMonthLayoutRef = ref(null)
+    const preSelectedMembers = ref<User[]>([])
+    const { confirm, info, notify } = inject('dialog') as DialogMethods;
+    const normalHourLayoutRef = ref<InstanceType<typeof NormalHourLayout> | null>(null)
+    const memberHourLayoutRef = ref<InstanceType<typeof MemberHourLayout> | null>(null)
+    const memberMonthLayoutRef = ref<InstanceType<typeof MemberMonthLayout> | null>(null)
+    const normalMonthLayoutRef = ref<InstanceType<typeof NormalMonthLayout> | null>(null)
     const summeryViewing = ref(null)
+    const { getFacilities, facilitiesList, departmentsList, getDepartments, selectedDepartment, setDraggingCalendar, draggingCalendar } = useCalendar()
     const layouts = computed(() => {
         return [normalHourLayoutRef.value, normalMonthLayoutRef.value, memberMonthLayoutRef.value, memberHourLayoutRef.value]
     })
@@ -252,26 +251,27 @@ import MeetingSummary from './MeetingSummary.vue';
         window.removeEventListener("keydown", onKeyDown);        
     })        
     onMounted(() => {
-        const type = parseInt(localStorage.getItem('viewType'))   
+        const typeRaw = localStorage.getItem('viewType')
+        const type = typeRaw ? Number(typeRaw) : 1
         viewType.value = type > -1 ? type : 1  
         if(route.query && route.query.id && props.initial_date){
             
-            const tempId = parseInt(route.query.id)
-            const m = moment(props.initial_date).month();
-            const y = moment(props.initial_date).year();
-            const d = moment(props.initial_date).date();
-            activeMonth.value = selectedMonth.value = m;
+            const tempId = Number(route.query.id)
+            const m = DateTime.fromISO(props.initial_date).month;
+            const y = DateTime.fromISO(props.initial_date).year;
+            const d = DateTime.fromISO(props.initial_date).day;
+            activeMonth.value = selectedMonth.value = m as MonthNumbers;
             activeYear.value = selectedYear.value = y;
-            selectedDay.value = d
-            const date = moment(props.initial_date).startOf('month').format('YYYY-MM-DD')
-            getCalendar(date, 'mounted')
+            selectedDay.value = d as DayNumbers
+            const date = DateTime.fromISO(props.initial_date)
+            if(date.isValid){
+                getCalendar(date.startOf('month').toISODate(), 'mounted')
+            }
+            
             tempRecord.setTempRecord(tempId)
         }else{
-            const date = moment().format('YYYY-MM-DD')
-            getCalendar(date, 'mounted')            
-             
-                     
-            
+            const date = DateTime.now().toISODate()
+            getCalendar(date, 'mounted')             
         }
         getFacilities()  
         getDepartments()      
@@ -280,7 +280,7 @@ import MeetingSummary from './MeetingSummary.vue';
             createWindow.value = true
         }
         if(auth.activeUser){
-            preSelectedMembers.value.push(auth.activeUser)
+            preSelectedMembers.value.push(auth.activeUser as User)
         }
     })
     const preSelectedDepartment = computed(() => {
@@ -291,7 +291,7 @@ import MeetingSummary from './MeetingSummary.vue';
         );
     })
     const selectedDate = computed(() => {
-        return moment([selectedYear.value, selectedMonth.value, selectedDay.value]).format('YYYY-MM-DD')
+        return selectedDateInstance.value.toISODate() as string
     })
     const holidays = computed(() => {
         const holidays = holiday_jp.between(new Date(activeYear.value - 1 + '-12-01'), new Date(activeYear.value + 1 + '-1-31'));
@@ -299,20 +299,21 @@ import MeetingSummary from './MeetingSummary.vue';
     })
     const daysOfMonth = computed(() => {
         
-        const thisMonth = moment([activeYear.value, activeMonth.value]);
-        const firstDayOfMonth = thisMonth.clone().subtract(topOffset.value, 'months').startOf('month');
-        const lastDayOfMonth = thisMonth.clone().add(bottomOffset.value, 'months').endOf('month');
-        const days = [];
-
-        let currentDay = firstDayOfMonth.clone();
-        while (currentDay.isSameOrBefore(lastDayOfMonth, 'day')) {
-            const holiday = holidays.value.find(h => moment(h.date).isSame(currentDay, 'day'));
-            days.push({
-                full: currentDay.format('YYYY-MM-DD'),
-                day: currentDay.format('D'),
+        const thisMonth = DateTime.fromObject({year: activeYear.value,month: activeMonth.value});
+        if(!thisMonth.isValid) return []
+        const firstDayOfMonth = thisMonth.startOf('month');
+        const lastDayOfMonth = thisMonth.endOf('month');
+        const days: NormalHourDay[] = [];
+        let currentDay = firstDayOfMonth;
+        while (currentDay <= lastDayOfMonth) {
+            const holiday = holidays.value.find(h => DateTime.fromISO(h.date.toISOString()).hasSame(currentDay, 'day'));
+            const day:NormalHourDay = {
+                full: currentDay.toISODate(),
+                day: currentDay.toFormat('ccc'),
                 day_holiday : holiday ? holiday.name : null,
-            });
-            currentDay.add(1, 'day');
+            }
+            days.push(day);
+            currentDay = currentDay.plus({days: 1});
         }
         return days;
     })
@@ -320,55 +321,56 @@ import MeetingSummary from './MeetingSummary.vue';
         return records.value.length ? records.value : []
     })
     const dayRecords = computed(() => {
-        const date = moment([selectedYear.value, selectedMonth.value, selectedDay.value]).format('YYYY-MM-DD')
-        return recordList.value.filter(record => moment(record.date_start).isSame(date, 'day'))
+        const date = selectedDateInstance.value
+        if(!date.isValid) return []
+        const list = recordList.value.filter(record => {
+            const recordDate = DateTime.fromSQL(record.date_start);
+            if (!recordDate.isValid) return false;
+            return recordDate.hasSame(date, 'day');
+        });
+        return list
     
 
     })
-    const setDepartment = (department) => {
-        const index = selectedDepartment.value.indexOf(department);
-        if (index === -1) {
-            selectedDepartment.value.push(department);
-        } else {
-            selectedDepartment.value.splice(index, 1);
-        }
-        const dateInstance = moment([ selectedYear.value, selectedMonth.value, 1 ]).format('YYYY-MM-DD');
-        getCalendar(dateInstance, 'updated')
-    }
-    const setListView = (data) => {
-        const day = moment(data).date()
-        selectedDay.value = day
+    const setListView = (data:string) => {
+        const day = DateTime.fromISO(data)
+        if(!day.isValid) return
+        selectedDay.value = day.day
         viewType.value = 3
     }
 
     const fastCreateOpen = () => {
         if(fastCreate.value.time){
-            const hour = moment(fastCreate.value.time).format('YYYY-MM-DD HH:mm:ss')
-            preSelected.value = hour
+            const hour = DateTime.fromSQL(fastCreate.value.time).toSQL()
+            preSelected.value = hour!
             createWindow.value = true
             fastCreate.value = {
                 x: 0,
                 y: 0,
-                time: null,
+                time: '',
                 stamp: null
             }
         }            
 
     }
 
-    const shiftToMonth = (direction) => {
-        appendLock.value = true                       
-        const current = moment([activeYear.value, activeMonth.value, selectedDay.value])
-        const directions = { up: -1, down: 1, left: -1, right: 1 }
-        const index = directions[direction]
-        const unit = viewType.value == 3 ? 'day' : 'month'
-        const exec = current.clone().add(index, unit).format('YYYY-MM-DD')
-        const targetDate = moment(exec)
-        activeMonth.value = selectedMonth.value = targetDate.month() 
-        activeYear.value = selectedYear.value = targetDate.year()
-        selectedDay.value = targetDate.date()
-        initialLoader.value = true  
-        getCalendar(targetDate.startOf('month').format('YYYY-MM-DD'), 'shift')          
+    const shiftToMonth = (direction:string) => {
+        const current = DateTime.fromObject({year: activeYear.value,month: activeMonth.value})
+        if(!current.isValid) return
+        appendLock.value = true  
+        initialLoader.value = true                
+        
+        const index = direction == 'down' ? 1 : -1
+        
+        const new_month = current.plus({months:index}).startOf('month').toISODate()                  
+        getCalendar(new_month, 'shift')
+        const m = current.plus({months:index}).month
+        const y = current.plus({months:index}).year
+        activeMonth.value = selectedMonth.value = m
+        activeYear.value = selectedYear.value = y    
+            
+                                    
+        
     }
 
     const addRecord = (type, value, user) => {
@@ -379,9 +381,9 @@ import MeetingSummary from './MeetingSummary.vue';
                     preSelectedMembers.value.push(user)
                 }                    
             }
-            const hour = moment().add(1, 'hour').startOf('hour').hour()
-            const d = moment(value).hour(hour).minute(0).second(0).format('YYYY-MM-DD HH:mm:ss')
-            preSelected.value = d
+            const hour = DateTime.now().plus({hours: 1}).startOf('hour').hour
+            const d = DateTime.fromISO(value).set({hour: hour, minute: 0, second: 0}).toSQL()
+            preSelected.value = d!
             createWindow.value = true            
         }
     }
@@ -389,23 +391,25 @@ import MeetingSummary from './MeetingSummary.vue';
         let question = record.repetition_type > 0 ? '繰り返しスケジュールすべて削除しますか。' : 'スケジュールを削除しますか。'
         let answers = [{label:'すべて', value:'all'}, {label:'このスケジュールのみ', value:'single'}, {label:'キャンセル', value:false}]
         const options = {
-            answers: record.repetition_type > 0 ? answers : null
+            answers: record.repetition_type > 0 ? answers : []
         }
         const answer = await confirm(question, options)
-        if(answer.value === false) return
+        if(!answer.value) return
         const all_delete = answer.value == 'all'
         try{
             await axios.post('/calendar_delete_record',{id:record.id, all_delete: all_delete})
-            const date = moment([selectedYear.value, selectedMonth.value, 1]).format('YYYY-MM-DD')
-            getCalendar(date, 'updated')
-            info('削除しました。') 
+            const date = selectedDateInstance.value
+            if(date.isValid){
+                getCalendar(date.startOf('month').toISODate(), 'updated')
+                info('削除しました。')
+            }
         } catch (e) { 
             notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } 
     }
     const onKeyDown = (e) => {
         if(e.keyCode == 27 && draggingCalendar.value){
-            draggingCalendar.value = null
+            setDraggingCalendar(null)
         }
     }
     const dropFinish = (record, date) => {
@@ -447,14 +451,6 @@ import MeetingSummary from './MeetingSummary.vue';
         }
 
     }
-    const setFacility = (index, sub_index, value) => {
-        facilitiesList.value[index][sub_index].selected = value
-        const dateInstance = moment([ selectedYear.value, selectedMonth.value, 1 ]).format('YYYY-MM-DD');
-        getCalendar(dateInstance, 'updated')
-    }
-    const getFacilities = () => {
-        axios.post('/get_all_facilities').then(response => facilitiesList.value = response.data)
-    }
     const searchStart = (word) => {
         searchKey.value = word
         menu.setMenu( {id : 26, name: 'calendarSearchResultWindow'})
@@ -473,15 +469,16 @@ import MeetingSummary from './MeetingSummary.vue';
         
     }
     const switchView = (val) => {
-        menu.setMenu( {name: '', id: null})
+        menu.close()
         initialLoader.value = true
         viewType.value = val
 
-        const selected = moment([selectedYear.value, selectedMonth.value , 1])
-        const thisMonth = moment().isSame(selected, 'month')
+        const selected = selectedDateInstance.value.startOf('month')
+        if(!selected.isValid) return
+        const thisMonth = DateTime.now().hasSame(selected, 'month')
         if(thisMonth){
             nextTick(() => {
-                jumpExecute(moment().format('YYYY-MM-DD'))                
+                jumpExecute(DateTime.now().toISODate())                
             })
             
         }
@@ -491,21 +488,23 @@ import MeetingSummary from './MeetingSummary.vue';
         
     }
     const userUpdated = () => {
-        const dateInstance = moment([ selectedYear.value, selectedMonth.value, 1 ]).format('YYYY-MM-DD');
-        getCalendar(dateInstance, 'updated')
+        const dateInstance = selectedDateInstance.value.startOf('month')
+        if(!dateInstance.isValid) return
+        getCalendar(dateInstance.toISODate(), 'updated')
     }
     const jumpToDate = (date) => {
         appendLock.value = true
-        const dataDate = moment(date)
-        if(selectedMonth.value !== dataDate.month() || selectedYear.value !== dataDate.year()){
-            selectedYear.value = dataDate.year()
-            selectedMonth.value = dataDate.month()
-            const diff = dataDate.startOf('month').format('YYYY-MM-DD')
+        const dataDate = DateTime.fromISO(date)
+        if(!dataDate.isValid) return
+        if(selectedMonth.value !== dataDate.month || selectedYear.value !== dataDate.year){
+            selectedYear.value = dataDate.year
+            selectedMonth.value = dataDate.month
+            const diff = dataDate.startOf('month').toISODate()
             getCalendar(diff)
         }
-        if(activeMonth.value !== dataDate.month() || activeYear.value !== dataDate.year()){
-            activeYear.value = dataDate.year()
-            activeMonth.value = dataDate.month()
+        if(activeMonth.value !== dataDate.month || activeYear.value !== dataDate.year){
+            activeYear.value = dataDate.year
+            activeMonth.value = dataDate.month
         }
         topOffset.value = 0
         bottomOffset.value = 0
@@ -517,24 +516,23 @@ import MeetingSummary from './MeetingSummary.vue';
             appendLock.value = false
         }, 500);
     }
-    const fromMonth = (data) => {
+    const fromMonth = (data:CalendarRecord) => {
         tempRecord.setTempRecord(data.id)
         appendLock.value = true
-        const dataDate = moment(data.date_start)
-        if(selectedMonth.value !== dataDate.month() || selectedYear.value !== dataDate.year()){
-            selectedYear.value.value = dataDate.year()
-            selectedMonth.value = dataDate.month()
-            const diff = dataDate.startOf('month').format('YYYY-MM-DD')
+        const dataDate = DateTime.fromISO(data.date_start)
+        if(!dataDate.isValid) return
+        if(selectedMonth.value !== dataDate.month || selectedYear.value !== dataDate.year){
+            selectedYear.value = dataDate.year
+            selectedMonth.value = dataDate.month
+            const diff = dataDate.startOf('month').toISODate()
             initialLoader.value = true
             records.value = []
             getCalendar(diff, 'fromMonth')
         }
-        if(activeMonth.value !== dataDate.month() || activeYear.value !== dataDate.year()){
-            activeYear.value = dataDate.year()
-            activeMonth.value = dataDate.month()
+        if(activeMonth.value !== dataDate.month || activeYear.value !== dataDate.year){
+            activeYear.value = dataDate.year
+            activeMonth.value = dataDate.month
         }
-        topOffset.value = 0
-        bottomOffset.value = 0
         viewType.value = 0
         
         setTimeout(() => {
@@ -550,9 +548,11 @@ import MeetingSummary from './MeetingSummary.vue';
                 }else if(previous == 0 && realIndex == 11){
                     selectedYear.value--
                 }
-                selectedMonth.value = realIndex
-                const dateInstance = moment([ selectedYear.value, selectedMonth.value, 1 ]).format('YYYY-MM-DD');   
-                getCalendar(dateInstance, 'slided')
+                selectedMonth.value = realIndex 
+                const dateInstance = DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value, day: 1})
+                if(!dateInstance.isValid) return
+                const date = dateInstance.toISODate()
+                getCalendar(date, 'slided')
             }
         }   
         
@@ -560,24 +560,25 @@ import MeetingSummary from './MeetingSummary.vue';
     }
     const jumpToToday = () => {
         appendLock.value = true
-        const val = moment().format('YYYY-MM-DD')           
-        if(moment([selectedYear.value, selectedMonth.value]).isSame(moment(), 'month')){
+        const val = DateTime.now().toISODate()          
+        if(selectedDateInstance.value.hasSame(DateTime.now(), 'month')){
             jumpExecute(val)
             setTimeout(() => {
                 appendLock.value = false
             }, 100);
-            selectedDay.value = moment().date()
+            selectedDay.value = DateTime.now().day
         }else{
-            selectedMonth.value = activeMonth.value = moment().month()
-            selectedYear.value = activeYear.value = moment().year()
-            selectedDay.value = moment().date()
+            selectedMonth.value = activeMonth.value = DateTime.now().month
+            selectedYear.value = activeYear.value = DateTime.now().year
+            selectedDay.value = DateTime.now().day
             records.value = []
-            const date = moment([selectedYear.value, selectedMonth.value , 1]).format('YYYY-MM-DD')
-            getCalendar(date, 'mounted')
+            getCalendar(selectedDateInstance.value.toISODate()!, 'mounted')
         }
                     
     }
-
+    const selectedDateInstance = computed(() => {
+        return DateTime.fromObject({ year: selectedYear.value, month: selectedMonth.value, day: selectedDay.value})
+    })
     const jumpExecute = async(day) => {
         const layout = layouts.value[viewType.value]
         if(layout){
@@ -588,21 +589,22 @@ import MeetingSummary from './MeetingSummary.vue';
     const closeCreate = (val) => {
         createWindow.value = false
         editTarget.value = null
-        preSelected.value = null
+        preSelected.value = ''
         edit_all_record.value = true
         if(val){
-            const date = moment([selectedYear.value, selectedMonth.value, 1]).format('YYYY-MM-DD')
-            getCalendar(date, 'updated')
+            const date = selectedDateInstance.value
+            if(!date.isValid)return
+            getCalendar(date.toISODate(), 'updated')
         }
-        preSelectedMembers.value = [auth.activeUser]
+        preSelectedMembers.value = [auth.activeUser as User]
     }
-    const setDate = (date) => {
+    const setDate = (date:{month: MonthNumbers, year: number, day?: DayNumbers}) => {
         appendLock.value = true
         bottomOffset.value = 0
         topOffset.value = 0
-        activeMonth.value = date.month - 1
+        activeMonth.value = date.month
         activeYear.value = date.year
-        selectedMonth.value = date.month - 1
+        selectedMonth.value = date.month
         selectedYear.value = date.year
         let d = 1
         if(date.day){
@@ -611,8 +613,9 @@ import MeetingSummary from './MeetingSummary.vue';
         }
         
         records.value = []
-        const dateInstance = moment([ date.year, date.month - 1, d ]).format('YYYY-MM-DD');
-        getCalendar(dateInstance, 'setDate')
+        const dateInstance = selectedDateInstance.value
+        if(!dateInstance.isValid) return
+        getCalendar(dateInstance.toISODate(), 'setDate')
         
         
     }
@@ -621,7 +624,7 @@ import MeetingSummary from './MeetingSummary.vue';
         if(user){
             const index = preSelectedMembers.value.find(ob => ob.id == user.id)
             if(!index){
-                preSelectedMembers.value = [auth.activeUser] 
+                preSelectedMembers.value = [auth.activeUser as User] 
                 preSelectedMembers.value.push(user)
             }                    
         }  
@@ -633,16 +636,14 @@ import MeetingSummary from './MeetingSummary.vue';
         menu.setMenu( {id: 896, name: 'scheduleCreateFast'})            
     }
     const resetFastCreate = () => {
-        fastCreate.value = { x: 0, y: 0, time: null, stamp: null}
+        fastCreate.value = { x: 0, y: 0, time: '', stamp: null}
     }
-    const scrollListen = () => {
+    const scrollListen = (event: Event) => {
         resetFastCreate()
-        const container = event.currentTarget;
-        let direction = container.scrollTop > prevScrollTop.value ? 'down' : 'up'
-        prevScrollTop.value = container.scrollTop;
-        const tempMonth = selectedMonth.value            
+        const container = event.currentTarget as HTMLDivElement;
+        prevScrollTop.value = container.scrollTop;          
         if(!appendLock.value){
-            var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);  
+            var percent = 100 * container.scrollTop / (container.scrollHeight - container.clientHeight);  
             if(percent >= 97){   
                 jumpTo.value = 'down'                    
             }else if(percent <= 3){
@@ -653,10 +654,11 @@ import MeetingSummary from './MeetingSummary.vue';
         }       
         
     }
-    const scrollListenHorizontal = () => {
+    const scrollListenHorizontal = (event: Event) => {
         resetFastCreate()
+        const container = event.currentTarget as HTMLDivElement;
         if(!appendLock.value){
-            var percent = 100 * event.currentTarget.scrollLeft / (event.currentTarget.scrollWidth  - event.currentTarget.clientWidth);  
+            var percent = 100 * container.scrollLeft / (container.scrollWidth  - container.clientWidth);  
             if(percent >= 97){   
                 jumpTo.value = 'right'                    
             }else if(percent <= 3){
@@ -670,29 +672,28 @@ import MeetingSummary from './MeetingSummary.vue';
     const jumpToRecord = (record) => {
         appendLock.value = true
         tempRecord.setTempRecord(record.id)
-        const dInstance = moment(record.date_start)
-        const date = dInstance.startOf('month').format('YYYY-MM-DD')
-        selectedMonth.value = activeMonth.value = moment(record.date_start).month()
-        selectedYear.value = activeYear.value = moment(record.date_start).year()
+        const dInstance = DateTime.fromISO(record.date_start)
+        if(!dInstance.isValid) return
+        const date = dInstance.startOf('month').toISODate()
+        selectedMonth.value = activeMonth.value = dInstance.month
+        selectedYear.value = activeYear.value = dInstance.year
         if(viewType.value == 3){
-            selectedDay.value = moment(record.date_start).date()
+            selectedDay.value = dInstance.day
         }                
         records.value = []
         getCalendar(date, 'search')
         
     }
-    const getCalendar = (day, method) => {
+    const getCalendar = (day:string, method?:string) => {
         let fac = {}
-        for(const index in facilitiesList.value){
-            
-            const values = facilitiesList.value[index].filter(ob => ob.selected).map(ob => ob.value)
+        for(const index in facilitiesList.value){            
+            const values = facilitiesList.value[index].filter((ob: FacilityItem) => ob.selected).map((ob: FacilityItem) => ob.value)
             if(values && values.length){
                 fac[index] = values
-            }   
-
-            
-        }
-        axios.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType.value, departments: selectedDepartment.value}).then(response => {  
+            } 
+        }   
+        const depIds = selectedDepartment.value.map(ob => ob.id)
+        axios.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType.value, departments: depIds}).then(response => {  
             
             if(method == 'updated'){
                 const valid_id = response.data.map(ob => ob.id)
@@ -710,11 +711,12 @@ import MeetingSummary from './MeetingSummary.vue';
                                       
             if(method == 'mounted' || method == 'search'){
                 setTimeout(() => {
-                    let date = moment().format('YYYY-MM-DD')      
+                    let date = DateTime.now().toISODate()       
                     if(tempRecord.id){
                         const target = response.data.find(ob => ob.id == tempRecord.id)
-                        if(target){
-                            date = moment(target.date_start).format('YYYY-MM-DD')
+                        const instance = DateTime.fromISO(target.date_start)
+                        if(target && instance.isValid){
+                            date = instance.toISODate()
                         }
                     }             
                     jumpExecute(date)                       
@@ -723,10 +725,11 @@ import MeetingSummary from './MeetingSummary.vue';
             }                
             if(method == 'shift'){
                 nextTick(() => {     
-                    let create = moment(day).startOf('month').format('YYYY-MM-DD')   
-                    if(jumpTo.value == 'up' || jumpTo.value == 'left'){
-                        create = moment(day).endOf('month').format('YYYY-MM-DD')                            
-                    }   
+                    const aInstance = DateTime.fromISO(day) 
+                    let create = aInstance.startOf('month').toISODate()
+                    if(jumpTo.value == 'up'){
+                        create = aInstance.endOf('month').toISODate()                          
+                    }    
                     jumpExecute(create)                                               
                     initialLoader.value = false        
                     jumpTo.value = null                
@@ -748,22 +751,13 @@ import MeetingSummary from './MeetingSummary.vue';
             else notify('エラーが発生しました。')                        
         });
     }
-    const getDepartments = async() => {
-        try {
-            await axios.get('/get_departments_calendar').then(res => departmentsList.value = res.data)
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
-    }
     const setSummaryViewing = (record) => {
         summeryViewing.value = record
     }
     provide('deleteCalendar', deleteRecord)
     provide('editRecord', editRecord)
-    provide('facilities', facilitiesList)
-    provide('selectedDepartment', selectedDepartment)
     provide('dropFinish', dropFinish)
-    provide('draggingCalendar', draggingCalendar)
     provide('setSummaryViewing', setSummaryViewing)
+    provide('holidays', holidays)
 
 </script>

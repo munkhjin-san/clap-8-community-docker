@@ -125,7 +125,6 @@
     </tr>
 </template>
 <script setup>
-import moment from 'moment';
 import { computed, inject, ref, useTemplateRef } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from "@/store/menu";
@@ -133,6 +132,8 @@ import CommandButton from '../Global/CommandButton.vue';
 import { vehicleAsOptions, workFilePreview } from '../../utils/workApi';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
 import WeatherIcon from '../Global/WeatherIcon.vue';
+import { DateTime } from 'luxon';
+import { customParser } from '@/utils/tools';
 const menu = useMenuStore()
 const responsive = useResponsive()
 const costOptions = [{label: '交通費', value: 1},
@@ -158,19 +159,19 @@ const vehicleBox = useTemplateRef('vehicleBox')
 const topOffset = ref(0)
 const getDayClass = computed(() => {
     const date = props.item.day_full
-    const day = moment(date).day()
+    const dateInstance = DateTime.fromISO(date)
     return {
-        'shift-saturday': day === 6,
-        'shift-sunday': day === 0,
-        'shift-everyholiday' : props.holidays.find(h => moment(h.date).isSame(props.item.day_full, 'day')),
-        'today' : date === moment().format('YYYY-MM-DD')
+        'shift-saturday': dateInstance.weekday === 6,
+        'shift-sunday': dateInstance.weekday === 7,
+        'shift-everyholiday' : props.holidays.find(h => DateTime.fromJSDate(h.date).hasSame(dateInstance, 'day')),
+        'today' : date === DateTime.now().toISODate(),
     }
 })
 
 const dayFormatter = computed(() => {
     const value = props.item.day_show
     if(value){
-        const date =  moment(value).format('M / D (dd)')
+        const date =  DateTime.fromISO(value).toFormat('M / d (ccc)')
         return date
     }
 })
@@ -196,10 +197,10 @@ const startEarly = computed(() => {
     const timecard = props.item?.time_card
     if(!shift || !timecard) return
     if(timecard.start_time){
-        const shiftStart = moment(`${shift.shift_day} ${shift.start_time}`)
-        const cardStart = moment(`${timecard.day} ${timecard.start_time}`)
-        return cardStart.isAfter(shiftStart) ?  'late-class'
-        : shiftStart.isAfter(cardStart) ?  'over-class' : ''
+        const shiftStart = customParser(`${shift.shift_day} ${shift.start_time}`)
+        const cardStart = customParser(`${timecard.day} ${timecard.start_time}`)
+        return cardStart > shiftStart ?  'late-class'
+        : shiftStart > cardStart ?  'over-class' : ''
     }      
     return ''
 })
@@ -209,10 +210,10 @@ const goLately = computed(() => {
     const timecard = props.item?.time_card
     if(!shift || !timecard) return
     if(timecard.end_time){
-        const shiftEnd = moment(`${shift.shift_day} ${shift.end_time}`)
-        const cardEnd = moment(`${timecard.day} ${timecard.end_time}`)
-        return cardEnd.isAfter(shiftEnd) ?  'over-class'
-        : shiftEnd.isAfter(cardEnd) ?  'late-class' : ''
+        const shiftEnd = customParser(`${shift.shift_day} ${shift.end_time}`)
+        const cardEnd = customParser(`${timecard.day} ${timecard.end_time}`)
+        return cardEnd > shiftEnd ?  'over-class'
+        : shiftEnd > cardEnd ?  'late-class' : ''
     }      
     return ''
 })
@@ -249,16 +250,25 @@ const workTimeFormatted = computed(() => {
     return ''
 })
 const countdown = computed(() => {
-    const currentTime = moment();
-    const givenTime = props.item?.time_card.start_time
-    const breakMinute = props.item?.total_break_time || 0
-    const todayWithGivenTime = moment().format('YYYY-MM-DD') + ' ' + givenTime;
-    const givenTimeInstance = moment(todayWithGivenTime, 'YYYY-MM-DD HH:mm');
+    const currentTime = DateTime.now();
+    const givenTime = props.item?.time_card.start_time;
+    const breakMinute = props.item?.total_break_time || 0;
     
-    const difference = moment.duration(currentTime.diff(givenTimeInstance));
-    const breakDuration = moment.duration(breakMinute, 'minutes');
-    const adjustedDifference = difference.subtract(breakDuration);
-    return adjustedDifference < 0 ? '0時間0分' : `${adjustedDifference.hours()}時間${adjustedDifference.minutes()}分`;
+    if (!givenTime) return '0時間0分';
+    
+    const todayWithGivenTime = `${currentTime.toFormat('yyyy-MM-dd')} ${givenTime}`;
+    const givenTimeInstance = DateTime.fromFormat(todayWithGivenTime, 'yyyy-MM-dd HH:mm');
+    
+    // Calculate difference and subtract break time
+    let difference = currentTime.diff(givenTimeInstance, ['hours', 'minutes']);
+    difference = difference.minus({ minutes: breakMinute });
+    
+    // Ensure we don't return negative time
+    if (difference.hours < 0 || (difference.hours === 0 && difference.minutes < 0)) {
+        return '0時間0分';
+    }
+    
+    return `${Math.floor(difference.hours)}時間${Math.floor(difference.minutes)}分`;
 })
 const overTimeFormatted = computed(() => {
     const data = props.item

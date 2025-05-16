@@ -116,26 +116,21 @@ import { validator } from '@/validation/validator'
         const { isValid, errorMessage }= await validator(props.rules, qualified_users.value)
         error.value = errorMessage
         trigger.value = true
-        console.log('ff',isValid)
-        console.log('fddf',qualified_users.value)
         return {valid: isValid}
-        return new Promise((resolve) => {
-            if (props.rules.includes('required') && !qualified_users.value.length) {
-                resolve({ valid: false });
-            } else {
-                resolve({ valid: true });
-            }
-        });
     };
 
     const selectAll = (flag) => {
         qualified_users.value = flag ? options.value : []
     }
     const selectBy = (list) => {
+        console.log('list', list)
         list.forEach(user => {
             const valid = options.value.some(ob => ob.id == user.id)
+            if(!valid){
+                options.value.push(user)
+            }
             const exist = qualified_users.value?.some(ob => ob.id == user.id)
-            if(valid && !exist){
+            if(!exist){
                 qualified_users.value?.push(user)
             }
         });

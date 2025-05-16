@@ -13,7 +13,6 @@ Settings.defaultLocale = 'ja';
 
 import { createPinia } from 'pinia'
 const pinia = createPinia()
-import 'moment/dist/locale/ja'
 import router from './router'
 
 

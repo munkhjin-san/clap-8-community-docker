@@ -40,69 +40,89 @@
     </div> 
 </template>
 
-<script setup>
-    import moment from 'moment'
-    import DayBlock from './DayBlock.vue';
-    import { computed, onMounted, ref} from 'vue';
+<script setup lang="ts">
+import DayBlock from './DayBlock.vue';
+import { computed, ComputedRef, inject, onMounted, ref, useTemplateRef} from 'vue';
+import { DateTime } from 'luxon';
+import { CalendarRecord, NormalMonthDay, WeeksArray } from '@/interface/calendarInterface';
 
-    const props = defineProps(["records", "selectedYear", "selectedMonth", 'initialLoader', 'activeMonth', 'activeYear', 'holidays'])
+    const props = defineProps<{
+        records: CalendarRecord[];
+        selectedYear: number;
+        selectedMonth: number;
+        initialLoader: boolean;
+        activeMonth: number;
+        activeYear: number;
+    }>()
     const emit = defineEmits(['fromMonth', 'addRecord', 'jumpToDate', 'scroll', 'create'])      
-
+    const holidays = inject<ComputedRef>('holidays')
     onMounted(() => {
-        localStorage.setItem('viewType', 1)      
+        localStorage.setItem('viewType', '1')      
     })
     const weekHeader = ref([])
-    const monthScrollContainer = ref(null)
-    const calendarData = computed(() => {
-            
-        const thisMonth = moment([props.activeYear, props.activeMonth]);
-        const firstDay = thisMonth.clone().startOf("isoWeek")
-        const lastDay = thisMonth.clone().endOf("month").endOf("isoWeek");
-        const calendar = [];
-        for (let i = firstDay; i.isBefore(lastDay); i.add(1, "day")) {
-            const weekIndex = calendar.length - 1;
-            if (weekIndex < 0 || calendar[weekIndex].length === 7) {
-                calendar.push([]);
+    const monthScrollContainer = useTemplateRef('monthScrollContainer')
+    const calendarData = computed(() => {            
+        const thisMonth = DateTime.fromObject({year: props.activeYear, month: props.activeMonth});
+        let firstDay = thisMonth.startOf('week')
+        const lastDay = thisMonth.endOf('month').endOf('week')
+        const calendar:WeeksArray = [];
+        
+        while(firstDay <= lastDay){
+            const week: NormalMonthDay[] = [];
+            for (let i = 0; i < 7; i++) {
+                const holiday = holidays?.value.find(h => {
+                    const holidayDate = DateTime.fromISO(h.date.toISOString());
+                    return holidayDate.hasSame(firstDay, 'day');
+                });
+                    week.push({ 
+                    "day_short": firstDay.toFormat("d"),
+                    "day_full": firstDay.toFormat("yyyy-MM-dd"),
+                    "day_holiday": holiday ? holiday.name : '',
+                });
+                firstDay = firstDay.plus({ days: 1 });
             }
-            const holiday = props.holidays.find(h => moment(h.date).isSame(i, 'day'));
-            calendar[calendar.length - 1].push({ 
-                "day_short" : i.locale("ja").format("D"),
-                "day_full" : i.locale("ja").format("YYYY-MM-DD"),
-                "day_holiday" : holiday ? holiday.name : null,
-            });
+            calendar.push(week);
         }
         if(calendar.length < 6){
-            const nextWeek = thisMonth.clone().endOf("month").endOf("isoWeek").add(6 - calendar.length, "week").add(1, 'day');
-            for(let i = lastDay.add(1, 'day'); i.isBefore(nextWeek); i.add(1, 'day')){
+            const nextWeek = thisMonth.endOf("month").endOf("week").plus({ weeks: 6 - calendar.length }).plus({ days: 1 });
+            let i = lastDay.plus({ days: 1 });
+            while (i < nextWeek) {
                 const nextweekIndex = calendar.length - 1;
                 if (nextweekIndex < 0 || calendar[nextweekIndex].length === 7) {
                     calendar.push([]);                    
                 }
                 calendar[calendar.length - 1].push({ 
-                    "day_short" : i.locale("mn").format("D"),
-                    "day_full" : i.locale("mn").format("YYYY-MM-DD")                            
-                });                
+                    "day_short": i.toFormat("d"),
+                    "day_full": i.toFormat("yyyy-MM-dd"),
+                    "day_holiday": ""
+                });    
+                i = i.plus({ days: 1 });            
             }
         }
         return calendar
     })
 
     const weekDay = (num) => {
-        return moment().weekday(num).locale('ja').format("dd")
+        return DateTime.now()
+        .set({ weekday: num }) 
+        .toFormat('ccc');
     }
     const dayRecords = (day) => {        
-        return props.records.filter(ob => moment(ob.date_start).isSame(moment(day.day_full), 'day')).sort((a, b) => {
-            return new Date(a.date_start) - new Date(b.date_start);
+        return props.records.filter((ob) => DateTime.fromSQL(ob.date_start).hasSame(DateTime.fromISO(day.day_full), 'day'))
+        .sort((a, b) => {
+            const dateA = new Date(a.date_start);
+            const dateB = new Date(b.date_start);
+            return dateA.getTime() - dateB.getTime();
         }); 
     }
-    const containerScroll = async(day) => {
+    const containerScroll = async(day:string) => {
         const index = calendarData.value.findIndex(ob => {
             return ob.find(ob => ob.day_full == day)
         })
         if(index !== null && index !== undefined){
-            const block = weekHeader.value[index]
+            const block = weekHeader.value[index] as HTMLElement
             block.scrollIntoView({block: 'start', behavior: 'instant'})
-            monthScrollContainer.value.scrollBy(0, -40)  
+            monthScrollContainer.value?.scrollBy(0, -40)  
         }
     }
     defineExpose({containerScroll})

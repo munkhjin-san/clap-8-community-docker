@@ -111,10 +111,10 @@
 
 </template>
 <script setup>
-import moment from 'moment'
 import LongInput from '../Form/LongInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue'
 import { inject, onMounted, ref } from 'vue';
+import { DateTime } from 'luxon';
     const { notify, info } = inject('dialog')
     const list = ref([])
     const selectedItem = ref(null)
@@ -191,7 +191,7 @@ import { inject, onMounted, ref } from 'vue';
         }
     }
     const createdDate = (date) => {
-        return moment(date).format('YYYY/M/D HH:mm')
+        return DateTime.fromISO(date).toLocaleString(DateTime.DATETIME_MED)
     }
     const type = (value) => {
         const items = [ '法務','総務','会計','人事','労務','広報','事業','システム開発','その他','よくある質問未解決' ]

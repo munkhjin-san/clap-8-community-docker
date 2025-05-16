@@ -1,7 +1,7 @@
 <template>
     <div @click.stop="createAtTime" class="month-drop-area cal-m-row" :class="{activeMonth: thisMonth}" @mouseenter="enter" @mouseleave="leave">
         <Transition name="modalFade">
-            <div v-if="dragActive && draggingCalendar" @mouseup="gotMove(val)" class="month-drop-popup"></div>
+            <div v-if="dragActive && draggingCalendar" @mouseup="gotMove" class="month-drop-popup"></div>
         </Transition>
         <div :class="{'cal-todayTitle' : thisDay}" :id="'day_val_m_' + day.day_full" class="cal-m-day-head-section">
             <div @click="emit('jumpToDate', day.day_full)" :title="day.day_full" :class="['cal-m-day-title', {'special-day': specialDay, 'isSaturday' : isSaturday}]">
@@ -27,61 +27,59 @@
 </div>
 </template>
 
-<script setup>
-    import CardWrap from './CardWrap.vue'
-    import moment from 'moment';
-    import { ref, computed, inject } from 'vue'
+<script setup lang="ts">
+import { DateTime } from 'luxon'
+import CardWrap from './CardWrap.vue'
+import { ref, computed, inject, } from 'vue'
+import { useCalendar } from '@/composables/calendar'
     const props = defineProps(['day', 'records', 'selectedYear', 'selectedMonth'])
     const emit = defineEmits(['fromMonth', 'addRecord', 'jumpToDate', 'create'])
 
     const dragActive = ref(false)     
-    const draggingCalendar = inject('draggingCalendar')
+    const {draggingCalendar, setDraggingCalendar} = useCalendar()
     const anniversaryDay = computed(() => {
-        return moment(props.day.day_full).month() == 7 && moment(props.day.day_full).date() == 2
+        return DateTime.fromISO(props.day.day_full).month == 8 && DateTime.fromISO(props.day.day_full).day == 2
     })
     const isSaturday = computed (() => {
-        return moment(props.day.day_full).day() === 6
+        return DateTime.fromISO(props.day.day_full).weekday == 6
     })
     const specialDay = computed(() => {
-        return moment(props.day.day_full).day() === 0 || props.day.day_holiday
+        return DateTime.fromISO(props.day.day_full).weekday == 7 || props.day.day_holiday
     })
     const thisMonth = computed(() => {
-        const tDay = moment(props.day.day_full)
-        const thisMonth =  moment([props.selectedYear, props.selectedMonth])
-        return tDay.isSame(thisMonth, 'month')
+        const tDay = DateTime.fromISO(props.day.day_full)
+        const thisMonth =  DateTime.fromObject({year: props.selectedYear, month: props.selectedMonth})
+        return tDay.hasSame(thisMonth, 'month')
     })
     const thisDay = computed(() => {
-        const tDay = moment(props.day.day_full).format('YYYY-MM-DD') 
-        const thisMonth =  moment().format('YYYY-MM-DD')
+        const tDay = DateTime.fromISO(props.day.day_full).toISODate() 
+        const thisMonth =  DateTime.now().toISODate()
         return tDay === thisMonth 
     })
   
-    const dropFinish = inject('dropFinish')
+    const dropFinish = inject<Function>('dropFinish') as Function
 
     const gotMove = () => {
-        if(draggingCalendar.value){
+        if(draggingCalendar && draggingCalendar.value){
             const record = draggingCalendar.value
-            draggingCalendar.value = null
-            const record_date = moment(record.date_start)
+            setDraggingCalendar(null)
+            const record_date = DateTime.fromSQL(record.date_start)
             const date = props.day.day_full
-            const merge = moment(date).set('hour', record_date.hour()).set('minute', record_date.minute()).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
-    
+            const merge = DateTime.fromISO(date).set({hour: record_date.hour, minute: record_date.minute, second: 0}).toFormat('yyyy-MM-dd HH:mm:ss');
             dragActive.value = false
             if(dropFinish){
                 dropFinish(record, merge)
             }
-        }
-        
+        }       
         
     }
 
     const enter = () => {
         if(draggingCalendar.value){
-            if(!moment(props.day.day_full).isSame(moment(draggingCalendar.value.date_start), 'date')){
+            if(!DateTime.fromISO(props.day.day_full).hasSame(DateTime.fromISO(draggingCalendar.value.date_start), 'day')){
                 dragActive.value = true
             }                    
         }
-
     }
 
     const leave = () => {
@@ -90,17 +88,16 @@
 
     const createAtTime = (event) => {                
         const date = props.day.day_full
-        const time = moment().add(1, 'hour').startOf('hour').format('HH:mm:ss')
+        const time = DateTime.now().plus({hours: 1}).startOf('hour').toFormat('HH:mm:ss')
         const merge = `${date} ${time}`
         const d = {
             x: event.x,
             y: event.y,
             time: merge,
-            stamp: moment()
+            stamp: DateTime.now()
         }
-        emit('create', d, props.user)                
+        emit('create', d)                
     }
-        
      
     
 </script>

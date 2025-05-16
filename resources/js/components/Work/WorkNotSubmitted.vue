@@ -36,17 +36,17 @@
 
 
 <script setup>
-    import WorkReport from './WorkReport.vue'
-    import WorkShifts from './WorkShifts.vue';
-    import { onMounted, ref, inject, computed, provide } from 'vue';
-    import moment from 'moment';
-    import { useAuthUserStore } from '@/store/auth'
+import WorkReport from './WorkReport.vue'
+import WorkShifts from './WorkShifts.vue';
+import { ref, inject } from 'vue';
+import { useAuthUserStore } from '@/store/auth'
+import { DateTime } from 'luxon';   
     const auth = useAuthUserStore()
     const { notify } = inject('dialog')
     const props = defineProps(['item'])
     
-    const selectedYear = ref(props.item ? props.item.year : moment().year())
-    const selectedMonth = ref(props.item ? props.item.month - 1 : moment().month())
+    const selectedYear = ref(props.item ? props.item.year : DateTime.now().year)
+    const selectedMonth = ref(props.item ? props.item.month : DateTime.now().month)
     const reportModal = ref(false)
     
     const { notSubmitted, nextMonthShift } = inject('checkWork')

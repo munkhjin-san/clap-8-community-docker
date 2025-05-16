@@ -63,14 +63,25 @@
         </div>
     </div>
 </template>
-<script setup>
-import moment from 'moment';
+<script setup lang="ts">
 import DayBlock from './DayBlock.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, ComputedRef, inject, onMounted, onUnmounted, Ref, ref, useTemplateRef, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
-    const props = defineProps(["records", "selectedYear", "selectedMonth", 'isSwiperChange', 'initialLoader', 'activeMonth', 'activeYear', 'holidays', 'activeMembers', 'appendLock'])
-    const emit = defineEmits(['addRecord', 'create', 'resetFastCreate', 'setListView'])
+import { CalendarGroupUser, CalendarRecord, MemberMonthDay } from '@/interface/calendarInterface';
+import { DateTime } from 'luxon';
+import { useCalendar } from '@/composables/calendar';
+    const props = defineProps<{
+        records: CalendarRecord[];
+        selectedYear: number;
+        selectedMonth: number;
+        initialLoader: boolean;
+        activeMonth: number;
+        activeYear: number;
+        activeMembers: CalendarGroupUser[];
+        appendLock: boolean;
+    }>()
+    const emit = defineEmits(['addRecord', 'create', 'resetFastCreate', 'setListView', 'scrollHorizontal'])
     const responsive = useResponsive()
     const cursorPos = ref([0, 0])
     const beforeState = ref(0)
@@ -79,11 +90,13 @@ import { useResponsive } from '@/store/responsive';
     const scrollCount = ref(0)
     const startX = ref(0)
     const startY = ref(0)
-    const isHorizontalScroll = ref(null)
-    const draggingCalendar = inject('draggingCalendar')
+    const isHorizontalScroll = ref(false)
+    const {draggingCalendar, setDraggingCalendar} = useCalendar()
+    const pushInstantUser = inject<Function>('pushInstantUser') as Function
+    const holidays = inject<ComputedRef>('holidays')
     const listMembers = computed(() => {
         const uniqueUserIds = new Set();
-        const memberList = [];
+        const memberList:CalendarGroupUser[] = [];
         props.activeMembers.forEach((user) => {
             if (!uniqueUserIds.has(user.id)) {
                 uniqueUserIds.add(user.id);
@@ -93,28 +106,29 @@ import { useResponsive } from '@/store/responsive';
         return memberList;
     })
     const spacer = ref(null)
-    const dayHeader = ref([])
+    const dayHeader = useTemplateRef('dayHeader')
     const days = computed(() => {
 
-        const thisMonth = moment([props.activeYear, props.activeMonth]);
-        const firstDay = thisMonth.clone().startOf("month")
+        const thisMonth = DateTime.fromObject({year: props.activeYear, month: props.activeMonth});
+        const firstDay = thisMonth.startOf("month")
         let index = 0
-        const today = moment()
-        if(today.isSame(thisMonth, 'month')){
-            const diff = today.add(1, 'week').diff(thisMonth.clone().endOf('month'), 'days')
-            if(diff > 0){
-                index = diff
+        const today = DateTime.now()
+        if(today.hasSame(thisMonth, 'month')){
+            const diff = today.plus({weeks: 1}).diff(thisMonth.endOf('month'), 'days')
+            if(diff.days > 0){
+                index = diff.days
             }
         }
-        const lastDay = thisMonth.clone().endOf("month").add(index, 'days');
-        let calendar = [];
-        for (let i = firstDay; i.isBefore(lastDay); i.add(1, "day")) {
-            const holiday = props.holidays.find(h => moment(h.date).isSame(i, 'day'));
-            const records = props.records.filter(ob => moment(ob.date_start).isSame(moment(i), 'day'))
+        const lastDay = thisMonth.endOf("month").plus({days: index});
+        let calendar:MemberMonthDay[] = [];
+        for (let i = firstDay; i <= lastDay; i = i.plus({days: 1})) {
+            const holiday = holidays?.value.find(h => DateTime.fromISO(h.date.toISOString()).hasSame(i, 'day'));
+            const records = props.records.filter(ob => DateTime.fromSQL(ob.date_start).hasSame(i, 'day'))
+            
             calendar.push({ 
-                "day_short" : i.locale("ja").format("D"),
-                "day_full" : i.locale("ja").format("YYYY-MM-DD"),
-                "day_holiday" : holiday ? holiday.name : null,
+                "day_short" : i.toFormat("d"),
+                "day_full" : i.toFormat("yyyy-MM-dd"),
+                "day_holiday" : holiday ? holiday.name : '',
                 "records" : records
             });
         }
@@ -125,10 +139,8 @@ import { useResponsive } from '@/store/responsive';
         window.removeEventListener("mouseup", onMouseUp);
     })
     onMounted(() => {        
-        localStorage.setItem('viewType', 2)
+        localStorage.setItem('viewType', '2')
         window.addEventListener("mouseup", onMouseUp);
-        const today = moment().format('YYYY-MM-DD')
-        // containerScroll(today)
     })
     watch(() => lockScroll, (after) => {
         if(after){
@@ -138,14 +150,13 @@ import { useResponsive } from '@/store/responsive';
         }
     })
 
-    const pushInstantUser = inject('pushInstantUser')
     const handleTouchStart = (event) => {
         startX.value = event.touches[0].clientX;
         startY.value = event.touches[0].clientY;
-        isHorizontalScroll.value = null;
+        isHorizontalScroll.value = false;
     }
     const handleTouchMove = (event) => {
-        if (isHorizontalScroll.value === null) {
+        if (isHorizontalScroll.value === false) {
             const deltaX = Math.abs(event.touches[0].clientX - startX.value);
             const deltaY = Math.abs(event.touches[0].clientY - startY.value);
             const scrollThreshold = 10;
@@ -179,22 +190,31 @@ import { useResponsive } from '@/store/responsive';
         
     }
     const isSaturday = (day) => {
-        return moment(day.day_full).day() === 6
+        return DateTime.fromFormat(day.day_full, 'yyyy-MM-dd').weekday === 6
     }
     const specialDay = (day) => {
-        return moment(day.day_full).day() === 0 || day.day_holiday
+        return DateTime.fromFormat(day.day_full, 'yyyy-MM-dd').weekday === 7 || day.day_holiday
     }
     const isPastDay = (day) => {
-        return moment(day.day_full).isBefore(moment(), 'day')
+        return DateTime.fromISO(day.day_full).diff(DateTime.now(), 'day').as('days') < 0
     }
     const isToday = (day) => {
-        return moment(day.day_full).isSame(moment(), 'day')
+        const givenDate = DateTime.fromISO(day.day_full).startOf('day');
+        const today = DateTime.now().startOf('day');
+        return givenDate.equals(today);
     }
     const dayTitle = (day) => {
-        const format = moment([props.selectedYear, props.selectedMonth]).isSame(moment(day.day_full), 'month') ? 'D(ddd)' : moment().isSame(moment(day.day_full), 'year') ? 'M/D(ddd)' : 'YYYY/M/D(ddd)'
-        return moment(day.day_full).format(format)
+        const dayDate = DateTime.fromISO(day.day_full);
+        const selectedDate = DateTime.fromObject({year: props.selectedYear, month: props.selectedMonth});
+        const format = dayDate.hasSame(selectedDate, 'month')
+            ? 'd(EEE)' 
+            : dayDate.hasSame(DateTime.now(), 'year') 
+                ? 'M/d(EEE)' 
+                : 'yyyy/M/d(EEE)';
+        return dayDate.toFormat(format);
     }
-    const monthLayout = ref(null)
+
+    const monthLayout = useTemplateRef('monthLayout')
     const onMouseDown = (ev) => {
         cursorPos.value = [ev.pageX, ev.pageY];
         beforeState.value = ev.pageX
@@ -207,7 +227,7 @@ import { useResponsive } from '@/store/responsive';
     }
 
     /** @param {MouseEvent} ev */
-    const onMouseHold = (ev) => {
+    const onMouseHold = (ev:MouseEvent) => {
         ev.preventDefault();
         if(draggingCalendar.value) return
 
@@ -228,9 +248,9 @@ import { useResponsive } from '@/store/responsive';
         });
     }
     const containerScroll = async(day) => {
-        const block = dayHeader.value.find(ob => ob.id ==`day_val_w_${day}`)
-        const index = dayHeader.value.findIndex(ob => ob.id ==`day_val_w_${day}`)      
-        if(block && monthLayout.value){
+        const block = dayHeader.value?.find(ob => ob.id ==`day_val_w_${day}`)
+        const index = dayHeader.value?.findIndex(ob => ob.id ==`day_val_w_${day}`)      
+        if(block && monthLayout.value && index && index > -1){
             const rect = block.getBoundingClientRect()
             const offsetX = (rect.width * index)
             monthLayout.value.scrollTo(offsetX + 2,monthLayout.value.scrollTop)

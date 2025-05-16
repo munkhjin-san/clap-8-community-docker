@@ -1,9 +1,7 @@
 import Autolinker from 'autolinker';
-import moment from 'moment';
 import { DateTime } from 'luxon'
 import { customRef } from 'vue'
 import { filesize } from 'filesize';
-import { ManualFile } from '@/interface/operation';
 function useDebouncedRef(value:any, delay = 200) {
     let timeout:ReturnType<typeof setTimeout> | number = 300;
     return customRef((track, trigger) => {
@@ -59,17 +57,6 @@ function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (..
 }
 
 const detailedDateOptions = () => {
-    // const currentYear = moment().year();
-    // const options: any[] = [];
-
-    // const irreguarOptions = [
-    //     { name: '2024年上期（2024.3.1～2024.8.31）', value: '2024-03-01', evaluationDate: '2024-02-01', lastDate: '2023-09-01'},
-    //     { name: '2024年下期（2024.9.1～2025.2.28）', value: '2024-09-01', evaluationDate: '2024-08-01', lastDate: '2024-03-01'},
-    //     { name: '2025年上期（2025.3.1～2025.9.30）', value: '2025-03-01', evaluationDate: '2025-03-01', lastDate: '2024-10-01'},
-    //     { name: '2025年下期（2025.10.1～2026.3.31）', value: '2025-10-01', evaluationDate: '2025-10-01', lastDate: '2025-04-01'},
-    //     { name: '2026年上期（2026.4.1～2026.9.30）', value: '2026-04-01', evaluationDate: '2026-04-01', lastDate: '2025-10-01'},
-    //     { name: '2026年下期（2026.10.1～2027.3.31）', value: '2026-10-01', evaluationDate: '2026-10-01', lastDate: '2026-04-01' },
-    // ]
 
 
     const irreguarOptions = [
@@ -80,32 +67,6 @@ const detailedDateOptions = () => {
         { name: '2026年上期（2026.4.1～2026.9.30）', year: '2026', which_half: 'first', short_name: '2026年上期'},
         { name: '2026年下期（2026.10.1～2027.3.31）', year: '2026', which_half: 'second', short_name: '2026年下期' },
     ].reverse()
-
-    // for (let yearOffset = 2027; yearOffset <= currentYear + 1; yearOffset++) {
-    //     const year = yearOffset;
-    //     const firstHalfStart = moment(`${year}-03-01`);
-    //     const firstHalfEnd = moment(`${year}-08-31`);
-    //     const secondHalfStart = moment(`${year}-09-01`);
-    //     const secondHalfEnd = moment(`${year}-02-28`);
-    //     const evaluationFirst = moment(`${year}-02-01`);
-    //     const evaluationSecond = moment(`${year}-08-01`);
-    //     const firstHalf = {
-    //         name: `${year}年上期（${firstHalfStart.format('YYYY.M.D')}～${firstHalfEnd.format('YYYY.M.D')}）`,
-    //         value: firstHalfStart.format('YYYY-MM-DD'),
-    //         evaluationDate: evaluationFirst.format('YYYY-MM-DD'),
-    //         lastDate: secondHalfStart.clone().year(year - 1).format('YYYY-MM-DD'),
-    //         lastname:  `${year - 1}年上期（${secondHalfStart.clone().year(year - 1).format('YYYY.M.D')}～${secondHalfEnd.year(year).format('YYYY.M.D')}）`
-    //     };
-    //     const secondHalf = {
-    //         name: `${year}年下期（${secondHalfStart.format('YYYY.M.D')}～${secondHalfEnd.clone().year(year + 1).format('YYYY.M.D')}）`,
-    //         value: secondHalfStart.format('YYYY-MM-DD'),
-    //         evaluationDate: evaluationSecond.format('YYYY-MM-DD'),
-    //         lastDate: firstHalfStart.format('YYYY-MM-DD'),
-    //         lastname:  `${year}年上期（${firstHalfStart.format('YYYY.M.D')}～${firstHalfEnd.format('YYYY.M.D')}）` 
-    //     };
-    //     options.push(firstHalf);
-    //     options.push(secondHalf);
-    // }
     return irreguarOptions;
 }
 const evaluationDateOptions = () => {
@@ -118,14 +79,6 @@ const evaluationDateOptions = () => {
         '2026-10-01',
     ]
     return dateArray
-    // const currentYear = moment().year()
-
-    // for irreguler year
-    // for (let year = 2024; year <= currentYear + 1; year++) {
-    //     dateArray.push(moment().set('year', year).set('month', 1).set('date', 1).format('YYYY-MM-DD'));
-    //     dateArray.push(moment().set('year', year).set('month', 7).set('date', 1).format('YYYY-MM-DD'));
-    // }
-    // return dateArray
 }
 const generalPositions = () => {
     const positions = [
@@ -140,9 +93,7 @@ const generalPositions = () => {
     ];
     return positions
 }
-const parseDate = (date: string | Date) => {
-    return moment(date).format('YYYY年M月実施分')
-}
+
 const taskStatusBackgrounds = ['black', '#eb7a00', 'green']
 const DateParser = (date:string) => {
     const instance = customParser(date)
@@ -200,7 +151,6 @@ export {
     detailedDateOptions, 
     generalPositions,
     evaluationDateOptions,
-    parseDate,
     taskStatusBackgrounds,
     DateParser,
     decidedAnswers,

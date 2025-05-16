@@ -16,7 +16,7 @@
         />
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import CardWrap from './CardWrap.vue';
 const props = defineProps(['dayRecords', 'user'])
 </script>

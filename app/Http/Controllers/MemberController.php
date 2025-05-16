@@ -424,6 +424,19 @@ class MemberController extends Controller
         $record->ability = $request->ability;
         $record->status = $request->status;
         $record->save();
+
+        $actions = $request->actions;
+        $new_actions = [];
+        foreach($actions as $action){
+            $codeAction = $record->actions()->updateOrCreate(
+                ['id' => $action['id'] ?? null],
+                [
+                    'content' => $action['content'],
+                ]
+            );
+            array_push($new_actions, $codeAction->id);
+        }
+        $record->actions()->whereNotIn('id',  $new_actions)->delete();
         return response()->json($record);
     }
     public function get_kadai_themes(){

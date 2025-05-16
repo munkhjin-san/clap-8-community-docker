@@ -61,8 +61,6 @@ import GanttBody from './Gantt/GanttBody.vue';
 import axios from 'axios';
 import { GanttMethodsKey} from '@/interface/keys'
 import { Project } from '@/interface/projectInterface';
-import MonthPicker from '@/components/Global/MonthPicker.vue';
-import FastCreateButton from '@/components/Calendar/FastCreateButton.vue';
 import { FastCreateData } from '@/interface/calendarInterface'
 import { useMenuStore } from "@/store/menu";
 import { instance } from '@/utils/broadcaster';

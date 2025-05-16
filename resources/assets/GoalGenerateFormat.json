@@ -1,0 +1,31 @@
+{
+    "type": "object",
+    "properties": {
+        "title": {
+            "type": "string",
+            "description": "成果目標のタイトル"
+        },
+        "miso": {
+            "type": "string",
+            "description": "成果目標の説明"
+        },
+        "kgi": {
+            "type": "string",
+            "description": "KGI"
+        },
+        "kpi": {
+            "type": "array",
+            "description": "KPI",
+            "items": {
+                "type": "string"
+            }
+        }
+    },
+    "required": [
+        "title",
+        "miso",
+        "kgi",
+        "kpi"
+    ],
+    "additionalProperties": false
+}

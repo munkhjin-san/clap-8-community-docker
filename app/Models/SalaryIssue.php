@@ -23,6 +23,9 @@ class SalaryIssue extends Model
     public function project_goal(){
         return $this->belongsTo(ProjectGoal::class, 'project_goal_id', 'id');
     }
+    public function actions(){
+        return $this->hasMany(SalaryIssueAction::class, 'salary_issue_id', 'id');
+    }
     public function evaluation()
     {
         return $this->hasOneThrough(

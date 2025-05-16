@@ -1646,7 +1646,7 @@ class WorkController extends Controller
     }         
     public function work_generate_csv(Request $request){
         $year = (int) $request->year;
-        $month = (int) $request->month + 1;
+        $month = (int) $request->month;
         $users_list = explode(",", $request->users);
         foreach ($users_list as &$value) {
             $value = intval($value);

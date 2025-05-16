@@ -17,14 +17,21 @@
         
    
 </template>
-<script setup>
-    import moment  from 'moment';
-    import CardWrap from './CardWrap.vue';
-    import { computed, inject, ref } from 'vue';
+<script setup lang="ts">
+import { CalendarRecord, NormalHourDay } from '@/interface/calendarInterface';
+import CardWrap from './CardWrap.vue';
+import { computed, inject, Ref, ref } from 'vue';
+import { DateTime } from 'luxon';
+import { useCalendar } from '@/composables/calendar';
     const dragActive = ref(false)
     const beforeState = ref(0)
-    const draggingCalendar = inject('draggingCalendar')
-    const props = defineProps(['hourRecords', 'hour', 'day', 'fullDayIndex'])
+    const {draggingCalendar, setDraggingCalendar} = useCalendar()
+    const props = defineProps<{
+        hourRecords: CalendarRecord[];
+        hour: string;
+        day: NormalHourDay;
+        fullDayIndex: number;
+    }>()
     const emit = defineEmits(['create', 'setDayIndex'])
 
     const hours = computed(() => {
@@ -48,12 +55,17 @@
         const min = (clickX < elementWidth / 2) ? 0 : 30
         const date = props.day.full
         const time = props.hour.split(":");
-        const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
+        const merge = DateTime.fromISO(date)
+            .set({ 
+                hour: Number(time[0]),
+                minute: min,
+                second: 0 
+            }).toFormat('yyyy-MM-dd HH:mm:ss');
         const d = {
             x: event.x,
             y: event.y,
             time: merge,
-            stamp: moment()
+            stamp: DateTime.now()
         }
         emit('create', d)        
     }
@@ -68,28 +80,39 @@
         dragActive.value = false
     }
 
-    const dropFinish = inject('dropFinish')
+    const dropFinish = inject<Function>('dropFinish') as Function
 
-    const gotMove = (val) => {
-        if(draggingCalendar.value){
+    const gotMove = (val:{val:string}) => {
+        if(draggingCalendar && draggingCalendar.value){
             const record = draggingCalendar.value
-            draggingCalendar.value = null
+            setDraggingCalendar(null)
             const date = props.day.full
             const time = props.hour.split(":");
             const min = val.val
-            const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm:ss');
+            const merge = DateTime.fromISO(date)
+            .set({ 
+                hour: Number(time[0]),
+                minute: Number(min),
+                second: 0 
+            })
+            .toISO();
             dragActive.value = false
             if(dropFinish){
                 dropFinish(record, merge)
             }
         }           
     }
-
-    const fullDate = (val) => {
+    const fullDate = (val:{val:string}) => {
         const date = props.day.full
         const time = props.hour.split(":");
         const min = val.val
-        const merge = moment(date).set('hour', time[0]).set('minute', min).set('second', 0).format('YYYY-MM-DD HH:mm');
+        const merge = DateTime.fromISO(date)
+            .set({ 
+                hour: Number(time[0]),
+                minute: Number(min),
+                second: 0 
+            })
+            .toFormat('HH:mm');
         return merge
     }
 </script>

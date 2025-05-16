@@ -24,7 +24,7 @@
                 <div id="listViewSpacer" ref="spacer" :style="{ width: hideName ? '45px' : `130px`}" draggable="false" class="left-member-tile"></div>
                 <div :style="{display: 'flex',position: 'relative', width: hideName ? 'calc(100% - 45px)' : `calc(100% - 130px)`}">
                     <div :id="`w_day_${index}`" ref="hourMemberItems" v-for="(hour, index) in hoursOfDay" class="w-day-item" style="border-right: solid thin transparent;background: unset;">
-                        <div :class="['top-list-tile']" ><div>{{ hour.hour == '0:00' ? '' : hour.hour }}</div></div> 
+                        <div :class="['top-list-tile']" ><div>{{ hour == '0:00' ? '' : hour }}</div></div> 
                     </div>
                     <div :style="{width: barWidth}" class="hour-bar"></div>
                 </div>
@@ -44,26 +44,33 @@
         </div>
     </div>
 </template>
-<script setup>
-import moment from 'moment';
+<script setup lang="ts">
+import { DateTime } from 'luxon';
 import MemberTile from './MemberTile.vue'
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, inject, onMounted, onUnmounted, Ref, ref, useTemplateRef, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useFocused } from '@/store/focused';
+import { CalendarGroupUser, CalendarRecord, MemberHourDay } from '@/interface/calendarInterface';
+import { useCalendar } from '@/composables/calendar';
     const responsive = useResponsive()
     const focused = useFocused()
-    const props = defineProps(['records', 'activeMembers', 'selectedDate', 'initialLoader'])
-    const emit = defineEmits(['create', 'resetFastCreate'])
+    const props = defineProps<{
+        records: CalendarRecord[];
+        activeMembers: CalendarGroupUser[];
+        selectedDate: string;
+        initialLoader: boolean;
+    }>()
+    const emit = defineEmits(['create', 'resetFastCreate', 'scrollHorizontal'])
     const hideName = ref(false)
     const lockScroll = ref(false)
     const startX = ref(0)
     const startY = ref(0)
-    const isHorizontalScroll = ref(null)
+    const isHorizontalScroll = ref(false)
     const cursorPos = ref([0,0])
-    const hourMemberItems = ref([])
-    const cal_week_view = ref(null)
-    const currentMinute = ref(null)
-    const draggingCalendar = inject('draggingCalendar')
+    const hourMemberItems = useTemplateRef('hourMemberItems')
+    const cal_week_view = useTemplateRef('cal_week_view')
+    const currentMinute = ref<string>('')
+    const {draggingCalendar} = useCalendar()
     watch(() => focused.active, () => {
         currentMinute.value = getCurrentMinute()
     })
@@ -77,22 +84,22 @@ import { useFocused } from '@/store/focused';
     const orderCreator = (order, list, date, user_id) => {
         
         
-        let break_point_rear = moment(date).startOf('day')
-        let cooked = [];
-        let reserved = [];
+        let break_point_rear = DateTime.fromFormat(date, 'yyyy-MM-dd').startOf('day')
+        let cooked:CalendarRecord[] = [];
+        let reserved:CalendarRecord[] = [];
         for (let i = 0; i < list.length; i++) {            
             let item = { ...list[i] };            
             if(i == 0){
                 item['order'] = order
                 cooked.push(item)
-                break_point_rear = moment(item.date_end)
+                break_point_rear = DateTime.fromSQL(item.date_end)
             }else{
-                if(moment(item.date_start).isSameOrAfter(break_point_rear)){
+                if(DateTime.fromSQL(item.date_start).diff(break_point_rear, 'day').days > 0){
+                    
                     item['order'] = order
                     cooked.push(item)
-                    break_point_rear = moment(item.date_end)
-                }
-                else{
+                    break_point_rear = DateTime.fromSQL(item.date_end)
+                }else{
                     reserved.push(item)
                 }
             }
@@ -107,32 +114,31 @@ import { useFocused } from '@/store/focused';
     }
     const listMembers = computed(() => {
         const uniqueUserIds = new Set();
-        const memberList = [];
+        const memberList:MemberHourDay[] = [];
         props.activeMembers.forEach((user) => {
-                if (!uniqueUserIds.has(user.id)) {
-                    uniqueUserIds.add(user.id);
-                    const user_records = props.records.filter(ob => ob.calendar_users.map(item => item.id).includes(user.id))
-                    memberList.push({user: user, records:user_records, date: props.selectedDate});
-                }
-            });
+            if (!uniqueUserIds.has(user.id)) {
+                uniqueUserIds.add(user.id);
+                const user_records = props.records.filter(ob => ob.calendar_users.some(community_user => community_user.id === user.id))
+                memberList.push({user: user, records:user_records, date: props.selectedDate});
+            }
+        });
         
         return memberList;
     })
     const hoursOfDay = computed(() => {
-        const hours = [];
-        let currentHour = moment().startOf('day');        
+        const hours:string[] = [];
+        let currentHour = DateTime.now().startOf('day');
         for (let i = 0; i < 24; i++) {
-            hours.push({hour: currentHour.format('H:mm')});
-            currentHour.add(1, 'hour')
+            hours.push(currentHour.toFormat('H:mm'));
+            currentHour = currentHour.plus({ hours: 1 });
         }
         return hours;
     })
-
     onUnmounted(() => {
         window.removeEventListener("mouseup", onMouseUp);
     })
     onMounted(() => {
-        localStorage.setItem('viewType', 3)
+        localStorage.setItem('viewType', '3')
         window.addEventListener("mouseup", onMouseUp);
         
         currentMinute.value = getCurrentMinute()
@@ -144,10 +150,10 @@ import { useFocused } from '@/store/focused';
     const handleTouchStart = (event) => {
         startX.value = event.touches[0].clientX;
         startY.value = event.touches[0].clientY;
-        isHorizontalScroll.value = null;
+        isHorizontalScroll.value = false;
     }
     const handleTouchMove = (event) => {
-        if (isHorizontalScroll.value === null) {
+        if (isHorizontalScroll.value === false) {
             const deltaX = Math.abs(event.touches[0].clientX - startX.value);
             const deltaY = Math.abs(event.touches[0].clientY - startY.value);
             const scrollThreshold = 10;
@@ -193,7 +199,7 @@ import { useFocused } from '@/store/focused';
             ];            
             cursorPos.value = [ev.pageX, ev.pageY];
             if (!cal_week_view) return;
-            cal_week_view.value.scrollBy({
+            cal_week_view.value?.scrollBy({
                 left: -delta[0],
                 // top: -delta[1],
             });            
@@ -203,21 +209,21 @@ import { useFocused } from '@/store/focused';
         const timeString = currentMinute.value;
 
         // Parse the time and calculate the total minutes
-        const time = moment(timeString, 'HH:mm');
-        const totalMinutes = time.hours() * 60 + time.minutes();
+        const time = DateTime.fromFormat(timeString, 'HH:mm');
+        const totalMinutes = time.hour * 60 + time.minute;
 
         // Calculate the percentage of 24 hours
         const percentageOf24Hours = (totalMinutes / (24 * 60)) * 100;
         return `${percentageOf24Hours}%`
     })
     const getCurrentMinute = () => {
-        return moment().format('HH:mm');
+        return DateTime.now().toFormat('HH:mm');
     }
     const containerScroll = async() => {
-        const index = moment().subtract(1, 'hour').startOf('hour').hour()       
-        const el = hourMemberItems.value[index]
+        const index = DateTime.now().minus({ hours: 1 }).startOf('hour').hour       
+        const el = hourMemberItems.value ? hourMemberItems.value[index] : null
         if(el){
-            el.scrollIntoView({block : 'start', inline: "start" })
+            el?.scrollIntoView({block : 'start', inline: "start" })
             setTimeout(() => {
                 hideName.value = false
             }, 0);                

@@ -27,6 +27,7 @@
                     :selectedTheme="selectedTheme"
                     :getIssues="getIssues"
                     :evaluation="evaluation"
+                    :possibleThemes="completedLessonThemes"
                     @next="next"
                     @selectThemeConfirm="themeConfirm"
                 />
@@ -38,7 +39,6 @@
                     :getIssues="getIssues"
                     :evaluation="evaluation"
                     :selectedDate="selectedDate"
-                    :memberData="memberData"
                     @next="next"
                     @close="emit('close')"
                     @goback="emit('goback')"
@@ -51,7 +51,9 @@
 import { useResponsive } from '@/store/responsive';
 import Step2 from './SalaryIssue/Step2.vue';
 import Step3 from './SalaryIssue/Step3.vue';
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
+import axios from 'axios';
+import { useAuthUserStore } from '@/store/auth';
 const emit = defineEmits([
     'close', 
     'selectThemeConfirm', 
@@ -65,7 +67,6 @@ const props = defineProps([
     'selectedDate',
     'chosenGoal',
     'evaluation',
-    'memberData'
 ])
 const responsive = useResponsive()
 const step = ref(props.chosenGoal?.salary_issue ? 2 : 1)
@@ -77,10 +78,15 @@ const next = (val: number) => {
     }
 }
 
+const completedLessonThemes = ref<string[]>([])
 const themeConfirm = (level, theme) => {
     emit('selectThemeConfirm', level, theme)
     next(2)
 }
+const auth = useAuthUserStore()
+onMounted(async() => {
+    completedLessonThemes.value = await axios.get('/get_completed_lesson_themes').then(res => res.data)
+})
 
 
 </script>
@@ -117,6 +123,8 @@ const themeConfirm = (level, theme) => {
 }
 .selectable-theme{
     cursor: pointer;
+    border-right: solid thin var(--formBorder);
+    border-bottom: solid thin var(--formBorder);
 }
 .selectable-theme:hover{
     background: var(--bg2);

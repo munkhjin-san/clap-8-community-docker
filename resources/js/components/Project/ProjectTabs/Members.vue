@@ -1,10 +1,8 @@
 <template>
     <router-view v-slot="{ Component }">
         <component
-            :key="memberData"
+            :key="memberData?.id"
             :is="Component"
-            :selectedProject="selectedProject"
-            :memberData="memberData"
         />
     </router-view>
     <div class="h-full relative">
@@ -55,24 +53,19 @@
 
 </template>
 <script setup lang="ts">
+import { useProject } from '@/composables/project';
 import { Project } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
 const props = defineProps<{
-    selectedProject: Project;
     userList: any;
 }>();
 const badge = useBadgeStore()
 const route = useRoute()
 
-const memberData = computed(() => {
-        const memberId = Number(route.params.memberId)
-        if (memberId){
-            return props.selectedProject?.members.find(ob => ob.id == memberId) || props.selectedProject?.manager.find(ob => ob.id == memberId)
-        }        
-    })
+const { memberData, selectedProject } = useProject()
 
 </script>
 <style scoped>

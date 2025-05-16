@@ -49,24 +49,30 @@
     </div>
 </template>
   
-<script setup>
-import moment from 'moment';
+<script setup lang="ts">
 import DayTile from './DayTile.vue'
 import HourTitle from './HourTitle.vue';
-import { computed, onMounted, onUnmounted, watch, ref, inject } from 'vue';
+import { computed, onMounted, onUnmounted, watch, ref, useTemplateRef } from 'vue';
 import { useFocused } from '@/store/focused';
+import { NormalHourDay, CalendarRecord } from '@/interface/calendarInterface';
+import { DateTime } from 'luxon';
+import { useCalendar } from '@/composables/calendar';
     const focused = useFocused()
-    const props = defineProps(['daysOfMonth', 'records', 'initialLoader'])
+    const props = defineProps<{
+        daysOfMonth: NormalHourDay[]
+        records: CalendarRecord[]
+        initialLoader: boolean
+    }>()
     const emit = defineEmits(['scroll', 'load', 'releaseScroll', 'create', 'setListView'])
-    const draggingCalendar = inject('draggingCalendar')
+    const {draggingCalendar} = useCalendar()
     const isDragging = ref(false)
     const cursorPos = ref([0, 0])
-    const currentMinute = ref(null)
-    const activeDay = ref(null)
-    const dayItems = ref([])
-    const hourItem = ref([])
-    const dayViewRoot = ref(null)
-    const dayParent = ref(null)
+    const currentMinute = ref<string>('')
+    const activeDay = ref<DateTime | null>(null)
+    const dayItems = useTemplateRef('dayItems')
+    const hourItem = useTemplateRef('hourItem')
+    const dayViewRoot = useTemplateRef('dayViewRoot')
+    const dayParent = useTemplateRef('dayParent')
 
     onUnmounted(() => {
         window.removeEventListener("mouseup", onMouseUp);
@@ -75,9 +81,8 @@ import { useFocused } from '@/store/focused';
         currentMinute.value = getCurrentMinute()
     })
     onMounted(() => {
-        localStorage.setItem('viewType', 0)
+        localStorage.setItem('viewType', '0')
         window.addEventListener("mouseup", onMouseUp);
-        localStorage.setItem('viewType', 0)
         currentMinute.value = getCurrentMinute()
         setInterval(() => {
             currentMinute.value = getCurrentMinute();
@@ -85,32 +90,28 @@ import { useFocused } from '@/store/focused';
     })
 
     const hoursOfDay = computed(() => {
-        const hours = [];
-        let currentHour = moment().startOf('day');
+        const hours:string[] = [];
+        let currentHour = DateTime.now().startOf('day');
         for (let i = 0; i < 24; i++) {
-            hours.push(currentHour.format('H:mm'));
-            currentHour.add(1, 'hour');
+            hours.push(currentHour.toFormat('H:mm'));
+            currentHour = currentHour.plus({ hours: 1 })
         }
         return hours;
     })
     const barWidth = computed(() => {
         const timeString = currentMinute.value;
-
-        // Parse the time and calculate the total minutes
-        const time = moment(timeString, 'HH:mm');
-        const totalMinutes = time.hours() * 60 + time.minutes();
-
-        // Calculate the percentage of 24 hours
+        const time = DateTime.fromFormat(timeString, 'HH:mm');
+        const totalMinutes = time.hour * 60 + time.minute;
         const percentageOf24Hours = (totalMinutes / (24 * 60)) * 100;
         return `${percentageOf24Hours}%`
     })
 
     const getCurrentMinute = () => {
-        return moment().format('HH:mm');
+        return DateTime.now().toFormat('HH:mm');
     }
     const setActiveDay = (val) => {
         if(val){
-            activeDay.value = moment(val)
+            activeDay.value = DateTime.fromISO(val)
         }
     } 
     const onMouseDown = (ev) => {
@@ -136,7 +137,7 @@ import { useFocused } from '@/store/focused';
 
             cursorPos.value = [ev.pageX, ev.pageY];
             if (!dayViewRoot) return;
-            dayViewRoot.value.scrollBy({
+            dayViewRoot.value?.scrollBy({
                 left: -delta[0],
                 // top: -delta[1],
             });
@@ -144,20 +145,20 @@ import { useFocused } from '@/store/focused';
         });
     }
     const orderCreator = (order, list, date) => {
-        let break_point_rear = moment(date).startOf('day')
-        let cooked = [];
-        let reserved = [];
+        let break_point_rear = DateTime.fromFormat(date, 'yyyy-MM-dd')
+        let cooked:CalendarRecord[] = [];
+        let reserved:CalendarRecord[] = [];
         for (let i = 0; i < list.length; i++) {
             let item = list[i]
             if(i == 0){
                 item['order'] = order
                 cooked.push(item)
-                break_point_rear = moment(item.date_end)
+                break_point_rear = DateTime.fromFormat(item.date_end, 'yyyy-MM-dd')
             }else{
-                if(moment(item.date_start).isSameOrAfter(break_point_rear)){
+                if(DateTime.fromFormat(item.date_start, 'yyyy-MM-dd').diff(break_point_rear, 'days').as('days') >= 1){
                     item['order'] = order
                     cooked.push(item)
-                    break_point_rear = moment(item.date_end)
+                    break_point_rear = DateTime.fromFormat(item.date_end, 'yyyy-MM-dd')
                 }
                 else{
                     reserved.push(item)
@@ -172,19 +173,16 @@ import { useFocused } from '@/store/focused';
         
 
     }
-    const containerScroll = async(day) => {
-        const dayIndex = moment(day).date()
-        const index = moment().subtract(1, 'hour').startOf('hour').hour()  
-        const el = hourItem.value[index]
-        if(el){
-            el.$el.scrollIntoView({block : 'start', inline: "start" })
-        }
-        const block = dayItems.value.find(item => {
-            return item.$el.id == `day_val_${day}`
+    const containerScroll = async(day:string) => {
+        const index = DateTime.now().minus({ hours: 1 }).startOf('hour').hour
+        const el = hourItem.value ? hourItem.value[index] : null      
+        el?.$el.scrollIntoView({block : 'start', inline: "start" })        
+        const block = dayItems.value?.find(item => {
+            return item && item.$el && item.$el.id == `day_val_${day}`
         })
         if(block){
-            block.$el.scrollIntoView({block : 'start'})
-            dayViewRoot.value.scrollBy({
+            block.$el?.scrollIntoView({block : 'start'})
+            dayViewRoot.value?.scrollBy({
                 top: -31,
             });
         }        

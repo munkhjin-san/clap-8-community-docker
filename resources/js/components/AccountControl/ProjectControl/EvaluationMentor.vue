@@ -83,7 +83,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { detailedDateOptions, evaluationDateOptions, parseDate } from '@/utils/tools';
+import { detailedDateOptions } from '@/utils/tools';
 import { onMounted, ref, computed, reactive } from 'vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import EvaluationPreCreation from './EvaluationPreCreation.vue'

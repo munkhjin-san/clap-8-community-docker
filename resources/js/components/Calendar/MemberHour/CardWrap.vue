@@ -36,15 +36,16 @@
 
     </OnLongPress>
 </template>
-<script setup>
-import moment from 'moment';
-import { computed, inject, nextTick, ref } from 'vue';
+<script setup lang="ts">
+import { computed, inject, nextTick, Ref, ref, useTemplateRef } from 'vue';
 import { OnLongPress } from '@vueuse/components'
 import CalendarCard from '../CalendarCard.vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { DateTime } from 'luxon';
+import { CalendarRecord } from '@/interface/calendarInterface';
+import { useCalendar } from '@/composables/calendar';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
@@ -54,8 +55,8 @@ import { DateTime } from 'luxon';
     const shiftBottom = ref(0)
     const beforeState = ref(0)
     const beforeLeft = ref(0)
-    const listRecord = ref(null)
-    const draggingCalendar = inject('draggingCalendar')
+    const listRecord = useTemplateRef('listRecord')
+    const {draggingCalendar, setDraggingCalendar} = useCalendar()
         const viewable = computed(() => {
             return (props.record.release_flag == 0 && props.record.members_only == 0) || editable.value
         })
@@ -88,14 +89,14 @@ import { DateTime } from 'luxon';
             if(expanded.value){
                 return '250%'
             }else{
-                const minutesDifference = Math.abs(calendarDateInstances.value.start.diff(calendarDateInstances.value.end, 'minutes').toObject().minutes)
+                const minutesDifference = Math.abs(DateTime.fromSQL(props.record.date_start).diff(DateTime.fromSQL(props.record.date_end), 'minutes').minutes)
                 const steps = Math.ceil(minutesDifference / 15)
                 return `calc(100% / 4 * ${steps} + ${Math.floor(minutesDifference / 60)}px - 3px)`
             }
             
         })
         const recordLeft = computed(() => {
-            const diff = Math.abs(calendarDateInstances.value.start.diff(calendarDateInstances.value.start.startOf('hour'), 'minutes').toObject().minutes)
+            const diff = Math.abs(DateTime.fromSQL(props.record.date_start).diff(DateTime.fromSQL(props.record.date_start).startOf('hour'), 'minutes').minutes)
             const steps = Math.floor(diff / 15) 
             const unit = responsive.mobile ? '500vw' : '120vw'
             return `calc(((${unit}  - 30px) / 96 * ${steps}) + 1px)`
@@ -121,7 +122,8 @@ import { DateTime } from 'luxon';
                 record['y'] = event.y
                 record['from'] = 'month'
                 record['active_user_id'] = props.user.id
-                draggingCalendar.value = record
+                if(draggingCalendar)
+                setDraggingCalendar(record)
                 menu.setMenu( {id: null, name: ''})
                 emit('setParentDroppable')
             }            
@@ -137,19 +139,15 @@ import { DateTime } from 'luxon';
                 if(el){
                     const rect = el.getBoundingClientRect();                   
                     const compare_value = document.getElementById('listViewSpacer')?.clientWidth || 110
-                    const final = compare_value + responsive.mobile ? 0 : 60                    
+                    const final = compare_value && responsive.mobile ? 0 : 60                    
                     if(rect.x < (compare_value + final)){
-                        // const val = moment(record.date_start).isAfter(moment(record.date_start).startOf('day').add(2, 'hour')) ? 2 : 0
-                        const startOfDay = calendarDateInstances.value.start.startOf('day')
-                        const val = calendarDateInstances.value.start.diff(startOfDay.plus({hour: 2}), 'hours').toObject().hours
-                        // const time = moment(record.date_start).subtract(val, 'hour').startOf('hour').hour()
-                        const time = calendarDateInstances.value.start.hour - val
+                        const val = DateTime.fromSQL(props.record.date_start).toJSDate() > DateTime.fromSQL(props.record.date_start).startOf('day').plus({ hours: 2 }).toJSDate() ? 2 : 0
+                        const time = DateTime.fromSQL(props.record.date_start).minus({ hours: val }).startOf('hour').hour
                         if(time <= 1){
                             document.getElementById(`cal_list_view`)?.scrollTo({ left: 0, behavior: 'smooth'})
                         }else{
-                            // document.getElementById(`w_day_${time}`)?.scrollIntoView({behavior: 'smooth'})
-                            const realTime =  calendarDateInstances.value.start.hour
-                            const index = el.parentElement.clientWidth * realTime
+                            const realTime =  DateTime.fromSQL(props.record.date_start).hour
+                            const index = ( el.parentElement ? el.parentElement.clientWidth : 0) * realTime
                             document.getElementById(`cal_list_view`)?.scrollTo({ left: index, behavior: 'smooth'})
                         }                       
 
@@ -160,7 +158,7 @@ import { DateTime } from 'luxon';
                         }
                     }
                     const bottom_check = rect.y + rect.height
-                    const value = responsive.mobile && auth.activeUser.footer_view ? 45 : 0
+                    const value = responsive.mobile && auth?.user?.footer_view ? 45 : 0
                     if(bottom_check > window.innerHeight - value){
                         shiftBottom.value = window.innerHeight - value - bottom_check - 10
                     }

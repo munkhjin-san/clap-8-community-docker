@@ -89,6 +89,9 @@ input:focus + label{
     text-align: center;
     font-size: 14px;
 }
+.minimal{
+    padding: 10px 15px;
+}
 
 @media screen and (max-width: 959px) {
     .g-text {

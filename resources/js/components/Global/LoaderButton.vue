@@ -1,6 +1,7 @@
 <template>
     <div class="l-button" @click="clickHandler">
-        <div>
+        <div class="flex items-center leading-normal">
+            <slot name="icon"></slot>
             <span>{{ content }}</span>
             <div v-if="loading" class="l-spinner">
                 <span class="l-loader"></span>

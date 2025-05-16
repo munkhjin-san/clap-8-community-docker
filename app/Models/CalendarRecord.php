@@ -11,7 +11,7 @@ class CalendarRecord extends Model
     use HasFactory;
     use SoftDeletes;
     public function calendar_users(){
-        return $this->belongsToMany(User::class, 'calendar_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_path', 'users.email'])->distinct();
+        return $this->belongsToMany(User::class, 'calendar_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_path', 'users.email', 'users.icon_bg'])->distinct();
     }
     public function updated_by(){
         return $this->hasOne(User::class, 'id', 'updated_user')->select('id', 'name', 'icon_path', 'icon_bg');

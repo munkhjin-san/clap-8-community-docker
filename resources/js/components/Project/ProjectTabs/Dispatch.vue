@@ -96,7 +96,6 @@
     </div>
 </template>
 <script setup lang="ts">
-import { Project } from '@/interface/projectInterface';
 import { fileSizeParser, kintoneFileUrlBuilder } from '@/utils/tools';
 import axios from 'axios';
 import { DateTime } from 'luxon';
@@ -104,7 +103,6 @@ import { inject, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 const setLoader = inject('setLoader') as (flag: boolean) => void
 const props = defineProps<{
-    selectedProject: Project;
     userList: any;
     hasPrivilage: boolean;
 }>();

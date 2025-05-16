@@ -1,5 +1,6 @@
 <template>
     <div style="margin-top: 20px;">
+        <AiLoader v-if="aiLoading" message="昇給課題をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
         <div v-if="selectedTheme">
             <div @click="emit('next', 1), emit('goback')" class="undo-kadai">
                 <svg fill="var(--primary-color)" version="1.1" height="10" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
@@ -8,9 +9,9 @@
                 <div>戻る</div>
             </div>
             <div class="selected-theme">
-                <div style="margin-top: 15px;">
+                <div class="mt-[15px]">
                     <div><strong>成果目標</strong></div>
-                    <div style="font-size: 12px;margin-top: 10px;white-space: break-spaces;">{{ chosenGoal.outcome_goal }}</div>
+                    <div class="text-[12px] mt-[10px] whitespace-break-spaces">{{ chosenGoal.outcome_goal }}</div>
                 </div>
             </div>
             
@@ -18,73 +19,110 @@
             <div class="selected-theme">                            
                 <div style="margin-top: 15px;">
                     <div><strong>{{ selectedTheme.title }}</strong></div>
-                    <div style="font-size: 12px;margin-top: 10px;white-space: break-spaces;">{{ selectedTheme.content }}</div>
+                    <div class="text-[12px] mt-[10px] whitespace-break-spaces">{{ selectedTheme.content }}</div>
                 </div>
             </div>
-            <div class="si-box">
-                <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">AI アドバイス</p>
-                <div style="white-space: break-spaces" v-html="aiAdvice"></div> 
-            </div>
-            <div class="si-box" style="background: var(--background-color);">
-                <ShortInput
-                    :initialValue="title"
-                    ref="kadaiTitle"
-                    placeHolder="昇給課題タイトル"
-                    name="kadaiTitle"
-                    rules="required|max:250"
-                    label="タイトル"
-                    v-model="title"
-                />
-            </div>
-            <div class="si-box" style="background: var(--background-color);">
-                <LongInput
-                    :initialValue="content"   
-                    ref="kadaiContent"
-                    :placeHolder="`昇給課題内容・詳細`"
-                    name="kadaiContent"
-                    rules="required"
-                    label="タイトル"
-                    v-model="content"
-                />
-            </div>
-            <div class="si-box" style="background: var(--background-color);">
-                <LongInput
-                    :initialValue="content_goal"   
-                    ref="kadaiGoal"
-                    :placeHolder="`課題達成による取得能力`"
-                    name="kadaiGoal"
-                    rules="required"
-                    label="タイトル"
-                    v-model="content_goal"
-                />
-            </div>
-            <div style="background: var(--bg3);padding: 20px;margin-top: 20px;">
-                <div style="font-weight: 600;margin-bottom: 20px">AI判定とフィードバック</div>
-
-                <div style="margin-bottom: 20px" v-html="content_review"></div> 
-                <LoaderButton style="margin: 0" @triggered="getReview" :loading="reviewLoading" :content="'AI判定とフィードバック'"/>                               
-            </div>
-            
-            <div v-if="content_review" class="si-box" style="justify-content: center;display: flex;gap:15px;flex-wrap: wrap;">
-                <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="saving" @triggered="saveTemplateConfirm" content="保存"/>
-                <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="attaching" @triggered="applyToManagementConfirm" content="申請"/>
+            <div class="mt-[30px] p-[20px] bg-[var(--bg3)]">
                 
+                <p class="text-[11px] mb-[15px] leading-normal">プロジェクトのMISOおよび個人のスキルに基づいた成果目標を、AIを活用して立案することができます。
+                    <br>さらに、「カスタマイズ」を通じてAIに必要な情報を提供することで、より具体的で適切な目標設定が可能になります。<br>
+                </p>
+                
+                <div>
+                    <div class="si-box">
+                        <LongInput 
+                            placeHolder="課題内容および生成指示のカスタマイズ"
+                            type="text"
+                            v-model="custom_instruction"
+                            custom-class="height-adjust"
+                        />
+                    </div>
+
+                </div>
+                <div class="si-box">                    
+                    <LoaderButton :loading="aiLoading" content="昇給課題提案作成" style="margin: 0; margin-top: 15px;" @triggered="getAdvice"/>
+                </div>      
             </div>
+
+
+            <div v-if="release">
+                <div class="si-box" style="background: var(--background-color);">
+                    <ShortInput
+                        :initialValue="title"
+                        ref="kadaiTitle"
+                        placeHolder="タイトル"
+                        name="kadaiTitle"
+                        rules="required|max:250"
+                        label="タイトル"
+                        v-model="title"
+                    />
+                </div>
+                <div class="si-box" style="background: var(--background-color);">
+                    <ShortInput
+                        :initialValue="content_goal"
+                        ref="kadaiTitle"
+                        placeHolder="開発能力"
+                        name="kadaiTitle"
+                        rules="required"
+                        label="開発能力"
+                        v-model="content_goal"
+                    />
+                </div>
+                <div class="si-box">
+                    <p class="mb-[20px]">能力評価基準</p>
+                    <div class="flex flex-col gap-[20px]">
+                        <div v-for="action in actions">
+                            <ShortInput
+                                ref="kadaiActionRef"
+                                name="kadaiAction"
+                                rules="required"
+                                label="タイトル"
+                                v-model="action.content"
+                            />
+                        </div>
+
+                    </div>
+
+                </div>
+                <!-- <div class="si-box" style="background: var(--background-color);">
+                    <LongInput
+                        :initialValue="content"   
+                        ref="kadaiContent"
+                        :placeHolder="`昇給課題内容・詳細`"
+                        name="kadaiContent"
+                        rules="required"
+                        label="タイトル"
+                        v-model="content"
+                        :key="keys.content"
+                    />
+                </div> -->
+
+
+                
+                <div v-if="actions && actions.length && content_goal && !aiLoading" class="si-box justify-center flex gap-[15px] flex-wrap">
+                    <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="saving" @triggered="saveTemplateConfirm" content="保存"/>
+                    <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="attaching" @triggered="applyToManagementConfirm" content="申請"/>
+                    
+                </div>
+            </div>
+
         </div>
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, inject, onMounted, watch } from 'vue';
+import { ref, inject, onMounted, useTemplateRef } from 'vue';
 import { Dialog } from '@/interface/globalInterface';
 import OpenAI from "openai";
-import { Stream } from 'openai/streaming.mjs';
 import axios from 'axios';
-import moment from 'moment';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { useBadgeStore } from '@/store/badge';
 import { useAuthUserStore } from '@/store/auth';
+import { useProject } from '@/composables/project';
+import { useRoute } from 'vue-router';
+import { EvaluationRecord, EvaluationSkill } from '@/interface/evaluationInterface';
+import AiLoader from '@/components/Global/AiLoader.vue';
 const emit = defineEmits([
     'close', 
     'next',
@@ -96,19 +134,21 @@ const props = defineProps([
     'selectedTheme',
     'chosenGoal',
     'selectedDate',
-    'memberData',
     'evaluation'
 ])
-interface Date {
-    value: string;
-}
+
 const reviewLoading = ref(false)
 const title = ref(props.editData?.title ?? '')
 const content = ref(props.editData?.content ?? '')
 const content_goal = ref(props.editData?.ability ?? '')
 const content_review = ref(props.editData?.review ?? '')
-const aiAdvice = ref('')
-const evaluationDate = inject('evaluationDate') as Date
+const custom_instruction = ref('')
+const evaluationData = ref<EvaluationRecord | null>(null)
+const aiLoading = ref(false)
+const baseSkills = ref<string[]>([])
+const aiType = ref('openai')
+const { memberData } = useProject()
+const actions = ref(props.editData?.actions ?? [])
 const saving = ref(false)
 const attaching = ref(false)
 const badge = useBadgeStore()
@@ -117,137 +157,252 @@ const refresh = inject('refresh') as Function
 const kadaiContent = ref<InstanceType<typeof LongInput> | null>(null)
 const kadaiTitle = ref<InstanceType<typeof ShortInput> | null>(null)
 const kadaiGoal = ref<InstanceType<typeof LongInput> | null>(null)
-const auth = useAuthUserStore()
-onMounted(() => {
-    if(props.selectedTheme){
-        getAdvice()
-        console.log(evaluationDate.value)
-    }
+const kadaiActionRef = useTemplateRef<InstanceType<typeof ShortInput>[]>('kadaiActionRef')
+const release = ref(props.editData && props.editData.id ? true : false)
+const keys = ref({
+    content: 0,
+    content_goal: 0
 })
-const getAdvice = async() => {
-    const full = `
-                    昇給問題は従業員の成果目標と結びつく必要がある
-                    成果目標: ${props.chosenGoal.outcome_goal}、
-                    従業員が選択したテーマは成果目標と一致している必要がある
-                    選択したテーマ: ${props.selectedTheme?.title}${props.selectedTheme.content}
-                    給与問題を作成するには、給与増加課題のタイトル、給与増加課題の内容と詳細、タスク完了を通じてスキルを習得する能力が必要です。
-                    昇給課題を作成するためのアドバイスは何ですか?
-                    ** などの記号、リスト、箇条書きを使用せずに、手順を明確に説明して応答します。`
-    aiAdvice.value = ''
-    const openai = new OpenAI({
-        apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true 
-    });
-    try {
-        const response = await openai.chat.completions.create({
-            // model: 'gpt-4',
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'assistant', content: full }],
-            stream: true,
-            temperature: 0.8
-        })
-        if (!response || !response[Symbol.asyncIterator]) {
-            throw new Error('OpenAI API からの応答が無効です。');
-        }
-        const stream = response as Stream<OpenAI.Chat.Completions.ChatCompletionChunk>;
-            for await (const part of stream) {
-                try {
-                    const content = part.choices[0]?.delta?.content || ''
-                    let before = aiAdvice.value ? aiAdvice.value : ''
-                    aiAdvice.value = before + content
-                } catch (error) {
-                    console.log(error)
-                }
-                
-                
+const route = useRoute()
+onMounted(() => {
+    // if(props.selectedTheme){
+    //     getAdvice()
+    //     console.log(evaluationDate.value)
+    // }
+    getEvaluationData()
 
-            }
-    } catch (err) {
-        if (err instanceof OpenAI.APIError) {
-            if(err.status == 500){
-                notify('AI修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-            }else{
-                notify('AI修正に失敗しました。<br>' + err.message)
-            }
-            
-        } else {
-            notify('AI修正に失敗しました。<br>' + err)
-        }
+})
+const getEvaluationData = async() => {
+
+    try {
+        const span = route.params.span as string
+        const [year, which_half] = span.split('-')
+        const response = await axios.post('/get_evaluation_data', {
+            user_id: memberData.value?.id,
+            year: year,
+            which_half: which_half  
+        }).then(res => res.data)
+        evaluationData.value = response && response.evaluation ? response.evaluation : null
+        baseSkills.value = response && response.base_skills ? response.base_skills  : []
+        
+    } catch (e) {
+        // notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
-const getReview = async(data) => {
-    const result = await checkFields()
-    if (!result) return
-    const headTemplate = props.selectedTheme.title_full
-    const full = `
-                予め会社が定義してる要件は${headTemplate}${props.selectedTheme.content}
-                当社の設定する要件に則り、昇給課題の設定内容がふさわしいものであるかを判定してください。昇給課題は、個人の成果目標を100％達成するために必要な基本能力を向上させることを目的として設定されており、達成基準を満たせば昇給します。
 
-                具体的には、目標のレベルは以下の要件を満たす必要があります：
-                1. 期間: ${props.chosenGoal.start_date}~${props.chosenGoal.end_date}。
-                2. 成果目標: ${props.chosenGoal.outcome_goal}。
-                3. 昇給課題タイトル: ${title.value} 
-                4. 昇給課題内容・詳細: ${content.value} 
-                5. 課題達成による取得能力: ${content_goal.value}
+const schema = (model) => {
+    let schema = {
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "string",
+                "description": "昇給課題タイトル"
+            },
+            "actions": {
+                "type": "array",
+                "description": "開発能力が実践的に発揮されたことを確認できる具体的な行動",
+                "properties": {
+                    "content": {
+                        "type": "string",
+                        "description": "行動内容"
+                    }
+                },
+                required: ["content"],
+                additionalProperties: false
+            },
+            "skill_theme": {
+                "type": "string",
+                "description": "習得を目指す能力・スキルをキーワードで提示"
+            }
+        },
+        required: ["title", "content", "content_goal"]
+    }
+    if(model == 'openai'){
+        schema['additionalProperties'] = false
+    }
+    return schema
+}
+const systemInstruction = () => {
+    return `
+        社内で成果目標に基づいて昇給課題を作成しようとしています。
+        本機能は、メンバーが記入する「成長意欲・課題認識」に基づき、昇給判断のためのスキル評価課題（以下、昇給課題）をAIで自動生成するものです。
 
-                以上の要件に基づき、昇給課題が適切かどうかを判定してください。
-    
-                反対が難しいばいふさわしいくないといっでください。そして結論からフィードバックください
-              
-                ** などの記号、リスト、箇条書きを使用せずに、手順を明確に説明して応答します。`
-    content_review.value = ''
-    reviewLoading.value = true
-    const openai = new OpenAI({
-        apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true 
-    });
-    try {
-        const response = await openai.chat.completions.create({
-            // model: 'gpt-4',
-            model: 'gpt-4o-mini',
-            messages: [{ role: 'assistant', content: full }],
-            stream: true,
-            temperature: 0.8
-        })
-        if (!response || !response[Symbol.asyncIterator]) {
-            throw new Error('OpenAI API からの応答が無効です。');
-        }
-        const stream = response as Stream<OpenAI.Chat.Completions.ChatCompletionChunk>;
-            for await (const part of stream) {
-                try {
-                    const content = part.choices[0]?.delta?.content || ''
-                    let before = content_review.value ? content_review.value : ''
-                    content_review.value = before + content
-                } catch (error) {
-                    reviewLoading.value = false
+        昇給課題は、成果目標（KGI+KPI）が100%達成された場合にのみ評価対象とし、あわせて「能力評価基準に対応する根拠資料の提出」を満たすことで達成判定を行います。
+        あなたは人事部門のAIアシスタントです。
+        昇給課題を作成するための提案します。
+        挙げられるデータは以下の通りです。
+        1. テーマ: 
+        2. テーマ説明:
+        3. 職能レベル: 
+        4. 職能レベル保留スキル:
+        5. 目標:
+        6. 期待される効果:
+        7. 目標期間:
+        8. 目標達成するためのKGI:
+
+        ## ■ 出力構成（昇給課題）
+
+        ### 1. タイトル（20〜30文字程度）（json-index: title）
+        - 例：「相手の納得を引き出す説明力を身につける」
+
+        ### 2. 開発能力（1件）（json-index: skill_theme）
+        - 習得を目指す能力・スキルをキーワードで提示
+        - 例：「構造的思考」「ファシリテーション」「共感的傾聴」など
+        - 可能であれば簡単な補足説明を加える
+
+        ### 3. 能力評価基準（3件）（json-index: actions
+        - 開発能力が実践的に発揮されたことを確認できる具体的な行動
+        - 例：「資料に毎回論点構造を明示している」「相手の理解度に応じて説明順を変えている」など
+        - あいまいな表現（例：意識する、努力する等）は使用しないこと
+
+
+        課題を生成するには次の要件を満たす必要があります。
+        1. テーマとテーマの説明を理解し、テーマに沿った開発能力を提案してください。。
+        2. 職能レベルと職能レベル保留スキルを考慮し、{skill_theme）}には今保留スキル以外、目標を達成するために必要とするスキルを考えてください。
+        ユーザーの希望やカスタマ指示があれば、できるだけそれに従ってください。
+        markdownを利用しないでください。
+        markdownを利用しないでください。
+        **などmarkdwonを利用しないでください。
+        `
+}
+const getAdvice = async() => {
+    if(content_goal.value || actions.value.length) {
+        const answer = await confirm('既存の課題がある場合、AIで生成した課題は上書きされます。よろしいでしょうか？')
+        if(!answer.value) return
+    }
+    const checkList = evaluationData.value?.checklist.flatMap((item: EvaluationSkill) => item.content).join('\n ')
+    const userDetail = `
+        職能レベル: ${evaluationData.value?.current_level}
+        職能レベル保留スキル: \n ${checkList}
+    `
+    const goalDetail = `
+        目標: ${props.chosenGoal.outcome_goal}
+        期待される効果: ${props.chosenGoal.expected_effect}
+        目標期間: ${props.chosenGoal.start_date}~${props.chosenGoal.end_date}
+        目標達成するためのKGI: ${props.chosenGoal.steps.map((item: any) => item.content).join('\n ')}
+    `
+    let combined = `
+        テーマ: ${props.selectedTheme.title_full}
+        テーマ説明: ${props.selectedTheme.content}\n\n
+        ${userDetail}\n\n
+        ${goalDetail}\n\n 
+        ユーザーの希望やカスタマ指示 : ${custom_instruction.value}       
+    `
+    console.log(combined)
+
+    if(aiType.value == 'openai'){ 
+
+        try{
+            aiLoading.value = true
+            const openai = new OpenAI({
+                apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+                dangerouslyAllowBrowser: true 
+            });   
+            const response = await openai.responses.create({
+                model: "gpt-4.1-mini",
+                input: [
+                    {
+                        "role": "system",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": systemInstruction()
+                            }
+                        ]
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "input_text",
+                                "text": combined
+                            }
+                        ]
+                    }
+                ],
+                text: {
+                    "format": {
+                        "type": "json_schema",
+                        "name": "salary_issue_creation",
+                        "strict": true,
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "title": {
+                                    "type": "string",
+                                    "description": "昇給課題のタイトル"
+                                },
+                                "skill_theme": {
+                                    "type": "string",
+                                    "description": "習得を目指す能力・スキルをキーワードで提示"
+                                },
+                                "actions": {
+                                    "type": "array",
+                                    "description": "開発能力が実践的に発揮されたことを確認できる具体的な行動",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "required": [
+                                "title",
+                                "skill_theme",
+                                "actions"
+                            ],
+                            "additionalProperties": false
+                        }
+                    }
+                },
+
+            });
+            if(response.output[0].type == 'message' && response.output[0].content[0].type == "output_text"){
+
+                const parsedData = JSON.parse(response.output[0].content[0].text);
+                console.log(parsedData)
+                title.value = parsedData.title || ''
+                content_goal.value = parsedData.skill_theme || ''
+                actions.value = parsedData.actions.map((item: any) => {
+                    return {
+                        content: item
+                    }
+                })
+                // if(parsedData.title){
+                //     title.value = parsedData.title
+                // }
+                // if(parsedData.content){
+                //     content.value = parsedData.content
+                // }
+                // if(parsedData.content_goal){
+                //     content_goal.value = parsedData.content_goal
+                // }
+
+                keys.value.content++
+                keys.value.content_goal++
+                finalize()
+
+            }
+        } catch (err) {
+            if (err instanceof OpenAI.APIError) {
+                if(err.status == 500){
+                    notify('AI修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                }else{
+                    notify('AI修正に失敗しました。<br>' + err.message)
                 }
                 
-                
+            } else {
+                notify('AI修正に失敗しました。<br>' + err)
+            }
 
-            }
-            reviewLoading.value = false
-    } catch (err) {
-        if (err instanceof OpenAI.APIError) {
-            if(err.status == 500){
-                notify('AI修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-            }else{
-                notify('AI修正に失敗しました。<br>' + err.message)
-            }
-            
-        } else {
-            notify('AI修正に失敗しました。<br>' + err)
+        } finally{
+            aiLoading.value = false
+            release.value = true
         }
-        reviewLoading.value = false
     }
-    
-    
-
 }
 const checkFields = async() => {
     const targets = [
-        kadaiContent.value, 
-        kadaiTitle.value, 
         kadaiGoal.value, 
+        kadaiTitle.value, 
     ]
     const validateTargets = targets.filter( target => target !== null)
     let result = true
@@ -255,25 +410,18 @@ const checkFields = async() => {
         const val = await target?.validate() || {valid: false}
         result = result && val.valid
     }
-    return result
-}
-const saveTemplateConfirm = async() => {
-    if(props.editData.id){
-        const editRecord = props.editData
-        if(editRecord && editRecord.content !== content.value && editRecord.review && editRecord.review == content_review.value){
-            const answer = await confirm('昇給課題の内容に変更がある場合、再度AI分析を行ってください。<br>このまま保存すると現在の添削結果は削除されます。')
-            if(!answer.value) return
-            saveTemplate('empty_review', 0)
-        }else{
-            saveTemplate(null, 0)
+    if(kadaiActionRef.value){
+        for(const target of kadaiActionRef.value){
+            const val = await target?.validate() || {valid: false}
+            result = result && val.valid
         }
     }
-    else{
-        saveTemplate(null, 0)
-        
-    }
+    return result
 }
-const saveTemplate = async(action, status) => {
+const saveTemplateConfirm = async() => {    
+    saveTemplate(null, 0)        
+}
+const saveTemplate = async(_action, status) => {
     const result = await checkFields()
     if (!result) return
     try{
@@ -283,13 +431,14 @@ const saveTemplate = async(action, status) => {
             title: title.value,
             issue_content: content.value,
             goal_id: props.chosenGoal?.id,
-            review: action && action == 'empty_review' ? null : content_review.value,
+            review: null,
             ability: content_goal.value,
             theme: props.selectedTheme.title_full,
             date: props.selectedDate.evaluationDate,
             status: status,
-            user_id: props.memberData?.id,
-            mentor_id: props.evaluation?.mentor_id
+            user_id: memberData.value?.id,
+            mentor_id: props.evaluation?.mentor_id,
+            actions: actions.value,
         }
         await axios.post('/save_kadai_template', params)
             info(status == 2 ? '申請しました。' : '保存しました。')
@@ -307,10 +456,6 @@ const saveTemplate = async(action, status) => {
 }
 const applyToManagementConfirm = async() => {
     
-    if(!content_review.value){
-        notify('申請する前にAI分析を完了してください。')
-        return
-    }
     
     const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
     if(!answer.value) return
@@ -329,5 +474,15 @@ const applyToManagement = async() => {
     } finally { 
         attaching.value = false
     }
+}
+const finalize = () => {
+    info('AI生成が完了しました。内容を確認してください。')
+    setTimeout(() => {
+        kadaiContent.value?.$el.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+        })
+    }, 100);
 }
 </script>

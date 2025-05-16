@@ -20,9 +20,19 @@
             :class="['mobileMessageBody', { 'reached' : urlMessage.id == message.id}, { emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id}]"
         >
             <div class="message-top-block">
-                <div style="display: flex;align-items: center;gap:10px">
-                    <UserPanel size="30" :user="message.user" imgClass="userNormalIcon"/>                   
-                    <div @click.stop="pushInstantUser($event, message.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ messageUserName }}</div>     
+                <div class="flex items-center gap-[10px]">
+                    <div class="relative">
+                        <UserPanel size="30" :user="message.user" imgClass="userNormalIcon"/>
+                        <div class="absolute bottom-[-2px] right-[-2px] z-[3]" v-if="message.actual_sender">
+                            <UserPanel size="15" :user="message.actual_sender"/>
+                        </div>                   
+                    </div>
+                    <div>
+                        <div @click.stop="pushInstantUser($event, message.user_id)" class="cursor-pointer text-[14px]">{{ messageUserName }}</div>
+                        <div v-if="message.actual_sender" class="text-[12px] text-[gray] mt-[3px]">{{ message.actual_sender.name }}</div>
+                    </div>
+                    
+                         
                 </div>                                     
                 <div class="m-date">{{messageKind}}</div>  
                 <div class="messageIconContainer">

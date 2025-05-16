@@ -6,7 +6,7 @@
             </svg>
         </div>
         <Transition name="modalFade">
-            <div v-if="dragActive && draggingCalendar && draggingCalendar.active_user_id == user.id" @mouseup="gotMove(val)" class="month-drop-popup"></div>
+            <div v-if="dragActive && draggingCalendar && draggingCalendar.active_user_id == user.id" @mouseup="gotMove()" class="month-drop-popup"></div>
         </Transition>
         <MemberRecords
             :dayRecords="dayRecordsAfter" 
@@ -14,69 +14,67 @@
             />
     </div>
 </template>
-<script setup>
-import moment from 'moment';
+<script setup lang="ts">
 import MemberRecords from './MemberRecords.vue';
 import { computed, inject, ref } from 'vue';
+import { DateTime } from 'luxon';
+import { useCalendar } from '@/composables/calendar';
     const props = defineProps(['day', 'user','beforeState'])
     const emit = defineEmits(['addRecord', 'create'])
-    const draggingCalendar = inject('draggingCalendar')
+    const {draggingCalendar, setDraggingCalendar} = useCalendar()
     const dragActive = ref(false)
-
+    const dropFinish = inject<Function>('dropFinish') as Function
 
     const dayRecordsAfter = computed(() => {
         const user_records = props.day.records.filter(ob =>  ob.calendar_users.map(item => item.id).includes(props.user.id)).sort((a, b) => {
-            return new Date(a.date_start) - new Date(b.date_start);
+            return new Date(a.date_start).getTime() - new Date(b.date_start).getTime();
         }); 
         return user_records
     })
-    const dropFinish = inject('dropFinish')
-        const gotMove = (val) => {
-            if(draggingCalendar.value){
-                const record = draggingCalendar.value
-                draggingCalendar.value = null
-                const record_date = moment(record.date_start)
-                const date = props.day.day_full
-                const merge = moment(date).set('hour', record_date.hour()).set('minute', record_date.minute()).set('second', 0).format('YYYY-MM-DD HH:mm:ss');    
-                dragActive.value = false
-                if(dropFinish){
-                    dropFinish(record, merge)
-                }
-            }
-            
-            
-        }
-        const enter = () => {
-            if(draggingCalendar.value){
-                if(!moment(props.day.day_full).isSame(moment(draggingCalendar.value.date_start), 'date')){
-                    dragActive.value = true
-                }                    
-            }
-
-        }
-        const leave = () => {
-            dragActive.value = false
-        }
-        const createAtTime = (event) => {
-            if(Math.abs(event.pageX - props.beforeState) > 15) {
-                return
-            }
-            const targetElement = event.target;
-            const elementWidth = targetElement.offsetWidth;
-            const clickX = event.clientX - targetElement.getBoundingClientRect().left;
-            
+    const gotMove = () => {
+        if( draggingCalendar.value){
+            const record = draggingCalendar.value
+            setDraggingCalendar(null)
+            const record_date = DateTime.fromSQL(record.date_start)
             const date = props.day.day_full
-            const time = moment().add(1, 'hour').startOf('hour').format('HH:mm:ss')
-            const merge = `${date} ${time}`
-            const d = {
-                x: event.x,
-                y: event.y,
-                time: merge,
-                stamp: moment()
+            const merge = DateTime.fromFormat(date, 'yyyy-MM-dd')
+                .set({ hour: record_date.hour, minute: record_date.minute, second: 0 })
+                .toSQL();
+
+            console.log(merge)
+            dragActive.value = false
+            if(dropFinish){
+                dropFinish(record, merge)
             }
-            emit('create', d, props.user)
-            
         }
+        
+        
+    }
+    const enter = () => {
+        if(draggingCalendar.value){
+            if(!DateTime.fromFormat(props.day.day_full, 'yyyy-MM-dd').equals(DateTime.fromFormat(draggingCalendar.value.date_start, 'yyyy-MM-dd'))){
+                dragActive.value = true
+            }                    
+        }
+    }
+    const leave = () => {
+        dragActive.value = false
+    }
+    const createAtTime = (event: MouseEvent) => {
+        if(Math.abs(event.pageX - props.beforeState) > 15) {
+            return
+        }       
+        const date = props.day.day_full
+        const time = DateTime.now().plus({ hours: 1 }).startOf('hour').toFormat('HH:mm:ss')
+        const merge = `${date} ${time}`
+        const d = {
+            x: event.x,
+            y: event.y,
+            time: merge,
+            stamp: DateTime.now().toISO()
+        }
+        emit('create', d, props.user)        
+    }
     
 
 
