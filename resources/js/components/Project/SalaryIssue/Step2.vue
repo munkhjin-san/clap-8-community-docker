@@ -103,10 +103,10 @@ const filteredIssues = (level, theme) => {
 };
 const { notify } = inject('dialog') as DialogMethods
 const setTheme = (level, theme) => {
-    // if (!props.possibleThemes.includes(filteredIssues(level, theme)[0].title)) {
-    //     notify('このテーマの受講が完了していません。')
-    //     return;
-    // }
+    if (!props.possibleThemes.includes(filteredIssues(level, theme)[0].title)) {
+        notify('このテーマの受講が完了していません。')
+        return;
+    }
     
     emit('selectThemeConfirm', level, theme)
 }

@@ -149,7 +149,7 @@
                     <div class="flex flex-col gap-[25px]">
                         <div v-for="(step, index) in goalParams.steps" :key="index" class="flex w-full">     
                             <div class="flex items-center w-full gap-[10px]">
-                                <ShortInput type="text" v-model="step.content" custom-class="full minimal" class="w-full"/>                       
+                                <ShortInput type="text" v-model="step.content" custom-class="full minimal" ref="kpiRef" rules="required" class="w-full"/>                       
                             </div>             
                         </div>
                     </div>
@@ -179,7 +179,7 @@
                     </div>
                 </div>
             </div>
-            <div v-if="ableToProceed" class="si-box justify-center flex gap-[15px] flex-wrap">
+            <div v-if="release" class="si-box justify-center flex gap-[15px] flex-wrap">
                 <LoaderButton style="margin: 0;" @triggered="saveOutcomeGoal(0)" content="保存" :loading="loading"/>
                 <LoaderButton style="margin: 0;" @triggered="saveOutcomeGoal(2)" content="申請" :loading="loading"/>
             </div>
@@ -188,7 +188,7 @@
 </template>
 <script setup lang="ts">
 import { ProjectGoal } from '@/interface/projectInterface';
-import { computed, inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import { inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import ShortInput from '../Form/ShortInput.vue';
 import LongInput from '../Form/LongInput.vue';
 import axios from 'axios';
@@ -236,8 +236,6 @@ const { usersProjects } = useProject()
 const loading = ref(false)
 const startDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const endDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
-const goalContentRef = ref<InstanceType<typeof LongInput> | null>(null)
-const expectedRef = ref<InstanceType<typeof LongInput> | null>(null)
 const { getProjects } = useProject()
 const { notify, confirm, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
@@ -254,12 +252,13 @@ const keys = reactive({
     kgi: 0,
     miso: 0
 })
-const release = ref(props.editGoalData ? true : false)
+const release = ref(props.editGoalData && props.editGoalData.id ? true : false)
 const { selectedProject } = useProject()
 
 const goalTitleRef = useTemplateRef<InstanceType<typeof ShortInput>>('goalTitleRef')
 const misoRef = useTemplateRef<InstanceType<typeof LongInput>>('misoRef')
 const kgiRef = useTemplateRef<InstanceType<typeof LongInput>>('kgiRef')
+const kpiRef = useTemplateRef<InstanceType<typeof ShortInput>[]>('kpiRef')
 
 onMounted(() => {
     getEvaluationData()
@@ -536,8 +535,10 @@ const checkFields = async() => {
     const targets = [
         startDateRef.value, 
         endDateRef.value, 
-        goalContentRef.value, 
-        expectedRef.value
+        goalTitleRef.value,
+        misoRef.value,
+        kgiRef.value,
+        ...(kpiRef.value || []),
     ]
     const validateTargets = targets.filter( target => target !== null)
     let result = true
@@ -550,7 +551,10 @@ const checkFields = async() => {
 const saveOutcomeGoal = async(status: number) => {
     const result = await checkFields()
     let info_message = '保存しました。'
-    if(!result) return
+    if(!result) {
+        notify('必須項目が未入力です。')
+        return
+    }
     if(status == 2) {
         const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
         info_message = '申請しました。'
@@ -589,7 +593,5 @@ const saveOutcomeGoal = async(status: number) => {
         notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
-const ableToProceed = computed(() => {
-    return goalParams.start_date && goalParams.end_date && goalParams.miso && goalParams.kgi && goalParams.steps?.length
-})
+
 </script>

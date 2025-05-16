@@ -60,9 +60,9 @@
                 <div class="si-box" style="background: var(--background-color);">
                     <ShortInput
                         :initialValue="content_goal"
-                        ref="kadaiTitle"
+                        ref="kadaiSkillRef"
                         placeHolder="開発能力"
-                        name="kadaiTitle"
+                        name="kadaiSkill"
                         rules="required"
                         label="開発能力"
                         v-model="content_goal"
@@ -99,7 +99,7 @@
 
 
                 
-                <div v-if="actions && actions.length && content_goal && !aiLoading" class="si-box justify-center flex gap-[15px] flex-wrap">
+                <div v-if="release && !aiLoading" class="si-box justify-center flex gap-[15px] flex-wrap">
                     <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="saving" @triggered="saveTemplateConfirm" content="保存"/>
                     <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="attaching" @triggered="applyToManagementConfirm" content="申請"/>
                     
@@ -158,6 +158,7 @@ const kadaiContent = ref<InstanceType<typeof LongInput> | null>(null)
 const kadaiTitle = ref<InstanceType<typeof ShortInput> | null>(null)
 const kadaiGoal = ref<InstanceType<typeof LongInput> | null>(null)
 const kadaiActionRef = useTemplateRef<InstanceType<typeof ShortInput>[]>('kadaiActionRef')
+const kadaiSkillRef = useTemplateRef<InstanceType<typeof ShortInput>>('kadaiSkillRef')
 const release = ref(props.editData && props.editData.id ? true : false)
 const keys = ref({
     content: 0,
@@ -276,10 +277,13 @@ const getAdvice = async() => {
         職能レベル保留スキル: \n ${checkList}
     `
     const goalDetail = `
+        目標タイトル: ${props.chosenGoal.title}
         目標: ${props.chosenGoal.outcome_goal}
+        目標説明: ${props.chosenGoal.miso}
         期待される効果: ${props.chosenGoal.expected_effect}
         目標期間: ${props.chosenGoal.start_date}~${props.chosenGoal.end_date}
-        目標達成するためのKGI: ${props.chosenGoal.steps.map((item: any) => item.content).join('\n ')}
+        目標達成するためのKGI: ${props.chosenGoal.kgi}
+        目標達成するためのKPI: ${props.chosenGoal.steps.map((item: any) => item.content).join('\n ')}
     `
     let combined = `
         テーマ: ${props.selectedTheme.title_full}
@@ -403,6 +407,7 @@ const checkFields = async() => {
     const targets = [
         kadaiGoal.value, 
         kadaiTitle.value, 
+        kadaiSkillRef.value,
     ]
     const validateTargets = targets.filter( target => target !== null)
     let result = true
@@ -423,7 +428,10 @@ const saveTemplateConfirm = async() => {
 }
 const saveTemplate = async(_action, status) => {
     const result = await checkFields()
-    if (!result) return
+    if (!result) {
+        notify('必須項目が未入力です。')
+        return
+    }
     try{
         saving.value = true
         const params = {
