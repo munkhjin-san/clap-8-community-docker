@@ -2,7 +2,7 @@
     <div class="workButtons-wrapper">
         <HamBurger v-if="responsive.mobile"/>
 
-        <button class="work-button pc" @click="emit('selectShift')">
+        <button class="work-button" @click="emit('selectShift')">
             勤怠予定
         </button>
         <button class="work-button pc" @click="emit('approveShift')" v-if="auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608">

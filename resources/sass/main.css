@@ -6744,7 +6744,7 @@ button.shift-button{
         padding: 0 20px;
     }
     .project-search-wrap {
-        width: calc(100% - 140px);
+        width: calc(100% - 65px);
         margin-left: unset;
     }
     .project-table {
@@ -6774,6 +6774,7 @@ button.shift-button{
         border-bottom: 1px solid var(--calendarBorder);
         max-width: 100%;
         word-break: keep-all;
+        overflow: hidden;
     }
 
   .users-list-popup {

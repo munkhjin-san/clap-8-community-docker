@@ -25,9 +25,14 @@
                     <span >{{ selectedProject?.customers && selectedProject.customers.length ? selectedProject.customers.join("、") : '未設定' }}</span>
                 </div> 
             </div>
-            <div class="project-detail-header">
+            <!-- <div class="project-detail-header">
                 <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">パートナー企業</span>
                     <span >{{ selectedProject?.partners && selectedProject.partners.length ? selectedProject.partners.join("、") : '未設定' }}</span>
+                </div> 
+            </div> -->
+            <div class="project-detail-header">
+                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">業種区分</span>
+                    <span >{{ selectedProject?.industry_type && selectedProject.industry_type.length ? selectedProject.industry_type.join("、") : '未設定' }}</span>
                 </div> 
             </div>
 

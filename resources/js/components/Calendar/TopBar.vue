@@ -309,14 +309,14 @@ import { useCalendar } from '@/composables/calendar'
             const uniqueUserIds = new Set();
             const memberList:CalendarGroup[] = [];
             selectedUsers.value.forEach((group:any) => {
-                if(group.selected){
+                // if(group.selected){
                     group.users.forEach(user => {
                         if (!uniqueUserIds.has(user.id) && user.pivot && user.pivot.selected_as_calendar_member) {
                             uniqueUserIds.add(user.id);
                             memberList.push(user);
                         }
                     });
-                }                    
+                // }                    
             });
             emit('setActiveMembers', memberList)
             if(flag){

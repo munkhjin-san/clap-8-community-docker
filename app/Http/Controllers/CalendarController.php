@@ -261,7 +261,7 @@ class CalendarController extends Controller
             $newMyGroup->users()->syncWithPivotValues([$active_user->id], ['selected_as_calendar_member' => 1, "created_at" => now()]); 
         }        
         $gr = MyGroup::where('user_id', $active_user->id)
-                    ->where('selected', true)
+                    // ->where('selected', true)
                     ->with('selected_users')
                     ->get()
                     ->pluck('selected_users.*.id')

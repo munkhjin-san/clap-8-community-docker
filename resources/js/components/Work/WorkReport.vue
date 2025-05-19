@@ -222,8 +222,8 @@ import { customParser } from '@/utils/tools';
         }
     }
     const shiftWorkTime = computed(() => {
-        const shiftStartTime = shift.value ? shift.value?.start_time : '09:00:00'
-        const shiftEndTime = shift.value ? shift.value?.end_time : '18:00:00'
+        const shiftStartTime = shift.value && shift.value?.start_time ? shift.value?.start_time : '09:00:00'
+        const shiftEndTime = shift.value && shift.value?.end_time ? shift.value?.end_time : '18:00:00'
         const start = DateTime.fromFormat(shiftStartTime, 'HH:mm:ss')
         const end = DateTime.fromFormat(shiftEndTime, 'HH:mm:ss')
         return end.diff(start, 'minutes').as('minutes')

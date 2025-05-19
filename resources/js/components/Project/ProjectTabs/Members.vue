@@ -27,7 +27,7 @@
                         <div class="project-cell cell-width" data-label="雇用形態">{{ member?.positions?.name }}</div>
                         <div class="project-cell cell-width" data-label="職階">{{ member?.evaluation?.general_position }}</div>
                         <div class="project-cell cell-width" data-label="メンター">{{ member?.evaluation?.mentor?.name }}</div>
-                        <div class="project-cell cell-width" data-label="職務評価基準">{{ member?.evaluation?.current_level }}</div>
+                        <div class="project-cell cell-width" data-label="職務レベル">{{ member?.evaluation?.current_level }}</div>
                         
                         <div class="project-cell cell-width" style="position: relative;" data-label="成果目標・昇給課題">
                             <div class="flex items-center gap-[5px]">                                    
