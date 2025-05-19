@@ -53,7 +53,7 @@
                 </div>
                 <div class="my-[10px]" v-if="!item.approver && !isReceiveManager">受取PMPM承認待ち</div>
                 <div v-if="!item.approver && isReceiveManager" class="flex gap-[10px] my-[10px] items-center">
-                    <div>受取PMPM承認待ち</div>
+                    <div>受取PM承認待ち</div>
                     <CommandButton :buttons="[
                         {title: '承認', action: () => receiverManagerDecision('承認', 2)},
                         {title: '差戻', action: () => receiverManagerDecision('差し戻し', 3)}

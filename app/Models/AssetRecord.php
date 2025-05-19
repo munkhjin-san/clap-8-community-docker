@@ -25,7 +25,18 @@ class AssetRecord extends Model
 
     public function requests()
     {
-        return $this->hasMany(AssetRequest::class)->where('status', 1);
+        return $this->hasMany(AssetRequest::class)->where(function($q){
+            $q->where('status', 1)
+              ->orWhere(function($q){
+                    $q->whereHas('steps', function($q){
+                        $q->whereNull('approved_by');
+                    });
+              });
+        });
+    }
+    public function all_requests()
+    {
+        return $this->hasMany(AssetRequest::class);
     }
     public function request_logs()
     {

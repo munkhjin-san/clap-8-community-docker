@@ -218,10 +218,13 @@ const move = (target:number | null, title: string) => {
     
 }
 const hasMovePrivilege = computed(() => {
-    
+    if(!auth.activeUser || !auth.activeUser.id){
+        return false
+    }   
     const assetProject = props.asset.current_project
     const managers = assetProject?.manager.map(m => m.id) ?? []
-    return auth.activeUser?.id && (props.asset?.current_user?.id == auth.activeUser.id || managers.includes(auth.activeUser.id))
+    const privilageMembers = [...managers, 608, 610]
+    return (props.asset?.current_user?.id == auth.activeUser.id || privilageMembers.includes(auth.activeUser.id))
 })
 const applyReturnRequest = async() => {
     try{
