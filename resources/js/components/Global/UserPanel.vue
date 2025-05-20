@@ -11,7 +11,13 @@
             :sizes="`(max-width: 959px) 200px, ${computedSize}px`"
             rounded="circle"
             :title="user.name"
-        ></v-img>
+        >
+        <template v-slot:error>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :width="`${computedSize}px`" :height="`${computedSize}px`">
+                <circle cx="15" cy="15" r="15" fill="var(--secondary-background)"/>
+            </svg>
+        </template>
+        </v-img>
         <div>
             <div v-if="withName" class="ml-[10px]">{{ user.name }}</div>
             <slot name="details"></slot>

@@ -1,8 +1,9 @@
 <template>
-    <div >
-        <img 
-            v-if="item.private_flag == 0 && boardIcon" 
-            draggable="false" loading="lazy" 
+    <div>
+        <v-img
+            v-if="item.private_flag == 0 && boardIcon " 
+            :draggable="false" 
+            loading="lazy" 
             class="rounded-full" 
             :src="boardIcon"
             :style="{
@@ -12,10 +13,13 @@
                 minHeight: computedSize + 'px',
             }"
         >
+        <template v-slot:error>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :width="`${computedSize}px`" :height="`${computedSize}px`">
+                <circle cx="15" cy="15" r="15" fill="var(--secondary-background)"/>
+            </svg>
+        </template>
+        </v-img>
         <UserPanel v-if="item.private_flag > 0 && correspondUser" :disableInstant="true" :user="correspondUser" :size="computedSize"/>
-        <svg v-if="item.private_flag > 0 && !correspondUser" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :width="`${computedSize}px`" :height="`${computedSize}px`">
-            <circle cx="15" cy="15" r="15" fill="var(--secondary-background)"/>
-        </svg>
     </div>
 </template>
 <script setup lang="ts">
