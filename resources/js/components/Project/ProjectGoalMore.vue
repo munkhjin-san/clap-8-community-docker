@@ -185,7 +185,7 @@
                     <div>
                         <div class="text-[13px] font-semibold mb-[10px]">能力評価基準</div>
                         <div v-if="salaryIssueRecord.actions" class="flex flex-col gap-[15px]">
-                            <div v-for="action in salaryIssueRecord.actions" :key="action.id" class="kadai-content flex gap-[10px]">
+                            <div v-for="action in salaryIssueRecord.actions" :key="action.id" class="kadai-content flex gap-[10px] items-center">
                                 <select 
                                     :disabled="!salaryIssueReport" 
                                     :value="action.status" 
@@ -633,7 +633,5 @@ table{
 td{
     padding: 10px;
     border: solid thin var(--calendarBorder);
-    vertical-align: top;
-
 }
 </style>
