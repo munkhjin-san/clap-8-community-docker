@@ -432,6 +432,8 @@ class MemberController extends Controller
                 ['id' => $action['id'] ?? null],
                 [
                     'content' => $action['content'],
+                    'learning_title' => $action['learning_title'],
+                    'learning_content' => $action['learning_content'],
                 ]
             );
             array_push($new_actions, $codeAction->id);

@@ -42,7 +42,7 @@
                                 <div class="flex gap-[20px] kadai-content" v-if="goal.steps && goal.steps.length">
                                     <div>KGI {{ `${goal.achievement_rate}%` }}</div>
                                     <div>KPI {{ `${kpiCalculation(goal.steps)}%` }}</div>                                    
-                                    <div>合計 {{ `${overallScore(goal)}点` }}</div>
+                                    <div>評価点 {{ `${overallScore(goal)}点` }}</div>
                                 </div>
                                 <div v-else-if="goal?.achievement_rate !== null" class="kadai-content">{{ goal?.achievement_rate }}%</div>                                
                             </div>

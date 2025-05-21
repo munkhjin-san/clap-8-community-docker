@@ -28,7 +28,7 @@
                                     '自動生成中です。<br>この処理には数分かかる場合があります。'"/>
                         <div id="basic" class="mb-[60px] section-hd">
                             <p class="mb-[20px]"><strong>基本情報</strong></p>
-                            <div>
+                            <div class="relative">
                                 <ShortInput 
                                     name="name"
                                     v-model="projectParams.name"
@@ -220,8 +220,8 @@
                                     :key="inputKeys.description"
                                     @content-updated="(val) => projectParams.description = val"
                                 />
-                                <div @click="generateAutoText('概要', 'description')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <OpenAIIcon :loading="inputLoading.description"/>
+                                <div @click="generateAutoText('概要', 'description')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.description}"/>
                                     <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.description ? '生成中...' : '自動生成'}}</p>
                                 </div>
                             </div>
@@ -238,8 +238,8 @@
                                     :key="inputKeys.mission"
                                     @content-updated="(val) => projectParams.mission = val"
                                 />
-                                <div @click="generateAutoText('ミッション', 'mission')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <OpenAIIcon :loading="inputLoading.mission"/>
+                                <div @click="generateAutoText('ミッション', 'mission')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.mission}"/>
                                     <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.mission ? '生成中...' : '自動生成'}}</p>
                                 </div>
                             </div>
@@ -252,8 +252,8 @@
                                     :key="inputKeys.innovation"
                                     @content-updated="(val) => projectParams.innovation = val"
                                 />
-                                <div @click="generateAutoText('イノベーション', 'innovation')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <OpenAIIcon :loading="inputLoading.innovation"/>
+                                <div @click="generateAutoText('イノベーション', 'innovation')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.innovation}"/>
                                     <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.innovation ? '生成中...' : '自動生成'}}</p>
                                 </div>
                             </div>
@@ -266,8 +266,8 @@
                                     :key="inputKeys.strategy_miso"
                                     @content-updated="(val) => projectParams.strategy_miso = val"
                                 />
-                                <div @click="generateAutoText('ストラテジー', 'strategy_miso')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <OpenAIIcon :loading="inputLoading.strategy_miso"/>
+                                <div @click="generateAutoText('ストラテジー', 'strategy_miso')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.strategy_miso}"/>
                                     <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.strategy_miso ? '生成中...' : '自動生成'}}</p>
                                 </div>
                             </div>
@@ -280,8 +280,8 @@
                                     :key="inputKeys.operation"
                                     @content-updated="(val) => projectParams.operation = val"
                                 />
-                                <div @click="generateAutoText('オペレーション', 'operation')" title="概要を自動生成する" class="absolute bottom-[1px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <OpenAIIcon :loading="inputLoading.operation"/>
+                                <div @click="generateAutoText('オペレーション', 'operation')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
+                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.operation}"/>
                                     <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.operation ? '生成中...' : '自動生成'}}</p>
                                 </div>
                             </div>
@@ -360,12 +360,11 @@ import LongInput from '@/components/Form/LongInput.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import PartnerSelector from '@/components/Form/PartnerSelector.vue';
-import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, toRaw, useTemplateRef } from 'vue';
+import { computed, inject, onMounted, reactive, ref, toRaw, useTemplateRef } from 'vue';
 import axios from 'axios';
-import { DialogMethods, Task, TaskUser, User } from '@/interface/globalInterface';
+import { DialogMethods, Task } from '@/interface/globalInterface';
 import { ComponentExposed } from 'vue-component-type-helpers';
-import { Project } from '@/interface/projectInterface';
-import OpenAIIcon from '../../Icons/OpenAIIcon.vue';    
+import { Project } from '@/interface/projectInterface';  
 import SampleTask from '@/components/Task/Gantt/SampleTask.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { DateTime } from 'luxon';
@@ -376,12 +375,13 @@ import OpenAI from 'openai';
 import RichEditor from '@/components/Global/RichEditor.vue';
 import {marked} from 'marked'
 import DOMPurify from 'dompurify';
-import taskGenerateFormat from '../../../../assets/taskGenerateFormat.json'
+import taskGenerateFormat from 'assets/taskGenerateFormat.json'
 import { type Node, type Edge, MarkerType, VueFlow, VueFlowStore, Position, Handle } from '@vue-flow/core';
 import CustomEdge from '@/components/Task/Gantt/CustomEdge.vue';
 import AiLoader from '@/components/Global/AiLoader.vue';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
 import ProjectIndustryTypes from 'assets/ProjectIndustryTypes.json'
+import AiIcon from '@/components/Icons/AiIcon.vue';
 
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
@@ -754,7 +754,7 @@ const generateAutoText = async(index:string, indexVal:string) => {
     if(inputLoading[indexVal]){
         return
     }
-    const validationTargets = [startDateRef.value, endDateRef.value, projectTitle.value]
+    const validationTargets:any = [startDateRef.value, endDateRef.value, projectTitle.value]
     let result = true
     if(indexVal == 'description'){
         validationTargets.push(projectMemo.value)

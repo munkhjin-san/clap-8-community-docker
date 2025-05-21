@@ -5,12 +5,13 @@
             <input 
                 @input="validate(true)"
                 v-model="value" 
+                :disabled="disabled ? true : false"
                 :name="name" 
                 :type="type" 
                 :max="max ? max : ''"
                 :min="min ? min : ''"
                 :step="step ? step : ''"
-                :class="['g-text', customClass, {'date-color' : theme.dark }]"   
+                :class="['g-text', customClass, {'date-color' : theme.dark }, {'!bg-[var(--bg3)] opacity-80 !cursor-not-allowed' : disabled}]"   
                 :style="customStyle"              
             />
             <label v-if="placeHolder" class="form-plc">{{placeHolder}}</label>
@@ -38,6 +39,7 @@
         max: String,
         min: String,
         step: String,
+        disabled: Boolean,
     })
     onMounted(() => {
         if(props.initialValue){

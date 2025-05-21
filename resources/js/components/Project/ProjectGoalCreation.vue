@@ -104,7 +104,11 @@
                         </label>
 
                     </div> -->
-                    <LoaderButton :loading="aiLoading" content="成果目標提案作成" style="margin: 0; margin-top: 15px;" @triggered="getAdvice"/>
+                    <LoaderButton :loading="aiLoading" content="成果目標提案作成" style="margin: 0; margin-top: 15px;" @triggered="getAdvice">
+                        <template #icon>
+                            <AiIcon :size="20" fill="#fff" class="mr-[5px]"/>
+                        </template>
+                    </LoaderButton>
                 </div>
 
       
@@ -203,6 +207,7 @@ import GoalGenerateFormat from '../../../assets/GoalGenerateFormat.json'
 import { DateTime } from 'luxon';
 import { useProject } from '@/composables/project';
 import AiLoader from '../Global/AiLoader.vue';
+import AiIcon from '../Icons/AiIcon.vue';
 
 const emit = defineEmits([
     'close',
@@ -490,7 +495,7 @@ const getAdvice = async() => {
         } catch (err) {
             if (err instanceof OpenAI.APIError) {
                 if(err.status == 500){
-                    notify('AI修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                    notify('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
                 }else{
                     notify('AI修正に失敗しました。<br>' + err.message)
                 }

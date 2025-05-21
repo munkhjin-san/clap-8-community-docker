@@ -18,7 +18,7 @@
                     </svg>                        
                 </div> 
             </div>
-            <div class="kadai-root">                
+            <div class="kadai-root !w-[calc(100%-2px)] ml-[1px]">                
                 <div v-if="sub_tab === 0" class="flex flex-col gap-[30px] relative">
 
                     <div>
@@ -105,7 +105,7 @@
                         </table>
                     </div>
                     <div>
-                        <div class="text-[13px] font-semibold">合計</div>
+                        <div class="text-[13px] font-semibold">評価点</div>
                         <div class="kadai-content">{{ overallScore }}点</div>
                     </div>
 
@@ -183,9 +183,9 @@
                         <div class="kadai-content">{{ salaryIssueRecord.ability }}</div>
                     </div>      
                     <div>
-                        <div class="text-[13px] font-semibold mb-[10px]">能力評価基準</div>
+                        <div class="text-[13px] font-semibold mb-[10px]">修得要件</div>
                         <div v-if="salaryIssueRecord.actions" class="flex flex-col gap-[15px]">
-                            <div v-for="action in salaryIssueRecord.actions" :key="action.id" class="kadai-content flex gap-[10px] items-center">
+                            <!-- <div v-for="action in salaryIssueRecord.actions" :key="action.id" class="kadai-content flex gap-[10px] items-center">
                                 <select 
                                     :disabled="!salaryIssueReport" 
                                     :value="action.status" 
@@ -200,7 +200,39 @@
                                 <div>
                                     <div class="leading-[1.2]">{{ action.content }}</div>
                                 </div>
-                            </div>
+                            </div> -->
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th class="w-[100px]">修得状況</th>
+                                        <th>修得要件</th>
+                                        <th>学習資料</th>
+                                    </tr>
+                                </thead>
+                                <tbody>                                    
+                                    <tr v-for="action in salaryIssueRecord.actions">                                        
+                                        <td>
+                                            <select 
+                                                :disabled="!salaryIssueReport" 
+                                                :value="action.status" 
+                                                @change="salaryIssueActionComplete(action)" 
+                                                class="py-[5px] px-[10px]"
+                                                :class="{'!cursor-not-allowed appearance-none': !salaryIssueReport}"
+                                                :style="{ background: action.status == 1 ? '#64bc44' : 'var(--bg3)', color: action.status == 1 ? 'white' : 'var(--primary-color)' }"
+                                            >
+                                                <option :value="1">修得済み</option>
+                                                <option :value="0">未修得</option>
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <div class="leading-normal text-[13px]">{{ action.content }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="leading-normal text-[13px]">{{ action.learning_content }}</div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>                                  
                     <div v-if="salaryIssueRecord.comment">
@@ -590,7 +622,7 @@ const overallScore = computed(() => {
 
 const salaryIssueActionComplete = async(record) => {
     const status = record.status
-    const confirmMessage = status == 1 ? '能力評価基準を未修得にします。よろしいですか？' : '能力評価基準を修得済みにします。よろしいですか？'
+    const confirmMessage = status == 1 ? '修得要件を未修得にします。よろしいですか？' : '修得要件を修得済みにします。よろしいですか？'
     const successMessage = status == 1 ? '未修得にしました。' : '修得済みしました。'
     const answer = await confirm(confirmMessage)
     if(!answer.value) return
@@ -630,8 +662,11 @@ table{
     width: 100%;
     border-collapse: collapse;
 }
-td{
+td, th{
     padding: 10px;
     border: solid thin var(--calendarBorder);
+}
+th {
+    font-weight: normal;
 }
 </style>

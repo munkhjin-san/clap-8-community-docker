@@ -15,7 +15,6 @@ use App\Models\taskUser;
 use App\Models\CalendarRecord;
 use App\Models\messageRemindUser;
 use App\Models\messageSignUser;
-use App\Models\userDetail;
 use App\Models\UserLeaveRecord;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -27,12 +26,10 @@ use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Pusher\Pusher;
-use App\Events\MessageSent;
 use App\Services\SharedService;
 use App\Mail\Confirm;
 use App\Jobs\SendNotification;
 use App\Jobs\SendEmail;
-use App\Jobs\SendPusher;
 use DB;
 class BoardController extends Controller
 {

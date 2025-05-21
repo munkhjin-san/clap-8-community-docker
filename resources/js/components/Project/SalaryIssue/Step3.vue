@@ -1,6 +1,12 @@
 <template>
     <div style="margin-top: 20px;">
-        <AiLoader v-if="aiLoading" message="昇給課題をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
+        <Transition name="modalFade">
+            <AiLoader v-if="aiLoading" message="昇給課題をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
+        </Transition>
+        <Transition name="modalFade">
+            <AiLoader v-if="resourceLoading" message="学習資料をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
+        </Transition>       
+        
         <div v-if="selectedTheme">
             <div @click="emit('next', 1), emit('goback')" class="undo-kadai">
                 <svg fill="var(--primary-color)" version="1.1" height="10" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
@@ -12,22 +18,17 @@
                 <div class="mt-[15px]">
                     <div><strong>成果目標</strong></div>
                     <div class="text-[12px] mt-[10px] whitespace-break-spaces">{{ chosenGoal.outcome_goal }}</div>
+                    <div class="text-[12px] mt-[10px] whitespace-break-spaces">{{ chosenGoal.kgi }}</div>
                 </div>
             </div>
             
-            <p :class="['form-title-small', 'form-title-active']" style="margin: 10px 0;">選択したテーマ</p>
             <div class="selected-theme">                            
                 <div style="margin-top: 15px;">
-                    <div><strong>{{ selectedTheme.title }}</strong></div>
+                    <div>選択したテーマ: <strong>{{ selectedTheme.title }}</strong></div>
                     <div class="text-[12px] mt-[10px] whitespace-break-spaces">{{ selectedTheme.content }}</div>
                 </div>
             </div>
-            <div class="mt-[30px] p-[20px] bg-[var(--bg3)]">
-                
-                <p class="text-[11px] mb-[15px] leading-normal">プロジェクトのMISOおよび個人のスキルに基づいた成果目標を、AIを活用して立案することができます。
-                    <br>さらに、「カスタマイズ」を通じてAIに必要な情報を提供することで、より具体的で適切な目標設定が可能になります。<br>
-                </p>
-                
+            <div class="mt-[30px] p-[20px] bg-[var(--bg3)]">                
                 <div>
                     <div class="si-box">
                         <LongInput 
@@ -35,12 +36,18 @@
                             type="text"
                             v-model="custom_instruction"
                             custom-class="height-adjust"
+                            ref="customInstructionRef"
+                            rules="required"
                         />
                     </div>
 
                 </div>
                 <div class="si-box">                    
-                    <LoaderButton :loading="aiLoading" content="昇給課題提案作成" style="margin: 0; margin-top: 15px;" @triggered="getAdvice"/>
+                    <LoaderButton :loading="aiLoading" content="昇給課題提案作成" style="margin: 0; margin-top: 15px;" @triggered="getAdvice">
+                        <template #icon>
+                            <AiIcon :size="20" fill="#fff" class="mr-[5px]"/>
+                        </template>
+                    </LoaderButton>
                 </div>      
             </div>
 
@@ -69,10 +76,12 @@
                     />
                 </div>
                 <div class="si-box">
-                    <p class="mb-[20px]">能力評価基準</p>
+                    <p class="mb-[20px]">修得要件</p>
                     <div class="flex flex-col gap-[20px]">
-                        <div v-for="action in actions">
+                        <div v-for="(action, index) in actions">
                             <ShortInput
+                                :place-holder="`要件${index + 1}`"
+                                :disabled="learningResources.length > 0"
                                 ref="kadaiActionRef"
                                 name="kadaiAction"
                                 rules="required"
@@ -82,7 +91,26 @@
                         </div>
 
                     </div>
+                    
 
+                </div>
+                <div class="si-box">                    
+                    <LoaderButton :loading="resourceLoading" content="学習資料を生成する" style="margin: 0; margin-top: 15px;" @triggered="generateLearningResources">
+                        <template #icon>
+                            <AiIcon :size="20" fill="#fff" class="mr-[5px]"/>
+                        </template>
+                    </LoaderButton>
+                </div>    
+                <div v-if="learningResources.length" class="si-box" ref="learningResourcesParent">
+                    <p class="mb-[20px]">学習資料</p>
+                    <div class="flex flex-col gap-[20px]">
+                        <div v-for="(resource, index) in learningResources" :key="index">
+                            <h3 class="text-[14px] font-bold mb-[10px]">{{ resource.title }}</h3>
+                            <div class="text-[14px] whitespace-break-spaces">
+                                {{ resource.content }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <!-- <div class="si-box" style="background: var(--background-color);">
                     <LongInput
@@ -101,7 +129,7 @@
                 
                 <div v-if="release && !aiLoading" class="si-box justify-center flex gap-[15px] flex-wrap">
                     <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="saving" @triggered="saveTemplateConfirm" content="保存"/>
-                    <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="attaching" @triggered="applyToManagementConfirm" content="申請"/>
+                    <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="attaching" @triggered="applyToManagementConfirm" content="メンターへ申請"/>
                     
                 </div>
             </div>
@@ -123,6 +151,7 @@ import { useProject } from '@/composables/project';
 import { useRoute } from 'vue-router';
 import { EvaluationRecord, EvaluationSkill } from '@/interface/evaluationInterface';
 import AiLoader from '@/components/Global/AiLoader.vue';
+import AiIcon from '@/components/Icons/AiIcon.vue';
 const emit = defineEmits([
     'close', 
     'next',
@@ -145,6 +174,7 @@ const content_review = ref(props.editData?.review ?? '')
 const custom_instruction = ref('')
 const evaluationData = ref<EvaluationRecord | null>(null)
 const aiLoading = ref(false)
+const resourceLoading = ref(false)
 const baseSkills = ref<string[]>([])
 const aiType = ref('openai')
 const { memberData } = useProject()
@@ -159,7 +189,13 @@ const kadaiTitle = ref<InstanceType<typeof ShortInput> | null>(null)
 const kadaiGoal = ref<InstanceType<typeof LongInput> | null>(null)
 const kadaiActionRef = useTemplateRef<InstanceType<typeof ShortInput>[]>('kadaiActionRef')
 const kadaiSkillRef = useTemplateRef<InstanceType<typeof ShortInput>>('kadaiSkillRef')
+const customInstructionRef = useTemplateRef<InstanceType<typeof LongInput>>('customInstructionRef')
+const learningResourcesParent = useTemplateRef('learningResourcesParent')
 const release = ref(props.editData && props.editData.id ? true : false)
+const learningResources = ref<{
+    title: string,
+    content: string
+}[]>([])
 const keys = ref({
     content: 0,
     content_goal: 0
@@ -227,9 +263,9 @@ const systemInstruction = () => {
     return `
         社内で成果目標に基づいて昇給課題を作成しようとしています。
         本機能は、昇給判断に必要な「能力開発課題」をAIによって自動生成するものです。  
-        構成は以下の3点で構成され、**開発能力を1件に絞り、その構成要素（能力評価基準）を5件提示**することで、スキルの定着度を立体的かつ明確に評価可能とします。
+        構成は以下の3点で構成され、**開発能力を1件に絞り、その構成要素（修得要件）を5件提示**することで、スキルの定着度を立体的かつ明確に評価可能とします。
 
-        昇給課題の評価は、該当する成果目標（KGI＋KPI）が100％達成されたことを前提とし、さらに能力評価基準5件中3件以上が「修得済」と判定された場合に「昇給対象」とします。
+        昇給課題の評価は、該当する成果目標（KGI＋KPI）が100％達成されたことを前提とし、さらに修得要件5件中3件以上が「修得済」と判定された場合に「昇給対象」とします。
 
         挙げられるデータは以下の通りです。
         1. テーマ: 
@@ -251,14 +287,14 @@ const systemInstruction = () => {
         ### 2. 開発能力（1件）（json-index: skill_theme）
         - 内容：昇給判断において評価対象とする主要能力（例：仮説構築力、論点整理力、傾聴力など）
         - 補足（任意）：能力の定義（1行）
-        ### 3. 能力評価基準（構成要素5件）（json-index: actions)
+        ### 3. 修得要件（構成要素5件）（json-index: actions)
         - 各開発能力を構成する5つのサブスキル・構成要素を明示
         - 各項目は以下の条件で出力する：
         - 各構成要素に対して「観察可能な行動・兆候・言動」の形で記述する
         - あいまいな表現（例：意識する、努力する）は禁止
         - 1行（最大2行）で評価者が確認できるように表現
         - 出力形式（例）：
-        【能力評価基準】
+        【修得要件】
 
         1. 情報整理力：得られた情報を因果関係や優先度で構造化している
         2. 問題抽出力：表層的な要望の背後にある課題構造を言語化できている
@@ -278,6 +314,12 @@ const systemInstruction = () => {
         `
 }
 const getAdvice = async() => {
+    const validate = await customInstructionRef.value?.validate()
+    if(validate && !validate.valid){
+        notify('課題内容を入力してください。')
+        return
+    }
+
     if(content_goal.value || actions.value.length) {
         const answer = await confirm('既存の課題がある場合、AIで生成した課題は上書きされます。よろしいでしょうか？')
         if(!answer.value) return
@@ -399,7 +441,7 @@ const getAdvice = async() => {
         } catch (err) {
             if (err instanceof OpenAI.APIError) {
                 if(err.status == 500){
-                    notify('AI修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                    notify('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
                 }else{
                     notify('AI修正に失敗しました。<br>' + err.message)
                 }
@@ -443,6 +485,14 @@ const saveTemplate = async(_action, status) => {
         notify('必須項目が未入力です。')
         return
     }
+    if(!actions.value.length){
+        notify('修得要件が未入力です。')
+        return
+    }
+    if(!learningResources.value.length || learningResources.value.length !== actions.value.length){
+        notify('学習資料が未生成です。')
+        return
+    }
     try{
         saving.value = true
         const params = {
@@ -457,7 +507,13 @@ const saveTemplate = async(_action, status) => {
             status: status,
             user_id: memberData.value?.id,
             mentor_id: props.evaluation?.mentor_id,
-            actions: actions.value,
+            actions: actions.value.map((item, index) => {
+                return {
+                    content: item.content,
+                    learning_title: learningResources.value[index].title,
+                    learning_content: learningResources.value[index].content,
+                }
+            }),
         }
         await axios.post('/save_kadai_template', params)
             info(status == 2 ? '申請しました。' : '保存しました。')
@@ -503,5 +559,151 @@ const finalize = () => {
             inline: 'nearest'
         })
     }, 100);
+}
+
+const generateLearningResources = async() => {
+    const validateTargets = kadaiActionRef.value?.filter(target => target !== null)
+    if(validateTargets){
+        for(const target of validateTargets){
+            const val = await target?.validate() || {valid: false}
+            if(!val.valid) {
+                notify('修得要件が未入力です。')
+                return
+            }
+        }
+    }
+    const confirmed = await confirm('学習資料を生成します。\n生成後は修得要件が編集出来なくなります\nよろしいでしょうか？')
+    if(!confirmed.value) return
+
+    const actionsList = actions.value.map((item: any) => item.content).join('\n ')
+    let prompt = `
+        昇給課題の修得スキルの学習資料を生成してください。
+        この昇給課題は、以下の成果指標を達成するために必要なスキルを習得することを目的としています。
+
+        --------------------------------------
+        目標タイトル: ${props.chosenGoal.title}
+        目標: ${props.chosenGoal.outcome_goal}
+        目標説明: ${props.chosenGoal.miso}
+        期待される効果: ${props.chosenGoal.expected_effect}
+        目標期間: ${props.chosenGoal.start_date}~${props.chosenGoal.end_date}
+        目標達成するためのKGI: ${props.chosenGoal.kgi}
+        目標達成するためのKPI: ${props.chosenGoal.steps.map((item: any) => item.content).join('\n ')}
+        --------------------------------------
+
+        昇給課題の内容：
+
+        --------------------------------------
+        昇給課題タイトル: ${title.value}
+        昇給課題開発能力: ${content_goal.value}
+        1. テーマ: ${props.selectedTheme.title_full}
+        2. テーマ説明: ${props.selectedTheme.content}
+        3. 修得スキル: ${actionsList}
+        --------------------------------------
+
+
+        上記の条件に基づいて、各修得スキルごとに対して300-500文字で学習資料を生成してください。
+        アウトプットのフォーマットは
+        title: 修得スキルをそのまま記載
+        content: 学習資料の内容を記載     
+        
+        contentは読みやすく、ホワイトスペースを使用してください。
+        ※markdownを利用しないでください。
+        
+    `
+    try{
+        resourceLoading.value = true
+        const openai = new OpenAI({
+            apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+            dangerouslyAllowBrowser: true 
+        });   
+        const response = await openai.responses.create({
+            model: "gpt-4.1-mini",
+            input: [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": prompt
+                        }
+                    ]
+                }
+            ],
+            text: {
+                "format": {
+                    "type": "json_schema",
+                    "name": "salary_issue_creation",
+                    "strict": true,
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "data": {
+                                "type": "array",
+                                "minItems": 5,
+                                "maxItems": 5,
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title": { 
+                                            "type": "string" ,
+                                            "description": "学習資料のタイトル"
+                                        },
+                                        "content": { 
+                                            "type": "string",
+                                            "description": "学習資料の内容" 
+
+                                        }
+                                    },
+                                    "required": ["title", "content"],
+                                    "additionalProperties": false
+                                }
+                            }
+                        },
+                        "required": ["data"],
+                        "additionalProperties": false
+                    }
+                }
+            },
+
+        });
+        if(response.output[0].type == 'message' && response.output[0].content[0].type == "output_text"){
+
+            const parsedData = JSON.parse(response.output[0].content[0].text);
+            if(parsedData.data){
+                learningResources.value = parsedData.data.map((item: any) => {
+                    return {
+                        title: item.title,
+                        content: item.content
+                    }
+                })
+            }   
+            info('学習資料を生成しました。内容を確認してください。')
+            setTimeout(() => {
+                learningResourcesParent.value?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',
+                    inline: 'nearest'
+                })
+            }, 100);        
+
+        }
+    } catch (err) {
+        if (err instanceof OpenAI.APIError) {
+            if(err.status == 500){
+                notify('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+            }else{
+                notify('AI修正に失敗しました。<br>' + err.message)
+            }
+            
+        } else {
+            notify('AI修正に失敗しました。<br>' + err)
+        }
+
+    } finally{
+        resourceLoading.value = false
+    }
+    
+
+    
 }
 </script>

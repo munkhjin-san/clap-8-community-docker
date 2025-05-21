@@ -14,7 +14,8 @@
                 <Transition name="replyQuotBox">
                     <ReplyQuotWindow 
                         v-if="quoteReply.active"
-                        @replyText="replyText"
+                        @reply-ai="(text) => replyAi(text)"
+                        :editing="replyLoader"
                         :key="replyKey"/>
                 </Transition>
                 <Transition name="replyQuotBox">
@@ -57,7 +58,7 @@
                 </Transition>
                 <Transition name="downShiftPop">
                     <div v-if="aiResponse" class="ai-prompt-root focused" style="color: var(--primary-color);" >
-                        <span class="form-plc" style="font-weight: 600;">ChatGPT修正案</span> 
+                        <span class="form-plc" style="font-weight: 600;">AI修正案</span> 
                         <div v-html="aiResponse" ref="aiResponseText" class="typeBoxArea" style="width: calc(100% - 20px);outline: none;border: none; padding: 0 10px 10px; margin-top: 30px;" :contenteditable="aiResponseCustomize"></div>
                         <div style="width:100%;display: flex;align-items: end;">                            
                             <div @click="replaceText" v-if="aiResponseCustomize" style="margin: 0 10px 10px auto;" class="commentEditButton">適用</div>
@@ -166,10 +167,8 @@
                                         <path d="M11.44,14.558c0.906-0.201,1.446-1.236,1.208-2.313c-0.239-1.076-1.167-1.786-2.074-1.585c-0.906,0.203-1.446,1.238-1.208,2.313C9.605,14.049,10.534,14.759,11.44,14.558"/>
                                     </svg>
                                 </div>  
-                                <div @click="editWithAi" title="AI添削" class="message-icon-wrapper" style="width:28px">                                           
-                                    <svg width="30" height="30" class="min-w-[30px]" viewBox="0 0 721 721" fill="var(--third-color)" xmlns="http://www.w3.org/2000/svg" :class="[{'rotate-gtp' : editing}]">
-                                        <path d="M304.246 294.611V249.028C304.246 245.189 305.687 242.309 309.044 240.392L400.692 187.612C413.167 180.415 428.042 177.058 443.394 177.058C500.971 177.058 537.44 221.682 537.44 269.182C537.44 272.54 537.44 276.379 536.959 280.218L441.954 224.558C436.197 221.201 430.437 221.201 424.68 224.558L304.246 294.611ZM518.245 472.145V363.224C518.245 356.505 515.364 351.707 509.608 348.349L389.174 278.296L428.519 255.743C431.877 253.826 434.757 253.826 438.115 255.743L529.762 308.523C556.154 323.879 573.905 356.505 573.905 388.171C573.905 424.636 552.315 458.225 518.245 472.141V472.145ZM275.937 376.182L236.592 353.152C233.235 351.235 231.794 348.354 231.794 344.515V238.956C231.794 187.617 271.139 148.749 324.4 148.749C344.555 148.749 363.264 155.468 379.102 167.463L284.578 222.164C278.822 225.521 275.942 230.319 275.942 237.039V376.186L275.937 376.182ZM360.626 425.122L304.246 393.455V326.283L360.626 294.616L417.002 326.283V393.455L360.626 425.122ZM396.852 570.989C376.698 570.989 357.989 564.27 342.151 552.276L436.674 497.574C442.431 494.217 445.311 489.419 445.311 482.699V343.552L485.138 366.582C488.495 368.499 489.936 371.379 489.936 375.219V480.778C489.936 532.117 450.109 570.985 396.852 570.985V570.989ZM283.134 463.99L191.486 411.211C165.094 395.854 147.343 363.229 147.343 331.562C147.343 294.616 169.415 261.509 203.48 247.593V356.991C203.48 363.71 206.361 368.508 212.117 371.866L332.074 441.437L292.729 463.99C289.372 465.907 286.491 465.907 283.134 463.99ZM277.859 542.68C223.639 542.68 183.813 501.895 183.813 451.514C183.813 447.675 184.294 443.836 184.771 439.997L279.295 494.698C285.051 498.056 290.812 498.056 296.568 494.698L417.002 425.127V470.71C417.002 474.549 415.562 477.429 412.204 479.346L320.557 532.126C308.081 539.323 293.206 542.68 277.854 542.68H277.859ZM396.852 599.776C454.911 599.776 503.37 558.513 514.41 503.812C568.149 489.896 602.696 439.515 602.696 388.176C602.696 354.587 588.303 321.962 562.392 298.45C564.791 288.373 566.231 278.296 566.231 268.224C566.231 199.611 510.571 148.267 446.274 148.267C433.322 148.267 420.846 150.184 408.37 154.505C386.775 133.392 357.026 119.958 324.4 119.958C266.342 119.958 217.883 161.22 206.843 215.921C153.104 229.837 118.557 280.218 118.557 331.557C118.557 365.146 132.95 397.771 158.861 421.283C156.462 431.36 155.022 441.437 155.022 451.51C155.022 520.123 210.682 571.466 274.978 571.466C287.931 571.466 300.407 569.549 312.883 565.228C334.473 586.341 364.222 599.776 396.852 599.776Z"/>
-                                    </svg>
+                                <div @click="editWithAi" title="AI添削" class="message-icon-wrapper" style="width:28px">     
+                                    <AiIcon size="20" fill="var(--third-color)" :class="{'animate-pulse': editing}"/>
 
                                 </div>                                  
                                 <div @click="commentSendConfirm(1)" title="下書き保存" class="message-icon-wrapper mb-[2px]">
@@ -217,6 +216,7 @@ import UserPanel from '@/components/Global/UserPanel.vue'
 import { DateTime } from 'luxon'
 import {marked} from 'marked'
 import DOMPurify from 'dompurify';
+import AiIcon from '@/components/Icons/AiIcon.vue';
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -247,6 +247,7 @@ import DOMPurify from 'dompurify';
     const {notify, info, confirm} = inject('dialog')
     const filePreview = useFilePreview()
     const mentionBoxForced = ref(false)
+    const replyLoader = ref(false)
     
     onUnmounted(() => {
         messageInputArea.value?.removeEventListener('keyup', inputKeyEventfirst);  
@@ -355,26 +356,19 @@ import DOMPurify from 'dompurify';
             notify('適用するに失敗しました。');
         }                
     }
-    const editWithAi = async() => {
-        if(editing.value) return
-        const text = messageInputArea.value.textContent
+    const aiGenerator = async(instruction, text, type) => {
         if(text && text.length){
             try{
                 aiResponseCustomize.value = false          
                 editing.value = true
+                replyLoader.value = true
                 aiResponse.value = ''
                 const openai = new OpenAI({
                     apiKey: import.meta.env.VITE_OPENAI_API_KEY,
                     dangerouslyAllowBrowser: true 
                 });     
                 
-                const instructionText = `あなたは日本語の文章を添削するAIです。以下の文章を添削してください。
-                注意点：
-                1. 文法や表現の誤りを指摘し、正しい表現に修正してください。
-                2. 編集したテキストのみを出力してください。「修正後のテキストは以下の通りです。」などの前置きは不要です。
-                4. [To: $user_name :] こういうのがメンションのフォーマットですのでそのまま変更せず返してください。
-                5. URLやメールアドレスなどのURLはそのままにしてください。
-                `
+
                 const response = await openai.responses.create({
                     model: "gpt-4.1-mini",
                     input: [
@@ -383,7 +377,7 @@ import DOMPurify from 'dompurify';
                             "content": [
                                 {
                                     "type": "input_text",
-                                    "text": instructionText
+                                    "text": instruction
                                 }
                             ]
                         },
@@ -408,15 +402,19 @@ import DOMPurify from 'dompurify';
                 for await (const event of response) {
                     if (event.type === 'response.output_text.delta') {
                         rawText += event.delta; 
-
                         const markedText = marked.parse(rawText);
                         const sanitizedText = DOMPurify.sanitize(markedText);
-
-                        aiResponse.value = sanitizedText;
+                        if(type == 'edit'){
+                            aiResponse.value = sanitizedText;
+                        }else if(type == 'reply'){
+                            messageInputArea.value.textContent = rawText
+                        }
+                        
                     }
                     if (event.type === 'response.completed') {
                         editing.value = false
                         aiResponseCustomize.value = true   
+
                     }
                 }
             }catch(err){
@@ -424,18 +422,40 @@ import DOMPurify from 'dompurify';
                     console.log(err.status); 
                     console.log(err); 
                     if(err.status == 500){
-                        notify('ChatGPT修正に失敗しました。<br>ChatGPTサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                        notify('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
                     }else{
-                        notify('ChatGPT修正に失敗しました。<br>' + err.message)
+                        notify('AI修正に失敗しました。<br>' + err.message)
                     }
                     
                 } else {
-                    notify('ChatGPT修正に失敗しました。<br>' + err)
-                }
+                    notify('AI修正に失敗しました。<br>' + err)
+                }                            
+            } finally {
                 editing.value = false
-                aiResponseCustomize.value = true
+                replyLoader.value = false
             }        
         }
+    }
+    const replyAi = async(text) => {
+        const instruction = `挙げられたメッセージに適切な返信をしてください。
+        注意点：
+        1. 返信は日本語で行ってください。
+        2. 返信内容は、相手の意図を理解し、適切なトーンで行ってください。
+        3. できるだけビジネス日本語を使用してください。
+        `
+        await aiGenerator(instruction, text, 'reply')
+    }
+    const editWithAi = async() => {
+        if(editing.value) return
+        const text = messageInputArea.value.textContent
+        const instructionText = `あなたは日本語の文章を添削するAIです。以下の文章を添削してください。
+        注意点：
+        1. 文法や表現の誤りを指摘し、正しい表現に修正してください。
+        2. 編集したテキストのみを出力してください。「修正後のテキストは以下の通りです。」などの前置きは不要です。
+        4. [To: $user_name :] こういうのがメンションのフォーマットですのでそのまま変更せず返してください。
+        5. URLやメールアドレスなどのURLはそのままにしてください。
+        `
+        await aiGenerator(instructionText, text, 'edit')        
     }
     const setInput = (event) => {
         charLength.value = event.target.innerText.length

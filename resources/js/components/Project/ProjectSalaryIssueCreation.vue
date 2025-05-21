@@ -125,6 +125,7 @@ onMounted(async() => {
     cursor: pointer;
     border-right: solid thin var(--formBorder);
     border-bottom: solid thin var(--formBorder);
+    width: 32%;
 }
 .selectable-theme:hover{
     background: var(--bg2);
