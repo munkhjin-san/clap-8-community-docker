@@ -549,6 +549,13 @@ const createProject = async() => {
         notify('必須項目を入力してください。')
         return
     }
+    const membersIds = projectParams.members?.map((member: { id: number; }) => member.id) ?? []
+    const managerIds = projectParams.manager?.map((manager: { id: number; }) => manager.id) ?? []
+    const checkDuplicated = membersIds.filter((id: number) => managerIds.includes(id))
+    if(checkDuplicated.length > 0){
+        notify('メンバーと管理者に同じユーザーが含まれています。')
+        return
+    }
 
     const params = {
         id: props.editData?.id,
