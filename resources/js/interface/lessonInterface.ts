@@ -6,6 +6,7 @@ export interface Theme {
     lesson_portfolio: Portfolio;
     title: string;
     discussion_date: Date | string;
+    materials: LessonMaterial[];
 }
 export interface Portfolio {
     id: number;

@@ -163,7 +163,7 @@
                         <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px] mt-[10px]">{{ salaryIssueStatus[salaryIssueRecord.status] }}</div>
                     </div>
                     <div>
-                        <div class="text-[13px] font-semibold">評価課題</div>
+                        <div class="text-[13px] font-semibold">テーマ</div>
                         <div>{{ salaryIssueRecord.theme }}</div>
                     </div>
                     <div>
@@ -204,14 +204,14 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th class="w-[100px]">修得状況</th>
+                                        <th class="w-[80px]">修得状況</th>
                                         <th>修得要件</th>
-                                        <th>学習資料</th>
+                                        <th>学習内容</th>
                                     </tr>
                                 </thead>
                                 <tbody>                                    
                                     <tr v-for="action in salaryIssueRecord.actions">                                        
-                                        <td>
+                                        <td class="w-[80px] max-w-[80px] text-center">
                                             <select 
                                                 :disabled="!salaryIssueReport" 
                                                 :value="action.status" 
@@ -664,7 +664,7 @@ table{
 }
 td, th{
     padding: 10px;
-    border: solid thin var(--calendarBorder);
+    border: solid thin var(--formBorder);
 }
 th {
     font-weight: normal;

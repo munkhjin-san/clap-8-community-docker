@@ -380,4 +380,14 @@ class LessonController extends Controller
 
         return response()->json($themes, 200, [], JSON_UNESCAPED_UNICODE);
     }
+    public function get_theme_data(Request $request){
+        $theme = LessonTheme::where('title', $request->theme)
+        ->with(['materials' => function ($q) {
+            $q->where('priority', 0);
+        }])
+        ->first();
+        return response()->json([
+            'themeData' => $theme ?? null,
+        ]);
+    }
 }

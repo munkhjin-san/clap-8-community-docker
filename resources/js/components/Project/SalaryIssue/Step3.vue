@@ -1,5 +1,12 @@
 <template>
-    <div style="margin-top: 20px;">
+    <div class="mt-[20px] relative">
+        <Transition name="modalFade">
+            <div class="absolute bg-[var(--background-color)] w-full h-full top-0 left-0 flex items-cemter justify-center z-[6]" v-if="initialLoader">
+                <div id="loaderMini">
+                    <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                </div>
+            </div>
+        </Transition>
         <Transition name="modalFade">
             <AiLoader v-if="aiLoading" message="昇給課題をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
         </Transition>
@@ -152,6 +159,7 @@ import { useRoute } from 'vue-router';
 import { EvaluationRecord, EvaluationSkill } from '@/interface/evaluationInterface';
 import AiLoader from '@/components/Global/AiLoader.vue';
 import AiIcon from '@/components/Icons/AiIcon.vue';
+import { Theme } from '@/interface/lessonInterface';
 const emit = defineEmits([
     'close', 
     'next',
@@ -192,6 +200,8 @@ const kadaiSkillRef = useTemplateRef<InstanceType<typeof ShortInput>>('kadaiSkil
 const customInstructionRef = useTemplateRef<InstanceType<typeof LongInput>>('customInstructionRef')
 const learningResourcesParent = useTemplateRef('learningResourcesParent')
 const release = ref(props.editData && props.editData.id ? true : false)
+const learningThemeData = ref<Theme | null> (null)
+const initialLoader = ref(true)
 const learningResources = ref<{
     title: string,
     content: string
@@ -212,6 +222,7 @@ onMounted(() => {
 const getEvaluationData = async() => {
 
     try {
+        initialLoader.value = true
         const span = route.params.span as string
         const [year, which_half] = span.split('-')
         const response = await axios.post('/get_evaluation_data', {
@@ -221,9 +232,20 @@ const getEvaluationData = async() => {
         }).then(res => res.data)
         evaluationData.value = response && response.evaluation ? response.evaluation : null
         baseSkills.value = response && response.base_skills ? response.base_skills  : []
+
+        const themeResponse = await axios.get('/get_theme_data', {
+            params: {
+                theme: props.selectedTheme.title,
+                user_id: memberData.value?.id
+            }
+        }).then(res => res.data)
+        learningThemeData.value = themeResponse.themeData
         
     } catch (e) {
         // notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    }
+    finally {
+        initialLoader.value = false
     }
 }
 
@@ -266,6 +288,7 @@ const systemInstruction = () => {
         構成は以下の3点で構成され、**開発能力を1件に絞り、その構成要素（修得要件）を5件提示**することで、スキルの定着度を立体的かつ明確に評価可能とします。
 
         昇給課題の評価は、該当する成果目標（KGI＋KPI）が100％達成されたことを前提とし、さらに修得要件5件中3件以上が「修得済」と判定された場合に「昇給対象」とします。
+        特にテーマを重要視して、各テーマの説明文章に記載されている能力を成長させることが求められます。
 
         挙げられるデータは以下の通りです。
         1. テーマ: 
@@ -280,15 +303,15 @@ const systemInstruction = () => {
         ## ■ 出力構成（昇給課題）
 
         ### 1. 昇給課題タイトル（能力開発の方向性）（json-index: title）
-        - 内容：目指す人物像やスキル像を1文で表現（20〜30文字程度）
+        - 内容：テーマに即した、目指す人物像やスキル像を1文で表現（20〜30文字程度）
         - 例：「状況を構造的に捉え、仮説で動ける力を身につける」
 
 
         ### 2. 開発能力（1件）（json-index: skill_theme）
-        - 内容：昇給判断において評価対象とする主要能力（例：仮説構築力、論点整理力、傾聴力など）
+        - 内容：昇給判断において評価対象とするテーマに即した主要能力（例：仮説構築力、論点整理力、傾聴力など）
         - 補足（任意）：能力の定義（1行）
         ### 3. 修得要件（構成要素5件）（json-index: actions)
-        - 各開発能力を構成する5つのサブスキル・構成要素を明示
+        - 各開発能力を構成する、テーマに必要な5つのサブスキル・構成要素を明示
         - 各項目は以下の条件で出力する：
         - 各構成要素に対して「観察可能な行動・兆候・言動」の形で記述する
         - あいまいな表現（例：意識する、努力する）は禁止
@@ -338,9 +361,17 @@ const getAdvice = async() => {
         目標達成するためのKGI: ${props.chosenGoal.kgi}
         目標達成するためのKPI: ${props.chosenGoal.steps.map((item: any) => item.content).join('\n ')}
     `
+    let themeDetail = ''
+    if(learningThemeData.value){
+        let materials = learningThemeData.value.materials.map((item) => item.content).join('\n ')
+        const psuedoElement = document.createElement('div')
+        psuedoElement.innerHTML = materials
+        themeDetail = psuedoElement.innerText        
+    }
     let combined = `
-        テーマ: ${props.selectedTheme.title_full}
-        テーマ説明: ${props.selectedTheme.content}\n\n
+        テーマ: ${props.selectedTheme.title_full}\n
+        テーマ説明: ${props.selectedTheme.content}\n
+        テーマのラーニングコンテンツ: ${themeDetail}\n
         ${userDetail}\n\n
         ${goalDetail}\n\n 
         ユーザーの希望やカスタマ指示 : ${custom_instruction.value}       

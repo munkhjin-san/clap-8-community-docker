@@ -40,7 +40,7 @@
                 </table>
             </div>
             <div class="si-box">
-                <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">評価課題を選択</p>
+                <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">テーマを選択</p>
                 <table>
                     <thead>
                         <tr>

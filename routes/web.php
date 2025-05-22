@@ -424,6 +424,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_forms', [LessonController::class, 'get_forms']);
         Route::delete('/lesson_remove_summary', [LessonController::class, 'lesson_remove_summary']);
         Route::post('/save_summary_answers', [LessonController::class, 'save_summary_answers']);
+        Route::get('/get_theme_data', [LessonController::class, 'get_theme_data']);
         // Lessons
 
         // Project
