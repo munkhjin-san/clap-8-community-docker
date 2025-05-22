@@ -38,7 +38,10 @@
 
             <div v-if="hasPrivilage" class="project-detail-header">
                 <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">管理者用非公開メモ</span></div> 
-                <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.private_memo ?? '')"></div>
+                <div class="leading-normal mt-[10px]" ref="memoBody" :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease'}">
+                    <p ref="memoInnerBody" v-html="sanitized(selectedProject?.private_memo ?? '')"></p>
+                </div>
+                <div @click="toggleFull" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
             </div> 
 
             <div class="project-detail-header">
@@ -67,7 +70,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { inject } from 'vue';
+import { inject, onMounted, ref, useTemplateRef } from 'vue';
 import ItemMenu from '../../Global/ItemMenu.vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -78,7 +81,9 @@ import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
     const editProjects = inject('editProjects') as (project: any) => void
 
     const { selectedProject } = useProject()
-
+    const dynamicHeight = ref('auto')
+    const memoBody = useTemplateRef('memoBody')
+    const memoInnerBody = useTemplateRef('memoInnerBody')
 
 
     const sanitized = (text: string) => {
@@ -87,6 +92,15 @@ import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
         const markedText = marked.parse(clean) as string
         const saveText = DOMPurify.sanitize(markedText)
         return saveText
+    }
+    onMounted(() => {
+        if(memoBody.value && memoBody.value?.clientHeight > 42){
+            dynamicHeight.value = '42px'
+        }
+              
+    })
+    const toggleFull = () => {
+        dynamicHeight.value = dynamicHeight.value == '42px' ? `${memoInnerBody.value?.clientHeight}px` : '42px'
     }
 
 </script>
