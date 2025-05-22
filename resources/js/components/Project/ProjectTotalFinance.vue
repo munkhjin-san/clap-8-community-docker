@@ -61,7 +61,7 @@
                 </div>
 
                 <div class="projectModalContent relative !overflow-hidden">
-                    <div class="cal-month-loader" style="height: 100%; top: 0;" v-if="loader">
+                    <div class="cal-month-loader" style="height: 100%; top: 0;opacity: 0.6;" v-if="loader">
                         <div id="loaderMini">
                             <div class="spinner-mini"
                                 style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
@@ -79,7 +79,22 @@
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar' }]">棒グラフ</button>
                             </div>
                             <div class="flex items-center gap-[20px] relative w-full justify-end">
-                                <button @click.stop="menu.setMenu({parent: 'intervalPicker'})" class="cursor-pointer">{{ `${interval.startYear}年${interval.startMonth}月  ~  ${interval.endYear}年${interval.endMonth}月` }}</button>
+                                <button @click="adjustByOne(-1)" class="flex items-center justify-center h-[30px] w-[30px] min-w-[30px]" v-if="interval.startYear == interval.endYear && interval.startMonth == interval.endMonth">
+                                    <Back size="13"/>
+                                </button>
+                                <button @click.stop="menu.setMenu({parent: 'intervalPicker'})" class="cursor-pointer text-[15px]">
+                                    <template v-if="interval.startYear == interval.endYear && interval.startMonth == interval.endMonth">
+                                        {{ `${interval.startYear}年${interval.startMonth}月` }}
+                                    </template>
+                                    <template v-else>
+                                        <span>{{ `${interval.startYear}年${interval.startMonth}月` }}</span>
+                                        <span class="text-[var(--primary-color)] mx-[10px]">~</span>
+                                        <span>{{ `${interval.endYear}年${interval.endMonth}月` }}</span>
+                                    </template>
+                                </button>
+                                <button @click="adjustByOne(1)" class="flex items-center justify-center h-[30px] w-[30px] min-w-[30px]" v-if="interval.startYear == interval.endYear && interval.startMonth == interval.endMonth">
+                                    <Back size="13" class="rotate-180"/>
+                                </button>
                                 <Transition name="slidePop">
                                     <div v-if="menu.parent == 'intervalPicker'" id="intervalPicker" class="absolute top-[30px] right-0 shadow-me p-[20px] z-[5] bg-[var(--background-color)]">
                                         <div class="flex items-center gap-[20px]">
@@ -463,6 +478,7 @@ import PieChart from './ProjectTabs/Finance/PieChart.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import OptionSelector from '../Form/OptionSelector.vue';
 import { useTheme } from '@/store/theme';
+import Back from '../Icons/Back.vue';
 
 
 
@@ -633,6 +649,19 @@ const setIntervalData = () => {
         interval.endMonth = Number(endMonthRef.value.value) as MonthNumbers
         getTotalFinance()
     }
+}
+const adjustByOne = (value:number) => {
+    const instance = DateTime.fromObject({
+        year: interval.startYear,
+        month: interval.startMonth
+    })
+    if(!instance.isValid) return
+    const newDate = instance.plus({ months: value })
+    interval.startYear = newDate.year
+    interval.startMonth = newDate.month
+    interval.endYear = newDate.year
+    interval.endMonth = newDate.month
+    getTotalFinance()
 }
 </script>
 
