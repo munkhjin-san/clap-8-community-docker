@@ -14,9 +14,21 @@
             </div>
             <div v-for="goal in projectGoals" style="position: relative">            
                 <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-approval', params: { goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
-                    <div>
+                    <div v-if="goal?.title">
+                        <div>タイトル</div>
+                        <div class="kadai-content">{{ sliceGoal(goal?.title) }}</div>
+                    </div>
+                    <div v-if="goal?.outcome_goal">
                         <div>成果目標</div>
                         <div class="kadai-content">{{ sliceGoal(goal?.outcome_goal) }}</div>
+                    </div>
+                    <div v-if="goal?.miso">
+                        <div>MISO</div>
+                        <div class="kadai-content">{{ sliceGoal(goal?.miso) }}</div>
+                    </div>
+                    <div v-if="goal?.kgi">
+                        <div>KGI</div>
+                        <div class="kadai-content">{{ sliceGoal(goal?.kgi) }}</div>
                     </div>
                     <div>
                         <div>期間</div>
@@ -97,7 +109,8 @@ const responsive = useResponsive()
 const router = useRouter()
 const emit = defineEmits(['close'])
 const route = useRoute()
-const sliceGoal = (content: string) => {
+const sliceGoal = (content?: string) => {
+    if (!content) return ''
     const truncatedGoal = content.length > 100 
     ? content.slice(0, 100) + '...' 
     : content;

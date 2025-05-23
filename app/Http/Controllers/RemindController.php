@@ -408,7 +408,7 @@ class RemindController extends Controller
                 });
         })
         ->orWhereHas('salary_issues', function ($query) {
-            $query->where(function ($subQuery) {
+            $query->whereHas('project_goal')->where(function ($subQuery) {
                 $subQuery->where('status', 3)
                     ->orWhere('status', 9);
             });
@@ -425,13 +425,12 @@ class RemindController extends Controller
                     ->with(['salaryIssue', 'project']);
             },
             'salary_issues' => function ($query) {
-                $query->where(function ($subQuery) {
+                $query->whereHas('project_goal')->where(function ($subQuery) {
                     $subQuery->where('status', 3)
                         ->orWhere('status', 9);
                 });
             }
-        ])
-            ->get();
+        ])->select('id', 'name', 'icon_path', 'icon_bg')->get();
     }
     
     private function getUserMembers($userId) {
