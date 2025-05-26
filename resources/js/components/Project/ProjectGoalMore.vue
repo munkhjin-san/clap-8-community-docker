@@ -206,7 +206,7 @@
                                     <tr>
                                         <th class="w-[80px]">修得状況</th>
                                         <th>修得要件</th>
-                                        <th>学習内容</th>
+                                        <th>ガイドライン</th>
                                     </tr>
                                 </thead>
                                 <tbody>                                    

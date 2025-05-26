@@ -1,7 +1,7 @@
 <template>
     <Modal @close="emit('close')">
         <template #title>
-            <p>成果目標作成</p>
+            <p>{{editGoalData && editGoalData.id ? '成果目標編集' : '成果目標作成'}}</p>
         </template>
         <template #content>
             <AiLoader v-if="aiLoading" message="成果目標をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>

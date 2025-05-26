@@ -11,7 +11,7 @@
             <AiLoader v-if="aiLoading" message="昇給課題をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
         </Transition>
         <Transition name="modalFade">
-            <AiLoader v-if="resourceLoading" message="学習資料をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
+            <AiLoader v-if="resourceLoading" message="ガイドラインをAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
         </Transition>       
         
         <div v-if="selectedTheme">
@@ -102,14 +102,14 @@
 
                 </div>
                 <div class="si-box">                    
-                    <LoaderButton :loading="resourceLoading" content="学習資料を生成する" style="margin: 0; margin-top: 15px;" @triggered="generateLearningResources">
+                    <LoaderButton :loading="resourceLoading" content="ガイドラインを生成する" style="margin: 0; margin-top: 15px;" @triggered="generateLearningResources">
                         <template #icon>
                             <AiIcon :size="20" fill="#fff" class="mr-[5px]"/>
                         </template>
                     </LoaderButton>
                 </div>    
                 <div v-if="learningResources.length" class="si-box" ref="learningResourcesParent">
-                    <p class="mb-[20px]">学習資料</p>
+                    <p class="mb-[20px]">ガイドライン</p>
                     <div class="flex flex-col gap-[20px]">
                         <div v-for="(resource, index) in learningResources" :key="index">
                             <h3 class="text-[14px] font-bold mb-[10px]">{{ resource.title }}</h3>
@@ -134,7 +134,7 @@
 
 
                 
-                <div v-if="release && !aiLoading" class="si-box justify-center flex gap-[15px] flex-wrap">
+                <div v-if="release && !aiLoading && learningResources.length" class="si-box justify-center flex gap-[15px] flex-wrap">
                     <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="saving" @triggered="saveTemplateConfirm" content="保存"/>
                     <LoaderButton v-if="!reviewLoading" style="margin: 0" :loading="attaching" @triggered="applyToManagementConfirm" content="メンターへ申請"/>
                     
@@ -205,7 +205,12 @@ const initialLoader = ref(true)
 const learningResources = ref<{
     title: string,
     content: string
-}[]>([])
+}[]>(props.editData && props.editData.id && props.editData?.actions ? props.editData.actions.map((item) => {
+    return {
+        title: item.learning_title,
+        content: item.learning_content
+    }
+}) : [])
 const keys = ref({
     content: 0,
     content_goal: 0
@@ -521,7 +526,7 @@ const saveTemplate = async(_action, status) => {
         return
     }
     if(!learningResources.value.length || learningResources.value.length !== actions.value.length){
-        notify('学習資料が未生成です。')
+        notify('ガイドラインが未生成です。')
         return
     }
     try{
@@ -561,7 +566,10 @@ const saveTemplate = async(_action, status) => {
 
 }
 const applyToManagementConfirm = async() => {
-    
+    if(!actions.value.length){
+        notify('修得要件が未入力です。')
+        return
+    }
     
     const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
     if(!answer.value) return
@@ -603,12 +611,12 @@ const generateLearningResources = async() => {
             }
         }
     }
-    const confirmed = await confirm('学習資料を生成します。\n生成後は修得要件が編集出来なくなります\nよろしいでしょうか？')
+    const confirmed = await confirm('ガイドラインを生成します。\n生成後は修得要件が編集出来なくなります\nよろしいでしょうか？')
     if(!confirmed.value) return
 
     const actionsList = actions.value.map((item: any) => item.content).join('\n ')
     let prompt = `
-        昇給課題の修得スキルの学習資料を生成してください。
+        昇給課題の修得スキルのガイドラインを生成してください。
         この昇給課題は、以下の成果指標を達成するために必要なスキルを習得することを目的としています。
 
         --------------------------------------
@@ -632,10 +640,10 @@ const generateLearningResources = async() => {
         --------------------------------------
 
 
-        上記の条件に基づいて、各修得スキルごとに対して300-500文字で学習資料を生成してください。
+        上記の条件に基づいて、各修得スキルごとに対して300-500文字でガイドラインを生成してください。
         アウトプットのフォーマットは
         title: 修得スキルをそのまま記載
-        content: 学習資料の内容を記載     
+        content: ガイドラインの内容を記載     
         
         contentは読みやすく、ホワイトスペースを使用してください。
         ※markdownを利用しないでください。
@@ -677,11 +685,11 @@ const generateLearningResources = async() => {
                                     "properties": {
                                         "title": { 
                                             "type": "string" ,
-                                            "description": "学習資料のタイトル"
+                                            "description": "ガイドラインのタイトル"
                                         },
                                         "content": { 
                                             "type": "string",
-                                            "description": "学習資料の内容" 
+                                            "description": "ガイドラインの内容" 
 
                                         }
                                     },
@@ -708,7 +716,7 @@ const generateLearningResources = async() => {
                     }
                 })
             }   
-            info('学習資料を生成しました。内容を確認してください。')
+            info('ガイドラインを生成しました。内容を確認してください。')
             setTimeout(() => {
                 learningResourcesParent.value?.scrollIntoView({
                     behavior: 'smooth',
