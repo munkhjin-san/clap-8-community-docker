@@ -27,7 +27,11 @@
                             <div v-if="goal?.outcome_goal">
                                 <div>成果目標</div>
                                 <div class="kadai-content">{{ sliceGoal(goal?.outcome_goal) }}</div>
-                            </div>                           
+                            </div>     
+                            <div v-if="goal?.title">
+                                <div>タイトル</div>
+                                <div class="kadai-content">{{ goal?.title }}</div>
+                            </div>                
                             <div v-if="goal?.miso">
                                 <div>MISO</div>
                                 <div class="kadai-content">{{ sliceGoal(goal?.miso) }}</div>
