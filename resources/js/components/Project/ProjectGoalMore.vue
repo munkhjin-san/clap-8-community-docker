@@ -211,7 +211,7 @@
                                 </thead>
                                 <tbody>                                    
                                     <tr v-for="action in salaryIssueRecord.actions">                                        
-                                        <td class="w-[80px] max-w-[80px] text-center">
+                                        <td class="w-[80px] max-w-[110px] text-center">
                                             <select 
                                                 :disabled="!salaryIssueReport" 
                                                 :value="action.status" 
@@ -614,6 +614,9 @@ const kpiCalculation = (steps: any) => {
     return 0
 }
 const overallScore = computed(() => {
+    if(!props.goal.steps || props.goal.steps.length === 0) {
+        return props.goal.achievement_rate
+    }
     const kpi = kpiCalculation(props.goal.steps)
     const kgi = props.goal.achievement_rate
     const sum = kpi + kgi

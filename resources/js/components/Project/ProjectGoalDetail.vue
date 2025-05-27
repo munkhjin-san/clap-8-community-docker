@@ -285,6 +285,7 @@ const kpiCalculation = (steps: any) => {
     return 0
 }
 const overallScore = (goal: ProjectGoal) => {
+    if(!goal.steps || goal.steps.length === 0) return goal.achievement_rate
     const kpi = kpiCalculation(goal.steps)
     const kgi = goal.achievement_rate
     const sum = kpi + kgi
