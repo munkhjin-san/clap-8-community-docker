@@ -1615,6 +1615,7 @@ class ProjectController extends Controller
         $plan_expense_index_3 = array_search('合計 販管費その他', $sub_headers_for_target_month);
         $plan_expense_index_4 = array_search('合計 間接費配賦', $sub_headers_for_target_month);
         $plan_expense_index_5 = array_search('合計 内部発注合計', $sub_headers_for_target_month);
+        $plan_expense_index_6 = array_search('業績連動型賞与引当金', $sub_headers_for_target_month);
 
         $profit_index = array_search('利益', $sub_headers_for_target_month);
         $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
@@ -1628,7 +1629,7 @@ class ProjectController extends Controller
         foreach($projectsData as $project){
             $planData = [];
             $totalSales = round((float) $project[$plan_sales_index_1] + (float) $project[$plan_sales_index_2], 0, PHP_ROUND_HALF_UP);
-            $totalExpense = round((float)  $project[$plan_expense_index_1] + (float) $project[$plan_expense_index_2] + (float) $project[$plan_expense_index_3] + (float) $project[$plan_expense_index_4] + (float) $project[$plan_expense_index_5], 0, PHP_ROUND_HALF_UP);
+            $totalExpense = round((float)  $project[$plan_expense_index_1] + (float) $project[$plan_expense_index_2] + (float) $project[$plan_expense_index_3] + (float) $project[$plan_expense_index_4] + (float) $project[$plan_expense_index_5] + (float) $project[$plan_expense_index_6], 0, PHP_ROUND_HALF_UP);
             $planData = [
                 "sales" => $totalSales,
                 "expense" => $totalExpense,
@@ -2072,11 +2073,12 @@ class ProjectController extends Controller
                     $plan_expense_index_3 = array_search('合計 販管費その他', $sub_headers_for_target_month);
                     $plan_expense_index_4 = array_search('合計 間接費配賦', $sub_headers_for_target_month);
                     $plan_expense_index_5 = array_search('合計 内部発注合計', $sub_headers_for_target_month);
+                    $plan_expense_index_6 = array_search('業績連動型賞与引当金', $sub_headers_for_target_month);
 
                     $profit_index = array_search('利益', $sub_headers_for_target_month);
                     $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
                     $totalSales = round((float) $projectsData[$plan_sales_index_1] + (float) $projectsData[$plan_sales_index_2], 0, PHP_ROUND_HALF_UP);
-                    $totalExpense = round((float)  $projectsData[$plan_expense_index_1] + (float) $projectsData[$plan_expense_index_2] + (float) $projectsData[$plan_expense_index_3] + (float) $projectsData[$plan_expense_index_4] + (float) $projectsData[$plan_expense_index_5], 0, PHP_ROUND_HALF_UP);
+                    $totalExpense = round((float)  $projectsData[$plan_expense_index_1] + (float) $projectsData[$plan_expense_index_2] + (float) $projectsData[$plan_expense_index_3] + (float) $projectsData[$plan_expense_index_4] + (float) $projectsData[$plan_expense_index_5] + (float) $projectsData[$plan_expense_index_6], 0, PHP_ROUND_HALF_UP);
                     $planData = [
                         "sales" => $totalSales,
                         "expense" => $totalExpense,
