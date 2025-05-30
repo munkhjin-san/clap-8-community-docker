@@ -37,7 +37,7 @@ import { useMenuStore } from "@/store/menu";
         return props.possiblePage
     })
     watch(() => props.activePath, (after) => {
-        const el = document.getElementById('pagerButton_' + after).scrollIntoView({behavior: "smooth", block: "center"})
+        const el = document.getElementById('pagerButton_' + after)?.scrollIntoView({behavior: "smooth", block: "center"})
     })
     const setNavi = (index) => {
         if((props.possiblePage == props.activePath && index == 1) || (props.activePath == 1 && index == -1))return

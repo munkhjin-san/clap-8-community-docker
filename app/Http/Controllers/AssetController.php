@@ -164,11 +164,12 @@ class AssetController extends Controller
         ]);
         $data = $assets->orderBy('created_at', 'desc');
 
-        if($mode == 'normal'){
+        // if($mode == 'normal'){
             $data = $data->paginate(30);
-        }else{
-            $data = $data->get();
-        }
+        // }
+        // else{
+        //     $data = $data->get();
+        // }
 
         return response()->json($data);
     }
