@@ -208,4 +208,12 @@ class User extends Authenticatable
     public function task_users() {
         return $this->hasMany(taskUser::class);
     }
+    public function related_projects()
+    {
+        return $this->belongsToMany(ProjectRecord::class, 'project_members', 'user_id', 'project_id');
+    }
+    public function assets()
+    {
+        return $this->hasMany(AssetRecord::class);
+    }
 }

@@ -419,5 +419,23 @@ class AssetController extends Controller
         return Excel::download(new AssetData($rawData), 'user_data.xlsx');
         // return response()->json($rawData);
     }
+    public function get_asset_users(Request $request) 
+    {
+        $request->validate([
+            'project_id' => 'required|integer',
+        ]);
+        $projectId = $request->project_id;
+        $users = User::where('deleted_flag', 0)
+            ->whereHas('assets', function ($query) use ($projectId) {
+                $query->where('project_id', $projectId);
+            })
+            ->orWhereHas('related_projects', function ($query) use ($projectId) {
+                $query->where('project_records.id', $projectId);
+            })
+            ->where('retire', 0)
+            ->select('id', 'name', 'icon_path', 'icon_bg')
+            ->get();
+        return response()->json($users);
+    }
 
 }

@@ -144,7 +144,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'survey', 
         'remind',
         'contact',
-        'asset-partner'
+        'asset-partner',
+        'survey-answers'
     ])->where('any', '.*')->name('board');
     Route::get('/user_icon_thumbnail/{path}/{size}/{color?}', [ContentController::class, 'user_icon_thumbnail']);
     Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController::class, 'user_default_thumbnail']);
@@ -319,6 +320,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_schedule_summaries', [CalendarController::class, 'get_schedule_summaries']);
         Route::put('/save_edited_summary', [CalendarController::class, 'save_edited_summary']);
         Route::delete('/delete_schedule_summary', [CalendarController::class, 'delete_schedule_summary']);
+        Route::post('/calendar_temp_reserve', [CalendarController::class, 'calendar_temp_reserve']);
+        Route::get('/all_facility_items', [CalendarController::class, 'all_facility_items']);
 
         Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
@@ -497,6 +500,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_survey_answers', [CustomFormController::class, 'get_survey_answers']);
         Route::delete('/delete_custom_form', [CustomFormController::class, 'delete_custom_form']);
         Route::post('/get_authorized_users', [CustomFormController::class, 'get_authorized_users']);
+        Route::get('/get_my_surveys', [CustomFormController::class, 'get_my_surveys']);
 
         //Contact
         Route::post('contact_item', [ContactController::class, 'create_contact']);
@@ -529,6 +533,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_possible_projects_by_user', [AssetController::class, 'get_possible_projects_by_user']);
 
         Route::get('/get_possible_members', [AssetController::class, 'get_possible_members']);
+        Route::get('/get_asset_users', [AssetController::class, 'get_asset_users']);
         Route::post('/create_asset', [AssetController::class, 'create_asset']);
         Route::get('/get_assets', [AssetController::class, 'get_assets']);       
         Route::get('/admin_asset_list', [AssetController::class, 'admin_asset_list']);       

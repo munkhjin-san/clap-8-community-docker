@@ -6,7 +6,7 @@
                     <AssetTableHeader 
                         :columns="['GL番号', '品名', '型番', '使用者', '分類', '価値', 'ステータス']"
                         :projects="[]" 
-                        :users="[...selectedProject?.members ?? [], ...selectedProject?.manager ?? []]"
+                        :users="assetUsers"
                         :offices="[]"
                         v-model:user_id="searchQuery.user_id"
                         v-model:project_id="searchQuery.project_id"
@@ -112,6 +112,7 @@ import AssetStatus from 'assets/AssetStatus.json'
 import { useAuthUserStore } from '@/store/auth';
 import AssetTableHeader from '../AccountControl/AssetControl/AssetTableHeader.vue';
 import { useRoute } from 'vue-router';
+import { User } from '@/interface/globalInterface';
 const props = defineProps<{
     selectedProject?: Project;
     userList: any;
@@ -163,6 +164,7 @@ const fetchCount = ref(0)
 
 const selectedAssetIds = ref<number[]>([])
 const setLoader = inject('setLoader') as (flag: boolean) => void
+const assetUsers = ref<User[]>([])
 
 
 watch([userQuery, classQuery, statusQuery], () => {
@@ -178,8 +180,23 @@ onMounted(() => {
     getAssets()
     getPossibleMembers()
     getPossibleProjects()
+    getAssetUsers()
+
+
 
 })
+const getAssetUsers = async() => {
+    try {
+        const response = await axios.get('/get_asset_users', {
+            params: {
+                project_id: props.selectedProject?.id,
+            }
+        })
+        assetUsers.value = response.data
+    } catch (e) {
+
+    }
+}
 const createAble = computed(() => {
     const privilage = props.mode === 'admin' || props.mode === 'partner' 
     const allMembers = [...props.selectedProject?.members ?? [], ...props.selectedProject?.manager ?? []]
