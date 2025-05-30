@@ -421,10 +421,19 @@ class AssetController extends Controller
     }
     public function get_asset_users(Request $request) 
     {
-        $request->validate([
-            'project_id' => 'required|integer',
-        ]);
+        
+        
+        $mode = $request->mode ?? 'normal';
+        if($mode !== 'partner'){
+            $request->validate([
+                'project_id' => 'required|integer',
+            ]);
+        }
         $projectId = $request->project_id;
+        if($mode == 'partner'){
+            return response()->json([Auth::user()->only('id', 'name', 'icon_path', 'icon_bg')]);
+        }
+        
         $users = User::where('deleted_flag', 0)
             ->whereHas('assets', function ($query) use ($projectId) {
                 $query->where('project_id', $projectId);

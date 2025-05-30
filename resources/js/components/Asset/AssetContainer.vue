@@ -190,6 +190,7 @@ const getAssetUsers = async() => {
         const response = await axios.get('/get_asset_users', {
             params: {
                 project_id: props.selectedProject?.id,
+                mode: props.mode,
             }
         })
         assetUsers.value = response.data
