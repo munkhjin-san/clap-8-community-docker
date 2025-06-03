@@ -70,6 +70,12 @@ export function useProject() {
         }
         return null
     })
+    const isManager = computed(() => {
+        const project = selectedProject.value;
+        if (!project) return false;
+        const managerArray = Array.isArray(project.manager) ? project.manager : []
+        return managerArray.some((member: { id: number | null; }) => member && member.id === auth.id);
+    })
     const isManagerOrMember = computed(() => {
         if (memberData.value && memberData.value.pivot.authority === 1) {
             return selectedProject.value?.director_id === auth.id
@@ -93,6 +99,7 @@ export function useProject() {
         usersProjects,
         memberData,
         isManagerOrMember,
+        isManager
         
     };
 }
