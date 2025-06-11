@@ -516,7 +516,7 @@ progress {
 .message-icon-outer {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 15px;
 }
 
 .message-icon-wrapper {
@@ -6779,10 +6779,6 @@ button.shift-button{
 
   .users-list-popup {
     min-width: 50%;
-  }
-
-  .message-icon-outer {
-    gap: 8px;
   }
 
   .login-plc {
