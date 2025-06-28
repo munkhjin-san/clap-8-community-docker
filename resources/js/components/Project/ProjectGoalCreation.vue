@@ -10,7 +10,7 @@
             </div>
             <div class="si-box">
                 <p :class="['form-title-small', 'form-title-active', 'mb-[20px]' ]">該当部門選択（必須）</p>
-                <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="selectedProject">
+                <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="targetProject">
                     <option v-for="project in usersProjects" :value="project">{{ project.name }}</option>
                 </select>
             </div>
@@ -191,7 +191,7 @@
     </Modal>
 </template>
 <script setup lang="ts">
-import { ProjectGoal } from '@/interface/projectInterface';
+import { Project, ProjectGoal } from '@/interface/projectInterface';
 import { inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import ShortInput from '../Form/ShortInput.vue';
 import LongInput from '../Form/LongInput.vue';
@@ -236,7 +236,6 @@ const goalParams = reactive<Partial<ProjectGoal>>( props.editGoalData ? {...prop
     }]
 })
 
-const { usersProjects } = useProject()
 
 const loading = ref(false)
 const startDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
@@ -258,7 +257,9 @@ const keys = reactive({
     miso: 0
 })
 const release = ref(props.editGoalData && props.editGoalData.id ? true : false)
-const { selectedProject } = useProject()
+const { selectedProject, usersProjects } = useProject()
+
+const targetProject = ref<Project | null>(selectedProject.value || null)
 
 const goalTitleRef = useTemplateRef<InstanceType<typeof ShortInput>>('goalTitleRef')
 const misoRef = useTemplateRef<InstanceType<typeof LongInput>>('misoRef')
@@ -363,12 +364,12 @@ const getAdvice = async() => {
     }
 
     const projectDetails = `
-        プロジェクト名: ${selectedProject.value?.name}
-        概要: ${selectedProject.value?.overview}
-        ミッション: ${selectedProject.value?.mission}
-        イノベーション、: ${selectedProject.value?.innovation}
-        ストラテジー: ${selectedProject.value?.strategy_miso}
-        オペレーション: ${selectedProject.value?.operation}
+        プロジェクト名: ${targetProject.value?.name}
+        概要: ${targetProject.value?.overview}
+        ミッション: ${targetProject.value?.mission}
+        イノベーション、: ${targetProject.value?.innovation}
+        ストラテジー: ${targetProject.value?.strategy_miso}
+        オペレーション: ${targetProject.value?.operation}
     `
 
    
@@ -573,7 +574,7 @@ const saveOutcomeGoal = async(status: number) => {
         date: props.selectedDate.evaluationDate,
         steps: goalParams.steps,
         params: {
-            project_id: selectedProject.value?.id,
+            project_id: targetProject.value?.id,
             user_id: route.params.memberId,
             start_date: goalParams.start_date,
             end_date: goalParams.end_date,
