@@ -9,7 +9,7 @@
             </div>
             <div class="sub-tab-container mb-[20px] ml-[20px]">
                 <div @click="router.push({name: 'tab1'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'tab1'}]">コミュニティメンバー</div>
-                <div @click="router.push({name: 'tab2'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'tab2'}]">コンタクト</div>              
+                <!-- <div @click="router.push({name: 'tab2'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'tab2'}]">コンタクト</div>               -->
             </div> 
         </div>
         <div class="relative h-[calc(100%-115px)]">
