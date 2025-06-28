@@ -7,6 +7,7 @@ use App\Models\customFieldDataRecord;
 use App\Models\shiftRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class CustomfieldController extends Controller{
 
@@ -46,8 +47,9 @@ class CustomfieldController extends Controller{
     }
 
     public function saveWeather(Request $request){
-        $exists = customFieldDataRecord::where('user_id', Auth::id())->where('date', $request->today)->where('field_id', 7)->where('type_id', 43)->where('app_name', 'work')->get();
-
+        $today = Carbon::now()->format('Y-m-d');
+        $exists = customFieldDataRecord::where('user_id', Auth::id())->where('date', $today)->where('field_id', 7)->where('type_id', 43)->where('app_name', 'work')->get();
+        
         if(count($exists)){
             foreach($exists as $exist){
                 $exist->update(['value_int' => $request->value]);
@@ -59,7 +61,7 @@ class CustomfieldController extends Controller{
             $custom_field_data->field_id = 7;
             $custom_field_data->type_id = 43;
             $custom_field_data->app_name = 'work';
-            $custom_field_data->date = $request->today;
+            $custom_field_data->date = $today;
             $custom_field_data->user_id = $auth_user_id;
             $custom_field_data->value_int = $request->value;
             $custom_field_data->save();

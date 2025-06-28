@@ -48,6 +48,8 @@ class GenerateWelcomeMessage implements ShouldQueue
             例1：今日は『〇〇の日』です。△△しましょう。
             フォーマットは：本日は『〇〇日』です。△△。
             NGな例：今日は『〇月〇日』です。
+            注意：作成したメッセージのみを返してください。
+            「承知しました」や「了解しました」などの前置きは不要です。
         EOD;
         $payload = [
             'contents' => [

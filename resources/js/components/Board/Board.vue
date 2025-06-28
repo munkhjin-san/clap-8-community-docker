@@ -526,23 +526,29 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         queuedMessages.value = []
         getUnsentMessages(item.id)
         resetReplyQuot()
-        if(second_atr !== 'search'){
-            if(urlMessage.id){
-                const atr = {
-                    id: urlMessage.id,
-                    record_id: item.id
-                }
-                jumpToMessage(atr)
-            }else{                
-                getMessageList('first_load');
-            }            
-        }           
+                 
            
-        trayComponentKey.value ++;
-        searchWindowKey.value ++;
+
         routeWatchLock.value = true
-        microLoader.value = false
+
         router.push(`/board/${item.id}`);
+        setTimeout(() => {
+            if(second_atr !== 'search'){
+                if(urlMessage.id){
+                    const atr = {
+                        id: urlMessage.id,
+                        record_id: item.id
+                    }
+                    jumpToMessage(atr)
+                }else{                
+                    getMessageList('first_load');
+                }            
+            }  
+            microLoader.value = false
+            trayComponentKey.value ++;
+            searchWindowKey.value ++;
+        });
+
         setTimeout(() => {
             routeWatchLock.value = false
         }, 100);
@@ -561,15 +567,16 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
     }
     const getMessageList = async(source?:string, queue?:any, chatId?:number) => {
         if(!openedBoard.value) return    
-
-        const response = await api.post('/get_messages', { record_id: openedBoard.value.id, page_index: pageIndex.value })
+        const boardId = Number(route.params.chatId)
+        if(!boardId) return
+        const response = await api.post('/get_messages', { record_id: boardId, page_index: pageIndex.value })
         if(queue){
             removeError(queue.id)
             let box = document.getElementById('queueMessage_' + queue.u_id);                       
             if(box){                            
                 box.style.display = 'none'
             }
-            getUnsentMessages(openedBoard.value.id)
+            getUnsentMessages(boardId)
             const data = {
                 active: false,
                 id: null,
@@ -587,7 +594,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         }
         infiniteLock.value = currentLen.value == messageList.value.length
         if(source == 'first_load'){                    
-            badge.updateBoardBadge(openedBoard.value?.id)
+            badge.updateBoardBadge(boardId)
         }                  
         messageLoader.value = false
         
