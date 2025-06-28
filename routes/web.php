@@ -322,6 +322,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/delete_schedule_summary', [CalendarController::class, 'delete_schedule_summary']);
         Route::post('/calendar_temp_reserve', [CalendarController::class, 'calendar_temp_reserve']);
         Route::get('/all_facility_items', [CalendarController::class, 'all_facility_items']);
+        Route::post('/calendar_temp_confirm', [CalendarController::class, 'calendar_temp_confirm']);
 
         Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
@@ -472,7 +473,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_task_comment_badge', [ProjectController::class, 'get_task_comment_badge']);
         Route::get('/get_dispatch_data', [ProjectController::class, 'get_dispatch_data']);
         Route::get('/get_total_finance', [ProjectController::class, 'get_total_finance']);
-        Route::post('/gemini_preview', [ProjectController::class, 'gemini_preview']);
         Route::post('/set_project_goal_step_status', [ProjectController::class, 'set_project_goal_step_status']);
         Route::post('/project_goal_report_create', [ProjectController::class, 'project_goal_report_create']);
         Route::post('/get_previous_goals', [ProjectController::class, 'get_previous_goals']);
@@ -501,6 +501,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/delete_custom_form', [CustomFormController::class, 'delete_custom_form']);
         Route::post('/get_authorized_users', [CustomFormController::class, 'get_authorized_users']);
         Route::get('/get_my_surveys', [CustomFormController::class, 'get_my_surveys']);
+        Route::get('/get_board_forms', [CustomFormController::class, 'get_board_forms']);
+
 
         //Contact
         Route::post('contact_item', [ContactController::class, 'create_contact']);
@@ -512,18 +514,21 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('get_contact_types', [ContactController::class, 'get_contact_types']);
 
         // Remind
-        Route::get('/not_submitted', [RemindController::class, 'notSubmitted']);
-        Route::get('/get_unsigned_messages', [RemindController::class, 'getUnsignedUsers']);
-        Route::get('/get_unchecked_messages', [RemindController::class, 'getUncheckedMessage']);
-        Route::get('/task_not_approved', [RemindController::class, 'task_not_approved']);
-        Route::get('/project_not_approved', [RemindController::class, 'project_not_approved']);
-        Route::get('/not_approved', [RemindController::class, 'not_approved']);
-        Route::get('/get_temp_data', [RemindController::class, 'get_temp_data']);
-        Route::get('/get_remind_messages', [RemindController::class, 'getRemindMessage']);
-        Route::get('/get_not_started_tasks', [RemindController::class, 'get_not_started_tasks']);
-        Route::get('/get_not_completed_tasks', [RemindController::class, 'get_not_completed_tasks']);
-        Route::get('/get_remind_badge', [RemindController::class, 'get_remind_badge']);
-        Route::get('/get_not_answered_forms', [RemindController::class, 'get_not_answered_forms']);
+        Route::get('/remind_attendance', [RemindController::class, 'remind_attendance']);
+        Route::get('/remind_unsigned_messages', [RemindController::class, 'remind_unsigned_messages']);
+        Route::get('/remind_unchecked_messages', [RemindController::class, 'remind_unchecked_messages']);
+        Route::get('/remind_task_not_approved', [RemindController::class, 'remind_task_not_approved']);
+        Route::get('/remind_project_not_approved', [RemindController::class, 'remind_project_not_approved']);
+        Route::get('/remind_timesheet', [RemindController::class, 'remind_timesheet']);
+        Route::get('/remind_planned_leave', [RemindController::class, 'remind_planned_leave']);
+        Route::get('/remind_reminded_messages', [RemindController::class, 'remind_reminded_messages']);
+        Route::get('/remind_task_untouched', [RemindController::class, 'remind_task_untouched']);
+        Route::get('/remind_task_unfinished', [RemindController::class, 'remind_task_unfinished']);
+        Route::get('/remind_form', [RemindController::class, 'remind_form']);
+        Route::get('/remind_asset', [RemindController::class, 'remind_asset']);
+        Route::get('/remind_badge', [RemindController::class, 'remind_badge']);
+        Route::get('/remind_temp_reserved_schedules', [RemindController::class, 'remind_temp_reserved_schedules']);
+
 
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);
         Route::get('/welcome_message ', [AutoJobController::class, 'get_welcome_message']);
@@ -550,5 +555,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::post('/get_asset_types', [AssetController::class, 'get_asset_types']);
         Route::get('/get_asset_badge', [ProjectController::class, 'get_asset_badge']);
-        Route::get('/get_asset_recieve_requests', [RemindController::class, 'get_asset_recieve_requests']);
+
+        Route::get('/db_structure', [AutoJobController::class, 'db_structure']);
+
 });

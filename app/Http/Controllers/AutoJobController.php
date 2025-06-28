@@ -115,14 +115,12 @@ class AutoJobController extends Controller
                     ],
                 ],
             ],
-            'tools' => [
-                'google_search_retrieval' => [
-                    'dynamic_retrieval_config' => [
-                        'mode' => 'MODE_DYNAMIC',
-                        'dynamic_threshold' => 0,
-                    ],
-                ],
+            "tools" => [
+                [
+                    "google_search" => (object)[]
+                ]
             ],
+
             'generationConfig' => [
                 'temperature' => 1,
                 'topK' => 40,
@@ -133,7 +131,7 @@ class AutoJobController extends Controller
         ];
     
         // Send request
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=$apiKey";
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey";
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($url, $payload);
@@ -594,5 +592,35 @@ class AutoJobController extends Controller
             }
         }
         return response()->json(['success']);
+    }
+    public function db_structure() {
+        $database = DB::getDatabaseName();
+
+        $tables = DB::table('information_schema.tables')
+            ->where('table_schema', $database)
+            ->pluck('table_name');
+
+        $structure = [];
+
+        foreach ($tables as $table) {
+            $columns = DB::table('information_schema.columns')
+                ->select('column_name', 'data_type', 'is_nullable', 'column_default', 'column_type')
+                ->where('table_schema', $database)
+                ->where('table_name', $table)
+                ->get();
+
+            $structure[$table] = [];
+
+            foreach ($columns as $column) {
+                $structure[$table][$column->column_name] = [
+                    'type'     => $column->data_type,
+                    'nullable' => $column->is_nullable,
+                    'default'  => $column->column_default,
+                    'full_type' => $column->column_type,
+                ];
+            }
+        }
+
+        return [$database => $structure];
     }
 }
