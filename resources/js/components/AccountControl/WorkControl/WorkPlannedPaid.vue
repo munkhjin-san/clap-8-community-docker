@@ -100,10 +100,11 @@
 import CommandButton from '../../Global/CommandButton.vue';
 import YearPicker from '../../Global/YearPicker.vue'
 import LoaderButton from '../../Global/LoaderButton.vue';
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useTheme } from '@/store/theme';
 import PostSearchBar from '../../Post/PostSearchBar.vue';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
     const keywords = ref('')
     const plannedShifts = ref([])
     const year = ref(new Date().getFullYear())
@@ -113,7 +114,7 @@ import { DateTime } from 'luxon';
     const changedShifts = ref([])
     const theme = useTheme()
     const fetch = ref(0)
-    const { notify } = inject('dialog')
+    const api = useApi()
     onMounted(async () => {
         await getPlannedShifts()
         fetch.value++
@@ -127,7 +128,7 @@ import { DateTime } from 'luxon';
         return result
     })
     const getPlannedShifts = async() => {
-        plannedShifts.value = await axios.post('/get_planned_shifts', {year: year.value}).then(res => res.data)
+        plannedShifts.value = await api.post('/get_planned_shifts', {year: year.value})
     }
     const setDate = (val) => {
         year.value = val.year
@@ -152,24 +153,21 @@ import { DateTime } from 'luxon';
         }
     }
     const saveShift = async() => {
-        processing.value = true
+
         const startDate = formatDate(editUser.value?.work_temps?.date);
-        try {
-            await axios.post('/change_planned_shifts', 
-                {
-                    shifts: changedShifts.value, 
-                    userId: editUser.value.id,
-                    startDate: startDate                
-                }
-            )
-            getPlannedShifts()
-            open.value = false
-            changedShifts.value = []
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
-        processing.value = false
-        
+        await api.post('/change_planned_shifts', 
+            {
+                shifts: changedShifts.value, 
+                userId: editUser.value.id,
+                startDate: startDate                
+            },{
+                toast: '保存しました。',
+                loadingRef: processing,
+            }
+        )
+        getPlannedShifts()
+        open.value = false
+        changedShifts.value = []        
     }
 </script>
 <style scoped>

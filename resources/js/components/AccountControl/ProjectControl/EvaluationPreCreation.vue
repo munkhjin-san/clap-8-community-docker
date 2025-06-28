@@ -84,13 +84,12 @@
     </Modal>
 </template>
 <script setup lang="ts">
-import { inject, markRaw, onMounted, ref } from 'vue';
+import { inject, onMounted, ref } from 'vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { DialogMethods, User } from '@/interface/globalInterface';
-import axios from 'axios';
 import { generalPositions } from '@/utils/tools';
 import ItemSelector from '@/components/Form/ItemSelector.vue';
 import Modal from '@/components/Global/Modal.vue';
+import { useApi } from '@/composables/api';
 const props = defineProps([
     'user', 
     'selectedDate', 
@@ -106,9 +105,8 @@ const after_salary = ref(props.editData?.after_salary_rank ?? '')
 const general_position = ref(props.editData?.general_position ?? '')
 const grade = ref(props.editData?.grade ?? '')
 const refresh = inject('refresh') as Function
-const { info } = inject('dialog') as DialogMethods;
-const saveGrade = async() => {
-    
+const api = useApi()
+const saveGrade = async() => {    
     const params = {
         attributes: {
             user_id: props.user.id,
@@ -123,14 +121,9 @@ const saveGrade = async() => {
         }
         
     }
-    try {
-        await axios.post('/save_evaluation_grade', params)
-        emit('close')
-        info('保存しました')
-        refresh()
-    } catch (e) {
-        
-    }
+    await api.post('/save_evaluation_grade', params, { toast: '保存しました' })
+    emit('close')
+    refresh()
 }
 onMounted(() => {
     getPreviousEvaluation()
@@ -141,14 +134,11 @@ const getPreviousEvaluation = async() => {
         year: props.selectedDate.year,
         which_half: props.selectedDate.which_half,
     }
-    try {
-        const data = await axios.post('/get_previous_evaluation', params).then(res => res.data)
-        if(data && data?.id){
-            current_salary.value = data.after_salary_rank
-        }
-        
-    } catch (e) {
 
+    const data = await api.post('/get_previous_evaluation', params)
+    if(data && data?.id){
+        current_salary.value = data.after_salary_rank
     }
+
 }
 </script>

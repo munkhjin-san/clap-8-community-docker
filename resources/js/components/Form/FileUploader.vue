@@ -54,6 +54,7 @@
 import { onMounted, ref } from 'vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue'
 import { useSharingDataStore } from '@/store/sharingData'
+import { useApi } from '@/composables/api';
     const sharingData = useSharingDataStore()
     const props =  defineProps(['path', 'customClass', 'customStyle'])
     const emit = defineEmits(['updated'])
@@ -61,32 +62,30 @@ import { useSharingDataStore } from '@/store/sharingData'
     const uploadingProgress = ref(0)
     const uploadFiles = defineModel()
     const formUploader = ref(null)
-
+    const api = useApi()
     onMounted(() => {
         if(sharingData && sharingData !== null && sharingData.files && sharingData.files.length){
             prepareSharedFiles(sharingData.files)
         }  
     })
 
-    const prepareSharedFiles = (files) => {
-        axios.post('/prepare_sharing_files', {list: files, path: props.path})
-        .then(response =>{                                       
-            const files = response.data
-            for(let file of files){
-                uploadFiles.value.push(file)
-            }
-            emit('updated', uploadFiles.value)
-        })
+    const prepareSharedFiles = async(files) => {
+        const data = await api.post('/prepare_sharing_files', {list: files, path: props.path})                                     
+        const filesData = data
+        for(let file of filesData){
+            uploadFiles.value.push(file)
+        }
+        emit('updated', uploadFiles.value)        
     }
-    const removeAttachment = (file) => {
-        axios.post('/post_delete_file', {list: [file.id], path: props.path})
-        .then(() =>{                                       
-            const index = uploadFiles.value.findIndex(item => item.id === file.id);
-            if (index !== -1) {
-                uploadFiles.value.splice(index, 1);
-            }
-            emit('updated', uploadFiles.value)
-        })
+    const removeAttachment = async(file) => {
+        await api.post('/post_delete_file', {list: [file.id], path: props.path})
+                                          
+        const index = uploadFiles.value.findIndex(item => item.id === file.id);
+        if (index !== -1) {
+            uploadFiles.value.splice(index, 1);
+        }
+        emit('updated', uploadFiles.value)
+       
     }
     const fileSelected = (event) => {
         if(event.target.files && event.target.files.length){                
@@ -116,7 +115,7 @@ import { useSharingDataStore } from '@/store/sharingData'
 
         formData.append('path', props.path)
     
-        const list = await axios.post('/post_file_upload', formData , { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) } ).then(res => res.data)
+        const list = await api.post('/post_file_upload', formData ,{}, { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) })
         for(let file of list){
             uploadFiles.value.push(file)
         }

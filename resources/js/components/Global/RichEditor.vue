@@ -104,29 +104,29 @@ import { Color } from '@tiptap/extension-color'
 import TextStyle from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
 import Image from '@tiptap/extension-image'
-import { onMounted, ref } from 'vue'
-import axios from 'axios'
+import { ref } from 'vue'
 import CommandButton from './CommandButton.vue'
+import { useApi } from '@/composables/api'
 
 const props = defineProps(['initilaValue'])
 const emit = defineEmits(['content-updated'])
 const editor = useEditor({
-  content: props.initilaValue,
-  extensions: [
-    StarterKit,
-    Underline,
-    Link,
-    TextStyle,
-    Color,
-    Highlight.configure({
-        multicolor: true,
-    }),
-    Image
-  ],
-  onUpdate: ({ editor }) => {
-    const html = editor.getHTML()
-    emit('content-updated', html)
-  }
+    content: props.initilaValue,
+    extensions: [
+        StarterKit,
+        Underline,
+        Link,
+        TextStyle,
+        Color,
+        Highlight.configure({
+            multicolor: true,
+        }),
+        Image
+    ],
+    onUpdate: ({ editor }) => {
+        const html = editor.getHTML()
+        emit('content-updated', html)
+    }
 })
 const colorPickerView = ref<number| null>(null)
 const fileList = ref<string[]>([])
@@ -134,9 +134,7 @@ const activeFile = ref<string>('')
 const filePicker = ref<HTMLInputElement| null>(null)
 const uploading = ref(false)
 const fileFetchCount = ref(0)
-onMounted(() =>{
-    // getFileList()
-})
+const api = useApi()
 defineExpose({editor})
 const colorShadesArray = [
   ['#000000', '#666666', '#999999', '#cccccc', '#d9d9d9', '#f3f3f3', '#ffffff'],
@@ -177,23 +175,22 @@ const selectColor = (color) => {
     }
     colorPickerView.value = null
 }
-const getFileList = () => {
-    axios.get('/get_lesson_files').then(response => {
-        fileList.value = response.data
-    })
+const getFileList = async() => {
+    const data = await api.get('/get_lesson_files')
+    fileList.value = data   
 }
 const setLink = () => {
-      const previousUrl = editor.value?.getAttributes('link').href
-      const url = window.prompt('URL', previousUrl)
-      if (url === null) {
-        return
-      }
-      if (url === '') {
-        editor.value?.chain().focus().extendMarkRange('link').unsetLink().run()
-        return
-      }
-      editor.value?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+    const previousUrl = editor.value?.getAttributes('link').href
+    const url = window.prompt('URL', previousUrl)
+    if (url === null) {
+    return
     }
+    if (url === '') {
+    editor.value?.chain().focus().extendMarkRange('link').unsetLink().run()
+    return
+    }
+    editor.value?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+}
 const fileExtension = (name) => {
     return name.split('.')[1]
 }
@@ -203,23 +200,17 @@ const uploadImage = async(event:Event) => {
     const target = event.target as HTMLInputElement
     const files = target.files
     if(files){
-        uploading.value = true
         const formData = new FormData()                   
       
         formData.append('file', files[0])
         formData.append('type', target.id)
     
-        axios.post('/upload_lesson_file', formData , { onUploadProgress: (e) => uploadingProgress.value = e.total ? Math.floor((e.loaded * 100) / e.total) : 0 } )
-        .then(response => {      
-            getFileList()           
-        })
-        .catch((error) => {
-            alert(error.response.data.message)
-        })
-        .then(() => {
-            uploading.value = false
-        });
-
+        await api.post('/upload_lesson_file', formData , {
+            loadingRef: uploading,
+        }, { 
+            onUploadProgress: (e) => uploadingProgress.value = e.total ? Math.floor((e.loaded * 100) / e.total) : 0 
+        })       
+        getFileList()         
     }
 }   
 const applyFile = () => {
@@ -230,11 +221,10 @@ const applyFile = () => {
     }
 }
 
-const deleteFile = () => {
-    axios.delete(`/remove_lesson_file?path=${activeFile.value}`).then(() => {
-        getFileList()
-        activeFile.value = ''
-    })
+const deleteFile = async() => {
+    await api.del(`/remove_lesson_file?path=${activeFile.value}`)  
+    getFileList()
+    activeFile.value = ''  
 }
 const viewFilePicker = () => {
     filePickerView.value = !filePickerView.value

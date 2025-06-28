@@ -40,13 +40,16 @@ import { onMounted, ref, inject } from 'vue';
 import OpenAI from "openai";
 import AssistantCreate from './AssistantCreate.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps(['theme'])
 const assistant = ref(null)
 const fetch = ref(0)
 const createWindow = ref(false)
 const deleting = ref(false)
-const { confirm, info, notify } = inject('dialog')
 const getThemes = inject('getThemes')
+const api = useApi()
+const { ask, ping, toast } = useDialog()
 onMounted(async() => {
     console.log(props.theme)
     if(props.theme && props.theme.assistant_id){
@@ -68,7 +71,7 @@ const createFinish = async(flag) => {
 }
 const deleteAssistant = async() => {
 
-    const answer = await confirm('アシスタンを削除しますか。')
+    const answer = await ask('アシスタンを削除しますか。')
     if(answer.value) {
         deleting.value = true
         try {
@@ -77,18 +80,18 @@ const deleteAssistant = async() => {
                 dangerouslyAllowBrowser: true 
             });
             const response = await openai.beta.assistants.del(props.theme.assistant_id);
-            console.log(response)
-            axios.post('/create_learning_theme', {     
+
+            await api.post('/create_learning_theme', {     
                 id: props.theme.id,
                 params: {
                     assistant_id: null
                 }
             })
-            info('削除しました。')
+            toast('削除しました。')
             assistant.value = null
             await getThemes()
         }catch(e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            ping(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }finally{
             deleting.value = false
         }
@@ -105,7 +108,7 @@ const getAssistant = async() => {
         assistant.value = await openai.beta.assistants.retrieve(props.theme.assistant_id);
     }
     catch(e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        ping(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }finally{
         fetch.value++
     }

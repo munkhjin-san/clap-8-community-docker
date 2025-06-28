@@ -9,7 +9,11 @@
         </Transition>
         <div class="no-comment-text" v-if="initialLoader > 0 && !contacts.length">現在データはありません。</div>
         <ContactViewToggle v-if="!responsive.mobile" style="position: fixed" :type="viewType" @action="setViewType"/>
-        <FloatButton :style="{position: 'fixed', bottom: auth.user?.footer_view && responsive.mobile ? '65px' : '20px'}" @action="createWindow = true" type="plus"/>
+        <FloatButton :style="{position: 'fixed', bottom: auth.user?.footer_view && responsive.mobile ? '65px' : '20px'}" @action="createWindow = true">
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>
         <div class="flex gap-[10px] flex-wrap mb-[20px] ml-[20px]">
             <label :class="['text-[13px] bg-[var(--background-color)] select-none text-[var(--primary-color)] px-[8px] py-[5px] cursor-pointer', {'!bg-[var(--primary-color)] !text-[var(--background-color)]': type.id && selectedTypes.includes(type.id)}]" v-for="type in contactTypes">
                 <input v-model="selectedTypes" type="checkbox" class="hidden" :value="type.id"/>
@@ -51,17 +55,17 @@
 import { useResponsive } from '@/store/responsive';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import ContactCreate from './ContactCreate.vue';
-import { inject, ref } from 'vue';
+import { ref } from 'vue';
 import { ContactRecord, ContactType } from '@/interface/contactInterface';
 import { onMounted } from 'vue';
-import axios from 'axios';
 import GridLayout from './Grid/GridLayout.vue';
 import TableLayout from './Table/TableLayout.vue';
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { DialogMethods } from '@/interface/globalInterface';
 import ContactViewToggle from './ContactViewToggle.vue';
 import { useAuthUserStore } from '@/store/auth';
+import AddIcon from '@/components/Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
 
 const props = defineProps<{
     keyword: string
@@ -77,7 +81,7 @@ const viewType = ref('grid')
 const contactTypes = ref<ContactType[]>([])
 const selectedTypes = ref<number[]>([])
 const route = useRoute()
-const { confirm } = inject('dialog') as DialogMethods;
+const api = useApi()
 
 onMounted(() => {
     if(!responsive.mobile){
@@ -87,7 +91,7 @@ onMounted(() => {
     getTypes()
 })
 const getTypes = async() => {
-    contactTypes.value = await axios.get('/get_contact_types').then(res => res.data)
+    contactTypes.value = await api.get('/get_contact_types')
 }
 const activeContact = computed(() => {
   const contactId = Number(route.params.contactId);
@@ -107,13 +111,15 @@ const contactList = computed(() => {
 })
 
 const getContacts = async() => {
-    contacts.value = await axios.get('/contact_list').then(res => res.data)
+    contacts.value = await api.get('/contact_list')
     initialLoader.value++
 }
 const deleteContact = async(id:number) => {
-    const confirmed = await confirm('コンタクトを削除しますか。')
-    if(!confirmed.value) return
-    await axios.delete('/contact_item', {params: {id: id}})
+    
+    await api.del('/contact_item', {id: id}, {
+        ask: 'コンタクトを削除しますか。',
+        toast: 'コンタクトを削除しました。'
+    })
     getContacts()
     router.push({name: 'tab2'})
 }

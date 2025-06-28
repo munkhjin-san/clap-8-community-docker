@@ -50,35 +50,33 @@
 import ShortInput from '../../Form/ShortInput.vue';
 import LongInput from '../../Form/LongInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
-import { computed, inject, ref } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref } from 'vue';
 import OpenAI from "openai";
-    const route = useRoute()
-    const { notify, info } = inject('dialog')
+import { useApi } from '@/composables/api';
     const props = defineProps(['editTarget', 'path', 'editId'])
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
     const title = ref(props.editTarget && props.editTarget.name ? props.editTarget.name : '')
     const instruction = ref(props.editTarget && props.editTarget.instructions ? props.editTarget.instructions : '')
     const model = ref(props.editTarget && props.editTarget.model ? props.editTarget.model : 'gpt-4o-mini')
+    const api = useApi()
+
     const createSend = async() => {
-        try {
-            processing.value = true
-            const assistant = props.editTarget ? await updateAssistant() : await createAssistant()      
-    
-            await axios.post(props.path, {     
-                id: props.editId,
-                params: {
-                    assistant_id: assistant.id
-                }
-            })
-            closeModal(true)
-            info(props.editTarget ? '編集しました。' :'保存しました。')
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            notify(error)
-            processing.value = false
-        }
+        
+        processing.value = true
+        const assistant = props.editTarget ? await updateAssistant() : await createAssistant()      
+
+        await api.post(props.path, {     
+            id: props.editId,
+            params: {
+                assistant_id: assistant.id
+            }
+        }, {
+            toast: props.editTarget ? '編集しました。' :'保存しました。'
+        })
+        closeModal(true)
+        processing.value = false
+        
     }
     const updateAssistant = async() => {
         const openai = new OpenAI({
@@ -92,7 +90,7 @@ import OpenAI from "openai";
                 name: title.value,
                 model: model.value,
             }
-        );
+        ); 
     
         return myAssistant
     }

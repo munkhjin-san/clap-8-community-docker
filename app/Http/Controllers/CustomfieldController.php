@@ -23,7 +23,7 @@ class CustomfieldController extends Controller{
 
         if( !empty($request->app_name) ){
             $custom_field_record = customFieldTypeRecord::where('use_flag', 1)->with(['custom_field_parts_records' => function($q){
-                $q->where('use_flag', 1);
+                $q->where('use_flag', 1)->with('sub_parts');
             }])->orderBy('sort_flag', 'asc')->get();
 
         }

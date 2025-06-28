@@ -118,18 +118,17 @@
     </Modal>
 </template>
 <script setup lang="ts">
-import ItemSelector from '@/components/Form/ItemSelector.vue';
-import { computed, inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import { onMounted, reactive, ref, useTemplateRef } from 'vue';
 import LongInput from '@/components/Form/LongInput.vue';
-import axios from 'axios';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { Dialog } from '@/interface/globalInterface';
 import Modal from '@/components/Global/Modal.vue';
 import EvaluationLevels from '../EvaluationLevels.vue';
 import Back from '@/components/Icons/Back.vue';
 import 'styles/customForm.css'
 import { EvaluationRecord } from '@/interface/evaluationInterface';
 import { useProject } from '@/composables/project';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps([
     'evaluation', 
     'date',
@@ -170,7 +169,6 @@ const loading = ref(false)
 const initialLoader = ref(true)
 const evaluationData = ref<EvaluationRecord | null>(null)
 const step = ref(0)
-const nextLevel = ref('未設定')
 const evaluationLevelsRef = useTemplateRef('evaluationLevelsRef')
 const previousStats = reactive<{
     total_achievment: number,
@@ -184,20 +182,21 @@ const previousStats = reactive<{
     current_skills: []
 
 })
-const { notify, info, confirm } = inject<Dialog>('dialog')!
-const { getProjects } = useProject()
+
+const api = useApi()
+const { ask, ping } = useDialog()
 onMounted(() => {
     checkMentorSelected()
 })
 const checkMentorSelected = async() => {
     try{
-        const response = await axios.get('/check_evaluation_for_user_in_span', {
-            params: {
-                user_id: memberData.value?.id,
-                year: props.date.year,
-                which_half: props.date.which_half
-            }
-        }).then(res => res.data)
+        const response = await api.get('/check_evaluation_for_user_in_span', {
+
+            user_id: memberData.value?.id,
+            year: props.date.year,
+            which_half: props.date.which_half
+
+        })
 
         evaluationData.value = response.evaluation
 
@@ -216,7 +215,6 @@ const checkMentorSelected = async() => {
         evaluationParams.children.checklist = currentSkills.length ? currentSkills : previousSkills.length ? previousSkills : []
 
     }catch(e) {
-        await confirm(e.response?.data.message || e?.message || 'エラーが発生しました。')
         emit('close')
     } finally {
         initialLoader.value = false
@@ -225,22 +223,20 @@ const checkMentorSelected = async() => {
 }
 const setIncrease = async(status) => {
     if(!evaluationData.value || !evaluationData.value.id){
-        notify('人事考課レコードが作成されていません。')
+        ping('人事考課レコードが作成されていません。')
         return
     }
     evaluationParams.params.status = status
     loading.value = true
     const params = evaluationParams
-    try {
-        await axios.post('/set_increase_request', params)
-        emit('close')
-        emit('reload')
-        info('保存しました。')
-    } catch(e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally {
-        loading.value = false
-    }
+
+    await api.post('/set_increase_request', params, {
+        toast: '保存しました。'
+    })
+    emit('close')
+    emit('reload')
+    loading.value = false
+
     
 }
 
@@ -248,7 +244,7 @@ const nextStep = async() => {
     if(step.value == 0){
         evaluationParams.params.current_level = evaluationLevelsRef.value?.selectedLevel || ''
         if(!evaluationParams.params.current_level){
-            const confirmed = await confirm('職能レベルが選択されていません。続行しますか？')
+            const confirmed = await ask('職能レベルが選択されていません。続行しますか？')
             if(!confirmed.value){
                 return
             }

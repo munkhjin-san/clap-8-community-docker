@@ -119,12 +119,12 @@ import LongInput from'@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { ref } from 'vue';
 import { useTemplateRef } from 'vue';
-import axios from 'axios';
-import { DialogMethods } from '@/interface/globalInterface';
 import Cropper from '@/components/Global/Cropper.vue';
 import RichEditor from '@/components/Global/RichEditor.vue';
 import {marked} from 'marked'
 import DOMPurify from 'dompurify';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 
 interface Props {
   editData: ContactRecord | null
@@ -138,7 +138,6 @@ const emit = defineEmits<{
 
 
 const scanning = ref(false)
-const { notify, info } = inject('dialog') as DialogMethods;
 const params = reactive<Partial<ContactRecord>>({})
 const loading = ref(false)
 const nameRef = useTemplateRef('nameRef')
@@ -148,6 +147,8 @@ const cardUrl = ref('')
 const cardBlob = ref<Blob | null>(null)
 const editorKey = ref(0);
 const validationTrigger = ref(0)
+const api = useApi()
+const { ping } = useDialog()
 onMounted(() => {
     if(props.editData){
         Object.assign(params, props.editData)
@@ -179,24 +180,21 @@ const save = async() => {
     }
     if (!result || typeError.value || typeInputError.value) return   
 
-    try{
-        loading.value = true
-        let cardPath = ''
-        if(isSaveCard.value?.checked && cardBlob.value){
-            const form = new FormData
-            form.append('image', cardBlob.value)
-            cardPath = await axios.post('/upload_name_card', form).then(res => res.data)
-            params.card_path = cardPath
-        }
-        
-        await axios.post('/contact_item', params).then(res => res.data)
-        loading.value = false
-        info('保存しました。')
-        emit('close', true)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        loading.value = false
+
+    let cardPath = ''
+    if(isSaveCard.value?.checked && cardBlob.value){
+        const form = new FormData
+        form.append('image', cardBlob.value)
+        cardPath = await api.post('/upload_name_card', form)
+        params.card_path = cardPath
     }
+    
+    await api.post('/contact_item', params, {
+        toast: '保存しました。',
+        loadingRef: loading,        
+    })
+    emit('close', true)
+
     
 
 }
@@ -205,7 +203,7 @@ const cropComplete = async() => {
         scanning.value = true
         const { blob, source } = await cropperInstanceRef.value.complete();
         if (!blob || !source) {
-            notify('エラーが発生しました。')
+            ping('エラーが発生しました。')
             scanning.value = false
             return;
         }
@@ -220,31 +218,28 @@ const cropComplete = async() => {
 
 const getScan = async() => {
     if (cropperInstanceRef.value && !scanning.value) {
-        scanning.value = true
         const { blob, source } = await cropperInstanceRef.value.complete();
         if (!blob || !source) {
-            notify('エラーが発生しました。')
+            ping('エラーが発生しました。')
             return;
         }
-        try{         
-            const formData = new FormData();
-            formData.append("image", blob);
-            const data = await axios.post("/scan_card", formData, {
-                headers: {
-                    "Content-Type": "multipart/form-data",
-                },
-            }).then(res => res.data);
-            await cropComplete()
-            scanning.value = false
-            const markedText = await marked(data.text)
-            const saveText = DOMPurify.sanitize(markedText)
-            params.data = saveText
-            Object.assign(params, data.data)
-            editorKey.value ++
-        }catch(e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            scanning.value = false
-        }  
+      
+        const formData = new FormData();
+        formData.append("image", blob);
+        const data = await api.post("/scan_card", formData, {
+            loadingRef: scanning,
+        }, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+        await cropComplete()
+        const markedText = await marked(data.text)
+        const saveText = DOMPurify.sanitize(markedText)
+        params.data = saveText
+        Object.assign(params, data.data)
+        editorKey.value ++
+
     }
 }
 </script>

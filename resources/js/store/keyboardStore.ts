@@ -9,7 +9,7 @@ export const useKeyboardStore = defineStore('keyboardStore', {
     }),
 
     actions: {
-        setKeyboardHeight(payload: boolean){
+        setKeyboardHeight(payload: number){
             this.height = payload
         }
     }

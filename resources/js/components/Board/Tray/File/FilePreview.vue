@@ -25,7 +25,7 @@
                                             :src="file.file_path"
                                         />                                                                
                                         <div v-else-if="canPreview && file.mime_type == 'video'" style="display:flex;height: -webkit-fill-available;max-height: 70vh;">
-                                            <video controls="controls" style="max-width: 79vw;max-height: 66vh;height: auto;background: #000;margin: auto;">
+                                            <video controls="true" style="max-width: 79vw;max-height: 66vh;height: auto;background: #000;margin: auto;">
                                                 <source :src="file.file_path">
                                             </video>
                                         </div>
@@ -77,18 +77,6 @@
                             <div class="swiper-pagination"></div>                
                         </div>                  
                     </div>
-                    <!-- <div class="second-swiper-wrapper" ref="secondswiper">                     
-                        <div thumbsSlider="" class="swiper gallery-thumbs" style="background:none;border:none;">
-                            <div class="swiper-wrapper"> 
-                                <div class="swiper-slide ssliderItem" :key="file.id" v-for="(file) in filePreview.files">
-                                    <img style="max-width:100%;margin:auto;max-height:100%;" v-if="file.mime_type == 'image'" :src="file.file_path">
-                                    <div v-if="file.mime_type !== 'image'" style="position:relative;">
-                                        <FileIcon :ext="file.extension"/>
-                                    </div>
-                                </div>
-                            </div>                           
-                        </div>
-                    </div> -->
                 </div>                
             </div> 
                
@@ -96,22 +84,24 @@
     </div> 
 </template>
 
-<script setup>
-import { computed, inject, onMounted, ref, nextTick } from 'vue';
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
 import PdfViewer from './PdfViewer.vue'
 import Swiper from 'swiper';
+import type { Swiper as SwiperType } from 'swiper';
 import 'swiper/css/bundle';
 import "swiper/css/zoom";
 import { Navigation, Zoom, Thumbs, Pagination } from 'swiper/modules';
 import 'swiper/css/navigation'
 import 'swiper/css/thumbs'
-import FileIcon from '../../Mixed/FileIcon.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useFilePreview } from "@/store/filePreview";
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useSharingDataStore } from '@/store/sharingData'
 import ItemMenu from '@/components/Global/ItemMenu.vue';
+import { useApi } from '@/composables/api';
+import { MenuList } from '@/interface/globalInterface';
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -119,25 +109,24 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
     const route = useRoute()
     const f_index = ref(0)
     const fileKey = ref(Math.floor(Math.random() * 1000))
-    const docUrl = ref('')
     const docLoader = ref(false)
-    const fileMenuLayer = ref(0)
-    const thumbsSwiper = ref(null)
-    const topSwiper = ref(null)
+
+    const topSwiper = ref<SwiperType | null>(null)
     const filePreview = useFilePreview()
     const pdfKey = ref(0)
     const doc_extensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
         "doc", "docm", "docx", "dot", "dotx",
         "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx", "pdf"              
     ];
-    const { notify } = inject('dialog')
+    const docUrl = ref('')
+    const api = useApi()
         
     onMounted(() => {
         
         f_index.value = filePreview.index
         swiperCreate()
-        if(canView.value){
-            topSwiper.value.slideTo(f_index.value, false)
+        if(canView.value && topSwiper.value){
+            topSwiper.value.slideTo(f_index.value, 0)
             // thumbsSwiper.value.slideTo(f_index.value, false)
         }
         const firstFile = currentFile.value
@@ -149,7 +138,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
     })
     const fileMenu = computed(() => {
         const file = currentFile.value
-        const list = []; 
+        const list:MenuList[] = []; 
         function addItem(title, action) {
             list.push({ title, action });
         }
@@ -163,7 +152,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
             {name: 'schedule', name_jp: 'スケジュール'}
         ]
         
-        const shareChildren = [];
+        const shareChildren: {title:string, action: () => void}[] = [];
         const share = { title: 'シェア', action: () => false, children: shareChildren}
         builtInApps.forEach(app => {
             share.children.push({ title: app.name_jp, action: () => shareTo(app.name, file)})
@@ -177,13 +166,9 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
         }
     }      
     const canView = computed(() => {
-        return source.value == 'post' || 
-            source.value == 'message' || 
-            source.value == 'calendar' || 
-            source.value == 'user' || 
-            source.value == 'notice' || 
-            source.value == 'work' ||
-            source.value == 'project'
+        if(!source.value) return false
+        const possibleSources = ['post', 'message', 'calendar', 'user', 'notice', 'work', 'project']
+        return possibleSources.includes(source.value)
     })
     const source = computed(() => {
         return filePreview.source
@@ -213,18 +198,11 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
     })
 
     const swiperCreate = () => {
-        // thumbsSwiper.value = new Swiper('.gallery-thumbs', {
-        //     spaceBetween: 10,
-        //     slidesPerView: 'auto',
-        //     freeMode: true,
-        //     watchSlidesProgress: true
-        // })
         topSwiper.value = new Swiper('.swiper-container', {
             // Optional parameters
             direction: 'horizontal',
             spaceBetween: 10,
             zoom: true,
-            navigation: true,
             centeredSlides: true,
             modules: [Navigation, Zoom, Thumbs, Pagination],
             // thumbs: {
@@ -265,19 +243,13 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
         
     } 
     const getDocs = async() => {               
-        try{
-            const response = await axios.post('/user_generate_file_key')
-            // const url = doc_path.value + '/' + response.data
-            const url = `${window.location.origin}/cdn_external/${auth.id}/${response.data}${doc_path.value}`
-            const encodedUrl = encodeURIComponent(url);
-            docUrl.value = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`
-            setTimeout(() => {
-                docLoader.value = false
-            }, 300);                    
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            docLoader.value = false
-        }
+ 
+        const response = await api.post('/user_generate_file_key', {}, {
+            loadingRef: docLoader,
+        })
+        const url = `${window.location.origin}/cdn_external/${auth.id}/${response}${doc_path.value}`
+        const encodedUrl = encodeURIComponent(url);
+        docUrl.value = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`   
     }        
     const filePreviewClose = () => {
         const data = {

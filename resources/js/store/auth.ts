@@ -32,6 +32,7 @@ interface User{
   linkable: boolean | false
   linked: User[]
   icon_bg: string | null
+  partner_flag?: number | null
 }
 interface Weather{
   value_int: number | null

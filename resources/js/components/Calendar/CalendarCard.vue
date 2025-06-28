@@ -19,11 +19,17 @@
             <span style="line-height: 15px;" v-if="record.calendar_users.length > 3">...({{ record.calendar_users.length }})</span>
             <div style="margin: 1px 0 0 5px;overflow: hidden;" v-if="!expanded && fullDay">{{ viewable ? record.title : '予定' }}</div>
         </div>
-        <div v-if="!fullDay || expanded" @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false" :class="['cal-card-item', {'wrap cal-selectable' : expanded }]">{{ viewable ? record.title : '予定' }}</div>
+        <div v-if="!fullDay || expanded" @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false" :class="['cal-card-item', {'wrap cal-selectable' : expanded }]"><span class="bg-[tomato] text-[white] px-[5px] pb-[1px] rounded-md mr-[3px] text-[10px]" v-if="record.temp_flag == 1">仮</span>{{ viewable ? record.title : '予定' }}</div>
         <div v-if="!expanded && !fullDay" class="cal-card-item" style="white-space: nowrap;">{{ time }}</div>
         <div @click="expanded ? $event.stopPropagation() : false" @mousedown.stop v-if="expanded" :class="['cal-card-item', {'wrap cal-selectable' : expanded }]" style="line-height:1.5;margin: 10px 0;display: flex;gap: 10px;align-items: center;">                
             <div v-html="timeDetailed"></div>
         </div> 
+        <div @click="expanded ? $event.stopPropagation() : false" @mousedown.stop v-if="expanded && record.temp_flag == 1" class="flex gap-[10px]">
+            <CommandButton  :buttons="[
+                {title: '確定', action: () => confirmTemp(record.id, 1)},
+                {title: 'キャンセル', action: () => confirmTemp(record.id, 0)}
+            ]"/>
+        </div>
         <div @click="expanded ? $event.stopPropagation() : false" class="cal-card-item card-repet-info" v-if="expanded && record.repetition_type > 0 && viewable" v-html="repeatInformation"></div>        
         
         <div v-if="expanded && viewable" style="width: fit-content;max-width: 100%;">
@@ -93,7 +99,7 @@ import Autolinker from 'autolinker';
 import CalendarFiles from './CalendarFiles.vue';
 import { ref, computed, onMounted, inject } from 'vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
-import colors from '../../../assets/colors.json'
+import colors from 'assets/colors.json'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useTheme } from '@/store/theme';
@@ -102,6 +108,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
 import { timeFormat } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
+import CommandButton from '@/components/Global/CommandButton.vue';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const tempRecord = useTempRecord()
@@ -135,6 +142,8 @@ import { useCalendar } from '@/composables/calendar';
     }
     const edit = inject<Function>('editRecord') as Function
 
+    const confirmTemp = inject<Function>('confirmTemp') as Function
+
     const { facilitiesList, departmentsList } = useCalendar()
 
     const setSummaryViewing = inject<Function>('setSummaryViewing') as Function
@@ -144,7 +153,7 @@ import { useCalendar } from '@/composables/calendar';
             return '#606060'
         }
         const me = props.record.calendar_users.filter(ob => ob.id == auth.id)
-        const colorIndex:number = auth.user && auth.user.color ? auth.user.color : 0
+        const colorIndex = auth.user && auth.user.color ? auth.user.color : 0
         return me.length ? colors[colorIndex]?.light : 'var(--task-background)'
     })
 

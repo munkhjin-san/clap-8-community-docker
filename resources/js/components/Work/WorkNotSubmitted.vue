@@ -41,9 +41,10 @@ import WorkShifts from './WorkShifts.vue';
 import { ref, inject } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { DateTime } from 'luxon';   
+import { useDialog } from '@/composables/dialog';
     const auth = useAuthUserStore()
-    const { notify } = inject('dialog')
     const props = defineProps(['item'])
+    const { ping } = useDialog()
     
     const selectedYear = ref(props.item ? props.item.year : DateTime.now().year)
     const selectedMonth = ref(props.item ? props.item.month : DateTime.now().month)
@@ -66,7 +67,7 @@ import { DateTime } from 'luxon';
                 user_id
             } = item;
             if(shiftStatus === 2) {
-                notify('勤怠予定は承認されていません。') 
+                ping('勤怠予定は承認されていません。') 
                 return
             }
             editData.value = {

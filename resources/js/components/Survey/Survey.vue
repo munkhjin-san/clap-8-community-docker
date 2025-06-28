@@ -9,6 +9,7 @@
         <component :is="Component" 
             v-if="survey && !loading"
             :survey="survey"
+            mode="all"
             @saved="saveRedirect"
         />
     </router-view>
@@ -18,8 +19,8 @@
 </div>
 </template>
 <script setup lang="ts">
+import { useApi } from '@/composables/api';
 import { CustomForm } from '@/interface/customFormInterface';
-import axios from 'axios';
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -32,19 +33,36 @@ onMounted(() => {
 })
 const survey = ref<CustomForm | null>(null)
 const loading = ref(true)
+const api = useApi()
 const getSurvey = async() => {
-    try {
-        loading.value = true
-        survey.value = await axios.get('/get_survey', {params: {id: route.params?.surveyId}}).then( res => res.data)
-        setTimeout(() => {
-            loading.value = false
-        }, 250);
-    } catch (error) {
-        loading.value = false
-    }    
+
+    survey.value = await api.get('/get_survey', {id: route.params?.surveyId}, {
+        loadingRef: loading,
+    })
+
 }
-const saveRedirect = () => {
-    router.back()
-    getSurvey()
+const saveRedirect = async(status:number, id:number | null) => {
+    // router.back()
+    await getSurvey()
+    if(status == 1){
+        router.push({
+            name: 'survey-form',
+            params: {
+                surveyId: route.params?.surveyId
+            },
+            query: {
+                answerId: id
+            }
+        })
+    }else if(status == 2){
+        router.push({
+            name: 'completed-survey',
+            query: {
+                answerId: id,
+                surveyId: route.params?.surveyId
+            }
+        })
+    }
+
 }
 </script>

@@ -39,13 +39,13 @@
 
 <script setup>      
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import ShortInput from '../Form/ShortInput.vue'
 import LongInput from '../Form/LongInput.vue'
+import { useApi } from '@/composables/api'
 
     const props = defineProps([ 'editTarget'])
     const emit = defineEmits('close')
-    const { notify, info } = inject('dialog')
     const title = ref(props.editTarget && props.editTarget.public_title ? props.editTarget.public_title : "")
     const content = ref(props.editTarget && props.editTarget.public_content ? props.editTarget.public_content : "")
     
@@ -53,6 +53,7 @@ import LongInput from '../Form/LongInput.vue'
 
     const titleRef = ref(null)
     const contentRef = ref(null)
+    const api = useApi()
     const validateTargets = computed(() => {
         return [
             titleRef.value,
@@ -68,25 +69,21 @@ import LongInput from '../Form/LongInput.vue'
             const val = await target?.validate() || {valid: false}
             result = result * val.valid
         }
-        if (!result) return
-        processing.value = true
-        
-        try {            
-            const params = {
-                id: props.editTarget.id,
-                params: {
-                    public_title: title.value, 
-                    public_content: content.value, 
-                }
-            }    
-            await axios.post('/update_lesson_portfolio',params)
-            closeModal(true)
-            info('編集しました。')           
-            
-        } catch (error) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            processing.value = false
-        }
+        if (!result) return        
+         
+        const params = {
+            id: props.editTarget.id,
+            params: {
+                public_title: title.value, 
+                public_content: content.value, 
+            }
+        }    
+        await api.post('/update_lesson_portfolio', params, {
+            toast: '編集しました。',
+            loadingRef: processing
+        })
+        closeModal(true)           
+
     }
     const closeModal = (flag) => {
         processing.value = false

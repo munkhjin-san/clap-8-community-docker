@@ -195,9 +195,7 @@ import { ProjectGoal } from '@/interface/projectInterface';
 import { inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import ShortInput from '../Form/ShortInput.vue';
 import LongInput from '../Form/LongInput.vue';
-import axios from 'axios';
 import LoaderButton from '../Global/LoaderButton.vue';
-import { Dialog } from '@/interface/globalInterface';
 import { useBadgeStore } from '@/store/badge'
 import { useRoute } from 'vue-router';
 import { EvaluationRecord, EvaluationSkill } from '@/interface/evaluationInterface';
@@ -208,6 +206,8 @@ import { DateTime } from 'luxon';
 import { useProject } from '@/composables/project';
 import AiLoader from '../Global/AiLoader.vue';
 import AiIcon from '../Icons/AiIcon.vue';
+import { useDialog } from '@/composables/dialog';
+import { useApi } from '@/composables/api';
 
 const emit = defineEmits([
     'close',
@@ -242,14 +242,14 @@ const loading = ref(false)
 const startDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const endDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const { getProjects } = useProject()
-const { notify, confirm, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const badge = useBadgeStore()
 const route = useRoute()
 const evaluationData = ref<EvaluationRecord | null>(null)
 const aiLoading = ref(false)
 const baseSkills = ref<string[]>([])
-
+const { ask, ping, toast } = useDialog()
+const api = useApi()
 const aiType = ref('openai')
 const keys = reactive({
     goalContent: 0,
@@ -275,11 +275,11 @@ const getPreviousGoals = (): Promise<ProjectGoal[]> => {
         try {
             const span = route.params.span as string
             const [year, which_half] = span.split('-')
-            const response: ProjectGoal[] = await axios.post('/get_previous_goals', {
+            const response: ProjectGoal[] = await api.post('/get_previous_goals', {
                 user_id: route.params.memberId,
                 year: year,
                 which_half: which_half,
-            }).then(res => res.data)
+            })
             resolve(response)
         } catch (e) {
             resolve([]) 
@@ -289,20 +289,20 @@ const getPreviousGoals = (): Promise<ProjectGoal[]> => {
 
 const getEvaluationData = async() => {
 
-    try {
+
         const span = route.params.span as string
         const [year, which_half] = span.split('-')
-        const response = await axios.post('/get_evaluation_data', {
+        const response = await api.post('/get_evaluation_data', {
             user_id: route.params.memberId,
             year: year,
             which_half: which_half  
-        }).then(res => res.data)
+        }, {
+            silent: true
+        })
         evaluationData.value = response && response.evaluation ? response.evaluation : null
         baseSkills.value = response && response.base_skills ? response.base_skills  : []
         
-    } catch (e) {
-        // notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+
 }
 const instruction = `
 プロジェクトの様子
@@ -358,7 +358,7 @@ const instruction = `
 `
 const getAdvice = async() => {
     if(goalParams.kgi || goalParams.miso || (goalParams.steps?.length && goalParams.steps[0].content)){ 
-        const answer = await confirm('既存の目標がある場合、AIで生成した課題は上書きされます。よろしいでしょうか？')
+        const answer = await ask('既存の目標がある場合、AIで生成した課題は上書きされます。よろしいでしょうか？')
         if(!answer.value) return
     }
 
@@ -495,13 +495,13 @@ const getAdvice = async() => {
         } catch (err) {
             if (err instanceof OpenAI.APIError) {
                 if(err.status == 500){
-                    notify('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                    ping('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
                 }else{
-                    notify('AI修正に失敗しました。<br>' + err.message)
+                    ping('AI修正に失敗しました。<br>' + err.message)
                 }
                 
             } else {
-                notify('AI修正に失敗しました。<br>' + err)
+                ping('AI修正に失敗しました。<br>' + err)
             }
 
         } finally{
@@ -513,7 +513,7 @@ const getAdvice = async() => {
 }
 
 const finalize = () => {
-    info('AI生成が完了しました。内容を確認してください。')
+    toast('AI生成が完了しました。内容を確認してください。')
     setTimeout(() => {
         goalTitleRef.value?.$el.scrollIntoView({
             behavior: 'smooth',
@@ -557,11 +557,11 @@ const saveOutcomeGoal = async(status: number) => {
     const result = await checkFields()
     let info_message = '保存しました。'
     if(!result) {
-        notify('必須項目が未入力です。')
+        ping('必須項目が未入力です。')
         return
     }
     if(status == 2) {
-        const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
+        const answer = await ask('申請後には編集ができなくなります。よろしいでしょうか？')
         info_message = '申請しました。'
         if(!answer.value) return
     }
@@ -589,16 +589,15 @@ const saveOutcomeGoal = async(status: number) => {
         }
         
     }
-    try {
-        await axios.post('/save_project_goal', params).then(res => res.data)
-        emit('close')
-        refresh()
-        getProjects()
-        info(info_message)
-        badge.getMembersGoalsBadge()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+
+    await api.post('/save_project_goal', params, {
+        toast: info_message
+    })
+    emit('close')
+    refresh()
+    getProjects()
+    badge.getMembersGoalsBadge()
+
 }
 
 </script>

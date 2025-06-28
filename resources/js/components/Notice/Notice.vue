@@ -64,12 +64,13 @@ import HamBurger from '../Global/HamBurger.vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import PostSearchPager from '../Post/PostSearchPager.vue';
 import NoticeCreate from './NoticeCreate.vue'
-import { computed, onMounted, ref, inject } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
 import { customParser } from '@/utils/tools';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
     const auth = useAuthUserStore()
     const responsive = useResponsive()
     const router = useRouter()
@@ -80,7 +81,7 @@ import { DateTime } from 'luxon';
     const searching = ref(0)
     const createWindow = ref(false)
     const editTarget = ref(null)
-    const { confirm } = inject('dialog')
+    const api = useApi()
     onMounted(() => {
         getNotices()
     })
@@ -88,7 +89,7 @@ import { DateTime } from 'luxon';
         return noticeData.value && noticeData.value.current_page ? noticeData.value.current_page : 0
     })
     const hasPrivilage = computed(() => {
-        return auth.activeUser ? [540,690,610, 516, 519, 517, 518, 526, 494, 604, 765].includes(auth.activeUser.id) : false
+        return auth.activeUser ? [540,690, 610, 516, 519, 517, 518, 526, 494, 604, 765].includes(auth.activeUser.id) : false
     })
     const possiblePage = computed(() => {
         return noticeData.value && noticeData.value.last_page ? noticeData.value.last_page : 0
@@ -103,13 +104,11 @@ import { DateTime } from 'luxon';
         router.push({name: 'notice'})
     }
     const deleteNoticeConfirm = async(val) => {
-        const answer = await confirm('お知らせを削除しますか。')
-        if(!answer.value) return
-        deleteNotice(val)
-    }
-    const deleteNotice = async(val) => {
+        await api.del(`/notice_delete`, {id: val.id}, {
+            ask: 'お知らせを削除しますか。',
+            toast: 'お知らせを削除しました。',
+        })
         router.push({name: 'notice'})
-        await axios.delete(`/notice_delete?id=${val.id}`)
         getNotices(page.value)
     }
     const closeModal = (val) => {
@@ -150,15 +149,15 @@ import { DateTime } from 'luxon';
     }
 
        
-    const getNotices = () => {
+    const getNotices = async () => {
         const key = keyword.value ? `&keyword=${keyword.value}` : ''
         if(key){
             searching.value = 1
         }
-        axios.get(`/get_notices?page=${page.value}${key}`).then(response => {
-            noticeData.value = response.data
-            searching.value = 0
-        })
+        const data = await api.get(`/get_notices?page=${page.value}${key}`)
+        console.log('noticeData', data)
+        noticeData.value = data
+        searching.value = 0
     }
 
   

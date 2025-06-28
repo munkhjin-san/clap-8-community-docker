@@ -112,7 +112,7 @@
 </template>
 <script setup>
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, onMounted, inject, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useTheme } from '@/store/theme';
 import { useResponsive } from '@/store/responsive';
 import ShortInput from '../Form/ShortInput.vue';
@@ -122,10 +122,11 @@ import WorkPaidLeave from './WorkPaidLeave.vue';
 import { useBadgeStore } from '@/store/badge';
 import { DateTime } from 'luxon';
 import MonthPickerNew from '../Global/MonthPickerNew.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const responsive = useResponsive()
     const theme = useTheme()
     const emit = defineEmits(['closeModal', 'reload', 'viewPaidLeave'])
-    const { notify, info } = inject('dialog')
     const props = defineProps([
         'selectedMonth', 
         'selectedYear', 
@@ -164,6 +165,8 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
         { id: 6, name: '土' },
         { id: 7, name: '日' }
     ]
+    const api = useApi()
+    const { ping } = useDialog()
     onMounted(async() => {
         propsCheck()
         await fetchShiftData()
@@ -203,16 +206,14 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
     const fetchShiftData = async() => {
         const work_group = props.chosenId ? [props.chosenId] : props.usersCheckArray
         const tempdate = props.startDate ? DateTime.fromISO(props.startDate).toISODate() : ''
-        try{
-            const shiftData = await getShiftData(shiftDateInstance.value.toISODate(), work_group, tempdate)           
-            remainingDays.value = shiftData.remaining_days
-            workTemp.value = shiftData.workTemp
-            shiftTypes.value = shiftData.shift_type
-            shiftRecords.value = shiftData.shift_record
-            odaCheck.value = shiftData.odaCheck
-        }catch (e){
-            notify(e?.message)
-        }
+       
+        const shiftData = await getShiftData(shiftDateInstance.value.toISODate(), work_group, tempdate)           
+        remainingDays.value = shiftData.remaining_days
+        workTemp.value = shiftData.workTemp
+        shiftTypes.value = shiftData.shift_type
+        shiftRecords.value = shiftData.shift_record
+        odaCheck.value = shiftData.odaCheck
+        
     }
     const propsCheck = () => {
         if(props.startDate){
@@ -256,7 +257,7 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
         let existingShift = selectedShifts.value.find(shift => shift.date === date.day_full)
         if (existingShift) {
             if(existingShift.type == 3 && existingShift.status_flag == 1){
-                notify('計画有給を変えることができません。')   
+                ping('計画有給を変えることができません。')   
                 return
             }
             selectedShifts.value = selectedShifts.value.filter(shift => shift.date !== date.day_full);
@@ -287,13 +288,13 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
                     remainingDays.value++
                     const content = DateTime.fromISO(date.day_full).toFormat('yyyy/MM/dd') + 'は計画期間外です。<br>設定可能な期間は' + '<strong>' + DateTime.fromISO(tempStartDate.value).toFormat('yyyy/MM/dd') + '</strong>' + '-' + '<strong>' + tempStartEnd.value.format('YYYY/MM/DD') + '</strong>'
 
-                    notify(content)  
+                    ping(content)  
                     return
                 }
                 if(remainingDays.value < 0){
                     remainingDays.value = 0
                     selectedShifts.value.pop()
-                    notify('計画有給日数が足りない又は当年の計画有給は付与されていません。')  
+                    ping('計画有給日数が足りない又は当年の計画有給は付与されていません。')  
                     return
                 }
             }
@@ -328,7 +329,7 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
             holidayNum = (lastDay >= 29) ? 9 : 8;
         }
         if(endTime.value < startTime.value){
-            notify('終業時間は始業時間より先にすることができません。')
+            ping('終業時間は始業時間より先にすることができません。')
             return
         }
         if(holidayCount.value >= holidayNum || props.usersData[0].position_id === 15 || between.value){
@@ -340,7 +341,7 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
             }
             if(!result) return
             if (loading.value) return
-            loading.value = true
+
 
             const params = {
                 shiftTimeStart : startTime.value,
@@ -352,20 +353,17 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
                 userId: props.usersData[0].id,
                 yearMonth: shiftDateInstance.value.toISODate(),
             }
-            try {
-                await axios.post('/add_shift', params);
-                info('申請しました。')
-                emit('closeModal')
-                emit('reload')
-                badge.getRemindBadge()
-            } catch (e) {
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
-            } finally {
-                loading.value = false
-            }
+  
+            await api.post('/add_shift', params, {
+                toast: '申請しました。',
+                loadingRef: loading,
+            });
+            emit('closeModal')
+            emit('reload')
+            badge.getRemindBadge()
             
         }else{
-            notify('今月の休日数は' + holidayNum + '日以上取得が必要です。')
+            ping('今月の休日数は' + holidayNum + '日以上取得が必要です。')
         }
         
     }

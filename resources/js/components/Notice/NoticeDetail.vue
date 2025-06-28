@@ -28,21 +28,20 @@
 <script setup>
 import Autolinker from 'autolinker';
 import NoticeFiles from './NoticeFiles.vue';
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth'
-import { useMenuStore } from "@/store/menu";
 import { useBadgeStore } from '@/store/badge';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import { useApi } from '@/composables/api';
     const badge = useBadgeStore()
-    const menu = useMenuStore()
     const auth = useAuthUserStore()
-    const { notify } = inject('dialog')
     const props = defineProps(['hasPrivilage', 'getNotices'])
     const route = useRoute()
     const router = useRouter()
     const emit = defineEmits(['edit', 'delete'])
-    const item = ref(route.meta.data && Object.keys(route.meta.data).length ? route.meta.data : null)  
+    const item = ref(route.meta.data && Object.keys(route.meta.data).length ? route.meta.data : null)
+    const api = useApi()  
     onMounted( async() => {
         if(item.value){
             const read = item.value.readers.map(ob => ob.id).includes(auth.activeUser.id)
@@ -52,13 +51,11 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
         }
     })
     const updateRead = async() => {
-        try{
-            await axios.post('/read_notice', {record_id: item.value.id})
-            props.getNotices()
-            badge.getNoticeBadge()
-        }catch(e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+
+        await api.post('/read_notice', {record_id: item.value.id})
+        props.getNotices()
+        badge.getNoticeBadge()
+
     }
     const body = computed(() => {                   
         const linkedText = Autolinker.link(item.value?.body, {stripPrefix: false});   

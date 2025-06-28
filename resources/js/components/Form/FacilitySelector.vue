@@ -28,6 +28,7 @@
     </div>
 </template>
 <script setup>
+import { useApi } from '@/composables/api';
 import { markRaw, ref, watchEffect } from 'vue';
     const props = defineProps([
         'placeHolder', 
@@ -51,8 +52,8 @@ import { markRaw, ref, watchEffect } from 'vue';
     })      
     const spinner = ref(false)
     const selector = ref(null)
-    const getPossibleItems = (loading) => {
-        spinner.value = true
+    const api = useApi()
+    const getPossibleItems = async () => {
         const params = {
             editId: props.editId,
             target: props.target,
@@ -64,16 +65,10 @@ import { markRaw, ref, watchEffect } from 'vue';
             edit_repeat: props.edit_all_record 
         }
         if (isValidTime(params.time_start) && isValidTime(params.time_end)) {
-            axios.post('/get_possible_facilities', params)
-            .then(response => {
-                options.value = response.data
-                setTimeout(() => {
-                    spinner.value = false
-                }, 300);
-                
-            }).catch(e => {
-                spinner.value = false
-            })
+            const data = await api.post('/get_possible_facilities', params, {
+                loadingRef: spinner,
+            })    
+            options.value = data        
         }
         
     }

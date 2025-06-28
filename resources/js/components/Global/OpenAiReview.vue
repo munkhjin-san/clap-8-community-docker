@@ -20,8 +20,9 @@
 import {marked} from 'marked'
 import DOMPurify from 'dompurify';
 import OpenAI from "openai";
-import { ref, computed, inject } from 'vue';
+import { ref, computed } from 'vue';
 import LoaderButton from './LoaderButton.vue';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps(['soureText', 'assistandId', 'message', 'confirmText', 'answer'])
 const reviewResultRaw = ref(props.soureText ? props.soureText : '')
 const loading = ref(false)
@@ -33,7 +34,7 @@ const sanitizedResponse = computed(() => {
 })
 const checked = ref(false)
 const validateCounter = ref(0)
-const { notify } = inject('dialog')
+const { ping } = useDialog()
 const validate = async() => {
     validateCounter.value ++
     return checked.value
@@ -67,7 +68,7 @@ const openAiReview = async() => {
             }
         }
     }catch(e){
-        notify(e)
+        ping(e)
     }finally{
         loading.value = false
     }

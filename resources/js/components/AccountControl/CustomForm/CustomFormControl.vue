@@ -33,12 +33,20 @@
                             </div>
                         </div>
                     </div>
+                    <div class="mt-[10px] w-fit text-[12px]">
+                        <div>繰り返し設定: {{ form.repeat_setting == 1 ? '毎月' : '1回のみ' }}</div>
+                        <div v-if="form.repeat_setting == 1" class="mt-[10px]">繰り返し日: {{ form.repeat_day }}日</div>
+                    </div>
                 </div>
             </div>
 
         </div>
-        <FloatButton v-if="!selectedForm" @action="openModal = true" type="plus"/>
-        <CustomFormCreate v-if="openModal" @close="closeCreate" :edit-data="editData"/>
+        <FloatButton v-if="!selectedForm" @action="openModal = true">
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>
+        <CustomFormCreate v-if="openModal" @close="closeCreate" :edit-data="editData" range="all"/>
 
         <router-view v-slot="{ Component }">
             <transition name="slideFromRight">
@@ -65,7 +73,6 @@
 </template>
 <script setup lang="ts">
 import { CustomForm, CustomFormUser } from '@/interface/customFormInterface';
-import axios from 'axios';
 import { computed, inject, ref } from 'vue';
 import { onMounted } from 'vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
@@ -73,12 +80,12 @@ import CustomFormCreate from './CustomFormCreate.vue';
 import { useRoute } from 'vue-router';
 import router from '@/router';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
-import { DialogKey, DialogMethods } from '@/interface/keys';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import Modal from '@/components/Global/Modal.vue';
+import AddIcon from '@/components/Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
 
-const { confirm, info, notify } = inject('dialog') as DialogMethods;
-
+const api = useApi()
 onMounted(() => {
     getForms()
 })
@@ -94,7 +101,8 @@ const selectedForm = computed(() => {
     return selectedId ? forms.value.find( f => f.id == selectedId) ?? null : null 
 })
 const getForms = async() => {
-    forms.value = await axios.get('/get_custom_forms').then(res => res.data)
+    const data = await api.get('/get_custom_forms')
+    data && (forms.value = data as CustomForm[])
 }
 const closeCreate = (flag:boolean) => {
     editData.value = null
@@ -104,17 +112,18 @@ const closeCreate = (flag:boolean) => {
     }
 }
 const deleteForm = async(id: number) => {
-    const answer = await confirm('削除しますか？')
-    if(!answer.value) return
-    await axios.delete('/delete_custom_form', {params: {id: id}})
-    getForms()
-    
+    const data = await api.del('/delete_custom_form', {id: id}, {
+        ask: '削除しますか？',
+        toast: '削除しました。',
+    })
+    data && getForms()    
 }
 const duplicateForm = async(id: number) => {
-    const answer = await confirm('再利用しますか？')
-    if(!answer.value) return
-    await axios.post('/duplicate_custom_form', {id: id})
-    getForms()
+    const data = await api.post('/duplicate_custom_form', {id: id}, {
+        ask: '再利用しますか？',
+        toast: '再利用しました。',
+    })
+    data && getForms()
     
 }
 const setViewUsers = (payload: {title: string, users: CustomFormUser[]}) => {

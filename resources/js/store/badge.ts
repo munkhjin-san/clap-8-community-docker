@@ -62,7 +62,7 @@ export const useBadgeStore = defineStore('badge', {
             this.task = data    
         },
         async getRemindBadge() {
-            const data = await axios.get('/get_remind_badge').then(response => response.data)
+            const data = await axios.get('/remind_badge').then(response => response.data)
             this.remind = data
         },
         async getMembersGoalsBadge(){

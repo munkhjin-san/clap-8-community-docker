@@ -1,5 +1,5 @@
 <template>
-    <div class="boardHeader">
+    <div class="boardHeader" v-if="openedBoard">
         <div style="display:flex;min-height:40px;width: 100%;max-height: 40px;">
             <div style="width:70%;display:flex;min-height:40px;width: calc(100% - 123px);">
                 <div @click="router.push({name: 'board'})" style="width: 40px;
@@ -14,11 +14,11 @@
                     <Back/>                                     
                     
                 </div>
-                <div :style="{maxWidth: board.private_flag == 0 ? 'calc(100% - 80px)' : '100%'}">
-                    <BoardTitle :item="board" titleStyle="font-weight:600;font-size:14px;line-height: 40px;" titleClass="board-title text"/>  
+                <div :style="{maxWidth: openedBoard.private_flag == 0 ? 'calc(100% - 80px)' : '100%'}">
+                    <BoardTitle :item="openedBoard" titleStyle="font-weight:600;font-size:14px;line-height: 40px;" titleClass="board-title text"/>  
                 </div>
-                <div v-if="board && board.private_flag == 0" style="margin-left: 10px;white-space: nowrap;position:relative;height:40px">
-                    <div @click="members(board)" style="overflow:hidden;height:40px">
+                <div v-if="openedBoard.private_flag == 0" style="margin-left: 10px;white-space: nowrap;position:relative;height:40px">
+                    <div @click="members(openedBoard)" style="overflow:hidden;height:40px">
                         <div style="display: flex;height:40px;align-items:center">
                             <div :key="user.id" v-for="user in confirmedMembers.slice(0, 3)" style="position:relative;">                                
                                 <UserPanel size="15" :user="user.user" :disableInstant="true" imgClass="userSmallIcon"/>                                           
@@ -53,7 +53,7 @@
     </div> 
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useMenuStore } from '@/store/menu'
@@ -61,19 +61,23 @@ import { useBadgeStore } from '@/store/badge'
 import BoardTitle from '../Board/Mixed/BoardTitle.vue';
 import Back from '../Icons/Back.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
+import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
+import { useBoardList } from '@/composables/board';
     const badge = useBadgeStore()
     const menu = useMenuStore()
-    const emit = defineEmits('close')
-    const board = inject('openedBoard')
+    const emit = defineEmits(['close'])
+    const { openedBoard } = useBoardList() 
     const router = useRouter()
-    const { members, privateSearch } = inject('boardItem')
+    const { members, privateSearch } = inject(BoardMethodsKey) as BoardMethods
     const confirmedMembers = computed(() => {
-        const allMembers = board.value.board_to_users;
+        if(!openedBoard.value || !openedBoard.value.board_to_users) return []
+        const allMembers = openedBoard.value.board_to_users;
         return allMembers
     })
     const taskTotal = computed(() => {
-        const nm = badge.task && board.value ? badge.task[board.value.id] : null
-        return  nm > 99 ? '+99' : nm
+        if(!openedBoard.value) return null
+        const nm = badge.task && openedBoard.value ? badge.task[openedBoard.value.id] : null
+        return  nm && nm > 99 ? '+99' : nm
     })
 
     const goFile = () => {

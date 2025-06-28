@@ -45,8 +45,7 @@
 </template>
 <script lang="ts" setup>
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { Dialog } from '@/interface/globalInterface';
-import { computed, inject, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import HasReason from './HasReason.vue';
 const props = defineProps(['material', 'summaries'])
 
@@ -55,7 +54,6 @@ const selectedAnswer = ref({})
 const radioError = ref({})
 const reason = ref(false)
 const joined = ref('')
-const { notify } = inject<Dialog>('dialog')! 
 const list = [
     { value: 2, content: '理解した'},
     { value: 1, content: '理解できなかった'}        
@@ -85,7 +83,6 @@ const complete = async(status: number) => {
     if (status === -1) {
         reason.value = true
         return
-        // notify(`理解出来なかった内容について、\n法務から個別フォローアップのため後日ご連絡致します。`)
     }
     
     emit('updateAnswerStatus', status, joined.value)

@@ -53,13 +53,16 @@
     </div>
 </template>
 <script setup>
-    import { useRoute, useRouter } from 'vue-router';
-    import LoaderButton from '../../Global/LoaderButton.vue';
-    import QuestionRadio from './QuestionRadio.vue';
-    import { ref, inject, onBeforeMount } from 'vue';
-    import LongInput from '../../Form/LongInput.vue';
+import { useRoute, useRouter } from 'vue-router';
+import LoaderButton from '../../Global/LoaderButton.vue';
+import QuestionRadio from './QuestionRadio.vue';
+import { ref, inject, onBeforeMount } from 'vue';
+import LongInput from '../../Form/LongInput.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+    const api = useApi()
+    const { ask } = useDialog()
     const router = useRouter()
-    const { confirm, notify } = inject('dialog')
     const route = useRoute()
     const props = defineProps(['selectedTopic', 'available'])
     const question1 = ref(null)
@@ -103,15 +106,11 @@
                 status: 3,
                 form_content: content.value ? content.value : ''
             }
-            try{
-                const response = await axios.post('/save_lesson_form', params)
-                return response.status
-            }
-            catch(error){
-                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) notify('エラーが発生しました。')
-                else notify('エラーが発生しました。 ' + error.message)     
-            }
+      
+            const response = await api.post('/save_lesson_form', params)
+            return response
+            
+
             
         }else{
             errorMessage.value = '必須です'
@@ -121,7 +120,7 @@
         const options = {
             answers : [{label: '戻る', value: true}]
         }
-        const answer = await confirm('グループディスカッションを完了してください。', options)
+        const answer = await ask('グループディスカッションを完了してください。', options)
         if(answer.value){
             router.go(-1)
         }

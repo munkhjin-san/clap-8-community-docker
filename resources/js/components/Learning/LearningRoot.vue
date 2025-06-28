@@ -87,14 +87,15 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router';
 import HamBurger from '../Global/HamBurger.vue';
-import { ref, computed, onMounted, provide, inject } from 'vue'
+import { ref, computed, onMounted, provide } from 'vue'
 import { useResponsive } from '@/store/responsive';
+import { useApi } from '@/composables/api';
     const route = useRoute()
     const router = useRouter()
     const responsive = useResponsive()
     const themeRecords = ref([])
-    const { notify } = inject('dialog')
     const statusMap = ['基礎知識','グループディスカッション','ポートフォリオ']
+    const api = useApi()
     onMounted(() => {
         getThemes()
     })
@@ -137,26 +138,10 @@ import { useResponsive } from '@/store/responsive';
         }
     };
 
-    const getThemes = () => {
-        axios.get('/get_lesson_themes').then(res => {
-                if(res.data){
-                    themeRecords.value = res.data                   
-                }
-            }).catch(function (error) {
-                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) notify('エラーが発生しました。')
-                else notify('エラーが発生しました。 ' + error.message)                       
-            });
-        }
-    const providedMaterial = computed(() => {
-        const topic = themeRecords.value.find(ob => ob.id == parseInt(route.params.lessonThemeId))
-        console.log('topic', themeRecords.value)
-        const materials = topic?.materials || []
-        console.log('materials', materials)
-        const selectedMaterial = materials.find(ob => ob.id == parseInt(route.params.materialId) )
-        console.log('materialid', route.params.materialId)
-        return selectedMaterial
-    })
+    const getThemes = async() => {
+        const data = await api.get('/get_lesson_themes')             
+        themeRecords.value = data                  
+    }
     provide('getThemes', getThemes)
     provide('providedMaterial', themeRecords.value)
 

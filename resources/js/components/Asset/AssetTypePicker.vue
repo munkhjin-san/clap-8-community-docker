@@ -46,12 +46,12 @@
     </div>
 </template>
 <script setup lang="ts">
-import axios from 'axios';
 import { onMounted, ref, watch, } from 'vue';
 import 'styles/selector.css';
 import { useDebouncedRef } from '@/utils/tools'
 import CloseIcon from '@/components/Form/CloseIcon.vue';
 import { validator } from '@/validation/validator';
+import { useApi } from '@/composables/api';
     const props = defineProps<{
         placeHolder?: string
         modelValue: string[]
@@ -63,6 +63,7 @@ import { validator } from '@/validation/validator';
     const selectedTag = defineModel<string[]>()
     const tagSelectorRef = ref<HTMLElement | null>(null)
     const searching = ref(false)
+    const api = useApi()
     onMounted(() => {
         superFetch()
     })
@@ -75,25 +76,21 @@ import { validator } from '@/validation/validator';
        
         
     })
-    const normalFetch = (key) => {
+    const normalFetch = async (key) => {
         searching.value = true
-        axios.post('/get_asset_types', {key: key, super: false})
-        .then(response => {
-            tagOptions.value = []
-            response.data.forEach((element:string) => {
-                tagOptions.value.push(element)
-            });
-            searching.value = false
-        }) 
+        const data = await api.post('/get_asset_types', {key: key, super: false})
+        tagOptions.value = []
+        data.forEach((element:string) => {
+            tagOptions.value.push(element)
+        });
+        searching.value = false   
     }
-    const superFetch = () => {
-        axios.post('/get_asset_types', {key: '', super: true,})
-        .then(response => {
-            tagOptions.value = []
-            response.data.forEach((element:string) => {
-                tagOptions.value.push(element)
-            });
-        })
+    const superFetch = async() => {
+        const data = await api.post('/get_asset_types', {key: '', super: true,}) 
+        tagOptions.value = []
+        data.forEach((element:string) => {
+            tagOptions.value.push(element)
+        });    
     }
 
 

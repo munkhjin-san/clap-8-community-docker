@@ -82,7 +82,11 @@
             </div>
             
         </div>
-        <FloatButton type="plus" @action="createWindow = true"/>
+        <FloatButton @action="createWindow = true">
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>
         <Transition name="modalFade">
             <ProjectCreate 
                 v-if="createWindow"
@@ -98,15 +102,16 @@
 import FloatButton from '@/components/Global/FloatButton.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { computed, inject, onMounted, ref } from 'vue';
-
+import { computed, onMounted, ref } from 'vue';
 import { Project } from '@/interface/projectInterface';
 import { useMenuStore } from '@/store/menu';
 import ProjectCreate from './ProjectCreate.vue';
-import axios from 'axios';
 import { useProjectUsers } from '@/store/projectUsers';
-import { Dialog, User } from '@/interface/globalInterface';
+import { User } from '@/interface/globalInterface';
 import { DateTime } from 'luxon';
+import AddIcon from '@/components/Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
+
 const projects = ref<Project[]>([])
 const menu = useMenuStore()
 const createWindow = ref(false)
@@ -114,7 +119,7 @@ const createWindow = ref(false)
 const editData = ref<Project | null>(null)
 const projectUsers = useProjectUsers()
 const props = defineProps(['keywords', 'userList'])
-const { confirm } = inject<Dialog>('dialog')!
+const api = useApi()
 onMounted(async() => {
     getProjects() 
 })
@@ -136,11 +141,8 @@ const searchResults = computed(() => {
     return projects.value 
 })
 const getProjects = async() => {
-    try {
-        projects.value = await axios.get('/get_projects').then(res => res.data)
-    } catch (e) {
-
-    }
+    const data = await api.get('/get_projects')
+    data && (projects.value = data as Project[])
 }
 
 const editProject = (project: Project) => {
@@ -148,14 +150,11 @@ const editProject = (project: Project) => {
     createWindow.value = true
 }
 const deleteProject = async(project: Project) => {
-    const answer = await confirm('プロジェクトを削除しますよろしいでか？')
-    if (!answer.value) return
-    try {
-        await axios.delete(`/delete_project?id=${project?.id}`)
-        getProjects()
-    } catch (e) {
-
-    }
+    const data = await api.del('/delete_project', {id: project.id}, {
+        ask: 'プロジェクトを削除しますか？',
+        toast: '削除しました。'
+    })
+    data && getProjects()
 }
 const viewUsers = (members: User[]) => {
     const data = {

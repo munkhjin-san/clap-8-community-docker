@@ -1,5 +1,5 @@
 <template>
-    <Modal @close="emit('closeModal')">
+    <Modal @close="emit('closeModal')" persist>
         <template #title>
             <p style="font-size: 18px;">{{formatedDay}}の日報を作成する</p>
         </template>
@@ -61,6 +61,7 @@
                     :data="field"
                     v-model:fieldValue="customValues[field.id]"
                     v-model:vehicle="vehicleData"
+                    ref="customFieldRef"
                 />              
                 <div class="si-box" style="display: flex; justify-content: center; gap: 20px;">
                     <LoaderButton style="margin: 0" :loading="loading[0]" content="一時保存" @triggered="saveTimeCard(0)" />
@@ -71,7 +72,7 @@
     </Modal>
 </template>
 <script setup>
-import { computed, inject, onMounted, ref, reactive, watch } from 'vue';
+import { computed, inject, onMounted, ref, reactive, watch, useTemplateRef } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { useTheme } from '@/store/theme';
 import CustomField from './CustomField.vue'
@@ -81,6 +82,8 @@ import { useAuthUserStore } from '../../store/auth';
 import Modal from '../Global/Modal.vue';
 import { DateTime } from 'luxon';
 import { customParser } from '@/utils/tools';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const auth = useAuthUserStore()
     const fields = inject('customInfo')
     const emit = defineEmits(['reload', 'closeModal'])
@@ -88,17 +91,18 @@ import { customParser } from '@/utils/tools';
     const workGroups = inject('workGroups')
     
     const props = defineProps([
-            'chosenDate', 
-            'todayStartTime', 
-            'todayEndTime', 
-            'todayBreakTime', 
-            'customFieldData', 
-            'createReport',
-            'chosenUserId',
-            'notSubmitted',
-            'chosenDateShift',
-            'item'
-        ])
+        'chosenDate', 
+        'todayStartTime', 
+        'todayEndTime', 
+        'todayBreakTime', 
+        'customFieldData', 
+        'createReport',
+        'chosenUserId',
+        'notSubmitted',
+        'chosenDateShift',
+        'item'
+    ])
+    const customFieldRef = useTemplateRef('customFieldRef')
     const shift = computed(() => {
         return props.item?.shift
     })
@@ -147,12 +151,14 @@ import { customParser } from '@/utils/tools';
                         {label : '60分' , value : 60 },
                         {label : '90分' , value : 90 }])
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
-    const { confirm, notify, info } = inject('dialog')
     const customValues = ref({})
     const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : workGroupAsOptions.value[0]?.id ?? '')
     const costDepartment = computed(() => {
         return workGroupAsOptions.value.find(group => group.id === todayWorkGroup.value)?.name
     })
+
+    const api = useApi()
+    const { ask, ping, toast } = useDialog()
     watch(todayWorkGroup, (newWorkGroup) => {
         costs.forEach(cost => {
             cost.department = workGroupAsOptions.value.find(group => group.id === newWorkGroup)?.name
@@ -160,7 +166,7 @@ import { customParser } from '@/utils/tools';
     })
     const addCostField = () => {
         if(costs.length >= 10){
-            notify('上限は10個です。')
+            ping('上限は10個です。')
             return
         }
         costs.push({
@@ -278,7 +284,7 @@ import { customParser } from '@/utils/tools';
                 if(!v){
                     const fieldName = fields.value.find(ob => ob.id == index)?.title
                     const message = `${fieldName}は必須項目です。必ず選択してください。`
-                    notify(message)
+                    ping(message)
                     resolve(false)
                 }
                 if(index == 44 && v == 1){
@@ -287,24 +293,29 @@ import { customParser } from '@/utils/tools';
                     }
                 }
             })
+            const invalidCustomFields = customFieldRef.value?.filter(field => field.subPartsChecked === false)
+            if(invalidCustomFields && invalidCustomFields.length > 0){
+                ping('在宅手当の種類を選択してください。')
+                resolve(false)
+            }
             resolve(true)
         })
     }
     const vehicleConfirm = () => {
         if (!vehicleData.value) {
-            notify('車両の使用に関する情報はありません。');
+            ping('車両の使用に関する情報はありません。');
             return false;
         } else if (vehicleData.value['vehicle'] === null) {
-            notify('車両が選択されていません。');
+            ping('車両が選択されていません。');
             return false;
         } else if (!vehicleData.value['alcohol_before_time'] || !vehicleData.value['alcohol_after_time']) {
-            notify('前後の時間が選択されていません。');
+            ping('前後の時間が選択されていません。');
             return false;
         } else if (vehicleData.value['alcohol_before_value'] == null || !vehicleData.value['alcohol_after_value'] == null) {
-            notify('前後の値が選択されていません。');
+            ping('前後の値が選択されていません。');
             return false;
         } else if (!vehicleData.value['confirm_before_user'] || !vehicleData.value['confirm_after_user']) {
-            notify('前後の確認者が選択されていません。');
+            ping('前後の確認者が選択されていません。');
             return false;
         }
         return true;
@@ -359,13 +370,13 @@ import { customParser } from '@/utils/tools';
         return new Promise(async(resolve) => {
             const overtime = shift.value.overtime_request.minutes + props.item?.work_time_day
             if(diffInMinutes.value > overtime){
-                resolve(await confirm(`申請した残業時間を超過しています。<strong>${diffInMinutes.value - props.item?.work_time_day}分</strong>で申請しますか`))
+                resolve(await ask(`申請した残業時間を超過しています。<strong>${diffInMinutes.value - props.item?.work_time_day}分</strong>で申請しますか`))
                 
             }else if(diffInMinutes.value < overtime){
                 const workedOverTime = shift.value?.overtime_request.minutes - (overtime - diffInMinutes.value)
-                resolve(await confirm(`時間外は<strong>${workedOverTime < 0 ? 0 : workedOverTime}分</strong>になります。よろしいですか。`))               
+                resolve(await ask(`時間外は<strong>${workedOverTime < 0 ? 0 : workedOverTime}分</strong>になります。よろしいですか。`))               
             } else {
-                resolve(await confirm('日報を申請します。申請後は修正できません。よろしいですか。'))
+                resolve(await ask('日報を申請します。申請後は修正できません。よろしいですか。'))
             }
         })
     }
@@ -397,20 +408,18 @@ import { customParser } from '@/utils/tools';
             if(!confirm.value) return            
         } else if(status_flag === 1){
             await fifteenMinuteCalc()
-            const answer = await confirm('日報を申請します。申請後は修正できません。よろしいですか。')
+            const answer = await ask('日報を申請します。申請後は修正できません。よろしいですか。')
             if(!answer.value) return
         }
         loading.value[status_flag] = true
         const params = await buildParams(status_flag)
-        try{
-            await axios.post('/save_time_card', params)
-            info('申請しました。')
-            emit('reload')
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')    
-        }finally{
-            loading.value[status_flag] = false
-        }
+
+        await api.post('/save_time_card', params, {
+            toast: '申請しました。'
+        })
+        emit('reload')
+
+
         
         
     }

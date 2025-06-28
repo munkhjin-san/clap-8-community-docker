@@ -107,16 +107,16 @@ import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useElementSize } from '@vueuse/core'
 import { getWorkGroup, getCustomFields, getWorkData, getShiftDataTable } from '../../utils/workApi'
-import axios from 'axios'
 import { useBreakTime } from '@/store/breakTime'
 import DepartmentField from './DepartmentField.vue'
 import { DateTime } from 'luxon'
 import MonthPickerNew from '../Global/MonthPickerNew.vue'
+import { useApi } from '@/composables/api'
+import { useDialog } from '@/composables/dialog'
     const firstUser = computed(() => {
         return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
     })
     const auth = useAuthUserStore()
-    const { confirm, notify, info } = inject('dialog')
     const route = useRoute()
     const selectedYear = ref(DateTime.now().year)
     const selectedMonth = ref(DateTime.now().month)
@@ -142,6 +142,8 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
     const breakTimeStore = useBreakTime()
     const shiftForDepartment = ref(null)
     const selectedVehicles = ref([])
+    const api = useApi()
+    const { ask, ping, toast } = useDialog() 
     onMounted(async() => {
         const query = route.query
         if(query.user_id){
@@ -208,9 +210,9 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
         const month = selectedMonth.value
         if(data || data.position_id === 15 || data.position_id < 6){
             if(data?.shift?.shift_type.id == 3){
-                notify('計画有給設定しているため日報作成ができません。')
+                ping('計画有給設定しているため日報作成ができません。')
             } else if (data.shift?.status_flag == 2) {
-                notify('勤怠予定は承認されていません。') 
+                ping('勤怠予定は承認されていません。') 
             } else {
                 let date = DateTime.now();
                 let minutes = date.minute;
@@ -223,15 +225,13 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
                     start_time : time,
                     day : currentDay.value,
                 }
-                try{
-                    await axios.post('/daily_report_add', params)
-                    reload()
-                }catch (e){
-                    notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
-                }
+               
+                await api.post('/daily_report_add', params)
+                reload()
+                
             }
         }else{
-            notify(month + '月の勤怠予定を入力してください。') 
+            ping(month + '月の勤怠予定を入力してください。') 
         }
     }
     const timeStampEnd = async() => {
@@ -246,62 +246,54 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
             end_time : time,
             day : currentDay.value,
         }
-        const answer = await confirm('本日の勤務を終業しますか。')
+        const answer = await ask('本日の勤務を終業しますか。')
         if(!answer.value) return
-        try{
-            const response = await axios.post('/daily_report_add', params)
-            await fetchShiftDataTable()
-            const record = recordsArray.value.find(ob => ob.user_id == response.data.user_id && ob.day_full == response.data.day)
-            if(record){
-                timeStampEdit(record)
-            }
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
-        } 
+     
+        const response = await api.post('/daily_report_add', params)
+        await fetchShiftDataTable()
+        const record = recordsArray.value.find(ob => ob.user_id == response.user_id && ob.day_full == response.day)
+        if(record){
+            timeStampEdit(record)
+        }
+        
     }
     const timeStampBreak = async(data) => {
         const params = {
             break_start : DateTime.now().toFormat('HH:mm:ss'),
             record : data.time_card
         }
-        try {
-            await axios.post('/daily_report_break', params)
-            breakTimeStore.checkBreakTime()
-            await fetchShiftDataTable()
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
-        }
+  
+        await api.post('/daily_report_break', params)
+        breakTimeStore.checkBreakTime()
+        await fetchShiftDataTable()
+        
     }
     const timeStampEdit = (data) => {
         const month = selectedMonth.value
         if(data?.shift || data.position_id === 15 || data.position_id < 6){
             if(data?.shift?.shift_type?.id == 3){
-                notify('計画有給設定しているため日報作成ができません。')
+                ping('計画有給設定しているため日報作成ができません。')
             } else if (data.shift?.status_flag == 2) {
-                notify('勤怠予定は承認されていません。') 
+                ping('勤怠予定は承認されていません。') 
             } else {
                 editData.value = data
                 reportModal.value = true
             }
         }else{
-            notify(month + '月の勤怠予定を入力してください。') 
+            ping(month + '月の勤怠予定を入力してください。') 
         }
         
     }
     const timeStampDelete = async(data) => {
-        const answer = await confirm(`${data.day_full}の日報を削除しますか。`)
-        if(!answer.value) return
         const params = {
             date : data.day_full,
             userId: data.user_id,
         }
-        try{
-            await axios.post('/delete_time_card', params)
-            info('削除しました。')
-            reload()
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')     
-        } 
+        await api.post('/delete_time_card', params, {
+            ask: `${data.day_full}の日報を削除しますか。`,
+            toast: '日報を削除しました。'
+        })
+        reload()
     }
     const reload = async() => {
         if(reportModal.value){
@@ -311,7 +303,7 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
             await fetchWorkData()
             await fetchShiftDataTable()            
         }else{
-            notify('メンバーを選択してください。')
+            ping('メンバーを選択してください。')
         }       
     }
     const setDate = (date) => {
@@ -325,7 +317,7 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
             customInfo.value = await getCustomFields()
             
         } catch (e){
-            notify(e?.message || 'エラーが発生しました。') 
+            ping(e?.message || 'エラーが発生しました。') 
         }
     }
     const fetchWorkData = async () => {
@@ -337,7 +329,7 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
             monthAverage.value = workData.month_average
             attendanceFlag.value = workData.attendance_flag
         } catch (e){
-            notify(e?.message || 'エラーが発生しました。') 
+            ping(e?.message || 'エラーが発生しました。') 
         }
     }
     const fetchShiftDataTable = async(init) => {
@@ -358,21 +350,21 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
     })
     const selectShift = async() => {
         if(usersCheckArray.value.length > 1){
-            notify('メンバーが複数選択されています。勤怠予定はメンバーを1人のみ選択してください。') 
+            ping('メンバーが複数選択されています。勤怠予定はメンバーを1人のみ選択してください。') 
         } else if (modalSelect.value){
             shiftModal.value = true
         } else if (usersCheckArray.value.length == 0) {
-            notify('メンバーを選択してください。')
+            ping('メンバーを選択してください。')
         }
     }
     const confirmAttendance = async() => {
         
         if(usersCheckArray.value.length > 1){
-            notify('メンバーが複数選択されています。勤怠確定はメンバーを1人のみ選択してください。')
+            ping('メンバーが複数選択されています。勤怠確定はメンバーを1人のみ選択してください。')
         } else if (modalSelect.value){
             shiftAttendance.value = true
         } else if (usersCheckArray.value.length == 0) {
-            notify('メンバーを選択してください。')
+            ping('メンバーを選択してください。')
         }
     }    
     const shiftMonth = (val) => {

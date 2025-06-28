@@ -53,53 +53,44 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, inject, ref, watch } from 'vue';
 import BoardIcon from '../Mixed/BoardIcon.vue'
 import BoardTitle from '../Mixed/BoardTitle.vue'
 import HamBurger from '../../Global/HamBurger.vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
+import { useBoardList } from '@/composables/board';
+import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
+import { useBoardTitle } from '@/composables/boardTitle';
+import { Board } from '@/interface/globalInterface';
     const auth = useAuthUserStore()
     const responsive = useResponsive()
-    const props = defineProps(['allBoardList'])
     const emit = defineEmits(['openMessageSearch'])
-    const { open } = inject('boardItem')
+    const { open } = inject(BoardMethodsKey) as BoardMethods
 
     const searchWord = ref('')
     const searchBoxFocus = ref(false)
-    const possibleWords = ref([])
-    const boardSearchArea = ref(null)
-    const board = inject('openedBoard')
+    const possibleWords = ref<string[]>([]);
+    const boardSearchArea = ref<HTMLInputElement | null>(null) 
+    const { boardList, openedBoard } = useBoardList()
 
     const boardSearchResult = computed(() => {
-        if(!searchWord.value.length || !props.allBoardList) return []
-        let res = []
-        props.allBoardList.forEach((board, index) => {
-            let title = boardTitle(board);
-            if (possibleWords.value.some(v => title.toLowerCase().includes(v.toLowerCase()))) {
+        if(!searchWord.value.length || !boardList.value) return []
+        let res: Board[] = [];
+        boardList.value.forEach((board:Board) => {
+            let title = useBoardTitle(board);
+            if (possibleWords.value.some(v => title && title.toLowerCase().includes(v.toLowerCase()))) {
                 res.push(board)
             }
         });
         return res 
     })
-    const chatName = computed(() => {
-        const item = board.value
-        if(!item) return 
-        if(item.private_flag == 1 && item.board_to_users.length == 2){
-            var coresspondId = item.board_to_users.filter(obj => obj.user_id !== auth.activeUser.id);
-            if(coresspondId && coresspondId.length && coresspondId[0].user){
-                return coresspondId[0].user.name;
-            }else{
-                return '非アクティブユーザー'
-            }
-        }else{
-            return item.title;
-        } 
-    })          
+    const chatTitle = computed(() =>  openedBoard?.value ? useBoardTitle(openedBoard.value) : '')       
 
-    const inputStart = async(event) => {
-        searchWord.value = event.target.value ? event.target.value : ''
+    const inputStart = async(event: Event) => {
+        const target = event.target as HTMLInputElement
+        searchWord.value = target.value ? target.value : ''
         if(!searchWord.value) return
         const encoded = encodeURI(searchWord.value);
         try{
@@ -117,27 +108,17 @@ import { useResponsive } from '@/store/responsive';
                 }                
             })
         } catch (e) {
-            possibleWords.value.push(after)
+            possibleWords.value.push(target.value)
         }
     }
     const searchWindowView = () => {
-        boardSearchArea.value.value = '';               
+        if(boardSearchArea.value){
+            boardSearchArea.value.value = '';    
+        }                   
         searchWord.value = ''
     }
     const openMessageSearch = () => {
         emit('openMessageSearch', searchWord.value)
-    }
-    const boardTitle = (item) => {            
-        if(item.private_flag == 1 && item.board_to_users.length == 2){
-            var coresspondId = item.board_to_users.filter(obj => obj.user_id !== auth.activeUser.id);
-            if(coresspondId && coresspondId.length && coresspondId[0].user){
-                return coresspondId[0].user.name;
-            }else{
-                return '非アクティブユーザー'
-            }
-        }else{
-            return item.title;
-        }           
     }
         
     

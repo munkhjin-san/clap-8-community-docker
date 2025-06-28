@@ -113,16 +113,16 @@
 <script setup>
 import LongInput from '../Form/LongInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue'
-import { inject, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { DateTime } from 'luxon';
-    const { notify, info } = inject('dialog')
+import { useApi } from '@/composables/api';
     const list = ref([])
     const selectedItem = ref(null)
     const newStatus = ref(0)
     const addMemoWindow = ref(false)
     const newMemo = ref('')
     const sending = ref(false)
-    
+    const api = useApi()
     const viewNewMemo = () => {
         addMemoWindow.value = !addMemoWindow.value
         if(addMemoWindow.value){
@@ -136,38 +136,29 @@ import { DateTime } from 'luxon';
             
         }
     }
-    const setStatus = async() => {
+    const setStatus = async(event) => {
         const value = event.target.value
-        try{
-            await axios.post('/update_consult_status', {
-                record_id: selectedItem.value.id,
-                value: value,                
-            })
-            info('更新しました。')
-            newMemo.value = '';
-            addMemoWindow.value = false
-            getRecievedConsults(selectedItem.value.id)
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+
+        await api.post('/update_consult_status', {
+            record_id: selectedItem.value.id,
+            value: value,                
+        }, { toast: '更新しました。' })
+        newMemo.value = '';
+        addMemoWindow.value = false
+        getRecievedConsults(selectedItem.value.id)
+
     }
-    const sendMemo = async() => {
-        sending.value = true
-        try{
-            await axios.post('/add_memo_to_consult', {
-                record_id: selectedItem.value.id,
-                text: newMemo.value,                
-            })
-            info('送信しました。')
-            newMemo.value = '';
-            addMemoWindow.value = false
-            getRecievedConsults(selectedItem.value.id)
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            sending.value = false
-        }
+    const sendMemo = async() => { 
+
+        await api.post('/add_memo_to_consult', {
+            record_id: selectedItem.value.id,
+            text: newMemo.value,                
+        }, { toast: '保存しました。', loadingRef: sending })
         
+        newMemo.value = '';
+        addMemoWindow.value = false
+        getRecievedConsults(selectedItem.value.id)
+
     }
     const select = (item) => {
         selectedItem.value = item
@@ -177,18 +168,16 @@ import { DateTime } from 'luxon';
         selectedItem.value = null
     }
     const getRecievedConsults = async(id) => {
-        try{
-            const response = await axios.get('/get_recieved_consults' )
-            list.value = response.data
-            if(id){
-                const replaceData = list.value.find(ob => ob.id == id)
-                if(replaceData){
-                    selectedItem.value = replaceData
-                }
+   
+        const response = await api.get('/get_recieved_consults' )
+        list.value = response
+        if(id){
+            const replaceData = list.value.find(ob => ob.id == id)
+            if(replaceData){
+                selectedItem.value = replaceData
             }
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }
+
     }
     const createdDate = (date) => {
         return DateTime.fromISO(date).toLocaleString(DateTime.DATETIME_MED)

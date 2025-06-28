@@ -34,21 +34,21 @@
 import OpenAiReview from '@/components/Global/OpenAiReview.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import { inject, onMounted, ref, useTemplateRef } from 'vue';
-import { Dialog } from '@/interface/globalInterface';
-import axios from 'axios';
 import { useRouter } from 'vue-router';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps(['material'])
 const answer = ref(props.material?.answer?.answer || '')
 const processing = ref(['', false, false])
 const reviewEl = useTemplateRef('reviewEl')
-const { notify, info } = inject<Dialog>('dialog')!
 const answerComment = useTemplateRef('answerComment')
 const router = useRouter()
 const getLessons = inject('getLessons') as Function
 const providedMaterial = inject('providedMaterial')
+const api = useApi()
+const { ping } = useDialog()
 onMounted(() => {
-    console.log('yay',providedMaterial)
     if (props.material.answer) {
         answer.value = props.material.answer.answer
     }
@@ -56,7 +56,7 @@ onMounted(() => {
 const finish = async(status: number) => {
     if (status === 2) {
         if(props.material.assistant_id && !reviewEl.value?.reviewResultRaw){
-            notify('AI分析を必須として実施し、完了してください。')
+            ping('AI分析を必須として実施し、完了してください。')
             return
         }
         const aiVal = await reviewEl.value?.validate()
@@ -82,18 +82,17 @@ const finish = async(status: number) => {
             material_id: materialId
         }
     }
-    try {
-        await axios.post('/update_lesson_answer', params)
-        info('保存しました。')
-        processing.value[status] = false
-        getLessons()
-        
-    } catch (e) {
-        notify(e)
-    } finally {
-        if(status === 2){
-            router.push({name : 'basic'})
-        }
+
+    await api.post('/update_lesson_answer', params, {
+        toast: '保存しました。'
+    })
+    processing.value[status] = false
+    getLessons()
+    
+
+    if(status === 2){
+        router.push({name : 'basic'})
     }
+
 }
 </script>

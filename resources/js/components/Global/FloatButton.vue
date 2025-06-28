@@ -2,27 +2,26 @@
     <div 
         :title="title ? title : '新規作成'" 
         id="boardCreate" 
-        :class="[{'float-b': !plain}, {'inverse-float': inverse}, {'hiddenButton' : createHidden}, customClass]" 
+        :class="[{'float-b': !plain}, {'inverse-float': inverse}, {'hiddenButton' : createHidden}]" 
         @click="emit('action')" 
-        v-html="getIcon(type)"
         :style="{bottom: order ? `${(order * 20) + ((order - 1) * 35)}px` : '20px'}"
     >
+        <slot name="icon">
+
+        </slot>
     </div>
 </template>
 
 
 <script setup lang="ts">
-import { getIcon } from 'assets/icons';
 import { onUnmounted, onMounted, shallowRef } from 'vue';
 
     const props = defineProps<{
         hideOn?: string | HTMLElement | null;
-        type: string;
         title?: string;
         order?: number;
         inverse?: boolean;
         plain?: boolean;
-        customClass?: string
     }>()
     const emit = defineEmits<{
         action: []

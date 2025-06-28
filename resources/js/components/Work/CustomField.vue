@@ -61,8 +61,22 @@
                 </div>
             </div>
         </div>
+        <div v-if="subParts && subParts.length">
+            <div class="report-field">
+                <div class="report-input">
+                    <div class="report-input-wrapper" v-for="(subPart , index) in subParts">
+                        <div>
+                            <input ref="subPartsRef" :id="'workSub' + index" type="checkbox" name="sub_allowance" v-model="value" @change="setSubPart" :value="subPart.parts_value">
+                            <label :for="'workSub' + index">{{ subPart.parts_lavel }}</label> 
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
         
     </div>
+
 </template>
 <script setup>
 import { useMenuStore } from '@/store/menu';
@@ -70,14 +84,16 @@ import LongInput from '../Form/LongInput.vue';
 import Trash from '../Icons/Trash.vue';
 import VehicleField from './VehicleField.vue';
 import AddIcon from '../Form/AddIcon.vue';
-import { onMounted, ref, inject } from 'vue';
+import { onMounted, ref, computed, useTemplateRef } from 'vue';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps(['data', 'shift_type'])
     const value = defineModel('fieldValue') 
     const vehicle = defineModel('vehicle')
     const menu = useMenuStore()
     const tempComments = ref([])
     const textAreaKey = ref(0)
-    const { info } = inject('dialog');
+    const subPartsRef = useTemplateRef('subPartsRef')
+    const { ping } = useDialog()
     onMounted(() => {
         getTempComments()
     })
@@ -98,7 +114,7 @@ import { onMounted, ref, inject } from 'vue';
             localStorage.setItem('temp_comments', JSON.stringify(tempComments.value))
             getTempComments()
         }else{
-            info('下書き保存する内容がありません')
+            ping('下書き保存する内容がありません')
         }
     }
     const setText = (text) => {
@@ -106,4 +122,46 @@ import { onMounted, ref, inject } from 'vue';
         menu.close()
         textAreaKey.value += 1
     }
+    const subParts = computed(() => {
+        const type = props.data.form_type;
+        const parts = props.data.custom_field_parts_records;
+        if(type === 'radio'){
+            const selectedPart = parts.find(part => part.parts_value === value.value);
+            return selectedPart ? selectedPart.sub_parts : [];
+        }else if(type === 'checkbox'){
+            const sub_parts = parts.filter(part => Array.isArray(value.value) && value.value.includes(part.parts_value));
+            return sub_parts.map(part => part.sub_parts).flat();
+        }
+    })
+    const setSubPart = (event) => {
+        const targetValue = event.target.value;
+        if(event.target.checked){
+            const otherParts = subParts.value.filter(part => part.parts_value !== targetValue);
+            console.log(otherParts);
+            otherParts.forEach(part => {
+                value.value = value.value.filter(v => v !== part.parts_value);
+            })
+        }
+    }
+    const subPartsChecked = computed(() => {
+        const parts = props.data.custom_field_parts_records;
+        if(!parts || !Array.isArray(value.value)) return true;
+        let result = true;
+        parts.forEach(part => {
+            const subParts = part.sub_parts || [];
+            if(!subParts.length || !value.value.includes(part.parts_value)) {
+                result = result && true;
+            }else{
+                const valuesList = subParts.map(subPart => subPart.parts_value);
+                const includes = value.value.filter(v => valuesList.includes(v));
+                const valid = includes.length ? true : false;
+                result = result && valid;
+            }         
+        });
+        return result;        
+    })
+
+    defineExpose({
+        subPartsChecked
+    })
 </script>

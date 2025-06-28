@@ -36,10 +36,9 @@
 </template>
 <script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue';
-import { User } from '@/interface/globalInterface';
 import { computed, onMounted, ref } from 'vue';
 import { useMenuStore } from '@/store/menu';
-import axios from 'axios';
+import { useApi } from '@/composables/api';
 const props = defineProps<{
   selectableOptions?: any[]
   type: string
@@ -50,7 +49,7 @@ const emit = defineEmits<{
 }>()
 const options = ref<any[]>([])
 const menu = useMenuStore()
-
+const api = useApi()
 const selectedOption = defineModel<number | null>()
 
 const selected = computed(() => {
@@ -59,12 +58,10 @@ const selected = computed(() => {
     return name       
 })    
 const getPossibleOptions = async() => {
-    try {
-        const response = await axios.get(`/${props.path}`)
-        options.value = response.data
-    } catch (e) {
 
-    }
+    const response = await api.get(`/${props.path}`)
+    options.value = response
+
 }
 onMounted(() => {
     if (props.path) {

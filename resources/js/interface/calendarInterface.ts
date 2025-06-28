@@ -133,3 +133,28 @@ export interface FacilityData {
     zoom_value: FacilityItem[]
 }
 
+export interface TimeSlot {
+    [userId: string]: boolean;
+}
+
+export interface DailySchedule {
+    [time: string]: TimeSlot; 
+}
+
+export interface DateSchedule {
+    [date: string]: DailySchedule; 
+}
+
+export interface Fac {
+    label: string;
+    value: number;
+    selected: number
+}
+export interface FacList {
+    qualified_institution: Fac[];
+    zoom_value: Fac[];
+    qualified_care: Fac[];
+
+}
+
+

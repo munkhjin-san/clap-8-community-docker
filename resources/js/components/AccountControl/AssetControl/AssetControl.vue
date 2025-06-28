@@ -95,7 +95,11 @@
                     @setActivePage="(index) => getAdminAssetList(index)"/>
             </div>
         </div>
-        <FloatButton type="plus" @action="createWindow = true"/>
+        <FloatButton @action="createWindow = true">
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>
         <AssetCreate
             v-if="createWindow"
             :editData="editData"
@@ -108,22 +112,23 @@
 </template>
 <script setup lang="ts">
 import { Asset } from '@/interface/assetInterface';
-import axios from 'axios';
-import { inject, onMounted, reactive, ref, watch } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 import AssetClass from 'assets/AssetClass.json'
 import AssetStatus from 'assets/AssetStatus.json'
 import AssetDetail from '@/components/Asset/AssetDetail.vue';
 import AssetMovement from '@/components/Asset/AssetMovement.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
-import { DialogMethods, Office } from '@/interface/globalInterface';
+import { Office } from '@/interface/globalInterface';
 import AssetCreate from '@/components/Asset/AssetCreate.vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import PostSearchPager from '@/components/Post/PostSearchPager.vue';
 import AssetTableHeader from './AssetTableHeader.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { DateTime } from 'luxon';
+import AddIcon from '@/components/Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
 
-const { notify, info, confirm} = inject('dialog') as DialogMethods
+const api = useApi()
 const assetsData = ref<{
     data: Asset[],
     first_page_url: string,
@@ -168,54 +173,39 @@ onMounted(() => {
     getPossibleOffice()
 });
 const getPossibleOffice = async() => {
-    try {
-        const response = await axios.get('/get_possible_offices')
-        possibleOffices.value = response.data
-    } catch (e) {
-
-    }
+    const data = await api.get('/get_possible_offices')
+    data && (possibleOffices.value = data)
 }
 const getPossibleMembers = async() => {
-    try {
-        const response = await axios.get('/get_possible_members')
-        possibleMembers.value = response.data
-    } catch (e) {
-
-    }
+    const data = await api.get('/get_possible_members')
+    data && (possibleMembers.value = data)
 }
 const editAsset = (asset: Asset) => {
     editData.value = asset
     createWindow.value = true
 }
 const getPossibleProjects = async() => {
-    try {
-        const response = await axios.get('/get_possible_projects')
-        possibleProjects.value = response.data
-    } catch (e) {
-
-    } 
+    const data = await api.get('/get_possible_projects')
+    data && (possibleProjects.value = data)
 }
 const getAdminAssetList = async(page?:number) => {
-    const pageIndex = page ?? 1
-    assetsData.value = await axios.get(`/get_assets?page=${pageIndex}`, {
-        params: searchQuery
-    }).then(res => res.data)
+    const data = await api.get('/get_assets', {
+        ...searchQuery,
+        page: page ?? 1,
+    })
+    if(data){
+        assetsData.value = data
+    }
 }
 const padNumber = (num: number | null) => {
     return num?.toString().padStart(5, "0")
 }
 const removeAsset = async(id: number) => {
-
-    const answer = await confirm('物品を削除しますよろしいでか？')
-    if (!answer.value) return
-    try {
-        await axios.delete(`/delete_asset?id=${id}`)
-        info('削除しました。')
-        getAdminAssetList(assetsData.value.current_page)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }    
-    
+    const data = await api.del('/delete_asset', { id }, {
+        toast: '物品を削除しました。',
+        ask: '物品を削除しまか？',
+    })
+    data && getAdminAssetList(assetsData.value.current_page)    
 }
 const closeModal = (reload: boolean) => {
     createWindow.value = false
@@ -226,26 +216,28 @@ const closeModal = (reload: boolean) => {
 }
 
 const exportCSV = async() => {
-    try{
-        loading.value = true
-        const response = await axios.get('/export_asset_csv', {
-            params: {...searchQuery, mode: 'export'},
-            responseType: 'blob'
-        })
-        const url = window.URL.createObjectURL(new Blob([response.data]))
+
+    loading.value = true
+    const data = await api.get('/export_asset_csv', {
+        ...searchQuery,
+        mode: 'export',
+    },{},
+    {
+        responseType: 'blob'
+    })
+    
+    if(data){
+        const url = window.URL.createObjectURL(new Blob([data]))
         const link = document.createElement('a')
         link.href = url
         link.setAttribute('download', `物品${DateTime.now().toLocaleString(DateTime.DATETIME_SHORT)}.xlsx`) 
         document.body.appendChild(link)
         link.click()
-
-    }catch(e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }finally{
-        setTimeout(() => {
-            loading.value = false
-        }, 100);
+        
     }
+    setTimeout(() => {
+        loading.value = false
+    }, 100);
 
 }
 watch(searchQuery, () => {

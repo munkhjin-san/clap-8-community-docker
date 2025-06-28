@@ -47,15 +47,18 @@
 
 </template>
 <script setup>
-import { inject, ref, watch } from 'vue';
+import { ref } from 'vue';
 import FileIcon from '../../Board/Mixed/FileIcon.vue'
-    const { notify } = inject('dialog')
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps(['path'])
     const emit = defineEmits(['updated', 'saved', 'cancel'])
     const entered = ref(false)
     const formUploader = ref(null)
     const uploadingProgress = ref(0)
     const uploadFiles = defineModel()
+    const api = useApi()
+    const { ping } = useDialog()
     const fileUpCancel = async(file, index) => {
         let fileId = '';
         let path = '';
@@ -66,16 +69,9 @@ import FileIcon from '../../Board/Mixed/FileIcon.vue'
             const { id = '', path: filePath = '' } = file;
             fileId = id;
             path = filePath || props.path;
-        }
-
-        try {
-            await axios.post('/user_file_delete', { file_id: fileId, path });
-        } catch (error) {
-            const errorMessage = error.response?.data.message || error?.message || 'エラーが発生しました。';
-            notify(errorMessage);
-        } finally {
-            uploadFiles.value.splice(index, 1)
-        }
+        }     
+        await api.post('/user_file_delete', { file_id: fileId, path });
+        uploadFiles.value.splice(index, 1)   
     }
     const isImageOrVideo = (file) => {
         if(file.mime_type){
@@ -122,31 +118,29 @@ import FileIcon from '../../Board/Mixed/FileIcon.vue'
     }
     const uploadStart = async(file) => {
         if(uploadFiles.value.length > 0){
-            notify('ファイルを 1 つだけアップロードしてください。')
+            ping('ファイルを1個ずつアップロードしてください。')
             return
         }
         if(file){
-            const formData = new FormData()                    
+            const formData = new FormData()                   
                                     
             formData.append('file', file)
 
-            try{
-                const response = await axios.post('/user_file_upload', formData , { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) } )
-                const file = response.data
-                if(file == 'notimage'){
-                    notify('画像またはビデオをアップロードしてください。')
-                }else{
-                    uploadFiles.value.push(file)
-                }
-            }catch (e){
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')    
-            }finally{
-                emit('updated', uploadFiles.value)
-                setTimeout(() => {
-                    uploadingProgress.value = 0
-                }, 300);
-                formUploader.value = ''
+            const response = await api.post('/user_file_upload', formData , {}, { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) } )
+            const fileData = response
+            if(fileData == 'notimage'){
+                ping('画像またはビデオをアップロードしてください。')
+                return
             }
+                
+            uploadFiles.value.push(fileData)            
+
+            emit('updated', uploadFiles.value)
+            setTimeout(() => {
+                uploadingProgress.value = 0
+            }, 300);
+            formUploader.value = ''
+          
         }
     }
 

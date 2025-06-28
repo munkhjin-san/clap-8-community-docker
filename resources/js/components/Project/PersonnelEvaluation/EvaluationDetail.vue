@@ -144,15 +144,14 @@
 </template>
 <script setup lang="ts">
 import { generalPositions, } from '@/utils/tools';
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
-import axios from 'axios';
 import EvaluationCreationWithMentor from './EvaluationCreationWithMentor.vue';
-import {  Dialog, DialogMethods } from '@/interface/globalInterface'
 import { EvaluationRecord } from '@/interface/evaluationInterface';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { useProject } from '@/composables/project';
+import { useApi } from '@/composables/api';
 const props = defineProps([
     'date',
 ])
@@ -173,7 +172,7 @@ const route = useRoute()
 const createWindow = ref(false)
 const step = ref(0)
 const baseSkills = ref<string[]>([])
-const { notify, confirm, info  } = inject<Dialog>('dialog') as DialogMethods
+const api = useApi()
 
 const loading = ref(0)
 onMounted(async () => {
@@ -197,38 +196,35 @@ const reload = async () => {
 
 }
 const updateStatus = async (status: number) => {
-    try {
-        const response = await axios.post('/set_increase_request', {
-            attributes:{
-                id: evaluationData.value?.id,
-            },            
-            params: {
-                status: status
-            }
-        })
-        info(statuses[status].success)
-        await getEvaluations()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+
+    await api.post('/set_increase_request', {
+        attributes:{
+            id: evaluationData.value?.id,
+        },            
+        params: {
+            status: status
+        }
+    }, {
+        toast: statuses[status].success,
+    })
+    await getEvaluations()
+
 }
 const getEvaluations = async () => {
     const span = route.params.span as string
     if (memberData.value && span) {
-        try {
-            const params = {
-                year: span?.split('-')[0],
-                which_half: span?.split('-')[1],
-                user_id: memberData.value?.id
-            }
-            const response = await axios.post('/get_evaluation_data', params)
-            evaluationData.value = response.data.evaluation
-            baseSkills.value = response.data.base_skills
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }finally{
-            initialLoader.value = false
+
+        const params = {
+            year: span?.split('-')[0],
+            which_half: span?.split('-')[1],
+            user_id: memberData.value?.id
         }
+        const data = await api.post('/get_evaluation_data', params, {
+            loadingRef: initialLoader,
+        })
+        evaluationData.value = data.evaluation
+        baseSkills.value = data.base_skills
+
     }
 
 }

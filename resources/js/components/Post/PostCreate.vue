@@ -167,7 +167,7 @@
 <script setup>      
 import TagSelector from '../Form/TagSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import ShortInput from '../Form/ShortInput.vue'
 import LongInput from '../Form/LongInput.vue'
 import MemberSelector from '../Form/MemberSelector.vue'
@@ -176,12 +176,12 @@ import { useSharingDataStore } from '@/store/sharingData'
 import FileUploader from '../Form/FileUploader.vue'
 import PostIcon from './PostIcon.vue'
 import { DateTime } from 'luxon'
+import { useApi } from '@/composables/api'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
     const props = defineProps(['appNameJp', 'appName', 'editTarget', 'getQuery'])
     const emit = defineEmits('postFinish')
-    const { notify, info } = inject('dialog')
     const app_type = ref(props.editTarget && props.editTarget.app_type ? props.editTarget.app_type : props.getQuery?.app_type ? props.getQuery?.app_type : 0)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
     const content = ref(props.editTarget && props.editTarget.content ? props.editTarget.content : "")
@@ -204,6 +204,7 @@ import { DateTime } from 'luxon'
     const recordDateEnd = ref(null)
     const recordDateStart = ref(null)
     const chargeable = ref(true)
+    const api = useApi()
     const validateTargets = computed(() => {
         return [
             recordTitle.value,
@@ -260,44 +261,34 @@ import { DateTime } from 'luxon'
             result = result * val.valid
         }
         if (!result || dateComparsionError.value.hasError) return
-        processing.value = true
-        
-        try {
+        processing.value = true      
+
             
-            const params = {
-                edit_id: props.editTarget ? props.editTarget.id : null,
-                to_users: to_users.value.length ? to_users.value.map(ob => ob.id) : [], 
-                title: title.value, 
-                content_rule: content_rule.value, 
-                content_goal: content_goal.value, 
-                date_start: date_start.value, 
-                date_end: date_end.value,  
-                tags: tags.value.length ? tags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [], 
-                file_ids : uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
-                referrer: referrer.value, 
-                path: props.appName,
-                post_content: content.value,
-                award_entry: 0,
-                app_type: app_type.value,
-                chargeable: chargeable.value
-            }
-    
-            axios.post('post_add_record',params)
-            .then(response => setTimeout(() => {
-                closeModal(true, response.data.record.id)
-                info(props.editTarget ? '編集しました。' :'投稿しました。')
-            },0))
-            .catch(function (error) {
-                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) notify('エラーが発生しました。')
-                else notify('エラーが発生しました。 ' + error.message)      
-                processing.value = false                    
-            });
-            
-        } catch (error) {
-            console.error('Error fetching data:', error);
-            processing.value = false
+        const params = {
+            edit_id: props.editTarget ? props.editTarget.id : null,
+            to_users: to_users.value.length ? to_users.value.map(ob => ob.id) : [], 
+            title: title.value, 
+            content_rule: content_rule.value, 
+            content_goal: content_goal.value, 
+            date_start: date_start.value, 
+            date_end: date_end.value,  
+            tags: tags.value.length ? tags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [], 
+            file_ids : uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
+            referrer: referrer.value, 
+            path: props.appName,
+            post_content: content.value,
+            award_entry: 0,
+            app_type: app_type.value,
+            chargeable: chargeable.value
         }
+
+        const data = await api.post('post_add_record', params, {
+            toast: props.editTarget ? '編集しました。' : '投稿しました。',
+            loadingRef: processing,
+            
+        })
+
+        closeModal(true, data.record.id)               
     }
     const closeModal = (flag, id) => {
         processing.value = false

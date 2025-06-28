@@ -20,34 +20,31 @@ import { urlCheck } from '@/utils/tools';
 import { inject, ref, useTemplateRef } from 'vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { QuickEditText } from '@/interface/projectInterface';
-import axios from 'axios';
-import { Dialog } from '@/interface/globalInterface';
 import { GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
 import { useRoute } from 'vue-router';
+import { useApi } from '@/composables/api';
 const props = defineProps<{
   data: QuickEditText
 }>()
-const { notify, info } = inject<Dialog>('dialog')!;
 const {refreshProject} = inject(GanttProjectMethodsKey) as GanttProjectMethods
 const route = useRoute()
 const sending = ref(false)
 const editing = ref(false)
 const textValue = useTemplateRef('textValue')
+const api = useApi()
 const send = async () => {
     if(!textValue.value?.textContent) return
-    console.log(textValue.value?.textContent)
-    try {
-        await axios.patch(`/quick_edit_task`, {
-            id: props.data.id,
-            column: 'remarks',
-            value: textValue.value?.textContent
-        })
-        await refreshProject({})
-        emit('close')
-        info('更新しました。')
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
-    }
+ 
+    await api.patch(`/quick_edit_task`, {
+        id: props.data.id,
+        column: 'remarks',
+        value: textValue.value?.textContent
+    }, {
+        toast: '更新しました。'
+    })
+    await refreshProject({})
+    emit('close')
+
 }
 const editStart = () => {
     editing.value = true

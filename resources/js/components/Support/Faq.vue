@@ -64,11 +64,11 @@
 
 </template>
 <script setup>
-import { inject, ref } from 'vue';
+import { ref } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue'
 import LongInput from '../Form/LongInput.vue';
+import { useApi } from '@/composables/api';
     const props = defineProps(['qaList', 'tagList'])
-    const { notify, info } = inject('dialog')
     const emit = defineEmits(['setKeyWord'])
     const selectedTag = ref(0)
     const selectedItem = ref(null)
@@ -76,6 +76,7 @@ import LongInput from '../Form/LongInput.vue';
     const advancedFeedBackRef = ref(null)
     const sending = ref(false)
     const feedBackContent = ref('')
+    const api = useApi()
   
     const reset = () => {
         selectedItem.value = null
@@ -95,27 +96,25 @@ import LongInput from '../Form/LongInput.vue';
                 advancedFeedBackRef.value?.scrollIntoView({ behavior: "smooth", block: "center"})
             }, 0);
         }else{
-            try{
-                await axios.post('/support_resolve_decision', {id: selectedItem.value.id,})
-                info('送信しました。')
-                reset()
-            } catch (e) {
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            }
+   
+            await api.post('/support_resolve_decision', {id: selectedItem.value.id }, {
+                toast: '送信しました。'
+            })
+            reset()
+
         }
     }
     const sendFeedBack = async() => {
-        try{
-            await axios.post('/support_feedback', {
-                consultation_content: feedBackContent.value,
-                contact_address: null,
-                kind_value: 99,
-                id: selectedItem.value.id
-            })
-            info('送信しました。')
-            reset()
-        } catch(e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+
+        await api.post('/support_feedback', {
+            consultation_content: feedBackContent.value,
+            contact_address: null,
+            kind_value: 99,
+            id: selectedItem.value.id
+        }, {
+            toast: '送信しました。'
+        })
+        reset()
+
     }
 </script>

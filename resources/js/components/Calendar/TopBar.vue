@@ -72,7 +72,7 @@
                                 </label>                                 
                                 <ItemMenu :items="[
                                     {title: '編集する', action: () => editGroupStart(group)},
-                                    {title: '削除する', action: () => deleteConfirm(group)}
+                                    {title: '削除する', action: () => deleteExecute(group)}
                                 ]"/>                                
                             </div>
                              
@@ -161,13 +161,13 @@ import { useAuthUserStore } from '../../store/auth'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import PostSearchBar from '../Post/PostSearchBar.vue'
 import { getIcon } from 'assets/icons'
-import axios from 'axios'
-import { DialogMethods } from '@/interface/keys'
 import { CalendarGroup, FacilityData } from '@/interface/calendarInterface'
 import Back from '../Icons/Back.vue'
 import { useCalendar } from '@/composables/calendar'
+import { useApi } from '@/composables/api'
     const menu = useMenuStore()
     const auth = useAuthUserStore()
+    const api = useApi()
     const props = defineProps(['selectedYear', 'selectedMonth'])
     const emit = defineEmits(['jumpToday', 'updated', 'setActiveMembers', 'refresh'])
     const list = ref<CalendarGroup[]>([])
@@ -190,7 +190,7 @@ import { useCalendar } from '@/composables/calendar'
         return list.value ? list.value : []
     })        
     const selectedGroups = ref<number[]>([])
-    const { notify, info, confirm} = inject('dialog') as DialogMethods
+
     onMounted(() => {
         getMyGroup()        
     })
@@ -240,20 +240,10 @@ import { useCalendar } from '@/composables/calendar'
             throw error; 
         }               
     }
-    const deleteConfirm = async(group) => {
-        const answer = await confirm('グループを削除しますか。')
-        if(!answer.value) return
-        deleteExecute(group)
-         
-    }
-    const deleteExecute = (group) => {
+    const deleteExecute = async(group) => {
         if(!group) return
-        axios.post('/delete_my_group', {id: group.id} ).then(response => {  
-            completed('削除した。')     
-    
-        }).catch(function (error) {
-            if (error.response) notify(error.response.data.message)                    
-        });
+        const data = await api.post('/delete_my_group', {id: group.id}, {toast: '削除しました。', ask: 'グループを削除しますか。'} )
+        data && completed()        
     }
     const submit = async () => {
         loading.value = true
@@ -267,14 +257,10 @@ import { useCalendar } from '@/composables/calendar'
             title: title.value,
             users: editingUserList.value.map(ob => ob.id)
         }
-        axios.post('/set_more_members', params ).then(response => {  
-            completed('保存しました。')                
-    
-        }).catch(function (error) {
-            if (error.response) notify(error.response.data.message)                      
-        });
+        const data = await api.post('/set_more_members', params, { toast: '保存しました。' })
+        data && completed()      
     }
-    const completed = (message) => {
+    const completed = () => {
         emit('updated')                
         getMyGroup(1)
         title.value = ''
@@ -282,7 +268,6 @@ import { useCalendar } from '@/composables/calendar'
         editingUserList.value = []
         createWindow.value = false
         addUsersWindow.value = false
-        info(message)
         menu.setMenu( {name: 'calendarMemberSelector', id: 6})
         menuId.value = null
     }
@@ -295,37 +280,31 @@ import { useCalendar } from '@/composables/calendar'
         menu.setMenu( {name: 'calendarMemberSelector', id: 6})
     }
     
-    const getMyGroup = (flag?:number) => {
-        axios.post('/get_my_groups', {
+    const getMyGroup = async (flag?:number) => {
+        const data = await api.post('/get_my_groups', {
             year: props.selectedYear,
             month: props.selectedMonth
-        }).then(response => {  
+        })
             
-            list.value = response.data.my_groups
-            selectedUsers.value = response.data.my_groups
-            workGroupList.value = response.data.work_groups
-            myWorkGroupList.value = response.data.my_work_groups
-            allMembers.value = response.data.all_members
-            const uniqueUserIds = new Set();
-            const memberList:CalendarGroup[] = [];
-            selectedUsers.value.forEach((group:any) => {
-                // if(group.selected){
-                    group.users.forEach(user => {
-                        if (!uniqueUserIds.has(user.id) && user.pivot && user.pivot.selected_as_calendar_member) {
-                            uniqueUserIds.add(user.id);
-                            memberList.push(user);
-                        }
-                    });
-                // }                    
-            });
-            emit('setActiveMembers', memberList)
-            if(flag){
-                loading.value = false                    
-            }
-    
-        }).catch(function (error) {
-            if (error.response) notify(error.response.data.message)                        
+        list.value = data.my_groups
+        selectedUsers.value = data.my_groups
+        workGroupList.value = data.work_groups
+        myWorkGroupList.value = data.my_work_groups
+        allMembers.value = data.all_members
+        const uniqueUserIds = new Set();
+        const memberList:CalendarGroup[] = [];
+        selectedUsers.value.forEach((group:any) => {
+            group.users.forEach(user => {
+                if (!uniqueUserIds.has(user.id) && user.pivot && user.pivot.selected_as_calendar_member) {
+                    uniqueUserIds.add(user.id);
+                    memberList.push(user);
+                }
+            });                 
         });
+        emit('setActiveMembers', memberList)
+        if(flag){
+            loading.value = false                    
+        }
     }
     const update = (event, group) => {
         
@@ -342,13 +321,12 @@ import { useCalendar } from '@/composables/calendar'
         const user_id = -1
         updateSelectedUsers(user_id, val, group.id, by)
     }
-    const updateSelectedUsers = (user_id, val, group_id, by) => {
-        axios.post('/update_selected_calendar_members',{user_id: user_id, value: val, group_id: group_id, by: by}).then(response => {  
-            emit('updated')
-            getMyGroup()        
-        }).catch(function (error) {
-            if (error.response) notify(error.response.data.message)                 
-        });
+    const updateSelectedUsers = async(user_id, val, group_id, by) => {
+
+        await api.post('/update_selected_calendar_members', { user_id: user_id, value: val, group_id: group_id, by: by })
+        emit('updated')
+        getMyGroup()        
+
     }
     const updateFacility = (event: Event, index:keyof FacilityData, sub_index:number) => {
         const target = event.target as HTMLInputElement

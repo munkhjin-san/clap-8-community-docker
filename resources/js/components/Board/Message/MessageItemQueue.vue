@@ -128,94 +128,97 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import Autolinker from 'autolinker';
 import MessageQuoteReply from "./MessageQuoteReply.vue";
-import MessageFiles from "./MessageFiles.vue";
 import FileIcon from '../Mixed/FileIcon.vue';
 import { computed, inject, onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useTempUnique } from '@/store/tempUnique';
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { mentionFormatter } from '@/utils/tools';
-        const auth = useAuthUserStore()
-        const tempUnique = useTempUnique()
-        const props = defineProps(['message', 'qIndex', 'messageListType'])
+import { useApi } from '@/composables/api';
+import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
 
-        const resending = ref(false)
-        const { sent, sendError, removeError, resetReplyQuot } = inject('messageItem')
-        onMounted(() => {  
-            setTimeout(()=> {
-                const container = document.getElementById('boardListInner')                
-                if(container){                    
-                    container.scrollTop = -1
-                }                
-            },0)   
-            sendMessage();            
-        })
+    const auth = useAuthUserStore()
+    const tempUnique = useTempUnique()
+    const props = defineProps(['message', 'qIndex', 'messageListType'])
 
-            const messageBody = computed(() => {
-                return mentionFormatter(props.message.message, true)    
-            })
-            const messageUserName = computed(() => {                
-                return props.message.user && props.message.user.deleted_at == null
-                ? props.message.user.name
-                : '非アクティブユーザー';
-            })
+    const resending = ref(false)
+    const { sent, sendError, removeError, resetReplyQuot } = inject(MessageMethodsKey) as MessageMethods;
+    const api = useApi()
+    onMounted(() => {  
+        setTimeout(()=> {
+            const container = document.getElementById('boardListInner')                
+            if(container){                    
+                container.scrollTop = -1
+            }                
+        },0)   
+        sendMessage();            
+    })
+    const pushInstantUser = inject('pushInstantUser') as Function
+    const messageBody = computed(() => {
+        return mentionFormatter(props.message.message, true)    
+    })
+    const messageUserName = computed(() => {                
+        return props.message.user && props.message.user.deleted_at == null
+        ? props.message.user.name
+        : '非アクティブユーザー';
+    })
 
-            const sendMessage = async() => {
-                if(!resending.value && props.message.error) {
-                    return
-                }              
-                const params = {
-                    message: props.message.message,
-                    app_name: 'board',
-                    record_id: props.message.record_id,
-                    message_id: null,
-                    reply_flag: props.message.reply_flag,
-                    reply_id: props.message.reply_id,
-                    quot_flag: props.message.quot_flag,
-                    quot_id: props.message.quot_id,
-                    forward_message_id: props.message.forward_message_id,
-                    my_id: auth.activeUser.id,
-                    selected_quot_text: props.message.quot_message,
-                    attached_temp_files: props.message.attached_temp_files,
-                    imported_files: [],
-                    forwarded_files: [],
-                    u_id: props.message.u_id,
-                    sharing_files: props.message.sharing_files,
-                    draft_flag: props.message.draft_flag
-                };       
-                let u_list = []
-                u_list.push(props.message.u_id);
+    const sendMessage = async() => {
+        if(!resending.value && props.message.error) {
+            return
+        }              
+        const params = {
+            message: props.message.message,
+            app_name: 'board',
+            record_id: props.message.record_id,
+            message_id: null,
+            reply_flag: props.message.reply_flag,
+            reply_id: props.message.reply_id,
+            quot_flag: props.message.quot_flag,
+            quot_id: props.message.quot_id,
+            forward_message_id: props.message.forward_message_id,
+            my_id: auth.activeUser.id,
+            selected_quot_text: props.message.quot_message,
+            attached_temp_files: props.message.attached_temp_files,
+            imported_files: [],
+            forwarded_files: [],
+            u_id: props.message.u_id,
+            sharing_files: props.message.sharing_files,
+            draft_flag: props.message.draft_flag
+        };       
+        let u_list:number[] = []
+        u_list.push(Number(props.message.u_id));
+        tempUnique.setTempUniqueIds(u_list)
+        try{
+            const response = await api.post('/chat_add_api', params)
+            if(response  && response.success && response.u_id == props.message.u_id){
+                sent(props.message)
+                resetReplyQuot()
+                resending.value = false
+                let u_list = tempUnique.ids
+                u_list = u_list.filter( ob => ob !== props.message.u_id)                                
                 tempUnique.setTempUniqueIds(u_list)
-                try{
-                    const response = await axios.post('/chat_add_api', params)
-                    if(response && response.data && response.data.success && response.data.u_id == props.message.u_id){
-                        sent(props.message)
-                        resetReplyQuot()
-                        resending.value = false
-                        let u_list = tempUnique.ids
-                        u_list = u_list.filter( ob => ob !== props.message.u_id)                                
-                        tempUnique.setTempUniqueIds(u_list)
-                        
-                    }
-                }catch (e) {
-                    sendError(props.message)
-                    resending.value = false
-                }               
+                
             }
-            const resendMessage = () => {
-                resending.value = true
-                sendMessage('resend')                
+        }catch (e) {
+            sendError(props.message)
+            resending.value = false
+        }               
+    }
+    const resendMessage = () => {
+        resending.value = true
+        sendMessage()                
 
-            }
-            const urlCheck = (text) => {
-                if(text){                
-                    var linkedText = Autolinker.link(text, {stripPrefix: false});              
-                    return linkedText;                
-                }            
-            }
+    }
+    const urlCheck = (text) => {
+        if(text){                
+            var linkedText = Autolinker.link(text, {stripPrefix: false});              
+            return linkedText;                
+        }            
+    }
               
 
 </script>

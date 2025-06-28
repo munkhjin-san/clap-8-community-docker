@@ -110,17 +110,16 @@ import MemberSelector from '@/components/Form/MemberSelector.vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Modal from '@/components/Global/Modal.vue';
-import { Asset } from '@/interface/assetInterface';
-import { DialogMethods, User } from '@/interface/globalInterface';
-import { Project } from '@/interface/projectInterface'
+import { User } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
-import axios from 'axios';
-import { inject, reactive, ref, useTemplateRef, onMounted, computed } from 'vue';
+import { ref, useTemplateRef, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import AssetClass from 'assets/AssetClass.json'
 import AssetStatus from 'assets/AssetStatus.json'
 import LongInput from '../Form/LongInput.vue';
 import AssetTypePicker from './AssetTypePicker.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const emit = defineEmits<{
     close:[flag: boolean]
 }>()
@@ -140,7 +139,6 @@ const numberRequiredNames = [
     'レンタカーカード',
     'セキュリティカード',
 ]
-const { notify, info } = inject('dialog') as DialogMethods
 const gl_number = ref('')
 const item_name = ref(props.editData?.item_name ?? '')
 const model_number = ref(props.editData?.model_number ?? '')
@@ -151,11 +149,11 @@ const status = ref(props.editData?.status ?? 1)
 const glNumberRef = useTemplateRef('glNumberRef')
 const selectedUser = ref<User | null>(props.editData?.current_user ? props.editData?.current_user : auth.user ? auth.user : null )
 const projects = ref<number | null>(props.editData?.current_project?.id ?? null)
-const memberSelectRef = useTemplateRef('memberSelectRef')
 const projectSelectRef = useTemplateRef('projectSelectRef')
 const modelNumberRef = useTemplateRef('modelNumberRef')
 const itemNameRef = useTemplateRef('itemNameRef')
-const assetTypes = ref([])
+const api = useApi()
+const { ping } = useDialog()
 onMounted(() => {
     if (!props.editData) {
         projects.value = route.params.projectId ? Number(route.params.projectId) : null
@@ -167,44 +165,40 @@ onMounted(() => {
 const padNumber = (num: number | null) => {
     return num?.toString().padStart(5, "0")
 }
-const createAsset = async() => {
-    
-    try {
-        const validTargets = [modelNumberRef.value, itemNameRef.value, props.mode !== 'admin' && props.mode !== 'partner' ? projectSelectRef.value : null]
-        if (gl_exists.value === 0) {
-            validTargets.push(glNumberRef.value)
-        }        
+const createAsset = async() => {   
 
-        let result = true
-        for(const target of validTargets.filter(target => target !== null)){                
-            const val = await target?.validate()
-            const valid = val && val?.valid ? true : false
-            result = result && valid
-        }
-        if (!result) {
-            notify('必須項目を入力してください。')
-            return
-        }
-        const params = {
-            id: convertToHalfWidth(gl_number.value),
-            params : {
-                item_name: item_name.value,
-                model_number: model_number.value,
-                classification: classification.value,
-                value: value.value,
-                status: status.value,
-                project_id: projects.value ?? null,
-                user_id: selectedUser.value?.id ?? null,
-                specs: specs.value
+    const validTargets = [modelNumberRef.value, itemNameRef.value, props.mode !== 'admin' && props.mode !== 'partner' ? projectSelectRef.value : null]
+    if (gl_exists.value === 0) {
+        validTargets.push(glNumberRef.value)
+    }        
 
-            }
-        }
-        await axios.post('/create_asset', params)
-        info('作成しました。')
-        emit('close', true)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    let result = true
+    for(const target of validTargets.filter(target => target !== null)){                
+        const val = await target?.validate()
+        const valid = val && val?.valid ? true : false
+        result = result && valid
     }
+    if (!result) {
+        ping('必須項目を入力してください。')
+        return
+    }
+    const params = {
+        id: convertToHalfWidth(gl_number.value),
+        params : {
+            item_name: item_name.value,
+            model_number: model_number.value,
+            classification: classification.value,
+            value: value.value,
+            status: status.value,
+            project_id: projects.value ?? null,
+            user_id: selectedUser.value?.id ?? null,
+            specs: specs.value
+
+        }
+    }
+    await api.post('/create_asset', params, { toast: '保存しました。' })
+    emit('close', true)
+
 }
 
 const choosAbleMembers = computed(() => {

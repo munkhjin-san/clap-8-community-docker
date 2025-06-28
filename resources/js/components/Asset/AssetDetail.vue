@@ -174,18 +174,19 @@
 import { Asset } from '@/interface/assetInterface';
 import { useAuthUserStore } from '@/store/auth';
 import CommandButton from '../Global/CommandButton.vue';
-import { computed, inject, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import Modal from '../Global/Modal.vue';
 import MemberSelector from '../Form/MemberSelector.vue';
-import { DialogMethods, User } from '@/interface/globalInterface';
+import { User } from '@/interface/globalInterface';
 import { Project } from '@/interface/projectInterface';
 import FileUploader from '../Form/FileUploader.vue';
 import LoaderButton from '../Global/LoaderButton.vue';
-import axios from 'axios';
 import { customParser, urlCheck } from '@/utils/tools';
 import UserPanel from '../Global/UserPanel.vue';
 import ItemSelector from '../Form/ItemSelector.vue';
-const { confirm, info, notify } = inject('dialog') as DialogMethods
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+
 const auth = useAuthUserStore()
 const props = defineProps<{
     asset: Asset
@@ -195,6 +196,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     reload: []
 }>()
+const api = useApi()
+const { ask } = useDialog()
 const reciever = ref<User>()
 watch(() => reciever.value, () => {
     selectedProject.value = null
@@ -227,58 +230,52 @@ const hasMovePrivilege = computed(() => {
     return (props.asset?.current_user?.id == auth.activeUser.id || privilageMembers.includes(auth.activeUser.id))
 })
 const applyReturnRequest = async() => {
-    try{
-        loading.value = true
-        const data = {
-            asset_id: props.asset.id,
-            file_ids: asset_files.value.map(file => file.id),
-            not_broken: notBroken.value
 
-        }
-        await axios.post('/asset_return_request', data)
-        loading.value = false
+    loading.value = true
+    const data = {
+        asset_id: props.asset.id,
+        file_ids: asset_files.value.map(file => file.id),
+        not_broken: notBroken.value
+    }
+    const res = await api.post('/asset_return_request', data, {
+        ask: '物品を返却しますか？',
+        toast: '申請が完了しました。'
+    })
+    loading.value = false
+    if(res){
         returnTarget.active = false
-        info('申請が完了しました。')
         emit('reload')
-    }   
-    catch(e){
-        loading.value = false
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 
 }
 const applyRequest = async() => {
-    try{
-        let confirmed = true
-        if(props.asset.current_project){
-            const anwser = await confirm('この物品はプロジェクトに紐づいています。移動しますか？<br>※PMの承認が必要です。')
-            if(!anwser.value){
-                confirmed = false
-            }
-        }
 
-        if(!confirmed){
-            return
+    let confirmed = true
+    if(props.asset.current_project){
+        const anwser = await ask('この物品はプロジェクトに紐づいています。移動しますか？<br>※PMの承認が必要です。')
+        if(!anwser.value){
+            confirmed = false
         }
-        loading.value = true
-        const data = {
-            asset_id: props.asset.id,
-            to_user: reciever.value?.id,
-            file_ids: asset_files.value.map(file => file.id),
-            not_broken: notBroken.value,
-            to_project: selectedProject.value
-        }
-        await axios.post('/asset_move_request', data)
-        loading.value = false
-        moveTarget.active = false
-        info('申請が完了しました。')
-        emit('reload')
-    }   
-    catch(e){
-        loading.value = false
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 
+    if(!confirmed){
+        return
+    }
+    loading.value = true
+    const data = {
+        asset_id: props.asset.id,
+        to_user: reciever.value?.id,
+        file_ids: asset_files.value.map(file => file.id),
+        not_broken: notBroken.value,
+        to_project: selectedProject.value
+    }
+
+    const res = await api.post('/asset_move_request', data, {
+        toast: '申請が完了しました。'
+    })
+    loading.value = false
+    moveTarget.active = false
+    emit('reload')
 }
 const returnTo = (target:number, title: string) => {
     returnTarget.title = title

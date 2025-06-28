@@ -169,9 +169,9 @@ import Modal from '@/components/Global/Modal.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Cropper from '@/components/Global/Cropper.vue';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
-    const { confirm, notify } = inject('dialog')
     const props = defineProps(['UserAllData', 'clapData', 'movExist'])
     const emit = defineEmits(['updateUser'])
     const iconEditModal = ref(false)
@@ -189,6 +189,7 @@ import { DateTime } from 'luxon';
     const imageError = ref([])
     const iconType = ref(props.UserAllData?.icon_type ?? 0)
     const iconBg = ref(props.UserAllData?.icon_bg ?? '#000')
+    const api = useApi()
     const handleImgError = (index) => {
         imageError.value.push(index)
     }
@@ -219,13 +220,10 @@ import { DateTime } from 'luxon';
     }
     const viewalbumByTag = async(tag) => {
         tagText.value = tag.text
-        try{
-            const response = await axios.post('/get_albums', { tag_id: tag.id })
-            tagAlbums.value = response.data
-            viewAlbum.value = true
-        } catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+        const response = await api.post('/get_albums', { tag_id: tag.id })
+        tagAlbums.value = response
+        viewAlbum.value = true
+
     }  
     const sanitized = (tag) => {
         const sanitizedString = tag.text ? tag.text.replace(/#|♯|＃/g, '') : '';
@@ -277,19 +275,13 @@ import { DateTime } from 'luxon';
         return type.includes('video') 
     }
     const introMovDeleteConfirm = async(id) => {
-        const answer = await confirm('自己紹介Movを削除しますか。')
-        if(!answer.value) return 
-        introMovDelete(id)
-    }
-    const introMovDelete = async(id) => {
-        try{
-            const response = await axios.post('/mov_delete', {delete_id: targetId, mov_id: id})
-            if(response.data == 'saved'){
-                emit('updateUser');
-            } 
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+        const response = await api.post('/mov_delete', {delete_id: targetId, mov_id: id}, {
+            ask: '自己紹介Movを削除しますか。',
+            toast: '削除しました。'
+        })
+        if(response == 'saved'){
+            emit('updateUser');
+        } 
     }
     const iconClickMenu = () => {
         menu.setMenu( {name: 'iconMenuWrap', id: 23})
@@ -299,8 +291,6 @@ import { DateTime } from 'luxon';
             defaultIconCreate()
         }else if(iconType.value == 1 && cropperInstance.value){
             customIconCreate()
-        }else{
-            notify('エラーが発生しました。')
         }
 
     }
@@ -311,16 +301,10 @@ import { DateTime } from 'luxon';
         if(blob && source){
             const formData = new FormData();
             formData.append('croppedImage', blob/*, 'example.png' */);
-            formData.append('orgImage', source)  
-            try{
-                await axios.post('/user_icon_cropped_up_api',formData)
-                iconEditModal.value = false;
-                emit('updateUser')
-            } catch (e) {
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            } finally {
-                sendLoader.value = false;
-            } 
+            formData.append('orgImage', source)    
+            await api.post('/user_icon_cropped_up_api', formData)
+            iconEditModal.value = false;
+            emit('updateUser')   
         }
     }     
     const closeIconEditModal = () => {
@@ -335,25 +319,15 @@ import { DateTime } from 'luxon';
         }
                     
     }
-    const iconDeleteConfirm = async(id) => {
-        const answer = await confirm('アイコンを削除してもよろしいですか？')
-                   
-        if(!answer.value) return
-        defaultIconCreate(id)
-                  
-    }
-    const defaultIconCreate = async() => {     
-        try{
-            sendLoader.value = true;
-            await axios.post('/user_icon_create_api',{icon_type: iconType.value, icon_bg: iconBg.value})
-            emit('updateUser');
-
-            iconEditModal.value = false;
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            sendLoader.value = false;
-        } 
+    const iconDeleteConfirm = async() => {     
+        sendLoader.value = true;
+        await api.post('/user_icon_create_api', {icon_type: iconType.value, icon_bg: iconBg.value}, {
+            ask: 'アイコンを変更しますか？',
+            toast: 'アイコンを変更しました。'
+        })
+        emit('updateUser');
+        iconEditModal.value = false;
+        sendLoader.value = false;       
     }
 
 </script>

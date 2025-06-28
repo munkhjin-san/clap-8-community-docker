@@ -15,15 +15,15 @@
 </Transition>
 </template>
 <script setup>
+import { useApi } from '@/composables/api';
 import { inject, onMounted, ref } from 'vue';
 
-
 const props = defineProps(['comment', 'urlCheck'])
-const { notify, info } = inject('dialog')
 const emit = defineEmits('cancel')
 const editor = ref(null)
 const active = ref(false)
 const sending = ref(false)
+const api = useApi()
 onMounted(() => {
     editor.value.focus()
     const range = document.createRange();
@@ -38,16 +38,14 @@ const reload = inject('reload')
 const update = async() => {
     const new_text = editor.value.textContent;
     if(sending.value) return
-    try{
-        sending.value = true          
-        await axios.post('post_comment_edit', {id: props.comment.id, message: new_text,})
-        await reload()
-        info('保存しました。')
-        emit('cancel') 
-    }catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        sending.value = false
-    }
+
+    await api.post('post_comment_edit', {id: props.comment.id, message: new_text }, {
+        toast: '保存しました。',
+        loadingRef: sending
+    })
+    await reload()
+    emit('cancel') 
+
                
     
 }

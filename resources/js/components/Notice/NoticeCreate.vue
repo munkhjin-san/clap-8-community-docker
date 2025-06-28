@@ -50,11 +50,11 @@ import ShortInput from '../Form/ShortInput.vue';
 import LongInput from '../Form/LongInput.vue';
 import NoticeFileUploader from './NoticeFileUploader.vue'
 import LoaderButton from '../Global/LoaderButton.vue';
-import { inject, ref } from 'vue';
+import { ref } from 'vue';
+import { useApi } from '@/composables/api';
 
     const props = defineProps(['editTarget'])
     const emit = defineEmits(['close'])
-    const { notify, info } = inject('dialog')
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
     const body = ref(props.editTarget && props.editTarget.body ? props.editTarget.body : "")
     const existFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
@@ -62,6 +62,7 @@ import { inject, ref } from 'vue';
     const processing = ref(false)
     const noticeTitle = ref(null)
     const noticeContent = ref(null)
+    const api = useApi()
     const validation = async() => {                 
         try {                    
             let result = true
@@ -93,16 +94,12 @@ import { inject, ref } from 'vue';
             new_files: uploadFiles.value.length ? uploadFiles.value : [],
             exist_files: existFiles.value.length ? existFiles.value.map(ob => ob.id) : []
         }
-        try{
-            await axios.post('/notice_add_record',params)
-            info(props.editTarget ? '編集しました。' : '作成しました。')
-            emit('close', true) 
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }finally{
-            processing.value = false
-        }
-                
+
+        await api.post('/notice_add_record', params, {
+            toast: props.editTarget ? '編集しました。' : '作成しました。',
+            loadingRef: processing,
+        })
+        emit('close', true)                 
     }     
  
 </script>

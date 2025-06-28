@@ -50,14 +50,14 @@
     </div>
 </div>
 </template>
-<script setup>
-import { computed, inject, onMounted, ref } from "vue";
+<script setup lang="ts">
+import { computed, inject, onMounted, ref, useTemplateRef } from "vue";
 import MessageFiles from "./MessageFiles.vue";
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { mentionFormatter } from "@/utils/tools";
     const props = defineProps(['which', 'message', 'quotMessage', 'mentionClick'])
-    const pushInstantUser = inject('pushInstantUser')
-    const replyBody = ref(null)
+    const pushInstantUser = inject('pushInstantUser') as Function
+    const replyBody = useTemplateRef('replyBody')
     const dynamicHeight = ref('auto')
 
     onMounted(() => {

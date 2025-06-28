@@ -93,7 +93,7 @@
     </div>
 </template>
 <script setup>
-import { inject, ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { useAuthUserStore } from '@/store/auth';
 import holiday_jp from '@holiday-jp/holiday_jp'
@@ -103,6 +103,8 @@ import WorkMembers from './WorkMembers.vue';
 import { useBadgeStore } from '@/store/badge';
 import { DateTime } from 'luxon';
 import MonthPickerNew from '../Global/MonthPickerNew.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps([
         'selectedYear',
         'selectedMonth',
@@ -134,7 +136,8 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
     const checkedUsers = ref([])
     
     const statuses = ['', '', ' : 申請中', ' : 承認済']
-    const { notify, confirm, info } = inject('dialog')
+    const api = useApi()
+    const { ask, ping } = useDialog()
     onMounted(async() => {
         console.log('usersCheckArray', props.usersCheckArray)
         await fetchWorkGroups()
@@ -179,7 +182,7 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
             shiftRecords.value = data.shift_records
             workGroups.value = data.work_groups
         } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            ping(e.response?.data.message || e?.message || 'エラーが発生しました。')
         } finally {
             loading.value ++    
         }
@@ -187,39 +190,36 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
     
     const approveAll = async() => {
         if(!checkedUsers.value || !checkedUsers.value.length){
-            notify('メンバーを選択してください。')
+            ping('メンバーを選択してください。')
             return
         }
-        const answer = await confirm('選択中メンバー全員の勤怠予定を纏めて承認します。<br>よろしいですか。')
+        const answer = await ask('選択中メンバー全員の勤怠予定を纏めて承認します。<br>よろしいですか。')
         if(!answer.value) return
         const userIds = checkedUsers.value
         
         const yearMonth = DateTime.fromObject({year: approveYear.value, month: approveMonth.value}).toFormat('yyyy-MM')
-        try {
-            await axios.patch('/shift_approve_all', {user_ids: userIds, year_month: yearMonth}).then(res => res.data)
-            info('承認しました。')
-            badge.getRemindBadge()
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            fetchWorkGroups()
-        }
+
+        await api.patch('/shift_approve_all', {user_ids: userIds, year_month: yearMonth}, {
+            toast: '承認しました。',
+        })
+        badge.getRemindBadge()
+
+        fetchWorkGroups()
+        
     }
     const shiftApprove = async(shift, status) => {
         if(!status){
-            const answer = await confirm(`${shift?.shift_day}の勤怠予定を差戻します。よろしいでしょうか。`)
+            const answer = await ask(`${shift?.shift_day}の勤怠予定を差戻します。よろしいでしょうか。`)
             if(!answer.value) return
         }
         const shiftId = shift?.id
-        try {
-            await axios.patch('/shift_approve', {shift_id: shiftId, status: status}).then(res => res.data)
-            info(status == 3 ? '承認しました。' : status == 2 ? '承認取消しました。' : '差戻しました。')
-            badge.getRemindBadge()
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            fetchWorkGroups()
-        }
+        await api.patch('/shift_approve', {shift_id: shiftId, status: status}, {
+            toast: status == 3 ? '承認しました。' : status == 2 ? '承認取消しました。' : '差戻しました。',
+        })
+        badge.getRemindBadge()
+
+        fetchWorkGroups()
+   
     }
     const setDate = (date) => {
         approveMonth.value = date.month

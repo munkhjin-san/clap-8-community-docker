@@ -1,7 +1,7 @@
 <template>
     <div>
         <div>
-            {{ block.question }} <span :class="['text-[gray] text-[12px] ml-[5px]', {'text-[tomato]' : hasError || hasCheckError}]">{{ block.is_required ? '必須' : '' }}</span> 
+            {{ block.question }} <span :class="['text-[gray] text-[12px] ml-[5px]', {'text-[tomato]' : hasError}]">{{ block.is_required ? '必須' : '' }}</span> 
         </div>
         <div v-if="(block.type == 'radio' || block.type == 'checkbox') && block.elements" class="flex flex-col gap-[15px] mt-[15px]">
             <div v-for="element in block.elements">
@@ -75,8 +75,9 @@ import { useTheme } from '@/store/theme';
 import FileUploader from '../Form/FileUploader.vue';
 const props = defineProps<{
     block: CustomFormBlock
+    answer?: SurveyBlockAnswer | null
 }>()
-const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select', 'file']
+const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select']
 const blockData = reactive<SurveyBlockAnswer>({
     text_answer: '',
     element_answers: [],
@@ -89,9 +90,8 @@ const validateOn = ref(false)
 const sub_texts = reactive({})
 const theme = useTheme()
 onMounted(() => {
-    const myAnswer = props.block.answers && props.block.answers.length ? props.block.answers[0] : null
-    if(myAnswer){
-        Object.assign(blockData, myAnswer)
+    if(props.answer){
+        Object.assign(blockData, props.answer)
         if(props.block.type == 'radio'){
             const selected = props.block.elements.find( el => el.answers && el.answers.length) ?? null
             if(selected){
@@ -120,25 +120,28 @@ const hasCheckError = computed(() => {
 });
 const hasError = computed(() => {
     if (!validateOn.value) return false;
-    if (simpleTypes.includes(props.block.type) && props.block.is_required) {
-        if (props.block.type === 'file') {
-            return !Array.isArray(blockData.files) || blockData.files.length === 0
-        } else {
-            return !blockData.text_answer
-        }
+    if(props.block.type == 'file'){
+        return !blockData.files.length && props.block.is_required
+    }else if(props.block.type == 'radio'){
+        return props.block.is_required && !radioModel.value
+    }else if(props.block.type == 'checkbox'){
+        return hasCheckError.value
     }
-    return false
+    else {
+        return simpleTypes.includes(props.block.type) && props.block.is_required ? !blockData.text_answer : false
+    }
+     
 });
 const isValid = ():boolean => {
 
     validateOn.value = true
     if(simpleTypes.includes(props.block.type)){
-        if (!props.block.is_required) return true
-        if (props.block.type === 'file') {
-            return Array.isArray(blockData.files) && blockData.files.length > 0
-        } else {
-            return blockData.text_answer ? true : false
-        }
+        return !props.block.is_required ? true : blockData.text_answer ? true : false
+    }
+    if(props.block.type == 'file'){
+        if(!props.block.is_required) return true
+        const val = Array.isArray(blockData.files) && blockData.files.length > 0
+        return val
     }
     else{         
         let elementsValid = true
@@ -187,35 +190,3 @@ const extractedData = computed(() => {
 
 defineExpose({isValid, blockData, extractedData})
 </script>
-<style>
-.custom-a-input{
-    font-size: 13px;
-    padding: 5px 10px;
-    width: fit-content;
-    border: solid thin var(--formBorder);
-    transition: border 0.2s;
-    resize: none;
-    width: fit-content;
-    color: var(--primary-color);
-}
-input[type='text'].custom-a-input{
-    width: 50%;
-}
-
-textarea.custom-a-input{
-    min-height: 150px;
-    width: 50%;
-}
-.custom-a-input:focus{
-    border: solid thin var(--primary-color);
-}
-
-@media screen and (max-width: 959px) {
-    input[type='text'].custom-a-input{
-        width: -webkit-fill-available;
-    }
-    textarea.custom-a-input{
-        width: -webkit-fill-available;
-    }
-}
-</style>

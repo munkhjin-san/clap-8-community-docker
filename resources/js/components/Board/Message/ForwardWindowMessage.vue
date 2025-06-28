@@ -12,7 +12,7 @@
         
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { computed } from 'vue';
     const props = defineProps(['item'])
     const emit = defineEmits(['close'])

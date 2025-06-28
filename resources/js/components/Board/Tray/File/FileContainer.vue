@@ -28,7 +28,7 @@
                 </div>
                 
             </div>
-            <div class="file-main-section">
+            <div class="file-main-section" v-if="openedBoard">
                 <div style="height: fit-content;max-width: 100%;" 
                 :key="'file_' + file.id"                                 
                 :id="'file_' + file.id"            
@@ -39,7 +39,7 @@
                             <div style="display:flex;align-items: center;cursor:pointer;max-width:100%;overflow:hidden"> 
                                 
                                 <div v-if="file.mime_type == 'image'" class="">                                        
-                                    <img class="list-image-mobile" loading="lazy" :src="`/shared_thumbnail/${board.id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`"/>
+                                    <img class="list-image-mobile" loading="lazy" :src="`/shared_thumbnail/${openedBoard.id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}`"/>
                                 </div>
                                 <div v-else>
                                     <FileIcon :ext="file.extension"/>
@@ -67,26 +67,30 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {filesize} from 'filesize';
 import FileIcon from '../../Mixed/FileIcon.vue';
 import { computed, inject, onMounted, ref } from 'vue';
 import { useFilePreview } from '@/store/filePreview';
 import { useMenuStore } from "@/store/menu";
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+import { useBoardList } from '@/composables/board';
+import { MessageFile } from '@/interface/globalInterface';
     const menu = useMenuStore()
-    const board = inject('openedBoard')
+    const { openedBoard } = useBoardList()
     const emit = defineEmits(['jumpToMessage'])
-    const fileListAll = ref([])
+    const fileListAll = ref<MessageFile[]>([])
     const keyword = ref('')
     const headerHidden = ref(false)
-    const fileMenuLayer = ref(0)
     const timeout = ref(0)
-    const { notify } = inject('dialog')
     const filePreview = useFilePreview()
     const initialLoader = ref(true)
+    const api = useApi()
+    const { ping } = useDialog()
     onMounted(() => {
-        if(board.value){
+        if(openedBoard.value){
             getFileList()
         }
     })
@@ -97,7 +101,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
             return fileListAll.value.filter((file) => {
                 const extension = file.extension.toLowerCase();
                 const name = file.name.toLowerCase();
-                const userName = file.user ? file.user.name.toLowerCase() : '非アクティブユーザー';
+                const userName = file.user && file.user.name ? file.user.name.toLowerCase() : '非アクティブユーザー';
                 return extension.includes(searchkeyword) || name.includes(searchkeyword) || userName.includes(searchkeyword);
             })
         }else{
@@ -146,15 +150,15 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
             }
             filePreview.setFilePreview(data)
         }else{
-            notify('このファイルは消去されました') 
+            ping('このファイルは消去されました') 
         }
     }
     const cancelSearch = () => {
         keyword.value = ''
         searchStart(keyword.value)
     }
-    const setKeyWord = () => { 
-        if(event.which === 38 || event.which === 40 || event.which === 13){
+    const setKeyWord = (event) => { 
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter'){
             event.preventDefault()
             return
         }else{
@@ -162,7 +166,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
             autoFillDebounce()
         }
     }
-    const autoFillDebounce = (val) => {
+    const autoFillDebounce = () => {
         if (timeout.value) clearTimeout(timeout.value)
             timeout.value = setTimeout(() => {
             searchStart(keyword.value)
@@ -172,15 +176,11 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
 
     }
     const getFileList = async() => {
-        try{
-            const response = await axios.post('/get_file_list', {board_id: board.value.id})
-            fileListAll.value = response.data
-            initialLoader.value = false          
-        }catch (error){
-            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。 ' + error.message)  
-        }
+        if(!openedBoard.value || !openedBoard.value.id) return
+        const response = await api.post('/get_file_list', {board_id: openedBoard.value.id})
+        fileListAll.value = response
+        initialLoader.value = false          
+
     }
     const fileSizeView = (bytes) => {
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});

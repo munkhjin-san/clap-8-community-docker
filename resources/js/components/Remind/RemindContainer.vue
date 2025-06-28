@@ -6,95 +6,95 @@
             </div>
         </div>
         <div class="flex flex-col" v-for="data in combinedData">
-            <div v-if="data.not_started_tasks?.length">
+            <div v-if="data.remind_task_untouched?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.not_started_tasks.length"
+                    :length="data.remind_task_untouched.length"
                     title="未対応タスク"
-                    :expanded="expanded.not_started_tasks"
-                    @expand="expanded.not_started_tasks = !expanded.not_started_tasks"
+                    :expanded="expanded.remind_task_untouched"
+                    @expand="expanded.remind_task_untouched = !expanded.remind_task_untouched"
                 />
-                <div v-if="expanded.not_started_tasks" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.not_started_tasks">
+                <div v-if="expanded.remind_task_untouched" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_task_untouched">
                         <ListBox 
                             boxClass=""
                             v-if="item"
                             :item="item"  
                             :isBoard="false"
-                            @get-board-tasks="refreshData('not_started_tasks')"
+                            @get-board-tasks="refreshData('remind_task_untouched')"
                             />
                     </div>
                 </div>
             </div>
-            <div v-if="data.not_completed_tasks?.length">
+            <div v-if="data.remind_task_unfinished?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.not_completed_tasks.length"
+                    :length="data.remind_task_unfinished.length"
                     title="対応中タスク" 
-                    :expanded="expanded.not_completed_tasks"
-                    @expand="expanded.not_completed_tasks = !expanded.not_completed_tasks"
+                    :expanded="expanded.remind_task_unfinished"
+                    @expand="expanded.remind_task_unfinished = !expanded.remind_task_unfinished"
                 />
-                <div v-if="expanded.not_completed_tasks" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.not_completed_tasks">
+                <div v-if="expanded.remind_task_unfinished" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_task_unfinished">
                         <ListBox 
                             boxClass=""
                             v-if="item"
                             :item="item"  
                             :isBoard="false"
-                            @get-board-tasks="refreshData('not_completed_tasks')"
+                            @get-board-tasks="refreshData('remind_task_unfinished')"
                             />
                     </div>
                 </div>
             </div>
-            <div v-if="data.not_approved_tasks?.length">
+            <div v-if="data.remind_task_not_approved?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.not_approved_tasks.length"
+                    :length="data.remind_task_not_approved.length"
                     title="タスク承認漏れ"
-                    :expanded="expanded.not_approved_tasks"
-                    @expand="expanded.not_approved_tasks = !expanded.not_approved_tasks"
+                    :expanded="expanded.remind_task_not_approved"
+                    @expand="expanded.remind_task_not_approved = !expanded.remind_task_not_approved"
                 />
-                <div v-if="expanded.not_approved_tasks" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.not_approved_tasks">
+                <div v-if="expanded.remind_task_not_approved" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_task_not_approved">
                         <ListBox 
                             boxClass=""
                             v-if="item"
                             :item="item"  
                             :isBoard="false"
-                            @get-board-tasks="refreshData('not_approved_tasks')"
+                            @get-board-tasks="refreshData('remind_task_not_approved')"
                             />
                     </div>
                 </div>
             </div>
-            <div v-if="data.unchecked_messages?.length">
+            <div v-if="data.remind_unchecked_messages?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.unchecked_messages.length"
+                    :length="data.remind_unchecked_messages.length"
                     title="未確認メッセージ"
-                    :expanded="expanded.unchecked_messages"
-                    @expand="expanded.unchecked_messages = !expanded.unchecked_messages"
+                    :expanded="expanded.remind_unchecked_messages"
+                    @expand="expanded.remind_unchecked_messages = !expanded.remind_unchecked_messages"
                 />
-                <div v-if="expanded.unchecked_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.unchecked_messages">
+                <div v-if="expanded.remind_unchecked_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_unchecked_messages">
                         <UncheckedMessageItem 
                             boxClass=""
                             v-if="item"
                             :message="item"
-                            @get-unchecked-messages="refreshData('unchecked_messages')"  
+                            @get-unchecked-messages="refreshData('remind_unchecked_messages')"  
                         />
                     </div>
                 </div>
             </div>
-            <div v-if=data.unsigned_messages?.length>
+            <div v-if=data.remind_unsigned_messages?.length>
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.unsigned_messages.length"
+                    :length="data.remind_unsigned_messages.length"
                     title="サイン依頼"
-                    :expanded="expanded.unsigned_messages"
-                    @expand="expanded.unsigned_messages = !expanded.unsigned_messages"
+                    :expanded="expanded.remind_unsigned_messages"
+                    @expand="expanded.remind_unsigned_messages = !expanded.remind_unsigned_messages"
                 />
-                <div v-if="expanded.unsigned_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.unsigned_messages">
+                <div v-if="expanded.remind_unsigned_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_unsigned_messages">
                         <UncheckedMessageItem 
                             boxClass=""
                             v-if="item"
@@ -103,35 +103,35 @@
                     </div>
                 </div>
             </div>
-            <div v-if="data.reminded_messages?.length">
+            <div v-if="data.remind_reminded_messages?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.reminded_messages.length"
+                    :length="data.remind_reminded_messages.length"
                     title="リマインドメッセージ"
-                    :expanded="expanded.reminded_messages"
-                    @expand="expanded.reminded_messages = !expanded.reminded_messages"
+                    :expanded="expanded.remind_reminded_messages"
+                    @expand="expanded.remind_reminded_messages = !expanded.remind_reminded_messages"
                 />
-                <div v-if="expanded.reminded_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.reminded_messages">
+                <div v-if="expanded.remind_reminded_messages" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_reminded_messages">
                         <UncheckedMessageItem 
                             boxClass=""
                             v-if="item"
                             :message="item"
-                            @get-remind-messages="refreshData('reminded_messages')"  
+                            @get-remind-messages="refreshData('remind_reminded_messages')"  
                         />
                     </div>
                 </div>
             </div>
-            <div v-if="data.not_approved_time_sheets?.length">
+            <div v-if="data.remind_timesheet?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.not_approved_time_sheets.length"
+                    :length="data.remind_timesheet.length"
                     title="タイムシート承認漏れ"
-                    :expanded="expanded.not_approved_time_sheets"
-                    @expand="expanded.not_approved_time_sheets = !expanded.not_approved_time_sheets"
+                    :expanded="expanded.remind_timesheet"
+                    @expand="expanded.remind_timesheet = !expanded.remind_timesheet"
                 />
-                <div v-if="expanded.not_approved_time_sheets" class="shift-submitted-masonry-inner mx-[20px]" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
-                    <div v-for="item in data.not_approved_time_sheets">
+                <div v-if="expanded.remind_timesheet" class="shift-submitted-masonry-inner mx-[20px]" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
+                    <div v-for="item in data.remind_timesheet">
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
                                 <div style="display:flex;gap: 10px">
@@ -159,16 +159,16 @@
                     </div>
                 </div>
             </div>
-            <div v-if="data.paid_leaves?.length">
+            <div v-if="data.remind_planned_leave?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.paid_leaves.length"
+                    :length="data.remind_planned_leave.length"
                     title="計画有給"
-                    :expanded="expanded.paid_leaves"
-                    @expand="expanded.paid_leaves = !expanded.paid_leaves"
+                    :expanded="expanded.remind_planned_leave"
+                    @expand="expanded.remind_planned_leave = !expanded.remind_planned_leave"
                 />
-                <div v-if="expanded.paid_leaves" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.paid_leaves">
+                <div v-if="expanded.remind_planned_leave" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_planned_leave">
                         <WorkMessage 
                             v-if="item"
                             :item="item.tempData"
@@ -207,16 +207,16 @@
                     </transition>                    
                 </router-view>
             </div>
-            <div v-if="data.not_approved_projects?.length">
+            <div v-if="data.remind_project_not_approved?.length">
                 <RemindHeader 
                     :offset="offset"
                     title="プロジェクト承認漏れ" 
-                    :length="data.not_approved_projects?.length" 
-                    :expanded="expanded.not_approved_projects"
-                    @expand="expanded.not_approved_projects = !expanded.not_approved_projects"
+                    :length="data.remind_project_not_approved?.length" 
+                    :expanded="expanded.remind_project_not_approved"
+                    @expand="expanded.remind_project_not_approved = !expanded.remind_project_not_approved"
                 />
-                <div v-if="expanded.not_approved_projects" class="shift-submitted-masonry-inner mx-[20px]" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
-                    <div v-for="user in data.not_approved_projects">
+                <div v-if="expanded.remind_project_not_approved" class="shift-submitted-masonry-inner mx-[20px]" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
+                    <div v-for="user in data.remind_project_not_approved">
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
                                 <div style="display:flex;gap: 10px">
@@ -241,23 +241,23 @@
                     <transition name="modalFade">
                         <component
                             :is="Component" 
-                            :projects="data.not_approved_projects"
+                            :projects="data.remind_project_not_approved"
                         />
                     </transition>                    
                 </router-view>
             </div>
-            <div v-if="data.not_answered_forms?.length">
+            <div v-if="data.remind_form?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.not_answered_forms.length"
+                    :length="data.remind_form.length"
                     title="未回答フォーム"
-                    :expanded="expanded.not_answered_forms"
-                    @expand="expanded.not_answered_forms = !expanded.not_answered_forms"
+                    :expanded="expanded.remind_form"
+                    @expand="expanded.remind_form = !expanded.remind_form"
                 />
-                <div v-if="expanded.not_answered_forms" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="form in data.not_answered_forms" class="relative bg-[var(--background-color)] cursor-pointer p-[20px] ">
+                <div v-if="expanded.remind_form" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="form in data.remind_form" class="relative bg-[var(--background-color)] cursor-pointer p-[20px] ">
                         <div class="w-full">{{ form.title }}</div>
-                        <div class="mt-[20px] w-fit">
+                        <!-- <div class="mt-[20px] w-fit">
                             <div @click.stop="surveyUsers.setSurveyUsers({title: 'フォーム管理者', active: true, users: form.admins || []})" class="flex text-[12px] items-center leading-normal">
                                 <div>管理者 : </div>
                                 <div class="flex ml-[5px]">
@@ -278,7 +278,7 @@
                                     <p class="ml-[3px] mt-[3px]" v-if="form.users && form.users?.length > 3">{{ `...(${form.users?.length}人)` }}</p>
                                 </div>
                             </div>
-                        </div>
+                        </div> -->
                         <div class="mt-[10px]">
                             <CommandButton 
                                 :buttons="[
@@ -290,22 +290,39 @@
                     </div>
                 </div>
             </div>
-            <div v-if="data.asset_receive_requests?.length">
+            <div v-if="data.remind_asset?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="data.asset_receive_requests.length"
+                    :length="data.remind_asset.length"
                     title="物品受け取り依頼"
-                    :expanded="expanded.asset_receive_requests"
-                    @expand="expanded.asset_receive_requests = !expanded.asset_receive_requests"
+                    :expanded="expanded.remind_asset"
+                    @expand="expanded.remind_asset = !expanded.remind_asset"
                 />
-                <div v-if="expanded.asset_receive_requests" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.asset_receive_requests" class="bg-[var(--background-color)] p-[10px] text-[12px]">
+                <div v-if="expanded.remind_asset" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_asset" class="bg-[var(--background-color)] p-[10px] text-[12px]">
                         <div class="p-[10px] overflow-hidden break-words leading-normal">{{ item.item_name }}</div>
                         <AssetMovement 
                             :asset="item" 
                             :asset-request="item.requests[0]"
                         />
                     </div>
+                </div>
+            </div>
+            <div v-if="data.remind_temp_reserved_schedules?.length">
+                <RemindHeader 
+                    :offset="offset"
+                    :length="data.remind_temp_reserved_schedules.length"
+                    title="未確定スケジュール"
+                    :expanded="expanded.remind_temp_reserved_schedules"
+                    @expand="expanded.remind_temp_reserved_schedules = !expanded.remind_temp_reserved_schedules"
+                />
+                <div v-if="expanded.remind_temp_reserved_schedules" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <ConfirmSchedule 
+                        v-for="item in data.remind_temp_reserved_schedules" 
+                        :key="item.id"
+                        :record="item"
+                        @refresh="refreshData('remind_temp_reserved_schedules')"
+                    />
                 </div>
             </div>
         </div>
@@ -325,13 +342,9 @@
 import { useAuthUserStore } from '@/store/auth';
 import ListBox from '../Task/List/ListBox.vue';
 import UserPanel from '../Global/UserPanel.vue';
-import axios from 'axios';
-import { inject, nextTick, onMounted, provide, ref, useTemplateRef } from 'vue';
+import { nextTick, onMounted, provide, ref, useTemplateRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Dialog, Task } from '@/interface/globalInterface';
 import UncheckedMessageItem from '../Board/Message/UncheckedMessageItem.vue';
-import { notApproved, plannedLeave } from '@/interface/workInterface';
-import { User } from '@/interface/globalInterface';
 import WorkMessage from '../Work/WorkMessage.vue';
 import { useSortable, moveArrayElement } from '@vueuse/integrations/useSortable.mjs';
 import RemindHeader from './RemindHeader.vue';
@@ -339,30 +352,35 @@ import CommandButton from '../Global/CommandButton.vue';
 import { useSurveyUsers } from '@/store/surveyUsers';
 import { useResponsive } from '@/store/responsive';
 import HamBurger from '../Global/HamBurger.vue';
-import { DateTime } from 'luxon';
 import AssetMovement from '../Asset/AssetMovement.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+import ConfirmSchedule from './ConfirmSchedule.vue';
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
 const combinedData = ref<{ [key: string]: any }[]>([])
 const router = useRouter()
-const { notify } = inject<Dialog>('dialog')!
+const { ping } = useDialog()
 const sortParent = useTemplateRef('sortParent')
-const surveyUsers = useSurveyUsers()
 const responsive = useResponsive()
 const expanded = ref({
-    not_started_tasks: true,
-    not_completed_tasks: true,
-    not_approved_tasks: true,
-    unchecked_messages: true,
-    unsigned_messages: true,
-    reminded_messages: true,
-    not_approved_time_sheets: true,
-    paid_leaves: true,
-    not_approved_projects: true,
-    not_answered_forms: true,
+    remind_task_untouched: true,
+    remind_task_unfinished: true,
+    remind_task_not_approved: true,
+    remind_unchecked_messages: true,
+    remind_unsigned_messages: true,
+    remind_reminded_messages: true,
+    remind_timesheet: true,
+    remind_planned_leave: true,
+    remind_project_not_approved: true,
+    remind_form: true,
     not_approved_increases: true,
-    asset_receive_requests: true
+    remind_asset: true,
+    remind_schedules: true,
+    remind_temp_reserved_schedules: true,
 })
+
+const api = useApi()
 const offset = ref(0)
 const prevScrollPosition = ref(0)
 const route = useRoute()
@@ -379,135 +397,46 @@ const getGoals = (outcome_goals) => {
         return []
     }
 }
-const getUnsignedMessages = async() => {
-    try{
-        const response = await axios.get('/get_unsigned_messages')
-        return response.data
-    }catch (e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')  
-    }
-}
-const getUncheckedMessages = async() => {
-    try{
-        const response = await axios.get('/get_unchecked_messages')
-        return response.data
-    }catch (e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-}
-const getNotApproved = async() => {
-    if(auth && auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608){
-        try{
-            const response = await axios.get('/not_approved')
-            return response.data
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
-        }
-    }
-}
-const getTaskNotApproved = async() => {
-    try {
-        const response = await axios.get('/task_not_approved')
-        return response.data
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
-    }
-}
-const getProjectNotApproved = async() => {
-    try {
-        const response = await axios.get('/project_not_approved')
-        return response.data
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
-    }
-    
-}
-const getRemindMessages = async() => {
-    try{
-        const response = await axios.get('/get_remind_messages')
-        return response.data
-    }catch (e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }     
-}
-const getPlannedShifts = async() => {
-    
-    try{
-        const response = await axios.get('/get_temp_data')
-        return response.data
-    }catch (e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
-    }
-    
-}
-const changeUser = async(user: User) => {
-    
-    router.push({name: 'timesheet', query: {user_id: user.id}})
-}
-const getNotStartedTasks = async() => {
-    try {
-        const response = await axios.get('/get_not_started_tasks')
-        return response.data
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')   
-    }
-}
-const getNotCompletedTasks = async() => {
-    try {
-        const response = await axios.get('/get_not_completed_tasks')
-        return response.data
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-}
-const getNotAnsweredForms = async() => {
-    try {
-        const response = await axios.get('/get_not_answered_forms')
-        return response.data
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-}
-const getAssetReceiveRequests = async() => {
-    try {
-        const response = await axios.get('/get_asset_recieve_requests')
-        return response.data
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-}
 
-const performTasksOnMounted = async () => {
-    try {
-        const responses = await Promise.all([
-            getUnsignedMessages(),
-            getUncheckedMessages(),
-            getNotApproved(),
-            getTaskNotApproved(),
-            getProjectNotApproved(),
-            getRemindMessages(),
-            getPlannedShifts(),
-            getNotStartedTasks(),
-            getNotCompletedTasks(),
-            getNotAnsweredForms(),
-            getAssetReceiveRequests()
-        ]);
 
-        combinedData.value = responses.map((response, index) => ({
-            ...response,
-            order: index
-        }));
-        initialLoader.value = false
-        const savedOrder = localStorage.getItem('savedSortOrder') ? JSON.parse(localStorage.getItem('savedSortOrder')!) : null;
-        if (savedOrder) {
-            if (savedOrder.length !== combinedData.value.length) {
-                saveSortOrder()
-            }
-            reorderDataBySavedOrder(savedOrder);
+
+
+
+
+const getData = async (path:string) => {
+    const data = await api.get(path);
+    return data;
+}
+const getRemindTotalData = async () => {
+    
+    const responses = await Promise.all([
+        getData('/remind_unsigned_messages'),
+        getData('/remind_unchecked_messages'),
+        getData('/remind_task_not_approved'),
+        getData('/remind_project_not_approved'),
+        getData('/remind_timesheet'),
+        getData('/remind_planned_leave'),
+        getData('/remind_reminded_messages'),
+        getData('/remind_task_untouched'),
+        getData('/remind_task_unfinished'),
+        getData('/remind_form'),
+        getData('/remind_asset'),
+        getData('/remind_temp_reserved_schedules'),
+    ]);
+
+    combinedData.value = responses.map((response, index) => ({
+        ...response,
+        order: index
+    }));
+    initialLoader.value = false
+    const savedOrder = localStorage.getItem('savedSortOrder') ? JSON.parse(localStorage.getItem('savedSortOrder')!) : null;
+    if (savedOrder) {
+        if (savedOrder.length !== combinedData.value.length) {
+            saveSortOrder()
         }
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。');
+        reorderDataBySavedOrder(savedOrder);
     }
+    
 };
 
 const saveSortOrder = () => {
@@ -528,46 +457,14 @@ const reorderDataBySavedOrder = (savedOrder) => {
 
 const refreshData = async (dataType) => {
     try {
-        let response;
-        switch (dataType) {
-            case 'unsigned_messages':
-                response = await getUnsignedMessages();
-                break;
-            case 'unchecked_messages':
-                response = await getUncheckedMessages();
-                break;
-            case 'not_approved_tasks':
-                response = await getTaskNotApproved();
-                break;
-            case 'not_approved_projects':
-                response = await getProjectNotApproved();
-                break;
-            case 'not_started_tasks':
-                response = await getNotStartedTasks();
-                await refreshData('not_completed_tasks');
-                break;
-            case 'not_completed_tasks':
-                response = await getNotCompletedTasks();
-                break;
-            case 'reminded_messages':
-                response = await getRemindMessages();
-                break;
-            case 'not_answered_forms': 
-                response = await getNotAnsweredForms();
-                break;
-            case 'asset_receive_requests': 
-                response = await getAssetReceiveRequests();
-                break;
-            default:
-                throw new Error('Invalid data type');
-        }
+        let response = await getData(`/${dataType}`);        
 
         const index = combinedData.value.findIndex(item => item.hasOwnProperty(dataType));
         if (index !== -1) {
             combinedData.value[index] = { ...response, order: combinedData.value[index].order };
         }
     } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。');
+        ping(e.response?.data.message || e?.message || 'エラーが発生しました。');
     }
 };
 
@@ -582,11 +479,11 @@ useSortable(sortParent, combinedData.value, {
     }
 });
 onMounted(() => {
-    performTasksOnMounted()
+    getRemindTotalData()
 })
 defineExpose({
     refreshData
 })
 
-provide('getAssets', () => refreshData('asset_receive_requests'))
+provide('getAssets', () => refreshData('remind_asset'))
 </script>

@@ -96,8 +96,8 @@
     </div>
 </template>
 <script setup lang="ts">
+import { useApi } from '@/composables/api';
 import { fileSizeParser, kintoneFileUrlBuilder } from '@/utils/tools';
-import axios from 'axios';
 import { DateTime } from 'luxon';
 import { inject, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -120,8 +120,9 @@ onMounted(() => {
 const selectedDispatches = ref<string[]>([]);
 const dispatchData = ref<any[]>([]);
 const fetchCount = ref(0);
+const api = useApi()
 const getDispatchData = async() => {
-    const response = await axios.get('/get_dispatch_data', {params: {project_id: route.params.projectId}}).then(res => res.data);
+    const response = await api.get('/get_dispatch_data', {project_id: route.params.projectId});
     dispatchData.value = response;
     setLoader(false);
     fetchCount.value++;

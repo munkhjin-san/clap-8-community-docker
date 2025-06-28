@@ -34,24 +34,20 @@
 <script setup>
 import { useAuthUserStore } from '@/store/auth';
 import MemberBlock from './MemberBlock.vue';
-import { computed, inject, onActivated, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useResponsive } from '@/store/responsive';
+import { useDialog } from '@/composables/dialog';
+import { useApi } from '@/composables/api';
 const props = defineProps(['keyword'])
     const scrollPos = ref(0)
     const memberList = ref([])
     const sortByShokkai = ref(false)
     const initialLoader = ref(true)
-    const { notify, info } = inject('dialog')
     const memberContainerRef = ref(null)
     const auth = useAuthUserStore()
     const responsive = useResponsive()
-    onActivated(() => {
-        // if(scrollPos.value && memberContainerRef.value){
-        //     setTimeout(() => {
-        //         memberContainerRef.value.scrollTo(0, scrollPos.value)
-        //     }, 0);
-        // }
-    })
+    const { toast, ping } = useDialog()
+    const api = useApi()
     const sortableList = computed(() => {
         if (!props.keyword.trim()) {
             return memberList.value.map(position => ({
@@ -95,20 +91,18 @@ const props = defineProps(['keyword'])
         localStorage.setItem('memberViewType', sortByShokkai.value)
         getMembers()    
         const type = sortByShokkai.value ? '職階別' : '役職別'
-        info(type)        
+        toast(type)        
     }
     const getMembers = async() => {
-        try{
-            initialLoader.value = true
-            const response = await axios.post('/get_members_list', {byShokkai: sortByShokkai.value})
-            memberList.value = response.data      
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            setTimeout(() => {
-                initialLoader.value = false
-            }, 200); 
-        }
+
+        initialLoader.value = true
+        const response = await api.post('/get_members_list', {byShokkai: sortByShokkai.value})
+        memberList.value = response      
+
+        setTimeout(() => {
+            initialLoader.value = false
+        }, 200); 
+    
     }
     const scrollListen = (event) => {
         scrollPos.value = event.target.scrollTop

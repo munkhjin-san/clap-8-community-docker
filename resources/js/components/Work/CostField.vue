@@ -106,11 +106,12 @@
         </div>
 </template>
 <script setup>
-import ShortInput from '../Form/ShortInput.vue'
-import { inject, ref, computed } from 'vue';
+import { ref, computed } from 'vue';
 import OptionSelector from '../Form/OptionSelector.vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
 import { workFilePreview } from '../../utils/workApi';
+import { useDialog } from '@/composables/dialog';
+import { useApi } from '@/composables/api';
 
     const department = defineModel('department')
     const content = defineModel('content')
@@ -119,11 +120,12 @@ import { workFilePreview } from '../../utils/workApi';
     const fileModel = defineModel('file_path')
     const loading = ref(false)
 
-    const { notify } = inject('dialog')
+    const api = useApi()
     
     const file_type = ref(fileModel.value?.split('.').pop() == 'webp' ? 'image' : 'application')
     const props = defineProps(['workGroupAsOptions', 'fieldIndex', 'isRegistered'])
     const emit = defineEmits(['addCostField', 'removeCostField'])
+    const { ping } = useDialog()
 
     const costOptions = computed(() => {
         let registered_options = [{label: '交通費', value: 1},
@@ -156,21 +158,17 @@ import { workFilePreview } from '../../utils/workApi';
                                     
             formData.append('file', file)
 
-            try{
-                loading.value = true
-                const response = await axios.post('/work_file_upload', formData)
-                const file = response.data
-                if(file == 'notimage'){
-                    notify('画像をアップロードしてください。')
-                }else{
-                    fileModel.value = file.file_path
-                    file_type.value = file.file_type
-                }
-            }catch (e){
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')    
-            } finally {
-                loading.value = false
+            const response = await api.post('/work_file_upload', formData, {
+                loadingRef: loading,
+            })
+            const fileData = response
+            if(fileData == 'notimage'){
+                ping('画像をアップロードしてください。')
+            }else{
+                fileModel.value = fileData.file_path
+                file_type.value = fileData.file_type
             }
+           
         }
     }
 </script>

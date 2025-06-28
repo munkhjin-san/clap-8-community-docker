@@ -115,7 +115,11 @@
             <GanttTaskComment v-if="commentingTask" :task="commentingTask" @close="commentView = null" />
         </Transition>
 
-        <FloatButton @action="createTask({})" v-if="project" type="plus" />
+        <FloatButton @action="createTask({})" v-if="project" type="plus">
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>
         <Transition name="modalFade">
             <GanttFullText :data="quickEdit" v-if="quickEdit.id && project"
                 @close="Object.assign(quickEdit, { id: null, text: '', editable: false })" />
@@ -144,8 +148,7 @@ import { DateTime, DateTimeUnit, Interval } from "luxon";
 import { Project, QuickEditText, SubTaskPreData, VirtualSpan } from '@/interface/projectInterface';
 import GanttFullText from './GanttFullText.vue';
 import GanttTaskComment from './GanttTaskComment.vue';
-import axios from 'axios';
-import { Dialog, Task } from '@/interface/globalInterface';
+import { Task } from '@/interface/globalInterface';
 import TaskCreate from '../TaskCreate.vue';
 import TaskCategorizer from './TaskCategorizer.vue';
 import SubTaskControl from '../SubTaskControl.vue';
@@ -156,6 +159,8 @@ import { useAuthUserStore } from '@/store/auth'
 import TaskSpanSelector from './TaskSpanSelector.vue'
 import DateBlock from './DateBlock.vue'
 import { useResponsive } from '@/store/responsive'
+import AddIcon from '@/components/Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
 
 const props = defineProps<{
     boardProject?: Project
@@ -192,7 +197,6 @@ const subPreData = reactive<SubTaskPreData>({
     active: false
 })
 const preData = reactive<Partial<Task>>({})
-const { notify, info, confirm } = inject<Dialog>('dialog')!;
 const units = ['year', 'month', 'day'] as const;
 const selectedUser = ref<number | null>(null)
 const selectedStatus = ref<number>(-1)
@@ -211,6 +215,7 @@ const todayLineOffset = ref(-100)
 const cursorPos = ref([0, 0])
 const beforeState = ref(0)
 const scrollableParent = useTemplateRef('scrollableParent')
+const api = useApi()
 onConnect((params) => {
     addEdges([params])
 })
@@ -455,8 +460,8 @@ const drawInitalTodayLine = () => {
 const getTask = async (load?: number) => {
     loading.value = true
     const id = props.boardProject ? props.boardProject.id : route.params.projectId
-    project.value = await axios('/get_gantt_project_tasks', { params: { id: id, user_id: selectedUser.value, progress_flag: selectedStatus.value } }).then(res => res.data.project)
-
+    const data = await api.get('/get_gantt_project_tasks', { id: id, user_id: selectedUser.value, progress_flag: selectedStatus.value })
+    project.value = data.project
     loader.value++
     loading.value = false
     if (project.value && load == 0) {
@@ -488,18 +493,13 @@ const remove = async (task: Task) => {
     if (task.parent_task_id) {
         pattern = 'サブタスク'
     }
-    const answer = await confirm(`${pattern}を削除しますか。`)
-    if (!answer.value) return
+    await api.del('/delete_task', { task_id: task.id }, {
+        toast: `${pattern}を削除しました。`,
+        ask: `${pattern}を削除しますか？`
+    })
+    getTask()
+    badge.getTaskBadge()
 
-    try {
-        axios.delete(`/task_item`, { params: { task_id: task.id } }).then(() => {
-            getTask()
-        })
-        info('削除しました。')
-        badge.getTaskBadge()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
 
 }
 

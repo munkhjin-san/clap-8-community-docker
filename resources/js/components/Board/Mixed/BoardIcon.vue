@@ -12,6 +12,7 @@
                 minWidth: computedSize + 'px',
                 minHeight: computedSize + 'px',
             }"
+            rounded="circle"
         >
         <template v-slot:error>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" :width="`${computedSize}px`" :height="`${computedSize}px`">

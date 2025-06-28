@@ -186,26 +186,29 @@
 </template>
 <script setup>
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import { getAttendanceData } from '../../utils/workApi';
 import { timeFormat } from '@/utils/tools';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     
     const emit = defineEmits(['reload', 'closeModal'])
     const props = defineProps([
-            'selectedYear', 
-            'selectedMonth', 
-            'usersCheckArray'
-        ])
+        'selectedYear', 
+        'selectedMonth', 
+        'usersCheckArray'
+    ])
     const auth = useAuthUserStore()
-    const { confirm, notify, info } = inject('dialog')
     const attendanceData = ref(null)
     const sending = ref(false)
     const disableButton = computed(() => {
         return attendanceData.value.unapproved_shift_count > 0 || attendanceData.value.unsaved_count > 0 || attendanceData.value.unapproved_count > 0 || attendanceData.value.attendance_flag === true
     })
     const loading = ref(0)
+    const api = useApi()
+    const { ping } = useDialog()
     onMounted(() => {
         fetchAttendanceData()
     })
@@ -219,7 +222,7 @@ import { DateTime } from 'luxon';
             attendanceData.value  = await getAttendanceData(yearMonth, props.usersCheckArray)
             loading.value ++
         }catch (e){
-            notify(e?.message)
+            ping(e?.message)
         }
     }
     const buttonTexts = computed(() => {
@@ -241,17 +244,15 @@ import { DateTime } from 'luxon';
         const params = {
             date_year_month : date,
             user_id : props.usersCheckArray[0]
-        }
-        const answer = await confirm('今月の勤怠確定を取り消しますか?。')
-        if(!answer.value) return        
-        try{
-            await axios.post('attendance_delete', params)
-            info('勤怠確定を取り消しました。')
-            emit('closeModal')
-            emit('reload')
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }   
+      
+        await api.post('attendance_delete', params, {
+            toast: '勤怠確定を取り消しました。',
+            ask: '今月の勤怠確定を取り消しますか?。'
+        })
+        emit('closeModal')
+        emit('reload')
+
     }
     const monthFormat = computed(() => {
         return dateInstance.value.toFormat('yyyy年M月')
@@ -352,31 +353,26 @@ import { DateTime } from 'luxon';
             expenses: attendanceData.value.annual_costs,
             incentive: attendanceData.value.annual_incentives
         }
-        try{
-            sending.value = true
-            await axios.post('/attendance_confirm', params)
-            info('確定しました。')
-            emit('closeModal')
-            emit('reload')
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            sending.value = false
-        }
+ 
+        sending.value = true
+        await api.post('/attendance_confirm', params, {
+            toast: '確定しました。'
+        })
+        emit('closeModal')
+        emit('reload')
+        sending.value = false      
     }
     const attendanceCreate = async() => {
-        const date = dateInstance.value.toFormat('yyyy-MM')
-        
+        const date = dateInstance.value.toFormat('yyyy-MM')        
         const params = {
             date : date,
             user : attendanceData.value.user
         }
-        try{
-            await axios.post('/attendance_closed', params)
-            info('確定しました。')
-            emit('closeModal')
-            emit('reload')
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+        await api.post('/attendance_closed', params, {
+            toast: '確定しました。'
+        })
+        emit('closeModal')
+        emit('reload')
+
     }
 </script>

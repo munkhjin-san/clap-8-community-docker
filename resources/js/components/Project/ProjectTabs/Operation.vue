@@ -67,7 +67,11 @@
             </div>       
         </div>     
     </div>
-    <FloatButton v-if="isManager || isMember" :style="{position: 'fixed', bottom: auth.user?.footer_view && responsive.mobile ? '65px' : '20px'}" @action="createWindow = true" type="plus"/>
+    <FloatButton v-if="isManager || isMember" :style="{position: 'fixed', bottom: auth.user?.footer_view && responsive.mobile ? '65px' : '20px'}" @action="createWindow = true">
+        <template #icon>
+            <AddIcon size="15" fill="black"/>
+        </template>
+    </FloatButton>
     <ManualCreate v-if="createWindow" @close="(flag) => manualCreateFinish(flag)" :edit-data="editData"/>
     <RuleCreate v-if="editJob.manual" @close="(flag) => ruleCreateFinish(flag)" :edit-data="editJob"/>
 </div>
@@ -78,17 +82,16 @@ import Back from '@/components/Icons/Back.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useResponsive } from '@/store/responsive';
 import { urlCheck } from '@/utils/tools';
-import axios from 'axios';
-import { computed, inject, onMounted, reactive, ref } from 'vue';   
+import { computed, inject, onMounted, ref } from 'vue';   
 import ManualCreate from './Manual/ManualCreate.vue';
-import { Manual, ManualFile, Rule } from '@/interface/operation';
+import { Manual, Rule } from '@/interface/operation';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import RuleCreate from './Manual/RuleCreate.vue';
-import { DialogMethods } from '@/interface/keys';
 import { fileSizeParser, kintoneFileUrlBuilder } from '@/utils/tools';
 import AddIcon from '@/components/Form/AddIcon.vue';
 import { useProject } from '@/composables/project';
+import { useApi } from '@/composables/api';
 
 const props = defineProps<{
     userList: any;
@@ -102,8 +105,8 @@ const editData = ref<Manual | null>(null)
 const activeRules = ref<string[]>([])
 const fetchCount = ref(0)
 const setLoader = inject('setLoader') as (flag: boolean) => void
-const { notify, info, confirm } = inject('dialog') as DialogMethods
 const { selectedProject } = useProject()
+const api = useApi()
 
 const createWindow = ref(false)
 const editJob = ref<{
@@ -123,7 +126,7 @@ onMounted(async() => {
 });
    
 const getManuals = async() => {
-    const response = await axios.get('/get_manuals', {params: {project_name: selectedProject.value?.name}}).then(res => res.data);
+    const response = await api.get('/get_manuals',  {project_name: selectedProject.value?.name})
     manualData.value = response;
     fetchCount.value++
 }
@@ -144,26 +147,18 @@ const manualCreateFinish = (flag:boolean) => {
 }
 
 const deleteJob = async(manualId: string, ruleId: string) => {
-    const confirmed = await confirm('削除しますか？')
-    if(!confirmed.value) return
-    try {
-        await axios.post('/delete_manual_rule', {manual_id: manualId, rule_id: ruleId})
-        info('削除しました。')
-        getManuals()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+    await api.post('/delete_manual_rule', {manual_id: manualId, rule_id: ruleId}, {
+        toast: '削除しました。',
+        ask: '削除しますか？',
+    })
+    getManuals()
 }
 const deleteManual = async(manualId: string) => {
-    const confirmed = await confirm('削除しますか？')
-    if(!confirmed.value) return
-    try {
-        await axios.post('/delete_manual_record', {manual_id: manualId })
-        info('削除しました。')
-        getManuals()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+    await api.post('/delete_manual_record', {manual_id: manualId}, {
+        toast: '削除しました。',
+        ask: '削除しますか？',
+    })
+    getManuals()
 }
 
 const isManager = computed(() => {

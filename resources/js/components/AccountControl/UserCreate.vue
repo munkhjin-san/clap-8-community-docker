@@ -206,280 +206,279 @@
     </div>
     
            
-    </template>
-    <script setup>
-        import { computed, inject, reactive, ref, markRaw, watch } from 'vue';
-        import ShortInput from '../Form/ShortInput.vue';
-        import MemberSelector from '../Form/MemberSelector.vue'
-        import LoaderButton from '../Global/LoaderButton.vue';
-        import ItemSelector from '../Form/ItemSelector.vue';
-        const emit = defineEmits(['postFinish'])
-        const props = defineProps(['positions', 'offices', 'editUserData', 'workGroups', 'linkables'])
-        const processing = ref(false)
-        const showPassword = ref(false)
-        const { notify, info } = inject('dialog')
-        const passwordReset = ref(false)
-        const nameRef = ref(null)
-        const nameKanaRef = ref(null)
-        const loginRef = ref(null)
-        const emailRef = ref(null)
-        const passwordRef = ref(null)
-        const userCodeRef = ref(null)
-        const workTimeRef = ref(null)
+</template>
+<script setup>
+import { computed, reactive, ref, watch } from 'vue';
+import ShortInput from '../Form/ShortInput.vue';
+import MemberSelector from '../Form/MemberSelector.vue'
+import LoaderButton from '../Global/LoaderButton.vue';
+import ItemSelector from '../Form/ItemSelector.vue';
+import { useApi } from '@/composables/api';
+    const emit = defineEmits(['postFinish'])
+    const props = defineProps(['positions', 'offices', 'editUserData', 'workGroups', 'linkables'])
+    const processing = ref(false)
+    const showPassword = ref(false)
+    const passwordReset = ref(false)
+    const nameRef = ref(null)
+    const nameKanaRef = ref(null)
+    const loginRef = ref(null)
+    const emailRef = ref(null)
+    const passwordRef = ref(null)
+    const userCodeRef = ref(null)
+    const workTimeRef = ref(null)
 
-        const userParams = reactive({
-            name: props.editUserData ? props.editUserData.name : '',
-            name_kana: props.editUserData ? props.editUserData.name_kana :  '',
-            login: props.editUserData ? props.editUserData.login :  '',
-            email: props.editUserData ? props.editUserData.email :  '',
-            password: props.editUserData ? props.editUserData.password :  '',
-            phone_number: props.editUserData ? props.editUserData.phone_number :  '',
-            retire: props.editUserData ? props.editUserData.retire :  0,
-            work_type: props.editUserData ? props.editUserData.work_type :  0,
-            work_time_day: props.editUserData ? props.editUserData.work_time_day :  '',
-            position_id: props.editUserData ? props.editUserData.position_id :  '',
-            office_id: props.editUserData ? props.editUserData.office_id :  '',
-            hide_flag: props.editUserData ? props.editUserData.hide_flag :  0,
-            user_code:props.editUserData ? props.editUserData.user_code :  '',
-            on_leave: props.editUserData ? props.editUserData.on_leave : 0,
-        })
+    const userParams = reactive({
+        name: props.editUserData ? props.editUserData.name : '',
+        name_kana: props.editUserData ? props.editUserData.name_kana :  '',
+        login: props.editUserData ? props.editUserData.login :  '',
+        email: props.editUserData ? props.editUserData.email :  '',
+        password: props.editUserData ? props.editUserData.password :  '',
+        phone_number: props.editUserData ? props.editUserData.phone_number :  '',
+        retire: props.editUserData ? props.editUserData.retire :  0,
+        work_type: props.editUserData ? props.editUserData.work_type :  0,
+        work_time_day: props.editUserData ? props.editUserData.work_time_day :  '',
+        position_id: props.editUserData ? props.editUserData.position_id :  '',
+        office_id: props.editUserData ? props.editUserData.office_id :  '',
+        hide_flag: props.editUserData ? props.editUserData.hide_flag :  0,
+        user_code:props.editUserData ? props.editUserData.user_code :  '',
+        on_leave: props.editUserData ? props.editUserData.on_leave : 0,
+    })
 
-        const subParams = reactive({
-            workGroup: props.editUserData && props.editUserData.work_groups ? props.editUserData.work_groups.map(ob => ob.id) :  [],
-            linked: props.editUserData && props.editUserData.linked ? props.editUserData.linked :  [],
-        })
-        watch(() => userParams.position_id, (newValue) => {
-            if(newValue === 15){
-                userParams.work_type = 1
-            }
-        })
-        const closeModal = (flag) => {
-            processing.value = false
-            emit('postFinish',flag);     
+    const subParams = reactive({
+        workGroup: props.editUserData && props.editUserData.work_groups ? props.editUserData.work_groups.map(ob => ob.id) :  [],
+        linked: props.editUserData && props.editUserData.linked ? props.editUserData.linked :  [],
+    })
+
+    const api = useApi()
+    watch(() => userParams.position_id, (newValue) => {
+        if(newValue === 15){
+            userParams.work_type = 1
         }
-        const isPartner = computed(() => {
-            return userParams.position_id == 14
+    })
+    const closeModal = (flag) => {
+        processing.value = false
+        emit('postFinish',flag);     
+    }
+    const isPartner = computed(() => {
+        return userParams.position_id == 14
+    })
+    const send = async() => {
+        const targets = [
+            nameRef.value,
+            nameKanaRef.value,
+            loginRef.value,
+            emailRef.value,
+            passwordRef.value,
+            userCodeRef.value,
+            workTimeRef.value
+        ]
+        const validateTargets = targets.filter( target => target !== null)
+        let result = true
+        for(const target of validateTargets){                
+            const val = await target?.validate() || {valid: false}
+            result = result * val.valid
+        }
+        
+        if (!result) return
+        if (processing.value) return
+
+        processing.value = true
+ 
+
+        const params = {
+            id: props.editUserData ? props.editUserData.id : null,
+            user_params: userParams,
+            linked: subParams.linked.map(ob => ob.id),
+            work_groups: subParams.workGroup,
+            password_reset: props.editUserData && passwordReset.value
+        }
+        await api.post('/user_add', params, {
+            toast: 'ユーザーを保存しました',
         })
-        const send = async() => {
-            const targets = [
-                nameRef.value,
-                nameKanaRef.value,
-                loginRef.value,
-                emailRef.value,
-                passwordRef.value,
-                userCodeRef.value,
-                workTimeRef.value
-            ]
-            const validateTargets = targets.filter( target => target !== null)
-            let result = true
-            for(const target of validateTargets){                
-                const val = await target?.validate() || {valid: false}
-                result = result * val.valid
-            }
-           
-            if (!result) return
-            if (processing.value) return
-
-            processing.value = true
-
-
-            const params = {
-                id: props.editUserData ? props.editUserData.id : null,
-                user_params: userParams,
-                linked: subParams.linked.map(ob => ob.id),
-                work_groups: subParams.workGroup,
-                password_reset: props.editUserData && passwordReset.value
-            }
-            try {
-                await axios.post('/user_add', params)
-                info('保存しました')
-                emit('postFinish', true)
-                processing.value = false
-            } catch (e) {
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            }
+        emit('postFinish', true)
+        processing.value = false
+    }
+</script>
+<style scoped lang="scss">
+    .user-header{
+        margin: 20px 0px;
+        font-size: 17px;
+        padding: 5px 10px 5px 0px;
+        height: fit-content;
+        line-height: 1.2;
+    }
+    .post-error{
+        bottom: -12px !important;
+    }
+    .dropdown{
+        background-color: var(--background-color);
+        -webkit-appearance: none;
+        appearance: none;
+    }
+    .recordText-user {
+        width: -webkit-fill-available;
+        margin: 0 auto;
+        border: 1px solid var(--primary-color);
+        padding: 25px 10px 10px 15px;
+        color: inherit;
+        width: -moz-available;
+        font-size: 16px;
+        line-height: 1.6;
+        transition: border 0.3s ease;
         }
-    </script>
-    <style scoped lang="scss">
-        .user-header{
-            margin: 20px 0px;
-            font-size: 17px;
-            padding: 5px 10px 5px 0px;
-            height: fit-content;
-            line-height: 1.2;
+        .recordText-user::placeholder{
+        font-size:14px !important;
+        } 
+        .recordTextArea-user {
+        resize: none;
+        width: 100%;
+        height: 200px;
+        padding: 12px 12px 12px 12px;
+        line-height: 28px;
+        box-sizing: border-box;
+        font-size: 16px;
+        border: 1px solid var(--primary-color);
+        color: var(--primary-color);
         }
-        .post-error{
-            bottom: -12px !important;
+        .recordTextArea-user::placeholder{
+        font-size: 14px !important;
         }
-        .dropdown{
-            background-color: var(--background-color);
+        .password-change{
+        color: gray;
+        cursor:pointer;
+        }
+        .password-change:hover{
+        color: #000;
+        }
+        .vs__search::placeholder{
+        font-size: 14px !important;
+        }
+        .password-wrapper{
+        display: flex;
+        align-items: center;
+        width: 10%;
+        }
+        .check-container.user {
+        display: block;
+        position: relative;
+        padding-left: 30px;
+        cursor: pointer;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        user-select: none;
+        font-size: medium;
+        line-height: 1.3;
+        color:var(--primary-color);
+        }
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
             -webkit-appearance: none;
-            appearance: none;
+            margin: 0;
         }
-        .recordText-user {
-            width: -webkit-fill-available;
-            margin: 0 auto;
-            border: 1px solid var(--primary-color);
-            padding: 25px 10px 10px 15px;
-            color: inherit;
-            width: -moz-available;
-            font-size: 16px;
-            line-height: 1.6;
-            transition: border 0.3s ease;
-          }
-          .recordText-user::placeholder{
-            font-size:14px !important;
-         } 
-          .recordTextArea-user {
-            resize: none;
-            width: 100%;
-            height: 200px;
-            padding: 12px 12px 12px 12px;
-            line-height: 28px;
-            box-sizing: border-box;
-            font-size: 16px;
-            border: 1px solid var(--primary-color);
-            color: var(--primary-color);
-          }
-          .recordTextArea-user::placeholder{
-            font-size: 14px !important;
-          }
-          .password-change{
-            color: gray;
-            cursor:pointer;
-          }
-          .password-change:hover{
-            color: #000;
-          }
-          .vs__search::placeholder{
-            font-size: 14px !important;
-          }
-          .password-wrapper{
-            display: flex;
-            align-items: center;
-            width: 10%;
-          }
-          .check-container.user {
+        .password-btn{
+        color: var(--primary-color); 
+        background: var(--bg2);
+        font-size: 12px;
+        white-space: nowrap;
+        width: fit-content;
+        position:relative;
+        min-width: 100px;
+        min-height: 35px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        padding: 0 15px;
+        }
+        .mt-20{
+        margin-top: 20px;
+        }
+        .input-wrapper{
+        display: flex;
+        flex-direction: row;
+        position: relative;
+        background: inherit;
+        }
+        .input-wrapper-memo{
+        display: flex;
+        flex-direction: row;
+        position: relative;
+        background: inherit;
+        }
+        .input-inner-wrapper{
+        position: relative;
+        width:100%;
+        }
+        .w-100{
+        width:100%;
+        }
+        .user.form-label{
+        font-size:16px;
+        
+        }
+        .selectArea {
+        height: auto ;
+        background-repeat: no-repeat;
+        background-position: top 5px right 5px;
+    }
+    .adminSelect{
+        height: 40px;
+        border: 1px solid var(--formBorder);
+        padding: inherit;
+        text-indent: 16px;
+    }
+    .userFormTitle {
+        
+        font-size: 17px; 
+        margin: -8px 0px 30px;
+        }
+        .lastname_wrapper{
+        width: 50%;
+        background: inherit;
+    }
+    .firstname_wrapper{
+        width: 50%;
+        display: flex;
+        align-items: center;
+        margin-left: 20px;
+        position: relative;
+        background: inherit;
+    }
+    @media screen and (max-width: 959px){
+        .input-wrapper{
             display: block;
-            position: relative;
-            padding-left: 30px;
-            cursor: pointer;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            user-select: none;
-            font-size: medium;
-            line-height: 1.3;
-            color:var(--primary-color);
-          }
-          input::-webkit-outer-spin-button,
-            input::-webkit-inner-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
+        }
+        .input-wrapper-memo{
+            display: block;
+        }
+        .w-100{
+            margin-top: 10px;
+        }
+        .userFormTitle > p{
+            font-size: 18px;
+        }
+        .recordText-user.firstname{
+            width:100%;
+            margin-top: 10px;
+            margin-bottom: 20px;
             }
-          .password-btn{
-            color: var(--primary-color); 
-            background: var(--bg2);
-            font-size: 12px;
-            white-space: nowrap;
-            width: fit-content;
-            position:relative;
-            min-width: 100px;
-            min-height: 35px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            padding: 0 15px;
-          }
-          .mt-20{
-            margin-top: 20px;
-          }
-          .input-wrapper{
-            display: flex;
-            flex-direction: row;
-            position: relative;
-            background: inherit;
-          }
-          .input-wrapper-memo{
-            display: flex;
-            flex-direction: row;
-            position: relative;
-            background: inherit;
-          }
-          .input-inner-wrapper{
-            position: relative;
-            width:100%;
-          }
-          .w-100{
-            width:100%;
-          }
-          .user.form-label{
-            font-size:16px;
-            
-          }
-          .selectArea {
-            height: auto ;
-            background-repeat: no-repeat;
-            background-position: top 5px right 5px;
-        }
-        .adminSelect{
-            height: 40px;
-            border: 1px solid var(--formBorder);
-            padding: inherit;
-            text-indent: 16px;
-        }
-        .userFormTitle {
-           
-            font-size: 17px; 
-            margin: -8px 0px 30px;
-          }
-          .lastname_wrapper{
-            width: 50%;
-            background: inherit;
+        .lastname_wrapper {
+            width: 100%;
+            margin-top: 10px;
         }
         .firstname_wrapper{
-            width: 50%;
-            display: flex;
-            align-items: center;
-            margin-left: 20px;
-            position: relative;
-            background: inherit;
+            width: 100%;
+            display: block;
+            margin-left: 0;
+            margin-top: 20px;
         }
-        @media screen and (max-width: 959px){
-            .input-wrapper{
-                display: block;
-            }
-            .input-wrapper-memo{
-                display: block;
-            }
-            .w-100{
-                margin-top: 10px;
-            }
-            .userFormTitle > p{
-                font-size: 18px;
-            }
-            .recordText-user.firstname{
-                width:100%;
-                margin-top: 10px;
-                margin-bottom: 20px;
-              }
-            .lastname_wrapper {
-                width: 100%;
-                margin-top: 10px;
-            }
-            .firstname_wrapper{
-                width: 100%;
-                display: block;
-                margin-left: 0;
-                margin-top: 20px;
-            }
-            .mobile_mt10{
-                margin-top: 10px;
-            }
+        .mobile_mt10{
+            margin-top: 10px;
         }
-         
-    
-    </style>
+    }
+        
+
+</style>
         
         
         

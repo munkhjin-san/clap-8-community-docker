@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AssetRecord;
 use App\Models\attendanceRecord;
 use App\Models\boardToUser;
+use App\Models\CalendarRecord;
 use App\Models\CustomForm;
 use App\Models\EvaluationRecord;
 use App\Models\messageRecord;
@@ -30,7 +31,7 @@ class RemindController extends Controller
             return Auth::user();
         }
     }
-    public function notSubmitted(Request $request){
+    public function remind_attendance(Request $request){
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
         $user_detail = $auth_user->user_detail;
@@ -171,7 +172,7 @@ class RemindController extends Controller
         ];
         return response()->json($data);
     }
-    public function get_not_started_tasks() {
+    public function remind_task_untouched() {
         $active_user = $this->active_user();
         $tasks = taskRecord::whereHas('executors', function ($q) use($active_user) {
             $q->where('users.id', $active_user->id)->where('progress_flag', 0);
@@ -187,11 +188,11 @@ class RemindController extends Controller
         ->orderBy('created_at', 'desc')
         ->get();
         $data = [
-            'not_started_tasks' => $tasks
+            'remind_task_untouched' => $tasks
         ];
         return response()->json($data);
     }
-    public function get_not_completed_tasks() {
+    public function remind_task_unfinished() {
         $active_user = $this->active_user();
         $tasks = taskRecord::whereHas('executors', function ($q) use ($active_user) {
             $q->where('users.id', $active_user->id)->where('progress_flag', 1);
@@ -201,11 +202,11 @@ class RemindController extends Controller
         ->orderBy('created_at', 'desc')
         ->get();
         $data = [
-            'not_completed_tasks' => $tasks
+            'remind_task_unfinished' => $tasks
         ];
         return response()->json($data);
     }
-    public function getUnsignedUsers(Request $request){
+    public function remind_unsigned_messages(Request $request){
         $active_user = $this->active_user();
         $auth_id = $active_user->id;   
         $list = boardToUser::where('user_id', $auth_id)
@@ -227,12 +228,12 @@ class RemindController extends Controller
         ->get();
            
         $data = [
-            'unsigned_messages' => $comment_list_pre
+            'remind_unsigned_messages' => $comment_list_pre
         ];
        
         return response()->json($data);
     }
-    public function getUncheckedMessage(Request $request){
+    public function remind_unchecked_messages(Request $request){
         $user = $this->active_user();
         $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
         $list = boardToUser::where('user_id', $user->id)
@@ -257,11 +258,11 @@ class RemindController extends Controller
             ->get();
 
         $data = [
-            'unchecked_messages' => $checkMessages
+            'remind_unchecked_messages' => $checkMessages
         ];
         return response()->json($data);
     }
-    public function not_approved(Request $request){
+    public function remind_timesheet(Request $request){
         $date = Carbon::now();
         $day = $date->day;
         $year = $date->year;
@@ -333,16 +334,16 @@ class RemindController extends Controller
                 "overtime" => $overtimeRequests,
                 "shift" => $shiftCount,
             ];
-            if($timeCardsCount || $overtimeRequests || count($shiftCount)){                    
+            if($timeCardsCount || $overtimeRequests || $shiftCount->count()){                    
                 $list[] = $d;
             }
         }
         $data = [
-            "not_approved_time_sheets" => $list
+            "remind_timesheet" => $list
         ];
         return response()->json($data);
     }
-    public function task_not_approved(){
+    public function remind_task_not_approved(){
         $active_user = $this->active_user();
         $tasks = taskRecord::where('comp_flag', 0)
                             ->whereHas('supervisors', function ($q) use($active_user) {
@@ -364,11 +365,11 @@ class RemindController extends Controller
                             ])
                             ->get();
         $data = [
-            "not_approved_tasks" => $tasks
+            "remind_task_not_approved" => $tasks
         ];
         return response()->json($data);
     }
-    public function project_not_approved() {
+    public function remind_project_not_approved() {
         $user = Auth::user();
         if ($user->id === 631) {
             $members = $this->getAdminMembers();
@@ -384,7 +385,7 @@ class RemindController extends Controller
         // }
         
         $data = [
-            "not_approved_projects" => $members,
+            "remind_project_not_approved" => $members,
             "not_approved_increases" => $user->id === 604 || $user->id === 631 ? $this->not_approved_increases() : []
         ];
         return response()->json($data);
@@ -529,7 +530,7 @@ class RemindController extends Controller
                 ])
                 ->get();
     }
-    public function getRemindMessage(){
+    public function remind_reminded_messages(){
         $user = $this->active_user();
         // $list = boardRecord::whereHas('board_to_users', function($q) use($user){
         //     $q->where('user_id', $user->id)->where('deleted_status', 0);
@@ -552,11 +553,11 @@ class RemindController extends Controller
             ->select('check_flag', 'created_at', 'id', 'message', 'record_id', 'user_id', 'info_flag')
             ->get();
         $data = [
-            "reminded_messages" => $remindedMessages
+            "remind_reminded_messages" => $remindedMessages
         ];
         return response()->json($data);
     }
-    public function get_temp_data(Request $request){
+    public function remind_planned_leave(Request $request){
         $notificationUser = User::select('name', 'id', 'icon_path', 'icon_bg')->findOrFail(610);
         $date = Carbon::now();
         $year = $date->year;
@@ -588,27 +589,54 @@ class RemindController extends Controller
             }
         }
         $data = [
-            "paid_leaves" => $list
+            "remind_planned_leave" => $list
         ];
         return response()->json($data);
     }
-    public function get_not_answered_forms() {
+    public function remind_form() {
         $active_user = $this->active_user();
-        $forms = CustomForm::whereHas('users', function ($q) use ($active_user) {
-            $q->where('users.id', $active_user->id);
-        })->where(function($q) use ($active_user) {
-            $q->whereDoesntHave('survey_answers', function ($q) use ($active_user) {
-                $q->where('user_id', $active_user->id);
-            })->orWhere(function ($q) use ($active_user) {
-                $q->whereHas('survey_answers', function ($q) use ($active_user) {
-                    $q->where('user_id', $active_user->id)->where('status', '<', 2);
+        $userId = $active_user->id;
+        $forms = CustomForm::whereHas('users', fn($query) => $query->where('users.id', $userId))
+        ->where(function($q) use ($userId,){
+            $q->where(function ($query) use ($userId,) {
+                $query->where('repeat_setting', 0)
+                
+                ->whereDoesntHave('survey_answers', function ($q) use ($userId) {
+                    $q->where('user_id', $userId)->where('status', 2);
+                });
+            })
+            ->orWhere(function ($query) use ($userId,) {
+                $query->where('repeat_setting', 1)
+                ->where(function ($q) use ($userId,) {
+
+                    $instance = Carbon::today();
+
+                    $q->where(function($q_s) use($userId, $instance){
+                        $q_s->whereDoesntHave('survey_answers', function ($q2) use ($userId, $instance) {
+                            $q2->where('user_id', $userId)
+                            ->where('status', 2)
+                            ->whereMonth('target_date', $instance->copy()->subMonth()->month)
+                            ->whereYear('target_date', $instance->copy()->subMonth()->year);
+                        });
+                    });
+                    
+                })->orWhere(function ($q) use ($userId) {
+                    $instance = Carbon::today();
+                    $q->where('repeat_day', '<=', $instance->day)->whereDoesntHave('survey_answers', function ($q2) use ($userId, $instance) {
+                        $q2->where('user_id', $userId)
+                        ->where('status', 2)
+                        ->whereMonth('target_date', $instance->month)
+                        ->whereYear('target_date', $instance->year);
+                    });
                 });
             });
         })
-        
+
         ->with(['users', 'admins', 'survey_answers' => function ($query) {
-            $query->select('user_id', 'custom_form_id'); // Load only necessary fields
+            $query->select('user_id', 'custom_form_id'); 
         }])->get();
+        
+
         
         $forms->each(function ($form) {
             $answeredUserIds = $form->survey_answers->pluck('user_id')->toArray();
@@ -617,11 +645,11 @@ class RemindController extends Controller
             });
         });
         $data = [
-            'not_answered_forms' => $forms
+            'remind_form' => $forms
         ];
         return response()->json($data);
     }
-    public function get_asset_recieve_requests(){
+    public function remind_asset(){
         $active_user = $this->active_user();
 
         $target_assets = AssetRecord::where(function ($query) use ($active_user) {
@@ -637,26 +665,49 @@ class RemindController extends Controller
                 $q->where('value', 2)->with('approver');
             }]);
         }])->get();
-        return response()->json(["asset_receive_requests" => $target_assets]);
+        return response()->json(["remind_asset" => $target_assets]);
     }
-    public function get_remind_badge(Request $request) {
+    public function remind_temp_reserved_schedules(){
+        $active_user = $this->active_user();
+        $userId = $active_user->id;
+        $records = CalendarRecord::where('temp_flag', 1)->where('date_start', '>=', Carbon::today()->startOfMonth())
+            ->whereHas('calendar_users', function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            })->with([
+                'calendar_users',
+                'department',
+                'task',
+                'updated_by',
+                'created_by',
+                'files',
+                'calendar_view_users',
+    
+            ])->get();
+        return response()->json([
+            'remind_temp_reserved_schedules' => $records
+        ]);
+        
+        
+    }
+    public function remind_badge(Request $request) {
         $responses = [];
     
-        $responses['not_started_tasks'] = $this->get_not_started_tasks()->getData(true);
-        $responses['not_completed_tasks'] = $this->get_not_completed_tasks()->getData(true);
-        $responses['unsigned_messages'] = $this->getUnsignedUsers($request)->getData(true);
-        $responses['unchecked_messages'] = $this->getUncheckedMessage($request)->getData(true);
-        $responses['not_approved_time_sheets'] = $this->not_approved($request)->getData(true);
-        $responses['not_approved_tasks'] = $this->task_not_approved()->getData(true);
-        $responses['not_approved_projects'] = $this->project_not_approved()->getData(true);
-        $responses['reminded_messages'] = $this->getRemindMessage()->getData(true);
-        $responses['paid_leaves'] = $this->get_temp_data($request)->getData(true);
-        $responses['not_answered_forms'] = $this->get_not_answered_forms()->getData(true);
-        $responses['asset_receive_requests'] = $this->get_asset_recieve_requests()->getData(true);
+        $responses['remind_task_untouched'] = $this->remind_task_untouched()->getData(true);
+        $responses['remind_task_unfinished'] = $this->remind_task_unfinished()->getData(true);
+        $responses['remind_unsigned_messages'] = $this->remind_unsigned_messages($request)->getData(true);
+        $responses['remind_unchecked_messages'] = $this->remind_unchecked_messages($request)->getData(true);
+        $responses['remind_timesheet'] = $this->remind_timesheet($request)->getData(true);
+        $responses['remind_task_not_approved'] = $this->remind_task_not_approved()->getData(true);
+        $responses['remind_project_not_approved'] = $this->remind_project_not_approved()->getData(true);
+        $responses['remind_reminded_messages'] = $this->remind_reminded_messages()->getData(true);
+        $responses['remind_planned_leave'] = $this->remind_planned_leave($request)->getData(true);
+        $responses['remind_form'] = $this->remind_form()->getData(true);
+        $responses['remind_asset'] = $this->remind_asset()->getData(true);
+        $responses['remind_temp_reserved_schedules'] = $this->remind_temp_reserved_schedules()->getData(true);
         $count = 0;
         $counts = [];
         foreach ($responses as $key => $response) {
-            if ($key === 'reminded_messages') {
+            if ($key === 'remind_reminded_messages') {
                 $counts[$key] = count($response[$key]);
             } else {
                 $count += count($response[$key]);

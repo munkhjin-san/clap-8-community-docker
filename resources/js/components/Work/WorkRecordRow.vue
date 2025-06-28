@@ -36,7 +36,7 @@
                 {{ item.shift.department?.name }}
             </div>
         </td>
-        <td style="word-break: auto-phrase;">{{ hasAllowance }}</td>
+        <td style="word-break: auto-phrase;white-space: break-spaces;">{{ hasAllowance }}</td>
         <td>{{ incidentFormatted }}</td>
         <td>{{ satisfyFormatted }}</td>
         <td>

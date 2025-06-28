@@ -64,6 +64,7 @@ import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import { inject, computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps(['selectedTopic'])
 const portfolio = inject('portfolio')
 const route = useRoute()
@@ -74,7 +75,7 @@ const titleRef = ref(null)
 const episodeRef = ref(null)
 const storyRef = ref(null)
 const reviewEl = ref(null)
-const { notify } = inject('dialog')
+const { ping } = useDialog()
 const { loading, saveItems } = inject('basicItem')
 const targetRefs = computed(() => {
     return [titleRef.value, episodeRef.value, storyRef.value]
@@ -92,7 +93,7 @@ const params = computed(() => {
 })
 const finishReview = async(status) => {
     if(props.selectedTopic.assistant_id && !reviewEl.value?.reviewResultRaw){
-        notify('基礎知識研修を完了する前、AI分析してください。')
+        ping('基礎知識研修を完了する前、AI分析してください。')
         return
     }
     const valid = await reviewEl.value?.validate()

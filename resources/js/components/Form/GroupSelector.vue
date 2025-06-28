@@ -21,6 +21,7 @@
 </div>
 </template>
 <script setup>
+import { useApi } from '@/composables/api';
 import { onMounted, ref, markRaw, watch, computed } from 'vue';
 const props = defineProps(['placeHolder'])
 const members = defineModel()
@@ -28,10 +29,9 @@ const groups = ref([])
 const projects = ref([])
 const selectedItem = ref(null)
 const focus = ref(false)
-const resetLock = ref(false)
+const api = useApi()
 watch(selectedItem, (value) => {  
     members.value = value ? value.users : []
-
 })
 
 onMounted(() => {
@@ -58,10 +58,9 @@ const unifiedOptions = computed(() => {
     return [...groupItem, ...projectItem]
 })
 const getPossibleGroups = async () => {
-    axios.get('/get_possible_groups').then(res => {
-        groups.value = res.data.group
-        projects.value = res.data.project
-    });
+    const data = await api.get('/get_possible_groups')  
+    groups.value = data.group
+    projects.value = data.project
 }
 </script>
 <style scoped>

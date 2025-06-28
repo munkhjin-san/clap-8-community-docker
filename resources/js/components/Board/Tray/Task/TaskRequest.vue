@@ -41,15 +41,16 @@
         </div>
     </Transition>
 </template>
-<script setup>
+<script setup lang="ts">
 import { ref, computed, inject } from 'vue';
 import LongInput from '../../../Form/LongInput.vue';
 import LoaderButton from '../../../Global/LoaderButton.vue';
-import axios from 'axios';
 import FileUploader from '@/components/Form/FileUploader.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useTaskRequest } from '@/store/taskRequest';
 import { dateDetail } from '@/utils/workApi';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const taskRequest = useTaskRequest()
     const auth = useAuthUserStore()
     const myTask = computed(() => {
@@ -61,30 +62,26 @@ import { dateDetail } from '@/utils/workApi';
     const comment = ref(myTask.value?.pivot.comment ? myTask.value.pivot.comment : '')
     const loading = ref(false)
     const uploadedFiles = ref(file.value ? file.value : [])
-    const { info, confirm, notify } = inject('dialog')
+    const api = useApi()
+    const { ping } = useDialog()
     
 
     const approveRequest = async() => {
         if(uploadedFiles.value.length > 1){
-            notify('ファイルを 1 つだけアップロードしてください。')
+            ping('ファイルを 1 つのみアップロードしてください。')
             return
         }
-        const answer = await confirm('タスクを申請しますか。')
-        if(!answer.value) return
-        try {
-            const params = {
-                file_ids: uploadedFiles.value ? uploadedFiles.value.map(ob => ob.id) : [],
-                comment: comment.value,
-                task_id: taskRequest.data.id,
-                board_id: taskRequest.data.board_id,
-                status_flag: 1,
-            }
-            await axios.put('/task_approve_request', params)
-            info('申請しました。')
-            close()
-        } catch (e) {
-            console.log(e)
-        }
+        await api.post('/task_approve_request', {
+            file_ids: uploadedFiles.value ? uploadedFiles.value.map(ob => ob.id) : [],
+            comment: comment.value,
+            task_id: taskRequest.data.id,
+            board_id: taskRequest.data.board_id,
+            status_flag: 1,
+        }, {
+            ask: 'タスクを申請しますか。',
+            toast: '申請しました。',
+        })
+        close()
     }
     const close = () => {
         const data = {

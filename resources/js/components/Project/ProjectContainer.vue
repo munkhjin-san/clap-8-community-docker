@@ -29,7 +29,10 @@
                     <div class="project-cell">概要</div>
 
                     <div class="project-cell cursor-pointer relative">
-                        <div @click.stop="menu.setMenu({parent: 'projectManagerSelect'})">管理者</div>
+                        <div @click.stop="menu.setMenu({parent: 'projectManagerSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
+                            管理者
+                            <Back class="rotate-[270deg]" size="10"/>
+                        </div>
                         <div class="flex flex-wrap">
                             <UserPanel v-for="member in activeManagers" disable-instant :user="member" size="15"/>
                         </div>
@@ -44,7 +47,10 @@
                         </Transition>
                     </div>
                     <div class="project-cell cursor-pointer relative">
-                        <div @click.stop="menu.setMenu({parent: 'projectMemberSelect'})">メンバー</div>
+                        <div @click.stop="menu.setMenu({parent: 'projectMemberSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
+                            メンバー
+                            <Back class="rotate-[270deg]" size="10"/>
+                        </div>
                         <div class="flex flex-wrap">
                             <UserPanel v-for="member in activeMembers" disable-instant :user="member" size="15"/>
                         </div>
@@ -133,7 +139,11 @@
             </Transition>
 
         </div>
-        <FloatButton type="plus" @action="createWindow = true" v-if="auth.activeUser.position_id <= 6 && (route.name == 'gantt-chart' || route.name == 'project')"/>
+        <FloatButton @action="createWindow = true" v-if="auth.activeUser.position_id <= 6 && (route.name == 'gantt-chart' || route.name == 'project')">
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>
         <Transition name="modalFade">
             <ProjectCreate 
                 v-if="createWindow"
@@ -156,8 +166,7 @@
 </template>
 <script lang="ts" setup>
 import { Project } from '@/interface/projectInterface';
-import axios from 'axios';
-import { nextTick, onMounted, ref, computed, provide, watch, inject, useTemplateRef, reactive } from 'vue';
+import { nextTick, onMounted, ref, computed, provide, useTemplateRef } from 'vue';
 import UserPanel from '../Global/UserPanel.vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import { useMenuStore } from '@/store/menu';
@@ -165,7 +174,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 import HamBurger from '../Global/HamBurger.vue';
 import { useResponsive } from '@/store/responsive';
-import { Dialog, User } from '@/interface/globalInterface';
+import { User } from '@/interface/globalInterface';
 import { useProjectUsers } from '@/store/projectUsers';
 import { useBadgeStore } from '@/store/badge';
 import { DateTime, Interval } from 'luxon';
@@ -177,6 +186,9 @@ import WeatherIcon from '../Global/WeatherIcon.vue';
 import ProjectMemberSort from './ProjectMemberSort.vue';
 import ProjectTotalFinance from './ProjectTotalFinance.vue';
 import { useProject } from '@/composables/project';
+import Back from '../Icons/Back.vue';
+import AddIcon from '../Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
 const keywords = ref('')
 const initialLoader = ref(true)
 const menu = useMenuStore()
@@ -184,7 +196,6 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthUserStore()
 const responsive = useResponsive()
-const { notify } = inject<Dialog>('dialog')!
 const projectUsers = useProjectUsers()
 const userList = ref([])
 const editData = ref(null)
@@ -194,6 +205,7 @@ const selectedMembers = ref<number[]>([])
 const badge = useBadgeStore()
 const taskComponent = useTemplateRef<ComponentExposed<typeof TaskComponent>>('taskComponent')
 const totalFinanceWindow = ref(false)
+const api = useApi()
 
 const { getProjects, projectList } = useProject()
 onMounted(async() => {
@@ -258,31 +270,18 @@ const sortedProjects = computed(() => {
     return hitMembers    
 })
 const getSelectableUsers = async() => {
-    try {
-        const data = await axios.post('/get_selectable_users').then(res => res.data)
-        userList.value = data.users
-    } catch (e) {
 
-    }
+    const data = await api.post('/get_selectable_users')
+    userList.value = data.users
+
 }
 const getProjectData = async() => {
-    try {
-        await getProjects()
-        // const today = DateTime.now()
-        // const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
-        // const year = which_half ==='second' ? (today.year - 1).toString() : today.year.toString()
-        // const params = {
-        //     year: year,
-        //     which_half: which_half
-        // }
-        //  = await axios.get('/get_projects', { params: params }).then(res => res.data)
 
-        nextTick(() => {
-            initialLoader.value = false
-        })
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+    await getProjects()
+    nextTick(() => {
+        initialLoader.value = false
+    })
+
 }
 
 

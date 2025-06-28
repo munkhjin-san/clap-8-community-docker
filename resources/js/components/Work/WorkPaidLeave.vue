@@ -15,32 +15,24 @@
 </template>
 <script lang="ts" setup>
 import YearPicker from '@/components/Global/YearPicker.vue';
-import { useResponsive } from '@/store/responsive';
-import { inject, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { onMounted, ref } from 'vue';
 import { DateTime } from 'luxon';
-import axios from 'axios';
-import { Dialog } from '@/interface/globalInterface';
 import { Shift } from '@/interface/workInterface';
-const responsive = useResponsive()
-const router = useRouter()
+import { useApi } from '@/composables/api';
 const year = ref(DateTime.now().year)
 const props = defineProps(['userId'])
 const paidHolidays = ref<Shift[]>([])
-const { notify, info } = inject<Dialog>('dialog')!
-const route = useRoute()
 const emit = defineEmits(['close'])
+const api = useApi()
 const setDate = (val) => {
     year.value = val.year
     getPlannedLeaves()
 }
 const getPlannedLeaves = async() => {
-    try{
-        const response = await axios.post('/get_planned_leaves', {user_id: props.userId, year: year.value})
-        paidHolidays.value = response.data
-    } catch (e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+
+    const response = await api.post('/get_planned_leaves', {user_id: props.userId, year: year.value})
+    paidHolidays.value = response
+
 }
 onMounted(() => {
     getPlannedLeaves()

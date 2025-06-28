@@ -135,11 +135,12 @@ import { computed, inject, onMounted, ref } from 'vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { useResponsive } from '@/store/responsive'
+import { useApi } from '@/composables/api'
+import { useDialog } from '@/composables/dialog'
     const auth = useAuthUserStore()
     const responsive = useResponsive()
     const theme = useTheme()
     const emit = defineEmits(['close', 'reload'])
-    const { confirm, info, notify } = inject('dialog')
     const step = ref(0)
     const currentPassword = ref('')
     const newPassword = ref('')
@@ -160,6 +161,8 @@ import { useResponsive } from '@/store/responsive'
     const newPasswordConfirmRef = ref(null)
     const newPasswordRef = ref(null)
     const beamsInit = inject('beamsInit')
+    const api = useApi()
+    const { ask, toast, ping } = useDialog()
     onMounted(() => {
         if(auth.user && auth.user.ical_key){
             icalUrl.value = {
@@ -211,22 +214,19 @@ import { useResponsive } from '@/store/responsive'
     })
         
     const updateSignature = () => {
-        info('保存しました。')
+        toast('保存しました。')
         updateUser()
         step.value = 0
     }
     const updateUser = async() => {
-        try{
-            const response = await axios.post('/profile_get_update_user', {id: auth.id})
-            if(response.data && Object.hasOwn(response.data, 'id')){  
-                auth.setUser(response.data)                       
-            }
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        const response = await api.post('/profile_get_update_user', {id: auth.id})
+        if(response && Object.hasOwn(response, 'id')){  
+            auth.setUser(response)                       
         }
+
     }
     const logoutConfirm = async() => {
-        const answer = await confirm('ログアウトしますか。')
+        const answer = await ask('ログアウトしますか。')
         if(!answer.value) return
         logout()
     }
@@ -236,31 +236,29 @@ import { useResponsive } from '@/store/responsive'
     const footerMenuToggle = () => {                
         const v = event.target.value == 1 ? true : false
         auth.setFooterView(v)
-        axios.patch('set_footer_view', {value:v})
+        api.patch('set_footer_view', {value:v})
     }
     const copyUrl = () => {
         const selectedText = icalRef.value ? icalRef.value.textContent : ''
         if(!selectedText){
-            notify('コピーに失敗しました。')
+            ping('コピーに失敗しました。')
         }
         navigator.clipboard.writeText(selectedText)
         
         .then(() => {
-            info('コピーしました。')
+            ping('コピーしました。')
         })
         .catch((error) => {
-            notify('テキストをクリップボードにコピーできません:', error)
+            ping('テキストをクリップボードにコピーできません:', error)
         });
     }
     const createUrl = async() => {
-        try{
-            const response = await axios.get('/ical_url_generate')
-            if(response.data.success){
-                icalUrl.value.url = response.data.url
-            }
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+
+        const response = await api.get('/ical_url_generate')
+        if(response.success){
+            icalUrl.value.url = response.url
         }
+
     }
     const chooseColor = (color) => {
         chosenColor.value = color.id
@@ -279,30 +277,25 @@ import { useResponsive } from '@/store/responsive'
             password: newPassword.value,
             password_confirmation: newPasswordConfirm.value
         }
-        try{
-            const response = await axios.post('/user_pass_change_api', params)
-            if(response.status == 200){
-                step.value = 0
-                currentPassword.value = newPassword.value = newPasswordConfirm.value =  ''
-                info('変更しました。') 
-            }
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+
+        await api.post('/user_pass_change_api', params)
+
+        step.value = 0
+        currentPassword.value = newPassword.value = newPasswordConfirm.value =  ''
+        toast('変更しました。') 
+
     }
     const setSelectedColor = async() => {
         if(loader.value) return
         loader.value = true
-        try{
-            await axios.post('/profile_set_color', {value: chosenColor.value})
-            loader.value = false
-            step.value = 0     
-            emit('reload')
-            info('保存しました。')   
-            updateUser()
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+        await api.post('/profile_set_color', {value: chosenColor.value}, {
+            toast: '保存しました。'
+        })
+        loader.value = false
+        step.value = 0     
+        emit('reload') 
+        updateUser()
+
     }
 </script> 
 <style lang="scss" scoped>

@@ -53,21 +53,22 @@
     
 </template>
 <script setup>
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import HamBurger from '../Global/HamBurger.vue';
 import { useRoute } from 'vue-router';
 import { useResponsive } from '@/store/responsive';
 import { useAuthUserStore } from '@/store/auth';
+import { useApi } from '@/composables/api';
     const route = useRoute()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
-    const { notify } = inject('dialog')
     const qanda_info = ref([])
     const tag_list = ref([])
     const key_word_list = ref([])
     const keyListView = ref(false)
     const searchWord = ref('')
     const viewTrayUsers = [610, 516, 517, 519, 518, 526, 494, 604, 765]
+    const api = useApi()
     
     const selectedRoute = computed(() => {
         return route.name
@@ -79,9 +80,6 @@ import { useAuthUserStore } from '@/store/auth';
             pre.unshift(all)
             return pre
         } 
-    })
-    const hasPrivilage = computed(() => {
-        return auth?.activeUser ? viewTrayUsers.includes(auth.activeUser.id) : false
     })
     const qaList = computed(() => {
         if(!searchWord.value){
@@ -100,14 +98,12 @@ import { useAuthUserStore } from '@/store/auth';
         keyListView.value = false
     }
     const getSupportData = async() => {
-        try{
-            const response = await axios.post('/support_record_list' )
-            qanda_info.value = response.data.record_list
-            tag_list.value = response.data.tag_list
-            key_word_list.value =  response.data.key_word_list
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
-        }
+
+        const data = await api.post('/support_record_list' )
+        qanda_info.value = data.record_list
+        tag_list.value = data.tag_list
+        key_word_list.value = data.key_word_list
+
     }
     onMounted(getSupportData)
 

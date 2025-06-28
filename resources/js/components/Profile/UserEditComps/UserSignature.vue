@@ -38,7 +38,8 @@ import SignaturePad from 'signature_pad'
 import LoaderButton from '../../Global/LoaderButton.vue'
 import { inject, onMounted, ref } from 'vue';
 import { useResponsive } from '@/store/responsive';
-    const { confirm, notify } = inject('dialog')
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const responsive = useResponsive()
     const props = defineProps(['user'])
     const emit = defineEmits(['reload'])
@@ -48,6 +49,8 @@ import { useResponsive } from '@/store/responsive';
     const loader = ref(false)
     const showOptions = ref(false)
     const selectedLineWidth = ref(1)
+    const api = useApi()
+    const { ping } = useDialog()
     onMounted(() => {
         showSettingMySign()
     })
@@ -87,19 +90,14 @@ import { useResponsive } from '@/store/responsive';
     }
     const signSave = async() => {
         if(!signaturePad.value.isEmpty()){
-            const signImage = signaturePad.value.toDataURL();
-            const answer = await confirm('このサインをマイサインとして保存しますか? \n保存するとマイサインを何度でも使用することができます。')
-            if(!answer.value) return            
-            
-            try{
-                await axios.post('/save_user_signature', {sign: signImage})
-                emit('reload')
-            }catch (e){
-                notify('ファイルアップロード中にエラーが発生しました。')
-            }
+            const signImage = signaturePad.value.toDataURL();      
+            await api.post('/save_user_signature', {sign: signImage}, {
+                ask: 'このサインをマイサインとして保存しますか? \n保存するとマイサインを何度でも使用することができます。'
+            })
+            emit('reload')
 
         }else{
-            notify('サインされていません。')
+            ping('サインされていません。')
         }
     }
     const reset = () => {

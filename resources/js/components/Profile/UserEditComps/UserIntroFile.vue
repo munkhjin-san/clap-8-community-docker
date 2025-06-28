@@ -43,25 +43,27 @@
     </div>
 </template>
 <script setup>
-    import ShortInput from '../../Form/ShortInput.vue';
-    import UserFileUploader from './UserFileUploader.vue';
-    import LoaderButton from '../../Global/LoaderButton.vue';
-    import TagSelector from '../../Form/TagSelector.vue';
-    import { ref, computed, inject } from 'vue';
+import ShortInput from '../../Form/ShortInput.vue';
+import UserFileUploader from './UserFileUploader.vue';
+import LoaderButton from '../../Global/LoaderButton.vue';
+import TagSelector from '../../Form/TagSelector.vue';
+import { ref, computed } from 'vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps(['UserAllData', 'editData'])
     const emit = defineEmits(['updateUser', 'closeModal'])
-    const { notify } = inject('dialog')
     const introTitle = ref(props.editData && props.editData.title ? props.editData.title : '')
     const userAlbumbs = ref(props.editData ? [props.editData] : [])
     const processing = ref(false)
     const tags = ref(props.editData && props.editData.tags.length ? props.editData.tags : [])
+    const api = useApi()
+    const { ping } = useDialog()
     const tagSuggestionText = computed(() => {
         const gTitle = introTitle.value ? `${introTitle.value}` : ''
         return `${gTitle}` 
     })
     const saveAlbum = async() => {
         if(processing.value) return
-
         
         const params = {
             id: props.editData ? props.editData.id : null,
@@ -71,21 +73,17 @@
             path: '/user_album/' + props.UserAllData.id,
             tags: tags.value.length ? tags.value.map(ob => ob.text) : [],
         }
-        if(userAlbumbs.value && userAlbumbs.value.length){
-            processing.value = true
-            try{
-                await axios.post('/save_intro', params)
-                emit('closeModal')
-                emit('updateUser')
-            }catch (e){
-                notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            }finally{
-                processing.value = false
-            }
-        }else{
-            notify('ファイルをアップロードしてください。')
+        if(!userAlbumbs.value && !userAlbumbs.value.length){
+            ping('ファイルをアップロードしてください。')
+            return
         }
+        processing.value = true
         
+        await api.post('/save_intro', params, {
+            loadingRef: processing,
+        })
+        emit('closeModal')
+        emit('updateUser')      
     }
     
 </script>

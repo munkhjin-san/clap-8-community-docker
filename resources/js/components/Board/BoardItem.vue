@@ -46,30 +46,29 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import BoardIcon from './Mixed/BoardIcon.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import BoardTitlePreLoad from './Mixed/BoardTitle.vue'
 import { computed, inject } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
-import { useMenuStore } from "@/store/menu";
 import { useBadgeStore } from '@/store/badge'
 import ItemMenu from '../Global/ItemMenu.vue';
 import { mentionFormatter } from '@/utils/tools';
-import { useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
+import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
+import { MenuList } from '@/interface/globalInterface';
     const badge = useBadgeStore()
-    const menu = useMenuStore()
     const auth = useAuthUserStore()
-    const router = useRouter()
     const props = defineProps(['item', 'hasFailedMessage'])
-    const openedBoard = inject('openedBoard')
-    const { open, edit, detail, members, pin, leave, remove, setNotification } = inject('boardItem')  
+    const route = useRoute()
+    const { open, edit, detail, members, pin, leave, remove, setNotification } = inject(BoardMethodsKey) as BoardMethods
     const isOpened = computed(() => {
-        return openedBoard && openedBoard.value && openedBoard.value.id == props.item.id ? true : false
+        return route.params.chatId && Number(route.params.chatId) == props.item.id ? true : false
     })
     const boardMenuItems = computed(() => {
-        const list = []; 
-        function addItem(title, action) {
+        const list:MenuList[] = []; 
+        function addItem(title: string, action: () => void) {
             list.push({ title, action });
         }
         const editable = props.item.private_flag == 0 && selfMember.value?.admin_flag == 1
@@ -79,7 +78,7 @@ import { useRouter } from 'vue-router';
         }
         addItem('詳細情報', () => detail(props.item))
         addItem(selfMember.value?.pin_flag == 1 ? 'ピン留めを外す' : 'ピン留め', () => pin(props.item))
-        addItem(selfMember.value?.notification == 1 ? '通知設定:ON' : '通知設定:OFF', () => setNotification(props.item, selfMember.value?.notification ))
+        addItem(selfMember.value?.notification == 1 ? '通知設定:ON' : '通知設定:OFF', () => setNotification(props.item ))
         if(props.item.private_flag == 0){
             addItem('ボード退出', () => leave(props.item))
         }

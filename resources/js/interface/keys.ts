@@ -1,12 +1,10 @@
 import type { InjectionKey, Ref } from 'vue'
-import { Board, Message, CopyData, Division, DialogMethods, Task } from './globalInterface'
+import { Board, Message, CopyData, Division, Task } from './globalInterface'
 import { FastCreateData } from './calendarInterface'
 import { DateTime } from 'luxon'
 import { SubTaskPreData } from './projectInterface'
 
 
-
-const DialogKey = Symbol('dialog') as InjectionKey<DialogMethods>
 
 type BoardMethods = {
     remove: (item: Board) => void,
@@ -23,6 +21,7 @@ type BoardMethods = {
     refreshMessages: () => void,
     privateSearch: () => void,
     setNotification: (item: Board) => void
+    messageLoader:(val: boolean) => void
 }
 type MessageMethods = {
     addQueue: (item: Message) => void,
@@ -32,6 +31,7 @@ type MessageMethods = {
     sendError: (item: Message) => void,
     removeError: (id: number | string | null) => void,
     resetReplyQuot: () => void,
+    remind: (item: Message) => void,
 }
 type KeyboardMethods = {
     setKeyboardHeight: (value: number) => void,
@@ -77,5 +77,5 @@ const GanttMethodsKey = Symbol('ganttItem') as InjectionKey<GanttMethods>
 
 const GanttProjectMethodsKey = Symbol('ganttProjectItem') as InjectionKey<GanttProjectMethods>
 
-export { DialogKey, BoardMethodsKey, MessageMethodsKey, KeyboardMethodsKey, PostMethodsKey, DivisionMethodsKey, GanttMethodsKey, GanttProjectMethodsKey }
-export type { BoardMethods, DialogMethods,  MessageMethods, KeyboardMethods, PostMethods, DivisionMethods, GanttMethods, GanttProjectMethods }
+export { BoardMethodsKey, MessageMethodsKey, KeyboardMethodsKey, PostMethodsKey, DivisionMethodsKey, GanttMethodsKey, GanttProjectMethodsKey }
+export type { BoardMethods, MessageMethods, KeyboardMethods, PostMethods, DivisionMethods, GanttMethods, GanttProjectMethods }

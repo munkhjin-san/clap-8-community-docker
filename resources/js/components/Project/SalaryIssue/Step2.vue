@@ -77,8 +77,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { DialogMethods } from '@/interface/globalInterface'
-import { inject } from 'vue'
+import { useDialog } from '@/composables/dialog'
 
 const props = defineProps([
     'selectedTheme', 
@@ -90,6 +89,7 @@ const props = defineProps([
 const emit = defineEmits(['next', 'selectThemeConfirm'])
 const levels = ['自己', '組織', '社会']
 const themes = ['意義', '調和', '創造']
+const { ping } = useDialog()
 const grades = [
   { level: '1等級', self: 3, organization: 1, society: 0 },
   { level: '2等級', self: 2, organization: 1, society: 1 },
@@ -101,10 +101,9 @@ const grades = [
 const filteredIssues = (level, theme) => {
     return props.getIssues(level, theme);
 };
-const { notify } = inject('dialog') as DialogMethods
 const setTheme = (level, theme) => {
     if (!props.possibleThemes.includes(filteredIssues(level, theme)[0].title)) {
-        notify('このテーマの受講が完了していません。')
+        ping('このテーマの受講が完了していません。')
         return;
     }
     

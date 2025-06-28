@@ -82,14 +82,14 @@ import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Modal from '../../../Global/Modal.vue';
 import { Manual, Rule } from '@/interface/operation';
 import ShortInput from '@/components/Form/ShortInput.vue';
-import { inject, reactive, ref, toRaw } from 'vue';
+import { reactive, ref, toRaw } from 'vue';
 import LongInput from '@/components/Form/LongInput.vue';
-import axios from 'axios';
-import { DialogMethods } from '@/interface/globalInterface';
 import 'styles/customForm.css'
 import CommandButton from '@/components/Global/CommandButton.vue';
 import AiLoader from '@/components/Global/AiLoader.vue';
 import OpenAI from 'openai';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps<{
     editData: {
         manual: Manual | null;
@@ -100,7 +100,8 @@ const props = defineProps<{
 const emit = defineEmits<{
     close: [flag: boolean]
 }>()
-const { notify, info, confirm } = inject('dialog') as DialogMethods
+const api = useApi()
+const { ask, ping } = useDialog()
 const requireLong = ['作業詳細', 'リスク', 'リスク対策']
 const requiredTargets = [
     '作業',
@@ -157,26 +158,23 @@ const aiResponse = reactive<{
 const updaterKey = ref(0)
 const sendRule = async() => {
     loading.value = true
-    try {
-        const data = {
-            manual_id: props.editData.manual?.id,
-            job: params
-        }
-        await axios.post('/create_manual_rule', data)
-        info('保存しました。')
-        loading.value = false
-        emit('close', true)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        loading.value = false
+    const data = {
+        manual_id: props.editData.manual?.id,
+        job: params
     }
+    await api.post('/create_manual_rule', data, {
+        toast: '保存しました。'            
+    })
+    loading.value = false
+    emit('close', true)
+
 }
 
 const insertRisk = async() => {
     if(params.job){
         let actionType = 'overwrite'
         if(params.job['リスク'] || params.job['リスク対策']){
-            const answer = await confirm('リスク、リスク対策は既に入力されています。',
+            const answer = await ask('リスク、リスク対策は既に入力されています。',
             {answers: [
                 {label: '上書き', value: 'overwrite'},
                 {label: '追加', value: 'append'},
@@ -219,7 +217,7 @@ const generateRiskAssessment = async() => {
     const jobDetail = params.job['作業詳細'] || ''
     const tool = params.job['持ち出し備品利用ツール'] || ''
     if(!jobTitle || !jobDetail){
-        notify('作業、作業詳細を入力してください。')
+        ping('作業、作業詳細を入力してください。')
         return
     }
     try{
@@ -263,7 +261,7 @@ const generateRiskAssessment = async() => {
                             console.log(jsonData)
                         }
                     }catch(err){
-                        notify('OpenAIレスポンスの解析に失敗しました。')
+                        ping('OpenAIレスポンスの解析に失敗しました。')
                         reviewCreating.value = false
                         return
                     }
@@ -275,13 +273,13 @@ const generateRiskAssessment = async() => {
             console.log(err.status); 
             console.log(err); 
             if(err.status == 500){
-                notify('タスクの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                ping('タスクの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
             }else{
-                notify('タスクの自動生成に失敗しました。>' + err?.message)
+                ping('タスクの自動生成に失敗しました。>' + err?.message)
             }
             
         } else {
-            notify('タスクの自動生成に失敗しました。<br>' + err)
+            ping('タスクの自動生成に失敗しました。<br>' + err)
         }
         reviewCreating.value = false
     }

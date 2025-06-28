@@ -521,7 +521,8 @@ class PostController extends Controller
         $validatedData = $request->validate([
             'id' => 'required',
         ]);
-        $comment = CommentRecord::findOrFail($request->id)->update([
+        $comment = CommentRecord::findOrFail($request->id);
+        $comment->update([
             "deleted_flag" => 1
         ]);
         $comment->delete();

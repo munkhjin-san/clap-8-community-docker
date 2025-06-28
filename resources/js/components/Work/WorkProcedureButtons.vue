@@ -86,19 +86,20 @@
     </div>
 </template>
 <script setup>
-    import { useAuthUserStore } from '../../store/auth';
-    import LoaderButton from '../Global/LoaderButton.vue';
-    import { inject, ref, computed, onMounted, onUnmounted } from 'vue';
-    import OverTimeRequest from './OverTimeRequest.vue';
-    import { useBadgeStore } from '@/store/badge';
+import { useAuthUserStore } from '../../store/auth';
+import LoaderButton from '../Global/LoaderButton.vue';
+import { inject, computed, onMounted, onUnmounted } from 'vue';
+import { useBadgeStore } from '@/store/badge';
 import { DateTime } from 'luxon';
-    const overtimeRequestData = ref(null)
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps(['currentDay', 'statuses', 'item'])
     const emit = defineEmits(['reload', 'closeModal'])
-    const { confirm, notify, info } = inject('dialog')
     const auth = useAuthUserStore()
     const badge = useBadgeStore()
     const { edit, stampDelete, addDepartmentOnly } = inject('stamps')
+    const api = useApi()
+    const { ask } = useDialog()
     onMounted(() => {
         if(props.item.ability.daily_report_approve){
             window.addEventListener('keydown', handleEnterPress);
@@ -114,7 +115,7 @@ import { DateTime } from 'luxon';
     }
     const respondOvertime = async(data, status, action) => {
         if(status == 0){
-            const answer = await confirm(`${data?.overtime_day}申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。`)
+            const answer = await ask(`${data?.overtime_day}申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。`)
             if(!answer.value) return
         }
         const params = {
@@ -122,16 +123,12 @@ import { DateTime } from 'luxon';
             approved_by: auth.activeUser.id,
             status: status
         }
-
-        try{
-            await axios.patch('/request_overtime', params).then(res => res.data)
-            emit('reload')
-            info(`${action}しました。`)
-            emit('closeModal')
-            badge.getRemindBadge()
-        } catch (e) { 
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } 
+        await api.patch('/request_overtime', params, {
+            toast: `${action}しました。`
+        })
+        emit('reload')
+        emit('closeModal')
+        badge.getRemindBadge()
     }
     const formatedDay = computed(() => {
         return DateTime.fromISO(props.item?.day_full).toFormat('M月d日')

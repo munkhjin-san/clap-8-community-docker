@@ -51,11 +51,12 @@
     </div>
 </template>
 <script setup>
-    import ShortInput from '../../Form/ShortInput.vue';
-    import MemberSelector from '../../Form/MemberSelector.vue';
-    import LoaderButton from '../../Global/LoaderButton.vue';
-    import { inject, onMounted, ref } from 'vue';
-    import { computed } from 'vue';
+import ShortInput from '../../Form/ShortInput.vue';
+import MemberSelector from '../../Form/MemberSelector.vue';
+import LoaderButton from '../../Global/LoaderButton.vue';
+import { ref } from 'vue';
+import { computed } from 'vue';
+import { useApi } from '@/composables/api';
     const props = defineProps(['editWorkGroupData', 'userList'])
     const emit = defineEmits(['postFinish', 'closeModal'])
     const users = computed(() => {
@@ -68,8 +69,8 @@
     const processing = ref(false)
     const workgroup_users = ref(users.value ? users.value : [])
     const workgroup_pm = ref(pm.value ?? null)
-    const { notify, info } = inject('dialog')
     const workGroupName = ref(null)
+    const api = useApi()
     const optionUsers = computed(() => {
         return props.userList.filter(user => user.retire == 0 && user.partner_flag == 0).map(user => ({
                 id: user.id,
@@ -85,29 +86,21 @@
     const workGroupAdd = async() => {
         const result = await workGroupName.value.validate();
         
-        if (processing.value) return;
+        if (processing.value || result.valid) return;
 
-        if(result.valid){
-            processing.value = true;
-            console.log(workgroup_pm.value)
-            const params = {
-                work_group_id : props.editWorkGroupData ? props.editWorkGroupData.id : null,
-                work_group_name : work_group_name.value,
-                work_group_users : workgroup_users.value.map(ob => ob.id),
-                work_group_pm : workgroup_pm.value.id
-            }
-            try {
-                await axios.post('/work_group_add', params)
-                info(props.editWorkGroupData ? '更新しました。' : '作成しました。')
-                emit('postFinish')
-            } catch (error) {
-                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) notify('エラーが発生しました。')
-                else notify('エラーが発生しました。 ' + error.message)
-            } finally {
-                processing.value = false
-            }
+        processing.value = true;
+        console.log(workgroup_pm.value)
+        const params = {
+            work_group_id : props.editWorkGroupData ? props.editWorkGroupData.id : null,
+            work_group_name : work_group_name.value,
+            work_group_users : workgroup_users.value.map(ob => ob.id),
+            work_group_pm : workgroup_pm.value.id
         }
+        
+        await api.post('/work_group_add', params, { toast: props.editWorkGroupData ? 'ワークグループを更新しました。' : 'ワークグループを作成しました。' })
+        emit('postFinish')
+        processing.value = false            
+        
     }
 </script>
 <style scoped lang="scss">

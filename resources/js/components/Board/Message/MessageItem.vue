@@ -28,8 +28,8 @@
                         </div>                   
                     </div>
                     <div>
-                        <div @click.stop="pushInstantUser($event, message.user_id)" class="cursor-pointer text-[14px]">{{ messageUserName }}</div>
-                        <div v-if="message.actual_sender" class="text-[12px] text-[gray] mt-[3px]">{{ message.actual_sender.name }}</div>
+                        <div @click.stop="pushInstantUser($event, message.user_id)" :class="{'!text-[12px]' :  message.actual_sender}" class="cursor-pointer text-[14px]">{{ messageUserName }}</div>
+                        <div v-if="message.actual_sender" class="text-[12px] mt-[3px]">{{ message.actual_sender.name }}</div>
                     </div>
                     
                          
@@ -37,7 +37,7 @@
                 <div class="m-date">{{messageKind}}</div>  
                 <div class="messageIconContainer">
                     <div v-if="message.deleted_at == null && message.message" title="読み上げる" class="relative">
-                        <div class="boardMenuContainer" @click="readAloud(message)">   
+                        <div class="boardMenuContainer" @click="readAloud">   
                             <svg class="m-auto dot-menu" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32.57 26.53">
                                 <path class="cls-1" d="M12.49,1.31l-3.5.03h-.03c-.4,0-.78.2-1.01.56l-1.71,2.6c-.46.7-.92,1.39-1.37,2.09-1.12.02-2.69.06-3.56.07-.48.03-.79.28-.95.59-.11.13-.18.29-.2.5-.1,1.79-.14,3.59-.14,5.38.01,1.76.03,3.58.17,5.33,0,.01,0,.02,0,.03,0,.63.49,1.15,1.12,1.16,1.18.02,2.37.04,3.55.05.56.84,3.09,4.67,3.09,4.67.22.33.6.55,1.03.56.02,0,3.5.02,3.52.03.72,0,1.3-.58,1.29-1.29,0-1.76.03-3.51.03-5.27.01-4.9.02-10.95-.03-15.83,0-.71-.58-1.28-1.29-1.27ZM6.48,17.82c-.22-.31-.57-.51-.98-.5-.87,0-2.35-.05-3.09-.09-.25-.01-.44-.16-.45-.48-.05-1.31-.08-5.53-.02-7.13.02-.42.31-.64.7-.66l2.86-.03c.38,0,.76-.18.98-.52.86-1.22,2-2.86,2.96-4.24.13-.19.35-.3.58-.3.25,0,.51,0,.87,0,.16,0,.29.13.29.3,0,1.23-.02,2.46-.02,3.69-.01,4.36-.01,9.63.01,14.17,0,.19-.16.35-.35.35h-.78c-.25,0-.48-.11-.62-.32-1.02-1.46-2.94-4.23-2.95-4.25Z"/>
                                 <path class="cls-1" d="M30.96,5.82c-.65-1.41-1.51-2.73-2.5-3.93-.6-.71-1.23-1.41-2.08-1.83-.53-.27-1.11.31-.84.84.34.76.9,1.47,1.36,2.15.74,1.15,1.37,2.41,1.82,3.69,1.78,5.13,1.38,11.03-1.41,15.73-.57.95-1.25,1.82-1.93,2.72-.23.29-.24.71,0,1.01.28.36.8.43,1.16.15.98-.76,1.79-1.7,2.53-2.7,3.81-5.02,4.64-12.13,1.9-17.83Z"/>
@@ -163,17 +163,17 @@
         </div>
         <div class="clear-both"></div>
         
-        <div v-bind="unreadLineVisible(unreadMessages)" @click="refresh" v-if="unreadMessages.id == message.id" :id="'unread_line_' + message.id" class="cursor-pointer" style="user-select:none;width:100%;border-bottom:solid thin #a09f9f;position: absolute;bottom:10px;font-size:12px;">
+        <div v-bind="unreadLineVisible()" @click="refresh" v-if="unreadMessages.id == message.id" :id="'unread_line_' + message.id" class="cursor-pointer" style="user-select:none;width:100%;border-bottom:solid thin #a09f9f;position: absolute;bottom:10px;font-size:12px;">
             <p class="unread-inner" style="margin-bottom: -12px;">新しいメッセージ</p>
         </div>
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 
 import MessageQuoteReply from "./MessageQuoteReply.vue";
 import MessageFiles from "./MessageFiles.vue";
-import { computed, inject, onMounted, ref } from 'vue'
+import { computed, inject, onMounted, ref, useTemplateRef } from 'vue'
 import { useRouter } from "vue-router";
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
@@ -190,6 +190,11 @@ import { useMessageSchedule } from "@/store/messageSchedule"
 import { convertToSpeech, endPlay, stopPlay } from "@/utils/tts";
 import { useTtsStore } from "@/store/ttsStore";
 import UserPanel from "@/components/Global/UserPanel.vue";
+import { useApi } from "@/composables/api";
+import { useDialog } from "@/composables/dialog";
+import { BoardMethodsKey, BoardMethods, MessageMethods, MessageMethodsKey } from "@/interface/keys";
+import { MenuList, MessageFile, SharingData, User } from "@/interface/globalInterface";
+import { useBoardList } from "@/composables/board";
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const quoteReply = useQuoteReply()
@@ -204,19 +209,20 @@ import UserPanel from "@/components/Global/UserPanel.vue";
     const editing = ref(false)
     const reacting = ref(false)
     const showDate = ref(false)
-    const messageBox = ref(null)
-    const messageBoxBody = ref(null)
-    const board = inject('openedBoard')
-    const { refreshMessages, close, reload, messageLoader } = inject('boardItem')    
-    const { copy, remind, check } = inject('messageItem')
-    const { notify, confirm, info } = inject('dialog')
-    const pushInstantUser = inject('pushInstantUser')
-    const itemMenuRef = ref(null)
+    const messageBox = useTemplateRef('messageBox')
+    const messageBoxBody = useTemplateRef('messageBoxBody')
+    const { openedBoard } = useBoardList()
+    const { refreshMessages, close, reload, messageLoader } = inject(BoardMethodsKey) as BoardMethods 
+    const { copy, remind, check } = inject(MessageMethodsKey) as MessageMethods;
+    const pushInstantUser = inject('pushInstantUser') as Function
+    const itemMenuRef = useTemplateRef('itemMenuRef')
     const longPressDuration = ref(500)
-    const longPressTimer = ref(null)
+    const longPressTimer = ref<any>(null)
     const isLongPress = ref(false)
     const messageSchedule = useMessageSchedule()
     const ttsStore = useTtsStore()
+    const api = useApi()
+    const { ask, ping, toast } = useDialog()
     onMounted(() => {
         if((props.message.id == props.searchTargetId && props.messageListType == 'search') || urlMessage.id == props.message.id){
             messageBox.value?.scrollIntoView({block: 'center' }); 
@@ -248,7 +254,7 @@ import UserPanel from "@/components/Global/UserPanel.vue";
         showItemMenu(event)
     }
     const shareMenuItems = computed(() => {
-        const list= []; 
+        const list:MenuList[]= []; 
         function addItem(title, action) {
             list.push({ title, action });
         }
@@ -265,9 +271,10 @@ import UserPanel from "@/components/Global/UserPanel.vue";
         return list
     })
     const messageMenuItems = computed(() => {
-        const canConfirm = props.message.emoji_flag == 0 && board?.value.private_flag !== 3
+        if(!openedBoard.value) return []
+        const canConfirm = props.message.emoji_flag == 0 && openedBoard.value.private_flag !== 3
         const isDraft = props.message.draft_flag
-        const list= []; 
+        const list:MenuList[] = []; 
         function addItem(title, action) {
             list.push({ title, action });
         }
@@ -303,7 +310,7 @@ import UserPanel from "@/components/Global/UserPanel.vue";
     })
     const readAloud = () => {
         const textContent = messageBoxBody.value?.textContent
-        const cleanedText = textContent?.replace(/https?:\/\/[^\s]+/g, '');
+        const cleanedText = textContent?.replace(/https?:\/\/[^\s]+/g, '') ?? '';
         convertToSpeech(cleanedText, props.message.id)
     }
     const authorized = computed(() => {
@@ -330,7 +337,7 @@ import UserPanel from "@/components/Global/UserPanel.vue";
         return mentionFormatter(props.message.message, true)    
     })
     const reactedUsersListAll = computed(() => {
-        return props.message.reacted_users && props.message.reacted_users.length ? Array.from(props.message.reacted_users).reverse() : []                
+        return props.message.reacted_users && props.message.reacted_users.length ? Array.from(props.message.reacted_users).reverse() as User[] : []                
     })
     const checkFunctionView = computed(() => {
         if(props.message.check_flag == 1){
@@ -354,8 +361,8 @@ import UserPanel from "@/components/Global/UserPanel.vue";
     const reactButtonView = computed(() => {
         return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users.length)
     })
-    const showItemMenu = (event) => {
-        if(itemMenuRef.value && itemMenuRef.value.show){
+    const showItemMenu = (event: Event) => {
+        if(itemMenuRef.value){
             itemMenuRef.value.longTapAction(event)
         }
     }
@@ -370,11 +377,12 @@ import UserPanel from "@/components/Global/UserPanel.vue";
         }
         menu.close()   
     }
-    const unreadLineVisible = (data) => {
+    const unreadLineVisible = () => {
         
         setTimeout(() => {
             const rect = messageBox.value?.getBoundingClientRect()
-            if(badge.activeUsersBoardBadge[board.value.id] && (rect.y + rect.height < 0)){
+            if(!rect || !openedBoard.value) return
+            if(badge.activeUsersBoardBadge[openedBoard.value.id] && (rect.y + rect.height < 0)){
                 const data = {
                     status: true,
                     count: props.unreadMessages.count,
@@ -386,8 +394,12 @@ import UserPanel from "@/components/Global/UserPanel.vue";
             }
             
         })
+        return{
+            unreadLineVisible
+        }
     }
     const replyQuotStart = (which) => { 
+        if(!messageBoxBody.value) return
         const widthS = messageBoxBody.value.clientWidth + 20;
         const heightS = messageBoxBody.value.clientHeight + 20;
         const file = props.message.message && props.message.message.length ? false : true
@@ -406,25 +418,24 @@ import UserPanel from "@/components/Global/UserPanel.vue";
 
 
     }
-    const closeMenu = () => {
-        menu.close()
-    }
-    const resendConfrim = async() => {      
-        const confirmed = await confirm('未確認者へ確認依頼のメールを送りますか。')
-        if(!confirmed.value) return
-        try {
-            const send_users = props.message.unchecked_users.map(ob => ob.id) 
-            await axios.post('/send_reconfirm_email',{send_list: send_users, board_id: board.value.id, send_condition: 2, msg_id: props.message.id})
-            info('再確認依頼のメールを送信しました。')
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } 
+    const resendConfrim = async() => {     
+
+        await api.post('/send_reconfirm_email', {
+            send_list: props.message.unchecked_users.map(ob => ob.id),
+            board_id: openedBoard.value?.id,
+            send_condition: 2,
+            msg_id: props.message.id
+        }, {
+            ask: '未確認者へ確認依頼のメールを送りますか？',
+            toast: '再確認依頼のメールを送信しました。'
+        })
     }
   
 
       
     
-    const copyTextStart = (id) => {   
+    const copyTextStart = () => {   
+        if(!messageBoxBody.value) return
         copy({
             height: messageBoxBody.value.clientHeight + 20,
             width: messageBoxBody.value.clientWidth + 20,
@@ -456,59 +467,58 @@ import UserPanel from "@/components/Global/UserPanel.vue";
         }
         messageUsers.setMessageUsers(data)
     }
-    const deleteMessage = async (id) => {
-        const confirmed = await confirm('このメッセージを削除してもよろしいですか?')
-        if(!confirmed.value) return
-        try{
-            await axios.post('/chat_delete_api', {id: id})                  
-            refreshMessages()
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }                
+    const deleteMessage = async (id) => {        
+        await api.post('/chat_delete_api', {id: id}, {
+            ask: 'メッセージを削除してもよろしいですか？',
+            toast: 'メッセージを削除しました。'
+        })  
+        refreshMessages()
     }
     const markUnread = async(id) => {
-        try{
-            closeMenu()
-            await axios.post('/chat_mark_unread', {message_id: id, user_id: auth.activeUser.id, board_id: board.value.id}) 
-            info('未読にしました。')
-            badge.getBoardBadge() 
-            reload()    
-            router.push({name: 'board'})     
-            close()
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }  
+        menu.close()
+        await api.post('/chat_mark_unread', {
+            message_id: id,
+            user_id: auth.activeUser.id,
+            board_id: openedBoard.value?.id
+        }, {
+            ask: 'メッセージを未読にしますか？',
+            toast: '未読にしました。'
+        })
+        badge.getBoardBadge() 
+        reload()    
+        router.push({name: 'board'})     
+        close()
+
     }
     const reactOrCheck = async(msg) => {        
         if(msg.user_id == auth.activeUser.id) return    
         reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
-        try{
-            const response = await axios.post('/send_reaction_api', {id: msg.id})
-            await refreshMessages()
-            const checkedMessage = response.data
-            if(checkedMessage.check_flag == 1){
-                const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
-                const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
-                const reacted =   checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
-                if(unchecked && reacted){     
-                    const confirmed = await confirm('確認済みにしますか')
-                    if(confirmed.value){
-                        await axios.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
-                        refreshMessages()    
-                        info('確認済みにしました。') 
-                        badge.getRemindBadge()     
-                    }                                  
-                }
-                if(checked && reacted){                  
-                    notify('既に確認しています。')  
-                }
-            } 
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }              
+
+        const message = await api.post('/send_reaction_api', {id: msg.id})
+        await refreshMessages()
+        const checkedMessage = message
+        if(checkedMessage.check_flag == 1){
+            const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
+            const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
+            const reacted =   checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
+            if(unchecked && reacted){     
+                const confirmed = await ask('確認済みにしますか')
+                if(confirmed.value){
+                    await api.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
+                    refreshMessages()    
+                    toast('確認済みにしました。') 
+                    badge.getRemindBadge()     
+                }                                  
+            }
+            if(checked && reacted){                  
+                ping('既に確認しています。')  
+            }
+        } 
+           
     }           
-    const {shareToTask} = inject('taskItem')
-    const shareTo = (to, flag, single_file) => {
+    const shareToTask = inject<Function>('shareToTask') as Function
+
+    const shareTo = (to) => {
         if(to == 'external'){
             navigator.share({
                 text: props.message.message,
@@ -516,7 +526,7 @@ import UserPanel from "@/components/Global/UserPanel.vue";
             })
 
         }else{
-            let files = []
+        let files: {path: string, record: MessageFile}[] = []
             props.message.message_files.forEach(element => {
                 const file = {
                     path: `/cdn/shared_files/${props.message.record_id}/${element.id}_${element.user_id}_${element.message_id}.${element.extension}`,
@@ -553,16 +563,11 @@ import UserPanel from "@/components/Global/UserPanel.vue";
             }
         }
         
-        closeMenu()
+        menu.close()
     }
     const draftSend = async() => {
-        try{
-            await axios.put('/draft_send', {id: props.message.id, draft_flag: 0})
-            await refreshMessages()
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            sending.value = false
-        }
+        await api.put('/draft_send', {id: props.message.id, draft_flag: 0})
+        refreshMessages()
     }
     const setSchedule = () => {
         const data = {

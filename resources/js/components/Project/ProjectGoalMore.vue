@@ -370,17 +370,15 @@ import ProjectSalaryIssueCreation from './ProjectSalaryIssueCreation.vue';
 import Files from '../Global/Files.vue';
 import Report from './SalaryIssue/Report.vue';
 import { ProjectGoal, SalaryIssue } from '@/interface/projectInterface';
-import axios from 'axios';
-import { Dialog } from '@/interface/globalInterface';
 import { useBadgeStore } from '@/store/badge'
 import { useRouter } from 'vue-router';
 import Modal from '../Global/Modal.vue';
 import LongInput from '../Form/LongInput.vue';
-import CommandButton from '../Global/CommandButton.vue';
 import ProjectGoalReportCreate from './ProjectGoalReportCreate.vue';
 import { DateTime } from 'luxon';
 import { useProject } from '@/composables/project';
 import ProgressSlider from './ProgressSlider.vue';
+import { useApi } from '@/composables/api';
 const props = defineProps([
     'goal', 
     'themeRecords',
@@ -397,11 +395,12 @@ const salaryIssue = ref(false)
 const selectedTheme = ref(null)
 const editData = ref({})
 const reviewing = ref(false)
-const { confirm, notify, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const refreshRemind = inject('refreshRemind') as Function
 const issueReport = ref(null)
 const { memberData, isManagerOrMember, selectedProject } = useProject()
+const api = useApi()
+
 
 const projectGoalReportCreate = ref<ProjectGoal | null>(null)
 const badge = useBadgeStore()
@@ -483,29 +482,27 @@ const approveOutComeGoal = async(status: number) => {
             content = 'よろしいですか。'
             break
     }
-    const answer = await confirm(content)
-    if(!answer.value) return
-    try {
-        await axios.put('/approve_outcome_goal', {id: props.goal.id, status: status, comment: goalDecisionData.comment})
-        if (typeof refresh === 'function') {
-            refresh()
-        }
-        emit('close')
-        info(info_message)
-        badge.getMembersGoalsBadge()
-        if(auth.user && auth.user?.position_id && auth.user?.position_id < 6){
-            badge.getManagersGoalsBadge()
-        }
-        if (auth.id === 631) {
-            badge.getRemindBadge()
-            refreshRemind('not_approved_projects')
-        }
-        goalDecisionData.active = false
-        goalDecisionData.status = null
-        goalDecisionData.comment = ''
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+
+    await api.put('/approve_outcome_goal', {id: props.goal.id, status: status, comment: goalDecisionData.comment}, {
+        ask: content,
+        toast: info_message,
+    })
+    if (typeof refresh === 'function') {
+        refresh()
     }
+    emit('close')
+    badge.getMembersGoalsBadge()
+    if(auth.user && auth.user?.position_id && auth.user?.position_id < 6){
+        badge.getManagersGoalsBadge()
+    }
+    if (auth.id === 631) {
+        badge.getRemindBadge()
+        refreshRemind('remind_project_not_approved')
+    }
+    goalDecisionData.active = false
+    goalDecisionData.status = null
+    goalDecisionData.comment = ''
+
 }
 const approveSalaryIssue = async(id: number, status: number) => {
     let content = ''
@@ -531,27 +528,24 @@ const approveSalaryIssue = async(id: number, status: number) => {
             break
     }
     if(!id) return
-    const answer = await confirm(content)
-    if(!answer.value) return
-    try {
-        await axios.put('/approve_salary_issue', { id: id, status: status, comment: salaryIssueData.comment })
-        if (typeof refresh === 'function') {
-            refresh()
-        }
-        emit('close')
-        info(info_message)
-        badge.getSalaryIssueBadge()
-        if (auth.id === 631) {
-            badge.getRemindBadge()
-            refreshRemind('not_approved_projects')
-        }
-        salaryIssueData.active = false
-        salaryIssueData.status = null
-        salaryIssueData.comment = ''
-        salaryIssueData.id = null
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+
+    await api.put('/approve_salary_issue', { id: id, status: status, comment: salaryIssueData.comment }, {
+        ask: content,
+        toast: info_message,
+    })
+    if (typeof refresh === 'function') {
+        refresh()
     }
+    emit('close')
+    badge.getSalaryIssueBadge()
+    if (auth.id === 631) {
+        badge.getRemindBadge()
+        refreshRemind('remind_project_not_approved')
+    }
+    salaryIssueData.active = false
+    salaryIssueData.status = null
+    salaryIssueData.comment = ''
+    salaryIssueData.id = null
 } 
 const getIssues = (level, theme) => {
     if(evalutionsValues.value){
@@ -581,18 +575,17 @@ const editIssue = (issue: SalaryIssue) => {
     salaryIssue.value = true    
 }
 const deleteIssue = async(issue: SalaryIssue) => {
-    const answer = await confirm('昇給課題を削除します。よろしいですか？')
-    if(!answer.value) return
-    try {
-        axios.delete(`/delete_issue?id=${issue.id}`)
-        if (typeof refresh === 'function') {
-            refresh()
-        }
-        emit('close')
-        info('削除しました。')
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    api.del(`/delete_issue`, {
+        id: issue.id,
+    }, {
+        ask: '昇給課題を削除します。よろしいですか？',
+        toast: '削除しました。',
+    })
+    if (typeof refresh === 'function') {
+        refresh()
     }
+    emit('close')
+
 }
 const progressReport = (report: boolean) => {
     reviewing.value = report
@@ -627,18 +620,14 @@ const salaryIssueActionComplete = async(record) => {
     const status = record.status
     const confirmMessage = status == 1 ? '修得要件を未修得にします。よろしいですか？' : '修得要件を修得済みにします。よろしいですか？'
     const successMessage = status == 1 ? '未修得にしました。' : '修得済みしました。'
-    const answer = await confirm(confirmMessage)
-    if(!answer.value) return
-    try {
-        await axios.post('/salary_issue_action_complete', { action_id: record.id, issue_id: record.salary_issue_id })
-        if (typeof refresh === 'function') {
-            refresh()
-        }
-        emit('close')
-        info(successMessage)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    await api.post('/salary_issue_action_complete', { action_id: record.id, issue_id: record.salary_issue_id }, {
+        ask: confirmMessage,
+        toast: successMessage,
+    })
+    if (typeof refresh === 'function') {
+        refresh()
     }
+    emit('close')
 }
 </script>
 <style>

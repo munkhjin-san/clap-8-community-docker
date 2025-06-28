@@ -70,13 +70,14 @@
     </div>
 </template>
 <script setup>
-    import { useRoute, useRouter } from 'vue-router';
-    import LongInput from '../../Form/LongInput.vue';
-    import ShortInput from '../../Form/ShortInput.vue';
-    import LoaderButton from '../../Global/LoaderButton.vue';
-    import { ref, onBeforeMount, inject } from 'vue'
-    import OpenAiReview from '../../Global/OpenAiReview.vue'
-    const { confirm, info, notify } = inject('dialog')
+import { useRoute, useRouter } from 'vue-router';
+import LongInput from '../../Form/LongInput.vue';
+import ShortInput from '../../Form/ShortInput.vue';
+import LoaderButton from '../../Global/LoaderButton.vue';
+import { ref, onBeforeMount, inject } from 'vue'
+import OpenAiReview from '../../Global/OpenAiReview.vue'
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps(['selectedTopic', 'available'])
     const portfolio = inject('portfolio')
     const portfolioContent = ref(portfolio ? portfolio.public_content : '')
@@ -88,6 +89,8 @@
     const portfolio_title = ref(portfolio ? portfolio.public_title : '')
     const route = useRoute()
     const reviewElFinal = ref(null)
+    const api = useApi()
+    const { ask, toast } = useDialog()
     onBeforeMount(() => {
         setTimeout(() => {
             if(props.selectedTopic?.lesson_portfolio?.status < 2 || !props.selectedTopic.lesson_portfolio){
@@ -117,25 +120,21 @@
             }  
 
         }
-        axios.post('/save_lesson_portfolio', params).then(response => {
-            if(status == 'next'){
+        await api.post('/save_lesson_portfolio', params)
+        if(status == 'next'){
 
-            }else{
-                info(props.editTarget ? '編集しました。' :'保存しました。')
-                processing_save.value = false
-            }
-        }).catch(function (error) {
-            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。 ' + error.message)                       
-        });
+        }else{
+            toast(props.editTarget ? '編集しました。' :'保存しました。')
+            processing_save.value = false
+        }
+
     }
     const nextStage = async() => {
         const result = await portfolioBody.value.validate()
         const title_result = await portfolioTitle.value.validate()
         const valid = await reviewElFinal.value?.validate()
         if(result.valid && title_result.valid && valid){
-            const answer = await confirm('ポートフォリオを完了にしますか。\n完了後は編集ができません。')
+            const answer = await ask('ポートフォリオを完了にしますか。\n完了後は編集ができません。')
                                       
             if(!answer.value) return
             await savePortfolio('next')
@@ -151,7 +150,7 @@
         const options = {
             answers: [{label: '戻る', value: true}]
         }
-        const answer = await confirm('グループディスカッションを完了してください。', options)                       
+        const answer = await ask('グループディスカッションを完了してください。', options)                       
         if(answer.value){
             router.go(-1)
         }

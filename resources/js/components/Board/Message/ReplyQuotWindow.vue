@@ -28,7 +28,7 @@
         
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from 'vue';
 import QuoteSelectionWindow from '../Message/QuoteSelectionWindow.vue'
 import { useQuoteReply } from '@/store/quoteReply';
@@ -45,7 +45,7 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
     const quoteText = computed(() => {
         let text = '';
         if(hasMessage.value){
-            text = quoteReply.text
+            text = quoteReply.text ?? ''
         }else if(quoteReply.file){
             text = 'ファイルメッセージ'
         }

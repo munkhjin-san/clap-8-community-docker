@@ -47,29 +47,27 @@
 
 </template>
 <script setup>
-import { inject, ref, watch } from 'vue';
+import { ref } from 'vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue'
-    const { notify } = inject('dialog')
+import { useApi } from '@/composables/api';
     const props = defineProps(['initialValue', 'path', 'editTarget'])
     const emit = defineEmits(['updated', 'uploaded'])
     const entered = ref(false)
     const uploadingProgress = ref(0)
-    const existFiles = props.initialValue ? props.initialValue : []
     const uploadFiles = ref([])
     const formUploader = ref(null)
+    const api = useApi()
     const removeAttachment = async(file) => {
-        try{
-            await axios.post('/notice_delete_file', {list: [file.id], path: props.path})
-            const index = uploadFiles.value.findIndex(item => item.id === file.id);
-            if (index !== -1) {
-                uploadFiles.value.splice(index, 1);
-            }
-            emit('uploaded', uploadFiles.value)
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+   
+        await api.post('/notice_delete_file', {list: [file.id], path: props.path})
+        const index = uploadFiles.value.findIndex(item => item.id === file.id);
+        if (index !== -1) {
+            uploadFiles.value.splice(index, 1);
         }
+        emit('uploaded', uploadFiles.value)
+
     }
-    const fileSelected = () => {
+    const fileSelected = (event) => {
         if(event.target.files && event.target.files.length){
             
             uploadStart(event.target.files)
@@ -89,7 +87,7 @@ import FileIcon from '../Board/Mixed/FileIcon.vue'
         entered.value = false
 
     }
-    const uploadStart = (files) => {
+    const uploadStart = async(files) => {
         if(files && files.length){
             const formData = new FormData()                    
             for(var i in files) {                
@@ -99,25 +97,21 @@ import FileIcon from '../Board/Mixed/FileIcon.vue'
             } 
             formData.append('path', props.path)
         
-            axios.post('/notice_file_upload', formData , { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) } )
-            .then(response =>{                                       
-                const files = response.data
-                for(let file of files){
-                    uploadFiles.value.push(file)
-                }
-                emit('uploaded', uploadFiles.value)
-                
-            })
-            .catch((error) => {
-            })
-            .then(() => {
-                emit('uploaded', uploadFiles.value)
-                setTimeout(() => {
-                    uploadingProgress.value = 0
-                }, 300);
-                formUploader.value = ''
+            const data = await api.post('/notice_file_upload', formData , {}, { onUploadProgress: (e) => uploadingProgress.value = Math.floor((e.loaded * 100) / e.total) } )
+                                        
+            const fileList = data
+            for(let fileData of fileList){
+                uploadFiles.value.push(fileData)
+            }
+            emit('uploaded', uploadFiles.value)
+            
 
-            });
+
+            emit('uploaded', uploadFiles.value)
+            setTimeout(() => {
+                uploadingProgress.value = 0
+            }, 300);
+            formUploader.value = ''   
 
         }
     }

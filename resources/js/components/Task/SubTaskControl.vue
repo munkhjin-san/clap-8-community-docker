@@ -31,13 +31,13 @@
     </div>
 </template>
 <script setup lang="ts">
-import { Dialog, DialogMethods, Task } from '@/interface/globalInterface';
+import { Task } from '@/interface/globalInterface';
 import { Project, SubTaskPreData } from '@/interface/projectInterface';
 import { inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import SubTaskSection from './SubTaskSection.vue';
-import axios from 'axios';
 import LoaderButton from '../Global/LoaderButton.vue';
-import { DialogKey, GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
+import { GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
+import { useApi } from '@/composables/api';
 
 const props = defineProps<{
     project:Project,
@@ -52,8 +52,8 @@ const emit = defineEmits<{
 const params = <Partial<Task>>reactive({})
 const loading = ref(false)
 const subTaskSection = useTemplateRef('subTaskSection')
-const { notify, info } = inject<Dialog>('dialog')!;
-const {refreshProject} = inject(GanttProjectMethodsKey) as GanttProjectMethods
+const api = useApi()
+const { refreshProject } = inject(GanttProjectMethodsKey) as GanttProjectMethods
 onMounted(() => {
     if(props.preData.subTaskData?.id){
         Object.assign(params, props.preData.subTaskData)
@@ -67,21 +67,17 @@ const taskCreate = async() => {
     const modifiedParams = {
         ...params,
         pre_executors: params.pre_executors?.map(ob => ob.id)
-    };
+    }; 
     
-    
-    try{
-        loading.value = true
-        await axios.put('/task_sub_item', {mainTaskId: props.preData.mainTaskId, params: modifiedParams})            
-        info('保存しました。')
-        refreshProject({})
-        loading.value = false
-        emit('close', true)           
-        
-    }catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        loading.value = false
-    }
+    await api.put('/task_sub_item', { 
+        mainTaskId: props.preData.mainTaskId, 
+        params: modifiedParams
+    }, {
+        toast: '保存しました。',
+        loadingRef: loading
+    })            
 
+    refreshProject({})
+    emit('close', true)          
 }
 </script>

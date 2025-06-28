@@ -42,12 +42,13 @@
 import { ref, onMounted, computed } from 'vue';
 import PostSearchBar from '@/components/Post/PostSearchBar.vue'
 import YearPicker from '@/components/Global/YearPicker.vue'
-import axios from 'axios';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
 const months = ref<string[]>([]);
 const keywords = ref('')
 const year = ref(DateTime.now().year)
 const users = ref<any[]>([])
+const api = useApi()
 onMounted(() => {
     setDate({year: year.value})
 });
@@ -60,15 +61,13 @@ const setDate = (val) => {
     getMonthlyPrizes()
 }
 const getMonthlyPrizes = async() => {
-    try {
-        const params = {
-          year: year.value
-        }
-        const response = await axios.get('/get_monthly_prizes', {params: params})
-        users.value = [...response.data];
-    } catch (e) {
 
+    const params = {
+        year: year.value
     }
+    const response = await api.get('/get_monthly_prizes', params)
+    users.value = [...response];
+
 }
 const monthFormat = (yearMonth: string) => {
     return DateTime.fromFormat(yearMonth, 'yyyy-MM').toFormat('M月')

@@ -84,7 +84,11 @@
             </div>
         </div>
 
-        <FloatButton v-if="createAble" type="plus" @action="openModal = true"/>
+        <FloatButton v-if="createAble" type="plus" @action="openModal = true">
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>  
         <Transition name="modalFade">
             <AssetCreate 
                 v-if="openModal" 
@@ -98,7 +102,6 @@
     </div>
 </template>
 <script lang="ts" setup>
-import axios from 'axios';
 import {  computed, inject, onMounted, provide, reactive, ref, watch } from 'vue';
 import { Asset,  } from '@/interface/assetInterface';
 import FloatButton from '../Global/FloatButton.vue';
@@ -113,6 +116,8 @@ import { useAuthUserStore } from '@/store/auth';
 import AssetTableHeader from '../AccountControl/AssetControl/AssetTableHeader.vue';
 import { useRoute } from 'vue-router';
 import { User } from '@/interface/globalInterface';
+import AddIcon from '../Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
 const props = defineProps<{
     selectedProject?: Project;
     userList: any;
@@ -159,7 +164,7 @@ const assetsData = ref<{
     last_page: 0, 
     total: 0
 })
-
+const api = useApi()
 const fetchCount = ref(0)
 
 const selectedAssetIds = ref<number[]>([])
@@ -186,17 +191,12 @@ onMounted(() => {
 
 })
 const getAssetUsers = async() => {
-    try {
-        const response = await axios.get('/get_asset_users', {
-            params: {
-                project_id: props.selectedProject?.id,
-                mode: props.mode,
-            }
-        })
-        assetUsers.value = response.data
-    } catch (e) {
 
-    }
+    const response = await api.get('/get_asset_users', {     
+        project_id: props.selectedProject?.id,
+        mode: props.mode,           
+    })
+    assetUsers.value = response
 }
 const createAble = computed(() => {
     const privilage = props.mode === 'admin' || props.mode === 'partner' 
@@ -206,38 +206,28 @@ const createAble = computed(() => {
 
 const getAssets = async(page?:number) => {
     const pageIndex = page ?? assetsData.value.current_page
-    try {
+
         
-        const response = await axios.get(`/get_assets?page=${pageIndex}`, {
-            params: {
-                ...searchQuery,
-                mode: props.mode,
-            }
-        })
-        assetsData.value = response.data
-        fetchCount.value++
-        if (typeof setLoader === 'function') {
-            setLoader(false)
-        }
-    } catch (e) {
-
+    const response = await api.get(`/get_assets?page=${pageIndex}`, {        
+        ...searchQuery,
+        mode: props.mode,       
+    })
+    assetsData.value = response
+    fetchCount.value++
+    if (typeof setLoader === 'function') {
+        setLoader(false)
     }
+
 }
-const getPossibleMembers = async() => {
-    try {
-        const response = await axios.get('/get_possible_members')
-        possibleMembers.value = response.data
-    } catch (e) {
-
-    }
+const getPossibleMembers = async() => { 
+    const response = await api.get('/get_possible_members')
+    possibleMembers.value = response
 }
 const getPossibleProjects = async() => {
-    try {
-        const response = await axios.get('/get_possible_projects')
-        possibleProjects.value = response.data
-    } catch (e) {
 
-    } 
+    const response = await api.get('/get_possible_projects')
+    possibleProjects.value = response
+
 }
 const padNumber = (num: number | null) => {
     return num?.toString().padStart(5, "0")

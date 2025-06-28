@@ -10,23 +10,19 @@
 </template>
 <script setup>
 
-import { inject } from 'vue';
 import { useMenuStore } from '@/store/menu'
 import WeatherIcon from './WeatherIcon.vue'
 import { DateTime } from 'luxon';
-const { notify } = inject('dialog')
+import { useApi } from '@/composables/api';
 const emit = defineEmits(['reload'])
 const menu = useMenuStore()
+const api = useApi()
 const saveWeather = async (value) => {
     const today = DateTime.now().toISODate()
-    try {
-        await axios.post('/save_weather', { today: today, value: value })
-        sessionStorage.setItem('condition_for_session', value)
-        emit('reload')
-        menu.close()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+    await api.post('/save_weather', { today: today, value: value })
+    sessionStorage.setItem('condition_for_session', value)
+    emit('reload')
+    menu.close()
 }
 </script>
 <style scoped lang="scss">

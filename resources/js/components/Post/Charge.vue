@@ -56,7 +56,7 @@
 import { ref } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue'
 import { onMounted } from 'vue';
-import { inject } from 'vue';
+import { useApi } from '@/composables/api';
     const props = defineProps(['chargeTarget'])
     const emit = defineEmits(['close'])
     const possibleAmount = ref(null)
@@ -66,7 +66,7 @@ import { inject } from 'vue';
     const value = ref('')
     const fetched = ref(false)
     const focus = ref(false)
-    const { notify } = inject('dialog')
+    const api = useApi()
     onMounted(() => {
         getMyCharge()
     })
@@ -74,14 +74,13 @@ import { inject } from 'vue';
     const closeChargeModal = (flag) => {
         emit('close', flag)
     }
-    const getMyCharge = () => {
-        axios.get('post_get_possible_charge').then(response => {  
-            setTimeout(() => {
-                possibleAmount.value = response.data    
-                pushChargeSelect(possibleAmount.value)   
-                fetched.value = true
-            }, 500);                              
-        })
+    const getMyCharge = async () => {
+        const data = await api.get('/post_get_possible_charge')  
+    
+        possibleAmount.value = data  
+        pushChargeSelect(possibleAmount.value)   
+        fetched.value = true                          
+       
     }
     const pushChargeSelect = (my_charge) => {
         var award_bit = my_charge/100;
@@ -92,23 +91,16 @@ import { inject } from 'vue';
         chargeOptions.value = charges;
 
     }
-    const challengeChargeBet = () => {
+    const challengeChargeBet = async() => {
 
         if(chargeLock.value|| !props.chargeTarget || !charge_bet.value || charge_bet.value.value == 0 || charge_bet.value.value == '0') return
-        chargeLock.value= true
-        axios.post('challenge_charge_to',{ charge_bet: charge_bet.value.value, record_id: props.chargeTarget } ).then(response => { 
-            setTimeout(async() => {  
-                notify('チャージしました。')   
-                closeChargeModal(props.chargeTarget)                    
-                chargeLock.value= false                   
-            }, 1000);
 
-        }).catch(function (error) {
-            if (error.response) notify(error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。')                          
-        });
-        
+        await api.post('/challenge_charge_to',{ charge_bet: charge_bet.value.value, record_id: props.chargeTarget }, {
+            toast: 'チャージしました。',
+            loadingRef: chargeLock,
+        })
+
+        closeChargeModal(props.chargeTarget)                 
     }
         
     

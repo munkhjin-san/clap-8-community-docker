@@ -73,21 +73,22 @@
     </div>
 </template>
 <script setup>
-import { inject, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMenuStore } from '@/store/menu';
 import { mkConfig, generateCsv, download } from "export-to-csv";
+import { useApi } from '@/composables/api';
 const props = defineProps(['theme'])
 const menu = useMenuStore()
 const route = useRoute()
 const portfolios = ref([])
 const status_values = ['', '✅基礎知識', '✅ディスカッション', '✅ポートフォリオ']
-const { info, notify } = inject('dialog')
+const api = useApi()
 onMounted(() => {
     getPortfolios()
 })
 const getPortfolios = async() => {
-    portfolios.value = await axios.get(`/get_portfolios_list?theme_id=${route.params.themeId}`).then(response => response.data)
+    portfolios.value = await api.get(`/get_portfolios_list?theme_id=${route.params.themeId}`)
 }
 const downloadCSV = () => {
     const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: props.theme ? props.theme.title : 'CSVデータ'});
@@ -126,15 +127,9 @@ const downloadCSV = () => {
     const csv = generateCsv(csvConfig)(data);
     download(csvConfig)(csv);
 }
-const statusUpdate = (value, id) => {
-    axios.put(`/update_portfolio_status`, {id: id, value: value}).then(response => {
-        info('保存しました。')
-        getPortfolios()
-    }).catch(function (error) {
-        if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-        else if (error.request) notify('エラーが発生しました。')
-        else notify('エラーが発生しました。 ' + error.message)                       
-    });
+const statusUpdate = async (value, id) => {
+    await api.put(`/update_portfolio_status`, {id: id, value: value}, { toast: '保存しました。'})
+    getPortfolios()
 }
 </script>
 <style scoped>

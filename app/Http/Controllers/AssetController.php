@@ -76,7 +76,7 @@ class AssetController extends Controller
     public function admin_asset_list(Request $request) 
     {
         $assets = AssetRecord::query();
-
+        $mode = $request->mode ?? 'normal';
         $assets->with([
             'current_user',
             'current_project' => function ($query) {
@@ -164,12 +164,12 @@ class AssetController extends Controller
         ]);
         $data = $assets->orderBy('created_at', 'desc');
 
-        // if($mode == 'normal'){
+        if($mode == 'export'){
+            $data = $data->get();
+        }
+        else{
             $data = $data->paginate(30);
-        // }
-        // else{
-        //     $data = $data->get();
-        // }
+        }
 
         return response()->json($data);
     }
@@ -401,8 +401,8 @@ class AssetController extends Controller
             5 => "移動" ,
             6 => "故障" 
         ];
-
         $rawData = collect($assets)->map(function ($asset) use ($classification, $statuses) {
+            
             $gl_number = 'GL' . str_pad($asset->id, 5, '0', STR_PAD_LEFT);
             return [
                 "GL番号" => $gl_number,

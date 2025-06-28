@@ -10,7 +10,7 @@
         </router-view> 
         <Transition name="inputSlide" appear>
             <MessageInput 
-                v-if="!messageLoader && board"
+                v-if="!messageLoader && openedBoard"
                 :replyKey="replyKey"
                 :unread="unread"
                 :messageListType="messageListType"
@@ -19,13 +19,13 @@
             />
         </Transition> 
         <Transition name="modalFade">         
-        <div v-if="board && messageLoader" id="loaderMini" style="position: absolute;">
+        <div v-if="openedBoard && messageLoader" id="loaderMini" style="position: absolute;">
             <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
         </div> 
         </Transition>
         
             <div id="boardListInner" 
-                v-if="board && !messageLoader" 
+                v-if="openedBoard && !messageLoader" 
                 @scroll="scrollEvent"
                 class="messageListInnerContainer"
             >
@@ -54,7 +54,7 @@
                 />
                 </div>
             </div>
-            <MessageHeader v-if="responsive.mobile && board"/>
+            <MessageHeader v-if="responsive.mobile && openedBoard"/>
         <Transition name="modalFade"> 
         <div v-if="microLoader" id="infiniteLoader">
             <div class="spinner-micro color-change"></div>
@@ -68,7 +68,7 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import MessageItem from "./MessageItem.vue";
 import MessageItemQueue from "./MessageItemQueue.vue";
 import MessageInput from './MessageInput.vue';
@@ -80,6 +80,7 @@ import { useMenuStore } from "@/store/menu";
 import { useResponsive } from "@/store/responsive";
 import { useQuoteWindow } from "@/store/quoteWindow";
 import { useKeyboardStore } from "@/store/keyboardStore";
+import { useBoardList } from "@/composables/board";
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
@@ -93,7 +94,8 @@ import { useKeyboardStore } from "@/store/keyboardStore";
         'messageListType',
         'unreadMessages',
     ])
-    const resetInstantUser = inject('resetInstantUser')
+    const resetInstantUser = <Function>inject('resetInstantUser')
+    const { openedBoard } = useBoardList()
     const emit = defineEmits(['closeContainer', 'reachedTop', 'appendSearchResult', 'jumpToMessage'])
     const replyKey = ref(0)
     const unread = ref({
@@ -101,9 +103,6 @@ import { useKeyboardStore } from "@/store/keyboardStore";
         count: 0,
         id: null
     })
-    const route = useRoute()
-    const router = useRouter()
-    const board = inject('openedBoard')
     const keyboardStore = useKeyboardStore()
     onBeforeRouteLeave((to, from, next) => {
         if (from.params.roomId) {
@@ -136,8 +135,8 @@ import { useKeyboardStore } from "@/store/keyboardStore";
         
     })
     const lastReadMessage = computed(() => {
-        if(board.value){
-            const me = board.value.board_to_users.filter( ob => ob.user_id == auth.activeUser.id)
+        if(openedBoard.value){
+            const me = openedBoard.value.board_to_users.filter( ob => ob.user_id == auth.activeUser.id)
             return me && me.length ? me[0].last_message : null
         }else{
             return null
@@ -145,8 +144,8 @@ import { useKeyboardStore } from "@/store/keyboardStore";
     })
 
 
-    const scrollEvent = () => {
-        var container = event.target             
+    const scrollEvent = (event: Event) => {
+        var container = event.target as HTMLDivElement          
         var percent = 100 * container.scrollTop / (container.scrollHeight - container.clientHeight);                  
         if(percent < -99 && props.messageListType == 'normal') emit('reachedTop')
         if(unread.value.status ){

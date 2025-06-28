@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CustomForm;
 use App\Models\SurveyAnswer;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Arr;
@@ -36,7 +37,11 @@ class CustomFormController extends Controller
                 }]);
             }])
             ->with(['survey_answers' => function($q) use($active_user) {
-                $q->where('user_id', $active_user->id);  
+                $q->where('user_id', $active_user->id)->with(['block_answers' => function($q) use($active_user) {
+                    $q->where('user_id', $active_user->id)->with(['element_answers' => function($q) use($active_user) {
+                        $q->where('user_id', $active_user->id);
+                    }])->with('files');
+                }]);
             }])
             ->findOrFail($request->id);
             return response()->json($survey);
@@ -61,12 +66,10 @@ class CustomFormController extends Controller
                 $new_element->save();
             });
         });
-        $form->users->each(function($user) use($new_form){
-            $new_form->users()->attach($user->id, ['authority' => 0]);
-        });
-        $form->admins->each(function($admin) use($new_form){
-            $new_form->admins()->attach($admin->id, ['authority' => 1]);
-        });
+        $now = now();
+        $form->users->each(fn($user) => $new_form->users()->attach($user->id, ['authority' => 0, 'created_at' => $now, 'updated_at' => $now]));
+
+        $form->admins->each(fn($admin) => $new_form->admins()->attach($admin->id, ['authority' => 1, 'created_at' => $now, 'updated_at' => $now]));
         return response()->json(['message' => 'Form duplicated successfully'], 200);
     }
     public function get_custom_forms(Request $request){
@@ -106,6 +109,9 @@ class CustomFormController extends Controller
             'users' => 'array',
             'admins' => 'array',
             'blocks' => 'array',
+            'board_record_id' => 'nullable|integer',
+            'repeat_setting' => 'integer',
+            'repeat_day' => 'nullable|integer|min:1|max:31',
             'blocks.*.id' => 'nullable|integer',
             'blocks.*.type' => 'required|string|max:50',
             'blocks.*.question' => 'required|string',
@@ -141,19 +147,19 @@ class CustomFormController extends Controller
             [
                 'title' => Arr::get($data, 'title'),
                 'description' => Arr::get($data, 'description'),
+                'repeat_setting' => Arr::get($data, 'repeat_setting' ),
+                'repeat_day' => Arr::get($data, 'repeat_day' ),
+                'board_record_id' => Arr::get($data, 'board_record_id', null),
             ]
         );
         $users = Arr::get($data, 'users', []);
-        $user_ids = collect($users)->map(function($user){
-            return $user['id'];
-        });
+        $user_ids = collect($users)->map(fn($user) => $user['id']);
 
         $admins = Arr::get($data, 'admins', []);
-        $admin_ids = collect($admins)->map(function($admin){
-            return $admin['id'];
-        });
-        $form->users()->syncWithPivotValues($user_ids, ['authority' => 0]);
-        $form->admins()->syncWithPivotValues($admin_ids, ['authority' => 1]);
+        $admin_ids = collect($admins)->map(fn($admin) => $admin['id']);
+        $now = now();
+        $form->users()->syncWithPivotValues($user_ids, ['authority' => 0, 'created_at' => $now, 'updated_at' => $now]);
+        $form->admins()->syncWithPivotValues($admin_ids, ['authority' => 1, 'created_at' => $now, 'updated_at' => $now]);
         return $form;
     }
     public function delete_custom_form(Request $request){
@@ -161,13 +167,13 @@ class CustomFormController extends Controller
             'id' => 'required'
         ]);
 
-            $form = CustomForm::findOrFail($request->id);
-            $form->blocks->each(function($block){
-                $block->elements()->delete();
-            });
-            $form->blocks()->delete();
-            $form->delete();
-
+        $form = CustomForm::findOrFail($request->id);
+        $form->blocks->each(function($block){
+            $block->elements()->delete();
+        });
+        $form->blocks()->delete();
+        $form->delete();
+        return response('Form deleted successfully', 200);
     }
     private function saveBlocks($form, array $blocks)
     {
@@ -213,15 +219,23 @@ class CustomFormController extends Controller
 
         $active_user = $this->active_user();
         $survey = SurveyAnswer::firstOrCreate([
-            "custom_form_id" => $request->custom_form_id,
-            "user_id" => $active_user->id,
+            "id" => $request->survey_answer_id,
         ]);
-        $survey->block_answers->each(function($block_answer){
-            $block_answer->element_answers()->delete();
-        });
-        $survey->block_answers()->delete();
+        if($request->survey_answer_id){
+            $survey->block_answers->each(function($block_answer){
+                $block_answer->element_answers()->delete();
+            });
+            $survey->block_answers()->delete();
+        }
+        
 
-        $survey->update(['status' => $request->status]);    
+
+        $survey->update([
+            'status' => $request->status,
+            'custom_form_id' => $request->custom_form_id,
+            'user_id' => $active_user->id,
+            'target_date' => $request->target_date ?? null,
+        ]);    
 
         $params = $request->params;
         foreach($params as $block){
@@ -241,78 +255,90 @@ class CustomFormController extends Controller
                 ]);
             }
         }
+        return response()->json($survey , 200);
             
         
 
     }
     public function get_survey_answers(Request $request){
 
-            $survey = SurveyAnswer::where('custom_form_id', $request->custom_form_id)->where('status', 2)->get();
-            $custom_form = CustomForm::with(['blocks' => function($q)  {
-                $q->with(['answers' => function($q) {
-                    $q->whereHas('survey_answer', function($q){
-                        $q->where('status', 2);
-                    })->with(['user', 'files'])->orderBy('created_at', 'desc');                    
-                }])
-                ->with(['elements' => function($q)  {
-                    $q->with(['answers' => function($q)  {
-                        $q->whereHas('survey_block_answer', function($q){
-                            $q->whereHas('survey_answer', function($q){
-                                $q->where('status', 2);
-                            });
-                        })->with('user')->orderBy('created_at', 'desc'); ;                    
-                    }]);
-                }]);
-            }])->findOrFail($request->custom_form_id);
-            
-            if($request->sort == 'block'){
-                return response()->json($custom_form);
-            }
+        $repeat = $request->repeat_setting;
+        $year = $request->year;
+        $month = $request->month;
+        $target_date = Carbon::create($year, $month, 1)->startOfMonth();
 
-            if($request->sort == 'user'){
-                $main = [];
-                $simpleTypes = ['singletext', 'multitext', 'date', 'time', 'select'];
-                foreach($survey as $s){
-                    $user = $s->user;                
-                    $data = [];
-                    $data['user'] = $user;
-                    $data['created_at'] = $s->created_at;
-                    $blocks = $custom_form->blocks;
-                    foreach($blocks as $block){
-                        $anwsers = [];
-                        $block_answer = $s->block_answers->where('custom_form_block_id', $block->id)->first();
-                        if(!empty($block_answer)){                      
-                            
-                            if(in_array($block->type, $simpleTypes)){
-                                $anwsers[] = ['value' => $block_answer->text_answer];
-                            } else if($block->type === 'file'){
-                                $anwsers = $block_answer->files;
-                            }else{
-                                $elements = $block->elements;
-                                foreach($elements as $element){
-                                    $element_answer = $block_answer->element_answers->where('custom_form_block_element_id', $element->id)->first();
-                                    if(!empty($element_answer)){
-                                        $anwsers[] = [
-                                            'value' => $element->value,
-                                            'sub_text' => $element_answer->sub_text,
-                                        ];
-                                    }
+        $survey = SurveyAnswer::where('custom_form_id', $request->custom_form_id)->where('status', 2)
+        ->when($repeat == 1, function($q) use($target_date){
+            $q->where('target_date', $target_date);
+        })
+        ->get();
+        $custom_form = CustomForm::with(['blocks' => function($q) use($repeat, $target_date) {
+            $q->with(['answers' => function($q) use($repeat, $target_date) {
+                $q->whereHas('survey_answer', function($q) use($repeat, $target_date){
+                    $q->where('status', 2)->when($repeat == 1, function($q) use($target_date){
+                        $q->where('target_date', $target_date);
+                    });
+                })->with(['user', 'files'])->orderBy('created_at', 'desc');                    
+            }])
+            ->with(['elements' => function($q)  {
+                $q->with(['answers' => function($q)  {
+                    $q->whereHas('survey_block_answer', function($q){
+                        $q->whereHas('survey_answer', function($q){
+                            $q->where('status', 2);
+                        });
+                    })->with('user')->orderBy('created_at', 'desc'); ;                    
+                }]);
+            }]);
+        }])->findOrFail($request->custom_form_id);
+        
+        if($request->sort == 'block'){
+            return response()->json($custom_form);
+        }
+
+        if($request->sort == 'user'){
+            $main = [];
+            $simpleTypes = ['singletext', 'multitext', 'date', 'time', 'select'];
+            foreach($survey as $s){
+                $user = $s->user;                
+                $data = [];
+                $data['user'] = $user;
+                $data['created_at'] = $s->updated_at;
+                $blocks = $custom_form->blocks;
+                foreach($blocks as $block){
+                    $anwsers = [];
+                    $block_answer = $s->block_answers->where('custom_form_block_id', $block->id)->first();
+                    if(!empty($block_answer)){                      
+                        
+                        if(in_array($block->type, $simpleTypes)){
+                            $anwsers[] = ['value' => $block_answer->text_answer];
+                        } else if($block->type === 'file'){
+                            $anwsers = $block_answer->files;
+                        }else{
+                            $elements = $block->elements;
+                            foreach($elements as $element){
+                                $element_answer = $block_answer->element_answers->where('custom_form_block_element_id', $element->id)->first();
+                                if(!empty($element_answer)){
+                                    $anwsers[] = [
+                                        'value' => $element->value,
+                                        'sub_text' => $element_answer->sub_text,
+                                    ];
                                 }
                             }
-                            $q = [
-                                'question' => $block->question,
-                                'type' => $block->type,
-                                'answers' => $anwsers,
-                            ];
-                            $data['data'][] = $q;
                         }
+                        $q = [
+                            'question' => $block->question,
+                            'type' => $block->type,
+                            'answers' => $anwsers,
+                        ];
+                        $data['data'][] = $q;
                     }
-
-                    $main[] = $data;
                 }
-                $main = collect($main)->sortByDesc('created_at')->values()->all();
-                return response()->json($main);
+
+                $main[] = $data;
             }
+            $main = collect($main)->sortByDesc('created_at')->values()->all();
+            return response()->json($main);
+        }
         
     }
     public function get_authorized_users() {
@@ -321,5 +347,48 @@ class CustomFormController extends Controller
                         ->select('id', 'name', 'icon_path', 'icon_bg')
                         ->get();
         return response()->json($user_list);
+    }
+    public function get_my_surveys(Request $request) {
+        $active_user = $this->active_user();
+        $surveys = CustomForm::whereHas('users', function($query) use($active_user) {
+            $query->where('users.id', $active_user->id);
+        })->orWhereHas('survey_answers', function($query) use($active_user) {
+            $query->where('user_id', $active_user->id);
+        })
+        ->with(['blocks' => function($q) use($active_user)  {
+            $q->with(['answers' => function($q)use($active_user)  {
+                $q->where('user_id', $active_user->id)->with('files');                    
+            }])->with(['elements' => function($q) use($active_user) {
+                $q->with(['answers' => function($q)use($active_user)  {
+                    $q->where('user_id', $active_user->id);  
+                }]);
+            }]);
+        }])
+        ->with(['survey_answers' => function($q) use($active_user) {
+            $q->where('user_id', $active_user->id)->with(['block_answers' => function($q) use($active_user) {
+                $q->where('user_id', $active_user->id)->with(['element_answers' => function($q) use($active_user) {
+                    $q->where('user_id', $active_user->id);
+                }])->with('files');
+            }]);
+        }])->orderBy('created_at', 'desc')->get();
+
+        return response()->json($surveys);
+    }
+    public function get_board_forms(Request $request){
+        $active_user = $this->active_user();
+        $request->validate([
+            'board_id' => 'required|integer',
+        ]);
+        $forms = CustomForm::where('board_record_id', $request->board_id)
+            ->with(['blocks'])
+            ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
+                $q->whereHas('admins', function($q) use($active_user){
+                    $q->where('user_id', $active_user->id);
+                });
+            })
+            ->with(['users', 'admins', 'survey_answers'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+        return response()->json($forms);
     }
 }

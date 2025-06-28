@@ -82,6 +82,8 @@ import LongInput from '../../Form/LongInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
 import { ref,inject, onMounted, computed, } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const auth = useAuthUserStore()
     const route = useRoute()
     const props = defineProps(['material', 'lessonThemeId', 'selectedTopic', 'portfolioId', 'sectionUpdate', 'sectionStatus'])
@@ -101,7 +103,8 @@ import { useAuthUserStore } from '@/store/auth'
     const radioError = ref("")
     const saving = ref(false)
     const supportAccountId = ref(null);
-    const { notify, info, confirm } = inject('dialog')
+    const api = useApi()
+    const { ping, toast } = useDialog()
     onBeforeRouteLeave(() => {
         getLessonPortfolios()
         getThemes()
@@ -122,9 +125,9 @@ import { useAuthUserStore } from '@/store/auth'
     })
 
     const createChatSupport = async () => {
-        try {
+
             // check if there board between user and support account
-            const chat = await axios.get(`/start_private_board?with=${supportAccountId.value}&nodirect=1`);
+            const chat = await api.get(`/start_private_board?with=${supportAccountId.value}&nodirect=1`);
             const supportType = supportChoices.value.find(ob => ob.value == selectedRadio.value)?.content
             const guide = selectedRadio.value == 3 ? `研修サポート担当より、理解できなかった点に関するフォローアップメッセージをお送りします。
 内容によっては、返信に時間がかかることがございますので、予めご了承ください` : `職能研修機関の研修講師とオンラインビデオ面談の日程調整を進めます。
@@ -144,19 +147,15 @@ import { useAuthUserStore } from '@/store/auth'
 
 ${guide}
 `,
-                record_id: chat.data,
+                record_id: chat,
                 override_user_id: supportAccountId.value,
                 u_id: '',
                 emoji_flag: false
             };      
             // create default message 
-            await axios.post('/chat_add_api', params)               
-            return chat.data
-        } catch (error) {
-            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。 ' + error.message)    
-        }
+            await api.post('/chat_add_api', params)               
+            return chat
+
     }
     const successAndSave = async(status) => {
         const valid = await moreDetailContent.value.validate()
@@ -164,13 +163,13 @@ ${guide}
         saving.value = true
         const content = comment.value
         await props.sectionUpdate(status, content)
-        info('保存しました。')
+        toast('保存しました。')
         saving.value = false
     }
     const failProcessing = ref(false)
     const fail = async (status) => {
         if(!supportAccountId.value){
-            notify('エラーが発生しました。')
+            ping('エラーが発生しました。')
             return
         }
         failProcessing.value = true    
@@ -182,7 +181,7 @@ ${guide}
         const options = {
             answers: [{label: 'OK', value:true}]
         }
-        const answer = await confirm(`サポート用の<a href="/board/${chatId}" target="_blank">ボード</a>が作成されました。<br>研修サポート担当からからの連絡をお待ちください。`, options)
+        const answer = await ping(`サポート用の<a href="/board/${chatId}" target="_blank">ボード</a>が作成されました。<br>研修サポート担当からからの連絡をお待ちください。`, options)
         if(answer.value){
             router.push({name: 'basic'})  
 

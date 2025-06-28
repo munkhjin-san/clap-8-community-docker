@@ -84,7 +84,7 @@
     </div>
 </template>
 <script setup>
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { mkConfig, generateCsv, download } from "export-to-csv";
 import PostSearchBar from '../../Post/PostSearchBar.vue';
@@ -92,6 +92,8 @@ import WeatherIcon from '@/components/Global/WeatherIcon.vue';
 import { vehicleAsOptions } from '@/utils/workApi';
 import { DateTime } from 'luxon';
 import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
+import { useDialog } from '@/composables/dialog';
+import { useApi } from '@/composables/api';
     const keywords = ref('')
     const selectedYear = ref(DateTime.now().year)
     const selectedMonth = ref(DateTime.now().month)
@@ -105,7 +107,8 @@ import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
     const timecard_costs = ref([])
     const departmentCount = ref([])
     const responsive = useResponsive()
-    const { notify } = inject('dialog')
+    const { ping } = useDialog()
+    const api = useApi()
     const fetch = ref(0)
     const costOptions = [
         {label: '交通費', value: 1},
@@ -185,7 +188,7 @@ import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
             const csv = generateCsv(csvConfig)(data)
             download(csvConfig)(csv);
         } else {
-            notify('出力するデータはありません。')
+            ping('出力するデータはありません。')
             return
         }
 
@@ -207,7 +210,7 @@ import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
             const csv = generateCsv(csvConfig)(data)
             download(csvConfig)(csv);
         } else {
-            notify('出力するデータはありません。')
+            ping('出力するデータはありません。')
             return
         }
     }
@@ -229,7 +232,7 @@ import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
             const csv = generateCsv(csvConfig)(data)
             download(csvConfig)(csv);
         } else {
-            notify('出力するデータはありません。')
+            ping('出力するデータはありません。')
             return
         }
     }
@@ -284,7 +287,7 @@ import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
             const csv = generateCsv(csvConfig)(data)
             download(csvConfig)(csv);
         } else {
-            notify('出力するデータはありません。')
+            ping('出力するデータはありません。')
             return
         }
         
@@ -292,24 +295,22 @@ import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
     
 
     const getData = async() => {
-        try{
-            const date = selectedDate.value
-            const params = {
-                month : date
-            }
-            const data = await axios.post('/get_admin_work', params ).then(res => res.data)
-            attendance_record_items.value = data.attendance_record,
-            paid_holiday_record.value = data.paid_holiday_record,
-            month_work_time.value = data.month_work_time,
-            users.value = data.users,
-            weather_average.value = data.weather_average,
-            monthly_expenses.value = data.monthly_expenses
-            monthly_incentive.value = data.monthly_incentive
-            timecard_costs.value = data.timecard_costs
-            departmentCount.value = data.departments
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
+ 
+        const date = selectedDate.value
+        const params = {
+            month : date
         }
+        const data = await api.post('/get_admin_work', params )
+        attendance_record_items.value = data.attendance_record,
+        paid_holiday_record.value = data.paid_holiday_record,
+        month_work_time.value = data.month_work_time,
+        users.value = data.users,
+        weather_average.value = data.weather_average,
+        monthly_expenses.value = data.monthly_expenses
+        monthly_incentive.value = data.monthly_incentive
+        timecard_costs.value = data.timecard_costs
+        departmentCount.value = data.departments
+
     }
     const conversionTime = (value) => {
         if(value == '' || value == null){

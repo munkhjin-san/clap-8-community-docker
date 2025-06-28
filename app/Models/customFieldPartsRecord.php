@@ -17,7 +17,9 @@ class customFieldPartsRecord extends Model
     public function custom_field_type_records(){
         return $this->belongsTo(customFieldTypeRecord::class, 'id');
     }
-
+    public function sub_parts(){
+        return $this->hasMany(customFieldPartsRecord::class, 'parent_id')->orderBy('created_at', 'asc');
+    }
     protected $casts = [
         'use_flag' => 'int',
         'deleted_flag' => 'int',

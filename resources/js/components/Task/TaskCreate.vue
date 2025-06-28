@@ -100,15 +100,16 @@ import MemberSelector from '@/components/Form/MemberSelector.vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import { computed, inject, onMounted, ref, reactive, useTemplateRef } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
-import { DialogKey, DialogMethods, GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
-import axios from 'axios';
-import { Dialog, Task, User } from '@/interface/globalInterface';
+import { GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
+import { Task, User } from '@/interface/globalInterface';
 import { Project } from '@/interface/projectInterface';
 import type { ComponentExposed } from 'vue-component-type-helpers'
 import { DateTime } from 'luxon';
 import SubTaskSection from './SubTaskSection.vue';
 import { useBadgeStore } from '@/store/badge';
 import Modal from '../Global/Modal.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const auth = useAuthUserStore()
     const props = defineProps<{
         preData: Partial<Task>
@@ -127,6 +128,8 @@ import Modal from '../Global/Modal.vue';
         sub_tasks: <Partial<Task>[]>[],
     })
     const badge = useBadgeStore()
+    const api = useApi()
+    const { ping } = useDialog()
     onMounted(async() => {
        
         
@@ -154,7 +157,7 @@ import Modal from '../Global/Modal.vue';
     const subTaskContentRef = useTemplateRef<ComponentExposed<typeof ShortInput>[]>('subTaskContentRef')
     const subTaskStartRef = useTemplateRef<ComponentExposed<typeof ShortInput>[]>('subTaskStartRef')
     const subTaskEndRef = useTemplateRef<ComponentExposed<typeof ShortInput>[]>('subTaskEndRef')
-    const { notify, info } = inject<Dialog>('dialog') as DialogMethods;
+
 
     const setStartTime = computed({
         get(){
@@ -206,29 +209,28 @@ import Modal from '../Global/Modal.vue';
         if (!validation) return
         const validDate = DateTime.fromISO(params.end_at!) >=  DateTime.fromISO(params.start_at!)
         if(!validDate){
-            notify('終了日は開始日より先にすることができません。')
+            ping('終了日は開始日より先にすることができません。')
             return 
         }
-        try{
-            loading.value = true
-            const modifiedParams = {
-                ...params,
-                executors: params.executors.map((executor: { id: number }) => executor.id),
-                sub_tasks: params.sub_tasks.map(subTask => ({
-                    ...subTask,
-                    pre_executors: subTask.pre_executors?.map((executor: {id: number}) => executor.id)
-                }))
-            };
-            await axios.put('/task_item', modifiedParams)            
-            info('保存しました。')
-            refreshProject({})
-            loading.value = false
-            emit('close', true)           
-            badge.getTaskBadge()
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            loading.value = false
-        }
+
+
+        const modifiedParams = {
+            ...params,
+            executors: params.executors.map((executor: { id: number }) => executor.id),
+            sub_tasks: params.sub_tasks.map(subTask => ({
+                ...subTask,
+                pre_executors: subTask.pre_executors?.map((executor: {id: number}) => executor.id)
+            }))
+        };
+        await api.put('/task_item', modifiedParams, {
+            toast: '保存しました。',
+            loadingRef: loading
+        })            
+
+        refreshProject({})
+        emit('close', true)           
+        badge.getTaskBadge()
+
 
     }
     const selectAll = (event:Event) => {

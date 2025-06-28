@@ -31,15 +31,15 @@
         <Transition name="footerPop">
             <Footer v-if="footerView"></Footer>
         </Transition>
-        <Transition :name="infoData ? 'slidePop' : 'modalFade'">
+        <Transition :name="toastData ? 'slidePop' : 'modalFade'">
             <Dialog 
-                v-if="confirmData || notifyData || infoData" 
-                :confirm="confirmData"  
-                :notify="notifyData"
-                :info="infoData"
-                :options="confirmOptions"
-                @close="confirmData = null, notifyData = null"
-                @handle="val => userResponse = val"
+                v-if="askData || pingData || toastData" 
+                :confirm="askData"  
+                :notify="pingData"
+                :info="toastData"
+                :options="respondOptions"
+                @close="resetDialog"
+                @handle="val => decision = val"
             ></Dialog>
         </Transition>
         <OverRide/>
@@ -65,7 +65,7 @@
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
 import * as PusherPushNotifications from "@pusher/push-notifications-web";
-import { computed, nextTick, onBeforeMount, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { computed, onBeforeMount, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from './Global/Dialog.vue';
 import OverRide from './Header/OverRide.vue'
@@ -76,13 +76,13 @@ import { useBadgeStore } from '@/store/badge'
 import { useFocused } from '@/store/focused';
 import InstantProfile from './Board/InstantProfile.vue';
 import { useSideMenuView } from '@/store/sideMenuView';
-import { useSkeleton } from '@/store/skeleton'
 import { useTitle } from '@vueuse/core'
 import axios from 'axios';
 import { instance as socket } from '@/utils/broadcaster'
 import { endPlay } from '@/utils/tts';
 import { PWAPrompt } from 'vue-ios-pwa-prompt'
 import { DateTime } from 'luxon';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -93,8 +93,9 @@ import { DateTime } from 'luxon';
     const responsive = useResponsive()
     const focused = useFocused()
     const sideMenuView = useSideMenuView()
-    const skeleton = useSkeleton()
     const switchLoader = ref(false)
+
+    const { askData, pingData, toastData, respondOptions, decision, resetDialog } = useDialog() 
     const instantUser = ref({
         id: null,
         name: null,
@@ -367,65 +368,11 @@ import { DateTime } from 'luxon';
             } else if (error.request) {
                 errorMessage = 'ネットワークエラーが発生しました。ブラウザを更新してください';
             }  
-            answer = await confirm(errorMessage, options);
+            answer = await ask(errorMessage, options).value;
         }    
         if(answer){
             window.location.reload(true);
         }             
-    }
-    
-
-
-    const confirmData = ref(null);
-    const notifyData = ref(null)
-    const userResponse = ref(null);
-    const infoData = ref(null)
-    const confirmOptions = ref(null)
-    const resetPopup = () => {
-        confirmData.value = null
-        notifyData.value = null
-        userResponse.value = null
-        infoData.value = null
-        confirmOptions.value = null
-    }
-    const confirm = async (question, options) => {
-        resetPopup()
-        if(options && options.answers && options.answers.length){
-            confirmOptions.value = options
-        }else{
-            confirmOptions.value = {answers : [
-                {value: true, label: 'OK'},
-                {value: false, label: 'キャンセル'}
-            ]}
-        }
-        userResponse.value = {value: false, label: ''}
-        notifyData.value = null
-        confirmData.value = question;
-        
-        await new Promise((resolve) => {
-            const unsubscribe = watch(() => userResponse.value, (value) => {
-                if (value !== null) {
-                    unsubscribe();
-                    resolve(value);
-                }
-            });
-        });       
-        return userResponse.value;        
-    };
-    const notify = (message) => {
-        resetPopup()
-        confirmOptions.value = {answers : [
-            {value: true, label: 'OK'}
-        ]}
-        notifyData.value = message
-    }
-    const info = (message) => {
-        resetPopup()
-        infoData.value = null
-        infoData.value = message
-        setTimeout(() => {
-            infoData.value = null
-        }, 4000);
     }
     const resetInstantUser = () => {
         const data = {
@@ -452,19 +399,13 @@ import { DateTime } from 'luxon';
         const options = {
             answers: [{label: 'OK', value: true}, {label: 'あとで', value: false}]
         }
-        const answer = await confirm('アクティブアカウントが変更されています。ページを更新してください。', options)
+        const answer = await ask('アクティブアカウントが変更されています。ページを更新してください。', options)
         if(answer.value){
             window.location.reload(true);
-        }else{
+        }else{s
             confused.value = true
         }
     }
-
-    provide('dialog', {
-        confirm: (question, options) => confirm(question, options),
-        notify: (message) => notify(message),
-        info: (message) => info(message)
-    });
     provide('pushInstantUser', pushInstantUser)
     provide('refreshRemind', refreshRemind)
     provide('refreshMessage', refreshMessage)

@@ -69,33 +69,6 @@
                                 </p>
                             </div>
                         </div>
-                        <!-- <div class="body-cell border-none" style="text-align: left;position: relative;">
-                            <div class="pt-content">
-                                <p @click.stop="menu.setMenu({ id: portfolio.id, name: `pt_content_public${portfolio.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
-                                    <p v-if="portfolio.public_title">{{ portfolio.public_title }}</p>
-                                    <p>{{ portfolio.public_content }}</p>
-                                </p>
-                                <p v-if="menu.name == `pt_content_public${portfolio.id}` && menu.id == portfolio.id" :id="`pt_content_public${portfolio.id}`" class="pt-popup shadow-me">
-                                    <p v-if="portfolio.public_title">{{ portfolio.public_title }}</p>
-                                    <p>{{ portfolio.public_content }}</p>
-                                </p>
-                            </div>
-                        </div>
-                        <div class="body-cell border-none" style="text-align: left;position: relative;">
-                            <div class="pt-content" v-if="portfolio?.lesson_form">
-                                <p @click.stop="menu.setMenu({ id: portfolio.id, name: `pt_form${portfolio.id}`})" style="max-height: 40px;overflow:hidden;white-space: break-spaces;word-break: break-all;">
-                       
-                                    <p v-for="i in 3">{{ portfolio?.lesson_form[`answer${i}`] }}</p>
-                                </p>
-                                <p v-if="menu.name == `pt_form${portfolio.id}` && menu.id == portfolio.id" :id="`pt_form${portfolio.id}`" class="pt-popup shadow-me">
-                                    <p v-for="i in 3" style="line-height:1.6">
-                                        <p><strong>Q: </strong>{{ portfolio?.lesson_form[`question${i}`] }}</p>
-                                        <p><strong>A: </strong> {{ portfolio?.lesson_form[`answer${i}`] }}</p>
-                                    </p>
-                                    <p v-if="portfolio?.lesson_form['content']"><strong>意見: </strong>{{ portfolio?.lesson_form['content'] }}</p>
-                                </p>
-                            </div>
-                        </div> -->
                     </div>
                 </div>
             </div>
@@ -104,21 +77,18 @@
 </template>
 <script setup>
 import { inject, onMounted, ref } from 'vue';
-import { useRoute } from 'vue-router';
 import { useMenuStore } from '@/store/menu';
 import { mkConfig, generateCsv, download } from "export-to-csv";
+import { useApi } from '@/composables/api';
 const props = defineProps(['theme'])
 const menu = useMenuStore()
-const route = useRoute()
-const portfolios = ref([])
-const status_values = ['', '✅基礎知識', '✅ディスカッション', '✅ポートフォリオ']
-const { info, notify } = inject('dialog')
 const lessons = ref([])
+const api = useApi()
 onMounted(() => {
     getLessons()
 })
 const getLessons = async() => {
-    lessons.value = await axios.get(`/get_material_list?lesson_theme_id=${props.theme.id}`).then(response => response.data)
+    lessons.value = await api.get(`/get_material_list?lesson_theme_id=${props.theme.id}`)
 }
 const downloadCSV = () => {
     const csvConfig = mkConfig({ 
@@ -154,16 +124,6 @@ const downloadCSV = () => {
 
     const csv = generateCsv(csvConfig)(data);
     download(csvConfig)(csv);
-}
-const statusUpdate = (value, id) => {
-    axios.put(`/update_portfolio_status`, {id: id, value: value}).then(response => {
-        info('保存しました。')
-        getLessons()
-    }).catch(function (error) {
-        if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-        else if (error.request) notify('エラーが発生しました。')
-        else notify('エラーが発生しました。 ' + error.message)                       
-    });
 }
 
 </script>

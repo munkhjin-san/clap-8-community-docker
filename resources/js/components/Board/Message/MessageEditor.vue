@@ -14,40 +14,43 @@
     </div>
     </Transition>
 </template>
-<script setup>
-    import { inject, onMounted, ref } from 'vue';
+<script setup lang="ts">
+import { useApi } from '@/composables/api';
+import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
+import { inject, onMounted, ref, useTemplateRef } from 'vue';
     
     
     const props = defineProps(['message'])
-    const emit = defineEmits('cancel')
-    const editor = ref(null)
+    const emit = defineEmits(['cancel'])
+    const editor = useTemplateRef('editor')
     const active = ref(false)
     const sending = ref(false)
+    const api = useApi()
     onMounted(() => {
-        editor.value.focus()
+        editor.value?.focus()
         const range = document.createRange();
-        range.selectNodeContents(editor.value);
+        const node = editor.value as Node
+        range.selectNodeContents(node);
         range.collapse(false);
         const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
         active.value = true
     })
-    const { refreshMessages } = inject('boardItem')  
-    const { info, notify } = inject('dialog')
+    const { refreshMessages } = inject(BoardMethodsKey) as BoardMethods 
     const update = async() => {
-        const new_text = editor.value.textContent;
+        const new_text = editor.value?.textContent;
         if(sending.value) return
-        try{
-            sending.value = true          
-            await axios.post('/chat_edit_api', {id: props.message.id, message: new_text,})
-            await refreshMessages()
-            info('保存しました。')
-            emit('cancel') 
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            sending.value = false
-        }             
+
+        sending.value = true          
+        await api.post('/chat_edit_api', {id: props.message.id, message: new_text }, {
+            toast: '保存しました。'
+        })
+        refreshMessages()
+        emit('cancel') 
+
+        sending.value = false
+          
         
     }
     </script>

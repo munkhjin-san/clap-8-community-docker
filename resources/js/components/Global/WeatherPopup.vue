@@ -42,8 +42,7 @@
 
 </template>
 <script setup lang="ts">
-import axios from 'axios';
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import Rainbow from '../Icons/Rainbow.vue';
 import Sun from '../Icons/Sun.vue';
 import Cloud from '../Icons/Cloud.vue';
@@ -52,7 +51,8 @@ import Snowman from '../Icons/Snowman.vue';
 import Lightning from '../Icons/Lightning.vue';
 import { DateTime } from 'luxon';
 import { useAuthUserStore } from '@/store/auth';
-import { DialogMethods } from '@/interface/globalInterface';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const emit = defineEmits(['close']);
 interface MessageData {
     content: string;
@@ -69,11 +69,9 @@ const isOpenInner = ref(false);
 const messageData = ref<MessageData | null>(null);
 const saving = ref<number | null>(null);
 const auth = useAuthUserStore()
-const { info } = inject('dialog') as DialogMethods
+const api = useApi()
+const { toast } = useDialog()
 onMounted(() => {
-    // setTimeout(() => {
-    //     isOpen.value = true;
-    // }, 1000);
     getWelcomeMessage();
 });
 
@@ -87,41 +85,34 @@ const greetings = computed(() => {
 });
 
 const getWelcomeMessage = async() => {
-    try{
-        messageData.value = await axios('/welcome_message').then(res => res.data);
-    } catch(e){
-        console.error(e);
-    } finally {
-        isOpen.value = true;
-        setTimeout(() => {
-            isOpenInner.value = true;
-        }, 0);
-        console.log('rrr')
-    }
-    
+
+    messageData.value = await api.get('/welcome_message');
+    isOpen.value = true;
+    setTimeout(() => {
+        isOpenInner.value = true;
+    }, 0);  
 
 }
 
 const setWeather = async (num: number) => {
     let today = DateTime.now().toISODate();
     if(saving.value == num) return;
-    try {
-        saving.value = num;
-        await axios.post('/save_weather', { today, value: num })
-        const user = await axios.post('/profile_get_update_user', {id: auth.id}).then(res => res.data)
-        if(user && Object.hasOwn(user, 'id')){
-            auth.setUser(user)           
-        } 
-        isOpenInner.value = false;
-        setTimeout(() => {
-            isOpen.value = false;
-            info('保存しました。')
-            emit('close')
-        }, 300);
-    } catch (e) {
-        console.error(e);
-        saving.value = null;
-    }
+ 
+    saving.value = num;
+    await api.post('/save_weather', { today, value: num })
+    const user = await api.post('/profile_get_update_user', {id: auth.id})
+    if(user && Object.hasOwn(user, 'id')){
+        auth.setUser(user)           
+    } 
+    isOpenInner.value = false;
+    setTimeout(() => {
+        isOpen.value = false;
+        toast('保存しました。')
+        emit('close')
+    }, 300);
+
+    saving.value = null;
+
 }
 </script>
 <style>

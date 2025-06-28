@@ -83,12 +83,12 @@
 </div>
 </template>
 <script setup lang="ts">
-import axios from 'axios';
 import { onMounted, reactive, ref } from 'vue';
 import Back from '../Icons/Back.vue';
 import { User } from '@/interface/globalInterface';
 import UserPanel from '../Global/UserPanel.vue';
 import 'styles/customForm.css'
+import { useApi } from '@/composables/api';
 const props = defineProps<{
     initial?: string
     user?: User
@@ -115,6 +115,7 @@ const activeItems = reactive<{
 
 const selectedSkills = defineModel()
 const selectedLevel = ref<string>('')
+const api = useApi()
 type Skill = string
 
 type Level = {
@@ -142,7 +143,7 @@ onMounted(async() => {
     console.log('initial props', props.initial)
 
     console.log(props.user)
-    mainCategories.value = await axios.get('/get_evaluation_levels').then(res => res.data)
+    mainCategories.value = await api.get('/get_evaluation_levels')
     if(props.initial){
         const [cat, job, level] = props.initial.split('_')
         const catIndex = mainCategories.value.findIndex(category => category.title == cat)

@@ -460,25 +460,23 @@
 <script setup lang="ts">
 import { Project, YearlyFinancialData } from '@/interface/projectInterface';
 import CloseIcon from '../Form/CloseIcon.vue';
-import { computed, inject, onMounted, reactive, ref, useTemplateRef, watch } from 'vue';
+import { computed, onMounted, reactive, ref, useTemplateRef, watch } from 'vue';
 import 'styles/customForm.css'
-import axios from 'axios';
 import { MonthNumbers, DateTime } from 'luxon';
-import MonthPickerNew from '../Global/MonthPickerNew.vue';
 import { amountOfMoneyParser } from '@/utils/tools';
 import { useRoute } from 'vue-router';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from '@/store/menu';
-import { DialogMethods, User } from '@/interface/globalInterface';
+import { User } from '@/interface/globalInterface';
 import DeltaNumbers from '@/components/Project/ProjectTabs/Finance/DeltaNumbers.vue'
 import UserPanel from '../Global/UserPanel.vue';
 import BarChart from './ProjectTabs/Finance/BarChart.vue';
 import PieChart from './ProjectTabs/Finance/PieChart.vue';
 import CommandButton from '../Global/CommandButton.vue';
-import OptionSelector from '../Form/OptionSelector.vue';
 import { useTheme } from '@/store/theme';
 import Back from '../Icons/Back.vue';
+import { useApi } from '@/composables/api';
 
 
 
@@ -544,11 +542,11 @@ const startYearRef = useTemplateRef('startYearRef')
 const endYearRef = useTemplateRef('endYearRef')
 const startMonthRef = useTemplateRef('startMonthRef')
 const endMonthRef = useTemplateRef('endMonthRef')
+const api = useApi()
 
 onMounted(() => {
     selectedProjects.value = route.params.projectId ? [Number(route.params.projectId)] : props.projects && props.projects.length ? [props.projects[0].id] : []
 })
-const { notify, info, confirm } = inject('dialog') as DialogMethods
 const possibleTypes = [{ value: 'sales', label: '売上' }, { value: 'expense', label: '販管費' }, { value: 'profit', label: '利益' }]
 const possibleScenarios = [{ value: 'yearly_plan', label: '年度予算' }, { value: 'profit', label: '損益計画' }, { value: 'settlement', label: '実績' }]
 const activeType = ref('sales')
@@ -574,36 +572,15 @@ const selectAllProjects = (event: Event) => {
 }
 
 const getTotalFinance = async () => {
-    try {
-        loader.value = true
-        const res = await axios.get('/get_total_finance', { params: { projects: selectedProjects.value, interval: interval } })
-        financeData.value = res.data.sumData
-        summarizeData.value = res.data.summarizeData
-    } catch (e) {
-        console.log(e)
-        financeData.value = {}
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally {
-        menu.close()
-        setTimeout(() => {
-            loader.value = false
-        }, 300);
-    }
 
-
+    const data = await api.get('/get_total_finance',  { projects: selectedProjects.value, interval: interval }, {
+        loadingRef: loader
+    })
+    financeData.value = data.sumData
+    summarizeData.value = data.summarizeData
+    menu.close()
 }
 
-
-const setStartDate = (date: { year: number, month: MonthNumbers }) => {
-    interval.startYear = date.year
-    interval.startMonth = date.month
-    getTotalFinance()
-}
-const setEndDate = (date: { year: number, month: MonthNumbers }) => {
-    interval.endYear = date.year
-    interval.endMonth = date.month
-    getTotalFinance()
-}
 const percentizer = (data: UnitData) => {
     let ret = {
         value: 0,

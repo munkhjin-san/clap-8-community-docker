@@ -44,19 +44,18 @@
     </div>
 </template>
 <script setup>
-import { computed, onMounted, ref, inject, provide } from 'vue';
+import { onMounted, ref, provide } from 'vue';
 import ThemeCreate from './ThemeCreate.vue';
-import { useMenuStore } from "@/store/menu";
 import { useRoute, useRouter } from 'vue-router';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import { useApi } from '@/composables/api';
     const router = useRouter()
     const route = useRoute()
-    const menu = useMenuStore()
     const activeLesson = ref(null)
     const createThemeWindow = ref(false)
     const editThemeTarget = ref(null)
     const themeRecords = ref([])
-    const { confirm } = inject('dialog')
+    const api = useApi()
     onMounted(() => {
         getThemes()
     })
@@ -66,15 +65,11 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
         createThemeWindow.value = true
     }
     const deleteThemeConfirm = async(id) => {
-        const answer = await confirm('削除しますか。')
-        if(!answer.value) return
-        deleteTheme(id)
-    }
-
-    const deleteTheme = (id) => {
-        axios.delete(`/delete_learning_theme?id=${id}`).then(response => {
-            getThemes(activeLesson.value)
+        const data = await api.del('/delete_learning_theme', {id: id}, {
+            ask: 'テーマを削除しますか？',
+            toast: 'テーマを削除しました。',
         })
+        data && getThemes(activeLesson.value)
     }
     const closeThemeCreate = (flag) => {
         createThemeWindow.value = false
@@ -83,8 +78,8 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
         }
     }
     const getThemes = async() => {
-        themeRecords.value = await axios.get('/get_learning_themes').then(res => res.data)
-        console.log(themeRecords.value)
+        const data = await api.get('/get_learning_themes')
+        data && (themeRecords.value = data)
     }
     provide('getThemes', getThemes)
 </script>

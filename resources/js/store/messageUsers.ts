@@ -1,11 +1,8 @@
+import { TaskUser, User } from '@/interface/globalInterface';
 import { defineStore } from 'pinia'
 interface State {
   active: boolean
-  userList: {
-    id: number;
-    title: string;
-    string: number;
-  }[];
+  userList: TaskUser[];
   title: string | null
   isTask: boolean
 }
@@ -15,7 +12,7 @@ export const useMessageUsers = defineStore('messageUsers', {
     active: false,
     title: null,
     userList: [],
-    isTask: false
+    isTask: false,
   }),
   actions: {
     setMessageUsers(payload: any){

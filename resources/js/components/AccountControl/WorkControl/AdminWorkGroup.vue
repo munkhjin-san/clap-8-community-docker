@@ -65,10 +65,11 @@
 <script setup>
 import CommandButton from '../../Global/CommandButton.vue';
 import WorkGroupCreate from './WorkGroupCreate.vue';
-import { onMounted, ref, inject } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { computed } from 'vue';
 import PostSearchBar from '../../Post/PostSearchBar.vue';
+import { useApi } from '@/composables/api';
     const keywords = ref('')
     const responsive = useResponsive()
     const showModalContent = ref(false)
@@ -76,7 +77,7 @@ import PostSearchBar from '../../Post/PostSearchBar.vue';
     const workGroups = ref([])
     const fetch = ref(0)
     const users = ref([])
-    const { notify, confirm } = inject('dialog')
+    const api = useApi()
     onMounted(async() => {
         await getWorkGroups()
         fetch.value ++
@@ -95,7 +96,7 @@ import PostSearchBar from '../../Post/PostSearchBar.vue';
         })
     })
     const getWorkGroups = async() => {
-        const { w, u } = await axios.get('/get_controllable_users?with_users=1').then(res => res.data)        
+        const { w, u } = await api.get('/get_controllable_users?with_users=1')
         workGroups.value = w
         users.value = u
     }
@@ -110,19 +111,11 @@ import PostSearchBar from '../../Post/PostSearchBar.vue';
         showModalContent.value = true;
     }
     const deleteWorkGroup = async(item) => {
-        const params = {
-            work_group_id : item.id
-        }
-        const answer = await confirm('ワークグループを削除しますか？')
-        if(!answer.value) return
-        try {
-            await axios.post('/work_group_delete', params)
-            getWorkGroups()
-        } catch (error) {
-            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。 ' + error.message)
-        }
+        const data = await api.post('/work_group_delete', {work_group_id: item.id}, {
+            ask: 'ワークグループを削除しますか？',
+            toast: '削除しました。'
+        })
+        data && getWorkGroups()
            
     }
 

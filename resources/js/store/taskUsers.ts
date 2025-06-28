@@ -1,13 +1,8 @@
-import { Task } from '@/interface/globalInterface';
+import { Task, TaskUser } from '@/interface/globalInterface';
 import { defineStore } from 'pinia'
 interface State {
   active: boolean
-  userList: {
-    id: number;
-    title: string;
-    icon_path: string;
-    icon_bg: string | null
-  }[];
+  userList: TaskUser[];
   title: string | null;
   task: Task | null
   siblings: Task[]

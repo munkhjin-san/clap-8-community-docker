@@ -26,17 +26,80 @@
                         <div @click="tab = 2; getSurveyAnswers()" :class="['sub-tab-item', { 'selected-sub-tab': tab == 2}]">要約</div>
                     </div>          
                 </div>
+
+                <div v-if="form.repeat_setting == 1">
+                    <div
+                        class="flex justify-between items-center px-[20px]">
+                        <div class="flex items-center gap-[20px] relative w-full justify-end">
+                            <span class="text-[13px]">対象月</span>
+                            <button @click="adjustByOne(-1)" class="bg-inherit flex items-center justify-center h-[30px] w-[30px] min-w-[30px]">
+                                <Back size="13"/>
+                            </button>
+                            <button @click.stop="menu.setMenu({parent: 'intervalPicker'})" class="bg-inherit cursor-pointer text-[15px]">
+              
+                                {{ `${selectedDate.year}年${selectedDate.month}月` }}
+                 
+                            </button>
+                            <button @click="adjustByOne(1)" class="bg-inherit flex items-center justify-center h-[30px] w-[30px] min-w-[30px]">
+                                <Back size="13" class="rotate-180"/>
+                            </button>
+                            <Transition name="slidePop">
+                                <div v-if="menu.parent == 'intervalPicker'" id="intervalPicker" class="absolute top-[30px] right-0 shadow-me p-[20px] z-[5] bg-[var(--background-color)]">
+                                    <div class="flex items-center gap-[20px]">
+                                        <CommandButton :buttons="[
+                                                {
+                                                    title: '今月', action: () => {
+                                                        selectedDate.year = DateTime.now().year
+                                                        selectedDate.month = DateTime.now().month
+                                                    }
+                                                }
+                                            ]" 
+                                        />
+                                    </div>
+                                    <div class="flex flex-wrap mt-[20px] items-center w-max">
+                                        <div class="flex items-center">
+                                            <select ref="startYearRef" 
+                                                v-model="selectedDate.year"
+                                                class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
+                                                :class="[{ 'date-color': theme.dark }]">
+                                                <option
+                                                    v-for="year in years"
+                                                    :key="year.value" :value="year.value">
+                                                    {{ year.label }}
+                                                </option>
+                                            </select>
+                                            <select ref="startMonthRef"
+                                                v-model="selectedDate.month"
+                                                class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer ml-[-1px]"
+                                                :class="[{ 'date-color': theme.dark }]">
+                                                <option v-for="month in months" :key="month.value" :value="month.value">
+                                                    {{ month.label }}
+                                                </option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mt-[20px]">
+                                        <CommandButton :buttons="[{title: '決定', action: () => {
+                                            getSurveyAnswers()
+                                            menu.close()
+                                        }}]"/>
+                                    </div>
+                                </div>
+                            </Transition>
+                        </div>
+                    </div>
+                </div>
                 <div v-if="tab == 0">
                     <div class="mt-[20px]">
                         <div class="mt-[10px] flex flex-col gap-[30px]">
-                            <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" v-for="answer in answersByUser">
+                            <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" v-for="(answer, index) in answersByUser">
                                 <label class="flex items-center">
                                     <UserPanel v-if="answer.user" :user="answer.user" with-name disable-instant/>
                                     <p class="jump-link ml-[15px] text-[13px]">表示・非表示</p>
-                                    <input type="checkbox" v-model="openedUsers" :value="`by_user_${answer.user.id}`" class="hidden"/>
+                                    <input type="checkbox" v-model="openedUsers" :value="`by_user_${answer.user.id}_${index}`" class="hidden"/>
                                     <p class="ml-auto text-[12px] text-[gray]">{{ DateTime.fromISO(answer.created_at).toLocaleString(DateTime.DATETIME_MED) }}</p>
                                 </label>
-                                <div v-if="openedUsers.includes(`by_user_${answer.user.id}`)" class="flex flex-col gap-[20px]">
+                                <div v-if="openedUsers.includes(`by_user_${answer.user.id}_${index}`)" class="flex flex-col gap-[20px]">
                                     <div v-for="block in answer.data" >
                                         <div class="text-[16px]">{{ block.question }}</div>
                                         <div class="ml-[10px] mt-[10px] leading-normal text-[13px]">
@@ -134,24 +197,31 @@
 </template>
 <script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue';
-import { CustomForm, CustomFormBlock, CustomFormBlockElement, SurveyAnswer } from '@/interface/customFormInterface';
+import { CustomForm, CustomFormBlock, SurveyAnswer } from '@/interface/customFormInterface';
 import { User } from '@/interface/globalInterface';
-import axios from 'axios';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, Colors  } from 'chart.js'
 import { Pie } from 'vue-chartjs'
 import { mkConfig, generateCsv, download } from "export-to-csv";
-import { DateTime } from 'luxon';
+import { DateTime, MonthNumbers } from 'luxon';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Back from '@/components/Icons/Back.vue';
 import Modal from '@/components/Global/Modal.vue';
 import Files from '@/components/Global/Files.vue';
+import CommandButton from '@/components/Global/CommandButton.vue';
+import { useMenuStore } from '@/store/menu';
+import { useTheme } from '@/store/theme';
+import { useApi } from '@/composables/api';
 ChartJS.register(ArcElement, Tooltip, Legend, Colors )
 const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select', 'file']
 const props = defineProps<{
     form: CustomForm
 }>()
+
+const menu = useMenuStore()
+const theme = useTheme()
+const api = useApi()
 interface SimpleAnswer{
     user: User,
     created_at: string,
@@ -164,6 +234,21 @@ interface SimpleAnswer{
 const url = computed(() => {
     return `${window.location.origin}/survey/${props.form.id}`
 })
+const years = Array.from({ length: DateTime.now().year - 2024 + 2 }, (_, index) => {
+    const year = 2024 + index;
+    return {
+        label: `${year}年`, // label as string (optional)
+        value: year
+    };
+});
+const months = Array.from({ length: 12 }, (_, index) => ({
+    label: `${index + 1}月`,
+    value: index + 1
+}));
+const selectedDate = reactive({
+    year: DateTime.now().year,
+    month: DateTime.now().month
+});
 const options = {
     plugins: {
         legend: {
@@ -189,7 +274,16 @@ const openedUsers = ref<string[]>([])
 onMounted(() => {
     getSurveyAnswers()
 })
-
+const adjustByOne = (direction: number) => {
+    const instance = DateTime.fromObject({
+        year: selectedDate.year,
+        month: selectedDate.month
+    });
+    const adjusted = instance.plus({ months: direction });
+    selectedDate.year = adjusted.year;
+    selectedDate.month = adjusted.month as MonthNumbers;
+    getSurveyAnswers()
+}
 const setViewUsers = (payload: {title: string, users: User[]}) => {
     viewUsers.value = payload
 }
@@ -219,19 +313,15 @@ const chartData = computed(() => {
     })
     return chartable
 })
-const memberAnswer = (blockId: number, answer:SurveyAnswer,) => {
-    const answerBlock = answer.block_answers.find(block => block.custom_form_block_id == blockId)
-    if (!answerBlock) return null
-    return answerBlock
-}
 const getSurveyAnswers = async() => {
     try {
-        const response = await axios.get(`/get_survey_answers`, {
-            params: {
-                custom_form_id: props.form.id,
-                sort: tab.value == 0 ? 'user' : 'block'
-            }
-        }).then(res => res.data)
+        const response = await api.get(`/get_survey_answers`, {    
+            custom_form_id: props.form.id,
+            sort: tab.value == 0 ? 'user' : 'block',
+            repeat_setting: props.form.repeat_setting,
+            year: selectedDate.year,
+            month: selectedDate.month        
+        })
 
         if(tab.value == 0){
             answersByUser.value = response
@@ -245,10 +335,13 @@ const getSurveyAnswers = async() => {
 const exportCSV = async() => {
     downloading.value = true
     const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `【${props.form.title}】回答【${DateTime.now().toISODate()}】`});
-    const data:SimpleAnswer[] = await axios.get(`/get_survey_answers/`, {params: {
+    const data:SimpleAnswer[] = await api.get(`/get_survey_answers/`, {
         custom_form_id: props.form.id,
-        sort: 'user'
-    }}).then(res => res.data)
+        sort: 'user',
+        repeat_setting: props.form.repeat_setting,
+        year: selectedDate.year,
+        month: selectedDate.month
+    })
     const dataSet: any = []
     data.forEach(row => {
         const v = {

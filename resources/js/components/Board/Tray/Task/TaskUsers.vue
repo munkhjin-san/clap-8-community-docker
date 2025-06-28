@@ -31,7 +31,7 @@
                                         </svg>                                           
                                     </div>
                                 </div>
-                                <div style="padding: 0 10px 10px 10px;" v-if="user.pivot.status_flag >= 1 && (user.pivot.comment || task.files.length)">
+                                <div style="padding: 0 10px 10px 10px;" v-if="task && user.pivot.status_flag >= 1 && (user.pivot.comment || task.files.length)">
                                     <div style="white-space: break-spaces;margin-bottom: 10px;" v-if="user.pivot.comment"><strong>コメント: </strong>{{ user.pivot.comment }}</div>
                                     <div v-for="file in task.files" v-if="task.files.length">
                                         <div v-if="file.user_id == user.id"  class="cursor-pointer" style="width: fit-content;" @click="viewFile(file)">
@@ -69,20 +69,22 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, inject } from 'vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { useTaskUsers } from '@/store/taskUsers';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { useAuthUserStore } from '@/store/auth';
-import axios from 'axios';
 import { useFilePreview } from '@/store/filePreview';
 import FileIcon from '../../Mixed/FileIcon.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const taskUsers = useTaskUsers()
     const filePreview = useFilePreview()
     const auth = useAuthUserStore()
-    const { confirm, info } = inject('dialog')
-    const refresh = inject('refreshRemind')
+    const refresh = inject('refreshRemind') as Function
+    const api = useApi()
+    const { ask, toast } = useDialog()
     const userList = computed(() => {
         return taskUsers.userList
     })
@@ -93,6 +95,7 @@ import FileIcon from '../../Mixed/FileIcon.vue';
         return taskUsers.task
     })
     const isSupervisor = computed(() => {
+        if(!task.value || !task.value.supervisors) return false
         return task.value.supervisors.some(ob => ob.id === auth.activeUser.id)
     })           
     const close = () => {
@@ -105,25 +108,24 @@ import FileIcon from '../../Mixed/FileIcon.vue';
         taskUsers.setTaskUsers(data)
     }
     const taskApprove = async(userId, status, progress_flag) => {
+        if(!task.value) return
         if(status == 0){
-            const answer = await confirm('申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。')
+            const answer = await ask('申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。')
             if(!answer.value) return
         }
         let info_message = status == 2 ? '承認' : '差戻'
-        try {
-            const params = {
-                user_id: userId,
-                task_id: task.value.id,
-                status_flag: status,
-                progress_flag: progress_flag
-            }
-            await axios.put('/task_approve', params)
-            info(`${info_message}しました。`)
-            refresh('not_approved_tasks')
-            close()
-        } catch (e) {
-            console.log(e)
+        const params = {
+            user_id: userId,
+            task_id: task.value.id,
+            status_flag: status,
+            progress_flag: progress_flag
         }
+        await api.put('/task_approve', params, {
+            toast: `${info_message}しました。`,
+        })
+        refresh('remind_task_not_approved')
+        close()
+
     }
     const viewFile = (file) => {
         let target_data = file

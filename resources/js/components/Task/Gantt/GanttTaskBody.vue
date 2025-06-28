@@ -35,7 +35,7 @@
                         <input type="date" ref="quickEnd" @change="updateDate($event, 'end_at')" :value="task.end_at" class="absolute invisible right-[0] top-[0]"/>
                     </div>
                     <div v-if="isExecutor" class="flex justify-between relative items-end mt-[5px]">
-                        <GanttButton viewType="button" :status="isExecutor.pivot.progress_flag" :loading="updating.status" @action="(flag) => updateStatus(flag)"/>
+                        <GanttButton viewType="button" :status="isExecutor.pivot.progress_flag" :loading="updating" @action="(flag) => updateStatus(flag)"/>
                         <svg v-if="errorMessages.length" fill="tomato" class="min-w-[15px] min-h-[15px] little-alert-mark" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
                             <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
                         </svg> 
@@ -62,22 +62,21 @@
     </div>  
 </template>
 <script setup lang="ts">
-import { Dialog, DialogMethods, MenuList, Task } from '@/interface/globalInterface';
+import { MenuList, Task } from '@/interface/globalInterface';
 import UserPanel from '@/components/Global/UserPanel.vue';
-import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, useTemplateRef, watch } from 'vue';
+import { computed, inject, ref, useTemplateRef } from 'vue';
 import { GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
 import { DateTime, Interval } from 'luxon';
 import colors from 'assets/colors.json'
 import { useAuthUserStore } from '@/store/auth';
 import GanttButton from './GanttButton.vue';
 import { useMessageUsers } from '@/store/messageUsers';
-import axios from 'axios';
 import { useTheme } from '@/store/theme';
 import { Project, QuickEditText } from '@/interface/projectInterface';
 import { taskStatusBackgrounds } from '@/utils/tools';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import { useBadgeStore } from '@/store/badge';
-const { notify, info } = inject<Dialog>('dialog')!;
+import { useApi } from '@/composables/api';
 const badge = useBadgeStore()
 const props = defineProps<{
   task: Task
@@ -87,6 +86,7 @@ const props = defineProps<{
   mainTask: Task | null
   actualWidth: number
 }>()
+const api = useApi()
 const emit = defineEmits<{
     setFullText: [data: QuickEditText]
     setCommentingTaskId: [id: number]
@@ -101,9 +101,7 @@ const messageUsers = useMessageUsers()
 const auth = useAuthUserStore()
 const quickStart = useTemplateRef('quickStart')
 const quickEnd = useTemplateRef('quickEnd')
-const updating = reactive({
-    status: false
-})
+const updating = ref(false)
 const maskImage = computed(() => {
     return isNaN(props.actualWidth) ? 'unset' : `linear-gradient(to right, rgba(0, 0, 0, 1) ${(props.actualWidth > 15 ? props.actualWidth : 15)}px, rgba(0, 0, 0, 0.7) ${(props.actualWidth > 15 ? props.actualWidth : 15) + 1}px)`
 })
@@ -139,17 +137,15 @@ const updateDate = async(event:Event, column:string) => {
         return
     }
 
-    try {
-        await axios.patch(`/quick_edit_task`, {
-            id: props.task.id,
-            column: column,
-            value: target.value
-        })
-        await refreshProject({})
-        info('更新しました。')
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
-    }
+    await api.patch(`/quick_edit_task`, {
+        id: props.task.id,
+        column: column,
+        value: target.value
+    }, {
+        toast: '更新しました。'
+    })
+    await refreshProject({})
+
 }
 const updateStatus = async(flag: number) => {
 
@@ -157,16 +153,12 @@ const updateStatus = async(flag: number) => {
         id: props.task.id,
         params: {progress_flag: flag}
     }
-    try{
-        updating.status = true
-        await axios.patch(`/complete_task`, params)
-        await refreshProject({})
+
+    await api.patch(`/complete_task`, params, {
+        loadingRef: updating,
+    })
+    await refreshProject({})
  
-    }catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')        
-    }finally {
-        updating.status = false
-    }
 }
 const includesMe = computed(() => {
     return [...props.task.executors ?? [], ...props.task.supervisors ?? [] ].map(u => u.id).includes(Number(auth.activeUser.id))

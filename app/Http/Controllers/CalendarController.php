@@ -714,6 +714,7 @@ class CalendarController extends Controller
         $active_user = $this->active_user();
         $records = CalendarRecord::whereIn('id', $ids)->update([
             "title" => $request['title'],
+            "temp_flag" => $request['temp_flag'] ?? 0,
             "remarks" => $request['remarks'],
             "referrer" => $request['referrer'],
             "release_flag" => $request['release_flag'],
@@ -894,6 +895,10 @@ class CalendarController extends Controller
         return $ids;
     }
     public function get_all_facilities(Request $request){
+        $list = $this->avialable_items('all');
+        return response()->json($list); 
+    }
+    public function all_facility_items(Request $request){
         $list = $this->avialable_items('all');
         return response()->json($list); 
     }
@@ -1260,8 +1265,8 @@ class CalendarController extends Controller
 
         $projects = $projects->map(function ($project) {
             $users = collect()
-                ->merge($project->members)
-                ->merge($project->manager)
+                ->merge($project->members->all())
+                ->merge($project->manager->all())
                 ->when($project->director, function ($collection) use ($project) {
                     return $collection->push($project->director);
                 });
@@ -1328,5 +1333,158 @@ class CalendarController extends Controller
         ]);
         $summary = CalendarMeetingSummary::find($request->id)->delete();
         return response()->json($summary);
+    }
+    public function calendar_temp_reserve(Request $request){
+        $request->validate([
+            'start_date' => 'required|date',
+        ]);
+
+        $buffer = $request->buffer ?? 15; 
+        $zoom = $request->zoom ?? null;
+        $room = $request->room ?? null;
+        $usersData = collect($request->users);
+        $userIds = $usersData->pluck('id')->toArray();
+
+        $from = Carbon::parse($request->start_date)->startOfDay();
+        $to = $from->copy()->add('day', 6)->endOfDay();
+
+        $records = CalendarRecord::whereHas('calendar_users', fn($q) => $q->whereIn('user_id', $userIds))
+        ->where('date_start', '>=', $from)
+        ->where('date_end', '<=', $to)
+        ->get();
+
+        $roomsReserved = [];
+        if($room !== null){
+            $roomsReserved = CalendarRecord::where('qualified_institution', $room)
+            ->where('date_start', '>=', $from)
+            ->where('date_end', '<=', $to)
+            ->get();
+        }
+
+        $zoomReserved = [];
+        if($zoom !== null){
+            $zoomReserved = CalendarRecord::where('zoom_value', $zoom)
+            ->where('date_start', '>=', $from)
+            ->where('date_end', '<=', $to)
+            ->get();
+        }
+        $busySlots = [];
+        $availability = [];
+        foreach ($records as $rec) {
+
+            $period = CarbonPeriod::create(
+                Carbon::parse($rec->date_start)->copy()->subtract('minutes', $buffer)->floorMinute(15),
+                '15 minutes',
+                Carbon::parse($rec->date_end)->copy()->add('minutes', $buffer)->subtract('minutes', 15)->subMinute()->ceilMinute(15)
+            );
+                // dd($period);
+            foreach ($rec->calendar_users as $cu) {
+                $user_name = $cu->name;                
+
+                foreach ($period as $slot) {
+                    $d = $slot->format('Y-m-d');
+                    $t = $slot->format('H:i');
+                    $busySlots[$user_name][$d][$t] = true;
+                }
+            }
+        }
+
+        // 2) Mark busy slots for rooms
+        foreach ($roomsReserved as $rec) {
+            $period = CarbonPeriod::create(
+                Carbon::parse($rec->date_start)->copy()->subtract('minutes', $buffer)->floorMinute(15),
+                '15 minutes',
+                Carbon::parse($rec->date_end)->copy()->add('minutes', $buffer)->subtract('minutes', 15)->subMinute()->ceilMinute(15)
+            );
+            
+            foreach ($period as $slot) {
+                $d = $slot->format('Y-m-d');
+                $t = $slot->format('H:i');
+      
+                $room_name = "room_$room";
+                $busySlots[$room_name][$d][$t] = true;
+                
+            }
+        }
+        foreach ($zoomReserved as $rec) {
+            $period = CarbonPeriod::create(
+                Carbon::parse($rec->date_start)->copy()->subtract('minutes', $buffer)->floorMinute(15),
+                '15 minutes',
+                Carbon::parse($rec->date_end)->copy()->add('minutes', $buffer)->subtract('minutes', 15)->subMinute()->ceilMinute(15)
+            );
+            
+            foreach ($period as $slot) {
+                $d = $slot->format('Y-m-d');
+                $t = $slot->format('H:i');
+                $index = (int) $zoom + 1;
+                $room_name = "zoom_$index";
+                $busySlots[$room_name][$d][$t] = true;
+                
+            }
+        }
+
+        // 3) Generate the full grid of days × slots × users, marking free/busy
+        
+        $dayPeriod = CarbonPeriod::create($from, '1 day', $to);
+
+        foreach ($dayPeriod as $day) {
+            $dateKey = $day->format('Y-m-d');
+
+            // all 96 quarter-hours in a day
+            $slotPeriod = CarbonPeriod::create(
+                $day->copy()->setTime(7, 0, 0),
+                '15 minutes',
+                $day->copy()->setTime(21, 0, 0)->subMinute()
+            );
+
+            foreach ($slotPeriod as $slot) {
+                $timeKey = $slot->format('H:i');
+
+                foreach ($request->users as $user) {
+                    $user_name = $user['name'];
+                    $isBusy = $busySlots[$user_name][$dateKey][$timeKey] ?? false;
+                    $availability[$dateKey][$timeKey][$user_name] = $isBusy
+                        ? false
+                        : true;
+                }
+                if ($room !== null) {
+                    $room_name = "room_$room";
+                    $isBusy = $busySlots[$room_name][$dateKey][$timeKey] ?? false;
+                    $availability[$dateKey][$timeKey][$room_name] = $isBusy
+                        ? false
+                        : true;
+                }   
+                if ($zoom !== null) {
+                    $index = (int) $zoom + 1;
+                    $room_name = "zoom_$index";
+                    $isBusy = $busySlots[$room_name][$dateKey][$timeKey] ?? false;
+                    $availability[$dateKey][$timeKey][$room_name] = $isBusy
+                        ? false
+                        : true;
+                }
+            }
+        }
+
+        return response()->json($availability);
+    }
+    public function calendar_temp_confirm(Request $request){
+        $request->validate([
+            'id' => 'required',
+            'status' => 'required|in:0,1',
+        ]);
+
+        $active_user = $this->active_user();
+        $record = CalendarRecord::findOrFail($request->id);
+        switch ($request->status) {
+            case 1:
+                $record->update(['temp_flag' => 0, 'updated_user' => $active_user->id]);
+                return response('予約を確定しました。', 200);
+            case 0:
+                $record->calendar_users()->detach($active_user->id);
+                return response('予約をキャンセルしました。', 200);
+            default:
+                return response('無効なステータスです。', 400);
+        }
+
     }
 }

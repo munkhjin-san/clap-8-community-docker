@@ -146,20 +146,19 @@
 </template>
 <script lang="ts" setup>
 import { ref, inject, onMounted, useTemplateRef } from 'vue';
-import { Dialog } from '@/interface/globalInterface';
 import OpenAI from "openai";
-import axios from 'axios';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { useBadgeStore } from '@/store/badge';
-import { useAuthUserStore } from '@/store/auth';
 import { useProject } from '@/composables/project';
 import { useRoute } from 'vue-router';
 import { EvaluationRecord, EvaluationSkill } from '@/interface/evaluationInterface';
 import AiLoader from '@/components/Global/AiLoader.vue';
 import AiIcon from '@/components/Icons/AiIcon.vue';
 import { Theme } from '@/interface/lessonInterface';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const emit = defineEmits([
     'close', 
     'next',
@@ -178,7 +177,6 @@ const reviewLoading = ref(false)
 const title = ref(props.editData?.title ?? '')
 const content = ref(props.editData?.content ?? '')
 const content_goal = ref(props.editData?.ability ?? '')
-const content_review = ref(props.editData?.review ?? '')
 const custom_instruction = ref('')
 const evaluationData = ref<EvaluationRecord | null>(null)
 const aiLoading = ref(false)
@@ -190,7 +188,6 @@ const actions = ref(props.editData?.actions ?? [])
 const saving = ref(false)
 const attaching = ref(false)
 const badge = useBadgeStore()
-const { notify, confirm, info } = inject<Dialog>('dialog')!
 const refresh = inject('refresh') as Function
 const kadaiContent = ref<InstanceType<typeof LongInput> | null>(null)
 const kadaiTitle = ref<InstanceType<typeof ShortInput> | null>(null)
@@ -216,6 +213,8 @@ const keys = ref({
     content_goal: 0
 })
 const route = useRoute()
+const api = useApi()
+const { ask, ping, toast } = useDialog()
 onMounted(() => {
     // if(props.selectedTheme){
     //     getAdvice()
@@ -226,65 +225,25 @@ onMounted(() => {
 })
 const getEvaluationData = async() => {
 
-    try {
-        initialLoader.value = true
-        const span = route.params.span as string
-        const [year, which_half] = span.split('-')
-        const response = await axios.post('/get_evaluation_data', {
-            user_id: memberData.value?.id,
-            year: year,
-            which_half: which_half  
-        }).then(res => res.data)
-        evaluationData.value = response && response.evaluation ? response.evaluation : null
-        baseSkills.value = response && response.base_skills ? response.base_skills  : []
+    initialLoader.value = true
+    const span = route.params.span as string
+    const [year, which_half] = span.split('-')
+    const response = await api.post('/get_evaluation_data', {
+        user_id: memberData.value?.id,
+        year: year,
+        which_half: which_half  
+    })
+    evaluationData.value = response && response.evaluation ? response.evaluation : null
+    baseSkills.value = response && response.base_skills ? response.base_skills  : []
 
-        const themeResponse = await axios.get('/get_theme_data', {
-            params: {
-                theme: props.selectedTheme.title,
-                user_id: memberData.value?.id
-            }
-        }).then(res => res.data)
-        learningThemeData.value = themeResponse.themeData
-        
-    } catch (e) {
-        // notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-    finally {
-        initialLoader.value = false
-    }
-}
+    const themeResponse = await api.get('/get_theme_data', {        
+        theme: props.selectedTheme.title,
+        user_id: memberData.value?.id        
+    })
+    learningThemeData.value = themeResponse.themeData  
 
-const schema = (model) => {
-    let schema = {
-        "type": "object",
-        "properties": {
-            "title": {
-                "type": "string",
-                "description": "昇給課題タイトル"
-            },
-            "actions": {
-                "type": "array",
-                "description": "開発能力が実践的に発揮されたことを確認できる具体的な行動",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "行動内容"
-                    }
-                },
-                required: ["content"],
-                additionalProperties: false
-            },
-            "skill_theme": {
-                "type": "string",
-                "description": "習得を目指す能力・スキルをキーワードで提示"
-            }
-        },
-        required: ["title", "content", "content_goal"]
-    }
-    if(model == 'openai'){
-        schema['additionalProperties'] = false
-    }
-    return schema
+    initialLoader.value = false
+
 }
 const systemInstruction = () => {
     return `
@@ -344,12 +303,12 @@ const systemInstruction = () => {
 const getAdvice = async() => {
     const validate = await customInstructionRef.value?.validate()
     if(validate && !validate.valid){
-        notify('課題内容を入力してください。')
+        ping('課題内容を入力してください。')
         return
     }
 
     if(content_goal.value || actions.value.length) {
-        const answer = await confirm('既存の課題がある場合、AIで生成した課題は上書きされます。よろしいでしょうか？')
+        const answer = await ask('既存の課題がある場合、AIで生成した課題は上書きされます。よろしいでしょうか？')
         if(!answer.value) return
     }
     const checkList = evaluationData.value?.checklist.flatMap((item: EvaluationSkill) => item.content).join('\n ')
@@ -477,13 +436,13 @@ const getAdvice = async() => {
         } catch (err) {
             if (err instanceof OpenAI.APIError) {
                 if(err.status == 500){
-                    notify('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                    ping('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
                 }else{
-                    notify('AI修正に失敗しました。<br>' + err.message)
+                    ping('AI修正に失敗しました。<br>' + err.message)
                 }
                 
             } else {
-                notify('AI修正に失敗しました。<br>' + err)
+                ping('AI修正に失敗しました。<br>' + err)
             }
 
         } finally{
@@ -518,79 +477,64 @@ const saveTemplateConfirm = async() => {
 const saveTemplate = async(_action, status) => {
     const result = await checkFields()
     if (!result) {
-        notify('必須項目が未入力です。')
+        ping('必須項目が未入力です。')
         return
     }
     if(!actions.value.length){
-        notify('修得要件が未入力です。')
+        ping('修得要件が未入力です。')
         return
     }
     if(!learningResources.value.length || learningResources.value.length !== actions.value.length){
-        notify('ガイドラインが未生成です。')
+        ping('ガイドラインが未生成です。')
         return
     }
-    try{
-        saving.value = true
-        const params = {
-            editId: props.editData?.id ?? null,
-            title: title.value,
-            issue_content: content.value,
-            goal_id: props.chosenGoal?.id,
-            review: null,
-            ability: content_goal.value,
-            theme: props.selectedTheme.title_full,
-            date: props.selectedDate.evaluationDate,
-            status: status,
-            user_id: memberData.value?.id,
-            mentor_id: props.evaluation?.mentor_id,
-            actions: actions.value.map((item, index) => {
-                return {
-                    content: item.content,
-                    learning_title: learningResources.value[index].title,
-                    learning_content: learningResources.value[index].content,
-                }
-            }),
-        }
-        await axios.post('/save_kadai_template', params)
-            info(status == 2 ? '申請しました。' : '保存しました。')
-            title.value = content.value = content_goal.value = ''
-            refresh()
-            emit('close')
 
-            badge.getSalaryIssueBadge()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally {
-        saving.value = false
+    saving.value = true
+    const params = {
+        editId: props.editData?.id ?? null,
+        title: title.value,
+        issue_content: content.value,
+        goal_id: props.chosenGoal?.id,
+        review: null,
+        ability: content_goal.value,
+        theme: props.selectedTheme.title_full,
+        date: props.selectedDate.evaluationDate,
+        status: status,
+        user_id: memberData.value?.id,
+        mentor_id: props.evaluation?.mentor_id,
+        actions: actions.value.map((item, index) => {
+            return {
+                content: item.content,
+                learning_title: learningResources.value[index].title,
+                learning_content: learningResources.value[index].content,
+            }
+        }),
     }
+    await api.post('/save_kadai_template', params, {
+        toast: status == 2 ? '申請しました。' : '保存しました。'
+    })
+    title.value = content.value = content_goal.value = ''
+    refresh()
+    emit('close')
+
+    badge.getSalaryIssueBadge()
+    saving.value = false
+
 
 }
 const applyToManagementConfirm = async() => {
     if(!actions.value.length){
-        notify('修得要件が未入力です。')
+        ping('修得要件が未入力です。')
         return
     }
     
-    const answer = await confirm('申請後には編集ができなくなります。よろしいでしょうか？')
+    const answer = await ask('申請後には編集ができなくなります。よろしいでしょうか？')
     if(!answer.value) return
     await saveTemplate(null, 2)
 }
-const applyToManagement = async() => {
-    try{
-        attaching.value = true
-        await axios.put('/apply_kadai', {record_id: props.editData?.id})
-        refresh()
-        emit('close')
-        info('申請しました。')
-        
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally { 
-        attaching.value = false
-    }
-}
+
 const finalize = () => {
-    info('AI生成が完了しました。内容を確認してください。')
+    toast('AI生成が完了しました。内容を確認してください。')
     setTimeout(() => {
         kadaiContent.value?.$el.scrollIntoView({
             behavior: 'smooth',
@@ -606,12 +550,12 @@ const generateLearningResources = async() => {
         for(const target of validateTargets){
             const val = await target?.validate() || {valid: false}
             if(!val.valid) {
-                notify('修得要件が未入力です。')
+                ping('修得要件が未入力です。')
                 return
             }
         }
     }
-    const confirmed = await confirm('ガイドラインを生成します。\n生成後は修得要件が編集出来なくなります\nよろしいでしょうか？')
+    const confirmed = await ask('ガイドラインを生成します。\n生成後は修得要件が編集出来なくなります\nよろしいでしょうか？')
     if(!confirmed.value) return
 
     const actionsList = actions.value.map((item: any) => item.content).join('\n ')
@@ -716,7 +660,7 @@ const generateLearningResources = async() => {
                     }
                 })
             }   
-            info('ガイドラインを生成しました。内容を確認してください。')
+            toast('ガイドラインを生成しました。内容を確認してください。')
             setTimeout(() => {
                 learningResourcesParent.value?.scrollIntoView({
                     behavior: 'smooth',
@@ -729,13 +673,13 @@ const generateLearningResources = async() => {
     } catch (err) {
         if (err instanceof OpenAI.APIError) {
             if(err.status == 500){
-                notify('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                ping('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
             }else{
-                notify('AI修正に失敗しました。<br>' + err.message)
+                ping('AI修正に失敗しました。<br>' + err.message)
             }
             
         } else {
-            notify('AI修正に失敗しました。<br>' + err)
+            ping('AI修正に失敗しました。<br>' + err)
         }
 
     } finally{

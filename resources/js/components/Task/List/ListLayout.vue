@@ -34,7 +34,11 @@
                 /> 
             </div>    
         </div>
-        <FloatButton type="plus" @click="createTaskPopup = true"/>
+        <FloatButton type="plus" @click="createTaskPopup = true">
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>
         <BoardTaskCreate 
             v-if="createTaskPopup" 
             @close="closeTaskModal"
@@ -52,23 +56,20 @@
     </div>
 </template>
 <script setup lang="ts">
-import ListSortMenu from './ListSortMenu.vue'
 import ListBox from './ListBox.vue'
-import { computed, onMounted, ref, Ref, inject, watch, onUnmounted} from 'vue'
+import { computed, onMounted, ref, onUnmounted} from 'vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive'
 import { Board, Task } from '@/interface/globalInterface'
-import GanttTaskPopup from '../Gantt/GanttTaskPopup.vue'
 import FloatButton from '@/components/Global/FloatButton.vue';
 import BoardTaskCreate from '@/components/Board/Tray/Task/BoardTaskCreate.vue'
-import ItemMenu from '@/components/Global/ItemMenu.vue';
 import TaskCategorizer from '../Gantt/TaskCategorizer.vue';
 import { instance } from '@/utils/broadcaster';
-import router from '@/router';
-import axios from 'axios';
 import { useBadgeStore } from '@/store/badge';
 import { useSharingDataStore } from '@/store/sharingData';
+import AddIcon from '@/components/Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
     const props = defineProps<{
         board: Board | undefined
         isBoard: boolean
@@ -95,6 +96,7 @@ import { useSharingDataStore } from '@/store/sharingData';
     const calendarHide = ref(true)
     const activeListeners = new Set<string>();
     const badge = useBadgeStore()
+    const api = useApi()
     onMounted(() => {  
         if (props.board) {
             instance.on(`task:${props.board.id}`, socketTaskHandler)
@@ -145,13 +147,11 @@ import { useSharingDataStore } from '@/store/sharingData';
         return [...pinnedTasks, ...unpinnedTasks, ...notMyTasks];
     })
     const getBoardTasks = async() => {
-        try {
-            const response = await axios.get("/task_list", {params: { record_id: props.board?.id, user_id: selectedUser.value, progress_flag: selectedStatus.value }})
-            tasks.value = response.data
-            initialLoader.value = false
-        } catch (e) {
-            console.log(e)
-        }
+       
+        const response = await api.get("/task_list", { record_id: props.board?.id, user_id: selectedUser.value, progress_flag: selectedStatus.value })
+        tasks.value = response
+        initialLoader.value = false
+
         
     }
     const closeTaskModal = (update: boolean) => {

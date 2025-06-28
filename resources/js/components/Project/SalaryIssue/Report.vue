@@ -40,23 +40,20 @@
 import { inject, ref } from 'vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import FileUploader from '@/components/Form/FileUploader.vue';
-import axios from 'axios';
-import { Dialog } from '@/interface/globalInterface';
-import { useAuthUserStore } from '@/store/auth';
 import { File } from '@/interface/trayInterface';
 import { useBadgeStore } from '@/store/badge';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps(['chosenIssue', 'reviewing'])
 const emit = defineEmits(['close', 'reload'])
 const result = ref(props.chosenIssue?.result ?? '')
 const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
 const loading = ref([false, false, false, false])
-const auth = useAuthUserStore()
 const refresh = inject('refresh') as Function
 const uploadedFiles = ref<File[]>(props.chosenIssue?.files ?? [])
 const badge = useBadgeStore()
-const { notify, info, confirm } = inject<Dialog>('dialog')!
-
+const api = useApi()
+const { ask } = useDialog()
 const progressReport = async(status: number) => {
     const val = await resultRef.value?.validate() || {valid: false}
 
@@ -66,25 +63,24 @@ const progressReport = async(status: number) => {
     let info_message = status === 6 ? '報告' : status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
     if (status === 7 || status === 8 || status === 9) {
         let confirm_message = status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
-        const confirmResult = await confirm(`${confirm_message}しますか？`);
+        const confirmResult = await ask(`${confirm_message}しますか？`);
         if (!confirmResult.value) return;
     }
-    try {
-        loading.value[loadstatus] = true
-        const params = {
-            id: props.chosenIssue.id,
-            status: status,
-            result: result.value,
-            file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
-        }
-        await axios.put('/update_issue_report', params)
-        loading.value[loadstatus] = false
-        info(`${info_message}しました`)
-        emit('reload')
-        refresh()
-        badge.getSalaryIssueBadge()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+
+    loading.value[loadstatus] = true
+    const params = {
+        id: props.chosenIssue.id,
+        status: status,
+        result: result.value,
+        file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
     }
+    await api.put('/update_issue_report', params, {
+        toast: `${info_message}しました`
+    })
+    loading.value[loadstatus] = false
+    emit('reload')
+    refresh()
+    badge.getSalaryIssueBadge()
+
 }
 </script>

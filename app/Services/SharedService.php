@@ -156,7 +156,7 @@ class SharedService
         $tasks = taskRecord::where('board_id', $board->id)->get();
         $tasks->each(function ($task) {
             $task->delete();
-            $task->task_users()->delete();
+            $task->executors()->detach();
         });
         $board->delete();
         messageRecord::where('record_id', $board->id)->delete();

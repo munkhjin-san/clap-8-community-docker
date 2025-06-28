@@ -78,64 +78,46 @@
 </template>
 
 <script setup>      
-import axios from 'axios';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
 import RichEditor from '../../Global/RichEditor.vue';
-import { computed, inject, ref } from 'vue';
-import { useRoute } from 'vue-router';
-    const route = useRoute()
-    const { notify, info } = inject('dialog')
+import { inject, ref } from 'vue';
+import { useApi } from '@/composables/api';
     const props = defineProps(['materialId', 'summaryData'])
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
     const title = ref(props.summaryData?.title ?? '')
     const richEdit = ref(null)
     const deleted = ref([])
-    const initialValue = computed(() => {
-        return props.summaryData?.content ?? ''
-    })
     const questions = ref(props.summaryData?.questions.length ? props.summaryData.questions.map(({ id, question, content }) => ({ id, question, content })) : [
-                {
-                    id: null,
-                    question: '',
-                    content: '',
-                }
-            ])
-    const createSend = async() => {
-            // const richContent = richEdit.value.editor.getHTML()
-            processing.value = true
-            if(!title.value){
-                processing.value = false
-                return
-            }
-            try {
-                const params = {
-                    id: props.summaryData?.id ?? null,
-                    params: {
-                        lesson_material_id: props.materialId ?? props.summaryData?.lesson_material_id,
-                        title: title.value,
-                    },
-                    questions: questions.value,
-                    deleted: deleted.value
-                }
-                axios.post('/add_material_summary',params)
-                .then(response => setTimeout(() => {
-                    closeModal(true, response.data.id)
-                    info(props.editTarget ? '編集しました。' :'保存しました。')
-                },0))
-                .catch(function (error) {
-                    if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) notify('エラーが発生しました。')
-                    else notify('エラーが発生しました。 ' + error.message)      
-                    processing.value = false                    
-                });
-                
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                processing.value = false
-            }
+        {
+            id: null,
+            question: '',
+            content: '',
         }
+    ])
+    const api = useApi()
+    const createSend = async() => {
+        processing.value = true
+        if(!title.value){
+            processing.value = false
+            return
+        }
+        const params = {
+            id: props.summaryData?.id ?? null,
+            params: {
+                lesson_material_id: props.materialId ?? props.summaryData?.lesson_material_id,
+                title: title.value,
+            },
+            questions: questions.value,
+            deleted: deleted.value
+        }
+        const data = await api.post('/add_material_summary',params, {
+            toast: props.summaryData ? '編集しました。' : '保存しました。'
+        })
+        closeModal(true, data.id)
+        processing.value = false                
+    }
     const closeModal = (flag, id) => {
         processing.value = false
         emit('createFinish',flag, id);              

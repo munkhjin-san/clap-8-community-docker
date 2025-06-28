@@ -28,7 +28,6 @@ import { File } from '../../../../interface/trayInterface';
     const props = defineProps<{
         source: string, 
         file: File, 
-        imgData: string
     }>()
     const emit = defineEmits(['refresh'])
     const viewerCssTheme = ref('DARK')

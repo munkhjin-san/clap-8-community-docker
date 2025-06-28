@@ -3,7 +3,7 @@
         <div class="file-wrap" draggable="true" @dragover.prevent @dragstart.prevent="fileExportStart(file, message.record_id)" v-for="(file, index) in filteredFiles" :class="{ hasMessage: (message.message && message.message.length)}">   
             <div class="file-area-container" @click="previewFile(file, index)">
                 <div class="flex-centered">             
-                    <div v-if="!file.removed_at" style="max-width:65px;height:40px;display: flex;">                   
+                    <div style="max-width:65px;height:40px;display: flex;">                   
                         <img
                             style="max-width:100%;margin:auto;max-height:100%;" 
                             v-if="file.mime_type == 'image'"
@@ -12,7 +12,7 @@
                             loading="lazy"
                         />
                     </div>
-                    <div v-if="file.mime_type !== 'image' && !file.removed_at" style="position:relative;">
+                    <div v-if="file.mime_type !== 'image'" style="position:relative;">
                         <FileIcon :ext="file.extension"/>
                     </div>
                     <div style="line-height: 1.5;overflow: hidden;;margin-left:5px;">
@@ -40,33 +40,39 @@
     </div>
 </template>
 
-<script setup>
-    import {filesize} from "filesize";
-    import FileIcon from "../Mixed/FileIcon.vue";
-    import ConfirmWindow from "./ConfirmWindow.vue";
-    import { ref, computed, inject } from "vue";
-    import { useRouter } from "vue-router";
-    import { useFilePreview } from "@/store/filePreview";
-    import { useAuthUserStore } from '@/store/auth'
-    import { useMenuStore } from "@/store/menu";
-    import { useMessageUsers } from '@/store/messageUsers'
-    import { useSharingDataStore } from '@/store/sharingData'
-    import ItemMenu from '@/components/Global/ItemMenu.vue'
+<script setup lang="ts">
+import {filesize} from "filesize";
+import FileIcon from "../Mixed/FileIcon.vue";
+import ConfirmWindow from "./ConfirmWindow.vue";
+import { ref, computed, inject } from "vue";
+import { useRouter } from "vue-router";
+import { useFilePreview } from "@/store/filePreview";
+import { useAuthUserStore } from '@/store/auth'
+import { useMenuStore } from "@/store/menu";
+import { useMessageUsers } from '@/store/messageUsers'
+import { useSharingDataStore } from '@/store/sharingData'
+import ItemMenu from '@/components/Global/ItemMenu.vue'
+import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()    
     const menu = useMenuStore()
     const auth = useAuthUserStore()
-    const props = defineProps(['list', 'message', 'mIndex', 'unchecked'])
+    const props = defineProps<{
+        list: MessageFile[]
+        message: Message
+        mIndex?: number | undefined
+        unchecked?: boolean | undefined
+    }>()
     const fileMenuLayer = ref(0)
     const confirmWindow = ref(false)
     const currentFile = ref(null)
-    const signRequestData = ref([])
+    const signRequestData = ref<Message | null>(null)
     const requestType = ref('')
     const router = useRouter()
     const filePreview = useFilePreview()
     const file_index = ref(0)
     const filteredFiles = computed(() => {
-        const filteredFiles = []
+        const filteredFiles:MessageFile[] = []
         for(let item of props.list){
             const unsignedUsers = item.unsigned_users || [];
             const signedUsers = item.signed_users || [];
@@ -85,25 +91,8 @@
         }
         return filteredFiles
     })
-    const shareMenuItems = (file) => {
-        const list = [];
-        function addItem(title, action) {
-            list.push({ title, action });
-        }
-        const builtInApps = [
-            {name: 'board', name_jp: 'ボード'}, 
-            {name: 'knowledge', name_jp: 'ナレッジ'},
-            {name: 'nice', name_jp: 'ナイス'},
-            {name: 'challenge', name_jp: 'チャレンジ'},
-            {name: 'schedule', name_jp: 'スケジュール'}
-        ]
-        builtInApps.forEach(app => {
-            addItem(app.name_jp, () => shareTo(app.name, file))
-        });
-        return list
-    }
     const fileMenuItems = (file) => {
-        const list = []; 
+        const list:MenuList[] = []; 
         function addItem(title, action) {
             list.push({ title, action });
         }
@@ -120,7 +109,7 @@
             {name: 'schedule', name_jp: 'スケジュール'}
         ]
         
-        const shareChildren = [];
+        const shareChildren: { title: string; action: () => void; }[] = [];
         const share = { title: 'シェア', action: () => false, children: shareChildren}
         builtInApps.forEach(app => {
             share.children.push({ title: app.name_jp, action: () => shareTo(app.name, file)})
@@ -172,7 +161,7 @@
             router.push({name: to})
         }
     }
-    const canSign = (file) => {     
+    const canSign = (file:MessageFile) => {     
         const unsignedUsers = file.unsigned_users;
         if(unsignedUsers && (file.multiple_flag == 2 || file.multiple_flag == 0)){
             const includesUser = Object.values(unsignedUsers).some(user => user.id === auth.activeUser.id);
@@ -203,12 +192,12 @@
         sharingData.setSharingData(shareData)
     }
     const multipleFile = (file, index) => {
-        let select = []
+        let select = <MessageFile[]>[]
         const unsignedUsers = file.unsigned_users || [];
         const signedUsers = file.signed_users || [];
 
         const includesUser = unsignedUsers.some(user => user.id === auth.activeUser.id) ||
-            signedUsers.some(user => user.id === auth.activeUser.id);
+        signedUsers.some(user => user.id === auth.activeUser.id);
         if (file.sign_flag === 0) {
             for(let item of filteredFiles.value){
                 if(!item.original_file_id){

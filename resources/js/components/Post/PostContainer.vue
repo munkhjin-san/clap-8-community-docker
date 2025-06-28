@@ -171,7 +171,7 @@ import Charge from './Charge.vue';
 import Status from './Status.vue';
 import PostSearchWindow from './PostSearchWindow.vue'
 import PostIcon from './PostIcon.vue';
-import { computed, inject, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router'
 import { provide } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
@@ -182,11 +182,11 @@ import { useTopTags } from '@/store/topTags'
 import { instance } from '@/utils/broadcaster';
 import { onUnmounted } from 'vue';
 import Back from '../Icons/Back.vue';
+import { useApi } from '@/composables/api';
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
-    const { confirm, notify, info } = inject('dialog')
     const postList = ref([])
     const create = ref(false)
     const componentKey = ref(0)
@@ -205,6 +205,7 @@ import Back from '../Icons/Back.vue';
     const tagLoading = ref(0)
     const topTags = useTopTags()
     const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ']
+    const api = useApi()
     const records = computed(() =>{
         return postList.value && postList.value.length ? postList.value : []
     })
@@ -214,7 +215,6 @@ import Back from '../Icons/Back.vue';
     const appNameJp = computed(() => {
         return appName.value == 'challenge' ? 'チャレンジ' : appName.value == 'post' ? 'ポスト' : ''
     })
-    const viewAccordian = ref(false)
     onMounted(() => {
         if(route.meta.data && route.meta.data.length){
             postList.value = route.meta.data;
@@ -255,24 +255,14 @@ import Back from '../Icons/Back.vue';
     }
     
     const deleteRecordConfirm = async(record) => {
-        const answer = await confirm(`${appNameJp.value}を削除しますか。`)
-        if(!answer.value) return
-        postDelete(record)
-    }
-    const postDelete = (record) => {
-        axios.post('/delete_post', {
+        const data = await api.post('/delete_post', {
             path: appName.value,
             id: record.id
+        }, {
+            ask: `${appNameJp.value}を削除しますか。`,
+            toast: '削除しました。',
         })
-        .then(response => {
-            postList.value = postList.value.filter(ob => ob.id !== response.data)
-            info('削除しました。')
-        })
-        .catch(error => {
-            if (error.response) notify(error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。' + error.message)      
-        });
+        postList.value = postList.value.filter(ob => ob.id !== data)
     }
     const scrollListen = () => {
         var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);  
@@ -351,37 +341,34 @@ import Back from '../Icons/Back.vue';
         formIs.value = 1
         create.value = true
     }
-    const fetchPosts = (query, replace) => {
-        axios.post('/get_posts', {
+    const fetchPosts = async (query, replace) => {
+        const data = await api.post('/get_posts', {
             path: appName.value,
             query: query,
             skip: postList.value.length,
         })
-        .then(response => {
-            if(replace ){
-                const index = postList.value.findIndex(ob => ob.id == replace)
-                if(index > -1){
-                    postList.value[index] = response.data[0]
-                }else{
-                    postList.value.unshift(response.data[0])
-                }
+
+        if(replace ){
+            const index = postList.value.findIndex(ob => ob.id == replace)
+            if(index > -1){
+                postList.value[index] = data[0]
             }else{
-                response.data.forEach((responseItem) => {
-                    const existingPost = postList.value.find((post) => post.id === responseItem.id);
-                    if (existingPost) {
-                        Object.assign(existingPost, responseItem);
-                    } else {
-                        postList.value.push(responseItem);
-                    }
-                });
+                postList.value.unshift(data[0])
             }
-            setTimeout(() => {
-                infiniteLoader.value = false
-            }, 500);
-        })
-        .catch(error => {
-            
-        });
+        }else{
+            data.forEach((responseItem) => {
+                const existingPost = postList.value.find((post) => post.id === responseItem.id);
+                if (existingPost) {
+                    Object.assign(existingPost, responseItem);
+                } else {
+                    postList.value.push(responseItem);
+                }
+            });
+        }
+        setTimeout(() => {
+            infiniteLoader.value = false
+        }, 500);
+
     }
     const setCommentCount = (num, id) => {
         const index = postList.value.findIndex(item => item.id === id);

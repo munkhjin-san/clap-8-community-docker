@@ -54,27 +54,32 @@
     </div>
 </template>
 
-<script setup>
-import { computed, inject, ref, watch } from 'vue';
+<script setup lang="ts">
+import { computed, inject, ref } from 'vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { useAuthUserStore } from '@/store/auth'
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
+import { useBoardList } from '@/composables/board';
     const auth = useAuthUserStore()
     const props = defineProps(['message', 'requestType', 'file'])
     const emit = defineEmits(['close'])
     const processing = ref(false)
     const prepare = ref(0)
-    const board = inject('openedBoard')
-    const selectedMembers = ref([])
-    const { confirm, notify, info } = inject('dialog')
-    const {refreshMessages} = inject('boardItem')
+    const { openedBoard } = useBoardList()
+    const selectedMembers = ref<number[]>([])
+    const {refreshMessages} = inject(BoardMethodsKey) as BoardMethods
     const required = ref(false)
+    const api = useApi()
+    const { ask, ping } = useDialog()
     const prepareTypes = [
         {content: '１枚（連名）', value: 0},
         {content: '人数分（個別）', value: 1}
     ]
     const targetUsers = computed(() => {
-        let users = board.value && board.value.board_to_users ? board.value.board_to_users.map(ob => ob.user) : []
+        let users = openedBoard.value && openedBoard.value.board_to_users ? openedBoard.value.board_to_users.map(ob => ob.user) : []
         if(props.requestType == 'confirm'){
             users = users.filter(ob => ob.id !== auth.activeUser.id && ob.on_leave === 0)
         }
@@ -91,11 +96,13 @@ import { useAuthUserStore } from '@/store/auth'
         required.value = selectedMembers.value.length === 0
     }
     const checkRequest = async() => {
-        
         validateSelection()
-        if(required.value) return
+        if(required.value) {
+            ping('メンバーを選択してください。')
+            return
+        }
         const message = props.requestType == 'sign' ? 'サイン依頼をオンにします。\n選択したメンバーへサイン依頼の通知メールが送信されます。\nよろしいですか。' : '確認依頼をオンにします。\n選択したメンバーへ確認依頼の通知メールが送信されます。\nよろしいですか。'
-        const confirmed = await confirm(message)
+        const confirmed = await ask(message)
         if(!confirmed.value || processing.value) return
         processing.value = true
         let params = {
@@ -105,20 +112,17 @@ import { useAuthUserStore } from '@/store/auth'
         if(props.file){
             params['msg_file_id'] = props.file.id
             params['prepare'] = prepare.value
-            params['board_id'] = board.value.id
+            params['board_id'] = openedBoard.value?.id
         }else{
             params['msg_id'] = props.message.id
         }
-        try {
-            await axios.post('/check_request_api', params)
-            refreshMessages()
-            info('送信しました。')            
-            processing.value = false
-            emit('close')
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }finally{
-            processing.value = false
-        }
+
+        await api.post('/check_request_api', params, {
+            toast: '送信しました。',
+        })
+        refreshMessages()           
+        processing.value = false
+        emit('close')
+ 
     }
 </script>

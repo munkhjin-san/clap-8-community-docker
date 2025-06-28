@@ -18,13 +18,14 @@
     </div>
 </template>
 <script setup>
-    import { useRouter } from 'vue-router';
-    import LoaderButton from '../../Global/LoaderButton.vue';
+import { useRouter } from 'vue-router';
+import LoaderButton from '../../Global/LoaderButton.vue';
+import { inject, onBeforeMount } from 'vue';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps(['selectedTopic'])
-    import { inject, onBeforeMount } from 'vue';
     const router = useRouter()
     const portfolio = inject('portfolio')
-    const { confirm } = inject('dialog')
+    const { ask } = useDialog()
     onBeforeMount(() => {
         setTimeout(() => {
             if(portfolio && portfolio.status < 2){
@@ -36,7 +37,7 @@
         const options = {
             answers: [{label: '戻る', value: true}]
         }
-        const answer = await confirm('グループディスカッションを完了してください。', options)
+        const answer = await ask('グループディスカッションを完了してください。', options)
         if(answer.value){
             router.go(-1)
         }

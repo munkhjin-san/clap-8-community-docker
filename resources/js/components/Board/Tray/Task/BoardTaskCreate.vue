@@ -95,7 +95,7 @@
                     />
                 </div>
             </div>
-            <div class="si-box" v-if="isTask && (auth.user.position_id <= 6 || auth.activeUser.id === 610)">
+            <div class="si-box" v-if="isTask && ((auth.user && auth.user.position_id && auth.user.position_id <= 6 )|| auth.activeUser.id === 610)">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">グラウドナイン</p>
                 </div>
@@ -175,17 +175,20 @@
         </div>
     </div>   
 </template>
-<script setup>
+<script setup lang="ts">
 
-import LoaderButton from '../../../Global/LoaderButton.vue';
-import LongInput from '../../../Form/LongInput.vue';
-import MemberSelector from '../../../Form/MemberSelector.vue';
-import ShortInput from '../../../Form/ShortInput.vue';
-import { computed, inject, onMounted, ref, watch } from 'vue';
+import LoaderButton from '@/components/Global/LoaderButton.vue';
+import LongInput from '@/components/Form/LongInput.vue';
+import MemberSelector from '@/components/Form/MemberSelector.vue';
+import ShortInput from '@/components/Form/ShortInput.vue';
+import { computed, inject, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useSharingDataStore } from '@/store/sharingData'
 import OptionSelector from '@/components/Form/OptionSelector.vue';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
+import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
+import { useBoardList } from '@/composables/board';
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -200,18 +203,17 @@ import { DateTime } from 'luxon';
     }) 
     const taskEndDate = ref(endDateComp.value)
     const supervisorSelected = ref(props.editTaskData && props.editTaskData.supervisors.length ? true : false)
-    const taskMembers = ref(null)
+    const taskMembers = useTemplateRef('taskMembers')
     const taskApprover = ref(null)
     const glowdNine = ref(props.editTaskData?.glowd_nine ? true : false)
-    // const taskEndTime = ref(props.editTaskData && props.editTaskData.end_time ? props.editTaskData.end_time : '')
     const syncToSchedule = ref(props.editTaskData?.sync_to_schedule ? true : false)
     const isTask = ref(props.editTaskData && props.editTaskData.end_at ? true : false)
     const taskTitle = ref(props.editTaskData?.title ? props.editTaskData.title : '')
-    const taskTitleRef = ref(null)
+    const taskTitleRef = useTemplateRef('taskTitleRef')
     
-    const board = inject('openedBoard')
-    const {notify, info} = inject('dialog')
-    const { refreshMessages } = inject('boardItem')
+    const { openedBoard } = useBoardList()
+    const { refreshMessages } = inject(BoardMethodsKey) as BoardMethods
+    const api = useApi()
     const dateErrors = ref([])
     const tasktime = ref({
         hours: props.editTaskData && props.editTaskData.response_time ? Math.floor(props.editTaskData.response_time / 60) : 1,
@@ -264,9 +266,9 @@ import { DateTime } from 'luxon';
         }
     })
     const boardMembers = computed(() => {
-        if(board.value){
+        if(openedBoard.value){
             
-            return board.value.board_to_users.map(ob => ob.user).filter(user => user.on_leave == 0)
+            return openedBoard.value.board_to_users.map(ob => ob.user).filter(user => user.on_leave == 0)
             
         }
         return []
@@ -291,19 +293,19 @@ import { DateTime } from 'luxon';
         return boardMembers.value.length == qualified_users.value.length
     }) 
     const taskCreate = async() => {
-        const val = await taskMembers.value.validate() || {valid: false}
+        if(!openedBoard.value) return
+        const val = await taskMembers.value?.validate() || {valid: false}
         let result = true
         if(syncToSchedule.value){
-            const titleVal = await taskTitleRef.value.validate() || {valid: false}
-            console.log(titleVal)
-            result = result * titleVal.valid
+            const titleVal = await taskTitleRef.value?.validate() || {valid: false}
+            result = result && titleVal.valid
         }
-        if((!val.valid || dateErrors.length) && result) return
+        if((!val.valid || dateErrors.value.length) && result) return
         const params = {            
             qualified_users: qualified_users.value.map(ob => ob.id),
             remarks: content.value,
             task_end_date: isTask.value ? taskEndDate.value : '',
-            board_id: board.value.id,
+            board_id: openedBoard.value.id,
             edit_id: props.editTaskData ? props.editTaskData.id : null,
             supervisors: supervisorSelected.value ? supervisors.value.map(ob => ob.id) : [],
             response_time: tasktime.value,
@@ -312,17 +314,13 @@ import { DateTime } from 'luxon';
             glowd_nine: glowdNine.value,
             glowd_nine_users: glowdNineUsers.value ? glowdNineUsers.value.map(ob => ob.id) : [],
         };
-        try{
-            loading.value = true
-            await axios.post('/add_board_task', params )            
-            info('作成しました。')
-            emit('close', true)
-            loading.value = false
-            refreshMessages()
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            loading.value = false
-        }
+
+        await api.post('/add_board_task', params, {
+            toast: '作成しました。',
+            loadingRef: loading,
+        })            
+        emit('close', true)
+        refreshMessages()  
         
     }
     const selectAll = (event) => {

@@ -31,7 +31,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <template v-if="!loader.yearlyPlan">
+                    <template v-if="!loaderYP">
                         <tr v-for="data in yearlyPlanData">
                             <td class="h-cell">年度予算</td>
                             <td>
@@ -62,7 +62,7 @@
                             <CellLoader :order="num" v-for="num in 4"/>
                         </tr>
                     </template>
-                    <template v-if="!loader.profit">
+                    <template v-if="!loaderProfit">
                         <tr v-for="data in profitData">                        
                             <td class="h-cell">損益計画</td>
                             <td>
@@ -98,7 +98,7 @@
                             <CellLoader :order="num" v-for="num in 4"/>
                         </tr>
                     </template>
-                    <template v-if="!loader.settlement">
+                    <template v-if="!loaderSettlement">
                         <tr v-for="data in settlementData">
                             <td class="h-cell">実績</td>
                             <td>
@@ -143,27 +143,26 @@
 <script setup lang="ts">
 import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
 import Back from '@/components/Icons/Back.vue';
-import { DialogMethods } from '@/interface/globalInterface';
-import axios from 'axios';
 import { DateTime, MonthNumbers } from 'luxon';
-import { inject, onMounted, reactive, ref } from 'vue';
+import { inject, onMounted, ref } from 'vue';
 import { amountOfMoneyParser } from '@/utils/tools';
 import CellLoader from './Finance/CellLoader.vue';
 import { useRoute } from 'vue-router';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import DeltaNumbers from './Finance/DeltaNumbers.vue';
+import { useApi } from '@/composables/api';
 const props = defineProps<{
     userList: any;
 }>();
 const windowWidth = window.innerWidth;
 const month = ref<MonthNumbers>(DateTime.now().month)
 const year = ref(2025)
-const loader = reactive({
-    yearlyPlan: true,
-    settlement: true,
-    profit: true
-})
+
+const loaderYP = ref(true)
+const loaderSettlement = ref(true)
+const loaderProfit = ref(true)
 const route = useRoute()
+const api = useApi()
 
 interface BalanceColumn {
     sales: number;
@@ -185,60 +184,46 @@ onMounted(() => {
     getSettlement();
     getProfit();
 })
-const { notify, info, confirm } = inject('dialog') as DialogMethods
 const getYearlyPlan = async() => {
-    try{
-        loader.yearlyPlan = true
-        yearlyPlanData.value = [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
-        const response = await axios.get('/get_yearly_plan', {params: {
-            project_id: route.params.projectId,
-            month: month.value,
-            year: year.value
-        }}).then(res => res.data);
-        yearlyPlanData.value = response && Array.isArray(response) && response.length ? response : [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
-    }catch(e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }finally{
-        loader.yearlyPlan = false
-    }
+  
+   
+    yearlyPlanData.value = [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
+    const response = await api.get('/get_yearly_plan', {
+        project_id: route.params.projectId,
+        month: month.value,
+        year: year.value
+    },{
+        loadingRef: loaderYP
+    });
+    yearlyPlanData.value = response && Array.isArray(response) && response.length ? response : [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
+   
 }
 
 const getSettlement = async() => {
-    try{
-        loader.settlement = true
-        settlementData.value = [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
-        const response = await axios.get('/get_settlement', {params: {
-            project_id: route.params.projectId,
-            month: month.value,
-            year: year.value
-        }}).then(res => res.data);
-        settlementData.value = response && Array.isArray(response) && response.length ? response : [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
-    }catch(e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }finally{
-        loader.settlement = false
-    }
+
+    settlementData.value = [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
+    const response = await api.get('/get_settlement', {
+        project_id: route.params.projectId,
+        month: month.value,
+        year: year.value
+    },{
+        loadingRef: loaderSettlement
+    });
+    settlementData.value = response && Array.isArray(response) && response.length ? response : [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
+
 }
 const getProfit = async() => {
-    try{
-        loader.profit = true
-        profitData.value = [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
-        const response = await axios.get('/get_profit', {params: {
-            project_id: route.params.projectId,
-            month: month.value,
-            year: year.value
-        }}).then(res => res.data);
-        profitData.value = response && Array.isArray(response) && response.length ? response : [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
-    }catch(e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }finally{
-        loader.profit = false
-    }
-}
-const resetData = () => {
-    yearlyPlanData.value = []
-    settlementData.value = []
-    profitData.value = []
+
+    profitData.value = [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
+    const response = await api.get('/get_profit', {
+        project_id: route.params.projectId,
+        month: month.value,
+        year: year.value
+    }, {
+        loadingRef: loaderProfit
+    });
+    profitData.value = response && Array.isArray(response) && response.length ? response : [{sales: NaN, expense: NaN, profit: NaN, profit_rate: NaN}]
+
 }
 const shiftMonth = (value: number) => {
     const instance = DateTime.fromObject({year: year.value, month: month.value})

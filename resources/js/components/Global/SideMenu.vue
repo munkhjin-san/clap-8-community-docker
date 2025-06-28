@@ -113,6 +113,7 @@
                 <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 10px 20px 20px 20px;">   
                     <router-link v-if="!auth.isPartner && !auth.isRegistered" class="login-link jump-link" style="cursor: pointer;font-size: 15px;display: flex;align-items: center;" to="/notice">お知らせ<span v-if="badge.notice" style="position: unset;width: fit-content;margin-left: 5px;" class="side-notification">{{ badgeFilter(badge.notice)}}</span> </router-link>             
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" to="/support/faq">サポートデスク</router-link>
+                    <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'survey-answers'}">フォーム</router-link>
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'settings'}">設定</router-link>
                     <router-link v-if="auth.isPartner" class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'asset-partner'}">物品</router-link>
                     <!-- <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{path: route.fullPath, query: {remind: true} }">リマインダー表示</router-link> -->

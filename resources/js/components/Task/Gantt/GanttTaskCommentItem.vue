@@ -17,12 +17,12 @@
 </template>
 <script setup lang="ts">
 import { TaskComment } from '@/interface/globalInterface';
-import { computed, inject, ref, useTemplateRef } from 'vue';
+import { inject, ref, useTemplateRef } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import {  GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
 import UserPanel from '@/components/Global/UserPanel.vue';
-import axios from 'axios';
 import { DateParser } from '@/utils/tools';
+import { useApi } from '@/composables/api';
 const auth = useAuthUserStore()
     const props = defineProps<{
         comment: TaskComment
@@ -39,35 +39,30 @@ const auth = useAuthUserStore()
             emit('edit', props.comment.id)
         } 
     }
+    const api = useApi()
     const update = async() => {
         const newVal = element.value?.innerText
         if(newVal){
             if(sending.value){
                 return
             }
-            sending.value = true
-            axios.put('/task_comment_update', { 
+            api.put('/task_comment_update', { 
                 id: props.comment.id,
                 comment: newVal
-            }).then( res => {
-                refreshProject({})
-
-            }).finally(() => {
-                sending.value = false
-                emit('edit', null)
+            }, {
+                loadingRef: sending
             })
+        
+            refreshProject({})
+            emit('edit', null)            
         }
     }
     const remove = async() => {
-        axios.delete('/task_comment', { 
-            params: {
-                id: props.comment.id
-            }
-        }).then( res => {
-            refreshProject({})
-
-        }).finally(() => {
-            emit('edit', null)
+        api.del('/task_comment', { 
+            id: props.comment.id
+            
         })
+        refreshProject({})
+        emit('edit', null)  
     }
 </script>

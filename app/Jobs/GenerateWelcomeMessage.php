@@ -60,13 +60,10 @@ class GenerateWelcomeMessage implements ShouldQueue
                     ],
                 ],
             ],
-            'tools' => [
-                'google_search_retrieval' => [
-                    'dynamic_retrieval_config' => [
-                        'mode' => 'MODE_DYNAMIC',
-                        'dynamic_threshold' => 0,
-                    ],
-                ],
+            "tools" => [
+                [
+                    "google_search" => (object)[]
+                ]
             ],
             'generationConfig' => [
                 'temperature' => 1,
@@ -78,7 +75,7 @@ class GenerateWelcomeMessage implements ShouldQueue
         ];
     
         // Send request
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key=$apiKey";
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey";
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($url, $payload);

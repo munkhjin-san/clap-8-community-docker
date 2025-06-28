@@ -214,6 +214,8 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { customParser, urlCheck } from '@/utils/tools';
 import PostIcon from './PostIcon.vue';
+import { useApi } from '@/composables/api';
+import { DateTime } from 'luxon';
     const props = defineProps(['appName', 'appTitle'])
     const emit = defineEmits(['closePostSearch'])
     const keyword = ref('')
@@ -241,6 +243,7 @@ import PostIcon from './PostIcon.vue';
     const targetUsers = ref([])
     const postAdvancedSearch = ref(null)
     const responsive = useResponsive()
+    const api = useApi()
     const result = computed(() => {
         return searchResult.value        
     })
@@ -286,16 +289,16 @@ import PostIcon from './PostIcon.vue';
     const isMultipleUsers = (item) => {
         return responsive.mobile && item && item.to_users && item.to_users.length > 1
     }
-    const status = computed(() => {
-        if (props.record.app_type !== 2) return;
+    const status = (record) => {
+        if (record.app_type !== 2) return;
         const statusMap = {
-            0: DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち',
+            0: DateTime.now() <= customParser(record.date_end) ? '実施中' : '結果待ち',
             1: '達成',
             2: '未達成',
             3: '中止'
         };
-        return statusMap[props.record.status_flag];
-    });
+        return statusMap[record.status_flag];
+    }
     const tagInfinite = () => {
         var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);   
         if(percent > 99 && !infineLock.value){
@@ -383,16 +386,12 @@ import PostIcon from './PostIcon.vue';
         isFocusing.value++
         getSearchHistory()
     }
-    const getSearchHistory = () => {
+    const getSearchHistory = async() => {
         const inputSearch = postAdvancedSearch.value
         const text = inputSearch.value
-        axios.post('/get_history', {key: text}).then(response => {       
-            searchHistory.value = response.data
-        }).catch(function (error) {
-
-        }).then(() => {
-            selectedHistory.value = -1
-        });
+        const data = await api.post('/get_history', {key: text})    
+        searchHistory.value = data
+        selectedHistory.value = -1      
     }
     const setActivePage = (page) => {
         searchPageIndex.value = page
@@ -427,12 +426,12 @@ import PostIcon from './PostIcon.vue';
             getFeaturedTags([], 'first')
         }
     }
-    const getFeaturedTags = (tags, sub_param) => {
+    const getFeaturedTags = async(tags, sub_param) => {
         infineLock.value = true
         const inputSearch = postAdvancedSearch.value
         const text = inputSearch.value
         var keyList = text.split(/[\u{20}\u{3000}]/u); 
-        axios.post('/get_featured_tags',{
+        const data = await api.post('/get_featured_tags',{
             app_name: props.appName, 
             tags: tags, 
             offset: tagOffset.value,
@@ -441,18 +440,16 @@ import PostIcon from './PostIcon.vue';
             target_users: targetUsers.value.map(ob => ob.id),
             from: fromDate.value,
             to: toDate.value
-        }).then(response => {  
-            usedTags.value = response.data      
-            if(!usedTags.value.length){
-                selectedTags.value = [];
-            } 
-    
-        }).catch(function (error) {
+        })
 
-        }).then(() => {
-            infineLock.value = false
-            searchState.value = sub_param
-        });
+        usedTags.value = data      
+        if(!usedTags.value.length){
+            selectedTags.value = [];
+        } 
+
+        infineLock.value = false
+        searchState.value = sub_param
+
     }
     const referrerFilter = (link) => {
         var str_lenght = link.length;
@@ -473,7 +470,7 @@ import PostIcon from './PostIcon.vue';
         return r
     }
     
-    const getPostSearch = (index) => {
+    const getPostSearch = async(index) => {
         searchPageIndex.value = index
         const inputSearch = postAdvancedSearch.value
         isFocusing.value = 0
@@ -494,19 +491,16 @@ import PostIcon from './PostIcon.vue';
             from: fromDate.value,
             to: toDate.value
         }
-        axios.post('/post_advanced_search?page=' + index, params).then(response => {  
-            searchResult.value = response.data.data
-            possiblePage.value = response.data.last_page
-            resultCount.value = response.data.total
-            getFeaturedTags(selectedTags.value, 'afterSearch')            
-    
-        }).catch(function (error) {
+        const data = await api.post('/post_advanced_search?page=' + index, params)
 
-        }).then(() => {
-            searchMiniLoader.value = false
-            searchAppendLoader.value = false 
-            fetchCount.value ++
-        });
+        searchResult.value = data.data
+        possiblePage.value = data.last_page
+        resultCount.value = data.total
+        getFeaturedTags(selectedTags.value, 'afterSearch')          
+        searchMiniLoader.value = false
+        searchAppendLoader.value = false 
+        fetchCount.value ++
+      
     }
     const jumpToRecord = (item) => {
         let appName;

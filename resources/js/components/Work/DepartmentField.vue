@@ -36,12 +36,13 @@ import { useAuthUserStore } from '@/store/auth'
 import LoaderButton from '../Global/LoaderButton.vue'
 import ItemSelector from '../Form/ItemSelector.vue';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
 const workGroups = inject('workGroups')
 const auth = useAuthUserStore()
 const props = defineProps(['shiftForDepartment'])
 const emit = defineEmits(['close'])
 const loading = ref(false)
-
+const api = useApi()
 
 const workGroupAsOptions = computed(() => {
     let filteredgroups
@@ -64,13 +65,10 @@ const departmentAdd = async() => {
         id: props.shiftForDepartment.id,
         department_id: todayWorkGroup.value
     }
-    loading.value = true
-    try {
-        await axios.put('/shift_add_department', params)
-        loading.value = false
-        emit('close')
-    } catch (e) {
+    await api.put('/shift_add_department', params, {
+        loadingRef: loading
+    })
+    emit('close')
 
-    }
 }
 </script>

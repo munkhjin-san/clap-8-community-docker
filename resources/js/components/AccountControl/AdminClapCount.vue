@@ -62,11 +62,13 @@ import ShortInput from '../Form/ShortInput.vue';
 import { onMounted, ref, watch } from 'vue';
 import { mkConfig, generateCsv, download } from "export-to-csv";
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
 
     const clapData = ref([])
     const startDate = ref('2020-12-01')
     const endDate = ref(DateTime.now().toISODate())
     const fetch = ref(0)
+    const api = useApi()
 
     onMounted(async() => {
         await allClapData()
@@ -77,7 +79,7 @@ import { DateTime } from 'luxon';
     })
 
     const allClapData = async() => {
-        clapData.value = await axios.post('/clap_statistics',{start:startDate.value, end: endDate.value}).then( response => response.data);   
+        clapData.value = await api.post('/clap_statistics',{start:startDate.value, end: endDate.value});   
     }
     const downloadCSV = () => {
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `【${startDate.value} - ${endDate.value}】クラップ数集計`});

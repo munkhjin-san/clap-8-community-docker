@@ -66,12 +66,14 @@
     </div>
 </template>
 <script setup>
-    import { useRoute, useRouter } from 'vue-router';
-    import LoaderButton from '../../Global/LoaderButton.vue';
-    import LongInput from '../../Form/LongInput.vue';
-    import ShortInput from '../../Form/ShortInput.vue';
-    import { ref, inject } from 'vue'
-    import OpenAiReview from '../../Global/OpenAiReview.vue'
+import { useRoute, useRouter } from 'vue-router';
+import LoaderButton from '../../Global/LoaderButton.vue';
+import LongInput from '../../Form/LongInput.vue';
+import ShortInput from '../../Form/ShortInput.vue';
+import { ref, inject } from 'vue'
+import OpenAiReview from '../../Global/OpenAiReview.vue'
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps(['selectedTopic', 'materials'])
     const content = ref('')
     const portfolioBody = ref(null)
@@ -81,8 +83,9 @@
     const lesson = inject('getLessonPortfolios')
     const portfolio = inject('portfolio')
     const portfolio_title = ref('')
-    const { notify, info, confirm } = inject('dialog')
     const reviewEl = ref(null)
+    const api = useApi()
+    const { ask, ping, toast } = useDialog()
     const savePortfolio = async(status) => {
         const result = await portfolioBody.value.validate()
         if(result.valid){
@@ -96,31 +99,27 @@
                     ai_review_pre: reviewEl.value?.reviewResultRaw,
                 }
             }
-            try{
-                await axios.post('/save_lesson_portfolio', params)
-                if(status == 0){
-                    info(props.editTarget ? '編集しました。' :'保存しました。')
-                    loading.value[status] = false
-                }
-                lesson()
-            }catch (error){
-                if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-                else if (error.request) notify('エラーが発生しました。')
-                else notify('エラーが発生しました。 ' + error.message)   
+
+            await api.post('/save_lesson_portfolio', params)
+            if(status == 0){
+                toast(props.editTarget ? '編集しました。' :'保存しました。')
+                loading.value[status] = false
             }
+            lesson()
+
         }
     }
 
     const finishPortfolio = async() => {
         if(props.selectedTopic.assistant_id && !reviewEl.value?.reviewResultRaw){
-            notify('基礎知識研修を完了する前、AI分析してください。')
+            ping('基礎知識研修を完了する前、AI分析してください。')
             return
         }
         const valid = await reviewEl.value?.validate()
         if(props.selectedTopic.assistant_id && !valid){
             return
         }
-        const answer = await confirm('基礎知識研修を完了にしますか。\n完了後は編集ができません。')
+        const answer = await ask('基礎知識研修を完了にしますか。\n完了後は編集ができません。')
         if(!answer.value) return  
         await savePortfolio(1)
         setTimeout(() => {                    
@@ -132,7 +131,7 @@
         const options = {
             answers: [{label: 'OK', value: true}]
         }
-        const answer = await confirm('基礎知識研修完了しました。\nお疲れ様でした。', options)
+        const answer = await ask('基礎知識研修完了しました。\nお疲れ様でした。', options)
         if(answer.value){
             loading.value[1] = false
             await lesson()                     

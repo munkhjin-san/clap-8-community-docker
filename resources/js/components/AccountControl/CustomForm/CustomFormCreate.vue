@@ -2,7 +2,7 @@
 <template>
     <Modal @close="emit('close', false)">
         <template #title>
-            <p>{{ params?.id ? `アンケートを編集する` : `アンケートを作成する`}}</p>
+            <p>{{ params?.id ? `フォームを編集する` : `フォームを作成する`}}</p>
         </template>
         <template #content>
             <div class="si-box">
@@ -16,7 +16,7 @@
                     v-model="params.title"
                 />                
             </div>
-            <div class="si-box">
+            <div class="si-box" v-if="props.range == 'all'">
                 <MemberSelector 
                     :initialValue="params.admins" 
                     ref="adminSelectorRef"
@@ -28,7 +28,7 @@
                 />
                 <span class="text-[gray] text-[12px]">※フォームの回答は管理者のみ閲覧可能です。「システム管理者含む」</span>
             </div>
-            <div class="my-[50px]">
+            <div class="si-box" v-if="props.range == 'all'">
                 <p>対象者選択</p>
                 <div class="mt-[20px]">
                     <GroupSelector v-model="params.users" place-holder="グループ・プロジェクトから選択"/>
@@ -45,6 +45,50 @@
                     />
                     <span class="text-[gray] text-[12px]">※フォームのURLはどなたでもアクセス可能ですが、回答は対象者のみ必須となります。</span>
                 </div>
+            </div>
+            <div class="si-box" v-if="props.range == 'board' && boardUsers">
+                <div class="my-[15px]">
+                    <div class="switchLabel">
+                        <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">全員選択</p>
+                    </div>
+                    <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                        <input @change="selectAll" :checked="params.users?.length && params.users?.length == boardUsers.length ? true : false" type="checkbox" id="edit_all">
+                        <label for="edit_all" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                        
+                    </div>  
+                </div>
+                <div class="mt-[20px]">
+                    <MemberSelector 
+                        :initialValue="params.users" 
+                        ref="userSelectorRef"
+                        placeHolder="対象者"
+                        name="users"
+                        :options="boardUsers"
+                        :multiple="true"
+                        v-model="params.users"
+                    />
+                    <span class="text-[gray] text-[12px]">※フォームのURLはどなたでもアクセス可能ですが、回答は対象者のみ必須となります。</span>
+                </div>
+            </div>
+
+            <div class="si-box">
+                <p class="text-[14px]">繰り返し設定</p>
+                <div class="mt-[15px] flex flex-wrap gap-[15px]">
+                    <label v-for="rp in [{value: 0, label: '1回のみ'}, {value: 1, label: '毎月'}]" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer" :key="rp.value">
+                        <input class="custom-f-radio" type="radio" v-model="params.repeat_setting" :value="rp.value"/>
+                        {{ rp.label }}
+                    </label>
+                </div>
+                <div class="mt-[20px]" v-if="params.repeat_setting == 1">
+                    <p class="text-[14px]">回答開始日（リマインドが表示される日）</p>
+                    <select v-model="params.repeat_day" class="custom-a-input mt-[15px]" >
+                        <option v-for="day in 31">{{ day }}</option>
+                    </select>
+                </div>
+
+
             </div>
 
             <div class="si-box">
@@ -134,7 +178,7 @@
 <script setup lang="ts">
 import Modal from '@/components/Global/Modal.vue';
 import { CustomForm, CustomFormBlock, CustomFormBlockType, CustomFormUser } from '@/interface/customFormInterface';
-import { inject, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import CustomCheckbox from '@/components/Form/CustomElements/CustomCheckbox.vue'
 import { useMenuStore } from '@/store/menu';
@@ -146,23 +190,29 @@ import CustomMultiText from '@/components/Form/CustomElements/CustomMultiText.vu
 import CustomSelect from '@/components/Form/CustomElements/CustomSelect.vue';
 import CustomFile from '@/components/Form/CustomElements/CustomFile.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import axios from 'axios';
-import { DialogMethods, User } from '@/interface/globalInterface';
-import { DialogKey } from '@/interface/keys';
 import { useSortable, moveArrayElement } from '@vueuse/integrations/useSortable'
 import RichEditor from '@/components/Global/RichEditor.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import GroupSelector from '@/components/Form/GroupSelector.vue';
 import { useAuthUserStore } from '@/store/auth';
+import 'styles/customForm.css'
+import { useApi } from '@/composables/api';
+import { Board } from '@/interface/globalInterface';
 const props = defineProps<{
     editData: CustomForm | null
+    range: 'all' | 'board'
+    board?: Board
 }>()
 const emit = defineEmits<{
     close: [flag: boolean]
 }>()
 const auth = useAuthUserStore()
 const richEdit = ref<typeof RichEditor | null>(null)
-const { confirm, info, notify } = inject('dialog') as DialogMethods;
+
+const boardUsers = computed(() => {
+    if(!props.board) return []
+    return props.board.board_to_users.map( u => u.user)
+})
 
 const blockTypes:{label:string, value: CustomFormBlockType}[] = [
     {label: 'チェックボックス', value: 'checkbox'}, 
@@ -183,10 +233,13 @@ const params = reactive<CustomForm>({
     description: '',
     blocks: [],
     users: [],
-    admins: [],
+    admins: props.board ? props.board.board_to_users.filter( u => u.admin_flag == 1 ).map(u => u.user) as CustomFormUser[] : [],
+    repeat_setting: 0,
+    repeat_day: 1,
+    board_record_id: props.board ? props.board.id : null,
 })
 const sortParent = useTemplateRef('sortParent')
-
+const api = useApi()
 onMounted(() => {
     if(props.editData && props.editData?.id){
         Object.assign(params, props.editData)
@@ -247,16 +300,21 @@ const saveForm = async() => {
         block.order_number = index + 1
     })
     
-    try {
-        await axios.post('/save_custom_form', {
-            ...params,
-            removed_items: removedItems.value
-        })
-        info('保存しました。')
-        emit('close', true)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }   
+    await api.post('/save_custom_form', {
+        ...params,
+        removed_items: removedItems.value
+    }, {
+        toast: '保存しました。'
+    })
+    emit('close', true)
+}
+const selectAll = () => {
+    if(!props.board) return
+    if(params.users?.length == boardUsers.value.length){
+        params.users = []
+    }else{
+        params.users = boardUsers.value as CustomFormUser[]
+    }
 }
 </script>
 

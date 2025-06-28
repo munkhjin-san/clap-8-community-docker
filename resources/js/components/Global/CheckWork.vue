@@ -33,13 +33,14 @@
     </div>
 </template>
 <script setup>
-    import { onMounted, computed, ref, provide } from 'vue';
-    import WorkNotSubmitted from '../Work/WorkNotSubmitted.vue';
-    import { useRoute } from 'vue-router';
-    import { useAuthUserStore } from '@/store/auth';
-    import { getCustomFields, getWorkGroup } from '../../utils/workApi';
+import { onMounted, computed, ref, provide } from 'vue';
+import WorkNotSubmitted from '../Work/WorkNotSubmitted.vue';
+import { useRoute } from 'vue-router';
+import { useAuthUserStore } from '@/store/auth';
+import { getCustomFields, getWorkGroup } from '../../utils/workApi';
 
-    import { DateTime, Interval } from 'luxon';
+import { DateTime, Interval } from 'luxon';
+import { useApi } from '@/composables/api';
     const auth = useAuthUserStore()
     const shiftNotSubmittedList = ref([])
     const nextShiftNotSubmittedList = ref([])
@@ -47,6 +48,7 @@
     const workGroups = ref([])
     const customFieldData = ref([])
     const route = useRoute()
+    const api = useApi()
     onMounted(() => {
         if(!auth.isRegistered && !auth.isOnLeave){
             getNotSubmitted()
@@ -66,12 +68,8 @@
         }
     }
     const checkNextMonthShift = async() => {
-        try {
-            const data = await axios.get('/next_month_shift').then(res => res.data)
-            nextShiftNotSubmittedList.value = data
-        } catch (e) {
-
-        }
+        const data = await api.get('/next_month_shift')
+        nextShiftNotSubmittedList.value = data
     }
     const checkworkShow = computed(() =>{
         const hasItems =
@@ -84,21 +82,17 @@
         return route.query && route.query.user_id
     })
     const fetchDatas = async() => {
-        try{
-            workGroups.value = await getWorkGroup()
-            customFieldData.value = await getCustomFields()
-        }catch (e){
-            notify(e?.message || 'エラーが発生しました。') 
-        }
+    
+        workGroups.value = await getWorkGroup()
+        customFieldData.value = await getCustomFields()
+
     } 
     const getNotSubmitted = async() => {
-        try{
-            const data = await axios.get('/not_submitted').then(res => res.data)
-            timecardNotSubmittedList.value = data.timecard_notSubmitted
-            shiftNotSubmittedList.value = data.shift_notSubmitted
-        } catch (e) {
+  
+        const data = await api.get('/remind_attendance')
+        timecardNotSubmittedList.value = data.timecard_notSubmitted
+        shiftNotSubmittedList.value = data.shift_notSubmitted
 
-        }
     }
     provide('checkWork', {
         nextMonthShift: () => checkNextMonthShift(),

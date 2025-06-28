@@ -42,16 +42,17 @@
 import LoaderButton from '../Global/LoaderButton.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import LongInput from '../Form/LongInput.vue';
-import { computed, inject, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { customParser } from '@/utils/tools';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
     const props = defineProps(['record'])
     const emit = defineEmits(['close'])
-    const { notify } = inject('dialog')
     const selected = ref(props.record ? props.record.status_flag : 0)
     const uploadedFiles = ref(props.record.result_files && props.record.result_files.length ? props.record.result_files : [])
     const resultMessage = ref(props.record.result ? props.record.result : '')
     const processing = ref(false)
+    const api = useApi()
     const statuses = computed(() => {           
         return [
             { id: 0, state : DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち' },
@@ -61,21 +62,18 @@ import { DateTime } from 'luxon';
         ]           
     })
     const update = async() => {
-        try{
-            processing.value = true
-            const params = {
-                id: props.record.id,
-                status: selected.value,
-                result: resultMessage.value,
-                resultFiles: uploadedFiles.value.map(ob => ob.id)
-            }
-            await axios.post('post_status_update',params)
-            emit('close', props.record.id)
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            processing.value = false
+        const params = {
+            id: props.record.id,
+            status: selected.value,
+            result: resultMessage.value,
+            resultFiles: uploadedFiles.value.map(ob => ob.id)
         }
+        await api.post('post_status_update', params, {
+            toast: 'ステータスを更新しました。',
+            loadingRef: processing,
+        })
+        emit('close', props.record.id)
+
     }
     const selectStatus = (id) => {
         selected.value = id

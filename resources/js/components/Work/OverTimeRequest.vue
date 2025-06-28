@@ -68,6 +68,8 @@ import LongInput from '../Form/LongInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue'
 import { useAuthUserStore } from '@/store/auth';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const statuses = ['差戻中', '申請中', '承認済']
 const auth = useAuthUserStore()
 const props = defineProps(['data'])
@@ -77,12 +79,12 @@ const loading = ref(false)
 const overTimeHour = ref(null)
 const overTimeMinute = ref(null)
 const overtimeContent = ref(null)
-const { info, notify, confirm } = inject('dialog')
 const overtime = ref({
     hours: 0,
     minutes: 0
 })
-
+const api = useApi()
+const { ask, ping } = useDialog()
 const fetchShiftDataTable = inject('fetchShiftDataTable')
 onMounted(() => {
     if(target.value){
@@ -120,11 +122,11 @@ const send = async() => {
         result = result * val.valid
     }
     if (!result) return
-    const confirmed = target.value && target.value.status == 2 ? await confirm('「承認済み」の残業時間を編集すると、ステータスが「申請中」に戻ります。よろしいでしょうか。') : {value: true}
+    const confirmed = target.value && target.value.status == 2 ? await ask('「承認済み」の残業時間を編集すると、ステータスが「申請中」に戻ります。よろしいでしょうか。') : {value: true}
     if (!confirmed.value) return
     const minutes = overtime.value.hours * 60 + overtime.value.minutes
     if(!minutes){
-        notify('残業時間は必須です')
+        ping('残業時間は必須です')
         return
     }
     const params = {
@@ -136,30 +138,26 @@ const send = async() => {
         overtime_day: props.data.shift.shift_day
     }
     loading.value = true
-    try{
-        await axios.post('/request_overtime', params).then(res => res.data)
-        await fetchShiftDataTable()
-        info('申請しました。')
-        emit('close', true)
-    } catch (e) { 
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally {
-        loading.value = false
-    }
+    await api.post('/request_overtime', params, {
+        toast: '申請しました。',
+    })
+    await fetchShiftDataTable()
+    emit('close', true)
+
+    loading.value = false
+    
     
 }
 const deleteRequest = async() => {
-    const answer = await confirm('残業申請を削除しますか。')
-    if(!answer.value) return
-    try{
-        await axios.delete(`/request_overtime?id=${target.value.id}`).then(res => res.data)
-        await fetchShiftDataTable()
-        info('削除しました。')
-        emit('close', true)
-    } catch (e) { 
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally {
-        loading.value = false
-    }
+
+    await api.del(`/request_overtime`, {
+        id: target.value.id,
+    }, {
+        toast: '残業申請を削除しますか。',
+        ask: '削除しますか？',
+    })
+    await fetchShiftDataTable()
+    emit('close', true)
+    loading.value = false
 }
 </script>

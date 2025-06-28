@@ -106,7 +106,11 @@
             <GanttTaskComment v-if="commentingTask" :task="commentingTask" @close="commentView = null" />
         </Transition>
 
-        <FloatButton @action="createTask({})" v-if="project" type="plus" />
+        <FloatButton @action="createTask({})" v-if="project" >
+            <template #icon>
+                <AddIcon size="15" fill="black"/>
+            </template>
+        </FloatButton>
         <Transition name="modalFade">
             <GanttFullText :data="quickEdit" v-if="quickEdit.id && project"
                 @close="Object.assign(quickEdit, { id: null, text: '', editable: false })" />
@@ -129,15 +133,14 @@ import { VueFlow, useVueFlow, type Node, type Edge, VueFlowStore, MarkerType, Ed
 import CustomEdge from '@/components/Task/Gantt/CustomEdge.vue'
 import { Handle, Position } from '@vue-flow/core'
 import { GanttProjectMethodsKey } from '@/interface/keys';
-import { computed, ref, onMounted, reactive, provide, inject, useTemplateRef, watch, onUnmounted } from 'vue';
+import { computed, ref, onMounted, reactive, provide, inject, useTemplateRef, onUnmounted } from 'vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import { useRoute, useRouter } from 'vue-router';
-import { DateTime, DateTimeUnit, Interval } from "luxon";
+import { DateTime, Interval } from "luxon";
 import { Project, QuickEditText, SubTaskPreData, VirtualSpan } from '@/interface/projectInterface';
 import GanttFullText from '@/components/Task/Gantt/GanttFullText.vue';
 import GanttTaskComment from '@/components/Task/Gantt/GanttTaskComment.vue';
-import axios from 'axios';
-import { Dialog, Task } from '@/interface/globalInterface';
+import { Task } from '@/interface/globalInterface';
 import TaskCreate from '@/components/Task/TaskCreate.vue';
 import TaskCategorizer from '@/components/Task/Gantt/TaskCategorizer.vue';
 import SubTaskControl from '@/components/Task/SubTaskControl.vue';
@@ -147,6 +150,8 @@ import { useAuthUserStore } from '@/store/auth'
 import TaskSpanSelector from '@/components/Task/Gantt/TaskSpanSelector.vue';
 import DateBlock from '@/components/Task/Gantt/DateBlock.vue';
 import { useResponsive } from '@/store/responsive'
+import AddIcon from '@/components/Form/AddIcon.vue';
+import { useApi } from '@/composables/api';
 const props = defineProps<{
     userList: any;
 }>();
@@ -159,7 +164,7 @@ const quickEdit = reactive<QuickEditText>({
     id: <number | null>null,
     editable: false,
 })
-
+const api = useApi()
 const responsive = useResponsive()
 const commentView = ref<number | null>(null)
 const route = useRoute()
@@ -182,7 +187,6 @@ const subPreData = reactive<SubTaskPreData>({
     active: false
 })
 const preData = reactive<Partial<Task>>({})
-const { notify, info, confirm } = inject<Dialog>('dialog')!;
 const units = ['year', 'month', 'day'] as const;
 const selectedUser = ref<number | null>(null)
 const selectedStatus = ref<number>(-1)
@@ -501,8 +505,8 @@ const drawInitalTodayLine = () => {
 const getTask = async (load?: number) => {
     loading.value = true
     const id = route.params.projectId
-    project.value = await axios('/get_gantt_project_tasks', { params: { id: id, user_id: selectedUser.value, progress_flag: selectedStatus.value } }).then(res => res.data.project)
-
+    const data = await api.get('/get_gantt_project_tasks', { id: id, user_id: selectedUser.value, progress_flag: selectedStatus.value } )
+    project.value = data.project
     loader.value++
     loading.value = false
     if (project.value && load == 0) {
@@ -534,19 +538,12 @@ const remove = async (task: Task) => {
     if (task.parent_task_id) {
         pattern = 'サブタスク'
     }
-    const answer = await confirm(`${pattern}を削除しますか。`)
-    if (!answer.value) return
-
-    try {
-        axios.delete(`/task_item`, { params: { task_id: task.id } }).then(() => {
-            getTask()
-        })
-        info('削除しました。')
-        badge.getTaskBadge()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-
+    await api.del(`/task_item`, { task_id: task.id }, {
+        ask: `${pattern}を削除しますか？`,
+        toast: `${pattern}を削除しました。`,
+    })
+    getTask()
+    badge.getTaskBadge()
 }
 
 const linkClick = (edgeMouseEvent: EdgeMouseEvent) => {

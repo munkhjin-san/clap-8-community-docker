@@ -360,9 +360,8 @@ import LongInput from '@/components/Form/LongInput.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import PartnerSelector from '@/components/Form/PartnerSelector.vue';
-import { computed, inject, onMounted, reactive, ref, toRaw, useTemplateRef } from 'vue';
-import axios from 'axios';
-import { DialogMethods, Task } from '@/interface/globalInterface';
+import { computed, onMounted, reactive, ref, toRaw, useTemplateRef } from 'vue';
+import { Task } from '@/interface/globalInterface';
 import { ComponentExposed } from 'vue-component-type-helpers';
 import { Project } from '@/interface/projectInterface';  
 import SampleTask from '@/components/Task/Gantt/SampleTask.vue';
@@ -382,9 +381,13 @@ import AiLoader from '@/components/Global/AiLoader.vue';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
 import ProjectIndustryTypes from 'assets/ProjectIndustryTypes.json'
 import AiIcon from '@/components/Icons/AiIcon.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
+const api = useApi()
+const {ask, ping, toast } = useDialog()
 const loading = ref(false)
 const taskCreating = ref(false)
 const misoCreating = ref(false)
@@ -460,8 +463,6 @@ const serviceCategoryRef = useTemplateRef('serviceCategoryRef')
 const industryTypeRef = useTemplateRef('industryTypeRef')
 const serviceCategories = ProjectServiceCategories
 
-const { notify, info, confirm} = inject('dialog') as DialogMethods
-
 const managerOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id <= 6)
 })
@@ -533,7 +534,7 @@ const validation = async() => {
     return result
 }
 const managerValidation = async() => {
-    if (!projectManager.value) return
+    if (!projectManager.value) return false
 
     const val = await projectManager.value?.validate() || { valid: false}
 
@@ -546,14 +547,14 @@ const createProject = async() => {
     const managerValidate = await managerValidation()
 
     if(!validate || !managerValidate) {
-        notify('必須項目を入力してください。')
+        ping('必須項目を入力してください。')
         return
     }
     const membersIds = projectParams.members?.map((member: { id: number; }) => member.id) ?? []
     const managerIds = projectParams.manager?.map((manager: { id: number; }) => manager.id) ?? []
     const checkDuplicated = membersIds.filter((id: number) => managerIds.includes(id))
     if(checkDuplicated.length > 0){
-        notify('メンバーと管理者に同じユーザーが含まれています。')
+        ping('メンバーと管理者に同じユーザーが含まれています。')
         return
     }
 
@@ -563,26 +564,21 @@ const createProject = async() => {
         tasks: generatedTasks.value
     }
     loading.value = true
-    try {
-        const response = await axios.post('/create_project', params)
-
-        info('保存しました。')
+    const data = await api.post('/create_project', params, {
+        toast: '保存しました。',
+    })
+    if(data){
         emit('close')
-        loading.value = false
-        
         emit('getProjects')
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        loading.value = false
-
     }
+    loading.value = false
 }
 const generateTasks = async() => {
     // const validate = await validation()
     const managerValidate = await managerValidation()
     if(!managerValidate) return
     if (!projectParams.mission && !projectParams.innovation && !projectParams.strategy_miso && !projectParams.operation) {
-        notify('タスクを生成するには、ミッション、イノベーション、ストラテジー、オペレーションのいずれかが必要です。')
+        ping('タスクを生成するには、ミッション、イノベーション、ストラテジー、オペレーションのいずれかが必要です。')
         return
     }
     try {
@@ -672,13 +668,13 @@ const generateTasks = async() => {
             console.log(err.status); 
             console.log(err); 
             if(err.status == 500){
-                notify('タスクの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                ping('タスクの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
             }else{
-                notify('タスクの自動生成に失敗しました。>' + err?.message)
+                ping('タスクの自動生成に失敗しました。>' + err?.message)
             }
             
         } else {
-            notify('タスクの自動生成に失敗しました。<br>' + err)
+            ping('タスクの自動生成に失敗しました。<br>' + err)
         }
         taskCreating.value = false
     }
@@ -734,10 +730,8 @@ const instruction = (val:string) => {
     不足情報がある場合は、AIが具体的に追加質問を行います。
     
     注意事項
-    テキストフォーマットはMarkdown形式で記述してください。ただし、
-    ・太文字やボルドやheadingを使わない。
-    ulの場合は、・を使って箇条書きを行ってください。
-    olの場合は、数字を使って箇条書きを行ってください。
+    テキストフォーマットはMarkdown形式で記述してください。
+    500文字以内で記述してください。
     よけな付け足すをしないでください。例: プロジェクト名や期間そしてプロジェクトの${val}などを記載しない
     文書はあまり長くせず少し要点をまとめた文章にしてください。
     `
@@ -748,10 +742,8 @@ const descriptionInstruction = `
 プロジェクトの概要は、プロジェクトの目的、背景、目標
 など、プロジェクトの全体像を示す内容を含めてください。
     注意事項
-    テキストフォーマットはMarkdown形式で記述してください。ただし、
-    ・太文字やボルドやheadingを使わない。
-    ulの場合は、・を使って箇条書きを行ってください。
-    olの場合は、数字を使って箇条書きを行ってください。
+    テキストフォーマットはMarkdown形式で記述してください。
+    500文字以内で記述してください。
     よけな付け足すをしないでください。例: プロジェクト名や期間そして「プロジェクトの概要」などを記載しない
 `
 
@@ -774,13 +766,13 @@ const generateAutoText = async(index:string, indexVal:string) => {
         result = result && val.valid
     }
     if(!result){
-        notify('必須項目を入力してください。')
+        ping('必須項目を入力してください。')
         return
     }
 
     let confirmed = {value: true}
     if(projectParams[indexVal]){
-        confirmed = await confirm('既存の内容は上書きされます。よろしいですか？')
+        confirmed = await ask('既存の内容は上書きされます。よろしいですか？')
     }
     if(!confirmed.value){
         return
@@ -852,7 +844,7 @@ const generateAutoText = async(index:string, indexVal:string) => {
         }
     } catch (e) {
         console.error(e);
-        notify('自動生成に失敗しました。')
+        ping('自動生成に失敗しました。')
 
     } finally{
         inputLoading[indexVal] = false
@@ -875,7 +867,7 @@ const shiftStep = async(from: number, to: number) => {
         valid = valid && val.valid
     }
     if(!valid){
-        notify('必須項目を入力してください。')
+        ping('必須項目を入力してください。')
         return
     }
     step.value = to

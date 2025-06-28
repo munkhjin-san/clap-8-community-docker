@@ -15,6 +15,7 @@
                 @keyup.enter="triggerSearch" 
                 @keyup="setKeyWord"
                 @keydown="setSelected"
+                ref="advancedSearchInput"
                 id="advancedSearchInput" 
                 class="searchInputArea"
                 style="padding:3px 10px;width:100%;color:inherit"
@@ -72,7 +73,7 @@
                     
                     <BoardIcon size="30" :item="boardItem(board.id)"/>
                     <div style="max-width:80%">
-                        <BoardTitlePreLoad :item="boardItem(board.id)" titleStyle="margin-left:5px;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;"/>  
+                        <BoardTitle :item="boardItem(board.id)" titleStyle="margin-left:5px;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;"/>  
                     </div>
                     
                     <span style="margin-left:auto;white-space: nowrap;">({{board.occurence}}件)</span>
@@ -94,35 +95,55 @@
 </div>
 </template>
 
-<script setup>
-import BoardTitlePreLoad from '../Mixed/BoardTitle.vue'
+<script setup lang="ts">
+import BoardTitle from '../Mixed/BoardTitle.vue'
 import BoardIcon from '../Mixed/BoardIcon.vue'
 import PostSearchPager from '../../Post/PostSearchPager.vue'
 
 import LoaderButton from '../../Global/LoaderButton.vue';
-import { computed, inject, onMounted, watch, ref } from 'vue';
-import { useAuthUserStore } from '@/store/auth'
+import { computed, onMounted, watch, ref, useTemplateRef } from 'vue';
 import { DateParser, urlCheck } from '@/utils/tools';
 import UserPanel from '@/components/Global/UserPanel.vue'
-    const auth = useAuthUserStore()
+import { useApi } from '@/composables/api';
+import { Board, User } from '@/interface/globalInterface';
+    interface MessageResult {
+        id: number,
+        user_id: number
+        record_id: number
+        created_at: string
+        message: string
+        message_text: string
+        user: User
+    }
+    interface BoardResult {
+        id: number;
+        occurence: number;
+    }
+    interface messageResult {
+        data: MessageResult[]
+        total: number
+        currentPage: number
+        totalPage: number
+        board_list: BoardResult[]
+    }
 
-    const props = defineProps([
-        'advancedSearchWord',
-        'filteredAllBoard',
-        'privateSearch'
-    ])
+    const props = defineProps<{
+        advancedSearchWord: string;
+        filteredAllBoard: Board[]
+        privateSearch: boolean;
+    }>()
     const emit = defineEmits(['closeMessageSearch', 'jumpToMessage'])
 
     const keyword = ref('')
     const resultGroupBy = ref('all')
-    const searchResultGroupBy = ref([])
+    const searchResultGroupBy = ref<Board[]>([])
     const resultSortDateReverse = ref(false)
     const searchHistory = ref([])
     const isFocusing = ref(false)
     const selectedHistory = ref(-1)
     const searchLoader = ref(false)
     const searchMiniLoader = ref(false)
-    const messageResult = ref({
+    const messageResult = ref<messageResult>({
         data: [],
         total: 0,
         currentPage: 1,
@@ -130,27 +151,13 @@ import UserPanel from '@/components/Global/UserPanel.vue'
         board_list: []
     })
     const targetedSearch = ref(false)
-    const targetBoards = ref([])
+    const targetBoards = ref<BoardResult[]>([])
     const fetched = ref(false)
-    const board = inject('openedBoard')
-    const { confirm, notify, info } = inject('dialog');
-  
+    const api = useApi()
+    const advancedSearchInput = useTemplateRef('advancedSearchInput')
     const searchTitle = computed(() => {       
         return '検索結果'                
-    })
-    const boardTitle = computed(() => {       
-        if(!board.value) return ''     
-        if(board.value.private_flag == 1 && board.value.board_to_users.length == 2){
-            var coresspondId = board.value.board_to_users.filter(obj => obj.user_id !== auth.activeUser.id);
-            if(coresspondId && coresspondId.length && coresspondId[0].user){
-                return coresspondId[0].user.name;
-            }else{
-                return '非アクティブユーザー'
-            }
-        }else{
-            return board.value.title;
-        }           
-    })    
+    }) 
     const viewBoardList = computed(() =>{
         return messageResult.value.board_list
         
@@ -159,24 +166,24 @@ import UserPanel from '@/components/Global/UserPanel.vue'
         return messageResult.value.totalPage
     })
     const allResult = computed(() => {                
-        let list = [];
+        let list: MessageResult[] = [];
         const fetched_list = messageResult.value && messageResult.value.data ? messageResult.value.data : []
         fetched_list.forEach( (item) => {
             list.push(item)
         });
         return list
-    })
+    })  
     
 
         
     watch(() => resultSortDateReverse, (after) => {
         if(after){                    
             searchResultGroupBy.value.forEach((board, index) => {
-                board.messages.sort((a,b) => (a.created_at > b.created_at) ? 1 : ((b.created_at > a.created_at) ? -1 : 0))
+                board.messages?.sort((a,b) => (a.created_at > b.created_at) ? 1 : ((b.created_at > a.created_at) ? -1 : 0))
             });                    
         }else{                    
             searchResultGroupBy.value.forEach((board, index) => {
-                board.messages.sort((a,b) => (a.created_at < b.created_at) ? 1 : ((b.created_at < a.created_at) ? -1 : 0))
+                board.messages?.sort((a,b) => (a.created_at < b.created_at) ? 1 : ((b.created_at < a.created_at) ? -1 : 0))
             });
         }
     })
@@ -185,10 +192,10 @@ import UserPanel from '@/components/Global/UserPanel.vue'
         if(!props.privateSearch){
             keyword.value = props.advancedSearchWord
         }
-        // targetedSearch.value = props.privateSearch
         targetedSearch.value = false
         setTimeout(() =>{
-            document.getElementById('advancedSearchInput').value = props.advancedSearchWord;
+            const el = advancedSearchInput.value as HTMLInputElement
+            el.value = props.advancedSearchWord;
         },0)
         getMessageSearch(keyword.value)
         window.addEventListener('click', onClickSearch);
@@ -199,49 +206,45 @@ import UserPanel from '@/components/Global/UserPanel.vue'
     const messageUserName = (message) => {                
         return message.user.deleted_at == null ? message.user.name : '非アクティブユーザー'
     }
-    const boardItem = (id) => {
-        return props.filteredAllBoard && props.filteredAllBoard.filter(ob => ob.id == id).length ? props.filteredAllBoard.filter(ob => ob.id == id)[0] : null
+    const boardItem = (id:number) => {
+        return props.filteredAllBoard.filter(ob => ob.id == id)[0]
     }
-    const getMessageSearch = async(key, val, val2) => {
+    const getMessageSearch = async(key, val?, val2?) => {
         if(searchLoader.value || searchMiniLoader.value || !key) return
         
-            searchLoader.value = true
-        
-            searchMiniLoader.value = true
-            const record_id = targetBoards.value.length ? targetBoards.value[0].id : null
+        searchLoader.value = true
+    
+        searchMiniLoader.value = true
+        const record_id = targetBoards.value.length ? targetBoards.value[0].id : null
         if(val == -1){
             const reset = {
                 data: [],
                 total: 0,
                 currentPage: 1,
-                totalPage: 0
+                totalPage: 0,
+                board_list: []
             }
             messageResult.value = reset
         }
-        try{
-            const data = await axios.post('/message_search',{
-                keyword: key,
-                private_flag: targetedSearch.value,
-                record_id: record_id,
-                index: messageResult.value.currentPage
-            }).then(response => response.data)
-            if(data.data){
-                messageResult.value = data  
-            }
 
-            searchLoader.value = false;
-            searchMiniLoader.value = false;  
-            selectedHistory.value = -1;
-            if(val2){
-                groupByBoard()
-            } 
-            fetched.value = true
-        } catch(e){
-            console.log('aaaaaaaaa')
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            searchLoader.value = false;
-            searchMiniLoader.value = false;  
+        const data = await api.post('/message_search',{
+            keyword: key,
+            private_flag: targetedSearch.value,
+            record_id: record_id,
+            index: messageResult.value.currentPage
+        })
+        if(data.data){
+            messageResult.value = data  
         }
+
+        searchLoader.value = false;
+        searchMiniLoader.value = false;  
+        selectedHistory.value = -1;
+        if(val2){
+            groupByBoard()
+        } 
+        fetched.value = true
+  
 
     }
     const setActivePage = (page) => {
@@ -255,18 +258,17 @@ import UserPanel from '@/components/Global/UserPanel.vue'
     const searchFocus = () => {
         isFocusing.value = true
     }
-    const triggerSearch = () =>{
+    const triggerSearch = (event: Event) =>{
         event.preventDefault()
         if(isFocusing.value && selectedHistory.value !== -1){
-            let input = document.getElementById('advancedSearchInput')
-            input.value = searchHistory.value[selectedHistory.value].content
-            keyword.value = searchHistory.value[selectedHistory.value].content
+            let input = advancedSearchInput.value as HTMLInputElement  
+            keyword.value = input.value
             input.blur()
             getMessageSearch(keyword.value, -1)
             isFocusing.value = false
         }else{
             
-            let input = document.getElementById('advancedSearchInput')
+            let input = advancedSearchInput.value as HTMLInputElement  
             keyword.value = input.value
             input.blur()
             getMessageSearch(keyword.value, -1)
@@ -274,59 +276,48 @@ import UserPanel from '@/components/Global/UserPanel.vue'
 
         }
     }
-    const onClickSearch = () => {
+    const onClickSearch = (event) => {
+        const target = event.target as HTMLElement
         const el = document.getElementById('historyWrapWindow')
         const input = document.getElementById('advancedSearchInput')
-        if(el && input && !el.contains(event.target) && !input.contains(event.target) && isFocusing.value){
+        if(el && input && !el.contains(target) && !input.contains(target) && isFocusing.value){
             isFocusing.value = false
         }
 
     }
-    const setSelected = () => {
-        if(event.which === 27){
+    const setSelected = (event: KeyboardEvent) => {
+        if(event.key === 'esc'){
             isFocusing.value = false;
             selectedHistory.value = -1;
-            document.getElementById('advancedSearchInput').value = '';
-            document.getElementById('advancedSearchInput').blur();
-            keyword.value = '',
-            searchHistory.value = []
+            const input = advancedSearchInput.value as HTMLInputElement
+            input.value = '';
+            input.blur();
+            keyword.value = ''
             return
         } 
-        if(event.which === 38 || event.which === 40){
+        if(event.key === 'ArrowUp' || event.key === 'ArrowDown'){
             event.preventDefault()
             
             if(isFocusing.value && searchHistory.value.length){
-                if(event.which === 38){
+                if(event.key === 'ArrowUp' ){
                     selectedHistory.value = selectedHistory.value <= 0 ? searchHistory.value.length - 1 : selectedHistory.value - 1                     
                 }
-                if(event.which === 40){//dooshoo                        
+                if(event.key === 'ArrowDown'){//dooshoo                        
                     selectedHistory.value = selectedHistory.value == searchHistory.value.length - 1 ? 0 : selectedHistory.value + 1                                                     
                 } 
             }
             
         }
     }
-    const setKeyWord = () => {
-        
-        if(event.which === 38 || event.which === 40 || event.which === 13){
-            
-            event.preventDefault()
-            
-            return
-            
+    const setKeyWord = (event:KeyboardEvent) => {        
+        if(event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter'){
+            event.preventDefault()            
+            return           
         }
         else{
-            keyword.value = event.currentTarget.value
-        }
-        
-    }
-    const setKeyWordFromHistory = (val) => {
-        const input = document.getElementById('advancedSearchInput')
-        input.value = val
-        input.blur()
-        keyword.value = val
-        isFocusing.value = false
-        getMessageSearch(keyword.value, -1)
+            const input = event.currentTarget as HTMLInputElement
+            keyword.value = input.value
+        }        
     }
     const resetTargetSearch = () => {
         targetBoards.value = [];
@@ -348,13 +339,7 @@ import UserPanel from '@/components/Global/UserPanel.vue'
         emit('closeMessageSearch')
     }
     const groupByBoard = () => {
-        let boards = [];
-        for(const id in messageResult.value.board_list){
-            const item = props.filteredAllBoard.filter(ob => ob.id == id)
-            if(item.length){
-                boards.push(item[0])
-            }
-        }
+        let boards = props.filteredAllBoard.filter(ob => messageResult.value.board_list.map( item => item.id).includes(ob.id))        
         searchResultGroupBy.value = boards
         resultGroupBy.value = 'board'
     }

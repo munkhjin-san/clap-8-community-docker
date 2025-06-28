@@ -15,4 +15,7 @@ class SurveyAnswer extends Model
     public function user(){
         return $this->belongsTo(User::class, 'user_id')->select('id', 'name', 'email', 'icon_path', 'icon_bg');
     }
+    public function custom_form(){
+        return $this->belongsTo(CustomForm::class, 'custom_form_id');
+    }
 }

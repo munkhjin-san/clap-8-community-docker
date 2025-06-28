@@ -40,23 +40,29 @@
     </div>                                       
 </template>
 
-<script setup>
-import { computed, inject, onMounted, onUnmounted, ref } from 'vue';
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import WeatherIcon from '../Global/WeatherIcon.vue';
+import { useApi } from '@/composables/api';
+import { User } from '@/interface/globalInterface';
     const props = defineProps(['data'])
+    interface Instant {
+        found: boolean;
+        user: User
+    }
     const emit = defineEmits(['resetInstantUser'])
     const auth = useAuthUserStore()
-    const info = ref(null)
+    const userData = ref<Instant | null>(null)
     const skLoader = ref(true)
     const inviteLock = ref(false)
-    const { notify } = inject('dialog')
-    const instantProfileWindow = ref(null)
+    const instantProfileWindow = useTemplateRef('instantProfileWindow')
     const top = ref('auto')
     const left = ref('auto')
     const right = ref('auto')
     const opacity = ref(0)
+    const api = useApi()
     onMounted(async() => {
         document.addEventListener('mouseup', clickHandle)
         document.addEventListener('touchend', clickHandle)        
@@ -68,10 +74,10 @@ import WeatherIcon from '../Global/WeatherIcon.vue';
         document.removeEventListener('touchend', clickHandle)
     })
     const user = computed(() => {
-        return info.value ? info.value.user : null
+        return userData.value ? userData.value.user : null
     })
     const found = computed(() => {
-        return info.value ? info.value.found : false
+        return userData.value ? userData.value.found : false
     })
     const clickHandle = (event) => {
         const cont1 = instantProfileWindow.value;    
@@ -81,37 +87,30 @@ import WeatherIcon from '../Global/WeatherIcon.vue';
     }
     const getInstantUser = async(el) => {
 
-        try{
-            info.value = await axios.post('/get_instant_user', {id: props.data.id, name: props.data.name}).then(response => response.data)
-            setTimeout(() => {
-                skLoader.value = false
-            },100)
-            const windowWidth = window.innerWidth;
-            const cX = props.data.cX
-            const cY = props.data.cY
-            let menuRect = el.getBoundingClientRect()                
-            top.value = '-3000px';
-            left.value = '-3000px';                
-            top.value = cY - menuRect.height - 15 + 'px'
-            left.value = cX - (menuRect.width / 2) + 'px'
-            if(cX + ((menuRect.width / 2) + 10) > windowWidth){
-                right.value = '10px';
-                left.value = 'auto'
-            }
-            else if(cX - (menuRect.width / 2) < 0 ){
-                right.value = 'auto';
-                left.value = '10px'
-            }            
-            if(cY - menuRect.height - 10 < 0){                    
-                top.value = cY + 10 + 'px'                    
-            }
-            opacity.value = 1            
-
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+        userData.value = await api.post('/get_instant_user', {id: props.data.id, name: props.data.name})
+        setTimeout(() => {
+            skLoader.value = false
+        },100)
+        const windowWidth = window.innerWidth;
+        const cX = props.data.cX
+        const cY = props.data.cY
+        let menuRect = el.getBoundingClientRect()                
+        top.value = '-3000px';
+        left.value = '-3000px';                
+        top.value = cY - menuRect.height - 15 + 'px'
+        left.value = cX - (menuRect.width / 2) + 'px'
+        if(cX + ((menuRect.width / 2) + 10) > windowWidth){
+            right.value = '10px';
+            left.value = 'auto'
         }
-        
-        
+        else if(cX - (menuRect.width / 2) < 0 ){
+            right.value = 'auto';
+            left.value = '10px'
+        }            
+        if(cY - menuRect.height - 10 < 0){                    
+            top.value = cY + 10 + 'px'                    
+        }
+        opacity.value = 1          
     }     
 
 </script>

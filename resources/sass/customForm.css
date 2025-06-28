@@ -86,3 +86,33 @@
 .invalid-file-input {
     border: solid thin tomato;
 }
+.custom-a-input{
+    font-size: 13px;
+    padding: 5px 10px;
+    width: fit-content;
+    border: solid thin var(--formBorder);
+    transition: border 0.2s;
+    resize: none;
+    width: fit-content;
+    color: var(--primary-color);
+}
+input[type='text'].custom-a-input{
+    width: 50%;
+}
+
+textarea.custom-a-input{
+    min-height: 150px;
+    width: 50%;
+}
+.custom-a-input:focus{
+    border: solid thin var(--primary-color);
+}
+
+@media screen and (max-width: 959px) {
+    input[type='text'].custom-a-input{
+        width: -webkit-fill-available;
+    }
+    textarea.custom-a-input{
+        width: -webkit-fill-available;
+    }
+}

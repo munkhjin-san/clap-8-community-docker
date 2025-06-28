@@ -66,7 +66,7 @@
     </div>  
 </template>
 <script setup>
-import { inject, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useMenuStore } from '@/store/menu';
 import LessonCreate from './LessonCreate.vue';
@@ -74,8 +74,11 @@ import AssistantCreate from './AssistantCreate.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import OpenAI from 'openai';
 import SummaryCreate from './SummaryCreate.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps(['theme'])
-const { confirm } = inject('dialog')
+const api = useApi()
+const { ask, ping, toast } = useDialog()
 const route = useRoute()
 const createWindow = ref(false)
 const createAssistantWindow = ref(false)
@@ -90,7 +93,10 @@ onMounted(() => {
 })
 const lessons = ref([])
 const getLesson = async() => {
-    lessons.value = await axios.get(`/get_lessons?lesson_theme_id=${route.params.themeId}`).then(response => response.data)
+    const data = await api.get('/get_lessons', {   
+        lesson_theme_id: route.params.themeId
+    })
+    data && (lessons.value = data)
 }
 const editLesson = (lesson) => {
     editTarget.value = lesson
@@ -108,11 +114,12 @@ const createFinish = (reload) => {
     }
     
 }
-const deleteConfirm = async(id) => {    
-    const answer = await confirm('削除しますか。')
-    if(!answer.value) return
-    await axios.delete(`/lesson_remove_record?id=${id}`) 
-    getLesson()              
+const deleteConfirm = async(id) => {     
+    const data = await api.del('/lesson_remove_record', {id: id}, {
+        ask: '削除しますか？',
+        toast: '削除しました。'
+    })            
+    data && getLesson()
 }
 const editAssistant = async(lesson) => {
     editTarget.value = lesson
@@ -127,7 +134,7 @@ const editAssistant = async(lesson) => {
             
         }
         catch(e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+            ping(e.response?.data.message || e?.message || 'エラーが発生しました。')
         }finally{
             initialLoader.value = null
         }
@@ -142,10 +149,11 @@ const editSummary = (summary) => {
     summaryData.value = summary
     createSummary.value = true
 }
-const deleteSummary = async(id) => {
-    const answer = await confirm('削除しますか。')
-    if(!answer.value) return
-    await axios.delete(`/lesson_remove_summary?id=${id}`) 
-    getLesson()              
+const deleteSummary = async(id) => {     
+    const data = await api.del('/lesson_remove_summary', {id: id}, {
+        ask: '削除しますか？',
+        toast: '削除しました。'
+    })
+    data && getLesson()   
 }
 </script>

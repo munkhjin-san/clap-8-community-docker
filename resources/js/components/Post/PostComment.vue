@@ -67,6 +67,7 @@ import Comment from './Comment.vue';
 import { defineAsyncComponent, inject, nextTick, onMounted, provide, ref } from 'vue'
 import 'vue3-emoji-picker/css'
 import { useMenuStore } from "@/store/menu";
+import { useApi } from '@/composables/api';
     const menu = useMenuStore()
     const props = defineProps(['record', 'app_name'])
     const { commentCount } = inject('postComment')
@@ -77,37 +78,35 @@ import { useMenuStore } from "@/store/menu";
     const typeArea = ref(null)
     const container = ref(null)
     const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
-    const { confirm, notify } = inject('dialog')
+    const api = useApi()
     onMounted(() => {
         load('mounted')
     })
    
     const load = async(from) => {
-        try{
-            const response = await axios.post('get_post_comments',{ 
-                record_id: props.record.id, 
-                app_name: props.app_name
-            })     
-            comments.value = response.data   
-            if(from == 'mounted' || from == 'self'){
-                 
-                nextTick(() => {                   
-                    var cont = container.value
-                    cont.scrollTop = cont.scrollHeight               
-                });  
-            }        
-            fetch.value ++       
-            if(props.record.comments_count !== response.data.length){
-                commentCount(response.data.length, props.record.id)
-            } 
-        }
-        catch (e) {
-            notify(e)
-        }finally{           
-            return 'ok'
-        }       
+        
+        const response = await api.post('get_post_comments',{ 
+            record_id: props.record.id, 
+            app_name: props.app_name
+        })     
+        comments.value = response   
+
+        if(from == 'mounted' || from == 'self'){
+                
+            nextTick(() => {                   
+                var cont = container.value
+                cont.scrollTop = cont.scrollHeight               
+            });  
+        }        
+        fetch.value ++       
+        if(props.record.comments_count !== response.length){
+            commentCount(response.length, props.record.id)
+        }   
+    
+        return 'ok'
+             
     }
-    provide('reload', load)
+
 
     const selectEmoji = (emoji) => {       
         var a = typeArea.value.textContent
@@ -118,14 +117,14 @@ import { useMenuStore } from "@/store/menu";
         caretPosition.value = caretPosition.value + 2;
     }    
     const commentDeleteConfirm = async(id) =>{        
-        const answer = await confirm('コメントを削除しますか。')
-        if(!answer.value) return                    
-        commentDelete(id)
-    }
-    const commentDelete = async(id) => {             
-        await axios.post('post_comment_delete', {id: id})
-        load()              
-    }      
+        await api.post('post_comment_delete', {id: id}, {
+            
+            ask: 'コメントを削除しますか。',
+            toast: 'コメントを削除しました。'
+
+        })
+        load()
+    }  
          
             
     const caretPos = () => {
@@ -149,17 +148,13 @@ import { useMenuStore } from "@/store/menu";
         caretPosition.value = caretOffset        
     }
     const commentSend = async (recordId) => {     
-        try{
-            sendLoader.value = true;         
-            const params = { message : typeArea.value.textContent , app_name: props.app_name, record_id: recordId}; 
-            await axios.post('post_comment_add', params )
-            typeArea.value.innerHTML  = ''        
-            sendLoader.value = false;     
-            load('self')  
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-            sendLoader.value = false;    
-        }       
+
+        sendLoader.value = true;         
+        const params = { message : typeArea.value.textContent , app_name: props.app_name, record_id: recordId}; 
+        await api.post('post_comment_add', params )
+        typeArea.value.innerHTML  = ''        
+        sendLoader.value = false;     
+        load('self')     
                            
     }
     const enterSend = (event) => {
@@ -167,7 +162,7 @@ import { useMenuStore } from "@/store/menu";
             commentSend(props.record.id)
         }
     }
-
+    provide('reload', load)
 </script>
 <style lang="scss" scoped>
 .post-no-comment-text{

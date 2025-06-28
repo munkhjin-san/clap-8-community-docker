@@ -83,27 +83,25 @@
 import UserIconEdit from './UserEditComps/UserIconEdit.vue';
 import HamBurger from '../Global/HamBurger.vue'
 import 'swiper/css'
-import Autolinker from 'autolinker';
-import { computed, inject, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
-import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import UserPortfolio from './UserPortfolio.vue';
 import UserPortfolioEdit from './UserPortfolioEdit.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { urlCheck } from '@/utils/tools';
+import { useApi } from '@/composables/api';
     const router = useRouter()
-    const menu = useMenuStore()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
-    const { notify } = inject('dialog')
     const route = useRoute()
     const showModalContent = ref(false)
     const showSettingModalContent = ref(false)
     const UserAllData = ref(null)
     const clapData = ref(null)
     const editingPortfolio = ref(null)
+    const api = useApi()
     const userPortfolio = computed(() => {
         return UserAllData.value.portfolio.filter(data => data.status == 3)
     })
@@ -113,29 +111,21 @@ import { urlCheck } from '@/utils/tools';
     const updateUser = async(targetId) => {
         const id = targetId ? targetId : UserAllData.value ? UserAllData.value.id : null
         if(!id) return
-        try{
-            const response = await axios.post('/profile_get_update_user', {id: id})
-            if(response.data && Object.hasOwn(response.data, 'id')){
-                UserAllData.value = response.data
-                if(UserAllData.value.id == auth.id){
-                    auth.setUser(response.data)
-                }
-            }  
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+  
+        const data = await api.post('/profile_get_update_user', {id: id})
+        if(data && Object.hasOwn(data, 'id')){
+            UserAllData.value = data
+            if(UserAllData.value.id == auth.id){
+                auth.setUser(data)
+            }
+        }  
+
     }
     const getClaps = async(targetId) => {
         const id = targetId ? targetId : UserAllData.value ? UserAllData.value.id : null
         if(!id) return
-        try{
-            const response = await axios.post('/get_user_claps', {id: id})
-            if(response.data){
-                    clapData.value = response.data
-                }
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+        const data = await api.post('/get_user_claps', {id: id})     
+        data && (clapData.value = data)    
     }
     const closeModal = () => {
         showModalContent.value = false;

@@ -4,15 +4,12 @@
                 <Transition name="searchHide">
                 <BoardSearchBar 
                     v-if="searchView"
-                    :allBoardList="filteredAllBoard" 
                     @openBoard="openTargetBoard"
                     @openMessageSearch="openMessageSearch"
                 />
                 </Transition>
                 <BoardList 
-                    v-show="!responsive.mobile || (responsive.mobile && route.name == 'board')"
-                    :list="filteredAllBoard"   
-                    :openedBoard="openedBoard"     
+                    v-show="!responsive.mobile || (responsive.mobile && route.name == 'board')"  
                     :failedMessagesList="failedMessagesList"  
                     :key="listKey"  
                 />
@@ -68,6 +65,7 @@
             <TrayComponent
                 v-if="openedBoard && !responsive.mobile"
                 :key="trayComponentKey" 
+                :board="openedBoard"
                 :trayItemWhich="trayItemWhich"
                 @setTrayItem="setTrayItem"
                 @jumpToMessage="jumpMessageFromFile"
@@ -102,9 +100,9 @@
     <!-- </Transition> -->
     </template>
     
-<script setup>
+<script setup lang="ts">
 import BoardList from './BoardList.vue'
-import { defineAsyncComponent, onMounted, onUnmounted, watch, computed, nextTick, ref, provide, inject, onBeforeUnmount } from 'vue'
+import { onMounted, onUnmounted, watch, computed, nextTick, ref, provide, onBeforeUnmount, useTemplateRef } from 'vue'
 import TrayComponent from './Tray.vue'
 import BoardSearchBar from './Search/BoardSearchBar.vue'
 import InviteMember from './InviteMember.vue'
@@ -129,6 +127,11 @@ import CopyWindow from './Message/CopyWindow.vue'
 import ConfirmWindow from './Message/ConfirmWindow.vue'
 import { instance } from '@/utils/broadcaster'
 import { useKeyboardStore } from '@/store/keyboardStore'
+import { useApi } from '@/composables/api'
+import { useDialog } from '@/composables/dialog'
+import { useBoardList } from '@/composables/board'
+import { Board, CopyData, Message, UnreadMessages } from '@/interface/globalInterface'
+import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
     const badge = useBadgeStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -139,27 +142,21 @@ import { useKeyboardStore } from '@/store/keyboardStore'
     const urlMessage = useUrlMessage()
     const urlTaskEdit = useUrlTaskEdit()
     const skeleton = useSkeleton()
-    // const BoardDetails = defineAsyncComponent(() => import('./BoardDetails.vue'))
-    // const SearchMessage = defineAsyncComponent(() => import('./Search/SearchMessage.vue'))
-    // const BoardEdit = defineAsyncComponent(() => import('./BoardEdit.vue'))
-    // const CopyWindow = defineAsyncComponent(() => import('./Message/CopyWindow.vue'))
-    // const ConfirmWindow = defineAsyncComponent(() => import('./Message/ConfirmWindow.vue'))
     const route = useRoute()
     const router = useRouter()
     const mainLoader = ref(false)
-    const allBoardList = ref([])
-    const activeEditBoard = ref(null)
+    const allBoardList = ref<Board[]>([])
+    const activeEditBoard = ref<Board | null>(null)
     const pageIndex = ref(1)
     const pageLimiter = ref(false)
-    const messageList = ref([])
-    const openedBoardId = ref(null)
-    const copyData = ref(null)
+    const messageList = ref<Message[]>([])
+    const copyData = ref<CopyData | null>(null)
     const checkRequestData = ref(null)
     const microLoader = ref(false)
     const currentLen = ref(0)
     const infiniteLock = ref(false)
     const messageContainerKey = ref(0)
-    const queuedMessages = ref([])
+    const queuedMessages = ref<Message[]>([])
     const messageLoader = ref(true)
     const failedMessagesList = ref([])
     const trayComponentKey = ref(1999)
@@ -172,8 +169,8 @@ import { useKeyboardStore } from '@/store/keyboardStore'
     const scrllDir = ref('up')
     const appendLock = ref(false)
     const trayItemWhich = ref(-1)
-    const detailedBoard = ref(null)
-    const unreadMessages = ref({
+    const detailedBoard = ref<Board | null>(null)
+    const unreadMessages = ref<UnreadMessages>({
         active: false,
         id: null,
         count: 0
@@ -182,40 +179,42 @@ import { useKeyboardStore } from '@/store/keyboardStore'
     const searchView = ref(true)
     const inviteTarget = ref(null)
     const newBoardWindow = ref(false)
-    const viewingMembersOf = ref(null)
+    const viewingMembersOf = ref<number | null>(null)
     const requestType = ref('')
     const routeWatchLock = ref(false)
-    const messageContainerRef = ref(null)
-    const { confirm, notify, info } = inject('dialog');
+    const messageContainerRef = useTemplateRef('messageContainerRef')
     const keyboardStore = useKeyboardStore()
-    const activeListeners = new Set();
+    const activeListeners = new Set<string>();
+    const api = useApi()
+    const { toast, ask } = useDialog()
+    const { openedBoard, setList, boardList } = useBoardList()
     watch(() => focused.active, (after) => {
-        if(after){
-            if(openedBoard.value && badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[openedBoard.value.id]){
-                setTimeout(()=>{
+        if(after){            
+            setTimeout(()=>{
+                if(openedBoard.value && badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[openedBoard.value.id]){
                     badge.updateBoardBadge(openedBoard.value.id)
-                },3000)
-            }
+                }
+            },3000)            
         }
     })
-    watch(() => badge.activeUsersBoardBadge, (after) => {   
-        if(focused.active && openedBoard.value && after[openedBoard.value.id]){
-            setTimeout(() =>{
+    watch(() => badge.activeUsersBoardBadge, (after) => {          
+        setTimeout(() =>{
+            if(focused.active && openedBoard.value && after[openedBoard.value.id]){
                 badge.updateBoardBadge(openedBoard.value.id)
-            },3000)
-        }                    
+            }   
+        },3000)                         
     })
     watch(() => route.params.chatId, (chatId) => {
-        if(messageContainerRef.value.resetUnread){
-            messageContainerRef.value.resetUnread()
-        } 
+        if (messageContainerRef.value && (messageContainerRef.value as any).resetUnread) {
+            (messageContainerRef.value as any).resetUnread();
+        }
         if(chatId){
-            const targetBoard = filteredAllBoard.value.filter(ob => ob.id == chatId)             
+            const targetBoard = filteredAllBoard.value.find(ob => ob.id === Number(chatId))          
             if(routeWatchLock.value){
                 return
             }
-            if(targetBoard.length){
-                openBoard(targetBoard[0], 'watch')   
+            if(targetBoard){
+                openBoard(targetBoard, 'watch')   
             }
         }else{
             closeMessageContainer()
@@ -227,17 +226,20 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         menu.setMenu( {name: '', id: null})
     })        
     onUnmounted(() => {        
-        if(navigator.virtualKeyboard){
-            navigator.virtualKeyboard.removeEventListener('geometrychange', keyboardHeightListener);
-        }    
+        const Navigator: any = navigator;    
+        if(Navigator.virtualKeyboard){
+            Navigator.virtualKeyboard.removeEventListener('geometrychange', keyboardHeightListener);
+        }
         instance.off('refresh:board', updateBoardHandler)    
         clearListeners()
     })
     onMounted(() => {
         const trayIndex = localStorage.getItem('favorite_tray');
         trayItemWhich.value = trayIndex ? parseInt(trayIndex) : 1
-        if(navigator.virtualKeyboard){
-            navigator.virtualKeyboard.addEventListener('geometrychange', keyboardHeightListener);
+
+        const Navigator: any = navigator; 
+        if(Navigator.virtualKeyboard){
+            Navigator.virtualKeyboard.addEventListener('geometrychange', keyboardHeightListener);
         }
         closeMessageContainer()        
         listKey.value ++
@@ -281,26 +283,14 @@ import { useKeyboardStore } from '@/store/keyboardStore'
 
 
     }
-    const openedBoard = computed(() =>{
-        if(filteredAllBoard.value && filteredAllBoard.value.length && openedBoardId.value){
-            const active = filteredAllBoard.value.filter(ob => ob.id == openedBoardId.value)
-            return active && active.length ? active[0] : null
-        }
-        return null
-    })
     const reactiveMemberList = computed(() =>{
         return filteredAllBoard.value ? filteredAllBoard.value.filter(ob => ob.id == viewingMembersOf.value)[0] : null
         
     })
-    const myBoard = computed(() =>{
-        if(filteredAllBoard.value){                 
-            var res = filteredAllBoard.value.filter(obj=>obj.private_flag == 3)[0];
-            return res                 
-        }
-    })
-    const filteredAllBoard = computed(() =>{
-        
-        return allBoardList.value
+    const filteredAllBoard = computed(() => boardList.value )
+
+    const openedBoardId = computed(() => {
+        return route.params.chatId ? Number(route.params.chatId) : null
     })
 
     const keyboardHeightListener = (event) => {
@@ -308,18 +298,15 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         keyboardStore.height = height
     }
     const boardDelete = async(item) => {       
-        const confirmed = await confirm(`ボードを削除しますか。`);
-        if(!confirmed.value) return 
-        try{
-            await axios.post('/board_delete', { id: item.id })
-            if(openedBoard.value && openedBoard.value.id == item.id){                                
-                closeMessageContainer()
-            }
-            getBoardList()
-            info('削除しました。')
-        } catch (e) { 
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } 
+        const data = await api.post('/board_delete', { id: item.id }, {
+            ask: 'ボードを削除しますか？',
+            toast: '削除しました。'
+        })
+        if(!data) return
+        if(openedBoard.value && openedBoard.value.id == item.id){                                
+            closeMessageContainer()
+        }
+        getBoardList()
     }
 
     const afterRequestHandled = (response, id) => {
@@ -327,7 +314,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
             closeMessageContainer()
             getBoardList()
         }else if(response === 'respondConfirmed'){
-            getBoardList(null, id)
+            getBoardList('', id)
         }
     }
     const setTrayItem = (val) => {
@@ -335,14 +322,14 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         localStorage.setItem('favorite_tray', val)
     }
     
-    const appendSearchResult = (dir) => {
+    const appendSearchResult = async(dir) => {
         if(scrllDir.value !== dir){
             scrllDir.value = dir
             appendLock.value = false 
         }
         if(appendLock.value || !messageList.value.length) return
         appendLock.value = true
-        let lastMessage = null
+        let lastMessage: string | number | null = null;
         if(scrllDir.value == 'up'){
             lastMessage = messageList.value[messageList.value.length - 1].id
         }else if(scrllDir.value == 'down'){
@@ -355,30 +342,29 @@ import { useKeyboardStore } from '@/store/keyboardStore'
             last_message_id: lastMessage
         }
         var container1 = document.getElementById('boardListInner')
-        var currentPos = container1.scrollHeight; 
+        var currentPos = container1?.scrollHeight; 
         microLoader.value = true
-        axios.post('/get_bottom_messages', data).then(response => {  
+        const res = await api.post('/get_bottom_messages', data)
+        if(res) {  
             if(scrllDir.value == 'up'){
-                messageList.value = messageList.value.concat(response.data)
+                messageList.value = messageList.value.concat(res)
                 if(messageList.value.length !== currentLength){
                     appendLock.value = false 
                 }
             }else if(scrllDir.value == 'down'){
-                messageList.value = response.data.concat(messageList.value)
+                messageList.value = res.concat(messageList.value)
                 if(messageList.value.length !== currentLength){
                     appendLock.value = false 
                 }
                 nextTick(() => {                   
                     var cont = document.getElementById('boardListInner')            
-                    cont.scrollTop = currentPos - cont.scrollHeight               
+                    if(cont && currentPos){
+                        cont.scrollTop = currentPos - cont.scrollHeight 
+                    }                 
                 });                  
-            }           
-            
-            setTimeout(() => {microLoader.value = false}, 200)
-    
-        }).catch(function (error) {                
-            setTimeout(() => {microLoader.value = false}, 200)                    
-        });
+            }         
+        }
+        setTimeout(() => {microLoader.value = false}, 200)    
     }
     const jumpMessageFromFile = (file) => {                  
         const target = {
@@ -387,33 +373,30 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         }                  
         jumpToMessage(target)                
     }
-    const jumpToMessage = (message) => {
+    const jumpToMessage = async(message) => {
         
         messageLoader.value = true
-        axios.post('/get_target_message', message).then(response => {  
-            
+        const data = await api.post('/get_target_message', message)
+        if(data){              
             let board = filteredAllBoard.value.filter( obj => obj.id == message.record_id);
             if(board.length){
                 openBoard(board[0], 'search')
                 setTimeout(() => {
                     document.getElementById('board_item_' + board[0].id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) 
                 },100)                         
-                messageList.value = response.data;
+                messageList.value = data;
                 messageContainerKey.value ++;
                 messageLoader.value = false
                 searchMessageView.value = false
                 searchTargetId.value = message.id                        
                 listType.value = 'search'                        
             }
-            appendLock.value = false              
-    
-        }).catch(function (error) {
-            if (error.response) notify(error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。')   
-            urlMessage.setUrlMessageId(null) 
+            appendLock.value = false            
+            
             messageLoader.value = false                        
-        });
+        }else{
+            urlMessage.setUrlMessageId(null) 
+        }
     }
     const startPrivateSearch = () => {
         privateSearch.value = true
@@ -429,7 +412,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         searchMessageView.value = false
     }
 
-    const openTargetBoard = (item, hasPush) => {
+    const openTargetBoard = (item) => {
         openBoard(item)
         setTimeout(() =>{document.getElementById('board_item_' + item.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })  },0)       
     }
@@ -445,7 +428,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
             if(index > -1){
                 data = data.filter( ob => ob.id !== id)
                 localStorage.setItem('failed_messages', JSON.stringify(data))                
-                getUnsentMessages(openedBoard.value.id);
+                openedBoard.value && getUnsentMessages(openedBoard.value.id);
             }            
         }
     }
@@ -461,11 +444,11 @@ import { useKeyboardStore } from '@/store/keyboardStore'
                 localStorage.setItem('failed_messages', JSON.stringify(data));
             }            
         }else{
-            let data = []
+            let data: Message[] = [];
             data.push(err)
             localStorage.setItem('failed_messages', JSON.stringify(data));
         }
-        getUnsentMessages(openedBoard.value.id)        
+        openedBoard.value && getUnsentMessages(openedBoard.value.id)        
     }
     const sentMessage = (item) => {
         pageIndex.value = 1;
@@ -478,7 +461,6 @@ import { useKeyboardStore } from '@/store/keyboardStore'
     }
     const closeMessageContainer = () => {
         keyboardStore.setKeyboardHeight(0)
-        openedBoardId.value = null;
         messageList.value = [];
         messageContainerKey.value ++
     }
@@ -491,24 +473,21 @@ import { useKeyboardStore } from '@/store/keyboardStore'
             microLoader.value = true
         }       
     }
-    const remindRequest = async (data) => {
-        try {
-            const response = await axios.post('/remind_add', { id: data.id }).then(res => res.data)
-            const message = response ? 'リマインドしました。' : 'リマインドを取り消しました。'
-            info(message)
+    const remindRequest = async(message) => {
+        const data = await api.post('/remind_add', { id: message.id })
+        const inf = data === true ? 'リマインドしました。' : 'リマインドを取り消しました。'
+        toast(inf)
+        if(data !== null){
             badge.getRemindBadge()
-        } catch (e) { 
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
             getMessageList()
-        }     
+        } 
     }
     const checkRequest = (data, request) => {
         checkRequestData.value = data
         requestType.value = request
     }
     
-    const getUnsentMessages = (id) => {
+    const getUnsentMessages = (id?:number) => {
         var failedList = localStorage.getItem('failed_messages');
         if(failedList){
             let data = JSON.parse(failedList)
@@ -520,9 +499,8 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         }
     }
 
-    const openBoard = (item, second_atr) => {
-        messageLoader.value = true
-        openedBoardId.value = item.id           
+    const openBoard = (item: Board, second_atr?:any) => {
+        messageLoader.value = true        
         pageIndex.value = 1;
         currentLen.value = 0;
         unreadMessages.value = {
@@ -581,56 +559,49 @@ import { useKeyboardStore } from '@/store/keyboardStore'
             }
         });
     }
-    const getMessageList = async(source, queue) => {
-        if(!openedBoard.value) return
-        try {
+    const getMessageList = async(source?:string, queue?:any, chatId?:number) => {
+        if(!openedBoard.value) return    
 
-            const response = await axios.post('/get_messages', { record_id: openedBoard.value.id, page_index: pageIndex.value })
-            if(queue){
-                removeError(queue.id)
-                let box = document.getElementById('queueMessage_' + queue.u_id);                       
-                if(box){                            
-                    box.style.display = 'none'
-                }
-                getUnsentMessages(openedBoard.value.id)
-                const data = {
-                    active: false,
-                    id: null,
-                    count: 0
-                }
-                unreadMessages.value = data
+        const response = await api.post('/get_messages', { record_id: openedBoard.value.id, page_index: pageIndex.value })
+        if(queue){
+            removeError(queue.id)
+            let box = document.getElementById('queueMessage_' + queue.u_id);                       
+            if(box){                            
+                box.style.display = 'none'
             }
-            listType.value = 'normal' 
-            messageList.value = response.data.messages;
-            if(source == 'infiniteLoader'){                        
-                setTimeout(() => { 
-                    pageLimiter.value = false
-                    microLoader.value = false
-                },500)
+            getUnsentMessages(openedBoard.value.id)
+            const data = {
+                active: false,
+                id: null,
+                count: 0
             }
-            infiniteLock.value = currentLen.value == messageList.value.length
-            if(source == 'first_load'){                    
-                badge.updateBoardBadge(openedBoard.value?.id)
-            }                    
-
-        }catch (e) {
-            console.log(e)
-            messageLoader.value = false
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            messageLoader.value = false
+            unreadMessages.value = data
         }
+        listType.value = 'normal' 
+        messageList.value = response.messages;
+        if(source == 'infiniteLoader'){                        
+            setTimeout(() => { 
+                pageLimiter.value = false
+                microLoader.value = false
+            },500)
+        }
+        infiniteLock.value = currentLen.value == messageList.value.length
+        if(source == 'first_load'){                    
+            badge.updateBoardBadge(openedBoard.value?.id)
+        }                  
+        messageLoader.value = false
+        
     }
     const unreadLineTrigger = () => {
-        if(openedBoard.value){
-            const board = filteredAllBoard.value.filter(ob => ob.id == openedBoard.value.id)
-            if(board.length && badge.activeUsersBoardBadge[openedBoard.value.id]){
+        if(openedBoardId.value){
+            const board = filteredAllBoard.value.filter(ob => ob.id == openedBoardId.value)
+            if(board.length && badge.activeUsersBoardBadge[openedBoardId.value]){
                 const self = board[0].board_to_users.filter( ob => ob.user_id == auth.activeUser.id)
                 if(self.length){
                     const data = {
                         active: true,
                         id: self[0].last_message,
-                        count: badge.activeUsersBoardBadge[openedBoard.value.id]
+                        count: badge.activeUsersBoardBadge[openedBoardId.value]
                     }
                     unreadMessages.value = data
                 }   
@@ -645,66 +616,61 @@ import { useKeyboardStore } from '@/store/keyboardStore'
             getMessageList()
         }
     }
-    const getBoardList = async(atr, second_atr) => {        
+    const getBoardList = async(atr?:string, second_atr?:any) => {        
         if (mainLoader.value) return
         
         mainLoader.value = true
-        try {                  
-            allBoardList.value = await axios.post('/board_list').then(res => res.data)
-            if(second_atr){
-                const target = allBoardList.value.filter(ob => ob.id == second_atr)
-                if(target.length){
-                    openTargetBoard(target[0])
-                }                            
-            }
-            if(atr == 'mounted'){
-                if (route.params.hasOwnProperty('chatId')) {
-                    const targetBoard = allBoardList.value.filter(ob => ob.id == route.params.chatId)
-                    if(targetBoard.length){
-                        openTargetBoard(targetBoard[0], false)                                                
-                    }else{     
-                        await confirm('ボードが削除されているか、権限がないためアクセスできません。', {answers: [{label: 'OK', value: true}]})
-                        router.push({name: 'board'})
-                    }
+        const data = await api.post('/board_list')
+        allBoardList.value = data 
+        setList(data)
+        if(second_atr){
+            const target = allBoardList.value.filter(ob => ob.id == second_atr)
+            if(target.length){
+                openTargetBoard(target[0])
+            }                            
+        }
+        if(atr == 'mounted'){
+            if (route.params.hasOwnProperty('chatId')) {
+                const targetBoard = allBoardList.value.filter(ob => ob.id == Number(route.params.chatId))
+                if(targetBoard.length){
+                    openTargetBoard(targetBoard[0])                                                
+                }else{     
+                    await ask('ボードが削除されているか、権限がないためアクセスできません。', {answers: [{label: 'OK', value: true}]})
+                    router.push({name: 'board'})
                 }
             }
-            skeleton.setSkeleton(skeleton.active + 1)
-        
-        } catch (e) {
-            mainLoader.value = false
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            mainLoader.value = false
-        }        
+        }
+        skeleton.setSkeleton(skeleton.active + 1)
+    
+
+        mainLoader.value = false
+       
     }
     const pinBoard = async(id) => {           
-        await axios.post('/pin_board_api', {group_id: id})
+        await api.post('/pin_board_api', {group_id: id})
         getBoardList()
     }
     const setNotification = async(id) => {
-        try {
-            const response = await axios.post('/notification_board', {group_id: id}).then(res => res.data)
-            getBoardList()
-            const flag = response?.notification || 0
-            const flags = ['OFF', 'ON']
-            info(`通知設定を${flags[flag]}にしました。`)
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+      
+        const response = await api.post('/notification_board', {group_id: id})
+        getBoardList()
+        const flag = response?.notification || 0
+        const flags = ['OFF', 'ON']
+        toast(`通知設定を${flags[flag]}にしました。`)
+   
     }
-    const leaveBoard = async(board) => {
-        try {
-            const confirmed = await confirm(`<strong>${board.title}</strong> ボードを退出します。よろしいですか?`)
-            if(!confirmed.value) return
-            await axios.post('/leave_board', {id: board.id})
-            if(openedBoard.value && openedBoard.value.id == board.id){
-                closeMessageContainer()
-            }
-            info('退出しました。')
-            getBoardList()
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    const leaveBoard = async(board) => {  
+
+        const data = await api.post('/leave_board', {id: board.id}, {
+            ask: `<strong>${board.title}</strong> ボードを退出します。よろしいですか?`,
+            toast: '退出しました。'
+        })
+        if(!data) return
+
+        if(openedBoard.value && openedBoard.value.id == board.id){
+            closeMessageContainer()
         }
+        getBoardList()
     }
     const setInvite = (item) => {
         viewingMembersOf.value = null
@@ -728,7 +694,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         setTrayItem(1)
         trayComponentKey.value ++
     }
-    provide('boardItem', {
+    provide(BoardMethodsKey, {
         remove: (item) => boardDelete(item),
         edit: (item) => activeEditBoard.value = item,
         create: () => newBoardWindow.value = true,
@@ -746,7 +712,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         setNotification: (item) => setNotification(item.id)
     })
 
-    provide('messageItem', {
+    provide(MessageMethodsKey, {
         addQueue: (item) => queuedMessages.value.push(item),  
         copy: (item) => copyData.value = item,
         remind: (item) => remindRequest(item),
@@ -757,11 +723,9 @@ import { useKeyboardStore } from '@/store/keyboardStore'
         resetReplyQuot: () => resetReplyQuot()
     })
 
-    provide('taskItem', {
-        shareToTask: (data) => shareToTask()
-    })
+
+    provide('shareToTask', shareToTask)
     provide('closeMessageContainer', closeMessageContainer)   
-    provide('openedBoard', openedBoard)
     provide('reload', getBoardList)      
     defineExpose({getBoardList, unreadLineTrigger, getMessageList, onPusher})
 </script>

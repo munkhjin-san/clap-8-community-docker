@@ -105,19 +105,19 @@
     </div>
 </template>
 <script setup>
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
 import { useTheme } from '@/store/theme';
 import RichEditor from '@/components/Global/RichEditor.vue';
 import ItemSelector from '@/components/Form/ItemSelector.vue';
+import { useApi } from '@/composables/api';
 const props = defineProps(['editTarget'])
 const emit = defineEmits(['closeModal'])
 const title = ref(props.editTarget ? props.editTarget.title : '')
 const loader = ref(false)
 const discussionDate = ref(props.editTarget ? props.editTarget.discussion_date : null)
 const active = ref(props.editTarget && props.editTarget.active ? true : false)
-const { info } = inject('dialog') 
 const episodeGuidance = ref(null)
 const portfolioGuidance = ref(null)
 const titleGuidance = ref(null)
@@ -126,6 +126,7 @@ const portfolio = ref(props.editTarget?.portfolio === 1 ? true : false);
 const case_study = ref(props.editTarget?.has_case_study === 1 ? true : false);
 const forms = ref([])
 const selectedForm = ref(props.editTarget?.custom_form_id ?? null)
+const api = useApi()
 const initialPortfolioGuidance = computed(() => {
     return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
 })
@@ -135,7 +136,7 @@ const initialEpisodeGuidance = computed(() => {
 const initialTitleGuidance = computed(() => {
     return props.editTarget && props.editTarget.title_guidance ? props.editTarget.title_guidance : ''
 })
-const create = () => {
+const create = async() => {
     let episodeGuidanceContent = ''
     let portfolioGuidanceContent = ''
     let titleGuidanceContent = ''
@@ -147,8 +148,7 @@ const create = () => {
     }
     if (!title.value) return
     loader.value = true
-    axios.post('/create_learning_theme', { 
-    
+    await api.post('/create_learning_theme', {     
         id: props.editTarget ? props.editTarget.id : null,
         params: {
             active: active.value,
@@ -162,20 +162,16 @@ const create = () => {
             custom_form_id: selectedForm.value
         }
 
-    }).then(response => {
-        loader.value = false
-        info(props.editTarget ? '編集しました。' :'保存しました。')
-        emit('closeModal', true)
+    },{       
+        toast: props.editTarget ? '編集しました。' :'保存しました。'       
     })
+    loader.value = false
+    emit('closeModal', true)
 
 }
 const getForms = async() => {
-    try {
-        const response = await axios.get('/get_forms')
-        forms.value = response.data
-    } catch (error) {
-        console.log(error)
-    }
+    const response = await api.get('/get_forms')
+    forms.value = response
 }
 onMounted(() => {
     getForms()

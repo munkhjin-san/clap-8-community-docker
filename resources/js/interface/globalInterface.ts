@@ -1,11 +1,7 @@
 import { Portfolio } from "./lessonInterface"
 import { Evaluation, Project } from "./projectInterface"
+import { File } from "./trayInterface";
 
-export type DialogMethods = {
-    confirm: (question: string, options?: ConfirmOptions) => Promise<Answer>
-    notify: (message: string) => void
-    info: (message: string) => void
-}
 export type Dialog = {
     confirm: (question: string, options?: any) => Promise<Answer>;
     notify: (message: string) => void;
@@ -30,6 +26,7 @@ export interface Board {
     project: Project | null
     icon_text: string | null
     icon_bg: string | null
+    messages?: Message[]
 
 }
 interface LastMessage {
@@ -49,6 +46,7 @@ export interface BoardMember {
     user: User;
     user_id: number | null;
     notification: number;
+    view_from: string
 }
 export interface Tag {
     text: string;
@@ -183,9 +181,9 @@ export interface MessageFile {
     message_id: number;
     board_id: number
     user_id: number;
-    name: string | null;
-    mime_type: string | null;
-    extension: string | null;
+    name: string ;
+    mime_type: string ;
+    extension: string ;
     size: number;
     edit_flag: number;
     sign_flag: number;
@@ -232,6 +230,7 @@ export interface Task {
     board?: Board
     project?: Project 
     comments_count?: number
+    files: CommonFile[]
 }
 
 export interface GanttColumnData {
@@ -265,6 +264,7 @@ export interface TaskUserPivot {
     pin_flag: number;
     glowd_nine: number;
     try_flag: number;
+    comment?: string
 }
 export interface ActiveBoard {
     value: Board
@@ -397,4 +397,12 @@ export interface MenuList {
     children?: MenuList[]; 
     parent?: HTMLElement | null;
     checked?: boolean;
+}
+
+export interface DecisionOption {
+    label: string
+    value: any
+}
+export interface AskOptions {
+    answers: DecisionOption[]
 }

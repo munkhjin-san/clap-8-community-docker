@@ -67,9 +67,10 @@
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import HamBurger from '../Global/HamBurger.vue';
 import MemberItem from './MemberItem.vue';
-import { computed, inject, onActivated, onMounted, ref } from 'vue';
+import { computed, onActivated, onMounted, ref } from 'vue';
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
+import { useApi } from '@/composables/api';
     const scrollPos = ref(0)
     const menu = useMenuStore()
     const responsive = useResponsive()
@@ -77,8 +78,8 @@ import { useResponsive } from '@/store/responsive';
     const keyword = ref('')
     const sortByShokkai = ref(false)
     const initialLoader = ref(true)
-    const { notify } = inject('dialog')
     const memberContainerRef = ref(null)
+    const api = useApi()
     onActivated(() => {
         if(scrollPos.value && memberContainerRef.value){
             setTimeout(() => {
@@ -133,18 +134,13 @@ import { useResponsive } from '@/store/responsive';
         getMembers(val)            
     }
     const getMembers = async(sort) => {
-        try{
-            sortByShokkai.value = sort
-            initialLoader.value = true
-            const response = await axios.post('/get_members_list', {byShokkai: sort})
-            memberList.value = response.data      
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            setTimeout(() => {
-                initialLoader.value = false
-            }, 200); 
-        }
+        sortByShokkai.value = sort
+        initialLoader.value = true
+        const response = await api.post('/get_members_list', {byShokkai: sort}, {
+            loadingRef: initialLoader,
+        })
+        memberList.value = response      
+
     }
     const scrollListen = (event) => {
         scrollPos.value = event.target.scrollTop

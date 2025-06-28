@@ -87,11 +87,10 @@ import { detailedDateOptions } from '@/utils/tools';
 import { onMounted, ref, computed, reactive } from 'vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import EvaluationPreCreation from './EvaluationPreCreation.vue'
-import axios from 'axios';
 import { Evaluation } from '@/interface/projectInterface';
 import MentorQuickSelector from './MentorQuickSelector.vue';
 import { User } from '@/interface/globalInterface';
-import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
 const props = defineProps(['userList', 'mentorList', 'keywords'])
 
 const targetDates = detailedDateOptions()
@@ -100,6 +99,7 @@ const createWindow = ref(false)
 const selectedUser = ref(null)
 const salary_options = ref([])
 const editData = ref<Evaluation>()
+const api = useApi()
 
 const mentorSelectorData = reactive<{
         view: boolean,
@@ -154,11 +154,9 @@ const addEvaluation = (user) => {
 }
 
 const getSalaryOptions = async() => {
-    try {
-        salary_options.value = await axios.get('/get_salary_options').then(res => res.data)
-    } catch (e) {
 
-    }
+    salary_options.value = await api.get('/get_salary_options')
+
 }
 
 const setMentor = (user) => {    

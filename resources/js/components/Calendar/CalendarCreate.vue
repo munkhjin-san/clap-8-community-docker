@@ -374,7 +374,7 @@
 <script setup lang="ts">
 import LoaderButton from '../Global/LoaderButton.vue'
 import FacilitySelector from '../Form/FacilitySelector.vue';
-import { computed, onMounted, ref, inject, watch, useTemplateRef } from 'vue';
+import { computed, onMounted, ref, watch, useTemplateRef } from 'vue';
 import ShortInput from '../Form/ShortInput.vue';
 import OptionSelector from '../Form/OptionSelector.vue';
 import MemberSelector from '../Form/MemberSelector.vue';
@@ -385,9 +385,10 @@ import { useSharingDataStore } from '@/store/sharingData'
 import ItemSelector from '../Form/ItemSelector.vue';
 import { DateTime } from 'luxon';
 import { RepeatDataType } from '@/interface/calendarInterface';
-import axios from 'axios';
-import { DialogMethods } from '@/interface/keys';
 import { useCalendar } from '@/composables/calendar';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+    const api = useApi()
     const sharingData = useSharingDataStore()
 
     const props = defineProps([
@@ -502,7 +503,7 @@ import { useCalendar } from '@/composables/calendar';
     const yearSelectorSelectedMonth = useTemplateRef<InstanceType<typeof OptionSelector>>('yearSelectorSelectedMonth')
     const yearSelectorEnd = useTemplateRef<InstanceType<typeof OptionSelector>>('yearSelectorEnd')
     const yearSelectorStart = useTemplateRef<InstanceType<typeof OptionSelector>>('yearSelectorStart')
-    const { notify, info, confirm} = inject('dialog') as DialogMethods  
+    const { ping } = useDialog()
     const validateTargets = computed(() => {
         return [
             calendarUsers.value,
@@ -554,7 +555,7 @@ import { useCalendar } from '@/composables/calendar';
         if (!result) return
         const second_validate = await second_validation()
         if(!second_validate.valid){
-            notify(second_validate.error)
+            ping(second_validate.error)
             processing.value = false
             return
         }
@@ -587,30 +588,14 @@ import { useCalendar } from '@/composables/calendar';
             members_only: members_only.value
         }
         
-        axios.post('/calendar_add_record',params)
-        .then(response =>  {
-            info(props.editTarget ? '編集しました。' : '作成しました。')
-            processing.value = false
-            const shareData = {
-                active: false,
-                title: '',
-                text: '',
-                files: [],
-                from: '',
-                to: '',
-                drag: false,
-                instruction: ''
-            }
-            sharingData.setSharingData(shareData)
-            emit('close', true)     
+        await api.post('/calendar_add_record', params, {
+            toast: props.editTarget ? '編集しました。' : '作成しました。'
         })
-        .catch(function (error) {
-            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。 ' + error.message)      
-            processing.value = false     
-                        
-        });
+
+        processing.value = false
+        sharingData.$reset()
+        emit('close', true)     
+
     }
 
     const selectedDaysValid = computed(() => {

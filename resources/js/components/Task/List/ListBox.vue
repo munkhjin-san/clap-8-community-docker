@@ -99,7 +99,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject, nextTick, onMounted, reactive, useTemplateRef, ref } from 'vue'
+import { computed, nextTick, onMounted, reactive, useTemplateRef, ref } from 'vue'
 import colors from 'assets/colors.json'
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
@@ -107,8 +107,7 @@ import { useMessageUsers } from '@/store/messageUsers'
 import { useUrlTask } from '@/store/urlTask';
 import { useUrlTaskEdit } from '@/store/urlTaskEdit'
 import UserPanel from '@/components/Global/UserPanel.vue';
-import axios from 'axios';
-import { Task, CommandButtonInterface, Dialog } from '@/interface/globalInterface';
+import { Task, CommandButtonInterface } from '@/interface/globalInterface';
 import { timeFormat, urlCheck } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
@@ -120,9 +119,10 @@ import { useTaskRequest } from '@/store/taskRequest'
 import { useTaskUsers } from '@/store/taskUsers';
 import { useBadgeStore } from '@/store/badge';
 import { useRoute, useRouter } from 'vue-router';
-import CommandButton from '@/components/Global/CommandButton.vue';
 import BoardIcon from '@/components/Board/Mixed/BoardIcon.vue';
 import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const messageUsers = useMessageUsers()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
@@ -139,7 +139,6 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
         status: false
     })
     const emit = defineEmits(['reload', 'editTask', 'setActiveTask', 'getBoardTasks'])
-    const { notify, info, confirm } = inject<Dialog>('dialog')!;
     const dynamicHeight = ref('auto')
     const playNineWindow = ref(false)
     const taskBody = useTemplateRef('taskBody')
@@ -147,6 +146,8 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
     const badge = useBadgeStore()
     const router = useRouter()
     const route = useRoute()
+    const api = useApi()
+    const { ask, ping, toast } = useDialog()
     onMounted(() => {
         if(urlTask.id == props.item.id){
             nextTick(() => {                  
@@ -266,17 +267,13 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
         }
     })
     const deleteTask = async() => {
-        const confirmed = await confirm('タスクを削除しますか。')
-        if(!confirmed.value) return
-
-        try{
-            await axios.delete('/task_item', {data: {task_id: props.item.id}})
-            info('削除しました。')
-            badge.getTaskBadge()
-            emit('getBoardTasks')
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+       
+        await api.del('/task_item', {task_id: props.item.id},{
+            ask: 'タスクを削除しますか？',
+            toast: '削除しました。',
+        })
+        emit('getBoardTasks')
+        badge.getTaskBadge()
     }
 
 
@@ -308,7 +305,7 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
     }
     const closeNineWindow = async (flag) => {
         if (flag) {
-            const answer = await confirm('グラウドナインを中止しますか？\n中止した場合再度挑戦することはできません。');
+            const answer = await ask('グラウドナインを中止しますか？\n中止した場合再度挑戦することはできません。');
             if (!answer.value) return;
         }
         playNineWindow.value = false;
@@ -330,7 +327,7 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
             );
             if (canPlayNine) {
                 if (isOverdue.value) {
-                    notify('期限内にタスクを完了しなかったため、<br>グラウドナインは適用されませんでした。');
+                    ping('期限内にタスクを完了しなかったため、<br>グラウドナインは適用されませんでした。');
                     updateStatus(flag);
                 } else {
                     playNineWindow.value = true;
@@ -349,27 +346,19 @@ import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
             id: props.item.id,
             params: {progress_flag: flag}
         }
-        try{
-            updating.status = true
-            await axios.patch(`/complete_task`, params)
-            emit('getBoardTasks')
-            badge.getTaskBadge()
-            badge.getRemindBadge()
-        }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')        
-        }finally {
-            updating.status = false
-        }
+        updating.status = true
+        await api.patch(`/complete_task`, params)
+        emit('getBoardTasks')
+        badge.getTaskBadge()
+        badge.getRemindBadge()
+        updating.status = false
+
     }
     const pinTask = async() => {
-        try {
-            await axios.put('/task_update_pin', {id: selfMember.value?.pivot.id})
-            emit('getBoardTasks')
-            if(taskBody.value && taskBody.value?.clientHeight > 162){
-                setTruncate()
-            }
-        } catch (e) {
-
+        await api.put('/task_update_pin', {id: selfMember.value?.pivot.id})
+        emit('getBoardTasks')
+        if(taskBody.value && taskBody.value?.clientHeight > 162){
+            setTruncate()
         }
     }
     const checkTruncate = () => {

@@ -70,10 +70,12 @@
     
 </template>
 <script setup>
-    import LongInput from '../../Form/LongInput.vue';
-    import LoaderButton from '../../Global/LoaderButton.vue';
-    import { ref, inject, computed, onBeforeMount, onMounted } from 'vue'
-    import { useRoute, useRouter } from 'vue-router';
+import { useApi } from '@/composables/api';
+import LongInput from '../../Form/LongInput.vue';
+import LoaderButton from '../../Global/LoaderButton.vue';
+import { ref, inject } from 'vue'
+import { useRoute, useRouter } from 'vue-router';
+import { useDialog } from '@/composables/dialog';
     const props = defineProps([
         'selectedTopic',
     ]);
@@ -88,7 +90,8 @@
     const router = useRouter()
     const lesson = inject('getLessonPortfolios')
     const processing_save = ref(false)
-    const { confirm, notify, info } = inject('dialog')
+    const api = useApi()
+    const { ask, toast } = useDialog()
    
     const saveContent = async(status) => {
         let portfolioStatus = 1
@@ -109,25 +112,21 @@
             }
 
         }
-        axios.post('/save_lesson_portfolio', params).then(response => {
-            if(status == 'save'){
-                info(props.editTarget ? '編集しました。' :'保存しました。')
-                setTimeout(() => {
-                    processing_save.value = false
-                }, 500);
-                
-            }
+        await api.post('/save_lesson_portfolio', params)
+        if(status == 'save'){
+            toast(props.editTarget ? '編集しました。' :'保存しました。')
+            setTimeout(() => {
+                processing_save.value = false
+            }, 500);
             
-        }).catch(function (error) {
-            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。 ' + error.message)                       
-        });
+        }
+            
+
         
     }
     
     const nextStage = async() => {
-        const answer = await confirm('グループディスカッションを完了にしますか。\n完了後は編集ができません。')
+        const answer = await ask('グループディスカッションを完了にしますか。\n完了後は編集ができません。')
         if(!answer.value) return
         await saveContent('next')
         setTimeout(() => {                    
@@ -139,7 +138,7 @@
         const options = {
             answers: [{label: 'OK', value: true}]
         }
-        const answer = await confirm('グループディスカッションを完了にしまた。\nお疲れ様でした。', options)
+        const answer = await ask('グループディスカッションを完了にしまた。\nお疲れ様でした。', options)
         if(answer.value){
             lesson()                        
             router.push({name: 'top'})

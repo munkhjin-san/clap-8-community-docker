@@ -51,16 +51,16 @@
         </div>
     </div>
 </template>
-<script lang="ts" setup>
+<script setup lang="ts">
 import { inject, ref } from 'vue';
 import LongInput from '../Form/LongInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue';
-import axios from 'axios';
-import { Dialog } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge'
 import FileUploader from '../Form/FileUploader.vue';
 import { File } from '@/interface/trayInterface';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps([
     'chosenGoal', 
     'reviewing'
@@ -72,11 +72,11 @@ const report = ref(props.chosenGoal?.report ?? '')
 const reportRef = ref<InstanceType<typeof LongInput> | null>(null)
 const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
 const loading = ref([false, false, false, false])
-const addResult = ref(result.value ? true : false)
 const auth = useAuthUserStore()
 const refresh = inject('refresh') as Function
-const { notify, info, confirm } = inject<Dialog>('dialog')!
 const badge = useBadgeStore()
+const api = useApi()
+const { ask } = useDialog()
 const uploadedFiles = ref<File[]>(props.chosenGoal?.files ?? [])
 const progressReport = async(status: number) => {
     const validateTargets = [resultRef.value, reportRef.value]
@@ -92,32 +92,31 @@ const progressReport = async(status: number) => {
     let info_message = status === 6 ? '報告' : status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
     if (status === 7 || status === 8 || status === 9) {
         let confirm_message = status === 7 ? '申請' : status === 8 ? '差戻' : '承認';
-        const confirmResult = await confirm(`${confirm_message}しますか？`);
+        const confirmResult = await ask(`${confirm_message}しますか？`);
         if (!confirmResult.value) return;
     }
-    try {
-        loading.value[loadstatus] = true
-        const params = {
-            id: props.chosenGoal.id,
-            params: {
-                report: report.value,
-                result: result.value,
-                achievement_rate: sliderValue.value,
-                status: status
-            },
-            file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
-        }
-        await axios.put('/update_project_progress', params)
-        loading.value[loadstatus] = false
-        info(`${info_message}しました`)
-        emit('reload')
-        refresh()
-        if(auth.user && auth.user?.position_id && auth.user?.position_id < 6){
-            badge.getManagersGoalsBadge()
-        }
-        badge.getMembersGoalsBadge()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    
+    loading.value[loadstatus] = true
+    const params = {
+        id: props.chosenGoal.id,
+        params: {
+            report: report.value,
+            result: result.value,
+            achievement_rate: sliderValue.value,
+            status: status
+        },
+        file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
     }
+    await api.put('/update_project_progress', params, {
+        toast: `${info_message}しました。`,
+    })
+    loading.value[loadstatus] = false
+    emit('reload')
+    refresh()
+    if(auth.user && auth.user?.position_id && auth.user?.position_id < 6){
+        badge.getManagersGoalsBadge()
+    }
+    badge.getMembersGoalsBadge()
+
 }
 </script>

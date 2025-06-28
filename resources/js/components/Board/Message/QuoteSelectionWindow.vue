@@ -12,64 +12,62 @@
         </div>                                        
     </div>
 </template>
-<script setup>
-import { inject, onMounted, ref } from 'vue';
+<script setup lang="ts">
+import { onMounted, ref, useTemplateRef } from 'vue';
 import { useQuoteReply } from '@/store/quoteReply';
 import { useQuoteWindow } from '@/store/quoteWindow';
+import { useDialog } from '@/composables/dialog';
     const emit = defineEmits(['completed', 'closeMe'])
     const advancedQuotMessage = ref('')
     const quoteReply = useQuoteReply()
     const quoteWindow = useQuoteWindow()    
-    const quotAreaEditor = ref(null)
-    const { notify } = inject('dialog')
+    const quotAreaEditor = useTemplateRef('quotAreaEditor')
+    const { ping } = useDialog()
     onMounted(() => {
         quoteWindow.setQuoteWindow(true)
 
-        advancedQuotMessage.value = quoteReply.text
-        var copyArea = quotAreaEditor.value
-        copyArea.style.width = quoteReply.width +'px'
-        copyArea.style.height = quoteReply.height + 'px'
+        advancedQuotMessage.value = quoteReply.text ?? ''
+        if(!quotAreaEditor.value) return
+        quotAreaEditor.value.style.width = quoteReply.width +'px'
+        quotAreaEditor.value.style.height = quoteReply.height + 'px'
         setTimeout(() => {
-            copyArea.select()
+            if(!quotAreaEditor.value) return
+            quotAreaEditor.value.select()
             quotAreaEditor.value.scrollTop = quotAreaEditor.value.scrollHeight;
             
         }, 0);  
         
     })     
     const advancedQuotFinish = () => {
-            var textComponent = quotAreaEditor.value
-            var selectedText;
+        if( !quotAreaEditor.value ) return
+        var textComponent = quotAreaEditor.value
+        var selectedText;
 
-            if (textComponent.selectionStart !== undefined)
-            {// Standards Compliant Version
-                var startPos = textComponent.selectionStart;
-                var endPos = textComponent.selectionEnd;
-                selectedText = textComponent.value.substring(startPos, endPos);
+        if (textComponent.selectionStart !== undefined)
+        {// Standards Compliant Version
+            var startPos = textComponent.selectionStart;
+            var endPos = textComponent.selectionEnd;
+            selectedText = textComponent.value.substring(startPos, endPos);
+        }
+        
+        if(!selectedText.length){
+            ping('選択されたテキストはありません。')
+            return
+        }else{
+            const quot_reply = {
+                active: quoteReply.active,
+                message: quoteReply.message,
+                which: quoteReply.which,
+                text: selectedText,
+                file: quoteReply.file,
+                height: quoteReply.height,
+                width: quoteReply.width
             }
-            else if (document.selection !== undefined)
-            {// IE Version
-                textComponent.focus();
-                var sel = document.selection.createRange();
-                selectedText = sel.text;
-            }
-            if(!selectedText.length){
-                notify('選択されたテキストはありません。')
-                return
-            }else{
-                const quot_reply = {
-                    active: quoteReply.active,
-                    message: quoteReply.message,
-                    which: quoteReply.which,
-                    text: selectedText,
-                    file: quoteReply.file,
-                    height: quoteReply.height,
-                    width: quoteReply.width
-                }
-                quoteReply.setQuoteReply(quot_reply)
-                emit('completed')      
-            }  
+            quoteReply.setQuoteReply(quot_reply)
+            emit('completed')      
+        }  
 
             
-    }        
+    }         
 
 </script>

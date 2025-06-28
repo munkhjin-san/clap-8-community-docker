@@ -102,10 +102,8 @@
 <script setup lang="ts">
 import Modal from '../Global/Modal.vue';
 import LoaderButton from '../Global/LoaderButton.vue';
-import { ref, onMounted, inject, useTemplateRef } from 'vue';
+import { ref, onMounted, useTemplateRef } from 'vue';
 import { DateTime } from 'luxon';
-import { DialogMethods } from '@/interface/globalInterface';
-import axios from 'axios';
 import Back from '../Icons/Back.vue';
 import ItemMenu from '../Global/ItemMenu.vue';
 import RichEditor from '../Global/RichEditor.vue';
@@ -115,6 +113,9 @@ import { useRouter } from 'vue-router';
 import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
 import { useTtsStore } from '@/store/ttsStore';
 import { ComponentExposed } from 'vue-component-type-helpers';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+const api = useApi()
 const props = defineProps(['calendarRecord']);
 const emit = defineEmits(['close']);
 const summariesData = ref<SummaryData[]>([])
@@ -126,6 +127,7 @@ const sharingData = useSharingDataStore()
 const router = useRouter()
 const ttsStore = useTtsStore()
 const menuRef = useTemplateRef<ComponentExposed<typeof ItemMenu>[]>('menuRef')
+const { toast } = useDialog()
 const combinedSummary = ref<{
     id: number | null;
     html: string;
@@ -133,7 +135,7 @@ const combinedSummary = ref<{
     id: null,
     html: ''
 })
-const { notify, info, confirm } = inject('dialog') as DialogMethods
+
 onMounted(() => {
     getSummareis(0)
 })
@@ -154,23 +156,12 @@ interface SummaryData {
 const fixedHtml = (html: string) => {
     return html.replace(/<p>\s*<\/p>/g, '<p>&nbsp;</p>')
 }
-const getSummareis = async(counter:number) => {
-    try{
-        
-        summariesData.value = await axios.get('/get_schedule_summaries', { params: {
-            id: props.calendarRecord.id
-        }}).then(response => response.data)
-
-        if(counter == 0 && summariesData.value.length > 0){
-            expandedSummaries.value.push(summariesData.value[0].id)
-        }
-        initialLoader.value = false
- 
-    }catch(e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        emit('close')
+const getSummareis = async(counter:number) => {        
+    summariesData.value = await api.get('/get_schedule_summaries',  { id: props.calendarRecord.id })
+    if(counter == 0 && summariesData.value.length > 0){
+        expandedSummaries.value.push(summariesData.value[0].id)
     }
-
+    initialLoader.value = false
 }
 const editSummary = (summary: SummaryData) => {
     if (!expandedSummaries.value.includes(summary.id)) {
@@ -215,44 +206,30 @@ const editSummary = (summary: SummaryData) => {
     
 }
 const saveEditedVersion = async(id: number) => {
-    try {
-        let summaryEdited = summaryEditor.value?.[0]?.editor?.getHTML() || combinedSummary.value.html
-        await axios.put('/save_edited_summary', {
-            id,
-            html: summaryEdited
-        })
-        info('保存しました。')
-        getSummareis(1)
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally {
-        combinedSummary.value = { id: null, html: '' }
-    }
+
+    let summaryEdited = summaryEditor.value?.[0]?.editor?.getHTML() || combinedSummary.value.html
+    await api.put('/save_edited_summary', {
+        id,
+        html: summaryEdited
+    }, {
+        toast: '保存しました。'
+    })
+    getSummareis(1)
+    combinedSummary.value = { id: null, html: '' }
 }
 const copySummary = (summary: SummaryData) => {
     let textToCopy = prepareText(summary)
     navigator.clipboard.writeText(textToCopy)
     .then(() => {
-        info('コピーしました。')
+        toast('コピーしました。')
     })
     .catch((error) => {
         console.error('Unable to copy text to clipboard:', error);
     });
 }
 const deleteSummary = async(summary: SummaryData) => {
-    const answer = await confirm('削除しますか？')
-    if(!answer.value) return
-    try {
-        await axios.delete('/delete_schedule_summary', { params: {
-            id: summary.id
-        }}).then(() => {
-            info('削除しました。')
-            getSummareis(1)
-        })        
-        
-    } catch (e) {   
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+    await api.del('/delete_schedule_summary', { id: summary.id }, { toast: '削除しました。', ask: '削除しますか？' })  
+    getSummareis(1)     
 }
 const shareSummary = (summary: SummaryData) => {
     let textToShare = prepareText(summary)

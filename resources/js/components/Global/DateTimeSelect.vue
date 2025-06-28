@@ -50,10 +50,9 @@ import LoaderButton from '../Global/LoaderButton.vue'
 import { useMessageSchedule } from '@/store/messageSchedule'
 import ShortInput from '../Form/ShortInput.vue'
 import { ref, inject } from 'vue'
-import axios from 'axios'
 import { useTheme } from '@/store/theme'
-import { Dialog } from '@/interface/globalInterface'
 import { DateTime } from 'luxon'
+import { useApi } from '@/composables/api'
 const theme = useTheme()
 const messageSchedule = useMessageSchedule()
 const selectedTime = ref(DateTime.now().plus({hours: 1}).hour)
@@ -61,7 +60,7 @@ const selectedDate = ref(DateTime.now().toISODate())
 const error = ref('')
 const refreshMessage = inject('refreshMessage') as Function
 const availableHours = Array.from({ length: 24 }, (_, index) => index + 1);
-const { info } = inject<Dialog>('dialog')!
+const api = useApi()
 const close = () => {
     const data = {
         active: false,
@@ -71,22 +70,21 @@ const close = () => {
 }
 
 const setSchedule = async() => {
-    try {
-        const selectedDateTime = DateTime.fromISO(selectedDate.value).set({hour: selectedTime.value, minute: 0, second: 0})
-        const result = selectedDateTime > DateTime.now();
-        const message_id = messageSchedule.message_id
-        const formattedDateTime = selectedDateTime.toFormat('yyyy-MM-dd HH:mm:ss'); 
-        
-        if (!result) {
-            error.value = '将来のスケジュールのみ設定できます。'
-            return
-        }
-        const response = axios.put('/set_message_schedule', {reserved_at: formattedDateTime, id: message_id})
-        refreshMessage()
-        close()
-        info('送信スケジュールが設定されました。')
-    } catch (e) {
 
+    const selectedDateTime = DateTime.fromISO(selectedDate.value).set({hour: selectedTime.value, minute: 0, second: 0})
+    const result = selectedDateTime > DateTime.now();
+    const message_id = messageSchedule.message_id
+    const formattedDateTime = selectedDateTime.toFormat('yyyy-MM-dd HH:mm:ss'); 
+    
+    if (!result) {
+        error.value = '将来のスケジュールのみ設定できます。'
+        return
     }
+    await api.put('/set_message_schedule', {reserved_at: formattedDateTime, id: message_id}, {
+        toast: '送信スケジュールを設定しました。'
+    })
+    refreshMessage()
+    close()
+
 }
 </script>

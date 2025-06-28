@@ -73,24 +73,27 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import MessageFiles from "./MessageFiles.vue";
-import { computed, inject, onMounted, ref } from "vue";
+import { computed, onMounted, ref, useTemplateRef } from "vue";
 import { useAuthUserStore } from '@/store/auth'
 import { useMessageUsers } from "../../../store/messageUsers";
 import { DateParser, mentionFormatter } from "@/utils/tools";
 import UserPanel from "@/components/Global/UserPanel.vue";
 import { useBadgeStore } from "@/store/badge";
+import { useApi } from "@/composables/api";
+import { useDialog } from "@/composables/dialog";
+const { toast, ping, ask } = useDialog()
     const auth = useAuthUserStore()
     const messageUsers = useMessageUsers()
     const props = defineProps(['message', 'openedBoard', 'boxClass'])
     const emit = defineEmits(['getRemindMessages', 'getUncheckedMessages'])
     const reacting = ref(false)
-    const { notify, confirm, info } = inject('dialog')
     const editing = ref(false)
     const dynamicHeight = ref('auto')
-    const messageBodyRef = ref(null)
+    const messageBodyRef = useTemplateRef('messageBodyRef')
     const badge = useBadgeStore()
+    const api = useApi()
     onMounted(() => {
         if (messageBodyRef.value) {
             if(messageBodyRef.value?.clientHeight > 170){
@@ -101,10 +104,6 @@ import { useBadgeStore } from "@/store/badge";
     const setTruncate = () => {
         dynamicHeight.value = dynamicHeight.value == '170px' ? `${messageBodyRef.value?.clientHeight}px` : '170px'
     }
-    const authorized = computed(() => {
-        return props.message.user_id == auth.activeUser.id
-    })
-
     const remindedUsers = computed(() => {
         return props.message.message_remind_users && props.message.message_remind_users.length ? props.message.message_remind_users.find(val => val.user_id == auth.activeUser.id) : null
     })
@@ -166,34 +165,31 @@ import { useBadgeStore } from "@/store/badge";
     }
     const reactOrCheck = async(msg) => {        
         if(msg.user_id == auth.activeUser.id) return    
-            reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
-        try{
-            const response = await axios.post('/send_reaction_api', {id: msg.id})
-            emit('getUncheckedMessages')
-            emit('getRemindMessages')
-            const checkedMessage = response.data
-            if(checkedMessage.check_flag == 1){
-                const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
-                const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
-                const reacted =   checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
-                if(unchecked && reacted){     
-                    const confirmed = await confirm('確認済みにしますか')
-                    if(confirmed.value){
-                        await axios.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
-                        emit('getUncheckedMessages')
-                        info('確認済みにしました。') 
-                        badge.getRemindBadge()     
-                    }
+        reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
 
-                }
-                if(checked && reacted){                  
-                    notify('既に確認しています。')  
-                }
-            } 
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }              
-    }
+        const message = await api.post('/send_reaction_api', {id: msg.id})
+        emit('getUncheckedMessages')
+        emit('getRemindMessages')
+        const checkedMessage = message
+        if(checkedMessage.check_flag == 1){
+            const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
+            const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
+            const reacted =   checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
+            if(unchecked && reacted){     
+                const confirmed = await ask('確認済みにしますか')
+                if(confirmed.value){
+                    await api.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
+                    emit('getUncheckedMessages')    
+                    toast('確認済みにしました。') 
+                    badge.getRemindBadge()     
+                }                                  
+            }
+            if(checked && reacted){                  
+                ping('既に確認しています。')  
+            }
+        } 
+           
+    }  
     const jumpToMessage = (event) => {
         if (event.target.tagName === 'A') return
         const link = document.createElement('a');
@@ -202,18 +198,15 @@ import { useBadgeStore } from "@/store/badge";
         link.click();   
         link.remove();
     } 
-    const remindRequest = async () => {
-        try {
-            const response = await axios.post('/remind_add', { id: props.message.id }).then(res => res.data)
-            const message = response ? 'リマインドしました。' : 'リマインドを取り消しました。'
-            info(message)
-        } catch (e) { 
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            emit('getRemindMessages')
+    const remindRequest = async(message) => {
+        const data = await api.post('/remind_add', { id: message.id })
+        const inf = data === true ? 'リマインドしました。' : 'リマインドを取り消しました。'
+        toast(inf)
+        if(data !== null){
             badge.getRemindBadge()
-        }     
-    }          
+            emit('getRemindMessages')
+        } 
+    }        
    
 </script>
 <style scoped lang="scss">

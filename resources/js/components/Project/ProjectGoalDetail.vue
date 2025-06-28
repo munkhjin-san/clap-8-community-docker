@@ -130,9 +130,7 @@
 import { useRoute, useRouter } from 'vue-router';
 import { computed, ref, onMounted, inject, watch, provide } from 'vue';
 import ItemMenu from '../Global/ItemMenu.vue';
-import axios from 'axios';
 import { useAuthUserStore } from '@/store/auth';
-import { Dialog } from '@/interface/globalInterface';
 import ProjectGoalCreation from './ProjectGoalCreation.vue';
 import { ProjectGoal } from '@/interface/projectInterface';
 import { detailedDateOptions } from '@/utils/tools'
@@ -140,6 +138,7 @@ import { useBadgeStore } from '@/store/badge';
 import { EvaluationRecord } from '@/interface/evaluationInterface';
 import { useProject } from '@/composables/project';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
 
 interface Theme {
     issues: any;
@@ -159,8 +158,8 @@ const goalDate = ref('')
 const projectGoals = ref<ProjectGoal[]>([])
 const evaluationData = ref<EvaluationRecord | null>(null)
 const badge = useBadgeStore()
-const { notify, info, confirm } = inject<Dialog>('dialog')!;
 const { memberData, isManagerOrMember, isManager } = useProject()
+const api = useApi()
 const statuses = [
     '作成中（本人対応中）', 
     '目標を差戻中（本人対応中）', 
@@ -218,23 +217,21 @@ const selectedDate = computed(() => {
 
 const fetchMemberData = async () => {
     if (memberData.value) {
-        try {
-            const span = route.params.span as string
-            const [year, which_half] = span.split('-')
-            const params = {
-                year: year,
-                which_half: which_half,
-                user_id: memberData.value?.id
-            }
-            const data = await axios.post('/get_outcome_goals', params).then(res => res.data)
-            projectGoals.value = data.project_goals
-            evaluationData.value = data.evaluation
-            setTimeout(() => {
-                initialLoader.value = false
-            }, 300)
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+
+        const span = route.params.span as string
+        const [year, which_half] = span.split('-')
+        const params = {
+            year: year,
+            which_half: which_half,
+            user_id: memberData.value?.id
         }
+        const data = await api.post('/get_outcome_goals', params)
+        projectGoals.value = data.project_goals
+        evaluationData.value = data.evaluation
+        setTimeout(() => {
+            initialLoader.value = false
+        }, 300)
+
     }
     
 }
@@ -243,35 +240,27 @@ const editGoal = async (goal: any) => {
     createOutcomeGoal.value = true
 }
 const deleteGoal = async (goal: ProjectGoal) => {
-    const answer = await confirm('成果目標の削除は、昇給課題と一緒に削除される場合があります。よろしいですか？')
-    if(!answer.value) return
-    try {
-        await axios.delete(`/delete_project_goal?id=${goal.id}`)
-        fetchMemberData()
-        info('削除しました。')
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+
+    await api.del(`/delete_project_goal`, {
+        id: goal.id,
+    }, {
+        ask: '成果目標を削除しますか？\n削除すると、昇給課題も一緒に削除されます。',
+        toast: '成果目標を削除しました。'
+    })
+    fetchMemberData()
+
 } 
 
 const getThemes = async() => {
-    try{
-        const res = await axios.get('/get_kadai_themes')
-        if(res.data){
-            themeRecords.value = res.data
-        }
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+    const data = await api.get('/get_kadai_themes')
+    data && (themeRecords.value = data)
 }
 const applyEdit = async (goal: ProjectGoal) => {
-    try {
-        await axios.put('/approve_outcome_goal', {id: goal.id, status: 4})
-        fetchMemberData()
-        info('変更申請しました。')
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
+
+    await api.put('/approve_outcome_goal', {id: goal.id, status: 4}, {
+        toast: '変更申請しました。'
+    })
+    fetchMemberData()
 }
 const kpiCalculation = (steps: any) => {
     if(steps && steps.length){

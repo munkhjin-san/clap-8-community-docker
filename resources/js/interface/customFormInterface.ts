@@ -13,6 +13,9 @@ export interface CustomForm {
     survey_answers?: SurveyAnswer[]
     users?: CustomFormUser[]
     admins?: CustomFormUser[]
+    repeat_setting?: number
+    repeat_day?: number
+    board_record_id?: number | null
 }
 export interface CustomFormUser extends User {
     pivot: {
@@ -55,6 +58,8 @@ export interface SurveyAnswer{
     block_answers: SurveyBlockAnswer[]
     user?: User
     status?: number
+    target_date?: string | null
+    custom_form?: CustomForm | null
 }
 
 export interface SurveyBlockAnswer{

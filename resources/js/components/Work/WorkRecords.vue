@@ -63,8 +63,7 @@
 </template>
 <script setup>
 import { VDataTableVirtual } from 'vuetify/components/VDataTable'
-import { inject, ref, computed, onMounted } from 'vue';
-import { useAuthUserStore } from '@/store/auth';
+import { ref, computed } from 'vue';
 import holiday_jp from '@holiday-jp/holiday_jp'
 import { mkConfig, generateCsv, download } from "export-to-csv";
 import WorkRecordRow from './WorkRecordRow.vue';
@@ -73,7 +72,7 @@ import OverTimeRequest from './OverTimeRequest.vue';
 import WorkRecordTotal from './WorkRecordTotal.vue'
 import { useBadgeStore } from '@/store/badge';
 import { DateTime } from 'luxon';
-    const auth = useAuthUserStore()
+import { useApi } from '@/composables/api';
     const props = defineProps([
         'monthAverage',
         'usersData',
@@ -83,8 +82,8 @@ import { DateTime } from 'luxon';
         'selectedYear',
         'headerHeight',
     ]) 
+    const api = useApi()
     const overTimeRequestData = ref(null)
-    const { confirm, notify, info } = inject('dialog')
     const emit = defineEmits(['reload'])
     const tempItem = ref(null)
     const badge = useBadgeStore()
@@ -141,21 +140,18 @@ import { DateTime } from 'luxon';
         return headersArray;
     })
     const timeCardRemand = async(item) => {
-        const answer = await confirm(item.day_full + "日報を差し戻しますか。")
-        if(!answer.value) return
         
         const params = {
             user_id: item.user_id,
-            record_day: item.day_full,
-            // overTimeRequest: item?.shift?.overtime_request,
+            record_day: item.day_full
         }
-        try{
-            await axios.post('/remand_time_card', params)
-            info('差戻しました。')
-            emit('reload')
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+
+        await api.post('/remand_time_card', params, {
+            ask: `${item.day_full}日報を差し戻します。`,
+            toast: '差戻ししました。'
+        })
+        emit('reload')
+
     }
     
     const dailyApproval = async(item) => {
@@ -164,26 +160,21 @@ import { DateTime } from 'luxon';
             record_day: item.day_full,
             overTimeRequest: item?.shift?.overtime_request,
         };
-        try{
-            await axios.post('/approve_time_card', params )
-            info('承認しました。')
-            emit('reload')
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }
+
+        await api.post('/approve_time_card', params, {
+            toast: '承認しました。',
+        })
+        emit('reload')
+
     }
     const dailyCancel = async(item) => {
         const params = {
             user_id: item.user_id,
             record_day: item.day_full
         };
-        try{
-            await axios.post('/cancel_time_card', params )
-            info('承認取消しました。')
-            emit('reload')
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')  
-        }
+        await api.post('/cancel_time_card', params, {
+            toast: '承認取消しました。',
+        })
     }
   
     const closeOverTimeRequest = (val) => {
@@ -195,9 +186,9 @@ import { DateTime } from 'luxon';
     const csvGenerate = async() => {
         const members = props.usersData.map(user => user.id)
         const today = DateTime.now().toFormat('yyyyMMddHHmmss')
-        const response = await axios(`/work_generate_csv?year=${props.selectedYear}&month=${props.selectedMonth}&users=${members}`)
+        const response = await api.get(`/work_generate_csv?year=${props.selectedYear}&month=${props.selectedMonth}&users=${members}`)
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `タイムシート${props.selectedMonth}月_${today}`});
-        const data = response.data        
+        const data = response        
         const csv = generateCsv(csvConfig)(data);
         download(csvConfig)(csv);
     }

@@ -27,9 +27,9 @@
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Modal from '@/components/Global/Modal.vue';
-import { DialogMethods, User } from '@/interface/globalInterface';
-import axios from 'axios';
-import { computed, inject, ref } from 'vue';
+import { useApi } from '@/composables/api';
+import { User } from '@/interface/globalInterface';
+import { inject, ref } from 'vue';
 const props = defineProps<{
     data: {
         view: boolean,
@@ -46,7 +46,7 @@ const emit = defineEmits<{
 const refresh = inject('refresh') as Function
 const mentor = ref<User | null>(props.data.selectedMentor ?? null)
 const loading = ref(false)
-const { notify, info } = inject('dialog') as DialogMethods
+const api = useApi()
 const save = async() => {
     loading.value = true
     const params = {
@@ -60,15 +60,11 @@ const save = async() => {
         }
         
     }
-    try {
-        await axios.post('/save_evaluation_grade', params)
-        emit('close', true)
-        info('保存しました')
-        refresh()
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally {
-        loading.value = false
-    }
+    await api.post('/save_evaluation_grade', params, { toast: '保存しました' })
+    emit('close', true)
+    refresh()
+
+    loading.value = false
+    
 }
 </script>

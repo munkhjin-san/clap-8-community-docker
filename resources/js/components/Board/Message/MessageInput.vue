@@ -6,7 +6,7 @@
         @drop.prevent 
         @mouseenter="footerDropEnterFromFile"
         class="footAreaContainer" 
-        v-show="board">
+        v-show="openedBoard">
                 <div v-if="charLength >= 5000" style="position: absolute;right: 10px;top: -20px;font-size: 12px;color: tomato;">メッセージは5000文字以内で入力してください</div>
                 <div @click="emit('unreadJumped')" v-if="unread.status" class="unread" style="position:absolute;top: -40px;bottom:auto;user-select:none;">
                     <p class="unread-inner cursor-pointer">{{ `${unread.count} 件の新しいメッセージ` }}</p>
@@ -186,7 +186,7 @@
                     <div @mousedown.prevent.stop @click="commentSendConfirm(0)" id="sendArea" class="sendAreaBox" style="display:flex;bottom:6px;"> 
                         <div style="display: flex;position: relative;">
                             <div style="position: absolute;bottom: 8px;right: 0;" v-if="auth.linked.length">
-                                <UserPanel :user="auth.activeUser" :disableInstant="true" size="15" imgClass="userSmallIcon"/>
+                                <UserPanel :user="(auth.activeUser as User)" :disableInstant="true" size="15" imgClass="userSmallIcon"/>
                             </div>
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="33" viewBox="0 0 43 32" style="margin:auto;fill: var(--third-color);">
                                 <path d="M40.638 0.087c-1.842 0.361-6.097 1.292-9.435 2.047l-30.046 6.891c-0.419 0.096-0.793 0.374-1.003 0.793-0.364 0.728-0.058 1.585 0.663 2.007 2.578 1.521 10.077 5.56 10.077 5.56 0.287 0.157 0.487 0.439 0.542 0.762 0 0 0.711 4.473 0.921 5.891 0.21 1.417 0.714 4.465 1.184 6.482 0.168 0.726 0.631 1.335 1.215 1.512 0.495 0.152 1.030 0.037 1.43-0.285 1.394-1.128 5.787-5.445 7.388-7.272 0.133-0.152 0.355-0.19 0.531-0.085l6.184 3.646c0 0 0.439 0.294 0.919 0.519 1.283 0.601 2.479 0.625 3.062-0.829 0.325-0.813 4.316-12.627 4.316-12.627l4.466-13.209c0.053-0.152 0.082-0.321 0.082-0.492 0-0.844-0.654-1.675-2.496-1.312zM20.045 24.741c-0.475 0.477-1.473 1.473-2.284 2.197-0.155 0.137-0.385-0.002-0.313-0.195l1.796-4.842c0.051-0.157 0.236-0.226 0.378-0.142l1.796 1.054c0.157 0.091 0.161 0.294 0.041 0.432-0.401 0.458-0.975 1.058-1.413 1.495zM32.151 25.117c-0.106 0.325-0.482 0.47-0.777 0.301l-1.447-0.824-3.554-2.014-7.121-4.024c-0.067-0.037-0.138-0.068-0.214-0.094-0.677-0.232-1.411 0.13-1.64 0.808l-1.944 7.086c-0.053 0.166-0.229 0.143-0.251-0.046-0.13-1.23-0.328-3.178-0.467-4.759-0.13-1.459-0.366-3.357-0.494-4.434-0.111-0.931-0.427-1.423-1.131-1.837-0.704-0.415-6.489-3.354-7.668-4.049-0.241-0.142-0.166-0.415 0.065-0.463 0 0 13.334-2.689 16.022-3.304 2.689-0.617 10.513-2.447 10.513-2.447 0.103-0.025 0.152 0.118 0.056 0.161l-5.127 2.281-2.961 1.459c-0.987 0.487-7.32 3.516-9.259 4.562-0.477 0.258-0.665 0.871-0.373 1.36 0.255 0.429 0.808 0.574 1.265 0.374 2.004-0.882 16.208-7.766 17.651-8.441 0.345-0.162 0.376-0.012 0.287 0.049-0.89 0.615-9.43 6.896-10.25 7.528l-2.448 1.905c-0.432 0.342-0.519 0.976-0.173 1.42 0.335 0.432 0.965 0.497 1.413 0.183 0 0 3.766-2.665 4.603-3.274l5.008-3.66c0 0 5.775-4.365 6.187-4.682 0.166-0.128 0.397 0.033 0.331 0.234l-2.517 7.675-3.585 10.965z"></path>
@@ -198,7 +198,7 @@
     </div>  
 </template>
 
-<script setup>
+<script setup lang="ts">
 import ReplyQuotWindow from './ReplyQuotWindow.vue'
 import ForwardWindowMessage from './ForwardWindowMessage.vue'
 import EmojiPicker from 'vue3-emoji-picker'
@@ -206,7 +206,7 @@ import FileIcon from '../Mixed/FileIcon.vue'
 import OpenAI from "openai";
 import MentionBox from './MentionBox.vue'
 import 'vue3-emoji-picker/css'
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useFilePreview } from '@/store/filePreview'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
@@ -217,6 +217,11 @@ import { DateTime } from 'luxon'
 import {marked} from 'marked'
 import DOMPurify from 'dompurify';
 import AiIcon from '@/components/Icons/AiIcon.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+import { useBoardList } from '@/composables/board';
+import { Message, MessageFile, SharingFile, UploadingFile, User } from '@/interface/globalInterface';
+import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -226,37 +231,38 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
     const caretPosition = ref(0)
     const mentionBoxToggle = ref(false)
     const highlighted = ref(0)
-    const attachedFiles = ref([])
+    const attachedFiles = ref<UploadingFile[]>([])
     const draggingFiles = ref([])
-    const successUploadedFiles = ref([])
+    const successUploadedFiles = ref<MessageFile[]>([])
     const progressPercentage = ref(0)
     const keyCharacters = ref('')
     const startPosition = ref(0)
-    const forwardItem = ref(null)
+    const forwardItem = ref<Message | null>(null)
     const charLength = ref(0)
     const editing = ref(false)
     const aiResponse = ref('')
     const aiResponseCustomize = ref(false)
     const dropActive = ref(false)
-    const sharingFiles = ref([])
-    const messageInputArea = ref(null)
-    const aiResponseText = ref(null)
-    const mentionBox = ref(null)
-    const board = inject('openedBoard')
-    const {addQueue} = inject('messageItem')
-    const {notify, info, confirm} = inject('dialog')
+    const sharingFiles = ref<SharingFile[]>([])
+    const messageInputArea = useTemplateRef('messageInputArea')
+    const aiResponseText = useTemplateRef('aiResponseText')
+    const mentionBox = useTemplateRef('mentionBox')
+    const { openedBoard } = useBoardList()
+    const { addQueue } = inject(MessageMethodsKey) as MessageMethods;
     const filePreview = useFilePreview()
     const mentionBoxForced = ref(false)
     const replyLoader = ref(false)
+    const api = useApi()
+    const { toast, ping } = useDialog()
     
     onUnmounted(() => {
         messageInputArea.value?.removeEventListener('keyup', inputKeyEventfirst);  
         messageInputArea.value?.removeEventListener('keyup',inputKeyEventSecond);
     })
     onMounted(() => {
-        if(board.value){
-            const temp = localStorage.getItem('temp_message_' + board.value.id); 
-            if(temp){                
+        if(openedBoard.value && messageInputArea.value){
+            const temp = localStorage.getItem('temp_message_' + openedBoard.value.id); 
+            if(temp && messageInputArea.value){                
                 messageInputArea.value.textContent = temp;
             }
             if(sharingData.active && sharingData.drag == false){
@@ -264,13 +270,8 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
                     forwardItem.value = sharingData.message
                 } else if (sharingData.from == 'schedule') {
                     messageInputArea.value.textContent = sharingData.text    
-                }else{
-                    sharingData.files.forEach((file) => {
-                        const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
-                        if(!isFolder && !sharingFiles.value.includes(item => item.path == file.path)){                            
-                            sharingFiles.value.push(file)
-                        }
-                    });
+                }else if(sharingData.files){
+                    sharingFiles.value = sharingData.files
                 }
                 
 
@@ -302,17 +303,19 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         sharingData.setSharingData(shareData)
     }
     const filteredUsers = computed(() => {
-        const list = board.value.board_to_users.map(ob => ob.user)
-        if(board.value.private_flag == 0){
-            list.unshift({name: '全員', id: -1})
+        if(!openedBoard.value) return []
+        const list:User[] = openedBoard.value.board_to_users.map(ob => ob.user)
+        
+        if(openedBoard.value.private_flag == 0){
+            list.unshift({name: '全員', id: -1, icon_path: null} as User)
         }
-        return list
+        return list       
     })
     const mentionAbleList = computed(() => {
         if (keyCharacters.value) {
             const keyCharactersLowerCase = keyCharacters.value.replace(/[@＠]/g, '').toLowerCase()
             return filteredUsers.value.filter(member => {
-                const memberNameLowerCase = member.name.toLowerCase()
+                const memberNameLowerCase = member.name?.toLowerCase() || '';
                 return memberNameLowerCase.includes(keyCharactersLowerCase) && member.id !== auth.activeUser.id
             })
         } else {
@@ -337,23 +340,15 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         aiResponse.value = ''
         aiResponseCustomize.value = false
     }
-    const replyText = (text) => {
-        try{
-            if (text) {
-                messageInputArea.value.textContent = text
-            }
-        }
-        catch{
-            notify('適用するに失敗しました。');
-        } 
-    }
     const replaceText = () => {
         try{
-            messageInputArea.value.textContent = aiResponseText.value.textContent
+            if (messageInputArea.value && aiResponseText.value) {
+                messageInputArea.value.textContent = aiResponseText.value.textContent 
+            }
             resetAi()
         }
         catch{
-            notify('適用するに失敗しました。');
+            ping('適用するに失敗しました。');
         }                
     }
     const aiGenerator = async(instruction, text, type) => {
@@ -402,12 +397,12 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
                 for await (const event of response) {
                     if (event.type === 'response.output_text.delta') {
                         rawText += event.delta; 
-                        const markedText = marked.parse(rawText);
+                        const markedText = marked.parse(rawText).toString();
                         const sanitizedText = DOMPurify.sanitize(markedText);
                         if(type == 'edit'){
                             aiResponse.value = sanitizedText;
                         }else if(type == 'reply'){
-                            messageInputArea.value.textContent = rawText
+                            messageInputArea.value && (messageInputArea.value.textContent = rawText)
                         }
                         
                     }
@@ -422,13 +417,13 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
                     console.log(err.status); 
                     console.log(err); 
                     if(err.status == 500){
-                        notify('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
+                        ping('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
                     }else{
-                        notify('AI修正に失敗しました。<br>' + err.message)
+                        ping('AI修正に失敗しました。<br>' + err.message)
                     }
                     
                 } else {
-                    notify('AI修正に失敗しました。<br>' + err)
+                    ping('AI修正に失敗しました。<br>' + err)
                 }                            
             } finally {
                 editing.value = false
@@ -447,7 +442,7 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
     }
     const editWithAi = async() => {
         if(editing.value) return
-        const text = messageInputArea.value.textContent
+        const text = messageInputArea.value?.textContent
         const instructionText = `あなたは日本語の文章を添削するAIです。以下の文章を添削してください。
         注意点：
         1. 文法や表現の誤りを指摘し、正しい表現に修正してください。
@@ -461,14 +456,14 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         charLength.value = event.target.innerText.length
     }            
     const inputKeyEventSecond = () => {
-        if(board.value){
+        if(openedBoard.value){
             getCharacterPrecedingCaret();
                 
         }  
     }
     const inputKeyEventfirst = (event) => {
         startPosition.value = getCaretPosition();
-        if(board.value && mentionBoxToggle.value){      
+        if(openedBoard.value && mentionBoxToggle.value && messageInputArea.value && messageInputArea.value.textContent){      
             if (event.key === 'Backspace' || event.key === 'Delete') {
                 const textBeforeCursor = messageInputArea.value.textContent.substring(0, getCaretPosition());
                 const lastAtSign = textBeforeCursor.lastIndexOf('@');
@@ -480,9 +475,9 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
     }
     const getCaretPosition = () => {
         const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        return range.endOffset;
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            return range.endOffset;
         }
         return 0;
     }
@@ -490,21 +485,23 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         mentionBoxToggle.value = false
         highlighted.value = 0
     }
-    const selectEmoji = (emoji) => {     
-        var a = messageInputArea.value.textContent;    
+    const selectEmoji = (emoji) => {   
+        if (!messageInputArea.value) return  
+        var a = messageInputArea.value?.textContent;    
         var b = emoji.i;
         var position = caretPosition.value;
-        var output = [a.slice(0, position), b, a.slice(position)].join('');
+        var output = [a?.slice(0, position), b, a?.slice(position)].join('');        
         messageInputArea.value.textContent = output
         caretPosition.value = caretPosition.value + 2;
         msgSave();
     }
     const commentSendConfirm = async(draftFlag) => {
-        let textCheck = messageInputArea.value.textContent;     
+        if (!messageInputArea.value || !openedBoard.value) return  
+        let textCheck = messageInputArea.value.textContent || '';     
         const nospace = textCheck.replace(/\s/g, "")       
         charLength.value = textCheck.length
         if(draftFlag == 1 && !nospace){
-            info('下書き保存する内容がありません。')
+            toast('下書き保存する内容がありません。')
             return
         }
         if((!nospace && (!attachedFiles.value || !attachedFiles.value.length) && !sharingFiles.value.length && !forwardItem.value) || charLength.value >= 5000) return;       
@@ -517,18 +514,18 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         const message_reply = replyFlag ? quoteReply.message : null
         const forward_message_id = forwardItem.value ? forwardItem.value.id : null
         const message_forward = forwardItem.value ? forwardItem.value : null
-        const queueMessage = {
+        const queueMessage:Message = {
             deleted_at: null,
             message: textCheck,
-            user: auth.activeUser,
+            user: auth.activeUser as User,
             reply_flag: replyFlag,
             reply_id: replyId,
             quot_flag: quotFlag,
             quot_id: quotId,
             quot_message: quotFlag && quotId ? quoteReply.text : null,
             forward_message_id: forward_message_id,
-            record_id: board.value.id,
-            user_id: auth.activeUser.id,
+            record_id: openedBoard.value.id,
+            user_id: Number(auth.activeUser.id),
             id: Math.random().toString(36).substring(5),
             attached_temp_files: successUploadedFiles.value,
             message_quot: message_quot,
@@ -543,7 +540,7 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         }
         addQueue(queueMessage)        
         messageInputArea.value.textContent = ''
-        localStorage.setItem(board.value.id, '');
+        localStorage.setItem(openedBoard.value.id.toString(), '');
         mentionBoxToggle.value = false;
         successUploadedFiles.value = [];
         msgSave();   
@@ -557,7 +554,7 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
     const mentionUser = (user, index) => {             
         if(user && messageInputArea.value){
             const mentionSyntax = `[To:${user.name}:]`
-            const text = messageInputArea.value.textContent
+            const text = messageInputArea.value.textContent || ''
             if(mentionBoxToggle.value && text){            
                 const textBeforeCursor = text.slice(0, caretPosition.value)
                 const match = textBeforeCursor.match(/[＠@]([^＠@^\s]*)$/);
@@ -614,17 +611,19 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
             }
         }                
     }
-    const setEndOfContenteditable = (pos) => {    
+    const setEndOfContenteditable = (pos) => { 
+        if( !messageInputArea.value ) return  
         var node = messageInputArea.value
         node.focus();
-        var textNode = node.firstChild;
+        const textNode = node.firstChild as Text;
+        if( !textNode ) return 
         var range = document.createRange();
         const nPos = pos <= textNode.length ? pos : textNode.length
         range.setStart(textNode, nPos);
         range.setEnd(textNode, nPos);
         var sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
     }
     const getCharacterPrecedingCaret = () => {
         var precedingChar = "", sel, range, precedingRange;
@@ -636,7 +635,7 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
                 range.setStart(messageInputArea.value, 0);
                 precedingChar = range.toString().slice(-1);
             }
-        } else if ( (sel = document.selection) && sel.type != "Control") {
+        } else if ( (sel = document.getSelection) && sel.type != "Control") {
             range = sel.createRange();
             precedingRange = range.duplicate();
             precedingRange.moveToElementText(messageInputArea.value);
@@ -647,7 +646,6 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
             keyCharacters.value = ''
             highlighted.value = 0
             mentionBoxToggle.value = true;
-            mentionBoxForced.value = false
         }else{
             mentionBoxToggle.value = false;                   
             
@@ -687,36 +685,30 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         }    
         msgSave()
     }
-    const caretPos = (event) => {
-
-        const cursorIndex = window.getSelection().getRangeAt(0).startOffset
-        const textBeforeCursor = event.target.innerText.slice(0, cursorIndex)
-        var element = event.target;
-        var caretOffset = 0;
+    const caretPos = (event: Event) => {
+        const target = event.target as HTMLElement;
+        var caretOffset:number | undefined = 0;
         if (window.getSelection) {
-            var range = window.getSelection().getRangeAt(0);
-            var preCaretRange = range.cloneRange();
-            preCaretRange.selectNodeContents(element);
-            preCaretRange.setEnd(range.endContainer, range.endOffset);
-            caretOffset = preCaretRange.toString().length;
-        } 
-        else if (document.selection && document.selection.type != "Control") {
-            var textRange = document.selection.createRange();
-            var preCaretTextRange = document.body.createTextRange();
-            preCaretTextRange.moveToElementText(element);
-            preCaretTextRange.setEndPoint("EndToEnd", textRange);
-            caretOffset = preCaretTextRange.text.length;
-        }            
-        caretPosition.value = caretOffset
+            var range = window.getSelection()?.getRangeAt(0);
+            var preCaretRange = range?.cloneRange();
+            preCaretRange?.selectNodeContents(target);
+            if(range){
+                preCaretRange?.setEnd(range.endContainer, range.endOffset);
+                caretOffset = preCaretRange?.toString().length;
+                caretPosition.value = caretOffset ? caretOffset : 0
+            }
+        }   
+        msgSave()         
     }
     const msgSave = () => {                        
         setTimeout(() => { 
-            var text = messageInputArea.value.textContent    
+            if(!openedBoard.value || !messageInputArea.value) return
+            var text = messageInputArea.value?.textContent    
             if(text){
-                localStorage.setItem('temp_message_' + board.value.id, text);
+                localStorage.setItem('temp_message_' + openedBoard.value.id, text);
             } 
             else{
-                localStorage.removeItem('temp_message_' + board.value.id);     
+                localStorage.removeItem('temp_message_' + openedBoard.value.id);     
             }   
                       
         }, 100);
@@ -755,21 +747,18 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
     const progressload = (e) => {              
         progressPercentage.value = Math.floor((e.loaded * 100) / e.total);                          
     }
-    const uploadStart = (formData) => {
-        axios.post('/attach_upload_api', formData, {
+    const uploadStart = async(formData) => {
+        const files = await api.post('/attach_upload_api', formData, {}, {
             onUploadProgress: progressload
         })
-        .then(response => {    
-            if(response.data && response.data.length){
-                for( let i in response.data){
-                    successUploadedFiles.value.push(response.data[i])
-                }
-            }            
-            progressPercentage.value = 0
-        }).catch((error) => {
-            notify('ファイルアップロードに失敗しました。');
-            progressPercentage.value = 0
-        })
+  
+        if(files && files.length){
+            for( let i in files){
+                successUploadedFiles.value.push(files[i])
+            }
+        }            
+        progressPercentage.value = 0
+
     }      
     const footerDropEnter = (event) => {
         if (event.dataTransfer.types) {
@@ -792,19 +781,8 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         }
     }
     const dropSharingItems = () => {
-        if(sharingData.active && sharingData.drag){
-            
-            sharingData.files.forEach((file) => {
-                const isFolder = file.record.hasOwnProperty('folder') && file.record.folder == 1
-                if(!isFolder && !sharingFiles.value.includes(item => item.path == file.path)){                            
-                    sharingFiles.value.push(file)
-                }
-            });
-            let folders = draggingFiles.value.filter( obj => obj.record.folder == 1);
-            if(folders.length){
-                    
-                notify('フォルダを送ることができません。')
-            }
+        if(sharingData.active && sharingData.drag && sharingData.files && messageInputArea.value){
+            sharingFiles.value = sharingData.files
             if(sharingData.text){
                 var el = messageInputArea.value
                 const nl = el.textContent && el.textContent.length ? '\n' : '';
@@ -844,35 +822,34 @@ import AiIcon from '@/components/Icons/AiIcon.vue';
         }   
         msgSave();       
     }
-    const removeAttachment = (image) => {  
+    const removeAttachment = async (image) => {  
         successUploadedFiles.value = successUploadedFiles.value.filter( ob => ob !== image )
-        axios.post('/remove_temp_file', {id: image.id})
+        await api.post('/remove_temp_file', {id: image.id})
         msgSave();          
     }
     const removeSharingFile = (event, image) => {
         sharingFiles.value = sharingFiles.value.filter( obj => obj !== image)
         msgSave();   
     }
-    const enterSend = (event) => {
-        
+    const enterSend = (event: KeyboardEvent) => {
         if(mentionBox.value && mentionBox.value.highlighted > -1){
             const user = mentionAbleList.value[mentionBox.value.highlighted]
             mentionBox.value.mentionUser(user, mentionBox.value.highlighted)
             event.preventDefault()
         }
-        if(event.altKey || event.windowsKey || event.metaKey){
+        if(event.altKey){
             commentSendConfirm(0)
         }
     }
     const focused = () => {
         if ("virtualKeyboard" in navigator) {
-            navigator.virtualKeyboard.overlaysContent = true;                    
+            (navigator as any).virtualKeyboard.overlaysContent = true;                   
         }
     }
     const mentionBoxForceOpen = () => {
         mentionBoxForced.value = !mentionBoxForced.value
         if(mentionBoxForced.value && !mentionAbleList.value.length){
-            info('メンションできるユーザーがいません。')
+            toast('メンションできるユーザーがいません。')
         }
             
     }

@@ -83,6 +83,9 @@ import { useFilePreview } from '@/store/filePreview';
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { useBadgeStore } from '@/store/badge';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
+import { APIError } from 'openai';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const props = defineProps(['file', 'viewer', 'source'])
@@ -97,14 +100,12 @@ import { useBadgeStore } from '@/store/badge';
     const mySignature = ref(null)
     const resizable = ref(null)
     const imgRef = ref(null)
-    const scale = ref(1)
-    const posX = ref(0)
-    const posY = ref(0)
     const badge = useBadgeStore()
     const auth = useAuthUserStore()
     const refresh = inject('refreshRemind')
     const filePreview = useFilePreview()
-    const { notify, confirm } = inject('dialog')
+    const api = useApi()
+    const { ask, ping } = useDialog()
     
     const signableFile = computed(() => {
         const unsignedUsers = props.file.unsigned_users;
@@ -160,13 +161,13 @@ import { useBadgeStore } from '@/store/badge';
 
         try{
             
-            const response = await axios.post('/get_edit_user', {file_id: props.file.id})
+            const response = await api.post('/get_edit_user', {file_id: props.file.id})
 
-            if(response.data.sign_path){
-                mySignature.value = response.data.sign_path
+            if(response.sign_path){
+                mySignature.value = response.sign_path
             }
-            if(response.data.user){
-                notify(`<strong>${response.data.user.name}</strong>さんが現在このファイルにサイン中です。同時にサインすることはできません<br>30分後にもう一度お試しください`)
+            if(response.user){
+                ping(`<strong>${response.user.name}</strong>さんが現在このファイルにサイン中です。同時にサインすることはできません<br>30分後にもう一度お試しください`)
                 return
             }
             canvasElementShow.value = true;
@@ -175,7 +176,7 @@ import { useBadgeStore } from '@/store/badge';
             })
 
         }catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+
             canvasElementShow.value = false;
             signaturePad.value = null
         }
@@ -228,7 +229,7 @@ import { useBadgeStore } from '@/store/badge';
         selectedLineWidth.value = width
         menu.setMenu( {id: null, name: ''})
     }
-    const notSign = () => {
+    const notSign = async() => {
         let params = ''
         if(props.file.original_file_id){
             params = {
@@ -240,11 +241,10 @@ import { useBadgeStore } from '@/store/badge';
                 file_id: props.file.id,
             };
         }
-        axios.post('/cancel_sign', params).then(response => {
+        await api.post('/cancel_sign', params)            
+        closePdf()
             
-                closePdf()
-            
-        })
+        
     }
     const closePdf = () => {
         const data = {
@@ -255,7 +255,7 @@ import { useBadgeStore } from '@/store/badge';
         }
         filePreview.setFilePreview(data)
         setTimeout(() => {
-            refresh('unsigned_messages')
+            refresh('remind_unsigned_messages')
             badge.getRemindBadge()
         }, 100);
     }
@@ -268,39 +268,36 @@ import { useBadgeStore } from '@/store/badge';
     }
     const downloadPdf = async(modifiedPdf) => {
         if(processing.value) return
-        processing.value = true
-        try{         
-            const answer = await confirm('一度サインすると、変更することはできません。よろしいですか?')  
-            if(!answer.value) return
-                const formData = new FormData()
-                const name = props.file.name
-                const file = new File([modifiedPdf], name, { type: 'application/pdf' });
-                formData.append(0, file)
-                formData.append('file_id', props.file.id)
-                formData.append('board_id', props.file.board_id)
-                await axios.post('/signature_upload_api', formData)                   
-                
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        } finally {
-            closePdf()
-            modifiedPdfBytes.value = null
-            processing.value = false 
-        }
+        processing.value = true     
+        const answer = await ask('一度サインすると、変更することはできません。よろしいですか?')  
+        if(!answer.value) return
+
+        const formData = new FormData()
+        const name = props.file.name
+        const file = new File([modifiedPdf], name, { type: 'application/pdf' });
+        formData.append(0, file)
+        formData.append('file_id', props.file.id)
+        formData.append('board_id', props.file.board_id)
+        await api.post('/signature_upload_api', formData)   
+                    
+        closePdf()
+        modifiedPdfBytes.value = null
+        processing.value = false 
+        ping('サインを保存しました。')
+     
     }
 
     const signImageAdd = async() => {
         if(!signaturePad.value.isEmpty()){
             imgData.value = signaturePad.value.toDataURL();
-            const answer = await confirm('このサインをマイサインとして保存しますか?')
+            const answer = await ask('このサインをマイサインとして保存しますか?')
             if(answer.value) {
-                const response = await axios.post('/save_user_signature', {sign: imgData.value})
-                // const response = await axios.post('/profile_get_update_user', {id: auth.activeUser.id}) 
-                if(response.data.sign_path){
-                    mySignature.value = `${response.data.id}_${response.data.sign_path}.png`
+                const response = await api.post('/save_user_signature', {sign: imgData.value})
+                if(response.sign_path){
+                    mySignature.value = `${response.id}_${response.sign_path}.png`
                 }            
-                if(response.data && Object.hasOwn(response.data, 'id')){   
-                    auth.setUser(response.data)                     
+                if(response && Object.hasOwn(response, 'id')){   
+                    auth.setUser(response)                     
                 }
             }
                            
@@ -308,11 +305,10 @@ import { useBadgeStore } from '@/store/badge';
             
             setTimeout(() => {               
                 interactPDF()
-            }, 100)
-            
+            }, 100)            
             
         }else{
-            notify('サインは必須です。')
+            ping('サインは必須です。')
         }
     }
     const cancelSign = () => {

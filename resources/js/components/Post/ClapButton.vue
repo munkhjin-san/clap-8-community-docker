@@ -8,15 +8,14 @@
     </div>  
 </template>
 <script setup>
-import { inject } from 'vue';
 import { ref, computed } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
+import { useApi } from '@/composables/api';
     const auth = useAuthUserStore()
-
     const props = defineProps(['item', 'appName', 'customStyle'])
     const emit = defineEmits(['updateClap'])
     const loading = ref(false)
-    const { notify, info } = inject('dialog')
+    const api = useApi()
     const iconFill = computed(() => {
         return clapped.value || props.item.user_id == auth.id ? 'var(--primary-color)' : 'rgb(169, 169, 169)'
     })
@@ -36,29 +35,22 @@ import { useAuthUserStore } from '@/store/auth'
         return clapped.length ? true : false
     })
 
-    const sendClap = () => {
+    const sendClap = async() => {
         if(!canClap.value){
             return
         }
-        loading.value = true
         const action = clapped.value ? 1 : 0
-        axios.post('/post_add_clap',{ 
+        const data = await api.post('/post_add_clap',{ 
             record_id: props.item.id, 
             app_name: props.appName,
             action: action
-        }).then(response => {   
-            loading.value = false   
-            if(action == 0){
-                info('CLAPしました。')
-            }
-            
-            emit('updateClap', response.data)
-        }).catch(function (error) {
-            if (error.response) notify(error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。')            
-            loading.value = false                  
-        });
+        }, {
+            loadingRef: loading,
+            ...action == 0 ? { toast: 'CLAPしました。' } : {}
+        })
+        
+        emit('updateClap', data)
+
     }
 
 </script>

@@ -34,14 +34,13 @@
     </div>
 </template>
 <script setup lang="ts">
-import { shallowRef, computed, onMounted, ref, inject } from 'vue';
+import { shallowRef, computed } from 'vue';
 import holiday_jp from '@holiday-jp/holiday_jp'
 import { Dialog, GanttColumnData, Task } from '@/interface/globalInterface';
 import GanttColumn from './GanttColumn.vue'
-import GanttTaskPopup from '@/components/Task/Gantt/GanttTaskPopup.vue';
 import { DateTime, DateTimeUnit, Interval } from 'luxon';
-import { useMenuStore } from '@/store/menu';
 import { Project } from '@/interface/projectInterface';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps<{
     selectedMonth: number
     selectedYear: number
@@ -56,9 +55,8 @@ const emit = defineEmits<{
     setViewType: [value: DateTimeUnit]
 }>()
 const sortSelection: {label:string, value:DateTimeUnit}[] = [{label: '年', value: 'year'}, {label: '月', value: 'month'}, {label: '日', value: 'day'}]
-const menu = useMenuStore()
 const layer = shallowRef(0)
-const { info } = inject<Dialog>('dialog')!
+const { toast } = useDialog()
 const holidays = computed(() => {
     const holidays = holiday_jp.between(new Date(props.selectedYear - 1 + '-12-01'), new Date(props.selectedYear + 1 + '-1-31'));
     return holidays
@@ -129,7 +127,7 @@ const unit = computed(() => {
 const switchView = () => {
     let newVal:DateTimeUnit = props.viewType == 'year' ? 'month' : props.viewType == 'month' ? 'day' : 'year'
     let label = sortSelection.find(s => s.value == newVal)?.label
-    info(`表示形式を${label}に変更しました`)
+    toast(`表示形式を${label}に変更しました`)
     emit('setViewType', newVal)
 }
 </script>

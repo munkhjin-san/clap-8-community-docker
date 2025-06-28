@@ -21,13 +21,15 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import UserPortfolio from '../../Profile/UserPortfolio.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
+import { useApi } from '@/composables/api';
     const portfolio_list = ref([])
     const route = useRoute()
+    const api = useApi()
     onMounted(() => {
         getPortfolios(-1)
     })
     const getPortfolios = async(id) => {
-        const data = await axios.get(`/get_portfolio_view?lesson_theme_id=${route.params?.lessonThemeId}&id=${id}`).then(res => res.data)
+        const data = await api.get(`/get_portfolio_view?lesson_theme_id=${route.params?.lessonThemeId}&id=${id}`)
         if(id == -1){
             portfolio_list.value = data
         }else{

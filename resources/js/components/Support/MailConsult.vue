@@ -49,67 +49,66 @@
 
 </template>
 <script setup>
+import { useApi } from '@/composables/api';
 import LongInput from '../Form/LongInput.vue';
 import ShortInput from '../Form/ShortInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue'
-import { inject, ref } from 'vue';
+import { ref } from 'vue';
+import { useDialog } from '@/composables/dialog';
     const list = ref([
-               { value: 0, content: ' 法務（コンプライアンス、情報管理、社内規定）'}, 
-               { value: 1, content: ' 総務（社内施策、kintone）'},
-               { value: 2, content: ' 会計（経費、生産関連、決算情報）'},
-               { value: 3, content: ' 人事（人事制度、採用関連、人材紹介）'},
-               { value: 4, content: ' 労務（給与関連、福利厚生、休職復職、安全衛生）'},
-               { value: 5, content: ' 広報（ホームページ、社会活動、ブログ、SNS）'},
-               { value: 6, content: ' 事業（企画開発、事業計画、事業実績）'},
-               { value: 7, content: ' システム開発（CLAP）'},
-               { value: 8, content: ' その他'}
-            ])
+        { value: 0, content: ' 法務（コンプライアンス、情報管理、社内規定）'}, 
+        { value: 1, content: ' 総務（社内施策、kintone）'},
+        { value: 2, content: ' 会計（経費、生産関連、決算情報）'},
+        { value: 3, content: ' 人事（人事制度、採用関連、人材紹介）'},
+        { value: 4, content: ' 労務（給与関連、福利厚生、休職復職、安全衛生）'},
+        { value: 5, content: ' 広報（ホームページ、社会活動、ブログ、SNS）'},
+        { value: 6, content: ' 事業（企画開発、事業計画、事業実績）'},
+        { value: 7, content: ' システム開発（CLAP）'},
+        { value: 8, content: ' その他'}
+    ])
     const selectedAnswer = ref(null)
-    const { notify, info } = inject('dialog')
     const to = ref(null)
     const content = ref(null)
     const sending = ref(false)
     const updateKey = ref(0)
     const consultTo = ref(null)
     const consultContent = ref(null)
+    const api = useApi()
+    const { ping } = useDialog()
     const validate = async() => {
-        try {                    
-            let result = true
-            let checkRef = [consultTo.value, consultContent.value]
-            for(const check of checkRef){
-                const exec = await check.validate()
-                result = result * exec.valid
-            }              
-            
-            return result
-        } catch (error) {
-            notify('Error fetching data:', error)
-        }    
+                  
+        let result = true
+        let checkRef = [consultTo.value, consultContent.value]
+        for(const check of checkRef){
+            const exec = await check.validate()
+            result = result * exec.valid
+        }              
+        
+        return result
+  
     }
     const send = async() => {
         const valid = await validate()
         if(selectedAnswer.value == null || !valid) {
             if(selectedAnswer.value == null){
-                notify('相談種別を選択してください。')
+                ping('相談種別を選択してください。')
             }
             return
         }
-        sending.value = true
+
         const params = {
             kind_value: selectedAnswer.value,
             contact_address: to.value,
             consultation_content: content.value
         }
-        try{
-            await axios.post('/support_add_consult',params) 
-            info('送信しました。')
-            selectedAnswer.value = to.value = content.value = null
-            updateKey.value++
-        } catch (e) {
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。') 
-        } finally {
-            sending.value = false
-        }     
+
+        await api.post('/support_add_consult', params, {
+            toast: '送信しました。',
+            loadingRef: sending
+        }) 
+        selectedAnswer.value = to.value = content.value = null
+        updateKey.value++
+ 
     }
         
 

@@ -31,8 +31,7 @@ import { useMenuStore } from '@/store/menu';
 import Back from '@/components/Icons/Back.vue';
 import { inject, ref, toRef } from 'vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { DialogMethods } from '@/interface/globalInterface';
-import axios from 'axios';
+import { useApi } from '@/composables/api';
 
 const props = defineProps<{
     goalId: number
@@ -49,30 +48,27 @@ const saving = ref(false)
 
 const refresh = inject('refresh') as Function
 
+const api = useApi()
+
 const viewMenu = () => {
     if (props.disabled) return
     menu.setMenu({parent: `progress-slider-${props.stepId ? props.stepId : props.goalId}`})
 }
 
-const { notify, info } = inject('dialog') as DialogMethods;
 const save = async() => {
-    try {
-        saving.value = true
-        await axios.post('/save_project_progress', {
-            goal_id: props.goalId,
-            progress: progressData.value,
-            step_id: props.stepId,
-            type: props.type
-        }).then(res => res.data)
-        info('保存しました。')
-        menu.close()
-        if(typeof refresh === 'function') {
-            refresh()
-        }
-    } catch (e) {
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    } finally {
-        saving.value = false
+
+    await api.post('/save_project_progress', {
+        goal_id: props.goalId,
+        progress: progressData.value,
+        step_id: props.stepId,
+        type: props.type
+    }, {
+        toast: '保存しました。',
+        loadingRef: saving
+    })
+    menu.close()
+    if(typeof refresh === 'function') {
+        refresh()
     }
 }
 </script>

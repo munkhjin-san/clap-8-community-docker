@@ -74,11 +74,12 @@
    
 </template>
 <script setup>
-    import CommandButton from '../Global/CommandButton.vue';
-    import UserCreate from './UserCreate.vue'
-    import UserPanel from '@/components/Global/UserPanel.vue'
-    import { computed, onMounted, ref } from 'vue';
-    import PostSearchBar from '../Post/PostSearchBar.vue';
+import CommandButton from '../Global/CommandButton.vue';
+import UserCreate from './UserCreate.vue'
+import UserPanel from '@/components/Global/UserPanel.vue'
+import { computed, onMounted, ref } from 'vue';
+import PostSearchBar from '../Post/PostSearchBar.vue';
+import { useApi } from '@/composables/api';
     const showModalContent = ref(false)
     const editUserData = ref(null)
     const passwordFlag = ref(false)
@@ -92,13 +93,14 @@
     const linkables = ref([])
     const positions = ref([])
     const offices = ref([])
+    const api = useApi()
 
     onMounted(async() => {
         await getUsers()
         fetch.value++
     })
     const getUsers = async() => {
-        const { w, o, p, l, u } = await axios.get('/get_controllable_users').then(res => res.data)        
+        const { w, o, p, l, u } = await api.get('/get_controllable_users')     
         usersList.value = u
         workGroups.value = w
         linkables.value = l

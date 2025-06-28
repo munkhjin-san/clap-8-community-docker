@@ -90,20 +90,20 @@
     </div>  
 </template>
 <script setup>
-    import { useTtsStore } from '@/store/ttsStore';
-    import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
-    import { computed, ref, inject, provide, useTemplateRef, onMounted } from 'vue';
-    import { useRoute, useRouter } from 'vue-router';
-    import axios from 'axios';
-    import HasQuestion from './HasQuestion.vue';
-    import { DateTime } from 'luxon';
+import { useTtsStore } from '@/store/ttsStore';
+import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
+import { computed, ref, inject, provide, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import HasQuestion from './HasQuestion.vue';
+import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
     const router = useRouter()
     const route = useRoute()
     const ttsStore = useTtsStore()
     const props = defineProps(['selectedTopic', 'materials', 'sections_status', 'filteredMaterials', 'sectionsCompleted'])
     const loading = ref([false, false])
-    const { info, notify, confirm } = inject('dialog')
     const lesson = inject('getLessonPortfolios')
+    const api = useApi()
     onMounted(() => {
         setTimeout(() => {
             console.log(props.filteredMaterials)
@@ -152,18 +152,16 @@
         if(!result) return
         loading.value[status] = true
         
-        try{
-            await axios.post('/save_lesson_portfolio', params)
-            
-            info('保存しました。')
-            loading.value[status] = false
-            if(status == 1){
-                router.push({name: route_name})
-            }
-            lesson()
-        }catch (e){
-            notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
+    
+        await api.post('/save_lesson_portfolio', params, {
+            toast: '保存しました。'
+        })
+        loading.value[status] = false
+        if(status == 1){
+            router.push({name: route_name})
         }
+        lesson()
+
     }
     const viewPortfolios = async() => {
         const url = `/learning/${props.selectedTopic.id}/portfolioview`

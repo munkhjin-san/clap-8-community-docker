@@ -35,9 +35,9 @@
     </div>
 </template>
 <script setup>
-import { markRaw, onMounted, ref, watch,} from 'vue';
+import { markRaw, onMounted, ref } from 'vue';
 import { debounce } from '@/utils/tools';
-import OpenAI from "openai";
+import { useApi } from '@/composables/api';
 
     const props = defineProps(['placeHolder', 'specialTags', 'suggestion', 'modelValue'])
     const tagOptions = ref([])
@@ -47,23 +47,22 @@ import OpenAI from "openai";
     const selectedTag = defineModel()
     const superCounter = ref(0)
     const focus = ref(false)
+    const api = useApi()
     onMounted(() => {
         superFetch()
     })      
 
-    const search = debounce((key) => {
-        axios.post('/post_get_tags', {key: key, super: false})
-        .then(response => {
-            tagOptions.value = response.data
-        })
+    const search = debounce(async(key) => {
+        const data = await api.post('/post_get_tags', {key: key, super: false})    
+        tagOptions.value = data
+        
     }, 350)
-    const superFetch = () => {
+
+    const superFetch = async () => {
         if(superCounter > 0) return
-        axios.post('/post_get_tags', {key: '', super: true, special: props.specialTags && props.specialTags.length ? props.specialTags : []})
-        .then(response => {
-            tagOptions.value = response.data
-            superCounter.value ++
-        })
+        const data = await api.post('/post_get_tags', {key: '', super: true, special: props.specialTags && props.specialTags.length ? props.specialTags : []})
+        tagOptions.value = data
+        superCounter.value ++   
     }
     const randomId = () => {
         return Math.random().toString(36).substring(5);

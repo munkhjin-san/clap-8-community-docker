@@ -52,8 +52,8 @@ import { useResponsive } from '@/store/responsive';
 import Step2 from './SalaryIssue/Step2.vue';
 import Step3 from './SalaryIssue/Step3.vue';
 import { onMounted, ref } from 'vue';
-import axios from 'axios';
 import { useAuthUserStore } from '@/store/auth';
+import { useApi } from '@/composables/api';
 const emit = defineEmits([
     'close', 
     'selectThemeConfirm', 
@@ -71,6 +71,7 @@ const props = defineProps([
 const responsive = useResponsive()
 const step = ref(props.chosenGoal?.salary_issue ? 2 : 1)
 const modalContent = ref<HTMLElement | null>(null)
+const api = useApi()
 const next = (val: number) => {
     step.value = val
     if(modalContent.value){
@@ -85,7 +86,7 @@ const themeConfirm = (level, theme) => {
 }
 const auth = useAuthUserStore()
 onMounted(async() => {
-    completedLessonThemes.value = await axios.get('/get_completed_lesson_themes').then(res => res.data)
+    completedLessonThemes.value = await api.get('/get_completed_lesson_themes')
 })
 
 

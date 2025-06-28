@@ -416,6 +416,11 @@ const routes = [
                 path: ':surveyId',
                 name: 'survey-form',
                 component: () => import('@/components/Survey/SurveyForm.vue')
+            },
+            {
+                path: 'completed',
+                name: 'completed-survey',
+                component: () => import('./components/Survey/SurveyComplete.vue'),
             }
         ]
     },
@@ -670,18 +675,18 @@ const routes = [
                 name: 'tab1',
                 component: () => import('@/components/Contact/Tab1/MemberContainer.vue')
             },
-            {
-                path: 'tab2',
-                name: 'tab2',
-                component: () => import('@/components/Contact/Tab2/ContactContainer.vue'),
-                children: [
-                    {
-                        path: ':contactId',
-                        name: 'contactDetail',
-                        component: () => import('@/components/Contact/Tab2/ContactDetail.vue')
-                    }
-                ]
-            }
+            // {
+            //     path: 'tab2',
+            //     name: 'tab2',
+            //     component: () => import('@/components/Contact/Tab2/ContactContainer.vue'),
+            //     children: [
+            //         {
+            //             path: ':contactId',
+            //             name: 'contactDetail',
+            //             component: () => import('@/components/Contact/Tab2/ContactDetail.vue')
+            //         }
+            //     ]
+            // }
         ]
 
     },
@@ -717,6 +722,18 @@ const routes = [
         path: '/asset-partner',
         name: 'asset-partner',
         component: () => import('./components/Asset/Partner/PartnerAssetContainer.vue'),
+    },
+    {
+        path: '/survey-answers',
+        name: 'survey-answers',
+        component: () => import('./components/Survey/MySurveyAnswers.vue'),
+        children: [
+            {
+                path: 'survey-answers-detail',
+                name: 'survey-answers-detail',
+                component: () => import('./components/Survey/MySurveyDetail.vue'),
+            },
+        ]
     }
 
     

@@ -18,16 +18,16 @@
     </div>                
 </div> 
 </template>
-<script setup>
+<script setup lang="ts">
 
     const randomWidth = () => {
-        const x = window.innerWidth || document.clientWidth || body.clientWidth
+        const x = window.innerWidth
         return x > 959 ? 
         Math.floor(Math.random() * (90 - 70 + 1)) + 70 + '%' : 
         Math.floor(Math.random() * (60 - 40 + 1)) + 40 + '%'
     }
     const randomWidthLs = () => {
-        const x = window.innerWidth || document.clientWidth || body.clientWidth
+        const x = window.innerWidth
         return x > 959 ? 
         Math.floor(Math.random() * (100 - 90 + 1)) + 90 + '%' : 
         Math.floor(Math.random() * (80 - 60 + 1)) + 60 + '%'

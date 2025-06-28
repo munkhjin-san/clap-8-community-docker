@@ -25,10 +25,6 @@
                 <div style="font-size: 14px;margin-bottom: 15px;">基礎知識の内容</div>
                 <RichEditor ref="richEdit" :initilaValue="initialValue"/>
             </div>
-            <!-- <div class="si-box" style="height: 70%;">
-                <div style="font-size: 14px;margin-bottom: 15px;">基礎知識の内容（理解できなかった際）</div>
-                <RichEditor ref="richEditDetailed" :initilaValue="initialValueDetailed"/>
-            </div> -->
             <div class="si-box" style="height: 70%;">
                 <div>
                     <div v-for="priority in priorities" style="display: flex;align-items: center;padding: 5px 0;">
@@ -99,20 +95,18 @@
 </template>
 
 <script setup>      
-import { useAuthUserStore } from '@/store/auth';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
-import LongInput from '../../Form/LongInput.vue';
 import RichEditor from '../../Global/RichEditor.vue';
-import { computed, inject, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import OptionSelector from '@/components/Form/OptionSelector.vue';
+import { useApi } from '@/composables/api';
     const priorities = [
         {value: 0, content: 'ヘッダー'},
         {value: 1, content: 'セクション'},
     ]
     const route = useRoute()
-    const { notify, info } = inject('dialog')
     const props = defineProps(['editTarget', 'has_case_study'])
     const emit = defineEmits(['createFinish'])
     const processing = ref(false)
@@ -123,59 +117,46 @@ import OptionSelector from '@/components/Form/OptionSelector.vue';
     const richEdit = ref(null)
    
     const material_type = ref(props.editTarget?.material_type ?? '基礎知識')
-    const auth = useAuthUserStore()
-    const richEditDetailed = ref(null)
     const selectedPriority = ref(props.editTarget ? props.editTarget.priority : null)
+    const api = useApi()
     const initialValue = computed(() => {
         return props.editTarget && props.editTarget.content ? props.editTarget.content : ''
     })
-    const initialValueDetailed = computed(() => {
-        return props.editTarget && props.editTarget.content_detailed ? props.editTarget.content_detailed : ''
-    })
     
     const createSend = async() => {
-            const richContent = richEdit.value.editor.getHTML()
-            processing.value = true
-            // const richContentDetailed = richEditDetailed.value.editor.getHTML()
-            if(!richContent || !title.value || selectedPriority.value == null){
-                processing.value = false
-                return
-            }
-            try {
-                const params = {
-                    id: props.editTarget?.id,
-                    params: {
-                        lesson_theme_id: route.params.themeId,
-                        title: title.value,
-                        content: richContent,
-                        content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
-                        assistant_id: props.editTarget?.assistant_id,
-                        has_feedback: hasFeedBack.value,
-                        priority: selectedPriority.value,
-                        has_question: has_question.value,
-                        has_understand: has_understand.value,
-                        material_type: material_type.value
-                    }
-                    
-                }
-        
-                axios.post('/lesson_add_record',params)
-                .then(response => setTimeout(() => {
-                    closeModal(true, response.data.id)
-                    info(props.editTarget ? '編集しました。' :'保存しました。')
-                },0))
-                .catch(function (error) {
-                    if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-                    else if (error.request) notify('エラーが発生しました。')
-                    else notify('エラーが発生しました。 ' + error.message)      
-                    processing.value = false                    
-                });
-                
-            } catch (error) {
-                console.error('Error fetching data:', error);
-                processing.value = false
-            }
+        const richContent = richEdit.value.editor.getHTML()
+        processing.value = true
+        if(!richContent || !title.value || selectedPriority.value == null){
+            processing.value = false
+            return
         }
+            
+        const params = {
+            id: props.editTarget?.id,
+            params: {
+                lesson_theme_id: route.params.themeId,
+                title: title.value,
+                content: richContent,
+                content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
+                assistant_id: props.editTarget?.assistant_id,
+                has_feedback: hasFeedBack.value,
+                priority: selectedPriority.value,
+                has_question: has_question.value,
+                has_understand: has_understand.value,
+                material_type: material_type.value
+            }
+            
+        }
+
+        const response = await api.post('/lesson_add_record', params, {
+            toast: props.editTarget ? '編集しました。' :'保存しました。'
+        })
+
+        closeModal(true, response.id)     
+        processing.valddddue = false   
+                
+            
+    }
     const closeModal = (flag, id) => {
         processing.value = false
         emit('createFinish',flag, id);              

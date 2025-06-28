@@ -197,7 +197,7 @@ class AdminAccountController extends Controller
             $work_group->delete();
         }
 
-        return 'deleted';
+        return response('success', 200);    
     }
     public function workgroupAdd(Request $request){
         $work_group = $request->work_group_id ? workGroup::findOrFail($request->work_group_id) : new workGroup;        

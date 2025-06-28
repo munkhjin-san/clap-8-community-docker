@@ -39,12 +39,12 @@
 <script setup lang="ts">
 import { Task, TaskComment } from '@/interface/globalInterface';
 import {  GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
-import axios from 'axios';
 import { nextTick, onMounted, ref, useTemplateRef } from 'vue'
 import { inject } from 'vue';
 
 import GanttTaskCommentItem from '@/components/Task/Gantt/GanttTaskCommentItem.vue'
 import { useBadgeStore } from '@/store/badge';
+import { useApi } from '@/composables/api';
 const props = defineProps<{
   task: Task
 }>()
@@ -56,21 +56,22 @@ const commentParent = useTemplateRef('commentParent')
 const commentText = useTemplateRef('commentText')
 const badge = useBadgeStore()
 const commentsList = ref<TaskComment[]>([])
+const api = useApi()
 onMounted(() => {
     
     updateChecked()
     getComments()
 })
 const getComments = async() => {
-    const res = await axios.get('/get_task_comment_list', {params: {task_record_id: props.task.id}})
-    commentsList.value = res.data
+    const res = await api.get('/get_task_comment_list', {task_record_id: props.task.id})
+    commentsList.value = res
     setTimeout(() => {
         scrollToEnd('instant')
     }, 100);
     
 }
 const updateChecked = async() => {
-    await axios.post('/update_task_comment_check', {task_id: props.task.id})
+    await api.post('/update_task_comment_check', {task_id: props.task.id})
     // refreshProject({})
     badge.getTaskCommentBadge()
 }
@@ -79,18 +80,15 @@ const send = async() => {
     if(sending.value || !text){
         return
     }
-    sending.value = true
-    axios.put('/task_comment', { 
+    await api.put('/task_comment', { 
         task_record_id: props.task.id,
         comment: text
-    }).then( async () => {
-        refresh()
-        getComments()
-
-    }).finally(() => {
-        sending.value = false
-        
+    }, {
+        loadingRef: sending,
     })
+    refresh()
+    getComments()
+
 }
 const refresh = async() => {
     commentText.value!.innerText = ''

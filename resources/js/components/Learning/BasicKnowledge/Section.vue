@@ -102,21 +102,23 @@
     </DraftLayout>
 </template>
 <script setup>
-    import { useRoute, useRouter } from 'vue-router';
-    import LongInput from '../../Form/LongInput.vue';
-    import LoaderButton from '../../Global/LoaderButton.vue'
-    import { ref, computed, inject, useTemplateRef, watchEffect } from 'vue'
-    import DraftLayout from './DraftLayout.vue';
-    import axios from 'axios';
-    import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
-    import { useTtsStore } from '@/store/ttsStore';
-    import EasySummary from './EasySummary.vue';
-    import HasQuestion from './HasQuestion.vue';
-    import SummaryQuestions from './SummaryQuestions.vue';
+import { useRoute, useRouter } from 'vue-router';
+import LongInput from '../../Form/LongInput.vue';
+import LoaderButton from '../../Global/LoaderButton.vue'
+import { ref, computed, inject, watchEffect } from 'vue'
+import DraftLayout from './DraftLayout.vue';
+import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
+import { useTtsStore } from '@/store/ttsStore';
+import EasySummary from './EasySummary.vue';
+import HasQuestion from './HasQuestion.vue';
+import SummaryQuestions from './SummaryQuestions.vue';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const router = useRouter()
     const route = useRoute()
     const ttsStore = useTtsStore()
-    const { notify, info, confirm } = inject('dialog')
+    const api = useApi()
+    const { ping, toast } = useDialog()
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
 
     const getLessonPortfolios = inject('getLessonPortfolios')
@@ -184,21 +186,17 @@
             material_id: route.params.materialId,
             section_status: section_status,
         }
-        try{
-            const response = await axios.post('/section_update', params)
-            if(status == 'save'){
-                info(props.editTarget ? '編集しました。' :'保存しました。')
-                processing_save.value = false
-            }
-            await getLessonPortfolios() 
-            radioError.value = ''
-            processing.value = false
-            return response.status
-        }catch(error){
-            if (error.response) notify('エラーが発生しました。 ' + error.response.data.message)
-            else if (error.request) notify('エラーが発生しました。')
-            else notify('エラーが発生しました。 ' + error.message)        
+
+        const response = await api.post('/section_update', params)
+        if(status == 'save'){
+            toast(props.editTarget ? '編集しました。' :'保存しました。')
+            processing_save.value = false
         }
+        await getLessonPortfolios() 
+        radioError.value = ''
+        processing.value = false
+        return response.status
+
                 
     }
     const filteredSummaries = computed(() => {
@@ -246,7 +244,7 @@
                 const options = {
                     answers: [{label: 'OK', value: true}]
                 }
-                const answer = await confirm('理解度チェックの結果、「実務での応用に不安がある」または「理解できていない」を選択された方に向けて、研修内容を分かりやすくまとめた要約を表示します。要約をご覧いただき、理解を深めてください。', options)
+                const answer = await ping('理解度チェックの結果、「実務での応用に不安がある」または「理解できていない」を選択された方に向けて、研修内容を分かりやすくまとめた要約を表示します。要約をご覧いただき、理解を深めてください。', options)
                 if (answer.value) {
                     showSummary.value = true
                     return
@@ -263,33 +261,27 @@
     }
     const saveSummaryAnswers = async() => {
         if(!summaryAnswers.value.length) return
-        try {
-            await axios.post('/save_summary_answers', {answers: summaryAnswers.value})
-        } catch (e) {
-            notify(e)
-        }
+        await api.post('/save_summary_answers', {answers: summaryAnswers.value})
+
     }
     const updateAnswerStatus = async(status, joined, reason_dnt_und) => {
-        try {
-            const params = {
-                id: material?.value?.answer?.id,
-                params: {
-                    material_id: material.value?.id,
-                    status: status || 2,
-                    cant_understand: joined || '',
-                    reason_dnt_und: reason_dnt_und || ''
-                },
-            }
-            await axios.post('/update_lesson_answer', params)
-            
-            router.push({name: 'basic'})
-            
-            info('研修は終了致しました。有難うございます。')
-            saveSummaryAnswers()
-            getLessons()
-        } catch (e) {
-
+        const params = {
+            id: material?.value?.answer?.id,
+            params: {
+                material_id: material.value?.id,
+                status: status || 2,
+                cant_understand: joined || '',
+                reason_dnt_und: reason_dnt_und || ''
+            },
         }
+        await api.post('/update_lesson_answer', params)
+        
+        router.push({name: 'basic'})
+        
+        toast('研修は終了致しました。有難うございます。')
+        saveSummaryAnswers()
+        getLessons()
+
     }
     const getTextContent = (html) => {
         // Create a temporary DOM element to extract text from HTML content

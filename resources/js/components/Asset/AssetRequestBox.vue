@@ -175,9 +175,7 @@
 <script setup lang="ts">
 import { AssetRequest, AssetRequestStep } from '@/interface/assetInterface';
 import CommandButton from '../Global/CommandButton.vue';
-import { DialogMethods } from '@/interface/globalInterface';
 import { inject, ref, useTemplateRef } from 'vue';
-import axios from 'axios';
 import { useAuthUserStore } from '@/store/auth';
 import Modal from '../Global/Modal.vue';
 import ItemSelector from '../Form/ItemSelector.vue';
@@ -185,6 +183,8 @@ import LoaderButton from '../Global/LoaderButton.vue';
 import { customParser } from '@/utils/tools';
 import { ComponentExposed } from 'vue-component-type-helpers';
 import { useBadgeStore } from '@/store/badge';
+import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 
 const props = defineProps<{
     item: AssetRequestStep,
@@ -192,9 +192,10 @@ const props = defineProps<{
     isSenderManager: boolean,
     isReceiveManager: boolean,
 }>()
+const api = useApi()
+const { ask, ping, toast } = useDialog() 
 const badge = useBadgeStore()
 const auth = useAuthUserStore()
-const { confirm, info, notify } = inject('dialog') as DialogMethods
 const getAssets = inject('getAssets') as () => void
 const selectedProject = ref(props.assetRequest.to_project || null)
 const projectSelector = ref(false)
@@ -205,14 +206,14 @@ const officeSelectorRef = useTemplateRef<ComponentExposed<typeof ItemSelector>>(
 const selectedOffice = ref('')
 const managerDecision = async(message: string, status: number) => {
     const title = `${message}しますか？`
-    const confirmed = await confirm(title)
+    const confirmed = await ask(title)
     if(!confirmed.value) return
     const params = {
         step_id: props.item.id,
         status: status
     }
     await updateAsset(params)
-    info(`${message}しました。`)
+    toast(`${message}しました。`)
     
 }
 const isAuthorized = auth.activeUser?.id === 610 || auth.activeUser?.id === 608
@@ -222,14 +223,14 @@ const receiverDecision = async(message:string, status:number) => {
         return
     }
     const title = `${message}しますか？`
-    const confirmed = await confirm(title)
+    const confirmed = await ask(title)
     if(!confirmed.value) return
     const params = {
         step_id: props.item.id,
         status: status
     }
     await updateAsset(params)
-    info(`${message}しました。`)
+    toast(`${message}しました。`)
         
 }
 const setStorePlace = () => {
@@ -238,7 +239,7 @@ const setStorePlace = () => {
 const acceptAsset = async() => {
     const validate = await projectSelectorRef.value?.validate()
     if(!validate?.valid){
-        notify('プロジェクトを選択してください。')
+        ping('プロジェクトを選択してください。')
         return
     }
     const params = {
@@ -249,18 +250,18 @@ const acceptAsset = async() => {
     }
     await updateAsset(params)
     projectSelector.value = false
-    info('承認しました。')
+    toast('承認しました。')
 }
 const receiverManagerDecision = async(message:string, status:number, additionalParams?:{[key:string]: any}) => {
     const title = `${message}しますか？`
     if(additionalParams && 'office_id' in additionalParams){
         const valid = await officeSelectorRef.value?.validate()
         if(!valid?.valid){
-            notify('保管場所を選択してください。')
+            ping('保管場所を選択してください。')
             return
         }
     }
-    const confirmed = await confirm(title)
+    const confirmed = await ask(title)
     if(!confirmed.value) return
     let params = {
         step_id: props.item.id,
@@ -273,33 +274,26 @@ const receiverManagerDecision = async(message:string, status:number, additionalP
         }
     }
     await updateAsset(params)
-    info(`${message}しました。`)
+    toast(`${message}しました。`)
 }
 const returnDecision = async(message:string, status:number) => {
     const title = `${message}しますか？`
-    const confirmed = await confirm(title)
+    const confirmed = await ask(title)
     if(!confirmed.value) return
     const params = {
         step_id: props.item.id,
         status: status
     }
     await updateAsset(params)
-    info(`${message}しました。`)
+    toast(`${message}しました。`)
 }
 const updateAsset = async(params) => {
     if(loading.value) return
-    try{
-        loading.value = true
-        await axios.post(`/asset_approve`, params)
-        getAssets()
-        badge.getAssetBadge()
-    }
-    catch(e){
-        notify(e.response?.data.message || e?.message || 'エラーが発生しました。')
-    }
-    finally{
-        loading.value = false
-        return true
-    }
+    loading.value = true
+    await api.post('/asset_approve', params)
+    getAssets()
+    badge.getAssetBadge()
+    loading.value = false
+    return true
 }
 </script>

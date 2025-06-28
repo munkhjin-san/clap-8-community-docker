@@ -62,13 +62,13 @@
     </div>
 </template>
 <script setup lang="ts">
-import { Dialog, DialogMethods, TaskUser, User } from '@/interface/globalInterface';
+import { TaskUser, User } from '@/interface/globalInterface';
 import MemberSelector from '../Form/MemberSelector.vue';
 import ShortInput from '../Form/ShortInput.vue';
-import { inject, useTemplateRef } from 'vue';
+import { useTemplateRef } from 'vue';
 import { ComponentExposed } from 'vue-component-type-helpers';
 import { DateTime } from 'luxon';
-import { DialogKey } from '@/interface/keys';
+import { useDialog } from '@/composables/dialog';
 
 const props = defineProps<{
     subTaskIndex?: number,
@@ -83,11 +83,11 @@ const remarks = defineModel<string>('remarks')
 const executors = defineModel<TaskUser[]>('executors')
 const start_at = defineModel<string>('start_at')
 const end_at = defineModel<string>('end_at')
-const { notify } = inject<Dialog>('dialog')!;
 const subTaskMembers = useTemplateRef<ComponentExposed<typeof MemberSelector>>('subTaskMembersRef')
 const subTaskContentRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('subTaskContentRef')
 const subTaskStartRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('subTaskStartRef')
 const subTaskEndRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('subTaskEndRef')
+const { ping } = useDialog()
 const isValid = async() => {
     const targets = [subTaskMembers.value, subTaskContentRef.value, subTaskStartRef.value, subTaskEndRef.value]
     let result = true
@@ -98,7 +98,7 @@ const isValid = async() => {
     if(!result) return false
     const validDate = DateTime.fromISO(end_at.value!) >=  DateTime.fromISO(start_at.value!)
     if(!validDate){
-        notify('終了日は開始日より先にすることができません。')
+        ping('終了日は開始日より先にすることができません。')
         return false
     }
     return result

@@ -58,7 +58,6 @@ import GanttMonthPicker from './Gantt/GanttMonthPicker.vue';
 import { ref, computed, onMounted, provide, reactive, onUnmounted } from 'vue';
 import { Board, Task} from '@/interface/globalInterface';
 import GanttBody from './Gantt/GanttBody.vue';
-import axios from 'axios';
 import { GanttMethodsKey} from '@/interface/keys'
 import { Project } from '@/interface/projectInterface';
 import { FastCreateData } from '@/interface/calendarInterface'
@@ -68,6 +67,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { DateTime, DateTimeUnit, Interval, MonthNumbers } from 'luxon';
 import ListLayout from './List/ListLayout.vue';
 import GanttYearPicker from './Gantt/GanttYearPicker.vue';
+import { useApi } from '@/composables/api';
 const props = defineProps<{
     from?: string
     board?: Board
@@ -98,6 +98,7 @@ const sortData = reactive({
     unit: ''
 })
 const initialLoader = ref(true)
+const api = useApi()
 onMounted(async() => {
     const savedViewType = localStorage.getItem('gant_view_type')
     if(savedViewType){
@@ -164,7 +165,7 @@ const setDate = () => {
 }
 
 const getProjects = async(src?:any) => {
-    return await axios.get('/get_gantt_projects', {params: sortData}).then(res => res.data)
+    return await api.get('/get_gantt_projects',  sortData)
 }
 const clearPreData = () => {
     Object.keys(preData).forEach((key) => {

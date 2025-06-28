@@ -24,16 +24,17 @@
     </div>
 </template>
 <script setup lang="ts">
-import { onMounted, provide, reactive, ref, watch } from 'vue';
+import { onMounted, provide, ref, watch } from 'vue';
 import PostSearchBar from '@/components/Post/PostSearchBar.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { User } from '@/interface/globalInterface';
-import axios from 'axios';
 import { detailedDateOptions } from '@/utils/tools';
 import { DateTime } from 'luxon';
+import { useApi } from '@/composables/api';
 const keywords = ref('')
 const router = useRouter()
 const route = useRoute()
+const api = useApi()
 const userList = ref<User[]>([])
 const mentorList = ref([])
 const selectedDate = ref({
@@ -54,13 +55,11 @@ onMounted(() => {
     getSelectableUsers()
 })
 const getSelectableUsers = async() => {
-    try {
-        const data = await axios.post('/get_selectable_users', {params: selectedDate.value}).then(res => res.data)
-        userList.value = data.users
-        mentorList.value = data.mentors
-    } catch (e) {
 
-    }
+    const data = await api.post('/get_selectable_users', {params: selectedDate.value})
+    userList.value = data.users
+    mentorList.value = data.mentors
+
 }
 watch(() => selectedDate.value, () => {
     getSelectableUsers()

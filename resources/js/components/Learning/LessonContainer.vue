@@ -129,10 +129,11 @@
     </div>
 </template>
 <script setup>
-    import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
-    import { computed, onMounted, ref, inject, provide, defineAsyncComponent  } from 'vue';
-    import { useAuthUserStore } from '@/store/auth'
+import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
+import { computed, onMounted, ref, inject, provide, defineAsyncComponent  } from 'vue';
+import { useAuthUserStore } from '@/store/auth'
 import Back from '../Icons/Back.vue';
+import { useApi } from '@/composables/api';
     const auth = useAuthUserStore()
     const subtopics = [{val: 0, title:'基礎知識'},{val: 1, title: 'グループディスカッション'},{val: 2, title: 'ポートフォリオ'}]
     const props = defineProps(['selectedTopic'])
@@ -145,6 +146,7 @@ import Back from '../Icons/Back.vue';
         import('./LessonExplain.vue')
     )
     const moreDetail = ref(false)
+    const api = useApi()
     const selectCaseStudy = (material) => {
         router.push({name: 'material', params: {materialId: material.id}})
     }
@@ -254,19 +256,12 @@ import Back from '../Icons/Back.vue';
         }
     };
     const getLessons = async() => {
-        await axios.get(`/get_lessons?lesson_theme_id=${route.params.lessonThemeId}`).then(response => {
-            if(response.data){
-                materials.value = response.data
-            }
-        })
+        const data = await api.get(`/get_lessons?lesson_theme_id=${route.params.lessonThemeId}`)
+        data && (materials.value = data)              
     }
     const getLessonPortfolios = async() => {
-        axios.post('/get_lesson_portfolio', {lesson_theme_id: route.params.lessonThemeId}).then(response => {
-            if(response.data){
-                portfolio.value = response.data
-                // temp_content.value = response.data.content ? response.data.content : ''
-            }
-        })
+        const data = await api.post('/get_lesson_portfolio', {lesson_theme_id: route.params.lessonThemeId})
+        data && (portfolio.value = data)  
     }
     provide('getLessonPortfolios', getLessonPortfolios)
     provide('portfolio', portfolio)
