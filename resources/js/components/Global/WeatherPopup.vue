@@ -86,7 +86,7 @@ const greetings = computed(() => {
 
 const getWelcomeMessage = async() => {
 
-    messageData.value = await api.get('/welcome_message');
+    messageData.value = await api.get('/welcome_message', {}, {silent: true});
     isOpen.value = true;
     setTimeout(() => {
         isOpenInner.value = true;
