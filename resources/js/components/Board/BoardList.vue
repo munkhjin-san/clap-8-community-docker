@@ -55,7 +55,7 @@ import FloatButton from '../Global/FloatButton.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { useBoardList } from '@/composables/board';
-import { Board, Message } from '@/interface/globalInterface';
+import { Message } from '@/interface/globalInterface';
 import { useRoute } from 'vue-router';
     interface Props {
         failedMessagesList: Message[];
@@ -70,28 +70,11 @@ import { useRoute } from 'vue-router';
     const bounceId = ref(null)
     const route = useRoute()
     const panelContainer = useTemplateRef('panelContainer')
-    const pinnedBoards = computed(() => {
-        let res: Board[] = [];
-        boardList.value.forEach((board, index) => {            
-            let users = board.board_to_users  
-            let pinned = users.filter( obj => obj.user_id == auth.id)
-            if(pinned.length && pinned[0].pin_flag){
-                res.push(board)
-            }
-        }); 
-        return res
-    })
-    const unPinnedBoards = computed(() => {
-        let res: Board[] = [];
-        boardList.value.forEach((board, index) => {
-            let users = board.board_to_users      
-            let pinned = users.filter( obj => obj.user_id == auth.id)
-            if(pinned.length && !pinned[0].pin_flag){                    
-                res.push(board)
-            }
-        }); 
-        return res
-    })
+
+    const pinnedBoards = computed(() => boardList.value.filter( board => board.board_to_users.find(user => user.user_id === auth.activeUser.id)?.pin_flag === 1))
+
+    const unPinnedBoards = computed(() => boardList.value.filter( board => board.board_to_users.find(user => user.user_id === auth.activeUser.id)?.pin_flag === 0))
+     
     const boardListDropEnterFromFile = (board) => {
         if(responsive.mobile) return 
         bounceId.value = board.id

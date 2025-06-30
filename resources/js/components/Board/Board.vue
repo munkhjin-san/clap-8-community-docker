@@ -654,8 +654,13 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
        
     }
     const pinBoard = async(id) => {           
-        await api.post('/pin_board_api', {group_id: id})
-        getBoardList()
+        const data = await api.post('/pin_board_api', {group_id: id})
+        await getBoardList()
+        if(data?.pin_flag === 1){
+            toast('ピン留めしました。')
+        }else if(data?.pin_flag === 0){
+            toast('ピン留めを解除しました。')
+        }
     }
     const setNotification = async(id) => {
       
