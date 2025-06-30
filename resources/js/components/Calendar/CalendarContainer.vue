@@ -134,7 +134,7 @@
         <FloatButton 
             @click.stop="menu.setMenu( {name : 'calendarViewMenu', id: 79})" 
             :style="{zIndex: initialLoader ? 41 : 7}"
-            :order="2"
+            :order="3"
         >
             <template #icon>
                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 32" width="18" height="16" fill="black">
