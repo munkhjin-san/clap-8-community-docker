@@ -52,8 +52,8 @@
             <div class="report-field">
                 <p class="report-header">{{ data.title }}</p>
                 <div class="report-input">
-                    <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records">
-                        <div v-if="customPart.parts_value != 2 || shift_type?.id == 0">
+                    <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records.filter(part => part.parts_value != 2 || shift_type?.id == 0)" :key="index">
+                        <div>
                             <input :id="'workAllowance' + index" type="checkbox" name="allowance" v-model="value" :value="customPart.parts_value">
                             <label :for="'workAllowance' + index">{{ customPart.parts_lavel }}</label> 
                         </div>
@@ -65,21 +65,7 @@
             :sub-parts="subParts"
             v-model="value"
             v-if="subParts && subParts.length"
-        />
-        <!-- <div v-if="subParts && subParts.length">
-            <div class="report-field">
-                <div class="report-input">
-                    <div class="report-input-wrapper" v-for="(subPart , index) in subParts">
-                        <div>
-                            <input ref="subPartsRef" :id="'workSub' + index" type="checkbox" name="sub_allowance" v-model="value" @change="setSubPart" :value="subPart.parts_value">
-                            <label :for="'workSub' + index">{{ subPart.parts_lavel }}</label> 
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div> -->
-        
-        
+        />       
     </div>
 
 </template>
