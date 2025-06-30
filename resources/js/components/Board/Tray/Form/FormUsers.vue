@@ -8,16 +8,8 @@
             <div v-for="user in form.users">
                 <UserPanel disable-instant :user="user" with-name>
                     <template #details>
-                        <div v-if="repeative" class="text-[12px]">
-                            <div>回答（{{userAnswers(user).length}}回）</div>
-                        </div>
-                        <div v-else class="text-[11px] ml-[10px] mt-[5px]">
-                            <div v-if="userAnswers(user).length > 0" class="text-[green]">
-                                回答済み
-                            </div>
-                            <div v-else class="text-[tomato]">
-                                未回答
-                            </div>
+                        <div class="text-[12px] ml-[10px] mt-[5px]">
+                            <div class="jump-link">回答（{{userAnswers(user).length}}）</div>
                         </div>
                     </template>
                 </UserPanel>

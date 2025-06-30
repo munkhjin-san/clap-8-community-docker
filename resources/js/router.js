@@ -30,6 +30,7 @@ const routes = [
                         props: true
                     },
                     { path: 'file', name: 'file',  component: () => import('./components/Mobile/File.vue'), },
+                    { path: 'board-form', name: 'board-form', component: () => import('./components/Mobile/Form.vue'),}
                 ]
             }
         ],

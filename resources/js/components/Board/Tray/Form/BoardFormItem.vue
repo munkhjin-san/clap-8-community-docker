@@ -3,6 +3,7 @@
         <div class="flex justify-between">
             <p>{{ form.title }}</p>
             <ItemMenu v-if="isAdmin" :items="[
+                {title: '回答の確認', action: () => { emit('setViewAnswers', form) }},
                 {title: '編集', action: () => { emit('edit', form) }},
                 {title: '削除', action: () => { emit('delete', form) }},
                 {title: '再利用', action: () => { emit('duplicate', form) }},
@@ -37,6 +38,7 @@ const emit = defineEmits<{
     'edit': [form: CustomForm]
     'delete': [form: CustomForm]
     'duplicate': [form: CustomForm]
+    'setViewAnswers': [form: CustomForm]
 }>()
 
 const auth = useAuthUserStore()
