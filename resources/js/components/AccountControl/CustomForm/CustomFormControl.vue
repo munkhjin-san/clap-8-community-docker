@@ -121,7 +121,6 @@ const deleteForm = async(id: number) => {
 const duplicateForm = async(id: number) => {
     const data = await api.post('/duplicate_custom_form', {id: id}, {
         ask: '再利用しますか？',
-        toast: '再利用しました。',
     })
     data && getForms()
     

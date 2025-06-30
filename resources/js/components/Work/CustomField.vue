@@ -61,7 +61,12 @@
                 </div>
             </div>
         </div>
-        <div v-if="subParts && subParts.length">
+        <CustomFieldSub 
+            :sub-parts="subParts"
+            v-model="value"
+            v-if="subParts && subParts.length"
+        />
+        <!-- <div v-if="subParts && subParts.length">
             <div class="report-field">
                 <div class="report-input">
                     <div class="report-input-wrapper" v-for="(subPart , index) in subParts">
@@ -72,7 +77,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </div> -->
         
         
     </div>
@@ -86,6 +91,7 @@ import VehicleField from './VehicleField.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import { onMounted, ref, computed, useTemplateRef } from 'vue';
 import { useDialog } from '@/composables/dialog';
+import CustomFieldSub from './CustomFieldSub.vue';
     const props = defineProps(['data', 'shift_type'])
     const value = defineModel('fieldValue') 
     const vehicle = defineModel('vehicle')

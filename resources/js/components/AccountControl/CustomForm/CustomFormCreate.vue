@@ -2,7 +2,7 @@
 <template>
     <Modal @close="emit('close', false)">
         <template #title>
-            <p>{{ params?.id ? `フォームを編集する` : `フォームを作成する`}}</p>
+            <p>{{ editData ? `フォームを編集する` : `フォームを作成する`}}</p>
         </template>
         <template #content>
             <div class="si-box">

@@ -134,7 +134,7 @@
         <FloatButton 
             @click.stop="menu.setMenu( {name : 'calendarViewMenu', id: 79})" 
             :style="{zIndex: initialLoader ? 41 : 7}"
-            :order="2"
+            :order="3"
         >
             <template #icon>
                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 32" width="18" height="16" fill="black">
@@ -142,7 +142,7 @@
                 </svg>
             </template>
         </FloatButton>
-        <!-- <FloatButton
+        <FloatButton
             :order="2"
             @action="tempReserveWindow = true"
             :style="{zIndex: initialLoader ? 41 : 7}"
@@ -157,7 +157,7 @@
                     <path d="M21.32,21.82c.09-.1.31-.34.4-.43,1.08-1.19,3.07-1.21,4.19-.04,1.41,1.35,2.81,2.71,4.2,4.08.95.83,1.36,2.22.89,3.42-.19.54-.57,1-.98,1.38-1.19,1.34-3.28,1.41-4.53.11-.17-.17-.64-.66-.82-.84-1.06-1.09-2.21-2.28-3.25-3.37-.2-.2-.53-.57-.68-.87-.61-1.11-.37-2.6.55-3.47,0,0,.03.03.03.03h0ZM22.81,23.31c-.21.24-.24.6-.08.86.06.1.07.1.31.33.75.72,1.5,1.44,2.25,2.17.37.36,1.32,1.29,1.67,1.64l.28.27.03.03h.01c.2.21.57.22.77.01.11-.11.34-.34.44-.45.18-.17.22-.46.1-.68-.05-.09-.04-.08-.28-.32-1.27-1.3-2.55-2.61-3.8-3.93-.08-.08-.31-.34-.4-.41-.25-.21-.68-.2-.92.04,0,0-.14.13-.14.13l-.29.26.03.03h0Z"/>
                 </svg>
             </template>
-        </FloatButton> -->
+        </FloatButton>
 
         <FloatButton title="新規作成" @click="createWindow = true" :style="{zIndex: initialLoader ? 41 : 7}" :order="1">
             <template #icon>

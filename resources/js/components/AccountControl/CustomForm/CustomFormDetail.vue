@@ -1,10 +1,10 @@
 <template>
-<div class="absolute z-[7] left-0 top-0 h-full w-full bg-[var(--bg3)]">
+<div class="h-full w-full" :class="{ 'absolute z-[7] left-0 top-0 bg-[var(--bg3)]': mode !== 'board' }">
     <div class="min-h-[60px] flex gap-[10px] items-center">
-        <div @click="router.push({name: 'custom-form-control'})" class="h-[60px] w-[60px] min-w-[60px] flex items-center justify-center cursor-pointer">
+        <div v-if="mode !== 'board'" @click="router.push({name: 'custom-form-control'})" class="h-[60px] w-[60px] min-w-[60px] flex items-center justify-center cursor-pointer">
             <Back/>
         </div>
-        <div class="max-w-[calc(100%-200px)] text-[16px] overflow-hidden overflow-ellipsis">
+        <div v-if="mode !== 'board'" class="max-w-[calc(100%-200px)] text-[16px] overflow-hidden overflow-ellipsis">
             {{ form.title }}
         </div>        
 
@@ -13,7 +13,7 @@
         </div>
         
     </div>
-    <div class="px-[20px] h-[calc(100%-60px)] overflow-auto">
+    <div :class="{'px-[20px] h-[calc(100%-60px)] overflow-auto': mode !== 'board'}">
         <div class="py-[20px]">
             <div class="text-[14px]">
                 アンケートのURL: <a target="_blank" :href="url">{{url}}</a>
@@ -92,7 +92,7 @@
                 <div v-if="tab == 0">
                     <div class="mt-[20px]">
                         <div class="mt-[10px] flex flex-col gap-[30px]">
-                            <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" v-for="(answer, index) in answersByUser">
+                            <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" :class="{'!bg-[var(--bg3)]' : mode == 'board'}" v-for="(answer, index) in answersByUser">
                                 <label class="flex items-center">
                                     <UserPanel v-if="answer.user" :user="answer.user" with-name disable-instant/>
                                     <p class="jump-link ml-[15px] text-[13px]">表示・非表示</p>
@@ -117,7 +117,7 @@
                 </div>
                 <div v-if="tab == 1 && answersByBlock" >
                     <div class="mt-[10px] flex flex-col gap-[30px]">
-                        <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" v-for="block in answersByBlock.blocks" >
+                        <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" :class="{'!bg-[var(--bg3)]' : mode == 'board'}" v-for="block in answersByBlock.blocks" >
                             <label class="flex items-center">
                                 <div class="text-[16px]">{{ block.question }}</div>
                                 <p class="jump-link ml-[15px] text-[13px]">表示・非表示</p>
@@ -217,6 +217,7 @@ ChartJS.register(ArcElement, Tooltip, Legend, Colors )
 const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select', 'file']
 const props = defineProps<{
     form: CustomForm
+    mode?: 'board' | 'control'
 }>()
 
 const menu = useMenuStore()
