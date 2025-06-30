@@ -1039,7 +1039,6 @@ class ProjectController extends Controller
         $tabs = [
             '',
             '営業',
-            '経営',
             'マーケティング',
             '人事・人材開発',
             '労務管理',
@@ -1058,9 +1057,8 @@ class ProjectController extends Controller
 
 
 
-            if (isset($data[11])) {
-                $main_categories = $data[11];
-                
+            if (isset($data[10])) {
+                $main_categories = $data[10];
                 $main_categories = array_map(function($item){
                     return $item[0];
                 }, $main_categories);
@@ -2196,6 +2194,53 @@ class ProjectController extends Controller
         ->get();
         return response()->json($users);
     }   
+    public function gemini_preview(Request $request){
+        $apiKey = config('app.gemini_api_key');
+        if (empty($apiKey)) {
+            return response()->json(['message' => 'API key not found'], 400);
+        }
+
+        $instruction = $request->instruction;
+        $content = $request->content;
+        $format = $request->format;
+        // Prepare payload
+        $payload = [
+            'contents' => [
+                [
+                    'role' => 'user',
+                    'parts' => [
+                        [
+                            'text' => $content,
+                        ],
+                    ],
+                ],
+            ],
+            "systemInstruction" => [
+                "parts" => [
+                    [
+                        "text" => $instruction
+                    ],
+                ]
+            ],
+            'generationConfig' => [
+                'responseMimeType' => 'application/json',
+                'responseSchema' => $format
+            ],
+        ];
+    
+        // Send request
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=$apiKey";
+        $response = Http::withHeaders([
+            'Content-Type' => 'application/json',
+        ])->post($url, $payload);
+
+        
+        $date = Carbon::now()->format('Y-m-d');
+        $data = $response->json();
+        $chunks = collect(data_get($data, 'candidates.0.content.parts.0.text'));
+        return response()->json($chunks);
+
+    }
     public function set_project_goal_step_status(Request $request){
         $request->validate([
             'project_goal_id' => 'required',
