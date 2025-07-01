@@ -402,7 +402,7 @@ import { useDialog } from '@/composables/dialog';
         const answer = await ask('アクティブアカウントが変更されています。ページを更新してください。', options)
         if(answer.value){
             window.location.reload(true);
-        }else{s
+        }else{
             confused.value = true
         }
     }
