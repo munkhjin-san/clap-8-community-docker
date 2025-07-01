@@ -95,7 +95,7 @@ import { useDialog } from '@/composables/dialog';
     const sideMenuView = useSideMenuView()
     const switchLoader = ref(false)
 
-    const { askData, pingData, toastData, respondOptions, decision, resetDialog } = useDialog() 
+    const { askData, pingData, toastData, respondOptions, decision, resetDialog, ask } = useDialog() 
     const instantUser = ref({
         id: null,
         name: null,
