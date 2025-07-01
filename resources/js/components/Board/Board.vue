@@ -541,7 +541,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
                     }
                     jumpToMessage(atr)
                 }else{                
-                    getMessageList('first_load');
+                    getMessageList('first_load', undefined, item.id);
                 }            
             }  
             microLoader.value = false
@@ -566,8 +566,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         });
     }
     const getMessageList = async(source?:string, queue?:any, chatId?:number) => {
-        if(!openedBoard.value) return    
-        const boardId = Number(route.params.chatId)
+        const boardId = Number(route.params.chatId) || chatId 
         if(!boardId) return
         const response = await api.post('/get_messages', { record_id: boardId, page_index: pageIndex.value })
         if(queue){
