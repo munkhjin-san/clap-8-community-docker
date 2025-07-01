@@ -13,8 +13,8 @@ export function useBoardTitle(board?:Board) {
         if(board.project ){
             return board.project.name
         }       
-        if(board.private_flag == 1 && board.board_to_users.length == 2){
-            const coresspondUser = board.board_to_users.find(obj => obj.user_id !== auth.id);
+        if(board.private_flag == 1){
+            const coresspondUser = board.board_to_users.find(obj => obj.user_id !== auth.activeUser.id);
             return coresspondUser && coresspondUser.user && coresspondUser.user.name ? coresspondUser.user.name: '非アクティブユーザー';           
         }else if(board.private_flag == 3){
             return 'マイチャット'
