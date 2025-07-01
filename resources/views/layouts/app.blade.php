@@ -19,8 +19,8 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="icon" type="image/x-icon" sizes="36x36" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="36x36" href="/favicon.png"> -->
-    <link rel="apple-touch-icon" size="152x152" href="/app/public/icon-152x152.png">
-    <link rel="icon" type="image/png" size="152x152" href="/app/public/icon-152x152.png">
+    <link rel="apple-touch-icon" size="152x152" href="/app/public/logo152.png">
+    <link rel="icon" type="image/png" size="152x152" href="/app/public/logo152.png">
     <link rel="manifest" href="/manifest.json">
     <!-- <link rel="canonical" href="https://glowd.app/auth"> -->
     <title>CLAP</title>

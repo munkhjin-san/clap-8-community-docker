@@ -1,6 +1,5 @@
 import { Board } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
-import { DateTime } from 'luxon';
 import { computed } from 'vue';
 
 const auth = useAuthUserStore()
