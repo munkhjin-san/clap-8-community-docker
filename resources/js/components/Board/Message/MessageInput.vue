@@ -60,9 +60,18 @@
                     <div v-if="aiResponse" class="ai-prompt-root focused" style="color: var(--primary-color);" >
                         <span class="form-plc" style="font-weight: 600;">AI修正案</span> 
                         <div v-html="aiResponse" ref="aiResponseText" class="typeBoxArea" style="width: calc(100% - 20px);outline: none;border: none; padding: 0 10px 10px; margin-top: 30px;" :contenteditable="aiResponseCustomize"></div>
-                        <div style="width:100%;display: flex;align-items: end;">                            
-                            <div @click="replaceText" v-if="aiResponseCustomize" style="margin: 0 10px 10px auto;" class="commentEditButton">適用</div>
-                            <div @click="resetAi" v-if="aiResponseCustomize" style="margin: 0 10px 10px 0;" class="commentEditButton">閉じる</div>
+                        <div class="w-full flex items-center">  
+                            <div class="flex items-center gap-2.5 mb-2.5 ml-2.5">
+                                <select class="commentEditButton !m-0" id="aitoneselector" v-model="aiTone">
+                                    <option v-for="tone in aiToneOptions" :value="tone.value">{{ tone.label }}</option>
+                                </select>
+                                <div @click="editWithAi" v-if="aiResponseCustomize" class="commentEditButton !m-0">再生成</div>
+                            </div>  
+                            <div class="ml-auto flex items-center gap-2.5 mb-2.5 mr-2.5">
+                                <div @click="replaceText" v-if="aiResponseCustomize" class="commentEditButton !m-0">適用</div>
+                                <div @click="resetAi" v-if="aiResponseCustomize" class="commentEditButton !m-0">閉じる</div>
+                            </div>                        
+                            
                         </div>                        
                     </div>
                 </Transition>
@@ -242,6 +251,11 @@ import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
     const editing = ref(false)
     const aiResponse = ref('')
     const aiResponseCustomize = ref(false)
+    const aiToneOptions = ref([
+        { label: 'カジュアル', value: 'casual' },
+        { label: 'フォーマル', value: 'formal' },
+    ])
+    const aiTone = ref('casual')
     const dropActive = ref(false)
     const sharingFiles = ref<SharingFile[]>([])
     const messageInputArea = useTemplateRef('messageInputArea')
@@ -443,7 +457,42 @@ import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
     const editWithAi = async() => {
         if(editing.value) return
         const text = messageInputArea.value?.textContent
-        const instructionText = `あなたは日本語の文章を添削するAIです。以下の文章を添削してください。
+        const instructionText = `
+
+        あなたは、社内業務報告や進捗連絡などの文書を整えるAIアシスタントです。
+
+        ユーザーから与えられる口語的・断片的な文章を、以下の方針で再構成してください。
+
+        【変換方針】
+        - 文法修正にとどまらず、文の構造・因果関係・主語と述語の整合性を見直す
+        - 事実の順序や目的を明確にして、文意が一読で伝わるようにする
+        - 文末表現は丁寧語（「〜しました」「〜です」）で統一する
+        - 不明瞭な指示語（それ・これ）は具体語に置き換える
+        - 事実と憶測・感想を分離し、主観を排して簡潔にする
+
+        【表現トーン】
+        トーン：${aiTone.value} 
+        このトーンで添削してください。         
+
+        🎯 入力例（ユーザー入力の想定）
+  
+        【原文】
+        昨日の○○商事の件、訪問して先方の営業の人と少し話した。  
+        先方の決裁者は出てこなかったけど、現場の反応はわりと良かった。  
+        ただやっぱり価格の部分はネック。  
+        次は金曜にもう一回打合せやるかも。  
+
+        あと資料出してほしいって言ってた気がする。
+        ---
+
+         ✅ 出力例（期待されるAIの出力）
+
+        昨日、○○商事を訪問し、現地の営業担当者と面談しました。  
+        決裁権を持つ方は不在でしたが、現場担当者の反応は概ね良好でした。  
+        ただし、価格については引き続き課題として捉えられている様子でした。
+
+        次回は今週金曜日に再度打合せを行う可能性があります。  
+        また、先方より資料の送付を希望されましたので、準備が必要です。
         注意点：
         1. 文法や表現の誤りを指摘し、正しい表現に修正してください。
         2. 編集したテキストのみを出力してください。「修正後のテキストは以下の通りです。」などの前置きは不要です。
