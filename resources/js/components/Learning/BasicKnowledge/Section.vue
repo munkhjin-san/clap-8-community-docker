@@ -105,7 +105,7 @@
 import { useRoute, useRouter } from 'vue-router';
 import LongInput from '../../Form/LongInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
-import { ref, computed, inject, watchEffect } from 'vue'
+import { ref, computed, inject, watchEffect, onMounted } from 'vue'
 import DraftLayout from './DraftLayout.vue';
 import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
 import { useTtsStore } from '@/store/ttsStore';
@@ -114,22 +114,23 @@ import HasQuestion from './HasQuestion.vue';
 import SummaryQuestions from './SummaryQuestions.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+
     const router = useRouter()
     const route = useRoute()
     const ttsStore = useTtsStore()
     const api = useApi()
     const { ping, toast } = useDialog()
     const props = defineProps(['selectedTopic', 'filteredMaterials', 'sections_status'])
-
+    const material = ref(null)
     const getLessonPortfolios = inject('getLessonPortfolios')
     const filteredContent = computed(() => {
-        
+        if(!material.value) return ''
         return material.value.content.replace(/\[\[learning_video src="(.*?)" learning_video\]\]/g, (match, videoSrc) => {
             return `<video class="ls-video"  controls="controls"><source src="${videoSrc}"></video>`;
         });
     })
-    const material = computed(() => {
-        return route.meta.material ? route.meta.material : null
+    onMounted(() => {
+        material.value = route.meta.material ? route.meta.material : null
     })
     const sectionStatus = computed(() => {
         return props.sections_status && props.sections_status.length ? props.sections_status.find(val => val.material_id === material.value?.id)?.status : 0
