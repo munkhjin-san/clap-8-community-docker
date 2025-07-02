@@ -45,7 +45,7 @@
                         border-radius: 0px;
                         background: var(--primary-button);
                         color: #fff;
-                        margin-top:10px;" @click="remindRequest" >リマインドから外す</button>        
+                        margin-top:10px;" @click="remindRequest(message)" >リマインドから外す</button>        
                
                <div v-if="message.deleted_at == null" class="message-foot-area">
                     <div style="display:flex;width: fit-content;">                    
