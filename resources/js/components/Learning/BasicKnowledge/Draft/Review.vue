@@ -93,7 +93,7 @@ const params = computed(() => {
 })
 const finishReview = async(status) => {
     if(props.selectedTopic.assistant_id && !reviewEl.value?.reviewResultRaw){
-        ping('基礎知識研修を完了する前、AI分析してください。')
+        ping('知識研修を完了する前、AI分析してください。')
         return
     }
     const valid = await reviewEl.value?.validate()

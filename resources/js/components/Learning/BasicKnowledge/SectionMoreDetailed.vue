@@ -55,7 +55,7 @@
                 <p style="margin-bottom: 20px;"><strong>研修内容から理解したものやハイライトしたい部分を入力してください。</strong></p>
                 <LongInput
                     :initialValue="comment"   
-                    :placeHolder="`基礎知識の内容`"
+                    :placeHolder="`知識研修の内容`"
                     ref="moreDetailContent"
                     rules="required"
                     name="recordBody"

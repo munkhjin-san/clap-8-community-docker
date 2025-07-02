@@ -48,7 +48,7 @@
                     @close="showSummary = false"
                 />
                 <div v-if="sectionStatus != 2 && material.has_understand">
-                    <p><strong>基礎知識の内容を理解しましたか？</strong></p>
+                    <p><strong>内容を理解しましたか？</strong></p>
                     <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
                         <input class="fish-eye" v-model="selectedAnswer" type="radio" :id="answer.value" name="answer" :value="answer.value" >
                         <label style="margin-left:10px;cursor:pointer" :for="answer.value">{{answer.content}}</label>
@@ -57,7 +57,7 @@
                 </div>
                 
                 <div v-if="selectedAnswer == 1 || sectionStatus == 2" class="si-box" style="margin:0">
-                    <p :style="{marginBottom: sectionStatus != 2 ? '20px' : '0'}"><strong>{{ sectionStatus != 2 ? '基礎知識の内容で特に重要だと理解した点を入力してください' : '基礎知識の内容で特に重要だと理解した点'}}</strong></p>
+                    <p :style="{marginBottom: sectionStatus != 2 ? '20px' : '0'}"><strong>{{ sectionStatus != 2 ? '特に重要だと理解した点を入力してください' : '特に重要だと理解した点'}}</strong></p>
                     <LongInput
                         v-if="sectionStatus != 2"
                         :initialValue="sectionContent ? sectionContent : comment"   

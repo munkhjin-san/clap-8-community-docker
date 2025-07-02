@@ -135,7 +135,7 @@ import { useAuthUserStore } from '@/store/auth'
 import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
     const auth = useAuthUserStore()
-    const subtopics = [{val: 0, title:'基礎知識'},{val: 1, title: 'グループディスカッション'},{val: 2, title: 'ポートフォリオ'}]
+    const subtopics = [{val: 0, title:'知識研修'},{val: 1, title: 'グループディスカッション'},{val: 2, title: 'ポートフォリオ'}]
     const props = defineProps(['selectedTopic'])
     const router = useRouter()
     const route = useRoute()

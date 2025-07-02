@@ -45,7 +45,7 @@ const params = computed(() => {
     }
 })
 const finishPortfolio = async() => {
-    const answer = await ask('基礎知識研修を完了にしますか。\n完了後は編集ができません。')
+    const answer = await ask('知識研修を完了にしますか。\n完了後は編集ができません。')
     if(!answer.value) return  
     await saveItems('summary', 0, [], params.value)
     setTimeout(() => {                    
@@ -57,7 +57,7 @@ const finishBasic = async() => {
     const options = {
         answers: [{label: 'OK', value: true}]
     }
-    const answer = await ask('基礎知識研修完了しました。\nお疲れ様でした。', options)
+    const answer = await ask('知識研修完了しました。\nお疲れ様でした。', options)
     if(answer.value){
         loading.value[0] = false
         await lesson()                     

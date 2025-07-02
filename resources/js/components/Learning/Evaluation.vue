@@ -15,7 +15,7 @@
             </span>
         </div>
         <div class="ev-u-box">
-            <span><strong>基礎知識理解：</strong></span>
+            <span><strong>知識研修理解：</strong></span>
             <span>
                 <div v-for="section in portfolio.lesson_sections" >
                     <div>
@@ -57,7 +57,7 @@ import { useRoute } from 'vue-router';
 import { mkConfig, generateCsv, download } from "export-to-csv";
 const route = useRoute()
 const portfolioList = ref([])
-const status_values = ['', '✅基礎知識', '✅ディスカッション', '✅ポートフォリオ']
+const status_values = ['', '✅知識研修', '✅ディスカッション', '✅ポートフォリオ']
 onMounted(() => {
     if(route.meta.list){
         portfolioList.value = route.meta.list
@@ -75,7 +75,7 @@ const downloadCSV = () => {
         const row = {
             "氏名" : item.user ? item.user.name : '',
             "ステータス" : status_values[item.status],
-            "基礎知識理解" : understand,
+            "知識研修理解" : understand,
             "ディスカッション用ポートフォリオ" : `${item.portfolio_title}\n${item.content}`,
             "ポジティブフィードバック" : item.positive_feedback,
             "ネガティブフィードバック" : item.negative_feedback,

@@ -112,14 +112,14 @@ import { useDialog } from '@/composables/dialog';
 
     const finishPortfolio = async() => {
         if(props.selectedTopic.assistant_id && !reviewEl.value?.reviewResultRaw){
-            ping('基礎知識研修を完了する前、AI分析してください。')
+            ping('知識研修を完了する前、AI分析してください。')
             return
         }
         const valid = await reviewEl.value?.validate()
         if(props.selectedTopic.assistant_id && !valid){
             return
         }
-        const answer = await ask('基礎知識研修を完了にしますか。\n完了後は編集ができません。')
+        const answer = await ask('知識研修を完了にしますか。\n完了後は編集ができません。')
         if(!answer.value) return  
         await savePortfolio(1)
         setTimeout(() => {                    
@@ -131,7 +131,7 @@ import { useDialog } from '@/composables/dialog';
         const options = {
             answers: [{label: 'OK', value: true}]
         }
-        const answer = await ask('基礎知識研修完了しました。\nお疲れ様でした。', options)
+        const answer = await ask('知識研修完了しました。\nお疲れ様でした。', options)
         if(answer.value){
             loading.value[1] = false
             await lesson()                     
