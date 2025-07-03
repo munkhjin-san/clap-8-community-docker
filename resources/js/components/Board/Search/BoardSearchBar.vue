@@ -42,7 +42,7 @@
                         <div @click="open(board), searchBoxFocus = false" style="padding:10px;cursor:pointer" v-for="board in boardSearchResult">
                             <div style="display:flex;align-items:center;font-size:14px;overflow: hidden;">
                                 <BoardIcon :item="board" size="30"/> 
-                                <BoardTitle :item="board" titleStyle="margin-left:5px;white-space: nowrap;"/>   
+                                 <div class="ml-1.5 whitespace-nowrap">{{ useBoardTitle(board) }}</div>
                             </div>
                         </div>
                     </div>                
@@ -56,15 +56,12 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch } from 'vue';
 import BoardIcon from '../Mixed/BoardIcon.vue'
-import BoardTitle from '../Mixed/BoardTitle.vue'
 import HamBurger from '../../Global/HamBurger.vue'
-import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
 import { useBoardList } from '@/composables/board';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { useBoardTitle } from '@/composables/boardTitle';
 import { Board } from '@/interface/globalInterface';
-    const auth = useAuthUserStore()
     const responsive = useResponsive()
     const emit = defineEmits(['openMessageSearch'])
     const { open } = inject(BoardMethodsKey) as BoardMethods
