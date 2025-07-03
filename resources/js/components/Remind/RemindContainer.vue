@@ -15,7 +15,7 @@
                     @expand="expanded.remind_task_untouched = !expanded.remind_task_untouched"
                 />
                 <div v-if="expanded.remind_task_untouched" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.remind_task_untouched">
+                    <div v-for="item in data.remind_task_untouched" class="min-w-0">
                         <ListBox 
                             boxClass=""
                             v-if="item"
@@ -35,7 +35,7 @@
                     @expand="expanded.remind_task_unfinished = !expanded.remind_task_unfinished"
                 />
                 <div v-if="expanded.remind_task_unfinished" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.remind_task_unfinished">
+                    <div v-for="item in data.remind_task_unfinished" class="min-w-0">
                         <ListBox 
                             boxClass=""
                             v-if="item"
@@ -55,7 +55,7 @@
                     @expand="expanded.remind_task_not_approved = !expanded.remind_task_not_approved"
                 />
                 <div v-if="expanded.remind_task_not_approved" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div v-for="item in data.remind_task_not_approved">
+                    <div v-for="item in data.remind_task_not_approved" class="min-w-0">
                         <ListBox 
                             boxClass=""
                             v-if="item"
