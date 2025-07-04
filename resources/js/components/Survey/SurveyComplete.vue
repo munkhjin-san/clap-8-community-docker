@@ -10,7 +10,7 @@
                 <p>フォームの回答が完了しました。</p>
             </div>                 
             <div class="flex flex-col gap-[15px]">
-                <router-link :to="{name: 'survey-answers-detail', query: route.query}">回答を確認する</router-link>
+                <!-- <router-link :to="{name: 'survey-answers-detail', query: route.query}">回答を確認する</router-link> -->
                 <router-link :to="{name: 'survey-form', params: {surveyId: String(route.query.surveyId)}}">新しい回答を作成</router-link>
             </div>
         </div>

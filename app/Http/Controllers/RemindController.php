@@ -622,7 +622,7 @@ class RemindController extends Controller
                     
                 })->orWhere(function ($q) use ($userId) {
                     $instance = Carbon::today();
-                    $q->where('repeat_day', '<=', $instance->day)->whereDoesntHave('survey_answers', function ($q2) use ($userId, $instance) {
+                    $q->where('repeat_setting', 1)->where('repeat_day', '<=', $instance->day)->whereDoesntHave('survey_answers', function ($q2) use ($userId, $instance) {
                         $q2->where('user_id', $userId)
                         ->where('status', 2)
                         ->whereMonth('target_date', $instance->month)
