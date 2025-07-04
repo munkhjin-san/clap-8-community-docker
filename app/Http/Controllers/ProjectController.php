@@ -583,6 +583,7 @@ class ProjectController extends Controller
         return response()->json(['message' => 'Successfully deleted!']);
     }
     public function approve_salary_issue(Request $request){
+        $user = $this->active_user();
         $request->validate([
             'id' => 'required',
             'status' => 'required'
@@ -594,7 +595,10 @@ class ProjectController extends Controller
         $issue->update(['status' => $status]);
         if($comment) {
             $current_comment = $issue->comment ?? '';
-            $new_comment = $current_comment ? "{$current_comment}\n{$comment}" : $comment;
+            $approver = $user->name;
+            $time = Carbon::now()->format('Y/m/d H:i');
+            $fullComment = "【{$time}】 {$approver} : {$comment}";
+            $new_comment = $current_comment ? "{$current_comment}\n{$fullComment}" : $fullComment;
             $issue->update(['comment' => $new_comment]);
         }
 
@@ -619,6 +623,7 @@ class ProjectController extends Controller
         return response()->json(['message' => 'Successfully deleted!']);
     }
     public function approve_outcome_goal(Request $request){
+        $user = $this->active_user();
         $request->validate([
             'id' => 'required',
             'status' => 'required'
@@ -630,7 +635,10 @@ class ProjectController extends Controller
         $goal->update(['status' => $status]);
         if($comment) {
             $current_comment = $goal->comment ?? '';
-            $new_comment = $current_comment ? "{$current_comment}\n{$comment}" : $comment;
+            $approver = $user->name;
+            $time = Carbon::now()->format('Y/m/d H:i');
+            $fullComment = "【{$time}】 {$approver}: {$comment}";
+            $new_comment = $current_comment ? "{$current_comment}\n{$fullComment}" : $fullComment;
             $goal->update(['comment' => $new_comment]);
         }
         return response()->json(['message' => 'Successfully approved!']); 

@@ -74,12 +74,7 @@ import { useApi } from '@/composables/api';
         return route.name
     })
     const tagList = computed(() => {
-        if(tag_list.value && tag_list.value.length){
-            const all = {id: 0, text: '全て'}
-            let pre = tag_list.value
-            pre.unshift(all)
-            return pre
-        } 
+        return tag_list.value
     })
     const qaList = computed(() => {
         if(!searchWord.value){
@@ -102,6 +97,7 @@ import { useApi } from '@/composables/api';
         const data = await api.post('/support_record_list' )
         qanda_info.value = data.record_list
         tag_list.value = data.tag_list
+        tag_list.value.unshift({id: 0, text: '全て'})
         key_word_list.value = data.key_word_list
 
     }
