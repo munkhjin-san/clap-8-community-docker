@@ -85,10 +85,10 @@
                         <PostIcon which="4" size="20"/>
                         {{ apps[4] }}
                     </router-link> -->
-                    <router-link :to="`/${appName}?app_type=5`" :class="['pt-selector']">
+                    <!-- <router-link :to="`/${appName}?app_type=5`" :class="['pt-selector']">
                         <PostIcon which="5" size="20"/>
                         {{ apps[5] }}
-                    </router-link>
+                    </router-link> -->
                 </div>
                 
             </div>

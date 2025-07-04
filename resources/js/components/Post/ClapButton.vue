@@ -50,7 +50,7 @@ import { useApi } from '@/composables/api';
             action: action
         }, {
             loadingRef: loading,
-            ...action == 0 ? { toast: 'MISOしました。' } : {}
+            ...action == 0 ? { toast: 'クラップしました。' } : {}
         })
         
         emit('updateClap')
