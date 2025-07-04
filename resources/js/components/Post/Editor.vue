@@ -14,28 +14,38 @@
 </div>
 </Transition>
 </template>
-<script setup>
+<script setup lang="ts">
 import { useApi } from '@/composables/api';
-import { inject, onMounted, ref } from 'vue';
+import { PostComment } from '@/interface/postInterface';
+import { urlCheck } from '@/utils/tools';
+import { inject, onMounted, ref, useTemplateRef } from 'vue';
 
-const props = defineProps(['comment', 'urlCheck'])
-const emit = defineEmits('cancel')
-const editor = ref(null)
+const props = defineProps<{
+    comment: PostComment
+}>()
+const emit = defineEmits<{
+    'cancel': []
+}>()
+const editor = useTemplateRef('editor')
 const active = ref(false)
 const sending = ref(false)
 const api = useApi()
 onMounted(() => {
-    editor.value.focus()
+    editor.value?.focus()
     const range = document.createRange();
+    if(!editor.value) return
     range.selectNodeContents(editor.value);
     range.collapse(false);
     const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
+    if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
     active.value = true
 })
-const reload = inject('reload')
+const reload = inject('reload') as Function
 const update = async() => {
+    if(!editor.value) return
     const new_text = editor.value.textContent;
     if(sending.value) return
 

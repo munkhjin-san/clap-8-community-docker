@@ -205,7 +205,7 @@ class BoardController extends Controller
                         array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);                 
                         $arr = [
                             "restored" => $restoreUsers,
-                            "message" => $restoreUsers ? "作成しました。" : "ボードがすでに存在します。",
+                            "message" => $restoreUsers ? "作成しました。" : "チャットがすでに存在します。",
                             "success" => true,
                             "data" => $checkCurrentBoard,
                             "socket" => $socket
@@ -315,7 +315,7 @@ class BoardController extends Controller
         $board = boardRecord::findOrFail($request->id); 
         $checkAdmin = $board->board_to_users()->where('user_id', $active_user->id)->where('admin_flag', 1)->exists();
         if(!$checkAdmin){
-            throw ValidationException::withMessages(['message' => '管理者でないメンバーはボード編集できません']);
+            throw ValidationException::withMessages(['message' => '管理者でないメンバーはチャット編集できません']);
         }             
         $board->timestamps = false;
         $board->update([
@@ -1781,7 +1781,7 @@ class BoardController extends Controller
         $checkAdmin = $board->board_to_users()->where('user_id', $active_user->id)->where('admin_flag', 1)->exists();
         $checkHasOtherAdmins = $board->board_to_users()->where('user_id', '!=', $active_user->id)->where('admin_flag', 1)->exists();
         if($checkAdmin && !$checkHasOtherAdmins){
-            throw ValidationException::withMessages(['message' => 'あなたはボード管理者であるため、ボードを退出することはできません。 <br>管理者権限を別のメンバーに譲渡した後、もう一度お試しください']);
+            throw ValidationException::withMessages(['message' => 'あなたはチャット管理者であるため、チャットを退出することはできません。 <br>管理者権限を別のメンバーに譲渡した後、もう一度お試しください']);
         }
         $board->board_to_users()->where('user_id', $active_user->id)->delete();
         $taskUser = taskUser::where('record_id', $board->id)->where('user_id', $active_user->id)->where('comp_flag', 0)->delete();

@@ -31,6 +31,10 @@
                     <PostIcon which="4" size="20"/>
                     ヘルプ
                 </div> -->
+                <div @click="app_type = 5" :class="['pt-selector', { ptSelected: app_type == 5}]">
+                    <PostIcon which="5" size="20"/>
+                    グラリンピック
+                </div>
             </div>
             <div class="si-box">
                 <TagSelector 
@@ -164,10 +168,10 @@
     </div>      
 </template>
 
-<script setup>      
+<script setup lang="ts">      
 import TagSelector from '../Form/TagSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import ShortInput from '../Form/ShortInput.vue'
 import LongInput from '../Form/LongInput.vue'
 import MemberSelector from '../Form/MemberSelector.vue'
@@ -177,11 +181,20 @@ import FileUploader from '../Form/FileUploader.vue'
 import PostIcon from './PostIcon.vue'
 import { DateTime } from 'luxon'
 import { useApi } from '@/composables/api'
+import { Post, PostQuery } from '@/interface/postInterface'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
-    const props = defineProps(['appNameJp', 'appName', 'editTarget', 'getQuery'])
-    const emit = defineEmits('postFinish')
+    const props = defineProps<{
+        appNameJp: string,
+        appName: string,
+        editTarget: Post | null,
+        getQuery: PostQuery
+    }>()
+
+    const emit = defineEmits<{
+        'postFinish': [boolean, number | null]
+    }>()
     const app_type = ref(props.editTarget && props.editTarget.app_type ? props.editTarget.app_type : props.getQuery?.app_type ? props.getQuery?.app_type : 0)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
     const content = ref(props.editTarget && props.editTarget.content ? props.editTarget.content : "")
@@ -196,13 +209,13 @@ import { useApi } from '@/composables/api'
     const processing = ref(false)
     const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
 
-    const recordTitle = ref(null)
-    const recordUsers = ref(null)
-    const contentRuleRef = ref(null)
-    const contentRef = ref(null)
-    const contentGoalRef = ref(null)
-    const recordDateEnd = ref(null)
-    const recordDateStart = ref(null)
+    const recordTitle = useTemplateRef('recordTitle')
+    const recordUsers = useTemplateRef('recordUsers')
+    const contentRuleRef = useTemplateRef('contentRuleRef')
+    const contentRef = useTemplateRef('contentRef')
+    const contentGoalRef = useTemplateRef('contentGoalRef')
+    const recordDateEnd = useTemplateRef('recordDateEnd')
+    const recordDateStart = useTemplateRef('recordDateStart')
     const chargeable = ref(true)
     const api = useApi()
     const validateTargets = computed(() => {
@@ -221,7 +234,7 @@ import { useApi } from '@/composables/api'
     })
     const dateComparsionError = computed(() =>{
         if(date_start.value && date_end.value){
-            const wrongDuration = DateTime.fromISO(date_start.value).diff(DateTime.fromISO(date_end.value), 'days').toObject().days > 0               
+            const wrongDuration = (DateTime.fromISO(date_start.value).diff(DateTime.fromISO(date_end.value), 'days').toObject().days ?? 0) > 0               
             return{
                 hasError: wrongDuration,
                 message: wrongDuration ? '終了日は開始日より前にすることはできません。' : ''
@@ -258,7 +271,7 @@ import { useApi } from '@/composables/api'
         for(const target of targets){
             
             const val = await target?.validate() || {valid: false}
-            result = result * val.valid
+            result = result && val.valid
         }
         if (!result || dateComparsionError.value.hasError) return
         processing.value = true      

@@ -13,7 +13,7 @@ const routes = [
         path: '/board', 
         name: 'board', 
         meta: {
-            title: 'CLAP - ボード',
+            title: 'MISO - チャット',
         },        
         component: () => import('./components/Board/Board.vue'),
         children: [
@@ -41,7 +41,7 @@ const routes = [
         component: () => import('./components/Profile/UserComponent.vue'),
         props: true,
         meta: {
-            title: 'CLAP - プロフィール',
+            title: 'MISO - プロフィール',
         }, 
         children: [
             
@@ -51,7 +51,7 @@ const routes = [
                 name: 'personal-info-settings',
                 props: true,
                 meta: {
-                    title: 'CLAP - プロフィール編集',
+                    title: 'MISO - プロフィール編集',
                 },
                 beforeEnter: (to, from, next) => {
                     const rootElement = document.getElementById('app');
@@ -80,7 +80,7 @@ const routes = [
         path: '/post',
         name: 'post',
         meta: {
-            title: 'CLAP - ポスト',
+            title: 'MISO - ポスト',
         },
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
@@ -91,7 +91,7 @@ const routes = [
         path: '/knowledge',
         name: 'knowledge',
         meta: {
-            title: 'CLAP - ナレッジ',
+            title: 'MISO - ナレッジ',
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
@@ -102,7 +102,7 @@ const routes = [
         path: '/nice',
         name: 'nice',
         meta: {
-            title: 'CLAP - ナイス',
+            title: 'MISO - ナイス',
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
@@ -113,7 +113,7 @@ const routes = [
         path: '/challenge',
         name: 'challenge',
         meta: {
-            title: 'CLAP - チャレンジ',
+            title: 'MISO - チャレンジ',
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
@@ -124,7 +124,7 @@ const routes = [
         path: '/project',
         name: 'project',
         meta: {
-            title: 'CLAP - プロジェクト'
+            title: 'MISO - プロジェクト'
         },
         component: () => import('./components/Project/ProjectContainer.vue'),
         children: [
@@ -223,7 +223,7 @@ const routes = [
                         path: 'assets',
                         name: 'assets',
                         meta: {
-                            title: 'CLAP - 物品'
+                            title: 'MISO - 物品'
                         },
                         props: true,
                         component: () => import('./components/Asset/AssetContainer.vue'),
@@ -241,7 +241,7 @@ const routes = [
             //     path: 'gantt-chart',
             //     name: 'gantt-chart',
             //     meta: {
-            //         title: 'CLAP - ガントチャート'
+            //         title: 'MISO - ガントチャート'
             //     },
             //     component: () => import('./components/Task/TaskComponent.vue'),
             //     children: [
@@ -257,7 +257,7 @@ const routes = [
             //     path: 'assets',
             //     name: 'assets',
             //     meta: {
-            //         title: 'CLAP - 物品'
+            //         title: 'MISO - 物品'
             //     },
             //     props: true,
             //     component: () => import('./components/Asset/AssetContainer.vue'),
@@ -268,7 +268,7 @@ const routes = [
         path: '/schedule',
         name: 'schedule',
         meta: {
-            title: 'CLAP - スケジュール',
+            title: 'MISO - スケジュール',
         }, 
         component: () => import('./components/Calendar/CalendarContainer.vue'),       
         
@@ -278,7 +278,7 @@ const routes = [
         name: 'timesheet',
         props: true,
         meta: {
-            title: 'CLAP - タイムシート',
+            title: 'MISO - タイムシート',
         }, 
         component: () => import('./components/Work/WorkContainer.vue'),
     },
@@ -286,7 +286,7 @@ const routes = [
         path: '/admin_control',
         name: 'admin_control',
         meta: {
-            title: 'CLAP - 管理画面',
+            title: 'MISO - 管理画面',
         }, 
         component: () => import('./components/AccountControl/AdminControlList.vue'),
         children: [
@@ -410,7 +410,7 @@ const routes = [
         name: 'survey',
         component: () => import('@/components/Survey/Survey.vue'),
         meta: {
-            title: 'CLAP - アンケート',
+            title: 'MISO - アンケート',
         },
         children: [
             {
@@ -429,7 +429,7 @@ const routes = [
         path: '/support',
         name: 'support',
         meta: {
-            title: 'CLAP - サポート',
+            title: 'MISO - サポート',
         }, 
         component: () => import('./components/Support/Support.vue'),
         children: [
@@ -443,7 +443,7 @@ const routes = [
         path: '/notice',
         name: 'notice',
         meta: {
-            title: 'CLAP - お知らせ',
+            title: 'MISO - お知らせ',
         }, 
         component: () => import('./components/Notice/Notice.vue'),
         children: [
@@ -467,7 +467,7 @@ const routes = [
         component: () => import('./components/Settings/Settings.vue'),
         name: 'settings',
         meta: {
-            title: 'CLAP - 設定',
+            title: 'MISO - 設定',
         }, 
         props: true,
         
@@ -476,7 +476,7 @@ const routes = [
         path: '/learning',
         name: 'learning',
         meta: {
-            title: 'CLAP - ラーニング',
+            title: 'MISO - ラーニング',
             titleJp: 'ラーニング'
         }, 
         component: () => import('./components/Learning/LearningRoot.vue'),
@@ -666,7 +666,7 @@ const routes = [
         path: '/contact',
         name: 'contact',
         meta: {
-            title: 'CLAP - コンタクト',
+            title: 'MISO - コンタクト',
         },
         redirect: {name: 'tab1'}, 
         component: () => import('@/components/Contact/MainContainer.vue'),
@@ -695,7 +695,7 @@ const routes = [
         path: '/remind',
         name: 'remind',
         meta: {
-            title: 'CLAP - リマインド',
+            title: 'MISO - リマインド',
             titleJp: 'リマインド'
         }, 
         component: () => import('./components/Remind/RemindContainer.vue'),

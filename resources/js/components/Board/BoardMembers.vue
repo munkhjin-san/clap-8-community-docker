@@ -113,7 +113,7 @@ import { BoardMember } from '@/interface/globalInterface';
     const api = useApi()
     const { ask, toast } = useDialog()
     const headTitle = computed (() => {
-        return `<strong>${props.board.title}</strong>ボードメンバー`
+        return `<strong>${props.board.title}</strong>チャットメンバー`
     })
     const admins = computed (() => {
         return props.board && props.board.board_to_users && props.board.board_to_users.length ? 
@@ -138,7 +138,7 @@ import { BoardMember } from '@/interface/globalInterface';
     const createModal = ref(null)
 
     const removeMember = async(user) => {
-        const confirmed = await ask(`<strong>${user.name}</strong> をボードメンバーから削除してもよろしいですか?`)
+        const confirmed = await ask(`<strong>${user.name}</strong> をチャットメンバーから削除してもよろしいですか?`)
         if(!confirmed.value || lock.value) return 
         lock.value = true
 

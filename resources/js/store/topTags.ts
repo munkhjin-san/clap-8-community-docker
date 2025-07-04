@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import axios from "axios";
+import { Tag } from '@/interface/globalInterface';
 interface State {
-  tags: number[],
+  tags: Tag[],
   appName: String | '',
   expanded: boolean,
   currentTag: null,

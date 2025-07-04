@@ -23,14 +23,13 @@
             <PostCreate 
                 v-if="create"
                 :key="componentKey" 
-                :formIs="formIs" 
                 :currentStatus="null" 
                 :editTarget="editTarget"
                 :sharedFrom="sharedFrom"
                 @postFinish="postFinish"
                 :filesToShare="filesToShare"  
                 :getQuery="getQuery"
-                :appName="appName"
+                :appName="String(appName)"
                 :appNameJp="appNameJp"                
             />            
         </Transition>
@@ -40,7 +39,7 @@
             <div v-if="hasQuery" style="height: auto;margin: 0 20px;display: flex;gap: 20px;">
                 <div v-if="getQuery?.app_type" class="active-query">
                     <PostIcon :which="getQuery?.app_type" size="20"/>
-                    {{ apps[getQuery?.app_type] }}
+                    {{ getQuery?.app_type ? apps[String(getQuery.app_type)] : ''}}
                     <div @click="router.push({name: appName})" style="cursor:pointer">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width: 10px;height:10px" class="modalWindowCloseButton" viewBox="0 0 32 32">
                             <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
@@ -86,6 +85,10 @@
                         <PostIcon which="4" size="20"/>
                         {{ apps[4] }}
                     </router-link> -->
+                    <router-link :to="`/${appName}?app_type=5`" :class="['pt-selector']">
+                        <PostIcon which="5" size="20"/>
+                        {{ apps[5] }}
+                    </router-link>
                 </div>
                 
             </div>
@@ -94,7 +97,7 @@
                     <div class="tag-skeleton" :style="{width: randomWidth()}" :index="num" v-for="num in 30"></div>                    
                 </div> 
                 <div v-else :class="['p-tag-wrap', {'p-tag-expand' : topTags.expanded}]">
-                    <router-link :to="`/${appName}?search_tags=${tag.text}`" class="jump-link" v-for="tag in topTags.tags">#{{ sanitized(tag.text) }} ({{ tag[`${appName}_occurence_count`] }})</router-link>
+                    <router-link :to="`/${String(appName)}?search_tags=${tag.text}`" class="jump-link" v-for="tag in topTags.tags">#{{ sanitized(tag.text) }} ({{ tag[`${String(appName)}_occurence_count`] }})</router-link>
                 </div>  
                 
                 <div style="padding: 0px 20px 10px 20px;display: flex;justify-content: center;gap: 10px;align-items: center;" @click="topTags.setExpanded()">                                      
@@ -109,7 +112,7 @@
                     v-for="(record, index) in records"
                     :key="`${record?.id}_${index}`"
                     :record="record"
-                    :appName="appName"
+                    :appName="String(appName)"
                     :appNameJp="appNameJp"
                     :apps="apps"  
                     @setChargeTarget=" val => chargeTarget = val"
@@ -118,6 +121,8 @@
                     @editRecord="editRecord"
                     @updateStatus="val => updateTarget = val"
                     @deleteRecord="deleteRecordConfirm"
+                    @set-entry-data="val => entryData = val"
+                    
                 />                
             </transition-group>
         </div>  
@@ -136,7 +141,7 @@
             </div>
         </Transition>
  
-        <router-link v-if="hasQuery" :to="`/${appName}`" class="post-list-reset">一覧表示に戻す</router-link>
+        <router-link v-if="hasQuery" :to="`/${String(appName)}`" class="post-list-reset">一覧表示に戻す</router-link>
         <Transition name="modalFade">
             <Charge 
                 v-if="chargeTarget" 
@@ -151,6 +156,14 @@
                 @close="closeStatus" 
             />
         </Transition>
+        <Transition name="modalFade">
+            <PostEntryCreate 
+                v-if="entryData.record" 
+                :record="entryData.record" 
+                :edit-data="entryData.editData"
+                @close="closeEntryCreate"
+            />
+        </Transition>
     </div>
     <div v-else style="height: 100%;width: 100%;">
         <div v-if="responsive.mobile" style="min-height: 60px;display: flex;align-items: center">
@@ -158,11 +171,11 @@
         </div>        
         <div style="color:var(--primary-color);height: 100%;width: 100%;text-align: center;justify-content: center;display: flex;align-items: center;flex-direction: column;">
             <p>アクセス権限ありません。</p>
-            <router-link class="l-button" style="margin: 30px 0 70px 0;" to="/board">ボードへ戻る</router-link>
+            <router-link class="l-button" style="margin: 30px 0 70px 0;" to="/board">チャットへ戻る</router-link>
         </div>        
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import HamBurger from '../Global/HamBurger.vue';
 import PostRecord from './PostRecord.vue';
 import PostCreate from './PostCreate.vue';
@@ -183,20 +196,22 @@ import { instance } from '@/utils/broadcaster';
 import { onUnmounted } from 'vue';
 import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
+import { Post, PostEntry, PostQuery } from '@/interface/postInterface';
+import { PostMethodsKey } from '@/interface/keys';
+import PostEntryCreate from './PostEntryCreate.vue';
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
-    const postList = ref([])
+    const postList = ref<Post[]>([])
     const create = ref(false)
     const componentKey = ref(0)
-    const formIs = ref('')
     const sharedFrom = ref(null)
     const filesToShare = ref(null)
     const hasQuery = ref(false)
-    const chargeTarget =  ref(null)
+    const chargeTarget =  ref<number | null>(null)
     const editTarget = ref(null)
-    const updateTarget = ref(null)
+    const updateTarget = ref<Post | null>(null)
     const searchWindow = ref(false)
     const route = useRoute()    
     const router = useRouter()
@@ -204,8 +219,12 @@ import { useApi } from '@/composables/api';
     const tagsList = ref([])
     const tagLoading = ref(0)
     const topTags = useTopTags()
-    const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ']
+    const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ', 'グラリンピック']
     const api = useApi()
+    const entryData = ref({
+        record: <Post | null>null,
+        editData: <PostEntry | null>null,
+    })
     const records = computed(() =>{
         return postList.value && postList.value.length ? postList.value : []
     })
@@ -216,11 +235,11 @@ import { useApi } from '@/composables/api';
         return appName.value == 'challenge' ? 'チャレンジ' : appName.value == 'post' ? 'ポスト' : ''
     })
     onMounted(() => {
-        if(route.meta.data && route.meta.data.length){
-            postList.value = route.meta.data;
+        if(route.meta.data && Array.isArray(route.meta.data) && route.meta.data.length){
+            postList.value = route.meta.data as Post[];
         }else{
             const query = getQuery.value
-            fetchPosts(query, null)
+            fetchPosts(query)
         }
         instance.on('post:new', postSocketHandler)
         hasQuery.value = Object.getOwnPropertyNames(route.query).length ? true : false
@@ -228,8 +247,8 @@ import { useApi } from '@/composables/api';
     
 
         setTimeout(() => {
-            if(route.name.includes('challenge') || route.name.includes('post') && !auth.isPartner){
-                badge.updatePostBadge(appName.value)
+            if(route.name && (typeof route.name === 'string' && (route.name.includes('challenge') || route.name.includes('post'))) && !auth.isPartner && appName.value){
+                badge.updatePostBadge(appName.value.toString())
             }            
         }, 2000);
         if(sharingData.active){
@@ -264,8 +283,9 @@ import { useApi } from '@/composables/api';
         })
         postList.value = postList.value.filter(ob => ob.id !== data)
     }
-    const scrollListen = () => {
-        var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);  
+    const scrollListen = (event: Event) => {
+        const target = event.currentTarget as HTMLElement;
+        const percent = 100 * target.scrollTop / (target.scrollHeight - target.clientHeight);  
         if(percent > 99){          
             if (infiniteLoader.value){
                 return;
@@ -276,7 +296,7 @@ import { useApi } from '@/composables/api';
         }
     }
     const closeStatus = (id) => {
-        updateTarget.value = false
+        updateTarget.value = null
         if(id){
             let query = getQuery.value
             if(!query.hasOwnProperty('id') || !query.id){
@@ -300,7 +320,17 @@ import { useApi } from '@/composables/api';
         }
         
     }
-    const getQuery = computed(() => {
+    const closeEntryCreate = (flag: boolean, id?:number) => {
+        entryData.value = { record: null, editData: null }
+        if(id){                
+            let query = getQuery.value
+            if(!query.hasOwnProperty('id') || !query.id){
+                query['id'] = id.toString()
+            }
+            fetchPosts(query, id)
+        }
+    }
+    const getQuery = computed(():PostQuery => {
         const id = route.query.hasOwnProperty('id') && route.query.id ? route.query.id : null
         const search_tags = route.query.hasOwnProperty('search_tags') && route.query.search_tags ? route.query.search_tags : null
         const search_member = route.query.hasOwnProperty('member') && route.query.member ? route.query.member : null
@@ -338,10 +368,9 @@ import { useApi } from '@/composables/api';
         }
     }
     const newRecord = () => {
-        formIs.value = 1
         create.value = true
     }
-    const fetchPosts = async (query, replace) => {
+    const fetchPosts = async (query, replace?:number) => {
         const data = await api.post('/get_posts', {
             path: appName.value,
             query: query,
@@ -376,11 +405,12 @@ import { useApi } from '@/composables/api';
             postList.value[index].comments_count = num
         }
     }
-    const setClap = (val, id) => {
+    const setClap = (id: number) => {
         if(id){
+            const idStr = String(id)
             let query = getQuery.value
-            if(!query.hasOwnProperty('id') || query.id !== id){
-                query['id'] = id
+            if(!query.hasOwnProperty('id') || query.id !== idStr){
+                query['id'] = idStr
             }
             fetchPosts(query, id)
         }
@@ -394,9 +424,8 @@ import { useApi } from '@/composables/api';
         return `${(Math.floor(Math.random() * (90 - 70 + 1)) + 70) * index}px`;
 
     }
-    provide('postComment', {
+    provide(PostMethodsKey, {
         commentCount: (num, id) => setCommentCount(num, id),
-        setClap: (val, id) => setClap(val, id)
     })
 
 </script>

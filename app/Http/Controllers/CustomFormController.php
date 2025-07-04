@@ -75,7 +75,7 @@ class CustomFormController extends Controller
     public function get_custom_forms(Request $request){
         $active_user = $this->active_user();
 
-        $forms = CustomForm::with(['blocks'])->orderBy('created_at', 'desc')
+        $forms = CustomForm::whereNull('board_record_id')->with(['blocks'])->orderBy('created_at', 'desc')
         ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
             $q->whereHas('admins', function($q) use($active_user){
                 $q->where('user_id', $active_user->id);
@@ -386,7 +386,15 @@ class CustomFormController extends Controller
                     $q->where('user_id', $active_user->id);
                 });
             })
-            ->with(['users', 'admins', 'survey_answers'])
+            ->with(['users', 'admins', 'survey_answers' => function($q){
+                $q->with(['user' => function($q){
+                    $q->select('id', 'name', 'icon_path', 'icon_bg');
+                }, 'block_answers' => function($q){
+                    $q->with(['element_answers' => function($q){
+                        $q->with('user');
+                    }])->with('files');
+                },]);
+            }])
             ->orderBy('created_at', 'desc')
             ->get();
         return response()->json($forms);

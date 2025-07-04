@@ -6,7 +6,7 @@
         <Transition name="modalFade">
             <div 
                 class="absolute w-full left-0 top-0 z-[5]" 
-                v-if="highlighted == `${date.toString()} ${hour}`"
+                v-if="highlighted.includes(`${date.toString()} ${hour}`)"
                 :style="{
                     height: `${(duration.hour * 60 + duration.minute) / 15 * 20}px`,
                     maxHeight: stepUntil + 'px',
@@ -14,7 +14,7 @@
                 }"
             >
                 <div 
-                    class="h-full w-full opacity-80 text-[11px] leading-normal text-[white] flex items-center justify-center flex-col"
+                    class="h-full w-full opacity-80 text-[11px] leading-normal text-[white] flex items-center justify-center flex-col cursor-pointer"
                     :style="{
                         backgroundColor: includeUnavailableSlot ? 'tomato' : 'var(--link-color)',
                     }"      
@@ -41,7 +41,7 @@ const props = defineProps<{
     date: string;
     hour: string;
     duration: { hour: number; minute: number };
-    highlighted: string | null;
+    highlighted: string[];
     stepUntil: number
 }>();
 

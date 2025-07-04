@@ -38,7 +38,7 @@
         </div>
     </div>  
 </template>
-<script setup> 
+<script setup lang="ts"> 
 import LoaderButton from '../Global/LoaderButton.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import LongInput from '../Form/LongInput.vue';
@@ -46,7 +46,10 @@ import { computed, ref } from 'vue';
 import { customParser } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
-    const props = defineProps(['record'])
+import { Post } from '@/interface/postInterface';
+    const props = defineProps<{
+        record: Post
+    }>()
     const emit = defineEmits(['close'])
     const selected = ref(props.record ? props.record.status_flag : 0)
     const uploadedFiles = ref(props.record.result_files && props.record.result_files.length ? props.record.result_files : [])

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CLAP - Бүртгэлийг устгах тухай')
+@section('title', 'MISO - Бүртгэлийг устгах тухай')
 @section('content')
 <div style="color:var(--primary-color);background-color:var(--background-color);padding: 3em;">
     <h1 style="font-size: 24px;">Бүртгэлийг устгах тухай</h1>

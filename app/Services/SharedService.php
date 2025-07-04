@@ -232,9 +232,9 @@ class SharedService
     }
     public function createInfoMessage ($userName, $boardId, $type, $userId, $extra = ''){
         $patterns = [
-            "added_members" => "がボードメンバーに追加されました。",
-            "removed_members" => "がボードを退出しました。",
-            "left_members" => "がボードを退出しました。",
+            "added_members" => "がチャットメンバーに追加されました。",
+            "removed_members" => "がチャットを退出しました。",
+            "left_members" => "がチャットを退出しました。",
             "new_task" => "が作られました。",
             "glowd_nine_task" => "が作られました。"
         ];

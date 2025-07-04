@@ -145,7 +145,7 @@ import { MenuList } from '@/interface/globalInterface';
         addItem('ダウンロード', () => downloadFile())
         
         const builtInApps = [
-            {name: 'board', name_jp: 'ボード'}, 
+            {name: 'board', name_jp: 'チャット'}, 
             {name: 'knowledge', name_jp: 'ナレッジ'},
             {name: 'nice', name_jp: 'ナイス'},
             {name: 'challenge', name_jp: 'チャレンジ'},
@@ -294,7 +294,7 @@ import { MenuList } from '@/interface/globalInterface';
             from: 'message',
             to: to,
             drag: false,
-            instruction: to == 'board' ? '送る先のボードを選択してください' : null
+            instruction: to == 'board' ? '送る先のチャットを選択してください' : null
         }
         sharingData.setSharingData(shareData)
         menu.setMenu( {id : null, name: ''})

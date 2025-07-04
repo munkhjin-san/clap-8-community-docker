@@ -31,7 +31,6 @@
         name: String,
         placeHolder: String, 
         rules: String,
-        modelValue: String,
         type: String,
         customClass: String,
         customStyle: String,

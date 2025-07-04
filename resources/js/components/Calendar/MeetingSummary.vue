@@ -41,7 +41,7 @@
                                 :items="[
                                     { title: '編集', action: () => editSummary(summary) },
                                     { title: 'コピー', action: () => copySummary(summary) },
-                                    { title: 'シェア', action: () => {}, children: [{ title: 'ボード', action: () => shareSummary(summary)}] },
+                                    { title: 'シェア', action: () => {}, children: [{ title: 'チャット', action: () => shareSummary(summary)}] },
                                     { title: '読み上げる', action: () => convertToSpeech(prepareText(summary), summary.id)},
                                     { title: '削除', action: () => deleteSummary(summary) },
                                 ]"
@@ -242,7 +242,7 @@ const shareSummary = (summary: SummaryData) => {
         from: 'schedule',
         to: 'board',
         drag: false,
-        instruction: '送る先のボードを選択してください'
+        instruction: '送る先のチャットを選択してください'
     }
     sharingData.setSharingData(shareData)
     router.push({ name: 'board'})

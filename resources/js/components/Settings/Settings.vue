@@ -249,7 +249,7 @@ import { useDialog } from '@/composables/dialog'
             ping('コピーしました。')
         })
         .catch((error) => {
-            ping('テキストをクリップボードにコピーできません:', error)
+            ping('テキストをクリップチャットにコピーできません:', error)
         });
     }
     const createUrl = async() => {

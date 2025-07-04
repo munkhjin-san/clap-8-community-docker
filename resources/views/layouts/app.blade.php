@@ -23,7 +23,7 @@
     <link rel="icon" type="image/png" size="152x152" href="/app/public/logo152.png">
     <link rel="manifest" href="/manifest.json">
     <!-- <link rel="canonical" href="https://glowd.app/auth"> -->
-    <title>CLAP</title>
+    <title>MISO</title>
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">

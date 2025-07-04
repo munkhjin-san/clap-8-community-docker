@@ -5,7 +5,7 @@
     import { computed, defineAsyncComponent } from 'vue';
     const props = defineProps(['which', 'size'])
     const bank = [
-        'Nice', 'Knowledge', 'Challenge', 'Note', 'Help', 
+        'Nice', 'Knowledge', 'Challenge', 'Note', 'Help', 'Glolympic'
     ]
     const iconComponent = computed(() => {
         return defineAsyncComponent(() => import(`../Icons/${bank[props.which]}.vue`));

@@ -63,7 +63,7 @@ import { useDialog } from '@/composables/dialog';
         { value: 4, content: ' 労務（給与関連、福利厚生、休職復職、安全衛生）'},
         { value: 5, content: ' 広報（ホームページ、社会活動、ブログ、SNS）'},
         { value: 6, content: ' 事業（企画開発、事業計画、事業実績）'},
-        { value: 7, content: ' システム開発（CLAP）'},
+        { value: 7, content: ' システム開発（MISO）'},
         { value: 8, content: ' その他'}
     ])
     const selectedAnswer = ref(null)

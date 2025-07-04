@@ -1,8 +1,8 @@
 {
-  "name": "CLAP",
-  "short_name": "CLAP",
-  "description": "CLAPをアプリケーションとしてインストールする",
-  "id": "clap?1",
+  "name": "MISO",
+  "short_name": "MISO",
+  "description": "MISOをアプリケーションとしてインストールする",
+  "id": "miso?1",
   "lang": "ja",
   "icons": [
     {
@@ -46,5 +46,6 @@
   "theme_color": "#323232",
   "background_color": "#323232",
   "display": "standalone",
+  "orientation": "portrait",
   "start_url": "/"
 }

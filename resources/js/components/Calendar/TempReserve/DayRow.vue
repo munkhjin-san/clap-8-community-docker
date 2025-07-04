@@ -25,7 +25,7 @@ const props = defineProps<{
     blockData: DateSchedule;
     duration: { hour: number; minute: number };
     hour: string;
-    highlighted: string | null;
+    highlighted: string[];
 }>();
 
 const emit = defineEmits<{

@@ -101,7 +101,7 @@
                                 </label>
                                 <div v-if="openedUsers.includes(`by_user_${answer.user.id}_${index}`)" class="flex flex-col gap-[20px]">
                                     <div v-for="block in answer.data" >
-                                        <div class="text-[16px]">{{ block.question }}</div>
+                                        <div class="text-sm leading-normal">Q{{index + 1}}: {{ block.question }}</div>
                                         <div class="ml-[10px] mt-[10px] leading-normal text-[13px]">
                                             <div v-for="ans in block.answers">
                                                 <div>{{ ans.value }}</div>
@@ -117,10 +117,10 @@
                 </div>
                 <div v-if="tab == 1 && answersByBlock" >
                     <div class="mt-[10px] flex flex-col gap-[30px]">
-                        <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" :class="{'!bg-[var(--bg3)]' : mode == 'board'}" v-for="block in answersByBlock.blocks" >
+                        <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" :class="{'!bg-[var(--bg3)]' : mode == 'board'}" v-for="(block, index) in answersByBlock.blocks" >
                             <label class="flex items-center">
-                                <div class="text-[16px]">{{ block.question }}</div>
-                                <p class="jump-link ml-[15px] text-[13px]">表示・非表示</p>
+                                <div class="text-sm leading-normal">Q{{index + 1}}: {{ block.question }}</div>
+                                <p class="jump-link ml-[15px] text-[13px] whitespace-nowrap">表示・非表示</p>
                                 <input type="checkbox" v-model="openedQuestions" :value="`by_block_${block.id}`" class="hidden"/>
                             </label>
                             <div class="ml-[10px] mt-[10px]" v-if="openedQuestions.includes(`by_block_${block.id}`)">

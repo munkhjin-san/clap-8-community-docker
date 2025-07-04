@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CLAP - アカウントの削除について')
+@section('title', 'MISO - アカウントの削除について')
 @section('content')
 <div style="color:var(--primary-color);background-color:var(--background-color);;padding: 3em;">
     <h1 style="font-size: 24px;">アカウントの削除について</h1>

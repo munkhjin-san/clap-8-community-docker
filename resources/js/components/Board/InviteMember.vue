@@ -85,7 +85,7 @@ import Modal from '../Global/Modal.vue';
         return possibleMemberList.value
     })
     const headTitle = computed(() => {
-        return `<strong>"${props.item.title}"</strong>ボードにメンバーを追加する`
+        return `<strong>"${props.item.title}"</strong>チャットにメンバーを追加する`
     })
     const selectToUser = async(user) => {
         if(invalidDate.value) return
@@ -93,7 +93,7 @@ import Modal from '../Global/Modal.vue';
         lock.value = true
         const params = { record_id : props.item.id, user_id: user.id, view_from: view_from.value }
         await api.post('/group_add_member', params, {
-            ask: `<strong>${user.name}</strong>さんをボードメンバーに追加しますか。<br><strong>${DateTime.fromSQL(view_from.value).toLocaleString(DateTime.DATE_SHORT)} 0時</strong>から閲覧可能になります。`,
+            ask: `<strong>${user.name}</strong>さんをチャットメンバーに追加しますか。<br><strong>${DateTime.fromSQL(view_from.value).toLocaleString(DateTime.DATE_SHORT)} 0時</strong>から閲覧可能になります。`,
             toast: 'メンバーを追加しました。'
         })
         lock.value = false

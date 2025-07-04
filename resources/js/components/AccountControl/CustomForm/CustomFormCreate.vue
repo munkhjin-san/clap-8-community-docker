@@ -47,6 +47,18 @@
                 </div>
             </div>
             <div class="si-box" v-if="props.range == 'board' && boardUsers">
+                <div class="si-box">
+                    <MemberSelector 
+                        :initialValue="params.admins" 
+                        ref="adminSelectorRef"
+                        placeHolder="管理者"
+                        name="admins"
+                        :options="boardUsers"
+                        :multiple="true"
+                        v-model="params.admins"
+                    />
+                    <span class="text-[gray] text-[12px]">※フォームの回答は管理者のみ閲覧可能です。「システム管理者含む」</span>
+                </div>
                 <div class="my-[15px]">
                     <div class="switchLabel">
                         <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">全員選択</p>
@@ -69,7 +81,6 @@
                         :multiple="true"
                         v-model="params.users"
                     />
-                    <span class="text-[gray] text-[12px]">※フォームのURLはどなたでもアクセス可能ですが、回答は対象者のみ必須となります。</span>
                 </div>
             </div>
 
@@ -233,7 +244,7 @@ const params = reactive<CustomForm>({
     description: '',
     blocks: [],
     users: [],
-    admins: props.board ? props.board.board_to_users.filter( u => u.admin_flag == 1 ).map(u => u.user) as CustomFormUser[] : [],
+    admins: [],
     repeat_setting: 0,
     repeat_day: 1,
     board_record_id: props.board ? props.board.id : null,

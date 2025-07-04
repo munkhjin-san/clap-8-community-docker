@@ -8,7 +8,6 @@
                 v-for="(comment, index) in comments"
                 :key="index"
                 :comment="comment"
-                @editComment="editComment"
                 @deleteComment="commentDeleteConfirm"
             />
             <div v-if="fetch == 0" id="loaderMini" style="position: absolute;background: var(--bg3);z-index: 5;">
@@ -62,21 +61,22 @@
     </div>
 </template>
     
-<script setup>
+<script setup lang="ts">
 import Comment from './Comment.vue';
-import { defineAsyncComponent, inject, nextTick, onMounted, provide, ref } from 'vue'
+import { defineAsyncComponent, inject, nextTick, onMounted, provide, ref, useTemplateRef } from 'vue'
 import 'vue3-emoji-picker/css'
 import { useMenuStore } from "@/store/menu";
 import { useApi } from '@/composables/api';
+import { PostMethods, PostMethodsKey } from '@/interface/keys';
     const menu = useMenuStore()
     const props = defineProps(['record', 'app_name'])
-    const { commentCount } = inject('postComment')
+    const { commentCount } = inject(PostMethodsKey) as PostMethods
     const sendLoader = ref(false)  
     const caretPosition = ref(0)  
     const comments = ref([])
     const fetch = ref(0)   
-    const typeArea = ref(null)
-    const container = ref(null)
+    const typeArea = useTemplateRef('typeArea')
+    const container = useTemplateRef('container')
     const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
     const api = useApi()
     onMounted(() => {
@@ -93,9 +93,10 @@ import { useApi } from '@/composables/api';
 
         if(from == 'mounted' || from == 'self'){
                 
-            nextTick(() => {                   
-                var cont = container.value
-                cont.scrollTop = cont.scrollHeight               
+            nextTick(() => {                    
+                if(container.value){
+                    container.value.scrollTop = container.value.scrollHeight;
+                }          
             });  
         }        
         fetch.value ++       
@@ -108,8 +109,9 @@ import { useApi } from '@/composables/api';
     }
 
 
-    const selectEmoji = (emoji) => {       
-        var a = typeArea.value.textContent
+    const selectEmoji = (emoji) => {     
+        if(!typeArea.value) return;  
+        var a = typeArea.value.textContent as string
         var b = emoji.i;
         var position = caretPosition.value;
         var output = [a.slice(0, position), b, a.slice(position)].join('');
@@ -123,36 +125,34 @@ import { useApi } from '@/composables/api';
             toast: 'コメントを削除しました。'
 
         })
-        load()
+        load('')
     }  
          
             
-    const caretPos = () => {
-        var element = event.target;
+    const caretPos = (event: Event) => {
+        
+        const element = event.target as HTMLElement;
         var caretOffset = 0;
-        if (window.getSelection) {
-            var range = window.getSelection().getRangeAt(0);
-            var preCaretRange = range.cloneRange();
+        const selection = window.getSelection();
+        
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const preCaretRange = range.cloneRange();
             preCaretRange.selectNodeContents(element);
             preCaretRange.setEnd(range.endContainer, range.endOffset);
             caretOffset = preCaretRange.toString().length;
-        } 
-
-        else if (document.selection && document.selection.type != "Control") {
-            var textRange = document.selection.createRange();
-            var preCaretTextRange = document.body.createTextRange();
-            preCaretTextRange.moveToElementText(element);
-            preCaretTextRange.setEndPoint("EndToEnd", textRange);
-            caretOffset = preCaretTextRange.text.length;
-        }            
+        }
+        
         caretPosition.value = caretOffset        
     }
     const commentSend = async (recordId) => {     
-
+        const text = typeArea.value?.textContent?.trim();
         sendLoader.value = true;         
-        const params = { message : typeArea.value.textContent , app_name: props.app_name, record_id: recordId}; 
+        const params = { message : text , app_name: props.app_name, record_id: recordId}; 
         await api.post('post_comment_add', params )
-        typeArea.value.innerHTML  = ''        
+        if (typeArea.value) {
+            typeArea.value.innerHTML = '';
+        }        
         sendLoader.value = false;     
         load('self')     
                            

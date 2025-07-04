@@ -1,13 +1,13 @@
 <template>
     <Modal @close="emit('close')" persist>
         <template #title>
-            <p>新しいボードを作成する</p>
+            <p>新しいチャットを作成する</p>
         </template>
         <template #content>
             <div class="si-box" style="margin:0">
                 <div style="display:flex;gap:15px;font-size: 14px;">
-                    <div :class="['ch-selector', {chSelected : chatType == 0}]" @click="chatType = 0" style="font-size: 14px;">グループボード</div>
-                    <div :class="['ch-selector', {chSelected : chatType == 1}]" @click="chatType = 1, board_users = []" style="font-size: 14px;">個別ボード</div>                
+                    <div :class="['ch-selector', {chSelected : chatType == 0}]" @click="chatType = 0" style="font-size: 14px;">グループチャット</div>
+                    <div :class="['ch-selector', {chSelected : chatType == 1}]" @click="chatType = 1, board_users = []" style="font-size: 14px;">個別チャット</div>                
                 </div>               
             </div>
             <div style="background: inherit;">

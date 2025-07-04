@@ -594,7 +594,7 @@ class MemberController extends Controller
                 $status_data = [
                     'app' => '928',
                     "id"=> $record_id,
-                    "action" => "CLAPにて作成済",
+                    "action" => "MISOにて作成済",
                 ];    
                 $status_update = Http::withHeaders($headers)->put($status_url, $status_data);
                 $status_response = $status_update->json();

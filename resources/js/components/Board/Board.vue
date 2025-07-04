@@ -299,7 +299,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
     }
     const boardDelete = async(item) => {       
         const data = await api.post('/board_delete', { id: item.id }, {
-            ask: 'ボードを削除しますか？',
+            ask: 'チャットを削除しますか？',
             toast: '削除しました。'
         })
         if(!data) return
@@ -641,7 +641,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
                 if(targetBoard.length){
                     openTargetBoard(targetBoard[0])                                                
                 }else{     
-                    await ask('ボードが削除されているか、権限がないためアクセスできません。', {answers: [{label: 'OK', value: true}]})
+                    await ask('チャットが削除されているか、権限がないためアクセスできません。', {answers: [{label: 'OK', value: true}]})
                     router.push({name: 'board'})
                 }
             }
@@ -673,7 +673,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
     const leaveBoard = async(board) => {  
 
         const data = await api.post('/leave_board', {id: board.id}, {
-            ask: `<strong>${board.title}</strong> ボードを退出します。よろしいですか?`,
+            ask: `<strong>${board.title}</strong> チャットを退出します。よろしいですか?`,
             toast: '退出しました。'
         })
         if(!data) return

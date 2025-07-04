@@ -14,16 +14,19 @@ class Calendar extends Mailable
     public $details;
     public $subject;
     public $type;
+
+    public $is_temp;
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($details, $subject, $type)
+    public function __construct($details, $subject, $type, $is_temp)
     {
         $this->details = $details;
         $this->subject = $subject;
         $this->type = $type;
+        $this->is_temp = $is_temp;
     }
 
     /**
@@ -39,6 +42,7 @@ class Calendar extends Mailable
         ->with([
             'details' => $this->details,
             'type' => $this->type,
+            'is_temp' => $this->is_temp,
         ]);
     }
 }

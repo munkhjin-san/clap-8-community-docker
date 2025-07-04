@@ -1,7 +1,7 @@
 <template>
     <Modal @close="emit('close', false)">
         <template #title>
-            <p>ボードを編集する</p>
+            <p>チャットを編集する</p>
         </template>
         <template #content>
             <div style="background: inherit;">

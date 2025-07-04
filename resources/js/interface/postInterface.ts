@@ -1,4 +1,5 @@
 
+import { LocationQueryValue } from "vue-router";
 import { CommonFile, User } from "./globalInterface";
 
 export interface Post{
@@ -24,13 +25,38 @@ export interface Post{
     result: string;
     result_files: CommonFile[];
     community_user_id: number
+    entries: PostEntry[];
+    awards: PostAward[];
+    chargeable: boolean;
+    user: User;
+    award_entry: number
 }
-
+interface PostAward extends User {
+    pivot: {
+        award_bet: number;
+    }
+}
 interface Clap {
     from_user: number;
     record_id: number;
 }
+export interface PostEntry {
+    id: number;
+    user: User;
+    calories: number;
+    comment: string;
+    files: CommonFile[];
+    created_at: string;
+    updated_at: string;
+}
 
+export interface PostQuery {
+    id: string | LocationQueryValue[] | null;
+    app_type: string | LocationQueryValue[] | null;
+    search_tags: string | LocationQueryValue[] | null;
+    member: string | LocationQueryValue[] | null;
+
+}
 
 
 export interface PostTag{

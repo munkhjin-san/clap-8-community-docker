@@ -67,9 +67,8 @@
     </div>
 </template>
 <script setup lang="ts">
-import { CustomFormBlock, CustomFormBlockElement, SurverBlockElementAnswer, SurveyBlockAnswer } from '@/interface/customFormInterface';
+import { CustomFormBlock, SurverBlockElementAnswer, SurveyBlockAnswer } from '@/interface/customFormInterface';
 import { computed, onMounted, reactive, ref } from 'vue';
-import { ComponentExposed } from 'vue-component-type-helpers';
 import 'styles/customForm.css'
 import { useTheme } from '@/store/theme';
 import FileUploader from '../Form/FileUploader.vue';
@@ -93,15 +92,20 @@ onMounted(() => {
     if(props.answer){
         Object.assign(blockData, props.answer)
         if(props.block.type == 'radio'){
-            const selected = props.block.elements.find( el => el.answers && el.answers.length) ?? null
-            if(selected){
-                radioModel.value = selected.id
+            const selected = props.answer.element_answers.find( an => an.custom_form_block_element_id && an.checked )
+            if(selected && selected.custom_form_block_element_id && props.block.elements.find(el => el.id == selected.custom_form_block_element_id)){
+                radioModel.value = selected.custom_form_block_element_id
             }
         }
         if(props.block.type == 'checkbox'){
-            const selected = props.block.elements.flatMap( el => el.answers).map( an => an?.custom_form_block_element_id)
+            const selected = props.answer.element_answers.filter( an => an.checked && props.block.elements.find(el => el.id == an.custom_form_block_element_id))
             if(selected.length){
-                checkboxModel.value = selected as number[]
+                const ids = selected.map(el => el.custom_form_block_element_id).filter(el => el !== null && el !== undefined)
+                ids.forEach(id => {
+                    if(props.block.elements.find(el => el.id == id)){
+                        checkboxModel.value.push(id)
+                    }
+                });
             }
         }
         if(props.block.elements.length){

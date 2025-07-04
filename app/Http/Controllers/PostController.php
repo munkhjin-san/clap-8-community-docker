@@ -136,6 +136,7 @@ class PostController extends Controller
         ->withCount('comments')
         ->with('claps')
         ->with('to_users')
+        ->with('entries')
         ->when($app_type == 2, function ($query) {
             $query->orderBy('status_flag', 'asc');
         })
@@ -841,5 +842,26 @@ class PostController extends Controller
             return response()->json($list);
         }
         
+    }
+    public function post_entries(Request $request){
+        $validatedData = $request->validate([
+            'record_id' => 'required',
+            'calories' => 'required|numeric',
+        ]);
+        $post = PostRecord::findOrFail($request->record_id);
+        $entry = $post->entries()->updateOrCreate(
+            ['id' => $request->id],
+            [
+                'user_id' => Auth::id(),
+                'calories' => $request->calories,
+                'comment' => $request->comment,
+            ]
+        );
+        $file_ids = $request->file_ids ?? [];
+        $entry->files()->sync($file_ids);
+        return response()->json([
+            'entry' => $entry,
+            'files' => $entry->files
+        ]);
     }
 }

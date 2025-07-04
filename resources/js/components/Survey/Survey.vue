@@ -9,6 +9,7 @@
         <component :is="Component" 
             v-if="survey && !loading"
             :survey="survey"
+            :key="key"
             mode="all"
             @saved="saveRedirect"
         />
@@ -26,6 +27,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 const route = useRoute()
 const router = useRouter()
+const key = ref(0)
 onMounted(() => {
     if(route.params?.surveyId){
         getSurvey()
@@ -44,25 +46,29 @@ const getSurvey = async() => {
 const saveRedirect = async(status:number, id:number | null) => {
     // router.back()
     await getSurvey()
-    if(status == 1){
-        router.push({
-            name: 'survey-form',
-            params: {
-                surveyId: route.params?.surveyId
-            },
-            query: {
-                answerId: id
-            }
-        })
-    }else if(status == 2){
-        router.push({
-            name: 'completed-survey',
-            query: {
-                answerId: id,
-                surveyId: route.params?.surveyId
-            }
-        })
-    }
+    setTimeout(() => {
+        if(status == 1){
+            router.push({
+                name: 'survey-form',
+                params: {
+                    surveyId: route.params?.surveyId
+                },
+                query: {
+                    answerId: id
+                }
+            })
+        }else if(status == 2){
+            router.push({
+                name: 'completed-survey',
+                query: {
+                    answerId: id,
+                    surveyId: route.params?.surveyId
+                }
+            })
+        }
+        key.value += 1
+    }, 300);
+    
 
 }
 </script>

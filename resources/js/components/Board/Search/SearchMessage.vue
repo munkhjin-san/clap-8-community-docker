@@ -30,7 +30,7 @@
         </div>
         <div v-if="!targetedSearch && allResult.length" style="display:flex;margin-bottom:15px;font-size:14px;padding: 0 20px;gap:15px">
             <button :class="{editActive : resultGroupBy == 'all'}" @click="resultGroupBy = 'all'" class="s-button">メッセージ別 <span style="margin-left:5px" v-if="messageResult && messageResult.total "> ({{messageResult.total }})</span></button>
-            <button :class="{editActive : resultGroupBy == 'board'}" @click="groupByBoard" class="s-button">ボード別 <span style="margin-left:5px" v-if="viewBoardList && viewBoardList.length"> ({{viewBoardList.length}})</span></button>
+            <button :class="{editActive : resultGroupBy == 'board'}" @click="groupByBoard" class="s-button">チャット別 <span style="margin-left:5px" v-if="viewBoardList && viewBoardList.length"> ({{viewBoardList.length}})</span></button>
             
         </div>
         <div v-if="targetedSearch" style="padding: 0 20px;margin-bottom: 15px;">

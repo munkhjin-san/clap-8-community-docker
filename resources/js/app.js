@@ -14,7 +14,11 @@ Settings.defaultLocale = 'ja';
 import { createPinia } from 'pinia'
 const pinia = createPinia()
 import router from './router'
-
+if (screen.orientation && screen.orientation.lock) {
+  screen.orientation.lock('portrait').then(() => {
+    console.log("Portrait mode locked");
+  })
+}
 
 let dark = true
 import theme from '../assets/theme.json'

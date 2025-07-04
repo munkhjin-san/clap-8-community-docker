@@ -1,6 +1,6 @@
 <template>
     <div class="overlay" @mousedown="canClose">                         
-        <div :class="['chatCreate', {'scrollable' : !disableScroll}, '!p-0']" @mousedown.stop>     
+        <div :class="['chatCreate', {'scrollable' : !disableScroll}, '!p-0', size]" @mousedown.stop>     
             <div class="recordFormTitle !px-[30px] !py-[20px] !w-[calc(100%-60px)]" style="display:flex">
                 <slot name="title"></slot>
                 <div class="ml-auto">
@@ -20,11 +20,18 @@
 <script setup lang="ts">
 import CloseIcon from '../Form/CloseIcon.vue';
 
-const props = defineProps<{
+
+const props = withDefaults(defineProps<{
     disableScroll?: boolean
     persist?: boolean
     bodyStyle?: string
-}>()
+    size?: 'medium' | 'large'
+}>(), {
+    disableScroll: false,
+    persist: false,
+    bodyStyle: '',
+    size: 'medium'
+})
 const emit = defineEmits(['close'])
 const canClose = (event: MouseEvent) => {
     if(!props.persist){
@@ -35,13 +42,20 @@ const canClose = (event: MouseEvent) => {
 }
 </script>
 <style scoped>  
-
+.medium{
+    width: 50%;
+    height: 70%;
+}
+.large{
+    width: 80%;
+    height: 85%;
+}
 
 @media screen and (max-width: 959px) {
 
     .chatCreate{
-        width: 100%;
-        height: 100%;
+        width: 100% !important;
+        height: 100% !important;
     }
 }
 </style>

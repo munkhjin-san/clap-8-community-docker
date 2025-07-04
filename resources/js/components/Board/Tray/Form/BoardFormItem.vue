@@ -1,7 +1,7 @@
 <template>
     <div class="p-[10px] bg-[var(--bg3)] flex flex-col gap-[10px] text-[14px] text-[var(--primary-color)]">
         <div class="flex justify-between">
-            <p>{{ form.title }}</p>
+            <p class="leading-normal">{{ form.title }}</p>
             <ItemMenu v-if="isAdmin" :items="[
                 {title: '回答の確認', action: () => { emit('setViewAnswers', form) }},
                 {title: '編集', action: () => { emit('edit', form) }},

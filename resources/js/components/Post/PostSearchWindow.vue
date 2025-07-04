@@ -13,8 +13,7 @@
             <input 
                 ref="postAdvancedSearch"
                 @click="isFocusing++"
-                @focus="searchFocus" 
-                @blur="searchBlur" 
+                @focus="searchFocus"  
                 @keyup.enter.prevent="triggerSearch" 
                 type="search"
                 spellcheck="false" 
@@ -130,7 +129,7 @@
                         <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers(item)}]">
                             <div v-if="item.app_type !== 2" style="display:flex;align-items: center;">
                                 <UserPanel :disableInstant="true" :user="item.user" imgClass="toUsersIcon" size="30"/>
-                                <p class="userName" v-html="item.user ? nameHighlight(item.user.name) : ''"></p>
+                                <p class="userName" v-html="item.user ? nameHighlight(item?.user?.name || '') : ''"></p>
                             </div>                
                             <div v-if="item.app_type == 2 || item.app_type == 0" style="position: relative;">
                                 <div style="display: flex;align-items: center;">
@@ -140,7 +139,7 @@
                                     <div :ref="`to_users_${item.id}`" :class="['toUserListContainer']">
                                         <div :key="user.id" v-for="user in item.to_users" style="display: flex;align-items: center;">                                                             
                                             <UserPanel :disableInstant="true" size="30" :user="user" :imgClass="isMultipleUsers(item) ? 'toUsersIconSmall' : 'toUsersIcon'"/> 
-                                            <p style="width: max-content;" class="userName" v-html="nameHighlight(user.name)"></p>                                       
+                                            <p style="width: max-content;" class="userName" v-html="nameHighlight(user?.name || '')"></p>                                       
                                         </div>                               
                                     </div>
                                 </div>
@@ -148,7 +147,7 @@
                         </div>
                         
                         <PostDate :record="item" dateClass="dateText"/> 
-                        <div @click="updateStatus" v-if="item.app_type == 2" style="font-size: 14px;margin-left: 10px;cursor:pointer">{{ status(item) }}</div>
+                        <div v-if="item.app_type == 2" style="font-size: 14px;margin-left: 10px;cursor:pointer">{{ status(item) }}</div>
                     </div>                     
 
                     <div v-if="appName == 'post'" class="recordContents" style="margin-top:0;font-size:14px;line-height: 1.8;margin-top:10px;">
@@ -203,45 +202,47 @@
 </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue'
 import PostSearchPager from './PostSearchPager.vue'
 import SearchHistory from './SearchHistory.vue'
 import PostDate from './PostDate.vue';
 import MemberSelector from '../Form/MemberSelector.vue';
 import ShortInput from '../Form/ShortInput.vue';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { customParser, urlCheck } from '@/utils/tools';
 import PostIcon from './PostIcon.vue';
 import { useApi } from '@/composables/api';
 import { DateTime } from 'luxon';
+import { Tag, User } from '@/interface/globalInterface';
+import { Post } from '@/interface/postInterface';
     const props = defineProps(['appName', 'appTitle'])
     const emit = defineEmits(['closePostSearch'])
     const keyword = ref('')
     const resultSortDateReverse = ref(false)
-    const searchResult = ref([])
+    const searchResult = ref<Post[]>([])
     const searchMiniLoader = ref(false)
     const searchAppendLoader = ref(false)
     const fetchCount = ref(0)
-    const usedTags = ref([])
-    const selectedTags = ref([])
+    const usedTags = ref<Tag[]>([])
+    const selectedTags = ref<number[]>([])
     const searchPageIndex = ref(1)
     const possiblePage = ref(1)
     const resultCount = ref(0)
     const pagerKey = ref(200)
-    const searchHistory = ref([])
-    const isFocusing = ref(false)
+    const searchHistory = ref<any[]>([])
+    const isFocusing = ref(0)
     const timeout = ref(0)
     const selectedHistory = ref(-1)
     const tagOffset = ref(1)
     const infineLock = ref(false)
     const searchState = ref('first')
     const detailedSearchToggle = ref(false)
-    const fromDate = ref(null)
-    const toDate = ref(null)
-    const targetUsers = ref([])
-    const postAdvancedSearch = ref(null)
+    const fromDate = ref('')
+    const toDate = ref('')
+    const targetUsers = ref<User[]>([])
+    const postAdvancedSearch = useTemplateRef('postAdvancedSearch')
     const responsive = useResponsive()
     const api = useApi()
     const result = computed(() => {
@@ -263,7 +264,7 @@ import { DateTime } from 'luxon';
             resetSearch()
         }; 
     })
-    watch(() => [toDate.value, fromDate.value], () => {
+    watch(() => [toDate.value, fromDate.value, targetUsers.value], () => {
         getPostSearch(1)
     })
     const detailedSearch = () => {
@@ -272,7 +273,7 @@ import { DateTime } from 'luxon';
             resetSearch()
         }
     }
-    const nameHighlight = (name) => {
+    const nameHighlight = (name:string) => {
         if(targetUsers.value.length){
             const hit = targetUsers.value.find(ob => ob.name == name)
             if(hit){
@@ -299,8 +300,9 @@ import { DateTime } from 'luxon';
         };
         return statusMap[record.status_flag];
     }
-    const tagInfinite = () => {
-        var percent = 100 * event.currentTarget.scrollTop / (event.currentTarget.scrollHeight - event.currentTarget.clientHeight);   
+    const tagInfinite = (event: Event) => {
+        const target = event.currentTarget as HTMLElement;
+        var percent = 100 * target.scrollTop / (target.scrollHeight - target.clientHeight);   
         if(percent > 99 && !infineLock.value){
             tagOffset.value ++;
             getFeaturedTags(selectedTags.value, searchState.value)
@@ -313,13 +315,17 @@ import { DateTime } from 'luxon';
         getFeaturedTags([], 'reset');
         fetchCount.value = 0;
         targetUsers.value = []
-        fromDate.value = null
-        toDate.value = null
-        postAdvancedSearch.value.value = ''
+        fromDate.value = ''
+        toDate.value = ''
+        if(postAdvancedSearch.value){
+            postAdvancedSearch.value.value = '';
+        }
+        
     }
     const triggerSearch = () => {
         if(isFocusing.value && selectedHistory.value !== -1){
             let input = postAdvancedSearch.value
+            if(!input) return
             input.value = searchHistory.value[selectedHistory.value].content
             getPostSearch(1)
             isFocusing.value = 0
@@ -328,14 +334,15 @@ import { DateTime } from 'luxon';
         }
         isFocusing.value = 0
     }
-    const onClickSearch = () => {
+    const onClickSearch = (event: Event) => {
+        const target = event.target as HTMLElement;
         const el = document.getElementById('historyWrapWindow')
         const input = postAdvancedSearch.value
-        if(el && input && !el.contains(event.target) && !input.contains(event.target) && isFocusing.value){
+        if(el && input && !el.contains(target) && !input.contains(target) && isFocusing.value){
             isFocusing.value = 0
         }
     }
-    const autoFillDebounce = (val) => {
+    const autoFillDebounce = () => {
         if (timeout.value) clearTimeout(timeout.value)
         timeout.value = setTimeout(() => {
             getSearchHistory()
@@ -346,8 +353,10 @@ import { DateTime } from 'luxon';
         if(event.which === 27){
             isFocusing.value = 0;
             selectedHistory.value = -1;
-            postAdvancedSearch.value.value = '';
-            postAdvancedSearch.value.blur();
+            if(postAdvancedSearch.value){
+                postAdvancedSearch.value.value = '';
+                postAdvancedSearch.value.blur();
+            }
             keyword.value = '',
             searchHistory.value = []
             return
@@ -377,6 +386,7 @@ import { DateTime } from 'luxon';
     }
     const setKeyWordFromHistory = (val) => {
         const input = postAdvancedSearch.value
+        if(!input) return
         input.value = val
         keyword.value = val
         isFocusing.value = 0
@@ -388,6 +398,7 @@ import { DateTime } from 'luxon';
     }
     const getSearchHistory = async() => {
         const inputSearch = postAdvancedSearch.value
+        if(!inputSearch) return
         const text = inputSearch.value
         const data = await api.post('/get_history', {key: text})    
         searchHistory.value = data
@@ -409,7 +420,7 @@ import { DateTime } from 'luxon';
         targetUsers.value = val
         getPostSearch(1)
     }
-    const selectTag = (tag) => {
+    const selectTag = (tag:Tag) => {
         if(selectedTags.value.includes(tag.id)){
             const current = selectedTags.value
             usedTags.value = []
@@ -429,7 +440,7 @@ import { DateTime } from 'luxon';
     const getFeaturedTags = async(tags, sub_param) => {
         infineLock.value = true
         const inputSearch = postAdvancedSearch.value
-        const text = inputSearch.value
+        const text = inputSearch?.value || ''
         var keyList = text.split(/[\u{20}\u{3000}]/u); 
         const data = await api.post('/get_featured_tags',{
             app_name: props.appName, 
@@ -474,7 +485,7 @@ import { DateTime } from 'luxon';
         searchPageIndex.value = index
         const inputSearch = postAdvancedSearch.value
         isFocusing.value = 0
-        const text = inputSearch.value
+        const text = inputSearch?.value || ''
         if(searchMiniLoader.value || (!selectedTags.value.length && !text && !targetUsers.value.length) || searchAppendLoader.value) return
         
         

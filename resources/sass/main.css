@@ -5779,6 +5779,7 @@ input:-webkit-autofill:active {
   cursor: pointer;
   user-select: none;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .c-bar-button:hover {
@@ -7467,6 +7468,13 @@ button.shift-button{
 }
 
 @media screen and (max-width: 380px) {
+    .c-bar-wrap{
+        gap: 10px
+    }
+    .c-bar-button{
+        font-size: 11px;
+        padding: 0 5px;
+    }
   .notification {
     line-height: 14px;
   }

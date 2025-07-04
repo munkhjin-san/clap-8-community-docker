@@ -300,11 +300,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/post_advanced_search', [PostController::class, 'post_advanced_search']);
         Route::post('/get_history', [PostController::class, 'get_history']);
         Route::post('/prepare_sharing_files', [PostController::class, 'prepare_sharing_files']);
+        Route::post('/post_entries', [PostController::class, 'post_entries']);
 
         
         Route::post('/get_calendar_data', [CalendarController::class, 'get_calendar_data']);
         Route::post('/get_possible_facilities', [CalendarController::class, 'get_possible_facilities']);
         Route::post('/calendar_add_record', [CalendarController::class, 'calendar_add_record']);
+        Route::post('/calendar_add_temp_record', [CalendarController::class, 'calendar_add_temp_record']);
         Route::post('/get_my_groups', [CalendarController::class, 'get_my_groups']);
         Route::post('/update_selected_calendar_members', [CalendarController::class, 'update_selected_calendar_members']);
         Route::post('/select_work_group', [CalendarController::class, 'select_work_group']);

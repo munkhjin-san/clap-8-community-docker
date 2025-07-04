@@ -259,7 +259,7 @@ import { useBoardList } from "@/composables/board";
             list.push({ title, action });
         }
         const builtInApps = [
-            {name: 'board', name_jp: 'ボード'}, 
+            {name: 'board', name_jp: 'チャット'}, 
             {name: 'schedule', name_jp: 'スケジュール'},
             {name: 'task', name_jp: 'タスク'},
             {name: 'external', name_jp: 'その他'}
@@ -543,7 +543,7 @@ import { useBoardList } from "@/composables/board";
                 from: 'message',
                 to: to,
                 drag: false,
-                instruction: to == 'board' ? '送る先のボードを選択してください' : ''
+                instruction: to == 'board' ? '送る先のチャットを選択してください' : ''
             }
             sharingData.setSharingData(shareData)
             if(to == 'task'){

@@ -7,12 +7,16 @@
         <p class="clap-count" v-if="item.claps.length" style="line-height: 1;">{{item.claps.length}}</p>                                                              
     </div>  
 </template>
-<script setup>
+<script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useApi } from '@/composables/api';
     const auth = useAuthUserStore()
-    const props = defineProps(['item', 'appName', 'customStyle'])
+    const props = defineProps<{
+        item: any,
+        appName: string,
+        customStyle?: string
+    }>()
     const emit = defineEmits(['updateClap'])
     const loading = ref(false)
     const api = useApi()
@@ -46,10 +50,10 @@ import { useApi } from '@/composables/api';
             action: action
         }, {
             loadingRef: loading,
-            ...action == 0 ? { toast: 'CLAPしました。' } : {}
+            ...action == 0 ? { toast: 'MISOしました。' } : {}
         })
         
-        emit('updateClap', data)
+        emit('updateClap')
 
     }
 

@@ -181,7 +181,7 @@ ${guide}
         const options = {
             answers: [{label: 'OK', value:true}]
         }
-        const answer = await ping(`サポート用の<a href="/board/${chatId}" target="_blank">ボード</a>が作成されました。<br>研修サポート担当からからの連絡をお待ちください。`, options)
+        const answer = await ping(`サポート用の<a href="/board/${chatId}" target="_blank">チャット</a>が作成されました。<br>研修サポート担当からからの連絡をお待ちください。`, options)
         if(answer.value){
             router.push({name: 'basic'})  
 

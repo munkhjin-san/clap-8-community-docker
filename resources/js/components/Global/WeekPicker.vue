@@ -1,8 +1,11 @@
 <template>
-<div class="relative w-[300px] text-center">
+<div class="relative w-[300px] text-center flex justify-between items-center">
+    <Back @click="shiftWeek(-1)" size="12"/>
+    
     <button @click.stop="menu.setMenu({parent: 'weekPicker'}), offset = 0" :style="{background: 'inherit', color: 'inherit'}">{{ parsedDate }}
         <Back class="rotate-[270deg]" size="9"/>
     </button>  
+    <Back @click="shiftWeek(1)" size="12" class="rotate-[180deg]"/>
     <Transition name="slidePop">
         <div id="weekPicker" v-if="menu.parent=='weekPicker'" class="month-grid z-[7] !top-[30px]" :style="{background: 'var(--background-color)', color: 'inherit'}">
             <div class="flex items-center justify-between mt-[5px]">
@@ -23,7 +26,15 @@
                     </thead>
                     <tbody>
                         <tr @click.stop="setDate(week)" v-for="(week, index) in calendarData" :key="index" class="w-row cursor-pointer">                
-                            <td v-for="(day, index) in week" :key="day.day_full" class="text-center" :style="{opacity: instance?.plus({month: offset}).hasSame(DateTime.fromISO(day.day_full), 'month') ? '1' : '0.6'}">{{ day.day_short }}</td>
+                            <td 
+                                v-for="(day, index) in week" 
+                                :key="day.day_full" 
+                                class="text-center" 
+                                :style="{
+                                    opacity: instance?.plus({month: offset}).hasSame(DateTime.fromISO(day.day_full), 'month') ? '1' : '0.6',
+                                    background: DateTime.fromISO(day.day_full).hasSame(DateTime.now(), 'day') ? '#c5af72' : 'inherit',
+                                }"
+                            >{{ day.day_short }}</td>
                         </tr>                    
                     </tbody>
                 </table>
@@ -117,6 +128,13 @@ const setDate = (dateData:NormalMonthDay[]) => {
     date.value = firstDay
     offset.value = 0
     menu.close()
+}
+const shiftWeek = (index: number) => {
+    if(!instance.value) return
+    const newDate = instance.value.plus({ weeks: index });
+    console.log(newDate)
+    date.value = newDate.toISODate() || '';
+    offset.value = offset.value + index;
 }
 </script>
 <style scoped>

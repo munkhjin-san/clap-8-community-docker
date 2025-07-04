@@ -52,16 +52,20 @@
     </div>  
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue'
 import { onMounted } from 'vue';
 import { useApi } from '@/composables/api';
-    const props = defineProps(['chargeTarget'])
-    const emit = defineEmits(['close'])
-    const possibleAmount = ref(null)
-    const charge_bet = ref(null)
-    const chargeOptions = ref([])
+    const props = defineProps<{
+        chargeTarget: number
+    }>()
+    const emit = defineEmits<{
+        'close': [boolean]
+    }>()
+    const possibleAmount = ref<number>(0)
+    const charge_bet = ref<{value: number, label: string} | null>(null)
+    const chargeOptions = ref<{value: number, label: string}[]>([])
     const chargeLock = ref(false)
     const value = ref('')
     const fetched = ref(false)
@@ -84,7 +88,7 @@ import { useApi } from '@/composables/api';
     }
     const pushChargeSelect = (my_charge) => {
         var award_bit = my_charge/100;
-        var charges = [];
+        var charges: {label: string, value: number}[]= [];
         for (let step = 1; step < award_bit + 1; step++) {
             charges.push({ label : step * 100 + '円' , value : step * 100 });
         }
@@ -93,7 +97,7 @@ import { useApi } from '@/composables/api';
     }
     const challengeChargeBet = async() => {
 
-        if(chargeLock.value|| !props.chargeTarget || !charge_bet.value || charge_bet.value.value == 0 || charge_bet.value.value == '0') return
+        if(chargeLock.value|| !props.chargeTarget || !charge_bet.value || charge_bet.value.value == 0) return
 
         await api.post('/challenge_charge_to',{ charge_bet: charge_bet.value.value, record_id: props.chargeTarget }, {
             toast: 'チャージしました。',

@@ -1,11 +1,11 @@
 <template>
-    <Modal @close="emit('close', false)" persist :body-style="bodyStyle">
+    <Modal size="large" @close="emit('close', false)" persist :body-style="bodyStyle">
         <template #title>
             <div class="flex items-center gap-[15px]">
                 <div v-if="step > 1" @click="step--" class="flex items-center justify-center w-[30px] h-[30px] min-w-[30px] cursor-pointer ml-[-15px]">
                     <Back size="15" />
                 </div>
-                <div>{{ step == 1 ? '基本情報' : '日時設定' }}</div>
+                <div>{{ steps[step - 1] }}</div>
             </div>
         </template>
         <template #content>
@@ -15,8 +15,6 @@
                         type="text"
                         v-model="title"
                         :placeHolder="'タイトル'"
-                        :rules="'required'"
-                        ref="titleRef"
                     />
                 </div>          
                 <div class="si-box">
@@ -71,9 +69,9 @@
                         class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
                         :class="[{ 'date-color': theme.dark }]">
                         <option
-                            v-for="bufferOp in [15, 30, 45, 60]"
-                            :key="bufferOp" :value="bufferOp">
-                            {{ bufferOp }}分
+                            v-for="bufferOp in bufferOptions"
+                            :key="bufferOp.value" :value="bufferOp.value">
+                            {{ bufferOp.label }}
                         </option>
                     </select>
                 </div>
@@ -116,7 +114,7 @@
                     />
                 </div>
                 <div class="si-box">
-                    <LoaderButton @triggered="search()" content="次へ"/>
+                    <LoaderButton @triggered="search()" content="日時設定へ"/>
                 </div>
             </div>
             <div v-show="step == 2" class="h-full">            
@@ -155,9 +153,46 @@
                     </table>
                 </div>    
                 <div class="mt-[25px]">
+                    <LoaderButton @triggered="toConfirm" :loading="saving" content="内容確認へ"/>
+                </div>
+            </div>  
+            <div v-show="step == 3">
+                
+                <div ref="confirmDetail" class="leading-normal whitespace-break-spaces text-[14px] flex flex-col gap-[20px]">
+                    <p>タイトル：{{ title || '予定あり' }}</p>
+                    <div>
+                        <p class="mb-2.5">メンバー：</p>
+                        <div class="flex flex-col gap-[5px]">
+                            <div v-for="user in targetUsers" :key="user.id" >
+                                <UserPanel :user="user" with-name disable-instant/>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div>
+                        <p class="mb-2.5">日時：</p>
+                        <div class="flex flex-col gap-[5px]">
+                            <div v-for="date in tempHighlighted" :key="date" class="text-[gray]">
+                                {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').toFormat('yyyy/M/d HH:mm') }} ~ 
+                                {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').plus({ hours: duration.hour, minutes: duration.minute }).toFormat('HH:mm') }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p>所要時間：{{ duration.hour }}時間{{ duration.minute }}分</p>
+                    <p>施設：{{ selectedRoom !== null ? facilites.qualified_institution.find(f => f.value === selectedRoom)?.label : 'なし' }}</p>
+                    <p>WEB会議：{{ selectedZoom !== null ? facilites.zoom_value.find(f => f.value === selectedZoom)?.label : 'なし' }}</p>
+                    <p>メモ：{{ content || 'なし'}}</p>  
+                </div>
+                <div class="mt-[25px]">
+                    <CommandButton :buttons="[{
+                        title: 'コピー', action: () => copy()
+                    }]"/>
+                </div>
+                 <div class="mt-[25px]">
                     <LoaderButton @triggered="save" :loading="saving" content="保存する"/>
                 </div>
-            </div>        
+            </div>     
         </template>
     </Modal>
 </template>
@@ -169,7 +204,7 @@ import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { User } from '@/interface/globalInterface';
 import ShortInput from '../Form/ShortInput.vue';
-import { DateTime } from 'luxon';
+import { DateTime, Interval } from 'luxon';
 import { useAuthUserStore } from '@/store/auth';
 import 'styles/customForm.css'
 import { useTheme } from '@/store/theme';
@@ -182,18 +217,20 @@ import DayRow from './TempReserve/DayRow.vue';
 import LongInput from '../Form/LongInput.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import UserPanel from '../Global/UserPanel.vue';
+import CommandButton from '../Global/CommandButton.vue';
 
 const emit = defineEmits<{
     close: [flag: boolean];
 }>()
+const steps = ['基本情報', '日時設定', '予約内容確認'];
 const api = useApi()
-const { ping } = useDialog()
+const { ping, toast } = useDialog()
 const auth = useAuthUserStore()
 const theme = useTheme()
 const targetUsers = ref<User[]>([auth.user as unknown as User]);
 const searching = ref(false)
 const targetUsersRef = useTemplateRef('targetUsersRef')
-const titleRef = useTemplateRef('titleRef')
 const startDate = ref( DateTime.now().startOf('week').toISODate())
 const endDate = ref(DateTime.now().plus({ days: 1 }).toISODate())
 const selectedRoom = ref<number | null>(null)
@@ -203,20 +240,46 @@ const saving = ref(false)
 const step = ref(1)
 const title = ref('')
 const content = ref('')
+const bufferOptions = [
+    { value: 0, label: 'なし' },
+    { value: 15, label: '前後15分' },
+    { value: 30, label: '前後30分' },
+    { value: 45, label: '前後45分' },
+    { value: 60, label: '前後60分' },
+    { value: 120, label: '前後120分' }
+]
 
-const blockData = ref<DateSchedule>({})
 const facilites = ref<FacList>({
     qualified_institution: [],
     zoom_value: [],
     qualified_care: []
 })
+onMounted(() => {
+    blockData.value = initBlockData()
+})
+const initBlockData = () => {
+    const data: DateSchedule = {}
+    const start = DateTime.now().startOf('week');
+    const end = DateTime.now().endOf('week');
+    let current = start;
 
-const tempHighlighted = ref<string | null>(null)
+    while (current <= end) {
+        const dateKey = current.toISODate();
+        data[dateKey] = {};
+        for (const hour of hourOfDay.value) {
+            data[dateKey][hour] = {};
+        }
+        current = current.plus({ days: 1 });
+    }
+    return data;
+}
+const blockData = ref<DateSchedule>({})
+const tempHighlighted = ref<string[]>([])
 const duration = ref({
     hour: 1,
     minute: 0
 })
-
+const confirmDetail = useTemplateRef('confirmDetail')
 onMounted(async() => {
     facilites.value = await api.get('/all_facility_items')
 })
@@ -271,7 +334,7 @@ const search = async () => {
     if (!validateDate()) {
         return
     }
-    const validTargets = [targetUsersRef.value, titleRef.value].filter(ref => ref !== null)
+    const validTargets = [targetUsersRef.value].filter(ref => ref !== null)
     let result = true
     for (const ref of validTargets) {
         const val = await ref.validate()
@@ -301,18 +364,64 @@ const search = async () => {
 
 const selectSlot = (day: DailySchedule, hourItem: string, dateIndex:number | string) => {
     const slot = `${dateIndex.toString()} ${hourItem}`
-    if(tempHighlighted.value === slot){
-        tempHighlighted.value = null
-        return
-    }
-    tempHighlighted.value = slot
-}
+    const slotInstance = DateTime.fromFormat(slot, 'yyyy-MM-dd HH:mm');
+    const slotInterval = Interval.fromDateTimes(
+        slotInstance,
+        slotInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute })
+    );
+    if (!slotInstance.isValid || !slotInterval.isValid) return
 
-const save = async() => {
-    if(!tempHighlighted.value){
+    if (tempHighlighted.value.includes(slot)) {
+        tempHighlighted.value = tempHighlighted.value.filter(s => s !== slot);
+    } else {
+        // Check if the slot overlaps with any existing highlighted slots
+        const overlaps = tempHighlighted.value.some(highlightedSlot => {
+            const highlightedInstance = DateTime.fromFormat(highlightedSlot, 'yyyy-MM-dd HH:mm');
+            const highlightedInterval = Interval.fromDateTimes(
+                highlightedInstance,
+                highlightedInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute })
+            );
+            return slotInterval.overlaps(highlightedInterval);
+        });
+        if (overlaps) {
+            ping('選択された時間帯は既に選択されている時間帯と重複しています。');
+            return;
+        }
+        tempHighlighted.value.push(slot);
+    }
+}
+const toConfirm = () => {
+    if(!tempHighlighted.value || tempHighlighted.value.length === 0){
         ping('予約する時間を選択してください')
         return
     }
+    const selectedDates = tempHighlighted.value
+    for(const selectedDate of selectedDates){
+        const dateInstance = DateTime.fromFormat(selectedDate, 'yyyy-MM-dd HH:mm');
+        if (!dateInstance.isValid) {
+            ping('選択された時間が正しくありません。');
+            return;
+        }
+        const once_date = dateInstance.toISODate();
+
+        const checkData = blockData.value[once_date]
+        let cursor = dateInstance;
+        const endPoint = dateInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute }).minus({ minutes: 15 })
+
+        while (cursor <= endPoint) {
+            const hourKey = cursor.toFormat('HH:mm');
+            if (!checkData || !checkData[hourKey] || Object.values(checkData[hourKey]).some((value) => value === false)) {
+                ping('選択された時間帯は予約できません。');
+                return;
+            }
+            cursor = cursor.plus({ minutes: 15 });
+        }
+    }
+    step.value = 3
+}
+
+const save = async() => {
+    
     
     let convertableFacilities = {
         qualified_institution:<number | null> selectedRoom.value,
@@ -320,66 +429,65 @@ const save = async() => {
         qualified_car: null
     }  
 
-    const selectedDate = DateTime.fromFormat(tempHighlighted.value, 'yyyy-MM-dd HH:mm');
-    
-    if (!selectedDate.isValid) {
-        ping('選択された時間が正しくありません。');
-        return;
-    }
- 
-    const once_date = selectedDate.toISODate();
-    const time_start = selectedDate.toFormat('HH:mm');
-    const time_end = selectedDate.plus({ hours: duration.value.hour, minutes: duration.value.minute }).toFormat('HH:mm');
-
-    const checkData = blockData.value[once_date]
-    let cursor = selectedDate;
-    const endPoint = selectedDate.plus({ hours: duration.value.hour, minutes: duration.value.minute }).minus({ minutes: 15 })
-
-    while (cursor <= endPoint) {
-        const hourKey = cursor.toFormat('HH:mm');
-        if (!checkData || !checkData[hourKey] || Object.values(checkData[hourKey]).some((value) => value === false)) {
-            ping('選択された時間帯は予約できません。');
+    const selectedDates = tempHighlighted.value
+    const pickedDates: { once_date: string, time_start: string, time_end:string }[] = [];
+    for(const selectedDate of selectedDates){
+        const dateInstance = DateTime.fromFormat(selectedDate, 'yyyy-MM-dd HH:mm');
+        if (!dateInstance.isValid) {
+            ping('選択された時間が正しくありません。');
             return;
         }
-        cursor = cursor.plus({ minutes: 15 });
+        const once_date = dateInstance.toISODate();
+        const time_start = dateInstance.toFormat('HH:mm');
+        const time_end = dateInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute }).toFormat('HH:mm');
+        pickedDates.push({
+            once_date: once_date,
+            time_start: time_start,
+            time_end: time_end
+        });
     }
-
-    const confirmMessage = `以下の内容で仮スケジュールを作成します。
-    タイトル: ${title.value}
-    日時: ${once_date} ${time_start} ~ ${time_end}
-    所要時間: ${duration.value.hour}時間${duration.value.minute}分
-    メンバー: ${targetUsers.value.filter(u => u !== null).map(u => u.name).join(', ')}
-    施設: ${selectedRoom.value !== null ? facilites.value.qualified_institution.find(f => f.value === selectedRoom.value)?.label : 'なし'}
-    WEB会議: ${selectedZoom.value !== null ? facilites.value.zoom_value.find(f => f.value === selectedZoom.value)?.label : 'なし'}`;
 
     saving.value = true
     const params = {
-        editId: null,
-        release_flag: 0,
-        temp_flag: true,
-        title: title.value,
-        remarks: content.value,
-        users: targetUsers.value.filter(u => u !== null).map(ob => ob.id),
-        edit_all: false,
-        repetition_type: 0,
-        zoom_waiting_room: 0,
-        zoom_ai_companion: 1,
-        time_start:  time_start,
-        time_end: time_end,
-        once_date: once_date,
-        facility: convertableFacilities,
-        file_ids: [],
-        department_id: null,
-        view_users: [],
+        mainData: {
+            editId: null,
+            release_flag: 0,
+            temp_flag: true,
+            title: title.value ? title.value : '予約あり',
+            remarks: content.value,
+            users: targetUsers.value.filter(u => u !== null).map(ob => ob.id),
+            edit_all: false,
+            repetition_type: 0,
+            zoom_waiting_room: 0,
+            zoom_ai_companion: 1,
+            facility: convertableFacilities,
+            file_ids: [],
+            department_id: null,
+            view_users: [],
+        },
+        dateData: pickedDates
     }
-    const data = await api.post('/calendar_add_record', params, { toast: '作成しました。', ask: confirmMessage})
+    const data = await api.post('/calendar_add_temp_record', params, { toast: '作成しました。'})
+    
     saving.value = false 
 
     data && emit('close', true)          
-    
- 
 }
+const copy = () => {
+    console.log('copy', confirmDetail.value)
+    if(!confirmDetail.value) return
+    const textData = confirmDetail.value.innerText
 
+    // remove empty lines
+    const cleanedText = textData.split('\n').filter(line => line.trim() !== '').join('\n');
+    try {
+        navigator.clipboard.writeText(cleanedText)
+        toast('内容をコピーしました')
+    } catch (error) {
+        console.error('Failed to copy text: ', error);
+        toast('コピーに失敗しました')
+    }
+}
 
 watch(startDate, (newValue) => {
     if (!validateDate()) {
@@ -408,18 +516,18 @@ watch(startDate, (newValue) => {
         top: 0;
         z-index: 4;
         font-weight: normal;
-        border-bottom: solid thin #ddd;
+        border-bottom: solid thin var(--calendarBorder);
     }
 
     th:first-child, td:first-child {
-        border-right: solid thin #ddd;
+        border-right: solid thin var(--calendarBorder);
     }
 
     td {
-        border-right: solid thin #ddd;
+        border-right: solid thin var(--calendarBorder);
     }
     .time-index-45{
-        border-bottom: solid thin #ddd;
+        border-bottom: solid thin var(--calendarBorder);
     }
     .time-index-
 
@@ -468,10 +576,10 @@ watch(startDate, (newValue) => {
         th:first-child, td:first-child {
             font-size: 11px;
             height: 30px;       
-            border-right: solid thin #ddd;
+            border-right: solid thin var(--calendarBorder);
         }
         th{
-            border-bottom: solid thin #ddd;
+            border-bottom: solid thin var(--calendarBorder);
         }
     }
     .reserve-table-wrapper {

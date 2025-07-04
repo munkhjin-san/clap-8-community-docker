@@ -63,7 +63,7 @@
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content
     const loginForm = ref(null)
     onMounted(() => {
-        window.document.title = `CLAP - ログイン`; 
+        window.document.title = `MISO - ログイン`; 
         if(props.message){
             errorMessage.value = props.message
         } else {

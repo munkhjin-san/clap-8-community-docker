@@ -1,6 +1,12 @@
 <template>
     <div class="w-full h-full relative" v-if="openedBoard">
-        
+        <Transition name="modalFade">
+            <div class="cal-month-loader" v-if="initialLoader">
+                <div id="loaderMini">
+                    <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                </div>
+            </div>
+        </Transition>
         <div class="h-full w-full overflow-y-auto" ref="container">
             <div v-if="!loading && !formList.length" class="no-comment-text text-[12px]">
                 現在はフォームはありません。
@@ -39,12 +45,18 @@
                 v-if="viewUserOf"
                 :form="viewUserOf"
                 @close="viewUserOf = null"
+                @edit-answer="(form, answerId) => { 
+                    editAnswerId = answerId;
+                    fillingForm = form;
+                    viewUserOf = null;
+                }"
             />
         </Teleport>
         <Teleport to="body">
             <BoardFormFill
                 v-if="fillingForm"
                 :form="fillingForm"
+                :edit-id="editAnswerId"
                 @close="closeFill"
             />
         </Teleport>
@@ -80,6 +92,8 @@ const viewUserOf = ref<CustomForm | null>(null)
 const fillingForm = ref<CustomForm | null>(null)
 const viewAnswerOf = ref<CustomForm | null>(null)
 const container = useTemplateRef('container')
+const initialLoader = ref(true)
+const editAnswerId = ref<number | null>(null)
 onMounted(() => {
     getBoardForms()
 })
@@ -91,6 +105,7 @@ const getBoardForms = async() => {
         board_id: openedBoard.value.id
     }, { loadingRef: loading })
     formList.value = data
+    initialLoader.value = false
 
 }
 const createForm = () => {
@@ -99,6 +114,7 @@ const createForm = () => {
 }
 const closeFill = (flag: boolean) => {
     fillingForm.value = null
+    editAnswerId.value = null
     if (flag) {
         getBoardForms()
     }

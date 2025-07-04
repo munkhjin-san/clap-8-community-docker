@@ -42,6 +42,7 @@ const badge = useBadgeStore()
 const props = defineProps<{
     survey: CustomForm
     mode?: 'board' | 'all'
+    answerId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -52,8 +53,9 @@ const auth = useAuthUserStore()
 const api = useApi()
 const { ping } = useDialog()
 onMounted(() => {
-    if(props.survey.survey_answers && route.query.answerId){
-        const targetAnswer = props.survey.survey_answers.find(a => a.id == Number(route.query.answerId))
+    const answerEditId = props.answerId || route.query.answerId || null
+    if(props.survey.survey_answers && answerEditId){
+        const targetAnswer = props.survey.survey_answers.find(a => a.id == answerEditId)
         console.log('targetAnswer', targetAnswer)
         if(targetAnswer && targetAnswer.user_id == auth.id){
             answer.value = targetAnswer

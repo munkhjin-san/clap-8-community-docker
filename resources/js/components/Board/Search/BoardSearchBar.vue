@@ -5,7 +5,7 @@
             <input 
                 id="boardSearchBar"
                 class="searchBarArea searchInputArea" 
-                placeholder="ボード・メッセージ検索" 
+                placeholder="チャット・メッセージ検索" 
                 type="search" 
                 ref="boardSearchArea" 
                 @keyup.enter="openMessageSearch" 

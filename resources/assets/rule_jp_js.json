@@ -27,19 +27,19 @@
         "knowledge_view" : "ナレッジ閲覧"
     },
     {
-        "board_memo" : "ボードノート機能"
+        "board_memo" : "チャットノート機能"
     },
     {
-        "board_file" : "ボードファイル機能"
+        "board_file" : "チャットファイル機能"
     },
     {
-        "board_task" : "ボードタスク機能"
+        "board_task" : "チャットタスク機能"
     },
     {
-        "board_create" : "ボード作成"
+        "board_create" : "チャット作成"
     },
     {
-        "board_view" : "ボード閲覧"
+        "board_view" : "チャット閲覧"
     },
     {
         "home_notice_view" : "ホームお知らせ閲覧"
@@ -69,7 +69,7 @@
         "home" : "ホーム(すべての権限)"
     },
     {
-        "board" : "ボード(すべての権限)"
+        "board" : "チャット(すべての権限)"
     },
     {
         "knowledge" : "ナレッジ(すべての権限)"

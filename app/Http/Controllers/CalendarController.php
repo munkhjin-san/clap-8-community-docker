@@ -338,6 +338,34 @@ class CalendarController extends Controller
         return response()->json($filter);
         
     }
+    public function calendar_add_temp_record(Request $request){
+        $request->validate([
+            'dateData' => 'required|array',
+        ]);
+        $mainData = $request->mainData;
+        $dateData = $request->dateData ?? [];
+        $temp_unique_id = uniqid();
+        foreach($dateData as $date){
+            $once_date = $date['once_date'];
+            [ $startHour, $startMinute ] = $date['time_start'] ? explode(':', $date['time_start']) : [0, 0];
+            [ $endHour, $endMinute ] = $date['time_end'] ? explode(':', $date['time_end']) : [0, 0];
+            $startHourWithSeconds = "{$startHour}:{$startMinute}:00";
+            $endHourWithSeconds = "{$endHour}:{$endMinute}:00";
+
+            $data = $mainData;
+            $data['once_date'] = $once_date;
+            $data['time_start'] = $startHourWithSeconds;
+            $data['time_end'] = $endHourWithSeconds;
+            $data['repetition_type'] = 0; // NO_REPEAT
+            $data['temp_flag'] = 1;
+            $data['temp_unique_id'] = $temp_unique_id;
+
+            $newRequest = new Request($data);
+            $create = $this->calendar_add_record($newRequest);
+
+        }
+        return response('Temporary records created successfully.', 201);
+    }
     public function calendar_add_record(Request $request){
 
 
@@ -715,6 +743,7 @@ class CalendarController extends Controller
         $records = CalendarRecord::whereIn('id', $ids)->update([
             "title" => $request['title'],
             "temp_flag" => $request['temp_flag'] ?? 0,
+            "temp_unique_id" => $request['temp_unique_id'] ?? null,
             "remarks" => $request['remarks'],
             "referrer" => $request['referrer'],
             "release_flag" => $request['release_flag'],
@@ -749,18 +778,19 @@ class CalendarController extends Controller
         $title = $c_records[0]['title'];
         $details = [];
         $recursion_types = ["1回のみ", "毎週", "毎月", "毎年"];
-        foreach($c_records as $rec){            
+        foreach($c_records as $rec){        
+            $title = $rec['temp_flag'] ? ' (仮)' . $rec['title'] : $rec['title'];
             $d = [
                 "title" => $rec['title'],
                 "id" => $rec['id'],
                 "start_at" => Carbon::parse($rec['date_start'])->format('Y/m/d H:i'),
                 "recursion" => $recursion_types[$rec['repetition_type']],
-                "content" => $rec['remarks']
+                "content" => $rec['remarks'],
             ];
             $details[] = $d;
         }
         foreach($targetUsersMail as $to){
-            Mail::to($to)->send(new Calendar( $details, $title, $type));
+            Mail::to($to)->send(new Calendar( $details, $title, $type, $rec['temp_flag']));
         }
         return $records;
     }
@@ -1173,11 +1203,11 @@ class CalendarController extends Controller
 
         $content = <<<EOD
         BEGIN:VCALENDAR
-        PRODID:-//" . $user->email . "//CLAP 1.0//EN
+        PRODID:-//" . $user->email . "//MISO 1.0//EN
         VERSION:2.0
         CALSCALE:GREGORIAN
         METHOD:PUBLISH
-        X-WR-CALNAME:CLAP:スケジュール
+        X-WR-CALNAME:MISO:スケジュール
         X-WR-TIMEZONE:Asia/Tokyo
         BEGIN:VTIMEZONE
         TZID:Asia/Tokyo
@@ -1478,9 +1508,34 @@ class CalendarController extends Controller
         switch ($request->status) {
             case 1:
                 $record->update(['temp_flag' => 0, 'updated_user' => $active_user->id]);
+                $record->related_temp_records()->delete();
+                $title = $record['title'];
+                $details = [];
+    
+                $title = $record['temp_flag'] ? ' (仮)' . $record['title'] : $record['title'];
+                $d = [
+                    "title" => $record['title'],
+                    "id" => $record['id'],
+                    "start_at" => Carbon::parse($record['date_start'])->format('Y/m/d H:i'),
+                    "recursion" => "1回のみ",
+                    "content" => $record['remarks'],
+                ];
+                $details[] = $d;
+                $type = '確定';
+                $targetIds = $record->calendar_users()->pluck('id')->toArray();
+                $targetUsersMail = User::whereIn('id', $targetIds)->where('retire', 0)->whereNotNull('email')->where('id', '!=', $active_user->id)->pluck('email')->toArray();
+
+                foreach($targetUsersMail as $to){
+                    Mail::to($to)->send(new Calendar( $details, $title, $type, $record['temp_flag']));
+                }
+
                 return response('予約を確定しました。', 200);
             case 0:
                 $record->calendar_users()->detach($active_user->id);
+                $relatedTempRecords = $record->related_temp_records;
+                foreach ($relatedTempRecords as $tempRecord) {
+                    $tempRecord->calendar_users()->detach($active_user->id);
+                }
                 return response('予約をキャンセルしました。', 200);
             default:
                 return response('無効なステータスです。', 400);

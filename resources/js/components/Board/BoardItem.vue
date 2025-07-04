@@ -80,10 +80,10 @@ import { MenuList } from '@/interface/globalInterface';
         addItem(selfMember.value?.pin_flag == 1 ? 'ピン留めを外す' : 'ピン留め', () => pin(props.item))
         addItem(selfMember.value?.notification == 1 ? '通知設定:ON' : '通知設定:OFF', () => setNotification(props.item ))
         if(props.item.private_flag == 0){
-            addItem('ボード退出', () => leave(props.item))
+            addItem('チャット退出', () => leave(props.item))
         }
         if(editable || props.item.private_flag == 1){
-            addItem('ボード削除', () => remove(props.item))
+            addItem('チャット削除', () => remove(props.item))
         }
         return list
     })

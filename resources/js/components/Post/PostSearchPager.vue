@@ -27,7 +27,7 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, watch } from 'vue';
 import { useMenuStore } from "@/store/menu";
     const menu = useMenuStore()

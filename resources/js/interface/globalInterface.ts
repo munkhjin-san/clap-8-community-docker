@@ -51,6 +51,7 @@ export interface BoardMember {
 export interface Tag {
     text: string;
     id: number;
+    occurrence: number;
 }
 export interface User {
     positions: any

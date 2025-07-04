@@ -1,7 +1,7 @@
 <template>
 <Modal persist @close="emit('close', false)">
 <template #content>
-<SurveyForm :survey="form" @saved="emit('close', true)"/>
+<SurveyForm :survey="form" :answer-id="editId" @saved="emit('close', true)"/>
 </template>
 </Modal>
 </template>
@@ -12,6 +12,7 @@ import { CustomForm } from '@/interface/customFormInterface';
 
 const props = defineProps<{
     form: CustomForm
+    editId?: number | null
 }>();
 const emit = defineEmits<{
     'close': [flag: boolean]

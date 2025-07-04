@@ -3,7 +3,7 @@
         <div class="leading-normal whitespace-break-spaces" v-if="simpleTypes.includes(block.type)">{{ blockAnswer?.text_answer }}</div>
         <div v-else-if="block.type === 'checkbox' || block.type === 'radio'" class="flex flex-col gap-[10px]">
             <div v-for="(el, index) in block.elements" :key="index">
-                <label class="flex items-center gap-[10px]" :class="{'opacity-50': !isChecked(el)}">
+                <label class="flex items-center gap-[10px] text-sm" :class="{'opacity-50': !isChecked(el)}">
                     <input type="checkbox" :class="block.type === 'checkbox' ? 'custom-f-checkbox' : 'custom-f-radio'" :checked="isChecked(el)" disabled>
                     {{ el.value }}
                 </label>

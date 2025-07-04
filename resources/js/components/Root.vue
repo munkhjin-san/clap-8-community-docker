@@ -149,7 +149,7 @@ import { useDialog } from '@/composables/dialog';
         }
     }
     const docTitle = computed(() => {       
-        const name = route.meta && route.meta.title ? route.meta.title : 'CLAP'
+        const name = route.meta && route.meta.title ? route.meta.title : 'MISO'
         const total = badge.sumOfAll
         const badgeCount = total && total > 0 ?  `【${total}】` : ''
         const space = badgeCount ? ' ' : ''

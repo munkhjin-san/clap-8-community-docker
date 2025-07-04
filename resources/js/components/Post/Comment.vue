@@ -29,21 +29,27 @@
         <div class="clearBoth"></div>
     </div> 
 </template>
-<script setup>
+<script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import ClapButton from './ClapButton.vue';
 import { defineAsyncComponent, ref, inject } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
-import { useMenuStore } from "@/store/menu";
 import { DateParser, urlCheck } from '@/utils/tools';
-    const menu = useMenuStore()
+import { PostComment } from '@/interface/postInterface';
     const auth = useAuthUserStore()
     const Editor = defineAsyncComponent(() => import ('./Editor.vue'))
-    const props = defineProps(['comment'])
-    const emit = defineEmits(['deleteComment', 'editComment', 'editCancel', 'editSend'])
+    defineProps<{
+        comment: PostComment
+    }>()
+    const emit = defineEmits<{
+        deleteComment: [number],
+        editComment: [PostComment],
+        editCancel: [],
+        editSend: []
+    }>()
     const editing = ref(false)
-    const pushInstantUser = inject('pushInstantUser')
-    const reload = inject('reload') 
+    const pushInstantUser = inject('pushInstantUser') as Function
+    const reload = inject('reload') as Function
 
 </script>

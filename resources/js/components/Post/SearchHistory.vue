@@ -16,7 +16,7 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
     const props = defineProps(['allHistoryData', 'selected'])
     const emit = defineEmits(['setKeyWordFromHistory'])
     const setkey = (item) => {

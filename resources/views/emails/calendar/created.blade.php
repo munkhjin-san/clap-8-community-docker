@@ -1,4 +1,9 @@
-スケジュールが{{$type}}されました。<br><br>
+@if($is_temp)
+    仮スケジュールが{{$type}}されました
+@else
+    スケジュールが{{$type}}されました。<br><br>
+@endif
+
 
 以下にて内容をご確認ください。<br><br>
 
@@ -11,6 +16,10 @@
 メモ : <br>
 {{$details[0]['content']}}
 <br>
+
+@if($is_temp)
+    <strong>※このスケジュールは仮登録です。</strong><br>
+@endif
 @foreach($details as $detail)
 {{$detail['start_at']}}<br><br>
 <a href="{{url('schedule?id=' . $detail['id'])}}">{{url('schedule?id=' . $detail['id'])}}</a>

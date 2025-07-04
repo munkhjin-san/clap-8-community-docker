@@ -1,7 +1,7 @@
 <template>
     <Modal @close="emit('close')">
         <template #title>
-            <p>ボードの詳細情報</p>
+            <p>チャットの詳細情報</p>
         </template>
         <template #content>
             <div class="flex flex-col">   
@@ -85,7 +85,7 @@ import Modal from '../Global/Modal.vue';
         return props.board.board_to_users.map( ob => ob.user)
     })
     const boardType = computed(() => {
-        return props.board.private_flag == 0 ? 'グループボード' : props.board.private_flag == 1 ? '個別ボード' : props.board.private_flag == 3 ? 'マイボード' : ''
+        return props.board.private_flag == 0 ? 'グループチャット' : props.board.private_flag == 1 ? '個別チャット' : props.board.private_flag == 3 ? 'マイチャット' : ''
     })
 
 </script>

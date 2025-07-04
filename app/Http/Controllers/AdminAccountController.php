@@ -162,7 +162,7 @@ class AdminAccountController extends Controller
             // }  
             $board = new boardRecord;
             $board->user_id = $user->id;
-            $board->title = 'マイボード';
+            $board->title = 'マイチャット';
             $board->private_flag = 3;
             $board->save();
 
