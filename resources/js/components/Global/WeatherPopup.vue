@@ -12,7 +12,7 @@
                         <span class="text-[gray]">参照 :</span>
                         <a v-for="chunk in messageData.chunks" target="_blank" :key="chunk.web.uri" :href="chunk.web.uri">{{ chunk.web.title }}</a>
                     </div>
-                    <p>さて、今日のコンディションはどんな感じですか？</p>
+                    <p>それでは、今日のコンディションを選択してください。</p>
                 </div>
                 <div class="flex justify-center">
                     <div class="flex items-center gap-5 flex-wrap justify-center">
