@@ -7,7 +7,7 @@
                 </div>
                 <div class="pb-5 leading-normal">
                     <p class="text-[18px]">{{ greetings }}</p>
-                    <p v-if="messageData" >{{ messageData.content }}</p>
+                    <p v-if="messageData" class="whitespace-break-spaces" v-html="markedConverter(messageData.content)"></p>
                     <div v-if="messageData && messageData.chunks && messageData.chunks.length" class="flex flex-wrap gap-[15px] mt-[5px] mb-[10px] text-[14px]">
                         <span class="text-[gray]">参照 :</span>
                         <a v-for="chunk in messageData.chunks" target="_blank" :key="chunk.web.uri" :href="chunk.web.uri">{{ chunk.web.title }}</a>
@@ -53,6 +53,7 @@ import { DateTime } from 'luxon';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { marked } from 'marked'
 const emit = defineEmits(['close']);
 interface MessageData {
     content: string;
@@ -113,6 +114,10 @@ const setWeather = async (num: number) => {
 
     saving.value = null;
 
+}
+const markedConverter = (content: string) => {
+    const formattedHtml = marked.parse(content)
+    return formattedHtml
 }
 </script>
 <style>

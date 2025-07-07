@@ -33,6 +33,7 @@ return [
     'kintone_user_name' => env('KINTONE_USER_NAME'),
     'kintone_password' => env('KINTONE_PASSWORD'),
     'gemini_api_key' => env('GEMINI_API_KEY'),
+    'openai_api_key' => env('OPENAI_API_KEY'),
 
     /*
     |--------------------------------------------------------------------------

@@ -83,72 +83,139 @@ class AutoJobController extends Controller
         return response()->json(['message' => 'No message found'], 404);
     }
     public function generate_welcome_message(){
-       
-        $apiKey = config('app.gemini_api_key');
-
-        $thisMonth = Carbon::now()->format('m');
-        $thisMonthWithoutzero = ltrim($thisMonth, '0');
-        $thisDay = Carbon::now()->format('d');
-        $day = "{$thisMonthWithoutzero}月{$thisDay}日";
-        if (empty($apiKey)) {
-            return response()->json(['message' => 'API key not found'], 400);
-        }
-        
-        $instruction = <<<EOD
-            {$day}は日本国内もしくは国際で何の日ですか。ネットで検索し次のようにメッセージを作成してください。
-            1個だけでいいです。もし結果が複数の場合ランダムで選択してください。
-            最大150文字にまとめてください。
-            そしてちょっとしたメッセージも付けてください。
-            例1：今日は『〇〇の日』です。△△しましょう。
-            フォーマットは：本日は『〇〇日』です。△△。
-            NGな例：今日は『〇月〇日』です。
-            注意：作成したメッセージのみを返してください。
-            「承知しました」や「了解しました」などの前置きは不要です。
-        EOD;
-        // Prepare payload
-        $payload = [
-            'contents' => [
-                [
-                    'role' => 'user',
-                    'parts' => [
-                        [
-                            'text' => $instruction,
-                        ],
-                    ],
-                ],
-            ],
-            "tools" => [
-                [
-                    "google_search" => (object)[]
-                ]
-            ],
-
-            'generationConfig' => [
-                'temperature' => 1,
-                'topK' => 40,
-                'topP' => 0.95,
-                'maxOutputTokens' => 8192,
-                'responseMimeType' => 'text/plain'
-            ],
-        ];
-    
-        // Send request
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey";
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-        ])->post($url, $payload);
-
-        
+        $apiKey = config('app.openai_api_key');
         $date = Carbon::now()->format('Y-m-d');
+        $instruction = <<<EOD
+            今日は「〇〇の日」です。  
+            この記念日をテーマに、その背景や文化的意味から連想される  
+            “ちょっと哲学的で、少しだけ前向きになれる”ような短い一文を丁寧語で出力してください。  
+            1文のみ（句点1つ）、90〜110文字程度を目安に、やさしい口調でシンプルに言い切ってください。  
+            文末の結び方は、下記の4タイプから1つを日替わりで使用してください。
+            ## 🎯 文末の結び方タイプ（4分類）
+
+            | タグ      | 割合  | 目的          | 文末の例文                |
+            | ------- | --- | ----------- | -------------------- |
+            | ❓ 問いかけ  | 20% | 余韻・思考を促す    | 〜なのかもしれませんね。／〜でしょうか？ |
+            | 💡 提案   | 20% | 軽い行動の後押し    | 〜してみてはいかがでしょうか。      |
+            | ✅ 言い切り  | 30% | 安定感・説得力     | 〜なのです。／〜にすぎません。      |
+            | 😄 ユーモア | 30% | 親しみ・軽さ・ニヤリ感 | 〜ってことにしておきましょうか。     |
+
+            ※ユーモアタイプは“寒すぎない・やりすぎない”ラインで調整すること
+            例：「今日くらいはそれでいいと思いませんか。」
+            「気にせず乗り切って、あとで考えましょうか。」
+
+            ---
+
+            ## 🔁 出力サンプル（4タイプ）
+
+            📅 **今日は「パンツの日」（8月2日）**
+            人に見えない部分を整えることが、自分への信頼につながるのかもしれませんね。
+            🟦 タグ：問いかけ
+
+            📅 **今日は「七夕」（7月7日）**
+            願いごとを言葉にするだけで、未来に向けた一歩になることもあるのです。
+            🟥 タグ：言い切り
+
+            📅 **今日は「海苔の日」（2月6日）**
+            おにぎりに巻くだけで評価されるなら、自分もそれくらいでいい日があっていいですよね。
+            🟨 タグ：ユーモア
+
+            📅 **今日は「歯ブラシ交換デー」（2月8日）**
+            そろそろ交換してみると、心も口もスッキリするかもしれません。
+            🟩 タグ：提案
+        EOD;
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $apiKey,
+        ])->post('https://api.openai.com/v1/responses', [
+            'model' => 'gpt-4.1',
+            'instructions' => $instruction,
+            'input' => $date,
+        ]);
+        Log::info('Welcome message request sent', [
+            'date' => $date,
+            'response_status' => $response->status(),
+            'error' => $response->failed() ? $response->body() : null,
+        ]);
         $data = $response->json();
-        $chunks = collect(data_get($data, 'candidates.0.groundingMetadata.groundingChunks'));
+        // dd($data);
+        $text = data_get($data, 'output.0.content.0.text', '');
         WelcomeMessage::create([
             'date' => $date,
-            'content' => data_get($data, 'candidates.0.content.parts.0.text'),
-            'chunks' => $chunks
+            'content' => $text,
+            'chunks' => []
         ]);
+        Log::info('Welcome message generated', [
+            'date' => $date,
+            'content' => $text,
+        ]);
+        // dd($text);
+       
+        // $apiKey = config('app.gemini_api_key');
 
-        dd($data);
+        // $thisMonth = Carbon::now()->format('m');
+        // $thisMonthWithoutzero = ltrim($thisMonth, '0');
+        // $thisDay = Carbon::now()->format('d');
+        // $day = "{$thisMonthWithoutzero}月{$thisDay}日";
+        // if (empty($apiKey)) {
+        //     return response()->json(['message' => 'API key not found'], 400);
+        // }
+        
+        // $instruction = <<<EOD
+        //     {$day}は日本国内もしくは国際で何の日ですか。ネットで検索し次のようにメッセージを作成してください。
+        //     1個だけでいいです。もし結果が複数の場合ランダムで選択してください。
+        //     最大150文字にまとめてください。
+        //     そしてちょっとしたメッセージも付けてください。
+        //     例1：今日は『〇〇の日』です。△△しましょう。
+        //     フォーマットは：本日は『〇〇日』です。△△。
+        //     NGな例：今日は『〇月〇日』です。
+        //     注意：作成したメッセージのみを返してください。
+        //     「承知しました」や「了解しました」などの前置きは不要です。
+        // EOD;
+        // // Prepare payload
+        // $payload = [
+        //     'contents' => [
+        //         [
+        //             'role' => 'user',
+        //             'parts' => [
+        //                 [
+        //                     'text' => $instruction,
+        //                 ],
+        //             ],
+        //         ],
+        //     ],
+        //     "tools" => [
+        //         [
+        //             "google_search" => (object)[]
+        //         ]
+        //     ],
+
+        //     'generationConfig' => [
+        //         'temperature' => 1,
+        //         'topK' => 40,
+        //         'topP' => 0.95,
+        //         'maxOutputTokens' => 8192,
+        //         'responseMimeType' => 'text/plain'
+        //     ],
+        // ];
+    
+        // // Send request
+        // $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey";
+        // $response = Http::withHeaders([
+        //     'Content-Type' => 'application/json',
+        // ])->post($url, $payload);
+
+        
+        // $date = Carbon::now()->format('Y-m-d');
+        // $data = $response->json();
+        // $chunks = collect(data_get($data, 'candidates.0.groundingMetadata.groundingChunks'));
+        // WelcomeMessage::create([
+        //     'date' => $date,
+        //     'content' => data_get($data, 'candidates.0.content.parts.0.text'),
+        //     'chunks' => $chunks
+        // ]);
+
+        // dd($data);
     }
     public function zoom_event(Request $request){
         $data = $request->all();
