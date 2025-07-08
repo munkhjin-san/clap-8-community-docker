@@ -28,7 +28,8 @@
             <tr v-for="user in searchUsers" :key="user.id">
               <td>{{ user.name }}</td>
               <td v-for="month in months" :key="month">
-                {{ user.task_users?.find(t_user => t_user.month === month)?.total_prize }}
+                {{ user.task_users?.find(t_user => t_user.month === month)?.total_prize ? `タスク：${user.task_users.find(t_user => t_user.month === month).total_prize}\n` : '' }}
+                {{ user.custom_form_users?.find(t_user => t_user.month === month)?.total_prize ? `フォーム：${user.custom_form_users.find(t_user => t_user.month === month).total_prize}` : '' }}
               </td>
             </tr>
           </tbody>

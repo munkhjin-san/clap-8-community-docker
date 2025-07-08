@@ -69,7 +69,7 @@ const count = ref(0)
 const emit = defineEmits(['close'])
 const hit = ref<number | undefined>(0)
 const greater = ref<any>(null)
-const props = defineProps(['taskId'])
+const props = defineProps(['taskId', 'formId'])
 const missed = ref(false)
 const api = useApi()
 const { ask } = useDialog()
@@ -161,14 +161,16 @@ const awardPrize = () => {
 
 };
 const savePrize = async () => {
+    const path = props.formId ? '/save_form_prize' : 'task_update_prize'
     const params = {
         task_id: props.taskId,
+        form_id: props.formId,
         params: {
             prize: hit.value,
             try_flag: 1,
         }
     }
-    await api.put('/task_update_prize', params)
+    await api.put(path, params)
     // closeWithUpdate(false)
 
 }

@@ -106,6 +106,17 @@
                 <p class="mb-[20px]">説明</p>
                 <RichEditor ref="richEdit" :initila-value="editData ? editData.description : ''"/>
             </div>
+            <div v-if="auth.activeUser.id && [608, 610].includes(auth.activeUser.id)" class="si-box" style="position: relative">
+                <div>
+                    <p :class="['form-title-small', 'form-title-active']">グラウドナイン</p>
+                </div>
+                <div class="selectSwitchArea" style="width: fit-content;">    
+                    <input type="checkbox" id="members_only" v-model="params.has_prize">
+                    <label for="members_only" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer']"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                </div>
+            </div>
             <div class="si-box">                
                 <div ref="sortParent" class="flex flex-col gap-[30px]">
                     <div :key="block.id" v-for="(block, index) in params.blocks">
@@ -248,6 +259,7 @@ const params = reactive<CustomForm>({
     repeat_setting: 0,
     repeat_day: 1,
     board_record_id: props.board ? props.board.id : null,
+    has_prize: false,
 })
 const sortParent = useTemplateRef('sortParent')
 const api = useApi()

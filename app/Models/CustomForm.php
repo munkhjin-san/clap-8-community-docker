@@ -19,9 +19,13 @@ class CustomForm extends Model
         return $this->hasMany(SurveyAnswer::class);
     }
     public function users() {
-        return $this->belongsToMany(User::class, 'custom_form_users', 'custom_form_id', 'user_id')->wherePivot('authority', 0)->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg');
+        return $this->belongsToMany(User::class, 'custom_form_users', 'custom_form_id', 'user_id')->wherePivot('authority', 0)->withPivot(['try_flag', 'prize'])->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg');
     }
     public function admins() {
-        return $this->belongsToMany(User::class, 'custom_form_users', 'custom_form_id', 'user_id')->wherePivot('authority', 1)->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg');;
+        return $this->belongsToMany(User::class, 'custom_form_users', 'custom_form_id', 'user_id')->wherePivot('authority', 1)->withPivot(['try_flag', 'prize'])->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg');;
     }
+
+    protected $casts = [
+        'has_prize' => 'boolean',
+    ];
 }

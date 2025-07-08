@@ -16,11 +16,14 @@ export interface CustomForm {
     repeat_setting?: number
     repeat_day?: number
     board_record_id?: number | null
+    has_prize?: boolean
 }
 export interface CustomFormUser extends User {
     pivot: {
         custom_form_id: number
         user_id: number
+        prize: number
+        try_flag: boolean
     }
     is_answered?: boolean
 }

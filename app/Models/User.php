@@ -208,6 +208,9 @@ class User extends Authenticatable
     public function task_users() {
         return $this->hasMany(taskUser::class);
     }
+    public function custom_form_users(){
+        return $this->hasMany(CustomFormUser::class);
+    }
     public function related_projects()
     {
         return $this->belongsToMany(ProjectRecord::class, 'project_members', 'user_id', 'project_id');

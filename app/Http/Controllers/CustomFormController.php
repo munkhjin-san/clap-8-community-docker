@@ -112,6 +112,7 @@ class CustomFormController extends Controller
             'board_record_id' => 'nullable|integer',
             'repeat_setting' => 'integer',
             'repeat_day' => 'nullable|integer|min:1|max:31',
+            'has_prize' => 'boolean',
             'blocks.*.id' => 'nullable|integer',
             'blocks.*.type' => 'required|string|max:50',
             'blocks.*.question' => 'required|string',
@@ -150,6 +151,7 @@ class CustomFormController extends Controller
                 'repeat_setting' => Arr::get($data, 'repeat_setting' ),
                 'repeat_day' => Arr::get($data, 'repeat_day' ),
                 'board_record_id' => Arr::get($data, 'board_record_id', null),
+                'has_prize' => Arr::get($data, 'has_prize', false),
             ]
         );
         $users = Arr::get($data, 'users', []);
@@ -255,7 +257,20 @@ class CustomFormController extends Controller
                 ]);
             }
         }
-        return response()->json($survey , 200);
+
+        $prize_eligible = false;
+        $custom_form = CustomForm::findOrFail($request->custom_form_id);
+        if($custom_form->has_prize){
+            $user = $custom_form->users()->where('users.id', $active_user->id)->wherePivot('try_flag', 0)->first();
+            if($user){
+                $prize_eligible = true;
+            }
+        }
+
+        return response()->json([
+            'id' => $survey->id,
+            'prize_eligible' => $prize_eligible,
+        ]);
             
         
 
@@ -398,5 +413,24 @@ class CustomFormController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         return response()->json($forms);
+    }
+    public function save_form_prize(Request $request) {
+        $request->validate([
+            'form_id' => 'required|integer',
+            'params' => 'required|array',
+            'params.prize' => 'integer|nullable',
+        ]);
+        $active_user = $this->active_user();
+        $form = CustomForm::findOrFail($request->form_id);
+        $user = $form->users()->where('users.id', $active_user->id)->first();
+        if(!$user){
+            throw ValidationException::withMessages(['message' => 'このフォームに対する権限がありません。']);
+        }
+        $form->users()->updateExistingPivot($active_user->id, [
+            'try_flag' => 1,
+            'prize' => $request->params['prize'] ?? 0,
+            'updated_at' => now(),
+        ]);
+        return response()->json(['message' => 'Form prize saved successfully'], 200);
     }
 }

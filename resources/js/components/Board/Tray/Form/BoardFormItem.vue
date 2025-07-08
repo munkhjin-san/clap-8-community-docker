@@ -46,5 +46,5 @@ const isTarget = computed(() => {
     return props.form.users?.some(user => user.id === auth.id) ?? false;
 })
 
-const isAdmin = computed(() => props.form.admins?.some(admin => admin.id === auth.id) ?? false)
+const isAdmin = computed(() => props.form.admins?.some(admin => admin.id === auth.activeUser.id) ?? false)
 </script>

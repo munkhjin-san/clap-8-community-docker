@@ -23,6 +23,9 @@
                 <LoaderButton content="送信する" style="margin:0" :loading="loading[2]" @triggered="sendSurvey(2)"/>
             </div>
         </div>
+        <Teleport to="body">
+            <RollDice :form-id="survey.id" v-if="prizeEligible" @close="closePrize"/>
+        </Teleport>
     </div>
 </template>
 <script setup lang="ts">
@@ -38,6 +41,7 @@ import { useRoute } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import RollDice from '../Global/RollDice.vue';
 const badge = useBadgeStore()
 const props = defineProps<{
     survey: CustomForm
@@ -52,6 +56,8 @@ const route = useRoute()
 const auth = useAuthUserStore()
 const api = useApi()
 const { ping } = useDialog()
+const prizeEligible = ref(false)
+const answerId = ref<number | null>(null)
 onMounted(() => {
     const answerEditId = props.answerId || route.query.answerId || null
     if(props.survey.survey_answers && answerEditId){
@@ -112,17 +118,29 @@ const sendSurvey = async(status:number) => {
         target_date: answer.value.target_date,
     }
     
-
+    loading[status] = true
     const messages = ['', '保存しました。', '送信しました。']
     const data = await api.post('/save_survey_answer', params, {
-        toast: messages[status],
-        loadingRef: loading[status],
+        toast: messages[status]
     })
-    setTimeout(() => {        
-        badge.getRemindBadge()  
-        emit('saved', status, data?.id)
-    }, 300);
+    loading[status] = false
+    if(data?.prize_eligible && status == 2){
+        prizeEligible.value = data.prize_eligible
+        answerId.value = data.id
+    }else{
+        setTimeout(() => {        
+            badge.getRemindBadge()  
+            emit('saved', status, data?.id)
+        }, 300);
+    }
 
 
+
+}
+
+const closePrize = () => {
+    prizeEligible.value = false
+    badge.getRemindBadge()  
+    emit('saved', 2, answerId.value)
 }
 </script>

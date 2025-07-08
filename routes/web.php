@@ -504,6 +504,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_authorized_users', [CustomFormController::class, 'get_authorized_users']);
         Route::get('/get_my_surveys', [CustomFormController::class, 'get_my_surveys']);
         Route::get('/get_board_forms', [CustomFormController::class, 'get_board_forms']);
+        Route::put('/save_form_prize', [CustomFormController::class, 'save_form_prize']);
 
 
         //Contact

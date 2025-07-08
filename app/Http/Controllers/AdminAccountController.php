@@ -290,6 +290,14 @@ class AdminAccountController extends Controller
                             ->whereYear('created_at', $year)
                             ->where('glowd_nine', 1)
                             ->groupBy('user_id', 'month');
+                },'custom_form_users' => function ($q) use($year) {
+                    $q->select('user_id',
+                                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month"),
+                                DB::raw("SUM(prize) as total_prize")
+                            )
+                            ->where('prize', '>', 0)
+                            ->whereYear('created_at', $year)
+                            ->groupBy('user_id', 'month');
                 }])
                 ->whereNotIn('name', $ng_list)
                 ->where('retire', 0)
