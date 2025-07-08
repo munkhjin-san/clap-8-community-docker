@@ -66,6 +66,7 @@
                     <select
                         id="buffer"
                         v-model="buffer"
+                        @change="saveBufferTime"
                         class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
                         :class="[{ 'date-color': theme.dark }]">
                         <option
@@ -172,8 +173,8 @@
                     <div>
                         <p class="mb-2.5">日時：</p>
                         <div class="flex flex-col gap-[5px]">
-                            <div v-for="date in tempHighlighted" :key="date" class="text-[gray]">
-                                {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').toFormat('yyyy/M/d HH:mm') }} ~ 
+                            <div v-for="date in tempHighlighted" :key="date">
+                                {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').toFormat('M月d日 (ccc) HH:mm') }} ~ 
                                 {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').plus({ hours: duration.hour, minutes: duration.minute }).toFormat('HH:mm') }}
                             </div>
                         </div>
@@ -186,7 +187,7 @@
                 </div>
                 <div class="mt-[25px]">
                     <CommandButton :buttons="[{
-                        title: 'コピー', action: () => copy()
+                        title: '日時コピー', action: () => copy()
                     }]"/>
                 </div>
                  <div class="mt-[25px]">
@@ -235,7 +236,7 @@ const startDate = ref( DateTime.now().startOf('week').toISODate())
 const endDate = ref(DateTime.now().plus({ days: 1 }).toISODate())
 const selectedRoom = ref<number | null>(null)
 const selectedZoom = ref<number| null>(null)
-const buffer = ref(15)
+const buffer = ref(0)
 const saving = ref(false)
 const step = ref(1)
 const title = ref('')
@@ -256,6 +257,8 @@ const facilites = ref<FacList>({
 })
 onMounted(() => {
     blockData.value = initBlockData()
+    const savedBufferTime = localStorage.getItem('tempReserveBuffer')
+    buffer.value = savedBufferTime ? parseInt(savedBufferTime) : 0;
 })
 const initBlockData = () => {
     const data: DateSchedule = {}
@@ -495,6 +498,10 @@ watch(startDate, (newValue) => {
     }
     search()
 })
+
+const saveBufferTime = () => {
+    localStorage.setItem('tempReserveBuffer', buffer.value.toString())
+}
 </script>
 <style lang="scss">
 .temp-reserve-table {

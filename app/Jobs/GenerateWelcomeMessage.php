@@ -30,6 +30,10 @@ class GenerateWelcomeMessage implements ShouldQueue
     {
         $apiKey = config('app.openai_api_key');
         $date = Carbon::now()->format('Y-m-d');
+        $check_exists = WelcomeMessage::where('date', $date)->exists();
+        if ($check_exists) {
+            return;
+        }
 
         $instruction = <<<EOD
             今日は「〇〇の日」です。  
@@ -54,21 +58,19 @@ class GenerateWelcomeMessage implements ShouldQueue
 
             ## 🔁 出力サンプル（4タイプ）
 
-            📅 **今日は「パンツの日」（8月2日）**
+            **今日は「パンツの日」**
             人に見えない部分を整えることが、自分への信頼につながるのかもしれませんね。
-            🟦 タグ：問いかけ
 
-            📅 **今日は「七夕」（7月7日）**
+            **今日は「七夕」**
             願いごとを言葉にするだけで、未来に向けた一歩になることもあるのです。
-            🟥 タグ：言い切り
 
-            📅 **今日は「海苔の日」（2月6日）**
+            **今日は「海苔の日」**
             おにぎりに巻くだけで評価されるなら、自分もそれくらいでいい日があっていいですよね。
-            🟨 タグ：ユーモア
 
-            📅 **今日は「歯ブラシ交換デー」（2月8日）**
+            **今日は「歯ブラシ交換デー」**
             そろそろ交換してみると、心も口もスッキリするかもしれません。
-            🟩 タグ：提案
+
+
         EOD;
 
         $response = Http::withHeaders([
