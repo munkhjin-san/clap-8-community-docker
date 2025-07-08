@@ -289,6 +289,7 @@ class AdminAccountController extends Controller
                             )
                             ->whereYear('created_at', $year)
                             ->where('glowd_nine', 1)
+                            ->where('prize', '>', 0)
                             ->groupBy('user_id', 'month');
                 },'custom_form_users' => function ($q) use($year) {
                     $q->select('user_id',

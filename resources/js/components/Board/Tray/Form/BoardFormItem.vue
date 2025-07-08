@@ -43,7 +43,7 @@ const emit = defineEmits<{
 
 const auth = useAuthUserStore()
 const isTarget = computed(() => {
-    return props.form.users?.some(user => user.id === auth.id) ?? false;
+    return props.form.users?.some(user => user.id === auth.activeUser.id) ?? false;
 })
 
 const isAdmin = computed(() => props.form.admins?.some(admin => admin.id === auth.activeUser.id) ?? false)
