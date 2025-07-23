@@ -105,15 +105,13 @@ import { useBoardList } from "@/composables/board";
     })
     const keyboardStore = useKeyboardStore()
     onBeforeRouteLeave((to, from, next) => {
-        if (from.params.roomId) {
-            next(false)
-        } else {
-            if(to.name == 'board'){
-                emit('closeContainer')
-            }
-            resetUnread()
-            next()
+
+        if(to.name == 'board'){
+            emit('closeContainer')
         }
+        resetUnread()
+        next()
+       
     })
     const resetUnread = () => {
         unread.value = {

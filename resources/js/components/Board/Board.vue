@@ -462,7 +462,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
     const closeMessageContainer = () => {
         keyboardStore.setKeyboardHeight(0)
         messageList.value = [];
-        messageContainerKey.value ++
+        // messageContainerKey.value ++
     }
     const reachedTop = () => {
         currentLen.value = messageList.value.length
