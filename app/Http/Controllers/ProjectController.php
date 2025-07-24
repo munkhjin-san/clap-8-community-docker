@@ -1728,7 +1728,7 @@ class ProjectController extends Controller
         $settlement_profit_index = array_search('利益', $settlement_headers);
         $settlement_profit_rate_index = array_search('利益率', $settlement_headers);
         $settlement_for_project = array_filter($settlement_data, function($settlement) use ($project_name){
-            return $settlement[1] == $project_name;
+            return isset($settlement[1]) && $settlement[1] == $project_name;
         });
         
         $settlementResponse = [];
