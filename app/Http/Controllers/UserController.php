@@ -391,5 +391,47 @@ class UserController extends Controller{
 
         
     }
-    
+    public function get_random_member_data(Request $request){
+        // return response('ok', 200);
+        $users = User::where('deleted_flag', 0)
+            ->where('retire', 0)
+            ->where('id', '>', 105)
+            ->whereNotNull('enjoy')
+            ->inRandomOrder()->select(['name', 'enjoy', 'icon_path', 'icon_bg'])->first();
+        return response()->json($users);
+    }
+    public function members_for_home(Request $request){
+        $users = User::where('deleted_flag', 0)
+            ->where('retire', 0)
+            ->where('id', '>', 105)
+            ->where('partner_flag', 0)
+            ->whereNotIn('position_id', [13,14,15])
+            ->inRandomOrder()
+            ->select(['id', 'name', 'icon_path', 'icon_bg'])
+            ->limit(12)
+            ->get();
+        return response()->json($users);
+    }
+    public function get_all_members(Request $request){
+        $users = User::where('deleted_flag', 0)
+            ->where('retire', 0)
+            ->where('id', '>', 105)
+            ->where('partner_flag', 0)
+            ->whereNotIn('position_id', [13,14,15])
+            ->select(['id', 'name', 'icon_path', 'icon_bg'])
+            ->with([
+                'positions' => fn($q) => $q->select('id', 'name'),
+                'offices' => fn($q) => $q->select('id', 'name'),
+                'related_projects' => fn($q) => $q->select('project_records.id', 'project_records.name')
+            ])->get();
+        return response()->json($users);
+    }
+    public function get_member_data(Request $request){
+        $user = User::with([
+            'positions' => fn($q) => $q->select('id', 'name'),
+            'offices' => fn($q) => $q->select('id', 'name'),
+            'related_projects' => fn($q) => $q->select('project_records.id', 'project_records.name')
+        ])->select('id', 'name', 'office_id', 'position_id', 'icon_path', 'icon_bg')->findOrFail($request->id);
+        return response()->json($user);
+    }
 }

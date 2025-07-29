@@ -2284,5 +2284,11 @@ class ProjectController extends Controller
         ]);
         return response([], 200);
     }
+    public function get_random_projects(Request $request){
+
+        $count = 10;
+        $projects = ProjectRecord::inRandomOrder()->take($count)->get();
+        return response()->json($projects);
+    }
 
 } 

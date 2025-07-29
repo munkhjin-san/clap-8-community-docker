@@ -83,7 +83,8 @@ Route::get('/help/{any?}', function () {
 Route::match(['get', 'post'], '/cron-trigger', [AutoJobController::class, 'cronTest']);
 
 Auth::routes(['register' => false]);
-
+Route::get('/user_icon_thumbnail/{path}/{size}/{color?}', [ContentController::class, 'user_icon_thumbnail']);
+Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController::class, 'user_default_thumbnail']);
 Route::prefix('cdn_external')->group(function () {
     Route::get('{user_id}/{keyword}/{any?}', [ContentController::class, 'fileTransferAllExternal'])->where('any', '.*');
 });
@@ -147,8 +148,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'asset-partner',
         'survey-answers'
     ])->where('any', '.*')->name('board');
-    Route::get('/user_icon_thumbnail/{path}/{size}/{color?}', [ContentController::class, 'user_icon_thumbnail']);
-    Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController::class, 'user_default_thumbnail']);
+
     Route::get('/board_default_thumbnail/{name}/{size}/{color?}', [ContentController::class, 'board_default_thumbnail']);
     Route::get('/board_icon_thumbnail/{path}/{size?}/{color?}', [ContentController::class, 'board_icon_thumbnail']);
 

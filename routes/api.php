@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ProjectController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Models\User;
@@ -59,3 +60,9 @@ Route::group(["middleware"=>"auth:sanctum"],function(){
     Route::get('/get_messages', [BoardController::class, 'get_messages']);
     Route::post('/set_fmc_token', [NativeController::class, 'set_fmc_token']);
 });
+
+Route::get('/get_random_member_data', [UserController::class, 'get_random_member_data']);
+Route::get('/get_random_projects', [ProjectController::class, 'get_random_projects']);
+Route::get('/members_for_home', [UserController::class, 'members_for_home']);
+Route::get('/get_member_data', [UserController::class, 'get_member_data']);
+Route::get('/get_all_members', [UserController::class, 'get_all_members']);
