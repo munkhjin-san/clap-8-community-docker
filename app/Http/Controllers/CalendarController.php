@@ -941,7 +941,8 @@ class CalendarController extends Controller
                 [ 'label' =>  '大阪会議室', 'value' =>  2, 'selected' => false ],
                 [ 'label' =>  '東京会議室', 'value' =>  3, 'selected' => false ],
                 [ 'label' =>  '仙台会議室', 'value' =>  4, 'selected' => false ],
-                [ 'label' =>  '青森会議室', 'value' =>  5, 'selected' => false ]
+                [ 'label' =>  '青森会議室', 'value' =>  5, 'selected' => false ],
+                [ 'label' => 'フジメンビル', 'value' => 6, 'selected' => false ],
             ],
             'zoom_value' => [
                 [ 'label' => 'Zoom1', 'value' => 0, 'selected' => false ],
