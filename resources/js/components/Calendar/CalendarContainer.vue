@@ -635,12 +635,7 @@ import { useApi } from '@/composables/api';
         activeYear.value = date.year
         selectedMonth.value = date.month
         selectedYear.value = date.year
-        let d = 1
-        if(date.day){
-            selectedDay.value = date.day
-            d = date.day
-        }
-        
+        selectedDay.value = date.day ? date.day : 1        
         records.value = []
         const dateInstance = selectedDateInstance.value
         if(!dateInstance.isValid) return
