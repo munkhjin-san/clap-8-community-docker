@@ -130,14 +130,15 @@ class CustomFormController extends Controller
     
         $form = $this->saveForm( $validated);
 
-        $this->saveBlocks($form, Arr::get($validated, 'blocks', []));
-        if (!empty($request->removed_items)) {
-            $blocks = $form->blocks()->whereIn('id', $request->removed_items)->get();
-            foreach ($blocks as $block) {
-                $block->elements()->delete();
-            }
-            $form->blocks()->whereIn('id', $request->removed_items)->delete();
-        }
+        $block_ids = $this->saveBlocks($form, Arr::get($validated, 'blocks', []));
+        // if (!empty($request->removed_items)) {
+        //     $blocks = $form->blocks()->whereIn('id', $request->removed_items)->get();
+        //     foreach ($blocks as $block) {
+        //         $block->elements()->delete();
+        //     }
+        //     $form->blocks()->whereIn('id', $request->removed_items)->delete();
+        // }
+        $form->blocks()->whereNotIn('id', $block_ids)->delete();
         return response()->json(['message' => 'Form saved successfully'], 200);
     }
     private function saveForm( array $data)
@@ -179,6 +180,7 @@ class CustomFormController extends Controller
     }
     private function saveBlocks($form, array $blocks)
     {
+        $block_ids = [];
         foreach ($blocks as $block) {
             $blockModel = $form->blocks()->updateOrCreate(
                 ['id' => $this->sanitizeId(Arr::get($block, 'id'))],
@@ -190,9 +192,11 @@ class CustomFormController extends Controller
                     'placeholder' => Arr::get($block, 'placeholder'),
                 ]
             );
-    
-            $this->saveElements($blockModel, Arr::get($block, 'elements', []));
+            $block_ids[] = $blockModel->id;
+            $element_ids = $this->saveElements($blockModel, Arr::get($block, 'elements', []));
+            $blockModel->elements()->whereNotIn('id', $element_ids)->delete();
         }
+        return $block_ids;
     }
     
     /**
@@ -200,8 +204,9 @@ class CustomFormController extends Controller
      */
     private function saveElements($block, array $elements)
     {
+        $element_ids = [];
         foreach ($elements as $element) {
-            $block->elements()->updateOrCreate(
+            $el_record = $block->elements()->updateOrCreate(
                 ['id' => $this->sanitizeId(Arr::get($element, 'id'))],
                 [
                     'value' => Arr::get($element, 'value'),
@@ -211,7 +216,9 @@ class CustomFormController extends Controller
                     'placeholder' => Arr::get($element, 'placeholder'),
                 ]
             );
+            $element_ids[] = $el_record->id;
         }
+        return $element_ids;
     }
     private function sanitizeId($id)
     {
