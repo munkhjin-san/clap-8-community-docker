@@ -348,6 +348,11 @@ const selectAll = () => {
 const duplicate = (index: number, block: CustomFormBlock) => {
     const newBlock: CustomFormBlock = JSON.parse(JSON.stringify(block))
     newBlock.id = -(Math.floor(100000 + Math.random() * 900000))
+    if(newBlock.elements && newBlock.elements.length){
+        newBlock.elements.forEach( e => {
+            e.id = -(Math.floor(100000 + Math.random() * 900000))
+        })
+    }
     params.blocks.splice(index + 1, 0, newBlock)
 }
 </script>
