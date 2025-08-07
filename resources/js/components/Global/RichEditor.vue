@@ -248,7 +248,7 @@ const viewFilePicker = () => {
     grid-template-columns: repeat(3, 1fr); /* Three columns with equal width */
     grid-auto-rows: 1fr; 
     padding: 10px;
-    max-height: 200px;
+    max-height: 150px;
     overflow: hidden auto;
 }
 .lesson-file-item{
@@ -292,7 +292,7 @@ const viewFilePicker = () => {
 }
 .tiptap{
     outline: none;
-    min-height: 100px;
+    min-height: 200px;
 }
 .editor-toolbar{
     padding: 10px;

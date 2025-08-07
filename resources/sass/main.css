@@ -5436,7 +5436,7 @@ input:-webkit-autofill:active {
 
 .tiptap {
   outline: none;
-  min-height: 100px;
+  min-height: 200px;
 }
 .tiptap h1, .tiptap h2, .tiptap h3 {
   font-size: revert !important;

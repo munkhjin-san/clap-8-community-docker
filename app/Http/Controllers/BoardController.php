@@ -729,7 +729,7 @@ class BoardController extends Controller
                 return response()->json($data);
             }
             
-            $this->mentionAndNotify( $boardRecord, $active_user, $chat);
+            $not = $this->mentionAndNotify( $boardRecord, $active_user, $chat);
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
             if(!$request->override_user_id){
                 $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
@@ -745,7 +745,8 @@ class BoardController extends Controller
                 "u_id" => $request->u_id,
                 "data" => $chat,
                 "socket" => $socket,
-                "message" => $messageRecord->original 
+                "message" => $messageRecord->original,
+                "notified" => $not,
             ];          
             return response()->json($data);
 
@@ -846,9 +847,12 @@ class BoardController extends Controller
                     "message" => $chat->message_text,
                 ];
                 SendNotification::dispatchAfterResponse($payload);
+                return $payload;
             }
+            return null;
             
         }
+        return null;
     }
         
     public function chatDelete(Request $request){
