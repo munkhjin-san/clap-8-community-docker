@@ -155,42 +155,13 @@ class WorkController extends Controller
         ->pluck('total_incentives', 'user_id');
         $annual_calc = [];
         foreach($user_record as $user){
-            switch ($user->position_id) {
-                case 12:
-                    switch ($lastDay) {
-                        case 29: 
-                            $holidayNum = 8.5;
-                            break;
-                        case 28: 
-                            $holidayNum = 8;
-                            break;
-                        default:
-                            $holidayNum = 9;
-                    }
-                    break;
-                default: 
-                    switch ($currentMonth) {
-                        case 12: 
-                            $holidayNum = 10;
-                            break;
-                        case 1: 
-                            $holidayNum = 12;
-                            break;
-                        default: 
-                            switch ($lastDay) {
-                                case 29: 
-                                    $holidayNum = 8.5;
-                                    break;
-                                case 28: 
-                                    $holidayNum = 8;
-                                    break;
-                                default:
-                                    $holidayNum = 9;
-                            }
-                    }
-            }
-            $workdayNum = $lastDay - $holidayNum;
-            $shift_work_hours = $workdayNum * $user->work_time_day;
+            
+            $monthNum = (int)$currentMonth;
+            $yearNum = (int)$currentYear;
+
+            $userWorkTimeData = $this->sharedService->work_days_calculator($yearNum, $monthNum, $user);
+            $workdayNum = $userWorkTimeData['days'];
+            $shift_work_hours = $userWorkTimeData['work_minutes'];
             $full_shifts = $annual_full->get($user->id, 0);
             $half_shifts = $annual_half->get($user->id, 0);
             $leave_value = $annual_leave->get($user->id, 0);
@@ -447,7 +418,7 @@ class WorkController extends Controller
         $user = User::with(['evaluation' => function ($query) use($evaluationDate) {
                         $query->where('date', $evaluationDate);
                     }])
-                    ->select('user_code', 'position_id', 'id', 'general_position')->findOrFail($users_list[0]);
+                    ->select('user_code', 'position_id', 'id', 'general_position', 'work_type', 'work_time_day')->findOrFail($users_list[0]);
         $user_code = $user->user_code;
         $general_position = $user->general_position ?? null;
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
@@ -501,8 +472,12 @@ class WorkController extends Controller
                     : $query->where('id', '!=', 17),
                 fn ($query) => $query->whereNotIn('id', [14, 15, 16, 17])
             )
+            
+        )->when(
+            $user->work_type == 0,
+            fn ($query) => $query->whereNot('name', '法定休日')
         )->get();
-        
+    
         
         
         // $shift_type = $user->position_id <= 11 || $user->position_id == 16
@@ -511,13 +486,36 @@ class WorkController extends Controller
         //               : shiftType::whereNot('id', 17)->get()
         //               : shiftType::whereNotIn('id', [14, 15, 16, 17])->get();
 
+        $current_year_holiday_shifts = shiftRecord::where('user_id', $users_list[0])
+        ->whereYear('shift_day', $currentYear)
+        ->whereMonth('shift_day',  '!=' , $currentMonth)
+        ->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26])
+        ->with('shiftType')
+        ->get();
+        $user_work_minutes_per_day = $user->work_time_day;
+
+        $total_holidays = $current_year_holiday_shifts->sum(function ($shift) use ($user_work_minutes_per_day) {
+            $is_full_day = $shift->shiftType->full_day == 2 || $shift->shiftType->id == 0;
+            $is_half_day = $shift->shiftType->full_day == 1;
+            if($is_full_day){
+                return $user_work_minutes_per_day;
+            } elseif($is_half_day) {
+                return $user_work_minutes_per_day / 2;
+            } else {
+                return $shift->shiftType->value;
+            }
+        });
+        
+
         $data = [
             "shift_record" => $shift_record,
             "shift_type" => $shift_type,
-            "workTemp" => $work_temp ? $work_temp : null,
+            "workTemp" => $work_temp ?? null,
             "consumed_days" => $remaining_days > 0 ? $between_records : 0,
             "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
             "odaCheck" => $odaCheck,
+            "user_work_minutes_per_day" => $user_work_minutes_per_day,
+            "total_holidays" => $total_holidays,
         ];
         
 
@@ -1155,33 +1153,12 @@ class WorkController extends Controller
             }
         ])->select('id','name','work_type', 'work_time_day', 'user_code', 'position_id')->findOrFail($user_list[0]);        
         $monthNum = (int)$currentMonth;
-        $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth()->day;
-        switch ($user->position_id) {
-            case 12:
-                $holidayNum = 9;
-                break;
-            default: 
-                switch ($monthNum) {
-                    case 12: 
-                        $holidayNum = 10;
-                        break;
-                    case 1: 
-                        $holidayNum = 12;
-                        break;
-                    default: 
-                        switch ($lastDay) {
-                            case 29: 
-                                $holidayNum = 8.5;
-                                break;
-                            case 28: 
-                                $holidayNum = 8;
-                                break; 
-                            default:
-                                $holidayNum = 9;
-                        }
-                }
-        }
-        $workdayNum = $lastDay - $holidayNum;
+        $yearNum = (int)$currentYear;
+
+        $userWorkTimeData = $this->sharedService->work_days_calculator($yearNum, $monthNum, $user);
+        $workdayNum = $userWorkTimeData['days'];
+        $shift_work_hours = $userWorkTimeData['work_minutes'];
+
         $hiddenAttributes = ['attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records'];
         $userData = $user->makeHidden($hiddenAttributes);
         $attendance = $user->attendance_records->first();
@@ -1209,7 +1186,6 @@ class WorkController extends Controller
             )
             ->sum(fn($record) => $record->shiftType?->value ?? 0);
 
-        $shift_work_hours = $user->work_time_day * $workdayNum;
 
         $annual_full = $shiftRecords
             ->filter(fn($record) => 
@@ -1252,7 +1228,10 @@ class WorkController extends Controller
         $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
         $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
         $month_waiting_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 2)->count();
-        $month_remote_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 3)->count();
+        $month_remote_personal_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 5)->count();
+        $month_remote_company_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 4)->count();
+        $month_vehicle_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 6)->count();
+        $month_special_commute_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 7)->count();
         $attendance_flag = !empty($attendance) ? true : false;
         $responseArray = [
             'user' => $userData,
@@ -1276,7 +1255,10 @@ class WorkController extends Controller
             'month_stay_allowance_count' => $month_stay_allowance_count,
             'month_move_allowance_count' => $month_move_allowance_count,
             'month_waiting_allowance_count' => $month_waiting_allowance_count,
-            'month_remote_allowance_count' => $month_remote_allowance_count,
+            'month_remote_personal_allowance_count' => $month_remote_personal_allowance_count,
+            'month_remote_company_allowance_count' => $month_remote_company_allowance_count,
+            'month_vehicle_allowance_count' => $month_vehicle_allowance_count,
+            'month_special_commute_allowance_count' => $month_special_commute_allowance_count,
             'worked_time' => $worked_time,
             'holiday_worked_time' => $holiday_worked_time,
             'night_over_time' => $night_over_time,
@@ -1411,7 +1393,10 @@ class WorkController extends Controller
             $attendance_record->stay_pay = $request->stay_pay;
             $attendance_record->move_pay = $request->move_pay;
             $attendance_record->waiting_pay = $request->waiting_pay;
-            $attendance_record->remote_pay = $request->remote_pay;
+            $attendance_record->vehicle_pay = $request->vehicle_pay;
+            $attendance_record->special_commute_pay = $request->special_commute_pay;
+            $attendance_record->remote_company_pay = $request->remote_company_pay;
+            $attendance_record->remote_personal_pay = $request->remote_personal_pay;
             $attendance_record->expenses = $request->expenses;
             $attendance_record->incentive = $request->incentive;
             $attendance_record->save();

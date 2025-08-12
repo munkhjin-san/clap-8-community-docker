@@ -48,6 +48,8 @@ export interface PostEntry {
     files: CommonFile[];
     created_at: string;
     updated_at: string;
+    comments: PostComment[];
+    comments_count: number;
 }
 
 export interface PostQuery {

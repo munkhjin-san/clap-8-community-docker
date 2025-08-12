@@ -267,4 +267,26 @@ class SharedService
         }    
         return $iconId;
     }
+    public function work_days_calculator(int $year, int $month, User $user) {
+        $instance = Carbon::createFromDate($year, $month, 1);
+        $lastDay = $instance->endOfMonth()->day;
+        $user_work_hour_per_day = $user->work_time_day ?? 480;
+        $user_position = $user->position_id;
+
+        $holidayNum = match (true) {
+            $user_position == 12 => 9,
+            $month == 12 => 10,
+            $month == 1 => 12,
+            $lastDay == 29 => 8.5,
+            $lastDay == 28 => 8,
+            default => 9,
+        };
+
+        $workDays = $lastDay - $holidayNum;
+        $convertIntoMinutes = $workDays * $user_work_hour_per_day;
+        return [
+            'days' => $workDays,
+            'work_minutes' => $convertIntoMinutes,
+        ];
+    }
 }

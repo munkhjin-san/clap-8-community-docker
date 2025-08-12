@@ -26,26 +26,27 @@
                 </div>
             </div>
         </div>        
-        <div style="height:calc(100% - 70px);overflow: hidden auto;">
+        <div style="height:calc(100% - 70px);overflow: auto;">
             
             <table class="admin-work-table">
-                <thead style="background:#363636;color:#fff;position:sticky; top:0px;">
-                    <tr style="border:1px solid rgb(102, 102, 102);">
-                        <td class="admin-table-data" rowspan="2">社員名</td>
+                <thead class="bg-[#363636] text-white sticky top-0 z-[4]">
+                    <tr class="border border-[#666666]">
+                        <td class="admin-table-data left-item !bg-[#363636] sticky top-0 z-[4]" rowspan="2">社員名</td>
                         <td class="admin-table-data" colspan="2">勤怠</td>
                         <td class="admin-table-data" rowspan="2">インシデント</td>
                         <td class="admin-table-data" rowspan="2">車両</td>
                         <td class="admin-table-data" rowspan="2">職階</td>
-                        <td class="admin-table-data" rowspan="2">天気<br><span style="font-size: 11px;">（3日連続）</span></td>
+                        <td class="admin-table-data" rowspan="2">天気<br><span class="text-xs">（3日連続）</span></td>
                         <td class="admin-table-data" rowspan="2">計画有給</td>
                         <td class="admin-table-data" colspan="9">年休</td>
                         <td class="admin-table-data" colspan="4">休暇</td>
+                        <td class="admin-table-data" colspan="3">休日</td>
                         <td class="admin-table-data" rowspan="2">経費</td>
                         <td class="admin-table-data" rowspan="2">インセ</td>
                         <td class="admin-table-data" rowspan="2">労働時間</td>
                     </tr>
                     <tr>
-                        <td class="admin-table-data" style="border-left: none;">確定</td>
+                        <td class="admin-table-data border-l-0">確定</td>
                         <td class="admin-table-data">予定</td>
                         <td class="admin-table-data">1日</td>
                         <td class="admin-table-data">半日</td>
@@ -60,11 +61,14 @@
                         <td class="admin-table-data">転勤</td>
                         <td class="admin-table-data">ODA</td>
                         <td class="admin-table-data">代休</td>
+                        <td class="admin-table-data">法定</td>
+                        <td class="admin-table-data">法定外時間</td>
+                        <td class="admin-table-data">年間</td>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr :style="{backgroundColor : item.attendance_records.length ? 'var(--complete)' : 'unset'}" v-for="(item, index) in filteredUsers" :key="index">
-                        <td>{{ item.name }}</td>
+                    <tr class="admin-window-row" :style="{backgroundColor : item.attendance_records.length ? 'var(--complete)' : 'unset'}" v-for="(item, index) in filteredUsers" :key="index">
+                        <td class="left-item" :style="{backgroundColor : item.attendance_records.length ? 'var(--complete)' : 'var(--bg3)'}">{{ item.name }}</td>
                         <td>{{ item.attendance_records.length ? item.attendance_records[0].month_petition : ''}}</td>
                         <td v-html="item.shift_records.length ? '済' : ''"></td>
                         <td style="white-space: nowrap;" v-html="hasIncident(item)"></td>
@@ -74,9 +78,13 @@
                             <WeatherIcon v-if="weather_average[item.id]" :which="weather_average[item.id].current_value" :size="15"/>
                         </td>                        
                         <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15,16,17]" v-html="computedHoliday(item.id, number)"></td>
+                        <td v-html="legalHoliday(item?.shift_records)"></td>
+                        <td v-html="legalHolidayOvertime(item)"></td>
+                        <td v-html="item?.yearly_holiday_minutes && yearlyHolidayTime(item.yearly_holiday_minutes, item.work_minutes_per_day)"></td>
                         <td style="white-space: nowrap;">{{ monthly_expenses[item.id] ? `${monthly_expenses[item.id]}円` : '' }}</td>
                         <td style="white-space: nowrap;">{{ monthly_incentive[item.id] }}</td>
                         <td v-html="conversionTime(month_work_time[item.id])"></td>
+
                     </tr>
                 </tbody>
             </table>
@@ -271,15 +279,18 @@ import { useApi } from '@/composables/api';
                 "ODA休暇": item.oda_holiday,
                 "代休" : item.comp_holiday,
                 "休業": item.closed_day,
-                "労働時間": item.working_hours_no_over,
-                "欠勤時間": item.absence_hour,
-                "残業時間": item.over_time,
-                "深夜勤務": item.night_work_time,
+                "労働時間（分）": item.working_hours_no_over,
+                "欠勤時間（分）": item.absence_hour,
+                "残業時間（分）": item.over_time,
+                "深夜勤務（分）": item.night_work_time,
                 "インセンティブ件" : item.incentive,
-                "遠方手当": item.stay_pay,
-                "宿泊日当": item.move_pay,
-                "待機手当": item.waiting_pay,
-                "在宅手当": item.remote_pay
+                "遠方": item.stay_pay,
+                "宿泊数": item.move_pay,
+                "待機日数": item.waiting_pay,
+                "マイカー日数": item.vehicle_pay,
+                "特別通勤日数": item.special_commute_pay,
+                "在宅日数（個人都合）": item.remote_personal_pay,
+                "在宅日数（会社都合）": item.remote_company_pay
             }
             data.push(row)
         });
@@ -347,8 +358,54 @@ import { useApi } from '@/composables/api';
     const selectedDate = computed(() => {
         return DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value}).toFormat('yyyy-MM')
     })
+
+    const legalHoliday = (shifts) => {
+        if(!shifts || !shifts.length) {
+            return ''
+        }
+        const legalHolidays = shifts.filter(shift => shift.shift_type.id == 18)
+        if(!legalHolidays.length) {
+            return ''
+        }
+        let days = ''
+        legalHolidays.forEach(holiday => {
+            days = days + `<div>${dayFormat(holiday.shift_day)}</div>`
+        });
+        return days
+    }
+    const yearlyHolidayTime = (value, userWorkMinutesPerDay) => {
+        const minutesPerDay = userWorkMinutesPerDay || 480; // Default to 480 minutes (8 hours) if not provided
+
+        if (!value || !minutesPerDay) return '0日';
+
+        const totalDays = Math.floor(value / minutesPerDay);
+        const color = totalDays > 111 ? 'tomato' : 'inherit';
+        const remainingMinutes = value % minutesPerDay;
+        const remainingHours = Math.floor(remainingMinutes / 60);
+
+        let result = `${totalDays}日`;
+        if (remainingHours > 0) result += `${remainingHours}時間`;
+        result = `<span style="color:${color}">${result}</span>`;
+
+        return result;
+    }
+    const legalHolidayOvertime = (item) => {
+        const minutes = item?.legal_holiday_worked_time_in_minutes || 0;
+        if (minutes === 0) return '';
+        const hours = Math.floor(minutes / 60);
+        const remainingMinutes = minutes % 60;
+        let result = `${hours}時間`;
+        if (remainingMinutes > 0) {
+            result += `${remainingMinutes}分`;
+        }
+        return result;
+    }
 </script>
 <style lang="scss" scoped>
+    .admin-window-row:hover{
+        background-color: var(--bg2);
+
+    }
     .admin-table-data{
         font-size: 13px;
         text-align: center;
@@ -366,7 +423,7 @@ import { useApi } from '@/composables/api';
     }
     .admin-work-table{
         background-color: var(--background-color);
-        width: 100%;
+        width: max-content;
         border-collapse: separate; 
         border-spacing: 0;
     }
@@ -376,8 +433,10 @@ import { useApi } from '@/composables/api';
         border-bottom: 1px solid rgb(102, 102, 102);
         border-right: 1px solid rgb(102, 102, 102);
     }
+
     table td:first-child {
         border-left: 1px solid rgb(102, 102, 102);
+
     }
     thead td:first-child{
         border-left: 1px solid rgb(102, 102, 102);
@@ -398,6 +457,12 @@ import { useApi } from '@/composables/api';
         justify-content: flex-end;
         cursor: pointer;
         fill: var(--primary-color);
+    }
+    .left-item {
+        background: var(--bg3);
+        z-index: 3;
+        position: sticky;
+        left: 0;
     }
     
 </style>

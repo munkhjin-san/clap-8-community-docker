@@ -189,7 +189,7 @@ const boxPosition = (name) => {
 }
 const getShiftClass = computed(() => {
     const shift = props.item.shift?.shift_type
-    return shift && [0,5,14,15,16,3,17].includes(shift?.id) ? 'shift-sunday' : ''
+    return shift && [0,3,5,14,15,16,17,18].includes(shift?.id) ? 'shift-sunday' : ''
 })
 
 const startEarly = computed(() => {

@@ -32,8 +32,9 @@
                         </div>
                     </div>
                     <div class="shift-holiday">
-                        <p v-if="selectedShiftType == 3">計画有給: {{ remainingDays }}日</p>
-                        <p>休日数: {{holidayCount}}日</p>
+                        <div>年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
+                        <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
+                        <p>休日数: <strong>{{ holidayCount }}</strong>日</p>
                     </div>
                     <div class="shift-calendar">
                         <div class="shift-header">
@@ -165,6 +166,8 @@ import { useDialog } from '@/composables/dialog';
         { id: 6, name: '土' },
         { id: 7, name: '日' }
     ]
+    const totalHolidayInYearByMinutes = ref(0)
+    const userWorkMinutesPerDay = ref(0)
     const api = useApi()
     const { ping } = useDialog()
     onMounted(async() => {
@@ -213,8 +216,43 @@ import { useDialog } from '@/composables/dialog';
         shiftTypes.value = shiftData.shift_type
         shiftRecords.value = shiftData.shift_record
         odaCheck.value = shiftData.odaCheck
+        totalHolidayInYearByMinutes.value = shiftData.total_holidays
+        userWorkMinutesPerDay.value = shiftData.user_work_minutes_per_day
         
     }
+    const displayTotalHolidays = computed(() => {
+        let totalMinutes = totalHolidayInYearByMinutes.value;
+
+        if(selectedShifts.value && selectedShifts.value.length){
+            const selectedHolidays = selectedShifts.value.filter(shift => [0, 18, 19, 20, 21, 22, 23, 24, 25, 26].includes(shift.type));
+            selectedHolidays.forEach(element => {
+                const fullDay = element.type === 0 || element.type === 18;
+                const halfDay = element.type === 19;
+                const minutesValue = shiftTypes.value.find(type => type.id === element.type)?.value || 0;
+                if (fullDay) {
+                    totalMinutes += userWorkMinutesPerDay.value;
+                } else if (halfDay) {
+                    totalMinutes += userWorkMinutesPerDay.value / 2;
+                }else {
+                    totalMinutes += minutesValue;
+                }
+            });
+        }
+            
+
+        const minutesPerDay = userWorkMinutesPerDay.value;
+
+        if (!totalMinutes || !minutesPerDay) return '0日';
+
+        const totalDays = Math.floor(totalMinutes / minutesPerDay);
+        const remainingMinutes = totalMinutes % minutesPerDay;
+        const remainingHours = Math.floor(remainingMinutes / 60);
+
+        let result = `${totalDays}日`;
+        if (remainingHours > 0) result += `${remainingHours}時間`;
+
+        return result;
+    });
     const propsCheck = () => {
         if(props.startDate){
             const newDate = props.startDate;
@@ -299,7 +337,7 @@ import { useDialog } from '@/composables/dialog';
                 }
             }
         }
-        holidayCount.value = selectedShifts.value.filter(shift => shift.type === 0).length
+        holidayCount.value = selectedShifts.value.filter(shift => (shift.type === 0 || shift.type === 18)).length
         
     }
     const selectedShift = (date) => {
@@ -331,6 +369,13 @@ import { useDialog } from '@/composables/dialog';
         if(endTime.value < startTime.value){
             ping('終業時間は始業時間より先にすることができません。')
             return
+        }
+        if(props.usersData[0].work_type == 1 ){
+            const legalHolidays = selectedShifts.value.filter(shift => shift.type === 18);
+            if(legalHolidays.length < 4){
+                ping('法定休日は4日以上必要です。')
+                return
+            }
         }
         if(holidayCount.value >= holidayNum || props.usersData[0].position_id === 15 || between.value){
             const targets = [startTimeRef.value, endTimeRef.value]

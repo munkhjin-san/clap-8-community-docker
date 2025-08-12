@@ -16,7 +16,7 @@ use App\Models\shiftRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
-
+use App\Services\SharedService;
 use Carbon\Carbon;
 
 
@@ -27,12 +27,10 @@ class AdminWorkController extends Controller{
      *
      * @return void
      */
-    public function __construct(){
-    }
 
-    public function index(){
-
-        
+    protected $sharedService;
+    public function __construct(SharedService $sharedService) {
+        $this->sharedService = $sharedService;
     }
 
     public function get_admin_work(Request $request) {
@@ -80,17 +78,34 @@ class AdminWorkController extends Controller{
             'id',
             'name',
             'user_code',
-            'general_position'
+            'general_position',
+            'work_time_day',
+            'work_type'
+            
         ]);
+
+        $users_ids = $all_users->pluck('id');
+
+        $holiday_shifts = shiftRecord::whereIn('user_id', $users_ids)
+        ->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26])
+            ->whereYear('shift_day', $currentYear)
+            ->select('id', 'user_id', 'shift_day', 'shift_type')
+            ->whereHas('shiftType')
+            ->with(['shiftType' => function ($query) {
+                $query->select('id', 'name', 'full_day');
+            }])
+            ->get()->groupBy('user_id');
+
+            
         $time_card_costs = timecardCostRecord::where('date_month', $request->month)
-                                                ->with(['user' => function ($q) {
-                                                    $q->select('id', 'name');
-                                                }])
-                                                ->with(['timecard' => function ($q) {
-                                                    $q->select('id', 'day');
-                                                }])
-                                                ->select('id', 'date_month', 'department', 'type', 'expenses', 'user_id', 'record_id')
-                                                ->get();
+        ->with(['user' => function ($q) {
+            $q->select('id', 'name');
+        }])
+        ->with(['timecard' => function ($q) {
+            $q->select('id', 'day');
+        }])
+        ->select('id', 'date_month', 'department', 'type', 'expenses', 'user_id', 'record_id')
+        ->get();
         $userIds = $all_users->pluck('id');
         
         
@@ -113,7 +128,6 @@ class AdminWorkController extends Controller{
         ->get();
         $monthly_incentive = $incentives->pluck('totalCount', 'user_id');
 
-        $sevenDaysAgo = now()->subDays(3);
         now()->day >= 1 && now()->day <= 6 ? $previousMonth = $currentMonth - 1 : $previousMonth = null;  
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $userIds)
         ->whereYear('date', $currentYear)
@@ -166,64 +180,142 @@ class AdminWorkController extends Controller{
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
             $allDepartmentCounts = collect();
+
+            
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 17);
                 $totalPaidHours = 0;
-                if (count($user->shift_records) > 0) {
-                    $shiftRecords = $user->shift_records->map(function ($record) {
-                        $record['month'] = Carbon::parse($record['shift_day'])->format('Y-m');
-                        return $record;
-                    });
-                    $shiftRecords = $shiftRecords->filter(function ($record) {
-                        return isset($record['department']['name']);
-                    });
-                    $departmentCounts = $shiftRecords->groupBy(function ($record) use($user) {
-                        return $record['department']['name'] . '|' . $user->name . '|' . $record['month'];
-                    })->map(function ($records, $key) use($user){
-                        return [
-                            'count' => $records->count(),
-                            'department' => $records->first()['department']['name'],
-                            'username' => $user->name,
-                            'month' => $records->first()['month']
-                        ];
-                    });
-                    $allDepartmentCounts = $allDepartmentCounts->merge($departmentCounts);
+                $legal_holiday_shifts = [];
+                if ($user->shift_records->isNotEmpty()) {
+                    $departmentCountsTemp = [];
+
                     foreach ($user->shift_records as $record) {
-                        $user_id = $record->user_id;
-                        $shift_day = $record->shift_day;
+
+                        if($record->shift_type == 18){
+                            $legal_holiday_shifts[] = $record->shift_day;
+                        }
+                        // Extract common values
+                        $month = Carbon::parse($record->shift_day)->format('Y-m');
+                        $departmentName = $record['department']['name'] ?? null;
+
+                        // Only process if department name exists
+                        if ($departmentName) {
+                            $groupKey = "{$departmentName}|{$user->name}|{$month}";
+
+                            // Initialize counter
+                            if (!isset($departmentCountsTemp[$groupKey])) {
+                                $departmentCountsTemp[$groupKey] = [
+                                    'count' => 0,
+                                    'department' => $departmentName,
+                                    'username' => $user->name,
+                                    'month' => $month,
+                                ];
+                            }
+                            $departmentCountsTemp[$groupKey]['count']++;
+                        }
+
+                        // Paid hours + shift record array logic
                         $shift_type = $record->shiftType;
                         if (in_array($shift_type->id, $shiftTypes)) {
                             $totalPaidHours += $shift_type->value;
-                            $new_shift_record_array[$user_id][] = [
-                                'day' => $shift_day,
+                            $new_shift_record_array[$record->user_id][] = [
+                                'day' => $record->shift_day,
                                 'type' => $shift_type->id,
                             ];
                         }
+
                     }
+
+                    // Merge into the main department counts collection
+                    $allDepartmentCounts = $allDepartmentCounts->merge($departmentCountsTemp);
                 }
-                $workTimeInSeconds = 0;
-                if (count($user->time_card_records) > 0) {
-                    $workTimeInSeconds = $user->time_card_records->sum('work_time');
-                    $timeCardRecords = $user->time_card_records->map(function ($record) {
-                        $record['month'] = Carbon::parse($record['day'])->format('Y-m');
-                        return $record;
-                    });
-                    $timeCardRecords = $timeCardRecords->filter(function ($record) {
-                        return isset($record['department']['name']);
-                    });
-                    $departmentCounts = $timeCardRecords->groupBy(function ($record) use($user) {
-                        return $record['department']['name'] . '|' . $user->name . '|' . $record['month'];
-                    })->map(function ($records, $key) use($user){
-                        return [
-                            'count' => $records->count(),
-                            'department' => $records->first()['department']['name'],
-                            'username' => $user->name,
-                            'month' => $records->first()['month']
-                        ];
-                    });
-                    $allDepartmentCounts = $allDepartmentCounts->merge($departmentCounts);
+
+                $workTimeInMinutes = 0;
+
+                $legal_holiday_worked_time_in_minutes = 0;
+
+                if ($user->time_card_records->isNotEmpty()) {
+                    $departmentCountsTemp = [];
+
+                    foreach ($user->time_card_records as $record) {
+                        // Add work time directly
+                        $workTimeInMinutes += $record->work_time;
+
+                        // Check department name exists
+                        $departmentName = $record['department']['name'] ?? null;
+                        if ($departmentName) {
+                            $month = Carbon::parse($record['day'])->format('Y-m');
+                            $groupKey = $departmentName . '|' . $user->name . '|' . $month;
+
+                            // Initialize group
+                            if (!isset($departmentCountsTemp[$groupKey])) {
+                                $departmentCountsTemp[$groupKey] = [
+                                    'count' => 0,
+                                    'department' => $departmentName,
+                                    'username' => $user->name,
+                                    'month' => $month,
+                                ];
+                            }
+                            $departmentCountsTemp[$groupKey]['count']++;
+                        }
+
+                        if($user->work_type == 1 && in_array($record->day, $legal_holiday_shifts)) {
+                            // If work type is 1 and the day is a legal holiday, add to legal holiday worked time
+                            $legal_holiday_worked_time_in_minutes += $record->work_time;
+
+                        }
+                    }
+
+                    // Merge with main department counts
+                    $allDepartmentCounts = $allDepartmentCounts->merge($departmentCountsTemp);
                 }
-                $month_work_time_array2[$user->id] = $workTimeInSeconds + $totalPaidHours;
+                if($user->work_type == 0){
+                    $userWorkData = $this->sharedService->work_days_calculator((int) $currentYear, (int) $currentMonth, $user);
+
+                    $userShouldWorkTimeInMinutes = $userWorkData['work_minutes']; // e.g., 176h → 10560 min
+                    $userDailyMinutes = $user->work_time_day; // e.g., 480 min (8h)
+                    $minimumLegalHolidayMinutes = 4 * $userDailyMinutes; // 1920 min (4 days)
+
+                    // Actual worked time in minutes for the month
+                    $actualWorkedMinutes = $workTimeInMinutes;
+
+                    // Step 1: Calculate total overtime
+                    $totalOvertime = $actualWorkedMinutes - $userShouldWorkTimeInMinutes;
+
+                    if ($totalOvertime > 0) {
+                        // Step 2: Special overtime threshold
+                        $specialOvertimeThreshold = $userShouldWorkTimeInMinutes + $minimumLegalHolidayMinutes;
+
+                        if ($actualWorkedMinutes > $specialOvertimeThreshold) {
+                            $legal_holiday_worked_time_in_minutes = $actualWorkedMinutes - $specialOvertimeThreshold;
+                        } else {
+                        }
+                    } 
+                    
+                }
+
+                $month_work_time_array2[$user->id] = $workTimeInMinutes + $totalPaidHours;
+
+                $user_work_minutes_per_day = $user->work_time_day ?? 480;
+
+                $current_year_holiday_shifts = $holiday_shifts->get($user->id, collect());
+
+                $total_holidays = $current_year_holiday_shifts->sum(function ($shift) use ($user_work_minutes_per_day) {
+                    $is_full_day = $shift->shiftType->full_day == 2 || $shift->shiftType->id == 0;
+                    $is_half_day = $shift->shiftType->full_day == 1;
+                    if($is_full_day){
+                        return $user_work_minutes_per_day;
+                    } elseif($is_half_day) {
+                        return $user_work_minutes_per_day / 2;
+                    } else {
+                        return $shift->shiftType->value;
+                    }
+                });
+
+                $user['yearly_holiday_minutes'] = $total_holidays;
+                $user['work_minutes_per_day'] = $user_work_minutes_per_day;
+                $user['legal_holiday_shifts'] = $legal_holiday_shifts;
+                $user['legal_holiday_worked_time_in_minutes'] = $legal_holiday_worked_time_in_minutes;
             }
             $allDepartmentCountsArray = $allDepartmentCounts->values()->all();
             $responseArray = [
@@ -236,6 +328,7 @@ class AdminWorkController extends Controller{
                 'monthly_incentive' => $monthly_incentive,
                 'timecard_costs' => $time_card_costs,
                 'departments' => $allDepartmentCountsArray,
+                'holiday_shifts' => $holiday_shifts,
             ];
 
         return response()->json($responseArray);

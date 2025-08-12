@@ -43,7 +43,7 @@ const canClose = (event: MouseEvent) => {
 </script>
 <style scoped>  
 .medium{
-    width: 50%;
+    width: 60%;
     height: 70%;
 }
 .large{

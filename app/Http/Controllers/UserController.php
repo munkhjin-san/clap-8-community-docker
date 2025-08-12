@@ -431,7 +431,7 @@ class UserController extends Controller{
             'positions' => fn($q) => $q->select('id', 'name'),
             'offices' => fn($q) => $q->select('id', 'name'),
             'related_projects' => fn($q) => $q->select('project_records.id', 'project_records.name')
-        ])->select('id', 'name', 'office_id', 'position_id', 'icon_path', 'icon_bg')->findOrFail($request->id);
+        ])->select('id', 'name', 'office_id', 'position_id', 'icon_path', 'icon_bg', 'intro')->findOrFail($request->id);
         return response()->json($user);
     }
 }

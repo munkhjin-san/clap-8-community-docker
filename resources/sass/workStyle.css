@@ -445,6 +445,7 @@
     border-left: 1px solid var(--calendarBorder);
     width: -webkit-fill-available;
     width: 100%;
+    line-height: 1.5;
 }
 .night-over-time{
     margin-left: 10px;
@@ -484,7 +485,7 @@
     padding: 15px;
     border-bottom: 1px solid var(--calendarBorder);
     border-right: 1px solid var(--calendarBorder);
-    width: 20%;
+    /* width: 20%; */
 }
 .attendance-value{
     display: table-cell;
