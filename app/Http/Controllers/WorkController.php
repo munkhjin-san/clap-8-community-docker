@@ -602,6 +602,25 @@ class WorkController extends Controller
                         ])
                         ->orderBy('shift_day', 'asc')
                         ->get();
+        $work_group_users = collect($work_group_users);
+        $work_group_users = $work_group_users->map(function ($user) use($userShifts) {
+            $user_shift_records = $userShifts->where('user_id', $user->id)->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
+            $user_work_minutes_per_day = $user->work_time_day;
+
+            $total_holidays = $user_shift_records->sum(function ($shift) use ($user_work_minutes_per_day) {
+                $is_full_day = $shift->shiftType->full_day == 2 || $shift->shiftType->id == 0;
+                $is_half_day = $shift->shiftType->full_day == 1;
+                if($is_full_day){
+                    return $user_work_minutes_per_day;
+                } elseif($is_half_day) {
+                    return $user_work_minutes_per_day / 2;
+                } else {
+                    return $shift->shiftType->value;
+                }
+            });
+            $user['holiday_shifts'] = $total_holidays;
+            return $user;
+        });
         $shift_records = $userShifts->groupBy('shift_day')->map(function ($shifts) {
             return $shifts->keyBy('user_id');
         });

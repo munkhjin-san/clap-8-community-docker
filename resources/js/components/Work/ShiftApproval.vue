@@ -40,10 +40,11 @@
                         <th>
                             日付
                         </th>
-                        <th v-for="user in filterGroups">
-                            <div style="display: flex; align-items: center; gap:10px; padding: 10px; justify-content: center;">
+                        <th v-for="user in filterGroups" class="p-[10px]">
+                            <div>
                                 {{ user.name }}
                             </div>
+                            <div class="text-[12px] mt-[10px]">休日設定日数：{{ calculatedHoliday(user) }}</div>
                         </th>
                     </thead>
                     <tbody>
@@ -172,7 +173,7 @@ import { useDialog } from '@/composables/dialog';
         }
     }
     const authorityCheck = (user, shift) => {
-        return auth.activeUser.work_authority > user?.work_authority && shift
+        return (auth.activeUser.work_authority > user?.work_authority || [608, 610].includes(auth.activeUser.id)) && shift
     }
     const fetchWorkGroups = async() => {
         const yearMonth = DateTime.fromObject({year: approveYear.value, month: approveMonth.value}).toFormat('yyyy-MM')
@@ -225,6 +226,23 @@ import { useDialog } from '@/composables/dialog';
         approveMonth.value = date.month
         approveYear.value = date.year
         fetchWorkGroups()
+    }
+    const calculatedHoliday = (user) => {
+        if(user.holiday_shifts){
+            const minutesPerDay = user.work_time_day
+            const totalMinutes = user.holiday_shifts
+            if (!totalMinutes || !minutesPerDay) return '0日';
+
+            const totalDays = Math.floor(totalMinutes / minutesPerDay);
+            const remainingMinutes = totalMinutes % minutesPerDay;
+            const remainingHours = Math.floor(remainingMinutes / 60);
+
+            let result = `${totalDays}日`;
+            if (remainingHours > 0) result += `${remainingHours}時間`;
+
+            return result;
+        }
+        return '0日';
     }
 </script>
 <style scoped lang="scss">
