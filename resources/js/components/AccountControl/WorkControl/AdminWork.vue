@@ -79,7 +79,7 @@
                         </td>                        
                         <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15,16,17]" v-html="computedHoliday(item.id, number)"></td>
                         <td v-html="legalHoliday(item?.shift_records)"></td>
-                        <td v-html="legalHolidayOvertime(item)"></td>
+                        <td v-html="legalHolidayOvertime(item, 'display')"></td>
                         <td v-html="item?.yearly_holiday_minutes && yearlyHolidayTime(item.yearly_holiday_minutes, item.work_minutes_per_day)"></td>
                         <td style="white-space: nowrap;">{{ monthly_expenses[item.id] ? `${monthly_expenses[item.id]}円` : '' }}</td>
                         <td style="white-space: nowrap;">{{ monthly_incentive[item.id] }}</td>
@@ -256,7 +256,7 @@ import { useApi } from '@/composables/api';
                 "所定労働時間" : item.prescribed_working_hours,
                 "就業形態" : item.work_type,
                 "職階" : shokkai,
-                "勤怠月" : item.date_year_month,
+                "勤怠月" : item.date_year_month,    
                 "給与支払日" : item.pay_day,
                 "確定フラグ" : item.month_petition,
                 "予定稼働日": item.working_days_shift,
@@ -389,8 +389,11 @@ import { useApi } from '@/composables/api';
 
         return result;
     }
-    const legalHolidayOvertime = (item) => {
+    const legalHolidayOvertime = (item, mode) => {
         const minutes = item?.legal_holiday_worked_time_in_minutes || 0;
+        if (mode === 'export'){
+            return minutes;
+        }
         if (minutes === 0) return '';
         const hours = Math.floor(minutes / 60);
         const remainingMinutes = minutes % 60;
