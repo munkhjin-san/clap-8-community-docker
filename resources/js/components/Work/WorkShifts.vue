@@ -370,7 +370,7 @@ import { useDialog } from '@/composables/dialog';
             ping('終業時間は始業時間より先にすることができません。')
             return
         }
-        if(props.usersData[0].work_type == 1 ){
+        if(props.usersData[0].work_type == 1 && props.usersData[0].position_id < 13 && props.usersData[0].position_id > 4){
             const legalHolidays = selectedShifts.value.filter(shift => shift.type === 18);
             if(legalHolidays.length < 4){
                 ping('法定休日は4日以上必要です。')
