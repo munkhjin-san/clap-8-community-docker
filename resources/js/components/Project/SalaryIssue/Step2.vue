@@ -91,12 +91,12 @@ const levels = ['自己', '組織', '社会']
 const themes = ['意義', '調和', '創造']
 const { ping } = useDialog()
 const grades = [
-  { level: '1等級', self: 3, organization: 1, society: 0 },
-  { level: '2等級', self: 2, organization: 1, society: 1 },
-  { level: '3等級', self: 1, organization: 2, society: 1 },
-  { level: '4等級', self: 0, organization: 2, society: 2 },
-  { level: '5等級', self: 0, organization: 1, society: 3 },
-  { level: '6等級', self: 0, organization: 1, society: 3 }
+  { level: '1等級', self: 2, organization: 2, society: 2 },
+  { level: '2等級', self: 1, organization: 2, society: 2 },
+  { level: '3等級', self: 0, organization: 2, society: 2 },
+  { level: '4等級', self: 0, organization: 1, society: 2 },
+  { level: '5等級', self: 0, organization: 0, society: 2 },
+  { level: '6等級', self: 0, organization: 0, society: 2 }
 ]
 const filteredIssues = (level, theme) => {
     return props.getIssues(level, theme);

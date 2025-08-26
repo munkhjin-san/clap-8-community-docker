@@ -450,10 +450,12 @@ class ProjectController extends Controller
             ->get();
             $sum_of_achievment = $monthly_goals->sum('achievement_rate');
             $possible_increase_number = match (true) {
-                $sum_of_achievment >= 600 => 4,
-                $sum_of_achievment <= 599 && $sum_of_achievment >= 500 => 3,
-                $sum_of_achievment <= 499 && $sum_of_achievment >= 400 => 2,
-                $sum_of_achievment <= 399 && $sum_of_achievment >= 300 => 1,
+                // $sum_of_achievment >= 600 => 4,
+                // $sum_of_achievment <= 599 && $sum_of_achievment >= 500 => 3,
+                // $sum_of_achievment <= 499 && $sum_of_achievment >= 400 => 2,
+                // $sum_of_achievment <= 399 && $sum_of_achievment >= 300 => 1,
+                $sum_of_achievment >= 480 => 2,
+                $sum_of_achievment >= 360 => 1,
                 default => 0,
             };
         }          

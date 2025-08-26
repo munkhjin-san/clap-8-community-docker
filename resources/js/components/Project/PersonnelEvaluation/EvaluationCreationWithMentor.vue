@@ -23,7 +23,7 @@
                 </div>
 
                 <div class="mt-[20px]">
-                    昇給課題設定可能数 : <strong>{{ previousStats.possible_increase_number }}</strong>／4 
+                    昇給課題設定可能数 : <strong>{{ previousStats.possible_increase_number }}</strong>／2
                 </div>
                 <div>
                     <div class="si-box">
