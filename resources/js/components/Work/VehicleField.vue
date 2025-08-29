@@ -41,8 +41,8 @@
             </div>
             <div class="report-field">
                 <p class="report-header">アルコールチェックした確認者</p>
-                <div style="display: flex;gap: 15px; padding: 15px 0;">
-                    <div style="min-width: 300px;">
+                <div class="flex gap-[15px] py-[15px] flex-wrap">
+                    <div class="w-full">
                         <MemberSelector 
                             placeHolder="車両使用前"
                             rules="required"
@@ -53,7 +53,7 @@
                             path="board_possible_users"
                         />
                     </div>
-                    <div style="min-width: 300px;">
+                    <div class="w-full">
                         <MemberSelector
                             placeHolder="車両使用後"
                             rules="required"
