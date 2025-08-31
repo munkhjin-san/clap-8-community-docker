@@ -11,7 +11,7 @@
         >
         <option :value="option" v-for="option in options" v-html="`${option}${unit}`"></option>
         </select>
-        <p v-if="error" class="i-error">{{ error }}</p>       
+        <p v-if="error" class="i-error" style="margin: 0;bottom: -20px;">{{ error }}</p>       
     </div>   
 </template>
 <script setup>

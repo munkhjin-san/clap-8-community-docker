@@ -85,12 +85,25 @@
                         <PostIcon which="4" size="20"/>
                         {{ apps[4] }}
                     </router-link> -->
-                    <!-- <router-link :to="`/${appName}?app_type=5`" :class="['pt-selector']">
+                    <router-link :to="`/${appName}?app_type=5`" :class="['pt-selector']">
                         <PostIcon which="5" size="20"/>
                         {{ apps[5] }}
-                    </router-link> -->
+                    </router-link>
                 </div>
                 
+            </div>
+            <div v-if="topRecords.length" class="px-[20px] text-center">
+                <p class="mb-[15px]">グラリンピックランクイング</p>
+                <div class="flex flex-col justify-center items-center">
+                    <div class="px-[10px] py-[8px] flex items-center gap-[10px]" v-for="(record, index) in topRecords.slice(0, 2)" :key="record.user.id">
+                        <div class="text-[25px]" v-if="record.award">{{ record.award }}</div>
+                        <div class="flex items-center gap-[10px] flex-wrap">
+                            <UserPanel :user="record.user" with-name disable-instant/>
+                            <div class="text-[14px]">（{{ `🔥 ${amountOfMoneyParser(record.sum_calories)} kcal` }}）</div>
+                        </div>                        
+                    </div>
+                    <div class="mt-[15px] jump-link" @click="viewFullRanking = true">全ランキングを見る</div>
+                </div>
             </div>
             <div class="p-tag-container">
                 <div v-if="tagLoading == 0" :class="['p-tag-wrap']">
@@ -164,6 +177,9 @@
                 @close="closeEntryCreate"
             />
         </Transition>
+        <Transition name="modalFade">
+            <PostEntryRanking :ranking="topRecords" v-if="viewFullRanking" @close="viewFullRanking = false"/>
+        </Transition>
     </div>
     <div v-else style="height: 100%;width: 100%;">
         <div v-if="responsive.mobile" style="min-height: 60px;display: flex;align-items: center">
@@ -196,9 +212,12 @@ import { instance } from '@/utils/broadcaster';
 import { onUnmounted } from 'vue';
 import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
-import { Post, PostEntry, PostQuery } from '@/interface/postInterface';
+import { Post, PostEntry, PostQuery, TopEntryUser } from '@/interface/postInterface';
 import { PostMethodsKey } from '@/interface/keys';
 import PostEntryCreate from './PostEntryCreate.vue';
+import UserPanel from '../Global/UserPanel.vue';
+import { amountOfMoneyParser } from '@/utils/tools';
+import PostEntryRanking from './PostEntryRanking.vue';
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
@@ -221,10 +240,12 @@ import PostEntryCreate from './PostEntryCreate.vue';
     const topTags = useTopTags()
     const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ', 'グラリンピック']
     const api = useApi()
+    const viewFullRanking = ref(false)
     const entryData = ref({
         record: <Post | null>null,
         editData: <PostEntry | null>null,
     })
+    const topRecords = ref<TopEntryUser[]>([])
     const records = computed(() =>{
         return postList.value && postList.value.length ? postList.value : []
     })
@@ -255,10 +276,15 @@ import PostEntryCreate from './PostEntryCreate.vue';
             newRecord()
         }
         getTopTags()
+        getTopRecords()
     })
     onUnmounted(() => {
         instance.off('post:new', postSocketHandler)
     })
+    const getTopRecords = async () => {
+        const data = await api.post('/get_top_posts')
+        topRecords.value = data
+    }
     const postSocketHandler = (data) =>{
         console.log(data)
         const payload = data && data.length ? data[0] : null

@@ -219,4 +219,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(AssetRecord::class);
     }
+
+    public function post_entries(){
+        return $this->hasMany(PostEntry::class);
+    }
 }

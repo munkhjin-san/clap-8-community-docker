@@ -31,10 +31,21 @@
                     <PostIcon which="4" size="20"/>
                     ヘルプ
                 </div> -->
-                <!-- <div @click="app_type = 5" :class="['pt-selector', { ptSelected: app_type == 5}]">
+                <div @click="app_type = 5" :class="['pt-selector', { ptSelected: app_type == 5}]">
                     <PostIcon which="5" size="20"/>
                     グラリンピック
-                </div> -->
+                </div>
+            </div>
+            <div class="si-box" v-if="app_type == 5">
+                <p class="mb-[20px]">寄付先</p>
+                <OptionSelector 
+                    :options="npoList"
+                    rules="required"
+                    name="npo"
+                    unit=""
+                    ref="npoRef"
+                    v-model="selectedNpo"
+                />
             </div>
             <div class="si-box">
                 <TagSelector 
@@ -182,6 +193,8 @@ import PostIcon from './PostIcon.vue'
 import { DateTime } from 'luxon'
 import { useApi } from '@/composables/api'
 import { Post, PostQuery } from '@/interface/postInterface'
+import OptionSelector from '../Form/OptionSelector.vue'
+import { useDialog } from '@/composables/dialog'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -202,6 +215,7 @@ import { Post, PostQuery } from '@/interface/postInterface'
     const content_goal = ref(props.editTarget && props.editTarget.content_goal ? props.editTarget.content_goal : "")
     const to_users = ref(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : app_type.value === 2 ? [auth.user] : [])
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
+
     
     const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])    
     const date_start = ref(props.editTarget && props.editTarget.date_start ? props.editTarget.date_start : "")
@@ -216,8 +230,27 @@ import { Post, PostQuery } from '@/interface/postInterface'
     const contentGoalRef = useTemplateRef('contentGoalRef')
     const recordDateEnd = useTemplateRef('recordDateEnd')
     const recordDateStart = useTemplateRef('recordDateStart')
+    const npoRef = useTemplateRef('npoRef')
+    const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
+    const npoList = [
+        'e-Education',
+        'にこスマ九州',
+        'カラフルチェンジラボ',
+        'アニマルレスキューハッピーりぼん',
+        '日本赤十字社',
+        '日本パラリンピック委員会',
+        'カタリバ',
+        'グリーンピース・ジャパン',
+        '動物愛護団体NYANS',
+        '宇和島NPOセンター',
+        'はぴねすDOG',
+        '大学女性協会',
+        'NPO法人 Baby ぼけっと',
+        '一般社団法人バクチャー普及研究協議会'
+    ]
     const api = useApi()
+    const { ping } = useDialog()
     const validateTargets = computed(() => {
         return [
             recordTitle.value,
@@ -227,6 +260,7 @@ import { Post, PostQuery } from '@/interface/postInterface'
             contentGoalRef.value,
             recordDateEnd.value,
             recordDateStart.value,
+            npoRef.value
         ]
     })
     const possiblePath = computed(() => {
@@ -273,7 +307,10 @@ import { Post, PostQuery } from '@/interface/postInterface'
             const val = await target?.validate() || {valid: false}
             result = result && val.valid
         }
-        if (!result || dateComparsionError.value.hasError) return
+        if (!result || dateComparsionError.value.hasError) {
+            ping('入力内容に不備があります。')
+            return
+        }
         processing.value = true      
 
             
@@ -292,7 +329,8 @@ import { Post, PostQuery } from '@/interface/postInterface'
             post_content: content.value,
             award_entry: 0,
             app_type: app_type.value,
-            chargeable: chargeable.value
+            chargeable: chargeable.value,
+            donation_target: selectedNpo.value
         }
 
         const data = await api.post('post_add_record', params, {

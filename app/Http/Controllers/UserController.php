@@ -327,6 +327,9 @@ class UserController extends Controller{
                 },
                 'comment' => function ($q) {
                     $q->withCount('claps');
+                },
+                'post_entries' => function ($q) {
+                    $q->withCount('claps');
                 }
             ])->findOrFail($request->id);
             $challengeclaps = $user->post_recieved->where('app_type', 2)->sum('claps_count');
@@ -339,7 +342,7 @@ class UserController extends Controller{
 
             $deltanicetotal = $deltanicesent + $deltanicereceived;
 
-            $posttotal = $challengeclaps + $knowledgeclaps + $deltanicetotal;      
+            $posttotal = $challengeclaps + $knowledgeclaps + $deltanicetotal + $user->post_entries->sum('claps_count');
 
             $portfolio_claps = $user->portfolio->sum('claps_count');
 

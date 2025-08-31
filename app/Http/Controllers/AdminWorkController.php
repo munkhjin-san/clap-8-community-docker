@@ -109,7 +109,12 @@ class AdminWorkController extends Controller{
         $userIds = $all_users->pluck('id');
         
         
-        $attendance_record = attendanceRecord::where('date_year_month', $month)->get();
+        $attendance_record = attendanceRecord::where('date_year_month', $month)->with([
+            'user' => function ($q) {
+                $q->select('id', 'name', 'position_id');
+            }
+        ])->get();
+
         
         $expenses = timecardCostRecord::selectRaw(
             'user_id,

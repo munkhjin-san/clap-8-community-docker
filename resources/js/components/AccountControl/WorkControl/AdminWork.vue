@@ -251,9 +251,9 @@ import { useApi } from '@/composables/api';
         attendance_record_items.value.forEach(item => {     
             const shokkai = users.value.find(user => user.id == item.user_id)?.general_position ?? ''
             const row = {
-                "社員コード" : item.user_code,
-                "社員名" : item.name,
-                "所定労働時間" : item.prescribed_working_hours,
+                "従業員番号" : item.user_code,
+                "姓名" : item.name,
+                "所定労働時間(当月)" :item?.user?.position_id == 15 ? '0' : item.prescribed_working_hours,
                 "就業形態" : item.work_type,
                 "職階" : shokkai,
                 "勤怠月" : item.date_year_month,    
@@ -290,7 +290,8 @@ import { useApi } from '@/composables/api';
                 "マイカー日数": item.vehicle_pay,
                 "特別通勤日数": item.special_commute_pay,
                 "在宅日数（個人都合）": item.remote_personal_pay,
-                "在宅日数（会社都合）": item.remote_company_pay
+                "在宅日数（会社都合）": item.remote_company_pay,
+                "経費合計額": monthly_expenses.value[item.user_id] ? monthly_expenses.value[item.user_id] : '',
             }
             data.push(row)
         });

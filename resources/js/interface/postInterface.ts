@@ -30,6 +30,7 @@ export interface Post{
     chargeable: boolean;
     user: User;
     award_entry: number
+    donation_target: string | null
 }
 interface PostAward extends User {
     pivot: {
@@ -94,4 +95,10 @@ export interface PostComment {
     user: User;
     user_id: number;
     claps: Clap[];
+}
+export interface TopEntryUser {
+    user: User;
+    post_count: number;
+    sum_calories: number;
+    award: string
 }

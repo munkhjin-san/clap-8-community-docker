@@ -301,6 +301,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_history', [PostController::class, 'get_history']);
         Route::post('/prepare_sharing_files', [PostController::class, 'prepare_sharing_files']);
         Route::post('/post_entries', [PostController::class, 'post_entries']);
+        Route::post('/get_top_posts', [PostController::class, 'get_top_posts']);
 
         
         Route::post('/get_calendar_data', [CalendarController::class, 'get_calendar_data']);

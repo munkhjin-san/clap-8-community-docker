@@ -24,7 +24,7 @@ import { useApi } from '@/composables/api';
         return clapped.value || props.item.user_id == auth.id ? 'var(--primary-color)' : 'rgb(169, 169, 169)'
     })
     const canClap = computed(() => {
-        if(props.appName == 'post' || props.appName == 'portfolio' || props.appName == 'comment'){
+        if(props.appName == 'post' || props.appName == 'portfolio' || props.appName == 'comment' || props.appName == 'post_entry'){
             if(props.item.award_entry == 1){
                 const player = props.item.to_users.filter(ob => ob.id == auth.id)
                 return player.length ? false : true

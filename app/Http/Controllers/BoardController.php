@@ -107,7 +107,6 @@ class BoardController extends Controller
             $newUrl = url('board/' . $id . '?m=' . $m);
             return redirect($newUrl);
         }
-        
         $date = null;
         $name = $request->name;
         $id = $request->id;

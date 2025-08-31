@@ -16,17 +16,39 @@
                     
                     <div class="report-input-time">
                         <div>
-                            <input class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editStartTime" step="900">
+                            <input name="workStartTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editStartTime" step="900">
                         </div>
                         <div class="between-line">～</div>
                         <div>
-                            <input class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editEndTime" step="900">
+                            <input name="workEndTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editEndTime" step="900">
                         </div>
                     </div>
                     <div v-if="shift?.overtime_request" style="font-size: 12px;line-height:1.5">
                         <div>※申請した残業時間は<strong>{{shift?.overtime_request.minutes}}分</strong>です。退勤は1分単位で入力してください。</div>
                     </div>
-                   
+                </div>
+                <div class="report-field">
+                    <p class="report-header">研修時間</p>
+                    <div class="report-input">
+                        <div class="report-input-wrapper">
+                            <input id="hasTraining" name="trainingPre" type="radio" v-model="hasTraining" :value="1">
+                            <label for="hasTraining">あり</label>
+                        </div>
+                        <div class="report-input-wrapper">
+                            <input id="noTraining" name="trainingPre" type="radio" v-model="hasTraining" :value="0">
+                            <label for="noTraining">なし</label>
+                        </div>
+                    </div>
+
+                    <div v-if="hasTraining" class="report-input-time">
+                        <div>
+                            <input name="trainingStartTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="trainingStartTime" step="900">
+                        </div>
+                        <div class="between-line">～</div>
+                        <div>
+                            <input name="trainingEndTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="trainingEndTime" step="900">
+                        </div>
+                    </div>
                 </div>
                 <div class="report-field">
                     <p class="report-header">休憩時間</p>
@@ -145,6 +167,8 @@ import { useDialog } from '@/composables/dialog';
     const loading = ref([false, false])
     const editStartTime = ref(timeCard.value?.start_time ? timeCard.value.start_time : shift.value?.start_time ? shift.value.start_time : '09:00:00')
     const editEndTime = ref(timeCard.value?.end_time ? timeCard.value.end_time : shift.value?.end_time ? shift.value.end_time : '18:00:00')
+    const trainingStartTime = ref(timeCard.value?.training_start_time ? timeCard.value.training_start_time : '')
+    const trainingEndTime = ref(timeCard.value?.training_end_time ? timeCard.value.training_end_time : '')
     const breakTimeOptions = ref([{label : 'なし' , value : 0 },
                         {label : '30分' , value : 30 },
                         {label : '45分' , value : 45 },
@@ -156,7 +180,7 @@ import { useDialog } from '@/composables/dialog';
     const costDepartment = computed(() => {
         return workGroupAsOptions.value.find(group => group.id === todayWorkGroup.value)?.name
     })
-
+    const hasTraining = ref(timeCard.value ? (timeCard.value.training_start_time ? 1 : 0) : undefined)
     const api = useApi()
     const { ask, ping, toast } = useDialog()
     watch(todayWorkGroup, (newWorkGroup) => {
@@ -387,6 +411,8 @@ import { useDialog } from '@/composables/dialog';
                 breakTime: breakTimeSelect.value,
                 start_time: formatTime(editStartTime.value),
                 end_time: formatTime(editEndTime.value),
+                training_start_time: hasTraining.value == 1 ? formatTime(trainingStartTime.value) : null,
+                training_end_time: hasTraining.value == 1 ? formatTime(trainingEndTime.value) : null,
                 day: props.item?.day_full,
                 status_flag: status_flag,
                 userId: props.item?.user_id,

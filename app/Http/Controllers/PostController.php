@@ -136,7 +136,10 @@ class PostController extends Controller
         ->withCount('comments')
         ->with('claps')
         ->with('to_users')
-        ->with('entries')
+        ->with(['entries' => function ($query) {
+            $query->withCount('comments')
+            ->withCount('claps')->with('claps');
+        }])
         ->when($app_type == 2, function ($query) {
             $query->orderBy('status_flag', 'asc');
         })
@@ -337,7 +340,10 @@ class PostController extends Controller
                 $record->chargeable = $request->chargeable;
             }else{
                 $record->content = $request->post_content;
-            }            
+            }    
+            if($request->app_type == 5 ){
+                $record->donation_target = $request->donation_target;
+            }        
             $record->referrer = $request->referrer; 
             $record->app_type = $request->app_type;         
             $record->save();
@@ -427,7 +433,8 @@ class PostController extends Controller
         $comment->save();
 
         $nameSpace = '\\App\\Models\\'; 
-        $model = $nameSpace . ucfirst($request->app_name) . 'Record'; 
+        $model_name = $request->app_name  == 'post_entry' ? 'PostEntry' : ucfirst($request->app_name). 'Record';
+        $model = "{$nameSpace}{$model_name}"; 
         $owner = $model::where('id', '=', $request->record_id)->first();
         $owner_id = $owner->user_id;
         $current_commenters_id = commentRecord::where('deleted_flag', '=', 0)->where('app_name', '=', $request->app_name)->where('record_id', '=', $request->record_id)->where('id', '!=', $comment->id)->where('user_id', '!=', Auth::id())->where('user_id', '!=', $owner_id)->pluck('user_id');
@@ -451,7 +458,8 @@ class PostController extends Controller
             $current_commenters_id_unique[] = $owner_id;
         }    
         $app_name_list = [
-            "post" => 'ポスト'
+            "post" => 'ポスト',
+            "post_entry" => 'グラリンピクエントリー',
         ];
         $app_name_title = $app_name_list[$request->app_name];
         $from_name = Auth::user()->name . 'さんから、' . $app_name_title .'へコメントが届きました。'; 
@@ -479,6 +487,7 @@ class PostController extends Controller
             "portfolio" => 6,
             "post" => 2,
             "comment" => 5,
+            "post_entry" => 7,
         ];
         $app_id = $app_ids[$request->app_name];
         $existingRecord = ClapRecord::where([
@@ -863,5 +872,42 @@ class PostController extends Controller
             'entry' => $entry,
             'files' => $entry->files
         ]);
+    }
+    public function get_top_posts(Request $request){
+
+        $entry_users = User::whereHas('post_entries')
+        ->select('id', 'name', 'icon_path', 'icon_bg')
+        ->get();
+        $awards = [
+            '🥇',
+            '🥈',
+            '🥉'
+        ];
+        $entry_users = $entry_users->map(fn($user) => [
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'icon_path' => $user->icon_path,
+                'icon_bg' => $user->icon_bg,
+            ],
+            'post_count' => $user->post_entries->count(),
+            'sum_calories' => $user->post_entries->sum('calories'),
+        ]);
+
+
+
+        $entry_users = $entry_users->sortByDesc('sum_calories')->take(10)->values()->all();
+
+        if(count($entry_users)){
+            $entry_users[0]['award'] = $awards[0];
+        }
+        if(count($entry_users) > 1){
+            $entry_users[1]['award'] = $awards[1];
+        }
+        if(count($entry_users) > 2){
+            $entry_users[2]['award'] = $awards[2];
+        }
+
+        return response()->json($entry_users);
     }
 }

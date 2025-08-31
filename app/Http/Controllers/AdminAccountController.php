@@ -233,6 +233,9 @@ class AdminAccountController extends Controller
                 },
                 'comment' => function ($q) use ($from, $to) {
                     $q->whereBetween('created_at', [$from, $to])->withCount('claps');
+                },
+                'post_entries' => function ($q) use ($from, $to) {
+                    $q->whereBetween('created_at', [$from, $to])->withCount('claps');
                 }
             ])
             ->select('id', 'name')
@@ -252,13 +255,13 @@ class AdminAccountController extends Controller
 
             $deltanicetotal = $deltanicesent + $deltanicereceived;
 
-            $posttotal = $challengeclaps + $knowledgeclaps + $deltanicetotal;      
+            $posttotal = $challengeclaps + $knowledgeclaps + $deltanicetotal + $user->post_entries->sum('claps_count');      
 
             $portfolio_claps = $user->portfolio->sum('claps_count');
 
             $comment_claps = $user->comment->sum('claps_count');
 
-            $sum = $posttotal + $portfolio_claps + $comment_claps;
+            $sum = $posttotal + $portfolio_claps + $comment_claps ;
 
             $claps = [
                 "delta_challaenge" => $challengeclaps,

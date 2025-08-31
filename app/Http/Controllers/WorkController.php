@@ -464,7 +464,7 @@ class WorkController extends Controller
         }
         $shift_type = shiftType::when(
             $user->position_id == 15,
-            fn ($query) => $query->where('id', 5),
+            fn ($query) => $query->whereIn('id', [5, 1]),
             fn ($query) => $query->when(
                 $user->position_id <= 11 || $user->position_id == 16,
                 fn ($query) => $general_position > 'B' && $general_position != '一般職' 
@@ -892,6 +892,9 @@ class WorkController extends Controller
         $user = User::select('work_time_day', 'work_type', 'id', 'name', 'position_id')->findOrFail($request->userId);
         $startTime = $request->start_time;
         $endTime = $request->end_time;
+        $trainingStartTime = $request->training_start_time;
+        $trainingEndTime = $request->training_end_time;
+
         $start = Carbon::createFromFormat('H:i', $startTime);
         $end = Carbon::createFromFormat('H:i', $endTime);
         $nightOvertimeStart = Carbon::createFromFormat('H:i', '22:00')->subDay();
@@ -933,6 +936,10 @@ class WorkController extends Controller
             $is_exist->work_group_id = $request->department;
             $is_exist->start_time = $request->start_time;
             $is_exist->end_time = $request->end_time;
+            if($trainingStartTime && $trainingEndTime){
+                $is_exist->training_start_time = $trainingStartTime;
+                $is_exist->training_end_time = $trainingEndTime;
+            }
             if ($user->work_type === 1) {
                 if ($time_difference_seconds >= $shift_time_difference_seconds) {                
                     $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
