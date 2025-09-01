@@ -133,6 +133,7 @@ class PostController extends Controller
         ->with('user')
         ->with('tags')
         ->with('files')
+        ->with('receipts')
         ->withCount('comments')
         ->with('claps')
         ->with('to_users')
@@ -345,7 +346,8 @@ class PostController extends Controller
                 $record->donation_target = $request->donation_target;
             }        
             $record->referrer = $request->referrer; 
-            $record->app_type = $request->app_type;         
+            $record->app_type = $request->app_type;    
+            $record->refresh_amount = $request->refresh_amount;     
             $record->save();
             if($request->app_type == 2 || $request->app_type == 0){
                 $record->to_users()->sync($request->to_users);
@@ -365,7 +367,9 @@ class PostController extends Controller
                         'last_' . $request->path => $record->id
                     ]);
                 }
-            
+            if($request->receipt_ids) {
+                $record->receipts()->sync($request->receipt_ids);
+            }
             $data = array(
                 "app_name" => $request->path,
                 "record_id" => $record->id,
@@ -855,7 +859,11 @@ class PostController extends Controller
     public function post_entries(Request $request){
         $validatedData = $request->validate([
             'record_id' => 'required',
-            'calories' => 'required|numeric',
+            'calories' => 'required|numeric|max:10000',
+            'file_ids' => 'array|required'
+        ],[
+            'calories.max' => 'カロリーは10000以下で入力してください。',
+            'file_ids.required' => 'ファイルは必須です。',
         ]);
         $post = PostRecord::findOrFail($request->record_id);
         $entry = $post->entries()->updateOrCreate(

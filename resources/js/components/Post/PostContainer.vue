@@ -38,7 +38,7 @@
             
             <div v-if="hasQuery" style="height: auto;margin: 0 20px;display: flex;gap: 20px;">
                 <div v-if="getQuery?.app_type" class="active-query">
-                    <PostIcon :which="getQuery?.app_type" size="20"/>
+                    <PostIcon v-if="Number(getQuery?.app_type) != 6" :which="getQuery?.app_type" size="20"/>
                     {{ getQuery?.app_type ? apps[String(getQuery.app_type)] : ''}}
                     <div @click="router.push({name: appName})" style="cursor:pointer">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width: 10px;height:10px" class="modalWindowCloseButton" viewBox="0 0 32 32">
@@ -89,12 +89,15 @@
                         <PostIcon which="5" size="20"/>
                         {{ apps[5] }}
                     </router-link>
+                    <!-- <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
+                        {{ apps[6] }}
+                    </router-link> -->
                 </div>
                 
             </div>
-            <div v-if="topRecords.length" class="px-[20px] text-center">
+            <div v-if="topRecords.length" class="px-[20px] text-center text-[var(--primary-color)]">
                 <p class="mb-[15px]">グラリンピックランキング</p>
-                <div class="flex flex-col justify-center items-center">
+                <div class="flex flex-wrap justify-center items-center">
                     <div class="px-[10px] py-[8px] flex items-center gap-[10px]" v-for="(record, index) in topRecords.slice(0, 2)" :key="record.user.id">
                         <div class="text-[25px]" v-if="record.award">{{ record.award }}</div>
                         <div class="flex items-center gap-[10px] flex-wrap">
@@ -102,8 +105,9 @@
                             <div class="text-[14px]">（{{ `🔥 ${amountOfMoneyParser(record.sum_calories)} kcal` }}）</div>
                         </div>                        
                     </div>
-                    <div class="mt-[15px] jump-link" @click="viewFullRanking = true">全ランキングを見る</div>
+                    
                 </div>
+                <div class="mt-[15px] jump-link" @click="viewFullRanking = true">全ランキングを見る</div>
             </div>
             <div class="p-tag-container">
                 <div v-if="tagLoading == 0" :class="['p-tag-wrap']">
@@ -238,7 +242,7 @@ import PostEntryRanking from './PostEntryRanking.vue';
     const tagsList = ref([])
     const tagLoading = ref(0)
     const topTags = useTopTags()
-    const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ', 'グラリンピック']
+    const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ', 'グラリンピック', 'リフレッシュ']
     const api = useApi()
     const viewFullRanking = ref(false)
     const entryData = ref({

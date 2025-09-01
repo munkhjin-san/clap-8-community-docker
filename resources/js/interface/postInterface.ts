@@ -30,7 +30,9 @@ export interface Post{
     chargeable: boolean;
     user: User;
     award_entry: number
-    donation_target: string | null
+    donation_target: string | null;
+    receipts: CommonFile[]
+    refresh_amount: string;
 }
 interface PostAward extends User {
     pivot: {

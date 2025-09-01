@@ -9,7 +9,11 @@
     </div>
     <div class="flex flex-col gap-2.5">
         
-        <div class="text-[14px] whitespace-break-spaces leading-normal">{{ entry.comment }}</div>
+        <!-- <div class="text-[14px] whitespace-break-spaces leading-normal">{{ entry.comment }}</div> -->
+        <div>
+            <div class="record-content" v-html="body"></div>
+            <span @click="showAll = !showAll" class="jump-link" v-if="truncated">{{ showAll ? '閉じる' : '続きを表示する' }}</span>
+        </div>
         <div>
             <PostEntryFiles :items="entry.files" />
         </div>
@@ -40,14 +44,45 @@
 import { PostEntry } from '@/interface/postInterface';
 import UserPanel from '../Global/UserPanel.vue';
 import { amountOfMoneyParser, DateParser } from '@/utils/tools';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import PostEntryFiles from './PostEntryFiles.vue';
 import ClapButton from './ClapButton.vue';
 import PostComment from './PostComment.vue';
+import Autolinker from 'autolinker';
 
-defineProps<{
+const props = defineProps<{
     entry: PostEntry
 }>()
+
+const showAll = ref(false)
+const truncated = ref(false)
+
+const body = computed(() => {           
+    const text = props.entry.comment || ''
+    const truncate = cutter(text, 200)
+    const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
+    return urlParse          
+    
+})
+
+const cutter = (string, len) => {
+    if(!string){
+        return ''
+    }
+    if(showAll.value || string.length <= len || string.length <= len + 50){
+        return string
+    }
+    const last = string.substring(len - 5, len + 5)
+    const check_emoji = last.match(/[\p{Emoji}\u200d]+/gu)
+    if(!check_emoji){
+        truncated.value = true
+        return string.substring(0, len) + '...'
+    
+    }else{
+        return cutter(string, len + 5)
+    }
+    
+}
 const emit = defineEmits<{
     (e: 'setClap', id: number): void
 }>();
