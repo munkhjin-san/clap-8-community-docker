@@ -121,6 +121,7 @@ class WorkController extends Controller
             ->whereYear('shift_day', $currentYear)
             ->whereMonth('shift_day', $currentMonth)
             ->whereIn('user_id', $users_list)
+            ->whereNotIn('shift_type', [18])
             ->groupBy('user_id')
             ->orderBy('user_id')
             ->get();              
@@ -189,6 +190,7 @@ class WorkController extends Controller
                 'access_csv' => $active_user->id == 610 || $active_user->id == 608 || $active_user->position_id == 6,
                 'shift_work_hours' => $shift_work_hours,
                 'workdayNum' => $workdayNum,
+                'timecard' => $time_card_record
             ];
         }
         $responseArray = [
