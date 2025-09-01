@@ -1,7 +1,7 @@
 <template>
     <Modal @close="emit('close')">
         <template #title>
-            <p>グラリンピックランクイング</p>
+            <p>グラリンピックランキング</p>
         </template>
         <template #content>
             <div>
