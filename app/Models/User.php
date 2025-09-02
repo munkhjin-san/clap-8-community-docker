@@ -221,6 +221,6 @@ class User extends Authenticatable
     }
 
     public function post_entries(){
-        return $this->hasMany(PostEntry::class);
+        return $this->hasMany(PostEntry::class)->whereHas('post');
     }
 }
