@@ -905,7 +905,7 @@ class WorkController extends Controller
         if($end->lt($start)){
             $start->subDay();
         }
-        $shift_time_difference_seconds = $user->work_time_day * 60;
+        $shift_time_difference_seconds = 480 * 60;
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
         
         $time_difference_seconds = (int) $start->diffInSeconds($end, true);

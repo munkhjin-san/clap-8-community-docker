@@ -211,6 +211,8 @@ import { useDialog } from '@/composables/dialog'
         if(data || data.position_id === 15 || data.position_id < 6){
             if(data?.shift?.shift_type.id == 3){
                 ping('計画有給設定しているため日報作成ができません。')
+            } else if(data?.shift?.shift_type?.id == 2){
+                ping('休業日のため日報作成ができません。')
             } else if (data.shift?.status_flag == 2) {
                 ping('勤怠予定は承認されていません。') 
             } else {
@@ -273,6 +275,8 @@ import { useDialog } from '@/composables/dialog'
         if(data?.shift || data.position_id === 15 || data.position_id < 6){
             if(data?.shift?.shift_type?.id == 3){
                 ping('計画有給設定しているため日報作成ができません。')
+            } else if(data?.shift?.shift_type?.id == 2){
+                ping('休業日のため日報作成ができません。')
             } else if (data.shift?.status_flag == 2) {
                 ping('勤怠予定は承認されていません。') 
             } else {
