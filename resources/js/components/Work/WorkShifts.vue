@@ -32,8 +32,8 @@
                             <label :class="{'planned-date' : notSubmitted && shift_type.id === 3 || shift_type.id === 16 && odaCheck}" :for="shift_type.id">{{ shift_type.name }}</label>
                         </div>
                     </div> -->
-                    <div class="mt-4 flex gap-4">
-                        <select v-model="selectedShiftType" class="custom-a-input mt-[10px]">
+                    <div class="my-4 flex gap-4 items-center justify-between flex-wrap">
+                        <select v-model="selectedShiftType" class="custom-a-input">
                             <optgroup label="勤務">
                                 <option :value="type.id" v-for="type in groupedLeaves.main" :key="'m-'+type.id">{{ type.name }}</option>
                             </optgroup>
@@ -47,14 +47,14 @@
                                 <option :value="type.id" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
                             </optgroup>
                         </select>
-
+                        <div class="shift-holiday">
+                            <div>年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
+                            <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
+                            <p>休日数: <strong>{{ holidayCount }}</strong>日</p>
+                        </div>
                     </div>
                     
-                    <div class="shift-holiday">
-                        <div>年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
-                        <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
-                        <p>休日数: <strong>{{ holidayCount }}</strong>日</p>
-                    </div>
+                    
                     <div class="shift-calendar">
                         <div class="shift-header">
                             <div class="shift-weekdays" v-for="wk in weekHeaderArray">
