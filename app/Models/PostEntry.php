@@ -18,5 +18,9 @@ class PostEntry extends Model
     public function claps(){
         return $this->hasMany(ClapRecord::class, 'record_id')->where('app_name', 'post_entry')->where('deleted_flag', 0)->select('record_id', 'from_user');;
     }
+    public function post(){
+        return $this->belongsTo(PostRecord::class, 'post_record_id');
+    }
+
     protected $guarded = [];
 }
