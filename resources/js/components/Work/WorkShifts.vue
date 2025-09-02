@@ -1,6 +1,6 @@
 <template>
     <div class="work-modal" @mousedown="emit('closeModal')">
-        <div class="work-modal-inner" @mousedown.stop>
+        <div class="work-modal-inner h-auto"  @mousedown.stop>
             <div class="recordFormTitle" style="z-index: 26;">
                 <p style="font-size: 18px;">{{ shiftYear }}年{{ shiftMonth }}月の勤怠予定</p>
                 <div @click="emit('closeModal')" class="cursor-pointer flex items-center" style="margin: auto 0 auto auto;">
@@ -38,13 +38,13 @@
                                 <option :value="type.id" v-for="type in groupedLeaves.main" :key="'m-'+type.id">{{ type.name }}</option>
                             </optgroup>
                             <optgroup label="休日">
-                                <option :value="type.id" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
+                                <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
                             </optgroup>
                             <optgroup label="年休">
                                 <option :value="type.id" v-for="type in groupedLeaves.planned" :key="'p-'+type.id">{{ type.name }}</option>
                             </optgroup>
                             <optgroup label="その他">
-                                <option :value="type.id" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
+                                <option :value="type.id" :disabled="type.id === 16 && odaCheck" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
                             </optgroup>
                         </select>
                         <div class="shift-holiday">
@@ -204,7 +204,6 @@ import { useDialog } from '@/composables/dialog';
         const calendar = [];
         let i = firstDay
         while (i <= lastDay) {
-            console.log(i)
             const weekIndex = calendar.length - 1;
             if (weekIndex < 0 || calendar[weekIndex].length === 7) {
                 calendar.push([]);
