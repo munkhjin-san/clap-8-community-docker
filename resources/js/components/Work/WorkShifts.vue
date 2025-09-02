@@ -1,6 +1,6 @@
 <template>
     <div class="work-modal" @mousedown="emit('closeModal')">
-        <div class="work-modal-inner" @mousedown.stop>
+        <div class="work-modal-inner h-auto"  @mousedown.stop>
             <div class="recordFormTitle" style="z-index: 26;">
                 <p style="font-size: 18px;">{{ shiftYear }}年{{ shiftMonth }}月の勤怠予定</p>
                 <div @click="emit('closeModal')" class="cursor-pointer flex items-center" style="margin: auto 0 auto auto;">
@@ -25,17 +25,36 @@
             </div>
             <div v-if="checkLeave == 0">
                 <div class="shift-wrapper">
-                    <div class="shift-types">
-                        <div class="shift-type_name" v-for="(shift_type, index) in shiftTypes" :key="index">
+                    
+                    <!-- <div class="shift-types">
+                        <div class="shift-type_name" v-for="(shift_type, index) in groupedLeaves.main" :key="index">
                             <input type="radio" :disabled="shift_type.id === 3 && notSubmitted || shift_type.id === 16 && odaCheck" :id="shift_type.id" v-model="selectedShiftType" :value="shift_type.id">
                             <label :class="{'planned-date' : notSubmitted && shift_type.id === 3 || shift_type.id === 16 && odaCheck}" :for="shift_type.id">{{ shift_type.name }}</label>
                         </div>
+                    </div> -->
+                    <div class="my-4 flex gap-4 items-center justify-between flex-wrap">
+                        <select v-model="selectedShiftType" class="custom-a-input">
+                            <optgroup label="勤務">
+                                <option :value="type.id" v-for="type in groupedLeaves.main" :key="'m-'+type.id">{{ type.name }}</option>
+                            </optgroup>
+                            <optgroup label="休日">
+                                <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
+                            </optgroup>
+                            <optgroup label="年休">
+                                <option :value="type.id" v-for="type in groupedLeaves.planned" :key="'p-'+type.id">{{ type.name }}</option>
+                            </optgroup>
+                            <optgroup label="その他">
+                                <option :value="type.id" :disabled="type.id === 16 && odaCheck" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
+                            </optgroup>
+                        </select>
+                        <div class="shift-holiday">
+                            <div>年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
+                            <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
+                            <p>休日数: <strong>{{ holidayCount }}</strong>日</p>
+                        </div>
                     </div>
-                    <div class="shift-holiday">
-                        <div>年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
-                        <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
-                        <p>休日数: <strong>{{ holidayCount }}</strong>日</p>
-                    </div>
+                    
+                    
                     <div class="shift-calendar">
                         <div class="shift-header">
                             <div class="shift-weekdays" v-for="wk in weekHeaderArray">
@@ -185,7 +204,6 @@ import { useDialog } from '@/composables/dialog';
         const calendar = [];
         let i = firstDay
         while (i <= lastDay) {
-            console.log(i)
             const weekIndex = calendar.length - 1;
             if (weekIndex < 0 || calendar[weekIndex].length === 7) {
                 calendar.push([]);
@@ -205,6 +223,18 @@ import { useDialog } from '@/composables/dialog';
             i = i.plus({days: 1})
         }
         return calendar
+    })
+    const categorize = (name) =>  {
+        if (name.includes('年休') || name === '計画有給') return 'planned'
+        if (name.includes('休日')) return 'hourly'
+        if (name.includes('勤務')) return 'main'
+        return 'other'
+    }
+
+    const groupedLeaves = computed(() => {
+        const g = { main: [], planned: [], hourly: [], other: [] }
+        for (const s of shiftTypes.value) g[categorize(s.name)].push(s)
+        return g
     })
     const fetchShiftData = async() => {
         const work_group = props.chosenId ? [props.chosenId] : props.usersCheckArray
