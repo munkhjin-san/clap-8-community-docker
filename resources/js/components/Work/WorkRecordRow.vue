@@ -257,7 +257,7 @@ const countdown = computed(() => {
     if (!givenTime) return '0時間0分';
     
     const todayWithGivenTime = `${currentTime.toFormat('yyyy-MM-dd')} ${givenTime}`;
-    const givenTimeInstance = DateTime.fromFormat(todayWithGivenTime, 'yyyy-MM-dd HH:mm');
+    const givenTimeInstance = DateTime.fromFormat(todayWithGivenTime, 'yyyy-MM-dd HH:mm:ss');
     
     // Calculate difference and subtract break time
     let difference = currentTime.diff(givenTimeInstance, ['hours', 'minutes']);

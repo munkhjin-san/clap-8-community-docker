@@ -15,7 +15,7 @@
             <label for="file" class="file-label">
                 <span>{{ placeHolder }}</span>
             </label>
-            <input type="file" ref="formUploader" name="file" id="file" @change="fileSelected" style="display: none;" multiple>
+            <input type="file" ref="formUploader" name="file" id="file" @change="fileSelected" style="display: none;" multiple :accept="accept ? accept : ''">
         </div> 
         <p v-if="error" class="i-error" style="bottom: -15px;">{{ error }}</p>
 
@@ -59,7 +59,7 @@ import { useSharingDataStore } from '@/store/sharingData'
 import { useApi } from '@/composables/api';
 import { validator } from '@/validation/validator'
     const sharingData = useSharingDataStore()
-    const props =  defineProps(['path', 'customClass', 'customStyle', 'customPlaceHolder', 'rules'])
+    const props =  defineProps(['path', 'customClass', 'customStyle', 'customPlaceHolder', 'rules', 'accept'])
     const emit = defineEmits(['updated'])
     const entered = ref(false)
     const uploadingProgress = ref(0)

@@ -15,7 +15,10 @@
             <span @click="showAll = !showAll" class="jump-link" v-if="truncated">{{ showAll ? '閉じる' : '続きを表示する' }}</span>
         </div>
         <div>
-            <PostEntryFiles :items="entry.files" />
+            <PostEntryFiles :items="entry.files" path="post_entry_files"/>
+        </div>
+        <div>
+            <PostEntryFiles :items="entry.photos" path="post_entry_photos"/>
         </div>
     </div>
     <div class="flex items-center justify-end gap-[20px]">

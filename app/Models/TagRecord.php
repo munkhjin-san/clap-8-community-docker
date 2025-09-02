@@ -44,7 +44,5 @@ class TagRecord extends Model
     protected $casts = [
         'hits' => 'int', 
     ];
-    protected $fillable = [
-        'text'
-    ];
+    protected $guarded = [];
 }
