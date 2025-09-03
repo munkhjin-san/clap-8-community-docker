@@ -52,7 +52,7 @@
             </div>
             <div class="si-box" v-if="app_type == 5">
                 <TagSelector 
-                    placeHolder="スポーツ種目"
+                    placeHolder="スポーツ種目（自由入力可）"
                     :suggestion="tagSuggestionText"
                     :condition="[{field: 'type', value: 1}]"
                     v-model="sportTags"

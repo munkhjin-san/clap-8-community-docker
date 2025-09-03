@@ -32,7 +32,7 @@
             <FileUploader
                 v-model="params.photos"
                 path="/post_entry_photos"
-                custom-place-holder="運動している写真（任意）"
+                custom-place-holder="運動している写真をアップロード（任意）"
                 accept="image/*"
             />
         </div>
