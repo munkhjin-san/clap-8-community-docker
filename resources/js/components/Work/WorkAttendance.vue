@@ -178,6 +178,14 @@
                             <span>{{ attendanceData.annual_incentives }}件</span>
                         </div>
                     </div>
+                    <div class="attendance-row">
+                        <div class="attendance-title">
+                            <span>マイカー走行距離合計</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.mileage }}km</span>
+                        </div>
+                    </div>
                 </div>
                 <LoaderButton style="margin-top:30px;" :loading="sending" @triggered="attendanceConfirm" :content="buttonTexts"/>
             </div>
@@ -355,7 +363,8 @@ import Modal from '../Global/Modal.vue';
             remote_personal_pay: attendanceData.value.month_remote_personal_allowance_count,
             remote_company_pay: attendanceData.value.month_remote_company_allowance_count,
             expenses: attendanceData.value.annual_costs,
-            incentive: attendanceData.value.annual_incentives
+            incentive: attendanceData.value.annual_incentives,
+            mileage: attendanceData.value.mileage
         }
  
         sending.value = true

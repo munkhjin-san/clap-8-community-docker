@@ -26,7 +26,7 @@
                 </div>
             </div>
         </div>        
-        <div style="height:calc(100% - 70px);overflow: auto;">
+        <div style="height:calc(100% - 70px);overflow: auto;" id="admin-table-container">
             
             <table class="admin-work-table">
                 <thead class="bg-[#363636] text-white sticky top-0 z-[4]">
@@ -42,7 +42,8 @@
                         <td class="admin-table-data" colspan="4">休暇</td>
                         <td class="admin-table-data" colspan="3">休日</td>
                         <td class="admin-table-data" rowspan="2">経費</td>
-                        <td class="admin-table-data" rowspan="2">インセ</td>
+                        <td class="admin-table-data" rowspan="2">インセンティブ</td>
+                        <td class="admin-table-data" rowspan="2">マイカー走行距離</td>
                         <td class="admin-table-data" rowspan="2">労働時間</td>
                     </tr>
                     <tr>
@@ -80,11 +81,11 @@
                         <td style="white-space: nowrap;" v-for="number in [3,5,6,7,8,9,10,11,12,13,14,15,16,17]" v-html="computedHoliday(item.id, number)"></td>
                         <td v-html="legalHoliday(item?.shift_records)"></td>
                         <td v-html="legalHolidayOvertime(item, 'display')"></td>
-                        <td v-html="item?.yearly_holiday_minutes && yearlyHolidayTime(item.yearly_holiday_minutes, item.work_minutes_per_day)"></td>
+                        <td v-html="item?.yearly_holiday_minutes && yearlyHolidayTime(item.yearly_holiday_minutes, item.work_minutes_per_day) || ''"></td>
                         <td style="white-space: nowrap;">{{ monthly_expenses[item.id] ? `${monthly_expenses[item.id]}円` : '' }}</td>
                         <td style="white-space: nowrap;">{{ monthly_incentive[item.id] }}</td>
+                        <td style="white-space: nowrap;">{{ item?.monthly_mileage ? `${item.monthly_mileage}km` : '' }}</td>
                         <td v-html="conversionTime(month_work_time[item.id])"></td>
-
                     </tr>
                 </tbody>
             </table>
@@ -292,6 +293,7 @@ import { useApi } from '@/composables/api';
                 "在宅日数（個人都合）": item.remote_personal_pay,
                 "在宅日数（会社都合）": item.remote_company_pay,
                 "経費合計額": monthly_expenses.value[item.user_id] ? monthly_expenses.value[item.user_id] : '',
+                "マイカー走行距離" : item.mileage ? item.mileage : '',
             }
             data.push(row)
         });
@@ -406,6 +408,16 @@ import { useApi } from '@/composables/api';
     }
 </script>
 <style lang="scss" scoped>
+    #admin-table-container {
+        scrollbar-width: auto;      /* Firefox */
+        scrollbar-color: auto;      /* Firefox */
+    }
+
+    #admin-table-container::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
     .admin-window-row:hover{
         background-color: var(--bg2);
 

@@ -57,7 +57,8 @@ class WorkController extends Controller
         $time_card_record = timecardRecord::selectRaw(
             'user_id,
             SUM(over_time) as total_over_time,
-            SUM(work_time) as total_work_time'
+            SUM(work_time) as total_work_time,
+            SUM(car_mileage) as total_car_mileage'
         )
         ->whereYear('day', $currentYear)
         ->whereMonth('day', $currentMonth)
@@ -70,6 +71,8 @@ class WorkController extends Controller
         $month_over_time = $time_card_record->pluck('total_over_time', 'user_id');
 
         $month_work_time = $time_card_record->pluck('total_work_time', 'user_id');
+
+        $month_mileage = $time_card_record->pluck('total_car_mileage', 'user_id');
 
     
         $user_record = User::whereIn('id', $users_list)
@@ -174,7 +177,7 @@ class WorkController extends Controller
             if ($shift_work_hours < (($month_work_time[$user->id] ?? 0) - ($month_over_time[$user->id] ?? 0))) {
                 $month_over_time[$user->id] = ($month_work_time[$user->id] ?? 0) - $shift_work_hours;
             }
-            
+
             $month_average_data[] = [
                 'month_over_time' => (isset($month_over_time[$user->id]) && $month_over_time[$user->id] >= 0) ? $month_over_time[$user->id] : null,
                 'month_work_time' => $month_work_time[$user->id] ?? null,
@@ -190,7 +193,7 @@ class WorkController extends Controller
                 'access_csv' => $active_user->id == 610 || $active_user->id == 608 || $active_user->position_id == 6,
                 'shift_work_hours' => $shift_work_hours,
                 'workdayNum' => $workdayNum,
-                'timecard' => $time_card_record
+                'month_mileage' => (isset($month_mileage[$user->id]) && $month_mileage[$user->id] >= 0) ? (int) $month_mileage[$user->id] : null,
             ];
         }
         $responseArray = [
@@ -253,7 +256,7 @@ class WorkController extends Controller
                         $q->with('before_user')->with('after_user');
                     }
                 ])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id');
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id', 'car_mileage');
             },
             'shift_records' => function ($q) use ($year, $month) {
                 $q->whereYear('shift_day', $year)
@@ -989,7 +992,7 @@ class WorkController extends Controller
                 }
                 
             }
-            
+            $is_exist->car_mileage = $request->car_mileage ?? 0;
             $is_exist->save();
             if($request->shiftType !== 0 && $request->shiftType !== 1){
                 $this->checkDepartment($request->day, $request->userId);
@@ -1171,7 +1174,7 @@ class WorkController extends Controller
             'time_card_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->whereYear('day', $currentYear)
                     ->whereMonth('day', $currentMonth)
-                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time', 'night_over_time', 'stamp_flag');
+                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time', 'night_over_time', 'stamp_flag', 'car_mileage');
             },
             'custom_field_data_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->where('type_id', 37)
@@ -1230,6 +1233,7 @@ class WorkController extends Controller
         $oda_leave = $user->shift_records->where('shift_type', 16)->count();
         $comp_holiday = $user->shift_records->where('shift_type', 17)->count();
         $over_time = $user->time_card_records->sum('over_time');
+        $mileage = $user->time_card_records->sum('car_mileage');
         $annual_costs = 0;
         $annual_incentive = 0;
         $annual_costs = timecardCostRecord::where('user_id', $user->id)
@@ -1293,6 +1297,7 @@ class WorkController extends Controller
             'annual_costs' => $annual_costs,
             'annual_incentives' => $annual_incentive,
             'unapproved_shift_count' => $unapproved_shift_count,
+            'mileage' => $mileage
         ];
 
         return response()->json($responseArray);
@@ -1427,6 +1432,7 @@ class WorkController extends Controller
             $attendance_record->remote_personal_pay = $request->remote_personal_pay;
             $attendance_record->expenses = $request->expenses;
             $attendance_record->incentive = $request->incentive;
+            $attendance_record->mileage = $request->mileage;
             $attendance_record->save();
 
             return response()->json($attendance_record);
@@ -1670,7 +1676,7 @@ class WorkController extends Controller
                     $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
                 }])
                 ->with(['timecard_costs', 'timecard_incentives'])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id');
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'car_mileage');
         }])->with(['shift_records' => function ($q) use($year, $month) {
             $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
                 ->with([
@@ -1740,6 +1746,7 @@ class WorkController extends Controller
                     'コンディション' => $condition_index ? $conditions[$condition_index] : '',
                     'コメント' => $comment ? $comment->value_text : '',
                     '経費' => $costFormatted,
+                    'マイカー走行距離' => empty($time_card_record) ? '' : $time_card_record->car_mileage
                 ];
                 if($insentive_exists){
                     

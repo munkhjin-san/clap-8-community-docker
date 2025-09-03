@@ -350,7 +350,7 @@ import { useDialog } from '@/composables/dialog'
         }       
     }
     const modalSelect = computed(() => {
-        return (usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610) && usersCheckArray.value.length == 1
+        return (usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610 || isAnyChecked15.value) && usersCheckArray.value.length == 1
     })
     const selectShift = async() => {
         if(usersCheckArray.value.length > 1){
@@ -371,6 +371,31 @@ import { useDialog } from '@/composables/dialog'
             ping('メンバーを選択してください。')
         }
     }    
+    const inChargeProjects = computed(() => {
+        const groups = workGroups.value ?? [];
+        const userId = auth.activeUser?.id;
+        if (!userId) return [];
+        const idOf = (m) => (typeof m === 'object' && m && 'id' in (m)) ? (m).id : m;
+        return groups.filter(p => Array.isArray(p.manager) && p.manager.some(m => idOf(m) === userId));
+    });
+    const toId = (x) => (x && typeof x === 'object' && 'id' in x ? x.id : x);
+
+    const registeredIds = computed(() => {
+        const projects = inChargeProjects.value ?? [];
+        const members = projects.flatMap(p => Array.isArray(p.members) ? p.members : []);
+        return new Set(
+            members
+            .filter(m => m && Number(m.position_id) === 15)
+            .map(m => m.id)
+        );
+    });
+
+    const selectedIds = computed(() =>
+        (usersCheckArray.value ?? []).map(toId)
+    );
+    const isAnyChecked15 = computed(() =>
+        selectedIds.value.some(id => registeredIds.value.has(id))
+    );
     const shiftMonth = (val) => {
         const current = DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value})
         const newDate = current.plus({months: val})
