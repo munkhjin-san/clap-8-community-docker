@@ -89,7 +89,7 @@
                 <LongInput
                     v-model="content_rule"  
                     ref="contentRuleRef"
-                    :placeHolder="app_type == 2 ? 'メッセージ（必須）' :`${appNameJp}内容を入力（必須）`"
+                    :placeHolder="`${appNameJp}内容を入力（必須）`"
                     name="contentRuleRef"
                     rules="required|max:2000"
                 />  
@@ -99,7 +99,7 @@
                 <LongInput
                     v-model="content"  
                     ref="contentRef"
-                    :placeHolder="`${appNameJp}内容を入力（必須）`"
+                    :placeHolder="app_type == 5 ? 'メッセージ（必須）' :`${appNameJp}内容を入力（必須）`"
                     name="contentRef"
                     rules="required|max:2000"
                 />  

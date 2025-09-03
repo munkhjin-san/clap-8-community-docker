@@ -481,7 +481,8 @@ class WorkController extends Controller
         )->when(
             $user->work_type == 0,
             fn ($query) => $query->whereNot('name', '法定休日')
-        )->get();
+        )->when($user->position_id == 12, fn ($query) => $query->whereNotIn('id', [19,20,21,22,23,24,25,26]))
+        ->get();
     
         
         
