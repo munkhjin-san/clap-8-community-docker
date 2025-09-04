@@ -35,6 +35,9 @@
                     <PostIcon which="5" size="20"/>
                     グラリンピック
                 </div>
+                <!-- <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
+                    リフレッシュ
+                </div> -->
             </div>
             <div class="si-box" v-if="app_type == 5">
                 <p class="mb-[20px]">寄付先</p>
@@ -47,13 +50,14 @@
                     v-model="selectedNpo"
                 />
             </div>
-            <div class="si-box">
+            <div class="si-box" v-if="app_type == 5">
                 <TagSelector 
-                    placeHolder="タグ選択（＃なし）"
+                    placeHolder="スポーツ種目（自由入力可）"
                     :suggestion="tagSuggestionText"
-                    v-model="tags"
+                    :condition="[{field: 'type', value: 1}]"
+                    v-model="sportTags"
                 />
-            </div>
+            </div>    
 
             <div class="si-box">
                 <ShortInput 
@@ -95,7 +99,7 @@
                 <LongInput
                     v-model="content"  
                     ref="contentRef"
-                    :placeHolder="`${appNameJp}内容を入力（必須）`"
+                    :placeHolder="app_type == 5 ? 'メッセージ（必須）' :`${appNameJp}内容を入力（必須）`"
                     name="contentRef"
                     rules="required|max:2000"
                 />  
@@ -148,17 +152,41 @@
                     </label>
                     
                 </div> 
-            </div>       
-            
-            
+            </div>   
             <div class="si-box">
+                <TagSelector 
+                    placeHolder="タグ選択（＃なし）"
+                    :suggestion="tagSuggestionText"
+                    v-model="tags"
+                />
+            </div>    
+            
+            <div class="si-box" v-if="app_type == 6">
+                <ShortInput 
+                    placeHolder="利用金額 (必須)"
+                    :rules="'required'"
+                    customClass="full"
+                    ref="refreshAmountRef"
+                    type="number"
+                    v-model="refresh_amount"
+                />
+            </div>
+            <div class="si-box" v-if="app_type !== 5">
                 <FileUploader
                     v-model="uploadedFiles"
                     path="/post_files"
                 />
             </div>
-        
-            <div class="si-box">
+            <div class="si-box" v-if="app_type == 6">
+                <FileUploader 
+                    customPlaceHolder="領収書添付（必須）" 
+                    v-model="uploadedReceipts" 
+                    path="/post_receipts"
+                    rules="required"
+                    ref="uploadedReceiptsRef"
+                />
+            </div>
+            <div class="si-box" v-if="app_type !== 5">
                 <ShortInput 
                     name="recordUrl" 
                     placeHolder="URL" 
@@ -215,21 +243,24 @@ import { useDialog } from '@/composables/dialog'
     const content_goal = ref(props.editTarget && props.editTarget.content_goal ? props.editTarget.content_goal : "")
     const to_users = ref(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : app_type.value === 2 ? [auth.user] : [])
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
-
+    const refresh_amount = ref(props.editTarget && props.editTarget.refresh_amount ? props.editTarget.refresh_amount : "")
     
-    const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])    
+    const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])   
+    const sportTags = ref(props.editTarget && props.editTarget.sport_tags ? props.editTarget.sport_tags : []) 
     const date_start = ref(props.editTarget && props.editTarget.date_start ? props.editTarget.date_start : "")
     const date_end = ref(props.editTarget && props.editTarget.date_end ? props.editTarget.date_end : "")
     const processing = ref(false)
     const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
-
+    const uploadedReceipts = ref(props.editTarget && props.editTarget.receipts ? props.editTarget.receipts : [])
     const recordTitle = useTemplateRef('recordTitle')
     const recordUsers = useTemplateRef('recordUsers')
+    const refreshAmountRef = useTemplateRef('refreshAmountRef')
     const contentRuleRef = useTemplateRef('contentRuleRef')
     const contentRef = useTemplateRef('contentRef')
     const contentGoalRef = useTemplateRef('contentGoalRef')
     const recordDateEnd = useTemplateRef('recordDateEnd')
     const recordDateStart = useTemplateRef('recordDateStart')
+    const uploadedReceiptsRef = useTemplateRef('uploadedReceiptsRef')
     const npoRef = useTemplateRef('npoRef')
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
@@ -260,7 +291,9 @@ import { useDialog } from '@/composables/dialog'
             contentGoalRef.value,
             recordDateEnd.value,
             recordDateStart.value,
-            npoRef.value
+            npoRef.value,
+            uploadedReceiptsRef.value,
+            refreshAmountRef.value
         ]
     })
     const possiblePath = computed(() => {
@@ -323,14 +356,17 @@ import { useDialog } from '@/composables/dialog'
             date_start: date_start.value, 
             date_end: date_end.value,  
             tags: tags.value.length ? tags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [], 
+            sport_tags: sportTags.value.length ? sportTags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [],
             file_ids : uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
+            receipt_ids: uploadedReceipts.value.length ? uploadedReceipts.value.map(ob => ob.id) : [],
             referrer: referrer.value, 
             path: props.appName,
             post_content: content.value,
             award_entry: 0,
             app_type: app_type.value,
             chargeable: chargeable.value,
-            donation_target: selectedNpo.value
+            donation_target: selectedNpo.value,
+            refresh_amount: refresh_amount.value
         }
 
         const data = await api.post('post_add_record', params, {

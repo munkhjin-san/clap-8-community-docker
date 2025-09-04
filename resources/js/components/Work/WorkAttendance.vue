@@ -3,6 +3,12 @@
         <template #title>
             <p>勤怠確定</p>
         </template>
+        <template #menu>
+            <div class="cursor-pointer" style="display:flex;align-items:center;margin: auto 0 auto auto;">
+                <button class="work-delete-button" @click.stop="attendanceCreate" v-if="attendanceData && !attendanceData.attendance_flag && (auth.activeUser.id == 610 || auth.activeUser.id  == 608)">休業確定</button>
+                <button class="work-delete-button" @click.stop="deleteAttendance" v-if="attendanceData && attendanceData.attendance_flag && (auth.activeUser.id  == 610 || auth.activeUser.id  == 608)">勤怠確定を取り下げる</button>
+            </div>
+        </template>
         <template #content>
             <Transition name="modalFade">
                 <div class="work-loader" v-if="loading == 0">
@@ -176,6 +182,14 @@
                         </div>
                         <div class="attendance-value">
                             <span>{{ attendanceData.annual_incentives }}件</span>
+                        </div>
+                    </div>
+                    <div class="attendance-row">
+                        <div class="attendance-title">
+                            <span>マイカー走行距離合計</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.mileage }}km</span>
                         </div>
                     </div>
                 </div>
@@ -355,7 +369,8 @@ import Modal from '../Global/Modal.vue';
             remote_personal_pay: attendanceData.value.month_remote_personal_allowance_count,
             remote_company_pay: attendanceData.value.month_remote_company_allowance_count,
             expenses: attendanceData.value.annual_costs,
-            incentive: attendanceData.value.annual_incentives
+            incentive: attendanceData.value.annual_incentives,
+            mileage: attendanceData.value.mileage
         }
  
         sending.value = true

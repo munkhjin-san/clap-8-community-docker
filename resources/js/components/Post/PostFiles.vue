@@ -4,7 +4,7 @@
             <div class="swiper" style="border:none;">
                 <div class="swiper-wrapper">
                     <div class="swiper-slide" v-for="(image, index) in images" :key="index">
-                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="'/cdn/post_files/thumbnail/' + image.id + '_' + image.user_id + '_' + image.path + '_thumbnail.webp'" style="width: auto;max-width: 100%;max-height: 130px;">
+                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="`/cdn/${path}/thumbnail/` + image.id + '_' + image.user_id + '_' + image.path + '_thumbnail.webp'" style="width: auto;max-width: 100%;max-height: 130px;">
                     </div>  
                 </div>                                                          
             </div>        
@@ -31,8 +31,10 @@
     import  Swiper  from 'swiper';
     import 'swiper/css'
     import { computed, onMounted } from 'vue';
+    import { ref } from 'vue';
     import { useFilePreview } from '@/store/filePreview';
-    const props = defineProps(['items'])
+    const props = defineProps(['items', 'path'])
+    const path = ref(props.path ?? 'post_files')
     const filePreview = useFilePreview()
     onMounted(() => {
         new Swiper('.swiper', {
@@ -50,8 +52,8 @@
     const previewFile = (file, index) => {
         const files = fileList.value.map(fileData => ({
             ...fileData,
-            file_path: `/cdn/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
-            doc_path: `/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+            file_path: `/cdn/${path.value}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+            doc_path: `/${path.value}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
         }));
         const data = {
             active: true,
@@ -67,8 +69,8 @@
     const previewImage = (file, index) => {
         const files = images.value.map(fileData => ({
             ...fileData,
-            file_path: `/cdn/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
-            thumbnail_path: `/cdn/post_files/${fileData.id}_${fileData.user_id}_${fileData.path}_thumbnail.webp`
+            file_path: `/cdn/${path.value}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+            thumbnail_path: `/cdn/${path.value}/${fileData.id}_${fileData.user_id}_${fileData.path}_thumbnail.webp`
         }));
         const data = {
             active: true,

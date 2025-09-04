@@ -45,6 +45,7 @@ class timecardRecord extends Model
     protected $casts = [
         'record_id' => 'int',
         'deleted_flag' => 'int',
+        'car_mileage' => 'int'
     ];
 
     protected $guarded = [];

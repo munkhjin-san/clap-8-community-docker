@@ -13,10 +13,12 @@
         <div class="uploadMask" v-if="uploadingProgress"><div>アップロード中</div><div> {{uploadingProgress }}%</div></div>
         <div class="form-plc" style="z-index: 6;">
             <label for="file" class="file-label">
-                <span>ファイル</span>
+                <span>{{ placeHolder }}</span>
             </label>
-            <input type="file" ref="formUploader" name="file" id="file" @change="fileSelected" style="display: none;" multiple>
+            <input type="file" ref="formUploader" name="file" id="file" @change="fileSelected" style="display: none;" multiple :accept="accept ? accept : ''">
         </div> 
+        <p v-if="error" class="i-error" style="bottom: -15px;">{{ error }}</p>
+
         <div class="file-area-content" v-if="uploadFiles" style="padding: 30px 10px 10px 10px;margin:0">
             <div class="file-wrap" v-for="(file, index) in uploadFiles" @click.stop>   
                 <div class="file-area-container">
@@ -55,20 +57,31 @@ import { onMounted, ref } from 'vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue'
 import { useSharingDataStore } from '@/store/sharingData'
 import { useApi } from '@/composables/api';
+import { validator } from '@/validation/validator'
     const sharingData = useSharingDataStore()
-    const props =  defineProps(['path', 'customClass', 'customStyle'])
+    const props =  defineProps(['path', 'customClass', 'customStyle', 'customPlaceHolder', 'rules', 'accept'])
     const emit = defineEmits(['updated'])
     const entered = ref(false)
     const uploadingProgress = ref(0)
     const uploadFiles = defineModel()
+    const trigger = ref(false)
+    const error = ref('')
     const formUploader = ref(null)
+    const placeHolder = ref(props.customPlaceHolder ?? 'ファイル')
     const api = useApi()
     onMounted(() => {
         if(sharingData && sharingData !== null && sharingData.files && sharingData.files.length){
             prepareSharedFiles(sharingData.files)
         }  
     })
-
+    const validate = async(passive) => {
+        if(passive && !trigger.value) return
+        const { isValid, errorMessage }= await validator(props.rules, uploadFiles.value)
+        error.value = errorMessage
+        trigger.value = true
+        return {valid: isValid}
+    }    
+    defineExpose({validate})
     const prepareSharedFiles = async(files) => {
         const data = await api.post('/prepare_sharing_files', {list: files, path: props.path})                                     
         const filesData = data
@@ -88,7 +101,7 @@ import { useApi } from '@/composables/api';
        
     }
     const fileSelected = (event) => {
-        if(event.target.files && event.target.files.length){                
+        if(event.target.files && event.target.files.length){    
             uploadStart(event.target.files)
         }
     }
@@ -122,6 +135,7 @@ import { useApi } from '@/composables/api';
         emit('updated', uploadFiles.value)           
         
         setTimeout(() => {
+            validate(true)            
             uploadingProgress.value = 0
         }, 300);
         formUploader.value.value = ''    

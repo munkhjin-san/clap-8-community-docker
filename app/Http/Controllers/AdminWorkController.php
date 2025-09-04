@@ -58,7 +58,7 @@ class AdminWorkController extends Controller{
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
               ->whereMonth('day', $currentMonth)
-              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id')
+              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage')
               ->orderBy('day', 'asc')
               ->with([
                 'custom_field_data_records' => function($q) {
@@ -316,7 +316,7 @@ class AdminWorkController extends Controller{
                         return $shift->shiftType->value;
                     }
                 });
-
+                $user['monthly_mileage'] = $user->time_card_records->sum('car_mileage');
                 $user['yearly_holiday_minutes'] = $total_holidays;
                 $user['work_minutes_per_day'] = $user_work_minutes_per_day;
                 $user['legal_holiday_shifts'] = $legal_holiday_shifts;

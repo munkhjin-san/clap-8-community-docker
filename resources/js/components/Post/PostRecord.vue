@@ -2,7 +2,7 @@
     <div class="post-item-outer" v-if="record">
         <div class="post-item-header-wrap">
             <div class="flex gap-2.5 items-center">
-                <PostIcon v-if="appName == 'post'" :which="record.app_type" size="20"/>
+                <PostIcon v-if="appName == 'post' && record.app_type != 6" :which="record.app_type" size="20"/>
                 <div v-html="title" class="post-title"></div>
             </div>
             <ItemMenu v-if="isOwner || auth.id === 516" :items="postMenu"/> 
@@ -42,12 +42,16 @@
         <div v-if="record.app_type == 5 && record.donation_target">
             <p>寄付先: {{ record.donation_target }}</p>
         </div>
+        <div v-if="record.app_type == 5 && sportTags.length" class="my-[15px]">
+            <div class="flex flex-wrap gap-[15px]">
+                <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px]" v-for="tag in sportTags" :key="tag.id">{{ tag.text }}</div>
+            </div>
+        </div>
         <div>
             <div>
                 <div class="record-content" v-html="body"></div>
                 <span @click="showAll = !showAll" class="jump-link" v-if="truncated">{{ showAll ? '閉じる' : '続きを表示する' }}</span>
             </div>
-
             <div v-if="goal" class="mt-4">
                 <div class="post-separetor">
                     <div>達 成 条 件</div>
@@ -62,6 +66,13 @@
                 <div class="record-content" v-html="result"></div>
             </div>
             <PostFiles class="mt-4" v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
+            <div v-if="record.app_type == 6 && (auth.activeUser.id == 610 || record.user_id == auth.id)" class="mt-4">
+                <div class="post-separetor">
+                    <div>領収</div>
+                </div>
+                <PostFiles class="mt-4" path="/post_receipts" v-if="record.receipts.length" :items="record.receipts"/>
+            </div>
+
             <div class="post-url" v-if="record.referrer">
                 参照元 : <a :href="record.referrer">{{ record.referrer }}</a>
             </div>
@@ -72,7 +83,6 @@
                     :key="tag.id"
                 />
             </div>
-
             <div class="my-5 flex flex-col gap-5" v-if="record.entries && record.entries.length">
                 <div v-for="entry in record.entries" :key="entry.id">
                     <PostEntryRecord :entry="entry" @setClap="setClap"/>
@@ -96,6 +106,9 @@
             <div v-if="record.app_type == 5" class="post-footer-wrap">
                 <div class="text-[14px] mr-[20px]">カロリー合計: <span v-if="totalCalories">🔥 </span>{{ amountOfMoneyParser(totalCalories) }} kcal</div>
                 <div class="text-[14px] cursor-pointer" @click="viewParticipants">参加者 {{ participants.length }}人</div>
+            </div>
+            <div v-if="record.app_type == 6 && record.refresh_amount && (auth.activeUser.id === 610 || auth.id === record.user_id)" class="post-footer-wrap">
+                <div class="text-[14px] cursor-pointer">リフレッシュ総額: {{ record.refresh_amount }}円</div>
             </div>
             <div class="post-footer-wrap">
                 <svg @click="isExpanded = !isExpanded" class="comment-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
@@ -258,6 +271,9 @@ import PostEntryRecord from './PostEntryRecord.vue';
     })
     const tags = computed(() => {
         return props.record.tags ? props.record.tags : []
+    })
+    const sportTags = computed(() => {
+        return props.record.sport_tags ? props.record.sport_tags : []
     })
     const title = computed(() => {
         return props.record && props.record.title ? props.record.title : ''

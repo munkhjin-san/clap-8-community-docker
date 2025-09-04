@@ -4,7 +4,7 @@
             <div class="swiper" style="border:none;">
                 <div class="swiper-wrapper">
                     <div class="swiper-slide" v-for="(image, index) in images" :key="index">
-                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="'/cdn/post_entry_files/thumbnail/' + image.id + '_' + image.user_id + '_' + image.path + '_thumbnail.webp'" style="width: auto;max-width: 100%;max-height: 130px;">
+                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="`/cdn/${path}/thumbnail/${image.id}_${image.user_id}_${image.path}_thumbnail.webp`" style="width: auto;max-width: 100%;max-height: 130px;">
                     </div>  
                 </div>                                                          
             </div>        
@@ -32,7 +32,7 @@
     import 'swiper/css'
     import { computed, onMounted } from 'vue';
     import { useFilePreview } from '@/store/filePreview';
-    const props = defineProps(['items'])
+    const props = defineProps(['items', 'path'])
     const filePreview = useFilePreview()
     onMounted(() => {
         new Swiper('.swiper', {
@@ -50,8 +50,8 @@
     const previewFile = (file, index) => {
         const files = fileList.value.map(fileData => ({
             ...fileData,
-            file_path: `/cdn/post_entry_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
-            doc_path: `/post_entry_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+            file_path: `/cdn/${props.path}/thumbnail/${fileData.id}_${fileData.user_id}_${fileData.path}_thumbnail.webp`,
+            doc_path: `/${props.path}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
         }));
         const data = {
             active: true,

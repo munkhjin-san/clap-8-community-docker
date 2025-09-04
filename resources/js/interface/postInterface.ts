@@ -13,6 +13,7 @@ export interface Post{
     key_users: any;
     referrer: string;
     tags: PostTag[];
+    sport_tags: PostTag[];
     title: string;
     user_id: number;
     to_users: User[];
@@ -30,7 +31,9 @@ export interface Post{
     chargeable: boolean;
     user: User;
     award_entry: number
-    donation_target: string | null
+    donation_target: string | null;
+    receipts: CommonFile[]
+    refresh_amount: string;
 }
 interface PostAward extends User {
     pivot: {
@@ -47,6 +50,7 @@ export interface PostEntry {
     calories: number;
     comment: string;
     files: CommonFile[];
+    photos: CommonFile[];
     created_at: string;
     updated_at: string;
     comments: PostComment[];

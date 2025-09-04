@@ -1,7 +1,7 @@
 <template>
 <Modal @close="emit('close', false)" persist>
     <template #title>
-        <p>グラリンピクエントリ</p>
+        <p>グラリンピックエントリー</p>
     </template>
     <template #content>
         <div>
@@ -15,7 +15,7 @@
         </div>
         <div class="si-box">
             <LongInput 
-                place-holder="コメント"
+                place-holder="メッセージ"
                 v-model="params.comment"
             />
 
@@ -24,6 +24,16 @@
             <FileUploader
                 v-model="params.files"
                 path="/post_entry_files"
+                custom-place-holder="消費カロリー画面をアップロード"
+                accept="image/*"
+            />
+        </div>
+        <div class="si-box">
+            <FileUploader
+                v-model="params.photos"
+                path="/post_entry_photos"
+                custom-place-holder="運動している写真をアップロード（任意）"
+                accept="image/*"
             />
         </div>
         <div class="si-box">
@@ -55,7 +65,8 @@ const params = reactive({
     id: props.editData?.id || undefined,
     comment: props.editData?.comment || '',
     calories: props.editData?.calories || '',
-    files: props.editData?.files || []
+    files: props.editData?.files || [],
+    photos: props.editData?.photos || []
 })
 const emit = defineEmits<{
     'close' : [flag: boolean, id?: number | undefined]
@@ -71,6 +82,7 @@ const save = async() => {
     const data = {
         ...params,
         file_ids: params.files.map(file => file.id),
+        photo_ids: params.photos.map(photo => photo.id),
         record_id: props.record.id,
     }
 

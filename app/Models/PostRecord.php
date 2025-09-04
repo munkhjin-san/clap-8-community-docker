@@ -19,9 +19,16 @@ class PostRecord extends Model
     public function result_files(){
         return $this->belongsToMany(FileRecord::class, 'post_use_files', 'record_id', 'file_id')->wherePivot('result_flag', 1)->where('file_records.deleted_flag', 0);
     }
+    public function receipts(){
+        return $this->belongsToMany(FileRecord::class, 'post_refresh_use_files', 'record_id', 'file_id');
+    }
     public function tags()
     {
         return $this->belongsToMany(TagRecord::class, 'post_use_tags', 'record_id', 'tag_id')->where('tag_records.deleted_flag', 0);
+    }
+    public function sport_tags()
+    {
+        return $this->belongsToMany(TagRecord::class, 'post_use_sport_tags', 'record_id', 'tag_id')->where('tag_records.deleted_flag', 0);
     }
     public function comment_records(){
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'post')->with('user');
@@ -41,7 +48,7 @@ class PostRecord extends Model
     public function entries() {
         return $this->hasMany(PostEntry::class)->with(['user' => function($query) {
             $query->select('id', 'name', 'icon_path', 'icon_bg');
-        }, 'files']);
+        }, 'files', 'photos']);
     }
     protected $guarded = [];
 
