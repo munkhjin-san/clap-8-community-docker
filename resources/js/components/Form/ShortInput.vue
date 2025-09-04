@@ -95,6 +95,9 @@ input:focus + label{
 }
 
 @media screen and (max-width: 959px) {
+    .date{
+        padding: 0 5px;
+    }
     .g-text {
         font-size: 14px;
     }
