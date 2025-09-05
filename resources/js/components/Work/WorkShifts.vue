@@ -426,6 +426,7 @@ import { useDialog } from '@/composables/dialog';
                 month: shiftMonth.value,
                 planned_year: tempStartDate.value ? tempStartDate.value.substring(0, 4) : props.selectedYear,
                 userId: props.usersData[0].id,
+                position_id: props.usersData[0].position_id,
                 yearMonth: shiftDateInstance.value.toISODate(),
             }
   

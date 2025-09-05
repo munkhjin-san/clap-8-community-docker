@@ -681,7 +681,9 @@ class WorkController extends Controller
     }
     public function shiftAdd(Request $request)
     {
+        $user = $this->active_user();
         $user_id = $request->userId;
+        $position_id = $request->position_id;
         $shift_array = $request->shift_array;
         $start_time_val = $request->shiftTimeStart;
         $end_time_val = $request->shiftEndStart;
@@ -718,7 +720,7 @@ class WorkController extends Controller
             ->keyBy('shift_day');
         $new_shift_records = [];
         foreach ($shift_array as $shift) {
-            $status_flag = $shift['type'] === 3 ? 1 : 2;
+            $status_flag = ($shift['type'] === 3) || ($position_id === 15 && $user_id !== $user->id) ? 1 : 2;
             $planned_year = $shift['type'] === 3 ? $request->planned_year : $request->year;
             if ($shift_record_check->has($shift['date'])) {
                 $shift_record = $shift_record_check[$shift['date']];
@@ -1194,9 +1196,36 @@ class WorkController extends Controller
         $hiddenAttributes = ['attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records'];
         $userData = $user->makeHidden($hiddenAttributes);
         $attendance = $user->attendance_records->first();
-        $shift_count = $user->shift_records->where('shift_type', '!=', 0)->count();
+        $working_shifts = [1, 6, 7, 8, 9, 10, 11, 12, 13];
+        $should_calculate_month_hours = $user->position_id == 12 || $user->position_id == 15;
+        $shift_count = $should_calculate_month_hours ? $user->shift_records->whereIn('shift_type', $working_shifts)->count() : $user->shift_records->where('shift_type', '!=', 0)->count();
+        if($should_calculate_month_hours){
+            // $planned_work_shifts = $user->shift_records->whereIn('shift_type', $working_shifts)->get();
+            $planned_work_shifts = collect($user->shift_records->whereIn('shift_type', $working_shifts)->values());
+            $calculated_planned_minutes = 0;
+            $day_work_minute =  $user->work_time_day;
+            foreach ($planned_work_shifts as $shift) {
+                switch ($shift['shift_type']) {
+                    case 1:
+                        $calculated_planned_minutes += $day_work_minute;
+                        break;
+                    case 6:
+                        $calculated_planned_minutes += $day_work_minute / 2;
+                        break;
+                    default:
+                        if ($shift['shift_type'] >= 7 && $shift['shift_type'] <= 13) {
+                            $sub_time = $day_work_minute - (($shift['shift_type'] - 6) * 60);
+                            if ($sub_time > 0) {
+                                $calculated_planned_minutes += $sub_time;
+                            }
+                        }
+                        break;
+                }
+            }
+            $shift_work_hours = $calculated_planned_minutes;
+        }
         $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
-        $shift_workdays = $user->shift_records->where('shift_type', 1)->pluck('shift_day');
+        $shift_workdays = $user->shift_records->whereIn('shift_type', [1, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 26])->pluck('shift_day');
         $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->count();
         $user->position_id === 15 ? $workedday_count = $user->time_card_records->count() : $workedday_count = $user->time_card_records->whereIn('day', $shift_workdays)->count();
         $worked_time = $user->time_card_records->sum('work_time');
@@ -1214,7 +1243,7 @@ class WorkController extends Controller
         $annual_leave = $shiftRecords
             ->filter(fn($record) =>
                 $record->shiftType?->full_day === 0 &&
-                !in_array($record->shift_type, [0, 1, 2, 14, 15, 16, 17])
+                in_array($record->shift_type, [7, 8, 9, 10, 11, 12, 13])
             )
             ->sum(fn($record) => $record->shiftType?->value ?? 0);
 
@@ -1222,7 +1251,7 @@ class WorkController extends Controller
         $annual_full = $shiftRecords
             ->filter(fn($record) => 
                 $record->shiftType?->full_day === 2 &&
-                !in_array($record->shift_type, [14, 15, 16, 17])
+                !in_array($record->shift_type, [14, 15, 16, 17, 18])
             )
             ->count();
 

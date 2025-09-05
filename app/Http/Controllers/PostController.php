@@ -197,7 +197,7 @@ class PostController extends Controller
         ->orderBy('hits', 'desc')->orderBy('created_at', 'desc')
         ->when(empty($key), function ($query) use ($key) {
             
-            $query->take(10);
+            $query->take(40);
         })
         ->when($condition, function ($query) use ($condition) {
             foreach($condition as $con){

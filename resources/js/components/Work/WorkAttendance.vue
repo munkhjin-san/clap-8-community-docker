@@ -349,7 +349,7 @@ import Modal from '../Global/Modal.vue';
         const params = {
             date_year_month: yearMonth,
             user: attendanceData.value.user,
-            shift_working_hours: attendanceData.value.user.work_time_day * attendanceData.value.should_work_days,
+            shift_working_hours: attendanceData.value.should_work,
             shift_working_days: attendanceData.value.shift_count,
             worked_days: attendanceData.value.workedday_count,
             holiday_worked_days: attendanceData.value.holiday_count,
