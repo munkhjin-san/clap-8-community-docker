@@ -1,5 +1,5 @@
 <template>
-<div class="overlay" style="z-index:90">            
+<div class="overlay">            
     <div ref="copyAreaModal" style="padding:0 20px 20px;max-width:90%;max-height:85%;width:fit-content;background:var(--background-color);overflow: auto;color:var(--primary-color)">         
         <div style="width:100%;display:flex;position:sticky;top:0;height:50px;align-items: center;background-color: var(--background-color);">
             <p style="line-height: 0.7;margin-right: 30px;" class="copyareaTitle">テキストの選択</p>
