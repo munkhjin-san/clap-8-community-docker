@@ -173,14 +173,15 @@
                         />
 
                     </div>
+                    <div style="display: flex;">
+                        <label for="all_day_on" class="check-container privacy-check" style="align-self: center;white-space: nowrap;">
+                            <input @change="setAllDay" v-model="all_day" id="all_day_on" name="all_day_on" type="checkbox">
+                            <span :class="['checkmark-mini', {'checkmark-mini-checked' : all_day}]"></span>
+                            終日
+                        </label>  
+                    </div>
                     <div style="display: flex;gap: 10px;">                        
-                        <div style="display: flex;">
-                            <label for="all_day_on" class="check-container privacy-check" style="align-self: center;white-space: nowrap;">
-                                <input @change="setAllDay" v-model="all_day" id="all_day_on" name="all_day_on" type="checkbox">
-                                <span :class="['checkmark-mini', {'checkmark-mini-checked' : all_day}]"></span>
-                                終日
-                            </label>  
-                        </div>
+                        
                         <ShortInput 
                             v-if="!all_day"
                             name="calendarNormalTimeStart" 

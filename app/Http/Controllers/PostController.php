@@ -132,6 +132,7 @@ class PostController extends Controller
         
         ->with('user')
         ->with('tags')
+        ->with('sport_tags')
         ->with('files')
         ->with('receipts')
         ->withCount('comments')
@@ -187,6 +188,8 @@ class PostController extends Controller
         $super = $request->super;
         $key = $request->key;
         $special = $request->special ?? [];
+
+        $condition = $request->condition ?? [];
         $tag_text = TagRecord::where('deleted_flag','=', 0)
         ->when(!$super, function ($query) use ($key) {
             $query->where('text', 'LIKE', '%' . $key . '%');
@@ -195,6 +198,14 @@ class PostController extends Controller
         ->when(empty($key), function ($query) use ($key) {
             
             $query->take(10);
+        })
+        ->when($condition, function ($query) use ($condition) {
+            foreach($condition as $con){
+                $query->where($con['field'], $con['value']);
+            }
+        })
+        ->when(!$condition, function ($query) {
+            $query->where('type', 0);
         })
         ->get([
             'id',
@@ -353,13 +364,21 @@ class PostController extends Controller
                 $record->to_users()->sync($request->to_users);
             }            
             $tagIds = [];
+            $sportTagIds = [];
             foreach ($request->tags as $text) {
                 $tag = TagRecord::firstOrCreate(['text' => $text]);
 
                 $tagIds[] = $tag->id;
                 $tag->increment('hits');
             }
+            foreach($request->sport_tags as $text) {
+                $sTag = TagRecord::updateOrCreate(['text' => $text, 'type' => 1]);
+
+                $sportTagIds[] = $sTag->id;
+                $sTag->increment('hits');
+            }
             $record->tags()->sync($tagIds);
+            $record->sport_tags()->sync($sportTagIds);
 
                 $record->files()->sync($request->file_ids);
                 if(!$request->edit_id){
@@ -463,7 +482,7 @@ class PostController extends Controller
         }    
         $app_name_list = [
             "post" => 'ポスト',
-            "post_entry" => 'グラリンピクエントリー',
+            "post_entry" => 'グラリンピックエントリー',
         ];
         $app_name_title = $app_name_list[$request->app_name];
         $from_name = Auth::user()->name . 'さんから、' . $app_name_title .'へコメントが届きました。'; 
@@ -875,10 +894,13 @@ class PostController extends Controller
             ]
         );
         $file_ids = $request->file_ids ?? [];
+        $photo_ids = $request->photo_ids ?? [];
         $entry->files()->sync($file_ids);
+        $entry->photos()->sync($photo_ids);
         return response()->json([
             'entry' => $entry,
-            'files' => $entry->files
+            'files' => $entry->files,
+            'photos' => $entry->photos
         ]);
     }
     public function get_top_posts(Request $request){

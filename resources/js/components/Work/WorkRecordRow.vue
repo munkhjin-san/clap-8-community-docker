@@ -96,7 +96,9 @@
                 </div> -->
             </div>
         </td>
-
+        <td>
+            <div>{{ mileageFormatted }}</div>
+        </td>
         <td>
             <div style="position: relative;">
                 <div>
@@ -257,7 +259,7 @@ const countdown = computed(() => {
     if (!givenTime) return '0時間0分';
     
     const todayWithGivenTime = `${currentTime.toFormat('yyyy-MM-dd')} ${givenTime}`;
-    const givenTimeInstance = DateTime.fromFormat(todayWithGivenTime, 'yyyy-MM-dd HH:mm');
+    const givenTimeInstance = DateTime.fromFormat(todayWithGivenTime, 'yyyy-MM-dd HH:mm:ss');
     
     // Calculate difference and subtract break time
     let difference = currentTime.diff(givenTimeInstance, ['hours', 'minutes']);
@@ -298,6 +300,13 @@ const satisfyFormatted = computed(() => {
     
     const title = props.item?.satisfy && responsive.mobile ? '目標達成率 : ' : ''
     return  title + props.item?.satisfy
+})
+
+const mileageFormatted = computed(() => {
+    const title = props.item?.time_card?.car_mileage && responsive.mobile ? 'マイカー走行距離 : ' : ''
+    const val = props.item?.time_card?.car_mileage || ''
+    const suffix = val ? 'km' : ''
+    return `${title}${val}${suffix}`
 })
 
 const commentFormatted = computed(() => {

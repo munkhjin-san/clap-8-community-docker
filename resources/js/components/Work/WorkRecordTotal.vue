@@ -32,6 +32,7 @@
     <td v-if="!responsive.mobile && hasHeader('経費')">{{ data?.mont_total_costs ? `${data?.mont_total_costs}円` : ''}}</td>
     <td v-if="!responsive.mobile"></td>
     <td v-if="!responsive.mobile && hasHeader('インセンティブ')">{{ data?.mont_total_incentive ? `${data?.mont_total_incentive}件` : ''}}</td>
+    <td id="carMileage" v-if="!responsive.mobile">{{ data?.month_mileage ? `${data?.month_mileage}km` : '' }}</td>
     <td v-if="!responsive.mobile"></td>
     <td v-if="!responsive.mobile"></td>
 </tr>

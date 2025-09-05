@@ -50,13 +50,14 @@
                     v-model="selectedNpo"
                 />
             </div>
-            <div class="si-box">
+            <div class="si-box" v-if="app_type == 5">
                 <TagSelector 
-                    placeHolder="タグ選択（＃なし）"
+                    placeHolder="スポーツ種目（自由入力可）"
                     :suggestion="tagSuggestionText"
-                    v-model="tags"
+                    :condition="[{field: 'type', value: 1}]"
+                    v-model="sportTags"
                 />
-            </div>
+            </div>    
 
             <div class="si-box">
                 <ShortInput 
@@ -98,7 +99,7 @@
                 <LongInput
                     v-model="content"  
                     ref="contentRef"
-                    :placeHolder="`${appNameJp}内容を入力（必須）`"
+                    :placeHolder="app_type == 5 ? 'メッセージ（必須）' :`${appNameJp}内容を入力（必須）`"
                     name="contentRef"
                     rules="required|max:2000"
                 />  
@@ -151,11 +152,18 @@
                     </label>
                     
                 </div> 
-            </div>       
+            </div>   
+            <div class="si-box">
+                <TagSelector 
+                    placeHolder="タグ選択（＃なし）"
+                    :suggestion="tagSuggestionText"
+                    v-model="tags"
+                />
+            </div>    
             
             <div class="si-box" v-if="app_type == 6">
                 <ShortInput 
-                    placeHolder="額 (必須)"
+                    placeHolder="利用金額 (必須)"
                     :rules="'required'"
                     customClass="full"
                     ref="refreshAmountRef"
@@ -163,7 +171,7 @@
                     v-model="refresh_amount"
                 />
             </div>
-            <div class="si-box">
+            <div class="si-box" v-if="app_type !== 5">
                 <FileUploader
                     v-model="uploadedFiles"
                     path="/post_files"
@@ -171,14 +179,14 @@
             </div>
             <div class="si-box" v-if="app_type == 6">
                 <FileUploader 
-                    customPlaceHolder="領収（必須）" 
+                    customPlaceHolder="領収書添付（必須）" 
                     v-model="uploadedReceipts" 
                     path="/post_receipts"
                     rules="required"
                     ref="uploadedReceiptsRef"
                 />
             </div>
-            <div class="si-box">
+            <div class="si-box" v-if="app_type !== 5">
                 <ShortInput 
                     name="recordUrl" 
                     placeHolder="URL" 
@@ -237,7 +245,8 @@ import { useDialog } from '@/composables/dialog'
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     const refresh_amount = ref(props.editTarget && props.editTarget.refresh_amount ? props.editTarget.refresh_amount : "")
     
-    const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])    
+    const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])   
+    const sportTags = ref(props.editTarget && props.editTarget.sport_tags ? props.editTarget.sport_tags : []) 
     const date_start = ref(props.editTarget && props.editTarget.date_start ? props.editTarget.date_start : "")
     const date_end = ref(props.editTarget && props.editTarget.date_end ? props.editTarget.date_end : "")
     const processing = ref(false)
@@ -347,6 +356,7 @@ import { useDialog } from '@/composables/dialog'
             date_start: date_start.value, 
             date_end: date_end.value,  
             tags: tags.value.length ? tags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [], 
+            sport_tags: sportTags.value.length ? sportTags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [],
             file_ids : uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
             receipt_ids: uploadedReceipts.value.length ? uploadedReceipts.value.map(ob => ob.id) : [],
             referrer: referrer.value, 

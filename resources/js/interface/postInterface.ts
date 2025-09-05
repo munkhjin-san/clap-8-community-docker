@@ -13,6 +13,7 @@ export interface Post{
     key_users: any;
     referrer: string;
     tags: PostTag[];
+    sport_tags: PostTag[];
     title: string;
     user_id: number;
     to_users: User[];
@@ -49,6 +50,7 @@ export interface PostEntry {
     calories: number;
     comment: string;
     files: CommonFile[];
+    photos: CommonFile[];
     created_at: string;
     updated_at: string;
     comments: PostComment[];

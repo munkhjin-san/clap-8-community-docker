@@ -42,6 +42,11 @@
         <div v-if="record.app_type == 5 && record.donation_target">
             <p>寄付先: {{ record.donation_target }}</p>
         </div>
+        <div v-if="record.app_type == 5 && sportTags.length" class="my-[15px]">
+            <div class="flex flex-wrap gap-[15px]">
+                <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px]" v-for="tag in sportTags" :key="tag.id">{{ tag.text }}</div>
+            </div>
+        </div>
         <div>
             <div>
                 <div class="record-content" v-html="body"></div>
@@ -78,7 +83,6 @@
                     :key="tag.id"
                 />
             </div>
-
             <div class="my-5 flex flex-col gap-5" v-if="record.entries && record.entries.length">
                 <div v-for="entry in record.entries" :key="entry.id">
                     <PostEntryRecord :entry="entry" @setClap="setClap"/>
@@ -267,6 +271,9 @@ import PostEntryRecord from './PostEntryRecord.vue';
     })
     const tags = computed(() => {
         return props.record.tags ? props.record.tags : []
+    })
+    const sportTags = computed(() => {
+        return props.record.sport_tags ? props.record.sport_tags : []
     })
     const title = computed(() => {
         return props.record && props.record.title ? props.record.title : ''
