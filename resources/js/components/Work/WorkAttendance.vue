@@ -343,6 +343,13 @@ import Modal from '../Global/Modal.vue';
             return formatted;
         }
     }
+    const noOverTimeHours = computed(() => {
+        if (attendanceData.value.worked_time > attendanceData.value.should_work) {
+            return attendanceData.value.worked_time - attendanceData.value.month_over_time - attendanceData.value.night_over_time
+        } else {
+            return attendanceData.value.worked_time
+        }
+    })
     const attendanceConfirm = async() => {
         if(disableButton.value) return
         let yearMonth = dateInstance.value.toFormat('yyyy-MM')
@@ -358,7 +365,7 @@ import Modal from '../Global/Modal.vue';
             transfer_leave: attendanceData.value.transfer_leave,
             oda_leave: attendanceData.value.oda_leave,
             worked_hours: attendanceData.value.worked_time,
-            worked_hours_no_over_time: attendanceData.value.worked_time - attendanceData.value.month_over_time - attendanceData.value.night_over_time,
+            worked_hours_no_over_time: noOverTimeHours.value,
             over_time: attendanceData.value.month_over_time,
             night_work_time: attendanceData.value.night_over_time,
             stay_pay: attendanceData.value.month_stay_allowance_count,

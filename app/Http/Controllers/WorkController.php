@@ -1226,7 +1226,7 @@ class WorkController extends Controller
         }
         $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
         $shift_workdays = $user->shift_records->whereIn('shift_type', [1, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 26])->pluck('shift_day');
-        $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->count();
+        $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->where('work_time', '>', 0)->count();
         $workedday_count = $user->position_id === 15
         ? $user->time_card_records->where('work_time', '>', 0)->count()
         : $user->time_card_records->whereIn('day', $shift_workdays)->where('work_time', '>', 0)->count();
@@ -1282,7 +1282,7 @@ class WorkController extends Controller
         $month_over_time = 0;
         $annual_calc = $annual_full * $user->work_time_day + $annual_half * $user->work_time_day / 2;
         $annual_leave += $annual_calc;
-        $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave) * $user->work_time_day;
+        $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave + $comp_holiday) * $user->work_time_day;
         if ($shift_work_hours < $all_worked_time) {
             $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
         }
