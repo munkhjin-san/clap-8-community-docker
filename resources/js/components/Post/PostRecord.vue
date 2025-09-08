@@ -1,5 +1,5 @@
 <template>
-    <div class="post-item-outer" v-if="record">
+    <div class="post-item-outer" :id="`record-${record.id}`" v-if="record">
         <div class="post-item-header-wrap">
             <div class="flex gap-2.5 items-center">
                 <PostIcon v-if="appName == 'post' && record.app_type != 6" :which="record.app_type" size="20"/>
@@ -83,15 +83,24 @@
                     :key="tag.id"
                 />
             </div>
-            <div class="my-5 flex flex-col gap-5" v-if="record.entries?.length">
+            <div class="my-5 flex flex-col gap-5 bg-[var(--bg2)] p-2" v-if="record.entries?.length && viewEntries">
+                <div class="bg-[var(--bg2)] flex justify-between sticky top-0 z-10 p-2 items-center cursor-pointer">
+                    <div class="text-[14px] cursor-pointer" @click="viewParticipants">参加者 {{ participants.length }}人</div>
+                    <CloseIcon size="12" @click="closeAndScroll(record.id)"/>
+                </div>
                 <div
-                    v-for="entry in (viewEntries ? record.entries : record.entries.slice(0, 1))"
+                    :style="{
+                        borderBottom: index === record.entries.length - 1 
+                        ? 'none' 
+                        : '1px solid var(--calendarBorder)'
+                    }"
+                    v-for="(entry, index) in record.entries"
                     :key="entry.id"
                 >
                     <PostEntryRecord :entry="entry" @setClap="setClap" />
                 </div>
 
-                <div v-if="record.entries.length > 1" class="pt-2">
+                <!-- <div v-if="record.entries.length > 1" class="pt-2">
                     <button
                     type="button"
                     class="text-sm text-blue-600 hover:underline"
@@ -99,7 +108,7 @@
                     >
                     {{ viewEntries ? '閉じる' : `他 ${record.entries.length - 1} 件を見る` }}
                     </button>
-                </div>
+                </div> -->
             </div>
             <div v-if="challengeButtonView">                                    
                 <button @click="emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
@@ -118,7 +127,10 @@
             </div>
             <div v-if="record.app_type == 5" class="post-footer-wrap">
                 <div class="text-[14px] mr-[20px]">カロリー合計: <span v-if="totalCalories">🔥 </span>{{ amountOfMoneyParser(totalCalories) }} kcal</div>
-                <div class="text-[14px] cursor-pointer" @click="viewParticipants">参加者 {{ participants.length }}人</div>
+                <div class="text-[14px] cursor-pointer flex items-center gap-1" @click="viewEntries = !viewEntries">
+                    <People size="25"/>
+                    {{ record.entries.length }}件
+                </div>
             </div>
             <div v-if="record.app_type == 6 && record.refresh_amount && auth.id === record.user_id" class="post-footer-wrap">
                 <div class="text-[14px] cursor-pointer">リフレッシュ総額（非公開）: {{ record.refresh_amount }}円</div>
@@ -153,7 +165,7 @@ import PostTag from './PostTag.vue';
 import ClapButton from './ClapButton.vue';
 import PostComment from './PostComment.vue'
 import PostFiles from './PostFiles.vue';
-import { computed, inject, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, inject, nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
@@ -166,6 +178,8 @@ import { amountOfMoneyParser, customParser } from '@/utils/tools';
 import { Post, PostEntry } from '@/interface/postInterface';
 import { User } from '@/interface/globalInterface';
 import PostEntryRecord from './PostEntryRecord.vue';
+import People from '../Icons/People.vue';
+import CloseIcon from '../Form/CloseIcon.vue';
     const messageUsers = useMessageUsers()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -206,6 +220,14 @@ import PostEntryRecord from './PostEntryRecord.vue';
             }           
         }  
     })  
+    const closeAndScroll = (id: number) => {
+        viewEntries.value = false
+        nextTick(() => {
+            const el = document.getElementById(`record-${id}`)
+            console.log(el)
+            el?.scrollIntoView({ behavior: "smooth", block: "start" })
+        })
+    }
     const postMenu = computed(() => {
         const items = [    
             {title: `${props.apps[props.record.app_type]}を編集する`, action: () => emit('editRecord', props.record)},

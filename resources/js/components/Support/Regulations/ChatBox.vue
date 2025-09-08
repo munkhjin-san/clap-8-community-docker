@@ -1,13 +1,14 @@
 <template>
     <div class="chat-box">
-        <div class="h-[40px] flex items-center">
+        <div class="h-[40px] flex items-center chat-header">
+            <p class="ml-[20px]">チャット</p>
             <div @click="emit('close')" class="flex items-center justify-center min-w-[30px] h-[30px] cursor-pointer ml-auto">
                 <CloseIcon size="10"/>
             </div>
         </div>
         <div class="h-[calc(100%-91px)] overflow-y-auto bg-[var(--message-background)]" ref="chatBody">
             <div v-for="(msg, index) in messages" :key="index" :class="msg.type === 'self' ? 'text-right' : 'text-left'">
-                <p class="max-w-[80%] inline-block p-[10px] leading-normal m-[10px] rounded-lg bg-[var(--bg3)] text-[var(--primary-color)] text-[14px] whitespace-pre-wrap" v-html="msg.message"></p>
+                <p class="max-w-[80%] inline-block p-[20px] leading-normal m-[20px] rounded-lg bg-[var(--bg3)] text-[var(--primary-color)] text-[14px] whitespace-pre-wrap" v-html="msg.message"></p>
             </div>
             <div class="typing-bubble" v-if="loading">
                 <div class="typing-dots">
@@ -145,6 +146,9 @@ const scrollToBottom = () => {
 .chatbox-input{
     border: solid thin var(--formBorder);
     width: calc(100% - 30px);
+}
+.chat-header{
+    border-bottom: solid thin var(--formBorder);
 }
 @keyframes bounce {
     0%, 80%, 100% {

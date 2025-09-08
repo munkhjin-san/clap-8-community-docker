@@ -122,7 +122,7 @@ onMounted(() => {
                             <div class="bg-[var(--bg2)] p-4 shadow-md space-y-4">
 
                             <!-- Title & Content -->
-                            <div class="border-b border-[var(--calendarBorder)] pb-2">
+                            <div class="pb-2" style="border-bottom: 1px solid var(--calendarBorder);">
                                 <h2 class="font-semibold text-lg text-[var(--text1)]">
                                 {{ post.title }}
                                 </h2>
