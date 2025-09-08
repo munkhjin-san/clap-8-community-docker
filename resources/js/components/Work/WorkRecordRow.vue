@@ -97,7 +97,14 @@
             </div>
         </td>
         <td>
-            <div>{{ mileageFormatted }}</div>
+            <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
+                <div @click.stop="boxPosition('mileageBox')" class="text-wrap">{{ mileageFormatted }}</div>
+                <div @click="menu.close()" ref="mileageBox" class="comment-box" id="mileageBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'mileageBox' && menu.id == item.time_card?.id">
+                    <div style="word-break: break-word;">{{ item.time_card?.car_project?.name }}: {{ mileageFormatted }}</div>                              
+                </div>
+            </div>
+            <!-- <div>{{ item.time_card?.car_project?.name }}</div>
+            <div>{{ mileageFormatted }}</div> -->
         </td>
         <td>
             <div style="position: relative;">

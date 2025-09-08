@@ -254,9 +254,12 @@ class WorkController extends Controller
                     },
                     'vehicle_data' => function ($q) {
                         $q->with('before_user')->with('after_user');
+                    },
+                    'car_project' => function ($q) {
+                        $q->select('id', 'name');
                     }
                 ])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id', 'car_mileage');
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project');
             },
             'shift_records' => function ($q) use ($year, $month) {
                 $q->whereYear('shift_day', $year)
@@ -1045,6 +1048,7 @@ class WorkController extends Controller
                 
             }
             $is_exist->car_mileage = $request->car_mileage ?? 0;
+            $is_exist->car_used_project = $request->car_used_project;
             $is_exist->save();
             if($request->shiftType !== 0 && $request->shiftType !== 1){
                 $this->checkDepartment($request->day, $request->userId);
