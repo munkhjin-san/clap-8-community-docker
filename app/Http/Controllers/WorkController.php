@@ -893,6 +893,55 @@ class WorkController extends Controller
         $overTimeRequest->minutes = $calculatedMinute;
         $overTimeRequest->save();
     }
+    private function calcNightSeconds(string $startTime, string $endTime, int $breakMinutes = 0): int
+    {
+            // Anchor both times to an arbitrary date (today). If end < start, it crosses midnight.
+        $start = Carbon::createFromFormat('H:i', $startTime);
+        $end   = Carbon::createFromFormat('H:i', $endTime);
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
+
+        // Build the night window that surrounds the start time:
+        // if start is before 05:00, the night started yesterday at 22:00,
+        // otherwise it starts today at 22:00 and ends next day 05:00.
+        $nightStart = $start->copy()->setTime(22, 0);
+        if ($start->hour < 5) {
+            $nightStart->subDay();
+        }
+        $nightEnd = $nightStart->copy()->addHours(7); // 22:00 → +7h = 05:00 next day
+
+        // Overlap between [start, end] and [nightStart, nightEnd]
+        $nightSeconds = $this->overlapSeconds($start, $end, $nightStart, $nightEnd);
+        // Subtract break time from the night portion, but don’t go negative
+        if ($breakMinutes > 0 && $start->gte($nightStart) && $end->lte($nightEnd)) {
+            $nightSeconds = max(0, $nightSeconds - $breakMinutes * 60);
+        }
+
+        return $nightSeconds;
+    }
+    private function overlapSeconds(Carbon $aStart, Carbon $aEnd, Carbon $bStart, Carbon $bEnd): int
+    {
+        $A0 = $aStart->copy();
+        $A1 = $aEnd->copy();
+        $B0 = $bStart->copy();
+        $B1 = $bEnd->copy();
+
+        if ($A1->lte($A0) || $B1->lte($B0)) {
+            return 0;
+        }
+
+        // Optional: align TZs to avoid weirdness from mixed zones
+        $tz = $A0->getTimezone();
+        foreach ([$A0, $A1, $B0, $B1] as $d) {
+            $d->setTimezone($tz);
+        }
+
+        $startTs = max($A0->getTimestamp(), $B0->getTimestamp());
+        $endTs   = min($A1->getTimestamp(), $B1->getTimestamp());
+
+        return max(0, $endTs - $startTs);
+    }
     public function saveTimeCard(Request $request){
         $today = Carbon::now()->isoFormat('YYYY-MM-DD');
         $this->breakTimeCheck($request);
@@ -918,20 +967,20 @@ class WorkController extends Controller
         $time_difference_seconds -= $request->breakTime * 60;
         $time_difference_seconds = max(0, $time_difference_seconds);
         
-        $night_difference_seconds = 0;
+        $night_difference_seconds = $this->calcNightSeconds($startTime, $endTime, $request->breakTime);
         $overtimeMinutes = 0;
-        if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
-            $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? (int) $start->diffInSeconds($end, true) : (int) $start->diffInSeconds($nightOvertimeEnd, true);
-        } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
-            $night_difference_seconds = (int) $nightOvertimeStart->diffInSeconds($end, true) ;
-        } else if ($end->greaterThan($todayNightOverTime)){
-            $night_difference_seconds = (int) $todayNightOverTime->diffInSeconds($end, true);
-        } else {
-            $night_difference_seconds = 0;
-        }
-        if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
-            $night_difference_seconds -= $request->breakTime * 60;
-        }
+        // if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
+        //     $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? (int) $start->diffInSeconds($end, true) : (int) $start->diffInSeconds($nightOvertimeEnd, true);
+        // } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
+        //     $night_difference_seconds = (int) $nightOvertimeStart->diffInSeconds($end, true) ;
+        // } else if ($end->greaterThan($todayNightOverTime)){
+        //     $night_difference_seconds = (int) $todayNightOverTime->diffInSeconds($end, true);
+        // } else {
+        //     $night_difference_seconds = 0;
+        // }
+        // if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
+        //     $night_difference_seconds -= $request->breakTime * 60;
+        // }
         if(array_key_exists(37, $request->customValues) && $request->customValues[37] && in_array(2, $request->customValues[37])){
             $this->checkWaitingAllowance($request);
         }
