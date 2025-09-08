@@ -596,45 +596,55 @@ class RemindController extends Controller
     public function remind_form() {
         $active_user = $this->active_user();
         $userId = $active_user->id;
-        $forms = CustomForm::whereHas('users', fn($query) => $query->where('users.id', $userId))
-        ->where(function($q) use ($userId,){
-            $q->where(function ($query) use ($userId,) {
-                $query->where('repeat_setting', 0)
-                
-                ->whereDoesntHave('survey_answers', function ($q) use ($userId) {
-                    $q->where('user_id', $userId)->where('status', 2);
-                });
-            })
-            ->orWhere(function ($query) use ($userId,) {
-                $query->where('repeat_setting', 1)
-                ->where(function ($q) use ($userId,) {
+        $today = now();
+        $prevStart = $today->copy()->subMonthNoOverflow()->startOfMonth();
+        $prevEnd   = $today->copy()->subMonthNoOverflow()->endOfMonth()->endOfDay();
+        $currStart = $today->copy()->startOfMonth();
+        $currEnd   = $today->copy()->endOfMonth()->endOfDay();
 
-                    $instance = Carbon::today();
+        $forms = CustomForm::whereHas('users', fn($q) => $q->where('users.id', $userId))
+            ->where(function ($q) use ($userId, $today, $prevStart, $prevEnd, $currStart, $currEnd) {
 
-                    $q->where(function($q_s) use($userId, $instance){
-                        $q_s->whereDoesntHave('survey_answers', function ($q2) use ($userId, $instance) {
-                            $q2->where('user_id', $userId)
-                            ->where('status', 2)
-                            ->whereMonth('target_date', $instance->copy()->subMonth()->month)
-                            ->whereYear('target_date', $instance->copy()->subMonth()->year);
+                // non-repeating: show only if user has never completed (status=2) any answer
+                $q->where(function ($qq) use ($userId) {
+                    $qq->where('repeat_setting', 0)
+                    ->whereDoesntHave('survey_answers', fn($a) =>
+                        $a->where('user_id', $userId)->where('status', 2)
+                    );
+                })
+
+                // repeating
+                ->orWhere(function ($qq) use ($userId, $today, $prevStart, $prevEnd, $currStart, $currEnd) {
+                    $qq->where('repeat_setting', 1)
+                    ->where(function ($w) use ($userId, $today, $prevStart, $prevEnd, $currStart, $currEnd) {
+                        // BEFORE repeat day: must have no completed answer in PREVIOUS month
+                        $w->where(function ($w1) use ($userId, $today, $prevStart, $prevEnd) {
+                                $w1->where('repeat_day', '>', $today->day)
+                                ->whereDoesntHave('survey_answers', fn($a) =>
+                                    $a->where('user_id', $userId)
+                                        ->where('status', 2)
+                                        ->whereBetween('target_date', [$prevStart, $prevEnd])
+                                );
+                        })
+                        // ON/AFTER repeat day: must have no completed answer in CURRENT month
+                        ->orWhere(function ($w2) use ($userId, $today, $currStart, $currEnd) {
+                                $w2->where('repeat_day', '<=', $today->day)
+                                ->whereDoesntHave('survey_answers', fn($a) =>
+                                    $a->where('user_id', $userId)
+                                        ->where('status', 2)
+                                        ->whereBetween('target_date', [$currStart, $currEnd])
+                                );
                         });
                     });
-                    
-                })->orWhere(function ($q) use ($userId) {
-                    $instance = Carbon::today();
-                    $q->where('repeat_setting', 1)->where('repeat_day', '<=', $instance->day)->whereDoesntHave('survey_answers', function ($q2) use ($userId, $instance) {
-                        $q2->where('user_id', $userId)
-                        ->where('status', 2)
-                        ->whereMonth('target_date', $instance->month)
-                        ->whereYear('target_date', $instance->year);
-                    });
                 });
-            });
-        })
+            })
+            ->with([
+                'users',
+                'admins',
+                'survey_answers' => fn($q) => $q->select('user_id', 'custom_form_id') // this is fine; unrelated to filtering
+            ])
+            ->get();
 
-        ->with(['users', 'admins', 'survey_answers' => function ($query) {
-            $query->select('user_id', 'custom_form_id'); 
-        }])->get();
         
 
         
