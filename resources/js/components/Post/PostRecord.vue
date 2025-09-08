@@ -92,7 +92,7 @@
                     :style="{
                         borderBottom: index === record.entries.length - 1 
                         ? 'none' 
-                        : '1px solid var(--calendarBorder)'
+                        : '1px solid var(--check-inactive)'
                     }"
                     v-for="(entry, index) in record.entries"
                     :key="entry.id"
@@ -129,7 +129,7 @@
                 <div class="text-[14px] mr-[20px]">カロリー合計: <span v-if="totalCalories">🔥 </span>{{ amountOfMoneyParser(totalCalories) }} kcal</div>
                 <div class="text-[14px] cursor-pointer flex items-center gap-1" @click="viewEntries = !viewEntries">
                     <People size="25"/>
-                    {{ record.entries.length }}件
+                    {{ record.entries.length }}
                 </div>
             </div>
             <div v-if="record.app_type == 6 && record.refresh_amount && auth.id === record.user_id" class="post-footer-wrap">
