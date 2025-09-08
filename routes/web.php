@@ -302,7 +302,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/prepare_sharing_files', [PostController::class, 'prepare_sharing_files']);
         Route::post('/post_entries', [PostController::class, 'post_entries']);
         Route::post('/get_top_posts', [PostController::class, 'get_top_posts']);
-
+        Route::get('/get_refresh_post', [PostController::class, 'get_refresh_post']);
+        Route::patch('/post/refresh_approve/{id}', [PostController::class, 'post_refresh_approve']);
+        Route::delete('/post/refresh_delete/{id}', [PostController::class, 'post_refresh_delete']);
         
         Route::post('/get_calendar_data', [CalendarController::class, 'get_calendar_data']);
         Route::post('/get_possible_facilities', [CalendarController::class, 'get_possible_facilities']);
@@ -381,12 +383,14 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/save_weather', [CustomfieldController::class, 'saveWeather']);
 
         Route::post('/support_record_list', [SupportController::class, 'support_record_list']);
+        Route::post('/support_Regulation_list', [SupportController::class, 'support_Regulation_list']);
         Route::post('/support_feedback', [SupportController::class, 'support_feedback']);
         Route::post('/support_resolve_decision', [SupportController::class, 'support_resolve_decision']);
         Route::post('/support_add_consult', [SupportController::class, 'support_add_consult']);
         Route::get('/get_recieved_consults', [SupportController::class, 'get_recieved_consults']);
         Route::post('/add_memo_to_consult', [SupportController::class, 'add_memo_to_consult']);
         Route::post('/update_consult_status', [SupportController::class, 'update_consult_status']);
+        Route::post('/support_add_message', [SupportController::class, 'support_add_message']);
 
         Route::get('/get_notices', [NoticeController::class, 'get_notices']);
         Route::get('/get_notice', [NoticeController::class, 'get_notice']);

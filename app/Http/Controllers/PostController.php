@@ -140,7 +140,7 @@ class PostController extends Controller
         ->with('to_users')
         ->with(['entries' => function ($query) {
             $query->withCount('comments')
-            ->withCount('claps')->with('claps');
+            ->withCount('claps')->with('claps')->orderBy('created_at', 'desc');
         }])
         ->when($app_type == 2, function ($query) {
             $query->orderBy('status_flag', 'asc');
@@ -941,4 +941,35 @@ class PostController extends Controller
 
         return response()->json($entry_users);
     }
+    public function get_refresh_post(Request $request){
+        $status = $request->status ?? [];
+        $posts = PostRecord::query();
+        if (!empty($status)) {
+            $posts->whereIn('status_flag', $status);
+        }
+        $posts->where('app_type', 6)
+            ->where('refresh_amount', '>', 0)
+            ->with('receipts')
+            ->with('files')
+            ->with('user')
+            ->get();
+        $data = $posts
+                ->orderBy('created_at', 'desc')
+                ->orderBy('status_flag', 'asc');
+        return response()->json($data->paginate(30));
+    }
+    public function post_refresh_approve(string $id)
+    {
+        $post = PostRecord::findOrFail($id);
+        $post->status_flag = 1;
+        $post->save();
+
+        return response()->json($post);
+    }
+    public function post_refresh_delete(string $id)
+    {
+        PostRecord::findOrFail($id)->delete();
+        return response()->json(['message' => 'Successfully deleted']);
+    }
+
 }

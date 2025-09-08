@@ -402,6 +402,13 @@ const routes = [
                 meta: { head: '物品' },
                 props: true,
                 component: () => import('@/components/AccountControl/AssetControl/AssetControl.vue'),
+            },
+            {
+                path: 'refresh-control',
+                name: 'refresh-control',
+                meta: { head: 'リフレッシュ' },
+                props: true,
+                component: () => import('@/components/AccountControl/RefreshControl/RefreshControl.vue'),
             }
         ],
     },
@@ -433,7 +440,8 @@ const routes = [
         }, 
         component: () => import('./components/Support/Support.vue'),
         children: [
-            { path: 'faq',props: true, name: 'faq', component: () => import('./components/Support/Faq.vue') },
+            { path: 'faq',props: true, name: 'faq', component: () => import('./components/Support/Faq.vue') },            
+            // { path: 'regulations',props: true, name: 'regulations', component: () => import('./components/Support/Regulations/RegulationsContainer.vue')},
             { path: 'email_consult',props: true, name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
             { path: 'phone_consult',props: true, name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
             { path: 'email_inbox',props: true, name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')}

@@ -35,9 +35,10 @@
                     <PostIcon which="5" size="20"/>
                     グラリンピック
                 </div>
-                <!-- <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
+                <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
+                    <PostIcon which="6" size="20"/>
                     リフレッシュ
-                </div> -->
+                </div>
             </div>
             <div class="si-box" v-if="app_type == 5">
                 <p class="mb-[20px]">寄付先</p>
@@ -173,8 +174,10 @@
             </div>
             <div class="si-box" v-if="app_type !== 5">
                 <FileUploader
+                    :customPlaceHolder="refreshPlaceholder"
                     v-model="uploadedFiles"
                     path="/post_files"
+                    :key="`file-uploader-${app_type}`"
                 />
             </div>
             <div class="si-box" v-if="app_type == 6">
@@ -295,6 +298,9 @@ import { useDialog } from '@/composables/dialog'
             uploadedReceiptsRef.value,
             refreshAmountRef.value
         ]
+    })
+    const refreshPlaceholder = computed(() => {
+        return app_type.value === 6 ? 'リフレッシュ写真' : 'ファイル'
     })
     const possiblePath = computed(() => {
         return app_type.value === 2 ? 'post_get_challenge_users' : `post_get_post_users`
