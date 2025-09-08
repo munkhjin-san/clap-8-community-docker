@@ -9,7 +9,8 @@ export default {
     theme: {
         extend: {
             screens: {
-                'sm959' : '960px'
+                'sm959' : '960px',
+                'under960': {'max': '959px'},
             }
         },
     },
