@@ -12,6 +12,7 @@
                 @search-start="(word) => {keywords = word}"
             />   
             <div class="admin-work-header">
+                <div class="admin-button" @click="myCarCsv">マイカーCSV出力</div>
                 <div class="admin-button" @click="departmentCSV">部門CSV出力</div>
                 <div class="admin-button" @click="exportCSV">勤怠CSV出力</div>
                 <div class="admin-button" @click="expenseCSV">経費CSV出力</div>
@@ -119,6 +120,7 @@ import { useApi } from '@/composables/api';
     const { ping } = useDialog()
     const api = useApi()
     const fetch = ref(0)
+    const my_car_usage = ref([])
     const costOptions = [
         {label: '交通費', value: 1},
         {label:'通信費', value: 2},
@@ -167,6 +169,27 @@ import { useApi } from '@/composables/api';
             }
         });
         return days
+    }
+    const myCarCsv = () => {
+        const date = selectedDate.value
+        const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `マイカー_${date}月`});
+        const data = []
+        my_car_usage.value.forEach(car => {
+            const row = {
+                '氏名' : car.user_name,
+                '日付' : car.date,
+                '部門' : car.project,
+                'マイカー走行距離' : car.mileage
+            }
+            data.push(row)
+        })
+        if(data && data.length){
+            const csv = generateCsv(csvConfig)(data)
+            download(csvConfig)(csv);
+        } else {
+            ping('出力するデータはありません。')
+            return
+        }
     }
     const vehicleCSV = () => {
         const date = DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value}).toFormat('yyyy-MM')
@@ -324,6 +347,7 @@ import { useApi } from '@/composables/api';
         monthly_incentive.value = data.monthly_incentive
         timecard_costs.value = data.timecard_costs
         departmentCount.value = data.departments
+        my_car_usage.value = data.my_car_usage
 
     }
     const conversionTime = (value) => {

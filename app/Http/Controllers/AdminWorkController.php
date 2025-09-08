@@ -58,7 +58,7 @@ class AdminWorkController extends Controller{
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
               ->whereMonth('day', $currentMonth)
-              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage')
+              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project')
               ->orderBy('day', 'asc')
               ->with([
                 'custom_field_data_records' => function($q) {
@@ -70,7 +70,7 @@ class AdminWorkController extends Controller{
                     $q->with('before_user', 'after_user');
                 }
               ])
-              ->with('department');
+              ->with(['department', 'car_project']);
         }])
         ->with(['attendance_records' => function($q) use($month){
             $q->where('date_year_month', $month)->select('month_petition', 'user_id');
@@ -185,7 +185,7 @@ class AdminWorkController extends Controller{
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
             $allDepartmentCounts = collect();
-
+            $my_car_usage = [];
             
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 17);
@@ -263,7 +263,14 @@ class AdminWorkController extends Controller{
                             }
                             $departmentCountsTemp[$groupKey]['count']++;
                         }
-
+                        if ($record->car_mileage > 0) {
+                            $my_car_usage[] = [
+                                'user_name' => $user->name,
+                                'date' => $record->day,
+                                'mileage' => $record->car_mileage,
+                                'project' => $record?->car_project?->name,
+                            ];
+                        }
                         if($user->work_type == 1 && in_array($record->day, $legal_holiday_shifts)) {
                             // If work type is 1 and the day is a legal holiday, add to legal holiday worked time
                             $legal_holiday_worked_time_in_minutes += $record->work_time;
@@ -334,6 +341,7 @@ class AdminWorkController extends Controller{
                 'timecard_costs' => $time_card_costs,
                 'departments' => $allDepartmentCountsArray,
                 'holiday_shifts' => $holiday_shifts,
+                'my_car_usage' => $my_car_usage
             ];
 
         return response()->json($responseArray);
