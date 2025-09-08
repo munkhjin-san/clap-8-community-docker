@@ -176,6 +176,7 @@ import { useApi } from '@/composables/api';
         await api.post('/cancel_time_card', params, {
             toast: '承認取消しました。',
         })
+        emit('reload')
     }
   
     const closeOverTimeRequest = (val) => {

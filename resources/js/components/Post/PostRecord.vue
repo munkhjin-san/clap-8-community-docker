@@ -66,9 +66,9 @@
                 <div class="record-content" v-html="result"></div>
             </div>
             <PostFiles class="mt-4" v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
-            <div v-if="record.app_type == 6 && (auth.activeUser.id == 610 || record.user_id == auth.id)" class="mt-4">
+            <div v-if="record.app_type == 6 && record.user_id == auth.id" class="mt-4">
                 <div class="post-separetor">
-                    <div>領収</div>
+                    <div>領収（非公開）</div>
                 </div>
                 <PostFiles class="mt-4" path="/post_receipts" v-if="record.receipts.length" :items="record.receipts"/>
             </div>
@@ -83,9 +83,22 @@
                     :key="tag.id"
                 />
             </div>
-            <div class="my-5 flex flex-col gap-5" v-if="record.entries && record.entries.length">
-                <div v-for="entry in record.entries" :key="entry.id">
-                    <PostEntryRecord :entry="entry" @setClap="setClap"/>
+            <div class="my-5 flex flex-col gap-5" v-if="record.entries?.length">
+                <div
+                    v-for="entry in (viewEntries ? record.entries : record.entries.slice(0, 1))"
+                    :key="entry.id"
+                >
+                    <PostEntryRecord :entry="entry" @setClap="setClap" />
+                </div>
+
+                <div v-if="record.entries.length > 1" class="pt-2">
+                    <button
+                    type="button"
+                    class="text-sm text-blue-600 hover:underline"
+                    @click="viewEntries = !viewEntries"
+                    >
+                    {{ viewEntries ? '閉じる' : `他 ${record.entries.length - 1} 件を見る` }}
+                    </button>
                 </div>
             </div>
             <div v-if="challengeButtonView">                                    
@@ -107,8 +120,8 @@
                 <div class="text-[14px] mr-[20px]">カロリー合計: <span v-if="totalCalories">🔥 </span>{{ amountOfMoneyParser(totalCalories) }} kcal</div>
                 <div class="text-[14px] cursor-pointer" @click="viewParticipants">参加者 {{ participants.length }}人</div>
             </div>
-            <div v-if="record.app_type == 6 && record.refresh_amount && (auth.activeUser.id === 610 || auth.id === record.user_id)" class="post-footer-wrap">
-                <div class="text-[14px] cursor-pointer">リフレッシュ総額: {{ record.refresh_amount }}円</div>
+            <div v-if="record.app_type == 6 && record.refresh_amount && auth.id === record.user_id" class="post-footer-wrap">
+                <div class="text-[14px] cursor-pointer">リフレッシュ総額（非公開）: {{ record.refresh_amount }}円</div>
             </div>
             <div class="post-footer-wrap">
                 <svg @click="isExpanded = !isExpanded" class="comment-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
@@ -179,6 +192,7 @@ import PostEntryRecord from './PostEntryRecord.vue';
     const viewExpand = ref(false)
     const isExpanded = ref(false)
     const toUsersRef = useTemplateRef('toUsersRef');
+    const viewEntries = ref(false)
     onMounted(() => {
         const to_user = toUsersRef.value
         if(to_user && to_user.scrollHeight > to_user.clientHeight){

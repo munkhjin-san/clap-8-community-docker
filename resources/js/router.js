@@ -402,6 +402,13 @@ const routes = [
                 meta: { head: '物品' },
                 props: true,
                 component: () => import('@/components/AccountControl/AssetControl/AssetControl.vue'),
+            },
+            {
+                path: 'refresh-control',
+                name: 'refresh-control',
+                meta: { head: 'リフレッシュ' },
+                props: true,
+                component: () => import('@/components/AccountControl/RefreshControl/RefreshControl.vue'),
             }
         ],
     },
