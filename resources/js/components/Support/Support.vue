@@ -31,6 +31,7 @@
         <div class="support-container">
             <div class="support-category">
                 <router-link :to="{name: 'faq'}" :class="['t-selector', { tSelected: selectedRoute == 'faq'}]">よくある質問</router-link>
+                <router-link :to="{name: 'regulations'}" :class="['t-selector', { tSelected: selectedRoute == 'regulations'}]">規定</router-link>
                 <router-link :to="{name: 'email_consult'}" :class="['t-selector', { tSelected: selectedRoute == 'email_consult'}]">メール相談</router-link>
                 <router-link :to="{name: 'email_inbox'}" :class="['t-selector', { tSelected: selectedRoute == 'email_inbox'}]">メール相談（受信BOX）</router-link>
                 <router-link :to="{name: 'phone_consult'}" :class="['t-selector', { tSelected: selectedRoute == 'phone_consult'}]">電話相談</router-link>

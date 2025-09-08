@@ -562,4 +562,12 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::get('/db_structure', [AutoJobController::class, 'db_structure']);
 
+        // Regulations
+        Route::get('/get_regulation_list', [SupportController::class, 'get_regulations']);
+        Route::get('/regulations', [SupportController::class, 'get_regulations']);
+        Route::post('/regulation_add_record', [SupportController::class, 'save_regulation']);
+        Route::post('/regulation_delete', [SupportController::class, 'delete_regulation']);
+        Route::post('/regulation_file_upload', [SupportController::class, 'regulation_file_upload']);
+        Route::post('/support_add_message', [SupportController::class, 'support_add_message']);
+
 });

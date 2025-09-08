@@ -11,17 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('salary_issues', function (Blueprint $table) {
+        Schema::create('regulation_records', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('user_id')->nullable();
+            $table->integer('user_id')->nullable();
             $table->text('title')->nullable();
-            $table->text('theme')->nullable();
             $table->text('content')->nullable();
-            $table->text('ability')->nullable();
-            $table->text('review')->nullable();
-            $table->date('date')->nullable();
-            $table->softDeletes();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
@@ -30,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('salary_issues');
+        Schema::dropIfExists('regulation_records');
     }
 };
