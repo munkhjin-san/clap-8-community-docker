@@ -15,7 +15,7 @@
                     v-html="urlCheck(regulation.content)"></p>
             </div>
             <div @click="toggleFull" class="jump-link" style="margin-top:10px"
-                v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '46px' ? '続きを表示する' : '閉じる' }}
+                v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '48px' ? '続きを表示する' : '閉じる' }}
             </div>
         </div>
         <div v-if="regulation.regulation_files && regulation.regulation_files.length" style="margin-top: 20px;">
@@ -43,14 +43,14 @@ const dynamicHeight = ref('auto')
 const contentBody = useTemplateRef('contentBody')
 onMounted(() => {
     if (contentBody.value) {
-        if (contentBody.value?.clientHeight > 42) {
-            dynamicHeight.value = '46px'
+        if (contentBody.value?.clientHeight > 48) {
+            dynamicHeight.value = '48px'
         }
     }
 })
 
 const toggleFull = () => {
-    dynamicHeight.value = dynamicHeight.value == '46px' ? `${contentBody.value?.clientHeight}px` : '46px'
+    dynamicHeight.value = dynamicHeight.value == '48px' ? `${contentBody.value?.clientHeight}px` : '48px'
 }
 </script>
 <style scoped>
