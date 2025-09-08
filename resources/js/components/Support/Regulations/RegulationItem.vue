@@ -15,7 +15,7 @@
                     v-html="urlCheck(regulation.content)"></p>
             </div>
             <div @click="toggleFull" class="jump-link" style="margin-top:10px"
-                v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '48px' ? '続きを表示する' : '閉じる' }}
+                v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == staticHeight + 'px' ? '続きを表示する' : '閉じる' }}
             </div>
         </div>
         <div v-if="regulation.regulation_files && regulation.regulation_files.length" style="margin-top: 20px;">
@@ -29,6 +29,7 @@ import { Regulation } from '@/interface/regulationInterface';
 import { urlCheck } from '@/utils/tools';
 import { onMounted, ref, useTemplateRef } from 'vue';
 import RegulationFiles from './RegulationFiles.vue';
+import { useResponsive } from '@/store/responsive';
 
 const props = defineProps<{
     regulation: Regulation
@@ -41,16 +42,18 @@ const emit = defineEmits<{
 }>();
 const dynamicHeight = ref('auto')
 const contentBody = useTemplateRef('contentBody')
+const mobile = useResponsive()
+const staticHeight = ref(mobile.mobile ? 42 : 48)
 onMounted(() => {
     if (contentBody.value) {
-        if (contentBody.value?.clientHeight > 48) {
-            dynamicHeight.value = '48px'
+        if (contentBody.value?.clientHeight > staticHeight.value) {
+            dynamicHeight.value = staticHeight.value + 'px'
         }
     }
 })
 
 const toggleFull = () => {
-    dynamicHeight.value = dynamicHeight.value == '48px' ? `${contentBody.value?.clientHeight}px` : '48px'
+    dynamicHeight.value = dynamicHeight.value == staticHeight.value + 'px' ? `${contentBody.value?.clientHeight}px` : staticHeight.value + 'px'
 }
 </script>
 <style scoped>
