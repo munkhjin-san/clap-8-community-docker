@@ -1,6 +1,6 @@
 <template>
     <div >
-        <div class="bg-[var(--background-color)] mr-[20px]">
+        <div class="bg-[var(--background-color)] mr-[20px] under960:ml-[20px] mt-[20px]">
             
             <div class="regulations-list">
                 <RegulationItem 
