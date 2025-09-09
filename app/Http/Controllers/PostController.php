@@ -890,7 +890,7 @@ class PostController extends Controller
     public function get_top_posts(Request $request){
 
         $entry_users = User::whereHas('post_entries')
-        ->whereNotIn('id', [513])
+        // ->whereNotIn('id', [513])
         ->select('id', 'name', 'icon_path', 'icon_bg')
         ->get();
         $awards = [
