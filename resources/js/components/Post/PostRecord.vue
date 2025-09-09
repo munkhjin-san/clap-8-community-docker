@@ -42,11 +42,6 @@
         <div v-if="record.app_type == 5 && record.donation_target">
             <p>寄付先: {{ record.donation_target }}</p>
         </div>
-        <div v-if="record.app_type == 5 && sportTags.length" class="my-[15px]">
-            <div class="flex flex-wrap gap-[15px]">
-                <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px]" v-for="tag in sportTags" :key="tag.id">{{ tag.text }}</div>
-            </div>
-        </div>
         <div>
             <div>
                 <div class="record-content" v-html="body"></div>
@@ -66,7 +61,7 @@
                 <div class="record-content" v-html="result"></div>
             </div>
             <PostFiles class="mt-4" v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
-            <div v-if="record.app_type == 6 && record.user_id == auth.id" class="mt-4">
+            <div v-if="record.app_type == 6 && (auth.activeUser.id == 610 || record.user_id == auth.id)" class="mt-4">
                 <div class="post-separetor">
                     <div>領収（非公開）</div>
                 </div>
@@ -83,21 +78,9 @@
                     :key="tag.id"
                 />
             </div>
-            <div class="my-5 flex flex-col gap-5 bg-[var(--bg2)] p-2" v-if="record.entries?.length && viewEntries">
-                <div class="bg-[var(--bg2)] flex justify-between sticky top-0 z-10 p-2 items-center cursor-pointer">
-                    <div class="text-[14px] cursor-pointer" @click="viewParticipants">参加者 {{ participants.length }}人</div>
-                    <CloseIcon size="12" @click="closeAndScroll(record.id)"/>
-                </div>
-                <div
-                    :style="{
-                        borderBottom: index === record.entries.length - 1 
-                        ? 'none' 
-                        : '1px solid var(--check-inactive)'
-                    }"
-                    v-for="(entry, index) in record.entries"
-                    :key="entry.id"
-                >
-                    <PostEntryRecord :entry="entry" @setClap="setClap" />
+            <div class="my-5 flex flex-col gap-5" v-if="record.entries && record.entries.length">
+                <div v-for="entry in record.entries" :key="entry.id">
+                    <PostEntryRecord :entry="entry" @setClap="setClap"/>
                 </div>
 
                 <!-- <div v-if="record.entries.length > 1" class="pt-2">
@@ -122,6 +105,9 @@
             <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
         </div>
         <div class="post-footer">
+             <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable">
+                <div class="text-[14px]">経費合計: {{ totalExpenses }}円</div>
+            </div>
             <div v-if="record.app_type == 2 && record.chargeable" class="post-footer-wrap">
                 <div class="text-[14px] cursor-pointer" @click="viewSupporters" v-if="supporters.length">サポーター {{ supporters.length }}人</div>
             </div>
@@ -132,9 +118,10 @@
                     {{ record.entries.length }}
                 </div>
             </div>
-            <div v-if="record.app_type == 6 && record.refresh_amount && auth.id === record.user_id" class="post-footer-wrap">
-                <div class="text-[14px] cursor-pointer">リフレッシュ総額（非公開）: {{ record.refresh_amount }}円</div>
+            <div v-if="record.app_type == 6 && record.refresh_amount && (auth.activeUser.id === 610 || auth.id === record.user_id)" class="post-footer-wrap">
+                <div class="text-[14px] cursor-pointer">リフレッシュ総額: {{ record.refresh_amount }}円</div>
             </div>
+           
             <div class="post-footer-wrap">
                 <svg @click="isExpanded = !isExpanded" class="comment-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
                     <path d="M10.788 8.109c1.574-0.063 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.345 0.021-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.896 0.010-0.459 0.386-0.823 0.834-0.844zM10.788 13.050c1.574-0.052 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.356 0.010-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.907 0.021-0.438 0.396-0.803 0.844-0.823zM10.788 17.991c0.74-0.052 1.491-0.083 2.231-0.104l1.115-0.031c0.375-0.010 0.74-0.010 1.115-0.010 0.74 0 1.491 0.010 2.231 0.042 0.75 0.031 1.491 0.063 2.231 0.136 0.459 0.052 0.803 0.459 0.75 0.928-0.042 0.407-0.365 0.709-0.75 0.75-0.75 0.073-1.491 0.115-2.231 0.136-0.75 0.031-1.491 0.042-2.231 0.042-0.375 0-0.74 0-1.115-0.010l-1.115-0.031c-0.74-0.021-1.491-0.052-2.231-0.104-0.479-0.042-0.844-0.459-0.803-0.938 0.031-0.427 0.375-0.771 0.803-0.803z"></path>
@@ -178,8 +165,6 @@ import { amountOfMoneyParser, customParser } from '@/utils/tools';
 import { Post, PostEntry } from '@/interface/postInterface';
 import { User } from '@/interface/globalInterface';
 import PostEntryRecord from './PostEntryRecord.vue';
-import People from '../Icons/People.vue';
-import CloseIcon from '../Form/CloseIcon.vue';
     const messageUsers = useMessageUsers()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -241,6 +226,14 @@ import CloseIcon from '../Form/CloseIcon.vue';
         }
         return items
     })
+    const totalExpenses = computed(() => {
+        if(props.record.grants && props.record.grants.length){
+            const amounts = props.record.grants.map(ob => ob.expenses ? ob.expenses : 0)
+            const sum = amounts.reduce((accumulator, currentValue) => accumulator + currentValue, 0);
+            return sum
+        }
+        return 0
+    })
     const isMultipleUsers = computed(() => {
         return responsive.mobile && props.record && props.record.to_users && props.record.to_users.length > 1
     })
@@ -250,7 +243,8 @@ import CloseIcon from '../Form/CloseIcon.vue';
             0: DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち',
             1: '達成',
             2: '未達成',
-            3: '中止'
+            3: '中止',
+            4: '不成立',
         };
         return statusMap[props.record.status_flag];
     });
@@ -309,9 +303,6 @@ import CloseIcon from '../Form/CloseIcon.vue';
     const tags = computed(() => {
         return props.record.tags ? props.record.tags : []
     })
-    const sportTags = computed(() => {
-        return props.record.sport_tags ? props.record.sport_tags : []
-    })
     const title = computed(() => {
         return props.record && props.record.title ? props.record.title : ''
     })
@@ -335,7 +326,7 @@ import CloseIcon from '../Form/CloseIcon.vue';
         return urlParse    
     })
     const updateStatus = () => {
-        if(isOwner.value){
+        if(isOwner.value && props.record.status_flag < 4){
             emit('updateStatus', props.record)
         }
     }

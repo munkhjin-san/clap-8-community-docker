@@ -132,12 +132,12 @@ class PostController extends Controller
         
         ->with('user')
         ->with('tags')
-        ->with('sport_tags')
         ->with('files')
         ->with('receipts')
         ->withCount('comments')
         ->with('claps')
         ->with('to_users')
+        ->with('grants')
         ->with(['entries' => function ($query) {
             $query->withCount('comments')
             ->withCount('claps')->with('claps')->orderBy('created_at', 'desc');
@@ -188,8 +188,6 @@ class PostController extends Controller
         $super = $request->super;
         $key = $request->key;
         $special = $request->special ?? [];
-
-        $condition = $request->condition ?? [];
         $tag_text = TagRecord::where('deleted_flag','=', 0)
         ->when(!$super, function ($query) use ($key) {
             $query->where('text', 'LIKE', '%' . $key . '%');
@@ -198,14 +196,6 @@ class PostController extends Controller
         ->when(empty($key), function ($query) use ($key) {
             
             $query->take(40);
-        })
-        ->when($condition, function ($query) use ($condition) {
-            foreach($condition as $con){
-                $query->where($con['field'], $con['value']);
-            }
-        })
-        ->when(!$condition, function ($query) {
-            $query->where('type', 0);
         })
         ->get([
             'id',
@@ -350,6 +340,8 @@ class PostController extends Controller
                 $record->date_end = $request->date_end;
                 $record->award_entry = $request->award_entry;
                 $record->chargeable = $request->chargeable;
+                $record->grantable = $request->grantable;
+                
             }else{
                 $record->content = $request->post_content;
             }    
@@ -362,23 +354,18 @@ class PostController extends Controller
             $record->save();
             if($request->app_type == 2 || $request->app_type == 0){
                 $record->to_users()->sync($request->to_users);
-            }            
+            }           
+            if ($request->grantable) {
+                $record->grants()->createMany($request->grants);
+            } 
             $tagIds = [];
-            $sportTagIds = [];
             foreach ($request->tags as $text) {
                 $tag = TagRecord::firstOrCreate(['text' => $text]);
 
                 $tagIds[] = $tag->id;
                 $tag->increment('hits');
             }
-            foreach($request->sport_tags as $text) {
-                $sTag = TagRecord::updateOrCreate(['text' => $text, 'type' => 1]);
-
-                $sportTagIds[] = $sTag->id;
-                $sTag->increment('hits');
-            }
             $record->tags()->sync($tagIds);
-            $record->sport_tags()->sync($sportTagIds);
 
                 $record->files()->sync($request->file_ids);
                 if(!$request->edit_id){
@@ -482,7 +469,7 @@ class PostController extends Controller
         }    
         $app_name_list = [
             "post" => 'ポスト',
-            "post_entry" => 'グラリンピックエントリー',
+            "post_entry" => 'グラリンピクエントリー',
         ];
         $app_name_title = $app_name_list[$request->app_name];
         $from_name = Auth::user()->name . 'さんから、' . $app_name_title .'へコメントが届きました。'; 
@@ -621,7 +608,7 @@ class PostController extends Controller
             }
             
             $post_from = $list->last_post;            
-            $post_to = $post->id;
+            $post_to = $post?->id;
             $post_difference = PostRecord::whereBetween('id', [$post_from, $post_to])->count(); 
             if($post_difference > 0){
                 $post_difference -= 1 ;
@@ -894,19 +881,16 @@ class PostController extends Controller
             ]
         );
         $file_ids = $request->file_ids ?? [];
-        $photo_ids = $request->photo_ids ?? [];
         $entry->files()->sync($file_ids);
-        $entry->photos()->sync($photo_ids);
         return response()->json([
             'entry' => $entry,
-            'files' => $entry->files,
-            'photos' => $entry->photos
+            'files' => $entry->files
         ]);
     }
     public function get_top_posts(Request $request){
 
         $entry_users = User::whereHas('post_entries')
-        ->whereNotIn('id', [513])
+        // ->whereNotIn('id', [513])
         ->select('id', 'name', 'icon_path', 'icon_bg')
         ->get();
         $awards = [
@@ -940,6 +924,63 @@ class PostController extends Controller
         }
 
         return response()->json($entry_users);
+    }
+    public function post_remove_file(Request $request) {
+        $validatedData = $request->validate([
+            'file_path' => 'required|string',
+        ]);
+
+        $file_path = $validatedData['file_path'];
+        $relativePath = 'post_grant_files/' . $file_path;
+
+        if (Storage::disk('local')->exists($relativePath)) {
+            Storage::disk('local')->delete($relativePath);
+        }
+
+        return response()->json(['message' => 'File removed successfully']);
+    }
+    public function post_grant_upload(Request $request){
+        $path = '/post_grant_files';
+        $fileContent = $request->file('file');
+        $file_path = $this->path_generator();           
+        $file_extension = $fileContent->getClientOriginalExtension();
+            
+        $mime_type = $fileContent->getMimeType();
+        $mime_type_array = explode('/',$mime_type);
+        $file_type = $mime_type_array[0];           
+        
+        if($file_type == 'image' && $file_extension !== 'svg'){
+            $img = Image::read($fileContent);
+            $file_extension = 'webp';
+            $img->scale(640);
+            $file_path .= '.webp';
+            File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . $path, 0755, true, true);                      
+            $img->toWebp(80)->save(storage_path('app') . $path .'/'. $file_path);  
+        } else {
+            $file_path .= ".{$file_extension}";
+            Storage::disk('local')->putFileAs(
+                $path, $fileContent, $file_path
+            );
+        }
+        $data = [
+            "file_path" => $file_path,
+            "file_type" => $file_type,
+            "file_extension" => $file_extension
+        ];
+        return response()->json($data); 
+    }
+    private function path_generator(){
+        $timestamp = time();
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $randomString = '';
+        for ($i = 0; $i < 5; $i++) {
+            $randomString .= $characters[rand(0, strlen($characters) - 1)];
+        }
+        $iconId = $timestamp . $randomString;
+        if (strlen($iconId) > 15) {
+            $iconId = substr($iconId, 0, 15);
+        }    
+        return $iconId;
     }
     public function get_refresh_post(Request $request){
         $status = $request->status ?? [];
