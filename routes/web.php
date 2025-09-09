@@ -46,6 +46,8 @@ Route::match(['get', 'post'],'/zoom3_event', [AutoJobController::class, 'zoom_ev
 Route::match(['get', 'post'],'/zoom2_event', [AutoJobController::class, 'zoom_event']);
 Route::match(['get', 'post'],'/zoom1_event', [AutoJobController::class, 'zoom_event']);
 
+Route::get("/departure_report", [AutoJobController::class, 'departure_report'])->name('departure_activate')->middleware('signed');;
+
 Route::get('app/public/{app_name}', function ($app_name, Request $request) {    
     $query = $request->getQueryString(); 
     $url = "/{$app_name}";    
@@ -347,6 +349,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_performance_records', [MemberController::class, 'get_performance_records']);
         Route::post('/get_job_evaluation', [MemberController::class, 'get_job_evaluation']);
         Route::get('/get_evaluation_levels', [ProjectController::class, 'get_evaluation_levels']);
+        Route::get('/mentionable_users', [ProjectController::class, 'mentionable_users']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);

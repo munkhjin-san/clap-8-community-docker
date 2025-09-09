@@ -240,6 +240,7 @@ import CloseIcon from '../Form/CloseIcon.vue';
             }           
         }  
     })  
+    
     const closeAndScroll = (id: number) => {
         viewEntries.value = false
         nextTick(() => {
