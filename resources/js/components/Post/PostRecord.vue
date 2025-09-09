@@ -61,6 +61,26 @@
                 <div class="record-content" v-html="result"></div>
             </div>
             <PostFiles class="mt-4" v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
+            <div class="mt-4" v-if="record.grants && record.grants.length">
+                <div class="post-separetor">
+                    <div>必 要 経 費</div>
+                </div>
+                <div v-for="grant in record.grants" :key="grant.id">
+                    <div>{{ grant.content }}</div>
+                    <div>{{ grant.expenses }}円</div>
+                    <div v-if="grant.file_path">
+                        <div v-if="grant.file_path?.split('.').pop() == 'webp'">
+                            <img @click="workFilePreview(grant.file_path, 'image', '/cdn/post_grant_files')" style="height:120px;cursor: pointer;" v-if="grant?.file_path" :src="`/cdn/post_grant_files/${grant?.file_path}`"/>
+                        </div>
+                        <div v-else-if="grant.file_path?.split('.').pop() == 'pdf'">
+                            <div class="cursor-pointer" style="position:relative;" @click="workFilePreview(grant.file_path, 'application', '/cdn/post_grant_files')">
+                                <FileIcon ext="pdf"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+               
+            </div>
             <div v-if="record.app_type == 6 && (auth.activeUser.id == 610 || record.user_id == auth.id)" class="mt-4">
                 <div class="post-separetor">
                     <div>領収（非公開）</div>
@@ -78,9 +98,21 @@
                     :key="tag.id"
                 />
             </div>
-            <div class="my-5 flex flex-col gap-5" v-if="record.entries && record.entries.length">
-                <div v-for="entry in record.entries" :key="entry.id">
-                    <PostEntryRecord :entry="entry" @setClap="setClap"/>
+            <div class="my-5 flex flex-col gap-5 bg-[var(--bg2)] p-2" v-if="record.entries?.length && viewEntries">
+                <div class="bg-[var(--bg2)] flex justify-between sticky top-0 z-10 p-2 items-center cursor-pointer">
+                    <div class="text-[14px] cursor-pointer" @click="viewParticipants">参加者 {{ participants.length }}人</div>
+                    <CloseIcon size="12" @click="closeAndScroll(record.id)"/>
+                </div>
+                <div
+                    :style="{
+                        borderBottom: index === record.entries.length - 1 
+                        ? 'none' 
+                        : '1px solid var(--check-inactive)'
+                    }"
+                    v-for="(entry, index) in record.entries"
+                    :key="entry.id"
+                >
+                    <PostEntryRecord :entry="entry" @setClap="setClap" />
                 </div>
 
                 <!-- <div v-if="record.entries.length > 1" class="pt-2">
@@ -118,8 +150,8 @@
                     {{ record.entries.length }}
                 </div>
             </div>
-            <div v-if="record.app_type == 6 && record.refresh_amount && (auth.activeUser.id === 610 || auth.id === record.user_id)" class="post-footer-wrap">
-                <div class="text-[14px] cursor-pointer">リフレッシュ総額: {{ record.refresh_amount }}円</div>
+            <div v-if="record.app_type == 6 && record.refresh_amount && auth.id === record.user_id" class="post-footer-wrap">
+                <div class="text-[14px] cursor-pointer">リフレッシュ総額（非公開）: {{ record.refresh_amount }}円</div>
             </div>
            
             <div class="post-footer-wrap">
@@ -165,6 +197,9 @@ import { amountOfMoneyParser, customParser } from '@/utils/tools';
 import { Post, PostEntry } from '@/interface/postInterface';
 import { User } from '@/interface/globalInterface';
 import PostEntryRecord from './PostEntryRecord.vue';
+import { workFilePreview } from '@/utils/workApi';
+import People from '../Icons/People.vue';
+import CloseIcon from '../Form/CloseIcon.vue';
     const messageUsers = useMessageUsers()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
