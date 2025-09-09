@@ -303,7 +303,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/prepare_sharing_files', [PostController::class, 'prepare_sharing_files']);
         Route::post('/post_entries', [PostController::class, 'post_entries']);
         Route::post('/get_top_posts', [PostController::class, 'get_top_posts']);
-
+        Route::post('/post_grant_upload', [PostController::class, 'post_grant_upload']);
+        Route::post('/post_remove_file', [PostController::class, 'post_remove_file']);
+        Route::get('/get_refresh_post', [PostController::class, 'get_refresh_post']);
+        Route::patch('/post/refresh_approve/{id}', [PostController::class, 'post_refresh_approve']);
+        Route::delete('/post/refresh_delete/{id}', [PostController::class, 'post_refresh_delete']);
         
         Route::post('/get_calendar_data', [CalendarController::class, 'get_calendar_data']);
         Route::post('/get_possible_facilities', [CalendarController::class, 'get_possible_facilities']);
@@ -564,5 +568,31 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_asset_badge', [ProjectController::class, 'get_asset_badge']);
 
         Route::get('/db_structure', [AutoJobController::class, 'db_structure']);
+
+        Route::get('/drive', [DriveController::class,'index']);
+        Route::post('/drive/folders', [DriveController::class,'createFolder']);
+        Route::post('/drive/upload', [DriveController::class,'upload']);
+        Route::patch('/drive/{id}', [DriveController::class,'rename']);
+        Route::delete('/drive/{id}', [DriveController::class,'destroy']);
+        Route::get('/drive_thumbnail/{b64path}/{size}/{color?}', [DriveController::class, 'drive_thumbnail'])
+        ->where([
+            'b64path' => '[A-Za-z0-9\-_]+',    // base64url
+            'size'    => 'original|\d{1,4}',   // “original” or px (e.g., 128)
+            'color'   => '[A-Fa-f0-9]{6}',     // hex without '#'
+        ]);
+        Route::get('/drive/files/{id}/download', [DriveController::class, 'downloadFile']);
+        Route::get('/drive/folders/{id}/download.zip', [DriveController::class, 'downloadFolderZip']);
+        Route::post('/drive/zip', [DriveController::class, 'downloadMultiZip']);
+        Route::get('/drive/{id}/sharing',  [DriveController::class,'show']);     // read current state
+        Route::put('/drive/{id}/sharing',  [DriveController::class,'update']);   // set visibility + members (+ cascade)
+        Route::post('/drive/{id}/share/grant',  [DriveController::class,'grant']);  // optional fine-grain
+        Route::delete('/drive/{id}/share/revoke',[DriveController::class,'revoke']);
+        // Regulations
+        Route::get('/get_regulation_list', [SupportController::class, 'get_regulations']);
+        Route::get('/regulations', [SupportController::class, 'get_regulations']);
+        Route::post('/regulation_add_record', [SupportController::class, 'save_regulation']);
+        Route::post('/regulation_delete', [SupportController::class, 'delete_regulation']);
+        Route::post('/regulation_file_upload', [SupportController::class, 'regulation_file_upload']);
+        Route::post('/support_add_message', [SupportController::class, 'support_add_message']);
 
 });
