@@ -71,7 +71,7 @@
                         style="max-width:100%;margin:auto;max-height:100%;cursor: pointer;" 
                         class="list-image-mobile" 
                         :src=fileSrc(fileModel)
-                        @click="workFilePreview(fileModel, file_type)"
+                        @click="workFilePreview(fileModel, file_type, '/cdn/timecard_files')"
                     />
                     <div @click.stop="fileUpCancel()" class="cancelButton">
                         <svg @click.prevent version="1.1" xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 32 32" fill="var(--background-color)">
@@ -80,7 +80,7 @@
                     </div>  
                 </div>
                 <div v-else class="cost-file-container" @click.stop >   
-                    <div style="position:relative;" @click="workFilePreview(fileModel, file_type)">
+                    <div style="position:relative;" @click="workFilePreview(fileModel, file_type, '/cdn/timecard_files')">
                         <FileIcon ext="pdf"/>
                     </div>
                     <div @click.stop="fileUpCancel()" class="cancelButton">

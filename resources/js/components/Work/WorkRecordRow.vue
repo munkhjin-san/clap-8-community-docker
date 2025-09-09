@@ -63,10 +63,10 @@
                     <div v-for="cost in item.time_card?.timecard_costs" :key="cost.id">
                         <div style="word-break: break-word;" v-html="formatCostString(cost)"></div>
                         <div v-if="cost.file_path?.split('.').pop() == 'webp'">
-                            <img @click="workFilePreview(cost.file_path, 'image')" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="`/cdn/timecard_files/${cost?.file_path}`"/>
+                            <img @click="workFilePreview(cost.file_path, 'image', '/cdn/timecard_files')" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="`/cdn/timecard_files/${cost?.file_path}`"/>
                         </div>
                         <div v-else-if="cost.file_path?.split('.').pop() == 'pdf'">
-                            <div class="cursor-pointer" style="position:relative;" @click="workFilePreview(cost.file_path, 'application')">
+                            <div class="cursor-pointer" style="position:relative;" @click="workFilePreview(cost.file_path, 'application', '/cdn/timecard_files')">
                                 <FileIcon ext="pdf"/>
                             </div>
                         </div>
