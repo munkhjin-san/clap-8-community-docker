@@ -57,9 +57,9 @@ export const getShiftWithWorkGroup = async(yearMonth: string, checkedUsers: numb
     return fetchData('/get_shift_with_work_group', yearMonth, checkedUsers)
 }
 
-export const workFilePreview = (file: string, type: string) => {
+export const workFilePreview = (file: string, type: string, base: string) => {
     const filePreview = useFilePreview()
-    const file_path = `/cdn/timecard_files/${file}`
+    const file_path = `${base}/${file}`
     let target_data: any
     if(type == 'image'){
         target_data = {
