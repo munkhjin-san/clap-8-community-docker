@@ -233,6 +233,12 @@ const routes = [
                         name: 'task-calendar',
                         props: true,
                         component: () => import('./components/Project/ProjectTabs/TaskCalendar.vue'),
+                    },
+                    {
+                        path: 'file-storage',
+                        name: 'file-storage',
+                        props: true,
+                        component: () => import ('./components/Project/ProjectTabs/FileStorage.vue'),
                     }
                     
                 ]

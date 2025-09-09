@@ -39,6 +39,18 @@
                     リフレッシュ
                 </div> -->
             </div>
+            <div class="si-box" v-if="app_type == 2">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">チャレンジ補助金</p>
+                </div>
+                <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top: 10px;">    
+                    <input v-model="grantable" type="checkbox" id="charge">
+                    <label for="charge" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    
+                </div> 
+            </div>    
             <div class="si-box" v-if="app_type == 5">
                 <p class="mb-[20px]">寄付先</p>
                 <OptionSelector 
@@ -50,14 +62,13 @@
                     v-model="selectedNpo"
                 />
             </div>
-            <div class="si-box" v-if="app_type == 5">
+            <div class="si-box">
                 <TagSelector 
-                    placeHolder="スポーツ種目（自由入力可）"
+                    placeHolder="タグ選択（＃なし）"
                     :suggestion="tagSuggestionText"
-                    :condition="[{field: 'type', value: 1}]"
-                    v-model="sportTags"
+                    v-model="tags"
                 />
-            </div>    
+            </div>
 
             <div class="si-box">
                 <ShortInput 
@@ -99,7 +110,7 @@
                 <LongInput
                     v-model="content"  
                     ref="contentRef"
-                    :placeHolder="app_type == 5 ? 'メッセージ（必須）' :`${appNameJp}内容を入力（必須）`"
+                    :placeHolder="`${appNameJp}内容を入力（必須）`"
                     name="contentRef"
                     rules="required|max:2000"
                 />  
@@ -115,7 +126,20 @@
                     rules="required|max:2000"
                 /> 
             </div>
-
+            <div class="si-box" v-if="app_type == 2 && grantable">
+                <p class="form-lbl" style="font-size: 14px;">必要経費</p>
+               <PostExpenses 
+                    v-for="cost, index in costs"
+                    :key="index"
+                    v-model:content="cost.content"
+                    v-model:expenses="cost.expenses"
+                    v-model:file_path="cost.file_path"
+                    :fieldIndex="index"
+                    @addCostField="addCostField"
+                    @removeCostField="removeCostField"
+                    @removeFile="removeFile"
+               />
+            </div>
             <div class="si-box" v-if="appName == 'challenge' || app_type == 2">
                 <p class="form-lbl" style="font-size: 14px;">実施期間（必須）</p>
                 <div style="display:flex;margin-top: 10px;position: relative;width:100%">
@@ -152,18 +176,11 @@
                     </label>
                     
                 </div> 
-            </div>   
-            <div class="si-box">
-                <TagSelector 
-                    placeHolder="タグ選択（＃なし）"
-                    :suggestion="tagSuggestionText"
-                    v-model="tags"
-                />
-            </div>    
+            </div>       
             
             <div class="si-box" v-if="app_type == 6">
                 <ShortInput 
-                    placeHolder="利用金額 (必須)"
+                    placeHolder="額 (必須)"
                     :rules="'required'"
                     customClass="full"
                     ref="refreshAmountRef"
@@ -171,7 +188,7 @@
                     v-model="refresh_amount"
                 />
             </div>
-            <div class="si-box" v-if="app_type !== 5">
+            <div class="si-box">
                 <FileUploader
                     v-model="uploadedFiles"
                     path="/post_files"
@@ -179,14 +196,14 @@
             </div>
             <div class="si-box" v-if="app_type == 6">
                 <FileUploader 
-                    customPlaceHolder="領収書添付（必須）" 
+                    customPlaceHolder="領収（必須）" 
                     v-model="uploadedReceipts" 
                     path="/post_receipts"
                     rules="required"
                     ref="uploadedReceiptsRef"
                 />
             </div>
-            <div class="si-box" v-if="app_type !== 5">
+            <div class="si-box">
                 <ShortInput 
                     name="recordUrl" 
                     placeHolder="URL" 
@@ -210,7 +227,7 @@
 <script setup lang="ts">      
 import TagSelector from '../Form/TagSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import { computed, onMounted, ref, useTemplateRef, reactive } from 'vue'
 import ShortInput from '../Form/ShortInput.vue'
 import LongInput from '../Form/LongInput.vue'
 import MemberSelector from '../Form/MemberSelector.vue'
@@ -223,6 +240,7 @@ import { useApi } from '@/composables/api'
 import { Post, PostQuery } from '@/interface/postInterface'
 import OptionSelector from '../Form/OptionSelector.vue'
 import { useDialog } from '@/composables/dialog'
+import PostExpenses from './PostExpenses.vue'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -245,8 +263,7 @@ import { useDialog } from '@/composables/dialog'
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     const refresh_amount = ref(props.editTarget && props.editTarget.refresh_amount ? props.editTarget.refresh_amount : "")
     
-    const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])   
-    const sportTags = ref(props.editTarget && props.editTarget.sport_tags ? props.editTarget.sport_tags : []) 
+    const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])    
     const date_start = ref(props.editTarget && props.editTarget.date_start ? props.editTarget.date_start : "")
     const date_end = ref(props.editTarget && props.editTarget.date_end ? props.editTarget.date_end : "")
     const processing = ref(false)
@@ -264,6 +281,7 @@ import { useDialog } from '@/composables/dialog'
     const npoRef = useTemplateRef('npoRef')
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
+    const grantable = ref(true)
     const npoList = [
         'e-Education',
         'にこスマ九州',
@@ -296,6 +314,12 @@ import { useDialog } from '@/composables/dialog'
             refreshAmountRef.value
         ]
     })
+    const costs = reactive<{
+        content: string
+        expenses: number | null
+        file_path: string | null
+    }[]>([])
+
     const possiblePath = computed(() => {
         return app_type.value === 2 ? 'post_get_challenge_users' : `post_get_post_users`
     })
@@ -321,9 +345,31 @@ import { useDialog } from '@/composables/dialog'
             }else{
                 content.value = sharingData.text
             }
-            
         }
+        costsFill()
+
     })
+    const addCostField = () => {
+        if(costs.length >= 10){
+            ping('上限は10個です。')
+            return
+        }
+        costs.push({
+            content: '',
+            expenses: null,
+            file_path: null,
+        })
+    }
+    const removeCostField = async(index) => {
+        costs.splice(index, 1)
+        if(costs.length == 0){
+            addCostField()
+        }
+    }
+    const removeFile = async(index) => {
+        await api.post('post_remove_file', { file_path: costs[index].file_path })
+        costs[index].file_path = null
+    }
     const tagSuggestionText = computed(() => {
         const gTitle = title.value ? `${title.value}` : ''
         const gContent = content.value ? `${content.value}` : ''
@@ -331,7 +377,17 @@ import { useDialog } from '@/composables/dialog'
         const gContentGoal = content_goal.value ? `${content_goal.value}` : ''
         return `${gTitle}\n${gContent}\n${gContentRule}\n${gContentGoal}` 
     })
-
+    const costsFill = () => {
+        // if(timeCard.value?.timecard_costs?.length){
+        //     timeCard.value.timecard_costs.forEach(cost => {
+        //         const boil = { ...cost}
+        //         costs.push(boil)
+        //     });
+        // }
+        if(!costs.length){
+            addCostField()
+        }
+    }
     const createSend = async() => {
         const targets = validateTargets.value.filter(ob => ob !== null)
         let result = true
@@ -356,7 +412,6 @@ import { useDialog } from '@/composables/dialog'
             date_start: date_start.value, 
             date_end: date_end.value,  
             tags: tags.value.length ? tags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [], 
-            sport_tags: sportTags.value.length ? sportTags.value.map(ob => ob.text).map(text => text.replace(/[＃#]/g, '')) : [],
             file_ids : uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
             receipt_ids: uploadedReceipts.value.length ? uploadedReceipts.value.map(ob => ob.id) : [],
             referrer: referrer.value, 
@@ -365,8 +420,10 @@ import { useDialog } from '@/composables/dialog'
             award_entry: 0,
             app_type: app_type.value,
             chargeable: chargeable.value,
+            grantable: grantable.value,
             donation_target: selectedNpo.value,
-            refresh_amount: refresh_amount.value
+            refresh_amount: refresh_amount.value,
+            grants: costs
         }
 
         const data = await api.post('post_add_record', params, {
