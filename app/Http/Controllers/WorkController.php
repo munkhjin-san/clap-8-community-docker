@@ -254,9 +254,12 @@ class WorkController extends Controller
                     },
                     'vehicle_data' => function ($q) {
                         $q->with('before_user')->with('after_user');
+                    },
+                    'car_project' => function ($q) {
+                        $q->select('id', 'name');
                     }
                 ])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id', 'car_mileage');
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project');
             },
             'shift_records' => function ($q) use ($year, $month) {
                 $q->whereYear('shift_day', $year)
@@ -681,7 +684,9 @@ class WorkController extends Controller
     }
     public function shiftAdd(Request $request)
     {
+        $user = $this->active_user();
         $user_id = $request->userId;
+        $position_id = $request->position_id;
         $shift_array = $request->shift_array;
         $start_time_val = $request->shiftTimeStart;
         $end_time_val = $request->shiftEndStart;
@@ -718,7 +723,7 @@ class WorkController extends Controller
             ->keyBy('shift_day');
         $new_shift_records = [];
         foreach ($shift_array as $shift) {
-            $status_flag = $shift['type'] === 3 ? 1 : 2;
+            $status_flag = ($shift['type'] === 3) || ($position_id === 15 && $user_id !== $user->id) ? 1 : 2;
             $planned_year = $shift['type'] === 3 ? $request->planned_year : $request->year;
             if ($shift_record_check->has($shift['date'])) {
                 $shift_record = $shift_record_check[$shift['date']];
@@ -891,6 +896,55 @@ class WorkController extends Controller
         $overTimeRequest->minutes = $calculatedMinute;
         $overTimeRequest->save();
     }
+    private function calcNightSeconds(string $startTime, string $endTime, int $breakMinutes = 0): int
+    {
+            // Anchor both times to an arbitrary date (today). If end < start, it crosses midnight.
+        $start = Carbon::createFromFormat('H:i', $startTime);
+        $end   = Carbon::createFromFormat('H:i', $endTime);
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
+
+        // Build the night window that surrounds the start time:
+        // if start is before 05:00, the night started yesterday at 22:00,
+        // otherwise it starts today at 22:00 and ends next day 05:00.
+        $nightStart = $start->copy()->setTime(22, 0);
+        if ($start->hour < 5) {
+            $nightStart->subDay();
+        }
+        $nightEnd = $nightStart->copy()->addHours(7); // 22:00 → +7h = 05:00 next day
+
+        // Overlap between [start, end] and [nightStart, nightEnd]
+        $nightSeconds = $this->overlapSeconds($start, $end, $nightStart, $nightEnd);
+        // Subtract break time from the night portion, but don’t go negative
+        if ($breakMinutes > 0 && $start->gte($nightStart) && $end->lte($nightEnd)) {
+            $nightSeconds = max(0, $nightSeconds - $breakMinutes * 60);
+        }
+
+        return $nightSeconds;
+    }
+    private function overlapSeconds(Carbon $aStart, Carbon $aEnd, Carbon $bStart, Carbon $bEnd): int
+    {
+        $A0 = $aStart->copy();
+        $A1 = $aEnd->copy();
+        $B0 = $bStart->copy();
+        $B1 = $bEnd->copy();
+
+        if ($A1->lte($A0) || $B1->lte($B0)) {
+            return 0;
+        }
+
+        // Optional: align TZs to avoid weirdness from mixed zones
+        $tz = $A0->getTimezone();
+        foreach ([$A0, $A1, $B0, $B1] as $d) {
+            $d->setTimezone($tz);
+        }
+
+        $startTs = max($A0->getTimestamp(), $B0->getTimestamp());
+        $endTs   = min($A1->getTimestamp(), $B1->getTimestamp());
+
+        return max(0, $endTs - $startTs);
+    }
     public function saveTimeCard(Request $request){
         $today = Carbon::now()->isoFormat('YYYY-MM-DD');
         $this->breakTimeCheck($request);
@@ -916,20 +970,20 @@ class WorkController extends Controller
         $time_difference_seconds -= $request->breakTime * 60;
         $time_difference_seconds = max(0, $time_difference_seconds);
         
-        $night_difference_seconds = 0;
+        $night_difference_seconds = $this->calcNightSeconds($startTime, $endTime, $request->breakTime);
         $overtimeMinutes = 0;
-        if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
-            $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? (int) $start->diffInSeconds($end, true) : (int) $start->diffInSeconds($nightOvertimeEnd, true);
-        } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
-            $night_difference_seconds = (int) $nightOvertimeStart->diffInSeconds($end, true) ;
-        } else if ($end->greaterThan($todayNightOverTime)){
-            $night_difference_seconds = (int) $todayNightOverTime->diffInSeconds($end, true);
-        } else {
-            $night_difference_seconds = 0;
-        }
-        if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
-            $night_difference_seconds -= $request->breakTime * 60;
-        }
+        // if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
+        //     $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? (int) $start->diffInSeconds($end, true) : (int) $start->diffInSeconds($nightOvertimeEnd, true);
+        // } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
+        //     $night_difference_seconds = (int) $nightOvertimeStart->diffInSeconds($end, true) ;
+        // } else if ($end->greaterThan($todayNightOverTime)){
+        //     $night_difference_seconds = (int) $todayNightOverTime->diffInSeconds($end, true);
+        // } else {
+        //     $night_difference_seconds = 0;
+        // }
+        // if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
+        //     $night_difference_seconds -= $request->breakTime * 60;
+        // }
         if(array_key_exists(37, $request->customValues) && $request->customValues[37] && in_array(2, $request->customValues[37])){
             $this->checkWaitingAllowance($request);
         }
@@ -994,6 +1048,7 @@ class WorkController extends Controller
                 
             }
             $is_exist->car_mileage = $request->car_mileage ?? 0;
+            $is_exist->car_used_project = $request->car_used_project;
             $is_exist->save();
             if($request->shiftType !== 0 && $request->shiftType !== 1){
                 $this->checkDepartment($request->day, $request->userId);
@@ -1194,10 +1249,37 @@ class WorkController extends Controller
         $hiddenAttributes = ['attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records'];
         $userData = $user->makeHidden($hiddenAttributes);
         $attendance = $user->attendance_records->first();
-        $shift_count = $user->shift_records->where('shift_type', '!=', 0)->count();
+        $working_shifts = [1, 6, 7, 8, 9, 10, 11, 12, 13];
+        $should_calculate_month_hours = $user->position_id == 12 || $user->position_id == 15;
+        $shift_count = $should_calculate_month_hours ? $user->shift_records->whereIn('shift_type', $working_shifts)->count() : $user->shift_records->where('shift_type', '!=', 0)->count();
+        if($should_calculate_month_hours){
+            // $planned_work_shifts = $user->shift_records->whereIn('shift_type', $working_shifts)->get();
+            $planned_work_shifts = collect($user->shift_records->whereIn('shift_type', $working_shifts)->values());
+            $calculated_planned_minutes = 0;
+            $day_work_minute =  $user->work_time_day;
+            foreach ($planned_work_shifts as $shift) {
+                switch ($shift['shift_type']) {
+                    case 1:
+                        $calculated_planned_minutes += $day_work_minute;
+                        break;
+                    case 6:
+                        $calculated_planned_minutes += $day_work_minute / 2;
+                        break;
+                    default:
+                        if ($shift['shift_type'] >= 7 && $shift['shift_type'] <= 13) {
+                            $sub_time = $day_work_minute - (($shift['shift_type'] - 6) * 60);
+                            if ($sub_time > 0) {
+                                $calculated_planned_minutes += $sub_time;
+                            }
+                        }
+                        break;
+                }
+            }
+            $shift_work_hours = $calculated_planned_minutes;
+        }
         $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
-        $shift_workdays = $user->shift_records->where('shift_type', 1)->pluck('shift_day');
-        $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->count();
+        $shift_workdays = $user->shift_records->whereIn('shift_type', [1, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 26])->pluck('shift_day');
+        $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->where('work_time', '>', 0)->count();
         $workedday_count = $user->position_id === 15
         ? $user->time_card_records->where('work_time', '>', 0)->count()
         : $user->time_card_records->whereIn('day', $shift_workdays)->where('work_time', '>', 0)->count();
@@ -1216,7 +1298,7 @@ class WorkController extends Controller
         $annual_leave = $shiftRecords
             ->filter(fn($record) =>
                 $record->shiftType?->full_day === 0 &&
-                !in_array($record->shift_type, [0, 1, 2, 14, 15, 16, 17])
+                in_array($record->shift_type, [7, 8, 9, 10, 11, 12, 13])
             )
             ->sum(fn($record) => $record->shiftType?->value ?? 0);
 
@@ -1224,7 +1306,7 @@ class WorkController extends Controller
         $annual_full = $shiftRecords
             ->filter(fn($record) => 
                 $record->shiftType?->full_day === 2 &&
-                !in_array($record->shift_type, [14, 15, 16, 17])
+                !in_array($record->shift_type, [14, 15, 16, 17, 18])
             )
             ->count();
 
@@ -1253,7 +1335,7 @@ class WorkController extends Controller
         $month_over_time = 0;
         $annual_calc = $annual_full * $user->work_time_day + $annual_half * $user->work_time_day / 2;
         $annual_leave += $annual_calc;
-        $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave) * $user->work_time_day;
+        $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave + $comp_holiday) * $user->work_time_day;
         if ($shift_work_hours < $all_worked_time) {
             $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
         }

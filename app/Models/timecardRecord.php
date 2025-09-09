@@ -42,6 +42,9 @@ class timecardRecord extends Model
     public function vehicle_data(){
         return $this->hasOne(timecardVehicle::class, 'record_id', 'id');
     }
+    public function car_project(){
+        return $this->hasOne(ProjectRecord::class, 'id', 'car_used_project');
+    }
     protected $casts = [
         'record_id' => 'int',
         'deleted_flag' => 'int',

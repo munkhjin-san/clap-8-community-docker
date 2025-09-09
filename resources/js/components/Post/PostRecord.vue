@@ -1,5 +1,5 @@
 <template>
-    <div class="post-item-outer" v-if="record">
+    <div class="post-item-outer" :id="`record-${record.id}`" v-if="record">
         <div class="post-item-header-wrap">
             <div class="flex gap-2.5 items-center">
                 <PostIcon v-if="appName == 'post' && record.app_type != 6" :which="record.app_type" size="20"/>
@@ -61,29 +61,9 @@
                 <div class="record-content" v-html="result"></div>
             </div>
             <PostFiles class="mt-4" v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
-            <div class="mt-4" v-if="record.grants && record.grants.length">
-                <div class="post-separetor">
-                    <div>必 要 経 費</div>
-                </div>
-                <div v-for="grant in record.grants" :key="grant.id">
-                    <div>{{ grant.content }}</div>
-                    <div>{{ grant.expenses }}円</div>
-                    <div v-if="grant.file_path">
-                        <div v-if="grant.file_path?.split('.').pop() == 'webp'">
-                            <img @click="workFilePreview(grant.file_path, 'image', '/cdn/post_grant_files')" style="height:120px;cursor: pointer;" v-if="grant?.file_path" :src="`/cdn/post_grant_files/${grant?.file_path}`"/>
-                        </div>
-                        <div v-else-if="grant.file_path?.split('.').pop() == 'pdf'">
-                            <div class="cursor-pointer" style="position:relative;" @click="workFilePreview(grant.file_path, 'application', '/cdn/post_grant_files')">
-                                <FileIcon ext="pdf"/>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-               
-            </div>
             <div v-if="record.app_type == 6 && (auth.activeUser.id == 610 || record.user_id == auth.id)" class="mt-4">
                 <div class="post-separetor">
-                    <div>領収</div>
+                    <div>領収（非公開）</div>
                 </div>
                 <PostFiles class="mt-4" path="/post_receipts" v-if="record.receipts.length" :items="record.receipts"/>
             </div>
@@ -98,11 +78,20 @@
                     :key="tag.id"
                 />
             </div>
-
             <div class="my-5 flex flex-col gap-5" v-if="record.entries && record.entries.length">
                 <div v-for="entry in record.entries" :key="entry.id">
                     <PostEntryRecord :entry="entry" @setClap="setClap"/>
                 </div>
+
+                <!-- <div v-if="record.entries.length > 1" class="pt-2">
+                    <button
+                    type="button"
+                    class="text-sm text-blue-600 hover:underline"
+                    @click="viewEntries = !viewEntries"
+                    >
+                    {{ viewEntries ? '閉じる' : `他 ${record.entries.length - 1} 件を見る` }}
+                    </button>
+                </div> -->
             </div>
             <div v-if="challengeButtonView">                                    
                 <button @click="emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
@@ -124,10 +113,13 @@
             </div>
             <div v-if="record.app_type == 5" class="post-footer-wrap">
                 <div class="text-[14px] mr-[20px]">カロリー合計: <span v-if="totalCalories">🔥 </span>{{ amountOfMoneyParser(totalCalories) }} kcal</div>
-                <div class="text-[14px] cursor-pointer" @click="viewParticipants">参加者 {{ participants.length }}人</div>
+                <div class="text-[14px] cursor-pointer flex items-center gap-1" @click="viewEntries = !viewEntries">
+                    <People size="25"/>
+                    {{ record.entries.length }}
+                </div>
             </div>
             <div v-if="record.app_type == 6 && record.refresh_amount && (auth.activeUser.id === 610 || auth.id === record.user_id)" class="post-footer-wrap">
-                <div class="text-[14px]">リフレッシュ総額: {{ record.refresh_amount }}円</div>
+                <div class="text-[14px] cursor-pointer">リフレッシュ総額: {{ record.refresh_amount }}円</div>
             </div>
            
             <div class="post-footer-wrap">
@@ -160,7 +152,7 @@ import PostTag from './PostTag.vue';
 import ClapButton from './ClapButton.vue';
 import PostComment from './PostComment.vue'
 import PostFiles from './PostFiles.vue';
-import { computed, inject, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, inject, nextTick, onMounted, ref, useTemplateRef } from 'vue';
 import { useRoute } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
@@ -173,7 +165,6 @@ import { amountOfMoneyParser, customParser } from '@/utils/tools';
 import { Post, PostEntry } from '@/interface/postInterface';
 import { User } from '@/interface/globalInterface';
 import PostEntryRecord from './PostEntryRecord.vue';
-import { workFilePreview } from '@/utils/workApi';
     const messageUsers = useMessageUsers()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -200,6 +191,7 @@ import { workFilePreview } from '@/utils/workApi';
     const viewExpand = ref(false)
     const isExpanded = ref(false)
     const toUsersRef = useTemplateRef('toUsersRef');
+    const viewEntries = ref(false)
     onMounted(() => {
         const to_user = toUsersRef.value
         if(to_user && to_user.scrollHeight > to_user.clientHeight){
@@ -213,6 +205,14 @@ import { workFilePreview } from '@/utils/workApi';
             }           
         }  
     })  
+    const closeAndScroll = (id: number) => {
+        viewEntries.value = false
+        nextTick(() => {
+            const el = document.getElementById(`record-${id}`)
+            console.log(el)
+            el?.scrollIntoView({ behavior: "smooth", block: "start" })
+        })
+    }
     const postMenu = computed(() => {
         const items = [    
             {title: `${props.apps[props.record.app_type]}を編集する`, action: () => emit('editRecord', props.record)},

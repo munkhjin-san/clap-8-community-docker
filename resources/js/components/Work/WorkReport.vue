@@ -79,9 +79,14 @@
                 <IncentiveField v-if="item.position_id === 15" v-model="incentives"/>
                 <div class="report-field">
                     <p class="report-header">マイカーの走行距離</p>
-                    <div class="relative w-fit my-[15px]">
-                        <input type="number" style="padding: 0px 40px 0 10px;height: 38px;border: 1px solid var(--primary-color);color: var(--primary-color);max-width: 100px;" name="work-mileage" v-model="car_mileage" min="0">
-                        <span data-v-73d35938="" style="position: absolute; height: 100%; top: 0px; right: 5px; line-height: 38px;">km</span>
+                    <div class="flex gap-4 items-center">
+                        <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="car_used_project">
+                            <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
+                        </select>
+                        <div class="relative w-fit my-[15px]">
+                            <input type="number" style="padding: 0px 40px 0 10px;height: 38px;border: 1px solid var(--primary-color);color: var(--primary-color);max-width: 100px;" name="work-mileage" v-model="car_mileage" min="0">
+                            <span data-v-73d35938="" style="position: absolute; height: 100%; top: 0px; right: 5px; line-height: 38px;">km</span>
+                        </div>
                     </div>
                 </div>
                 <CustomField 
@@ -184,6 +189,7 @@ import { useDialog } from '@/composables/dialog';
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
     const customValues = ref({})
     const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : workGroupAsOptions.value[0]?.id ?? '')
+    const car_used_project = ref(timeCard.value?.car_used_project ?? workGroupAsOptions.value[0]?.id)
     const car_mileage = ref(timeCard.value?.car_mileage ? timeCard.value.car_mileage : '')
     const costDepartment = computed(() => {
         return workGroupAsOptions.value.find(group => group.id === todayWorkGroup.value)?.name
@@ -430,7 +436,8 @@ import { useDialog } from '@/composables/dialog';
                 department: todayWorkGroup.value,
                 shiftType: props.item?.shift?.shift_type?.id ?? null,
                 vehicleData: vehicleData.value,
-                car_mileage: car_mileage.value
+                car_mileage: car_mileage.value,
+                car_used_project: car_used_project.value
             }
             resolve(a)
         })
