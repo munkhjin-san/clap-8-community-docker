@@ -22,7 +22,19 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(record, index) in ranking" :key="record.user.id">
+                        <tr v-if="legendRecord" :class="theme.dark ? 'bg-[#675702]' : 'bg-[#fff4b9]'">
+                            <td></td>
+                            <td>
+                                <div class="flex items-center gap-[10px] flex-wrap">
+                                                        
+                                    <img :src="`/tokorosan${theme.dark ? '-white' : '-black'}.png`" class="h-[40px] w-auto rounded-full"/>
+                                    <div class="text-[14px]">所 繁</div>
+                                </div>
+                            </td>
+                            <td>{{ `🔥 ${amountOfMoneyParser(legendRecord.sum_calories)} kcal` }}</td>
+                            <td>{{ legendRecord.post_count }}件</td>
+                        </tr>
+                        <tr v-for="(record, index) in ranking.filter(rec => rec.user.id !== 513)" :key="record.user.id">
                             <td>{{ index + 1 }}</td>
                             <td>
                                 <UserPanel :user="record.user" with-name disable-instant/>
@@ -41,6 +53,8 @@ import { TopEntryUser } from '@/interface/postInterface';
 import Modal from '../Global/Modal.vue';
 import { amountOfMoneyParser } from '@/utils/tools';
 import UserPanel from '../Global/UserPanel.vue';
+import { computed } from 'vue';
+import { useTheme } from '@/store/theme';
 
 
 const props = defineProps<{
@@ -50,6 +64,11 @@ const props = defineProps<{
 const emit = defineEmits<{
     close: []
 }>()
+const theme = useTheme()
+const legendRecord = computed(() => {
+    const legend = props.ranking.find(rec => rec.user.id === 513)
+    return legend ? legend : null
+})
 </script>
 <style scoped>
 table {
