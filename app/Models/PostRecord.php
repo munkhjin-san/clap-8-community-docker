@@ -26,6 +26,10 @@ class PostRecord extends Model
     {
         return $this->belongsToMany(TagRecord::class, 'post_use_tags', 'record_id', 'tag_id')->where('tag_records.deleted_flag', 0);
     }
+    public function sport_tags()
+    {
+        return $this->belongsToMany(TagRecord::class, 'post_use_sport_tags', 'record_id', 'tag_id')->where('tag_records.deleted_flag', 0);
+    }
     public function comment_records(){
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'post')->with('user');
     }
@@ -44,7 +48,7 @@ class PostRecord extends Model
     public function entries() {
         return $this->hasMany(PostEntry::class)->with(['user' => function($query) {
             $query->select('id', 'name', 'icon_path', 'icon_bg');
-        }, 'files']);
+        }, 'files', 'photos']);
     }
     public function grants() {
         return $this->hasMany(PostGrant::class);
