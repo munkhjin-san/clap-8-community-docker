@@ -1506,7 +1506,7 @@ class WorkController extends Controller
             $attendance_record->comp_holiday = $comp_holiday;
             $attendance_record->working_hours = $request->worked_hours;
             $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
-            $attendance_record->over_time = $request->over_time;
+            $attendance_record->over_time = $request->over_time + $request->night_work_time;
             $attendance_record->night_work_time = $request->night_work_time;
             $attendance_record->stay_pay = $request->stay_pay;
             $attendance_record->move_pay = $request->move_pay;
@@ -1860,6 +1860,12 @@ class WorkController extends Controller
                                     ->orderBy('shift_day')
                                     ->get();
         return response()->json($paidholidays);
+    }
+    public function send_departure_report(Request $request){
+        $user = Auth::user();
+        $date = Carbon::now()->toDateString();
+        $data = $this->sharedService->createDepartureReport($user, $date);
+        return response()->json($data);
     }
 }
 
