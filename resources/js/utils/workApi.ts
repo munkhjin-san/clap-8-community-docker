@@ -128,4 +128,5 @@ export const vehicleAsOptions = ([
     { label: '仙台580ひ6191', value: 25},
     { label: 'なにわ502の1116', value: 26},
     { label: 'なにわ581き9917', value: 27},
+    { label: '久留米581と3345', value: 28},
 ])
