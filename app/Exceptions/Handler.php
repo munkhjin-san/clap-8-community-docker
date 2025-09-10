@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Session\TokenMismatchException;
+use Illuminate\Routing\Exceptions\InvalidSignatureException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -76,6 +77,10 @@ class Handler extends ExceptionHandler
             $request->session()->flash('error', 'セキュリティ保護のためもう一度ログインしてください。');
 
             return redirect()->route('login');
+        }
+
+        if ($e instanceof InvalidSignatureException) {
+            return response()->view('errors.invalid-signature', [], 403);
         }
 
         return parent::render($request, $e);

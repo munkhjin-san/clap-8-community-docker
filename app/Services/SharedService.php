@@ -289,4 +289,30 @@ class SharedService
             'work_minutes' => $convertIntoMinutes,
         ];
     }
+    public function createDepartureReport($user, $date){
+        $shift = shiftRecord::where('user_id', $user->id)
+            ->where('shift_day', $date)
+            ->where('shift_type', 1)
+            ->first();
+        if(!$shift){
+            return [
+                "status" => "error",
+                "message" => "本日のシフトが見つかりません。"
+            ];
+        }
+
+        if($shift->departure_report){
+            return [
+                "status" => "error",
+                "message" => "既に出発報告がされています。"
+            ];
+        }
+        //departure_report is timestamp field
+        $shift->departure_report = Carbon::now();
+        $shift->save();
+        return [
+            "status" => "success",
+            "message" => "出発報告を受け付けました。"
+        ];
+    }
 }

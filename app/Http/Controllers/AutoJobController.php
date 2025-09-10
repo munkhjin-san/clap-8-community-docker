@@ -690,4 +690,12 @@ class AutoJobController extends Controller
 
         return [$database => $structure];
     }
+    public function departure_report(Request $request){
+        $user_id = $request->input('user');
+        $date = $request->input('date');
+        $user = User::findOrFail($user_id);
+        $data = $this->sharedService->createDepartureReport($user, $date);
+        return view('departure_report_result', $data);
+
+    }
 }

@@ -350,6 +350,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_job_evaluation', [MemberController::class, 'get_job_evaluation']);
         Route::get('/get_evaluation_levels', [ProjectController::class, 'get_evaluation_levels']);
         Route::get('/mentionable_users', [ProjectController::class, 'mentionable_users']);
+        Route::post('/project_finance_comment', [ProjectController::class, 'project_finance_comment']);
+        Route::get('/get_project_finance_comments', [ProjectController::class, 'get_project_finance_comments']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
@@ -491,7 +493,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_previous_goals', [ProjectController::class, 'get_previous_goals']);
         Route::post('/save_project_progress', [ProjectController::class, 'save_project_progress']);
         Route::post('/salary_issue_action_complete', [ProjectController::class, 'salary_issue_action_complete']);
-
+        Route::get('/projects/{project}/finance-comments/monthly-count', [ProjectController::class, 'monthlyCount']);
+        Route::post('/projects/{project}/finance/mark-read', [ProjectController::class, 'mark_finance_read']);
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
         Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);
@@ -542,6 +545,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/remind_asset', [RemindController::class, 'remind_asset']);
         Route::get('/remind_badge', [RemindController::class, 'remind_badge']);
         Route::get('/remind_temp_reserved_schedules', [RemindController::class, 'remind_temp_reserved_schedules']);
+        Route::get('/remind_departure_report', [RemindController::class, 'remind_departure_report']);
+        Route::get('/check_departure_report', [RemindController::class, 'check_departure_report']);
+        Route::post('/send_departure_report', [WorkController::class, 'send_departure_report']);
 
 
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);

@@ -325,6 +325,25 @@
                     />
                 </div>
             </div>
+
+            <div v-if="data.remind_departure_report?.length">
+                <RemindHeader 
+                    :offset="offset"
+                    :length="data.remind_departure_report.length"
+                    title="出発報告状況"
+                    :expanded="expanded.remind_departure_report"
+                    @expand="expanded.remind_departure_report = !expanded.remind_departure_report"
+                />
+                <div v-if="expanded.remind_departure_report" class="mx-[20px] overflow-hidden w-fit flex flex-col gap-[10px] bg-[var(--background-color)] p-[15px]">
+                    <div v-for="item in data.remind_departure_report">
+                        <div class="flex gap-[15px] text-[13px] items-center">
+                            <UserPanel disable-instant with-name size="30" :user="item"/>
+                            <div class="text-[gray]">{{ `${item.shift_records && item.shift_records.length && item.shift_records[0].departure_report ? DateTime.fromSQL(item.shift_records[0].departure_report).toFormat('M / d HH:mm') : '未報告'}` }}</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
         
         <div v-if="combinedData.every(item => Object.values(item).every(value => !value.length))" class="no-comment-text">現在リマインドはありません。</div>
@@ -356,6 +375,7 @@ import AssetMovement from '../Asset/AssetMovement.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import ConfirmSchedule from './ConfirmSchedule.vue';
+import { DateTime } from 'luxon';
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
 const combinedData = ref<{ [key: string]: any }[]>([])
@@ -378,6 +398,7 @@ const expanded = ref({
     remind_asset: true,
     remind_schedules: true,
     remind_temp_reserved_schedules: true,
+    remind_departure_report: true,
 })
 
 const api = useApi()
@@ -422,6 +443,9 @@ const getRemindTotalData = async () => {
         getData('/remind_form'),
         getData('/remind_asset'),
         getData('/remind_temp_reserved_schedules'),
+        
+        auth.id && [833,832].includes(auth.id) ? getData('/remind_departure_report') : Promise.resolve([]),
+
     ]);
 
     combinedData.value = responses.map((response, index) => ({

@@ -29,6 +29,9 @@
                     />
                 </div> 
             </div>
+            <div v-if="departureReportFlag">
+                <DepartureReportSend @sent="departureReportFlag = false"/>
+            </div>
         </div>
     </div>
 </template>
@@ -41,6 +44,7 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
 
 import { DateTime, Interval } from 'luxon';
 import { useApi } from '@/composables/api';
+import DepartureReportSend from '../Work/DepartureReportSend.vue';
     const auth = useAuthUserStore()
     const shiftNotSubmittedList = ref([])
     const nextShiftNotSubmittedList = ref([])
@@ -48,14 +52,34 @@ import { useApi } from '@/composables/api';
     const workGroups = ref([])
     const customFieldData = ref([])
     const route = useRoute()
+    const departureReportFlag = ref(false)
     const api = useApi()
     onMounted(() => {
         if(!auth.isRegistered && !auth.isOnLeave){
             getNotSubmitted()
             checkDay() 
             fetchDatas()
-        }        
+        }       
+        if(auth.isRegistered && !auth.isOnLeave){
+            getDepartureReport(false)
+        }
     })
+    const getDepartureReport = async(reload) => {
+        const date = DateTime.now().toISODate()
+        const lastDate = localStorage.getItem('departure_report')
+        if(date === lastDate && !reload){
+            return
+        }
+        const {should_send} = await api.get('/check_departure_report')
+        if(should_send){
+            departureReportFlag.value = true
+            
+        }else{
+            localStorage.setItem('departure_report', date)
+        }
+        
+
+    }
     const checkDay = () => {
         const currentDate = DateTime.now()
         const lastDayOfMonth = currentDate.endOf('month').plus({days: 1})
@@ -75,7 +99,8 @@ import { useApi } from '@/composables/api';
         const hasItems =
             shiftNotSubmittedList.value.length ||
             timecardNotSubmittedList.value.length ||
-            nextShiftNotSubmittedList.value.length
+            nextShiftNotSubmittedList.value.length ||
+            departureReportFlag.value
         return hasItems      
     })
     const checkQuery = computed(() => {

@@ -699,6 +699,28 @@ class RemindController extends Controller
         
         
     }
+    public function remind_departure_report($badge = false) {
+        $target_users = User::where('position_id', 15)->where('retire' , 0)->whereNotNull('email')
+        ->whereHas('shift_records', function ($query) use ($badge) {
+            $query->when($badge, fn($q) => $q->whereNull('departure_report'))
+                  ->where('shift_day', Carbon::now()->toDateString())
+                  ->where('shift_type', 1);
+        })->with(['shift_records' => function ($query) {
+            $query->where('shift_day', Carbon::now()->toDateString())->where('shift_type', 1)->select('user_id', 'id', 'departure_report');
+        }])->select('id', 'name', 'icon_path', 'icon_bg')->get();
+
+        return response()->json([
+            'remind_departure_report' => $target_users
+        ]);
+    }
+    public function check_departure_report(Request $request) {
+        $check = shiftRecord::where('user_id', Auth::id())
+                ->where('shift_day', Carbon::now()->toDateString())
+                ->where('shift_type', 1)
+                ->whereNull('departure_report')
+                ->exists();
+        return response()->json(['should_send' => $check]);
+    }
     public function remind_badge(Request $request) {
         $responses = [];
     
@@ -714,6 +736,7 @@ class RemindController extends Controller
         $responses['remind_form'] = $this->remind_form()->getData(true);
         $responses['remind_asset'] = $this->remind_asset()->getData(true);
         $responses['remind_temp_reserved_schedules'] = $this->remind_temp_reserved_schedules()->getData(true);
+        $responses['remind_departure_report'] = $this->remind_departure_report(true)->getData(true);
         $count = 0;
         $counts = [];
         foreach ($responses as $key => $response) {
