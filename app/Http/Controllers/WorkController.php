@@ -1464,6 +1464,11 @@ class WorkController extends Controller
             $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
             $hours_count = 0;
             $working_hour_low = 0;
+            if ($request->over_time > 0) {
+                $over_time = $request->over_time + $request->night_work_time;
+            } else {
+                $over_time = $request->over_time;
+            }
             foreach ($shiftTypes as $type) {
                 $count = $shift_records->where('shift_type', $type)->count();
                 $hours_count += $type === 6 ? $count * 0.5 : $count;
@@ -1509,7 +1514,7 @@ class WorkController extends Controller
             $attendance_record->comp_holiday = $comp_holiday;
             $attendance_record->working_hours = $request->worked_hours;
             $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
-            $attendance_record->over_time = $request->over_time + $request->night_work_time;
+            $attendance_record->over_time = $over_time;
             $attendance_record->night_work_time = $request->night_work_time;
             $attendance_record->stay_pay = $request->stay_pay;
             $attendance_record->move_pay = $request->move_pay;
