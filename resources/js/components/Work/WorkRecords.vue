@@ -129,7 +129,7 @@ import { useApi } from '@/composables/api';
             { title: 'コメント'},
             { title: '経費'},
             { title: '車両使用' },
-            { title: '走行距離' },
+            { title: 'マイカー使用' },
             { title: 'ステータス'},
             { title: '報告'},
         ];

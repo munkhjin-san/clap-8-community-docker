@@ -209,7 +209,7 @@ import { useDialog } from '@/composables/dialog';
     const customValues = ref({})
     const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : workGroupAsOptions.value[0]?.id ?? '')
     const car_used_project = ref(timeCard.value?.car_used_project ?? workGroupAsOptions.value[0]?.id)
-    const car_mileage = useDebouncedRef(timeCard.value?.car_mileage ? timeCard.value.car_mileage : '')
+    const car_mileage = useDebouncedRef('')
     const car_data = ref({})
     const costDepartment = computed(() => {
         return workGroupAsOptions.value.find(group => group.id === todayWorkGroup.value)?.name
@@ -250,13 +250,10 @@ import { useDialog } from '@/composables/dialog';
         costs[index].file_path = null
     }
     const getMyCarData = async() => {
-        try {
-           const data = await api.get('/get_my_car_data', { user_code: props.item.user_code, mileage: car_mileage.value})
-           if (!data) return
-           car_data.value = data
-        } catch (e) {
-
-        }
+       
+        const data = await api.get('/get_my_car_data', { user_code: props.item.user_code, mileage: car_mileage.value})
+        if (!data) return
+        car_data.value = data
         
     }
     onMounted(() => {
@@ -269,6 +266,9 @@ import { useDialog } from '@/composables/dialog';
             breakTimeSelect.value = props.item?.total_break_time
         } else {
             breakTimeCalc()
+        }
+        if (timeCard.value?.car_mileage) {
+            car_mileage.value = timeCard.value?.car_mileage
         }
         costsFill()
         customFieldFill()

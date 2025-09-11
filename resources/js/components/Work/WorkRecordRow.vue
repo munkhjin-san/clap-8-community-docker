@@ -30,10 +30,10 @@
         <!-- <td>{{ item.time_card?.work_group?.name }}</td> -->
         <td>
             <div v-if="item.time_card?.department" class="text-wrap">
-                {{ item.time_card.department?.name }}
+                {{ responsive.mobile ? '部門 : ' : '' }}{{ item.time_card.department?.name }}
             </div>
             <div v-else-if="item.shift?.department" class="text-wrap">
-                {{ item.shift.department?.name }}
+                {{ responsive.mobile ? '部門 : ' : '' }}{{ item.shift.department?.name }}
             </div>
         </td>
         <td style="word-break: auto-phrase;white-space: break-spaces;">{{ hasAllowance }}</td>
@@ -58,7 +58,7 @@
         </td>
         <td>
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
-                <div @click.stop="boxPosition('costBox')" class="text-wrap">{{ hasWorkCost }}</div>
+                <div @click.stop="boxPosition('costBox')" class="text-wrap comment-wrap">{{ hasWorkCost }}</div>
                 <div @click="menu.close()" ref="costBox" class="comment-box" id="costBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'costBox' && menu.id == item.time_card?.id">
                     <div v-for="cost in item.time_card?.timecard_costs" :key="cost.id">
                         <div style="word-break: break-word;" v-html="formatCostString(cost)"></div>
@@ -86,14 +86,11 @@
         </td>
         <td>
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
-                <div @click.stop="boxPosition('mileageBox')" class="text-wrap">{{ mileageFormatted }}</div>
+                <div @click.stop="boxPosition('mileageBox')" class="text-wrap comment-wrap">{{ mileageFormatted }}</div>
                 <div @click="menu.close()" ref="mileageBox" class="comment-box" id="mileageBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'mileageBox' && menu.id == item.time_card?.id">
-                    <div style="word-break: break-word;">{{ item.time_card?.car_project?.name }}: {{ mileageFormatted }}</div> 
-                    <div style="word-break: break-word;">ガソリン代: {{ item.time_card?.gas_full_price }}円</div>                             
+                    <div style="word-break: break-word;">{{ mileageDetail }}</div> 
                 </div>
             </div>
-            <!-- <div>{{ item.time_card?.car_project?.name }}</div>
-            <div>{{ mileageFormatted }}</div> -->
         </td>
         <td v-if="hasHeader('インセンティブ')">
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
@@ -311,12 +308,43 @@ const satisfyFormatted = computed(() => {
     return  title + props.item?.satisfy
 })
 
+const yenFmt = new Intl.NumberFormat('ja-JP');
+
+const toNum = (n) => {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : 0;
+}
+
 const mileageFormatted = computed(() => {
-    const title = props.item?.time_card?.car_mileage && responsive.mobile ? 'マイカー走行距離 : ' : ''
-    const val = props.item?.time_card?.car_mileage || ''
-    const suffix = val ? 'km' : ''
-    return `${title}${val}${suffix}`
-})
+  const tc = props.item?.time_card;
+  if (!tc) return '';
+
+  const km = toNum(tc.car_mileage);
+  const gas = toNum(tc.gas_full_price);
+
+  const title = km && responsive.mobile ? 'マイカー走行距離 : ' : '';
+  const kmPart = km ? `${km}km` : '';
+  const gasPart = gas > 0 ? `${yenFmt.format(gas)}円` : '';
+
+  // two-line if gas exists, otherwise one line
+  return gas > 0 ? `${title}${kmPart}\n${gasPart}` : `${title}${kmPart}`;
+});
+
+const mileageDetail = computed(() => {
+  const tc = props.item?.time_card;
+  if (!tc) return '';
+
+  const km = toNum(tc.car_mileage);
+  const gas = toNum(tc.gas_full_price);
+  const dept = tc.car_project?.name ?? '';
+
+  const kmPart = km ? `${km}km` : '';
+  const gasPart = `ガソリン代 : ${gas > 0 ? `${yenFmt.format(gas)}円` : '—'}`;
+
+  // department prefix only if it exists
+  const deptPart = dept ? `${dept}:` : '';
+  return `${deptPart}${kmPart}\n${gasPart}`;
+});
 
 const commentFormatted = computed(() => {
     
@@ -412,7 +440,8 @@ const getStatusText = computed(() => {
 const hasVehicle = computed(() => {
     const vehicleData = props.item?.time_card?.vehicle_data
     if (vehicleData) {
-        return vehicleAsOptions.find(ob => ob.value === vehicleData.vehicle).label
+        const mobileTitle = responsive.mobile ? '車両使用 : ' : ''
+        return mobileTitle + vehicleAsOptions.find(ob => ob.value === vehicleData.vehicle).label
     }
 })
 const vehicleDetail = computed(() => {
