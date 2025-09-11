@@ -61,7 +61,7 @@
                 <div class="record-content" v-html="result"></div>
             </div>
             <PostFiles class="mt-4" v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
-            <div class="mt-4" v-if="record.grants && record.grants.length">
+            <div class="mt-4" v-if="record.grants && record.grants.length && record.grantable">
                 <div class="post-separetor">
                     <div>必 要 経 費</div>
                 </div>
