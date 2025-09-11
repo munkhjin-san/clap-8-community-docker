@@ -385,6 +385,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/check_break_time', [WorkController::class, 'check_break_time']);
         Route::put('/shift_add_department', [WorkController::class, 'shift_add_department']);
         Route::post('/get_planned_leaves', [WorkController::class, 'get_planned_leaves']);
+        Route::get('/get_my_car_data', [WorkController::class, 'get_my_car_data']);
 
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
@@ -495,6 +496,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/salary_issue_action_complete', [ProjectController::class, 'salary_issue_action_complete']);
         Route::get('/projects/{project}/finance-comments/monthly-count', [ProjectController::class, 'monthlyCount']);
         Route::post('/projects/{project}/finance/mark-read', [ProjectController::class, 'mark_finance_read']);
+        Route::get('/projects/finance/unread-badges', [ProjectController::class, 'get_finance_comment_badge']);
+        Route::put('/finance_comment_update', [ProjectController::class, 'finance_comment_update']);
+        Route::delete('/finance_comment_delete', [ProjectController::class, 'finance_comment_delete']);
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
         Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);
@@ -502,6 +506,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::get('/get_contracts', [ProjectController::class, 'get_contracts']);
 
+        Route::get('/metric_list', [ProjectController::class, 'metric_list']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);

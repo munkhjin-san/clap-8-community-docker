@@ -58,7 +58,7 @@ class AdminWorkController extends Controller{
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
               ->whereMonth('day', $currentMonth)
-              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project')
+              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price')
               ->orderBy('day', 'asc')
               ->with([
                 'custom_field_data_records' => function($q) {
@@ -239,6 +239,7 @@ class AdminWorkController extends Controller{
 
                 $legal_holiday_worked_time_in_minutes = 0;
 
+                $total_gas_price = 0;
                 if ($user->time_card_records->isNotEmpty()) {
                     $departmentCountsTemp = [];
 
@@ -269,7 +270,9 @@ class AdminWorkController extends Controller{
                                 'date' => $record->day,
                                 'mileage' => $record->car_mileage,
                                 'project' => $record?->car_project?->name,
+                                'gas_full_price' => $record->gas_full_price,
                             ];
+                            $total_gas_price += $record->gas_full_price;
                         }
                         if($user->work_type == 1 && in_array($record->day, $legal_holiday_shifts)) {
                             // If work type is 1 and the day is a legal holiday, add to legal holiday worked time
@@ -305,6 +308,11 @@ class AdminWorkController extends Controller{
                     } 
                     
                 }
+                $monthly_expenses->put(
+                    $user->id,
+                    ($monthly_expenses->get($user->id, 0) + $total_gas_price)
+                );
+
 
                 $month_work_time_array2[$user->id] = $workTimeInMinutes + $totalPaidHours;
 

@@ -23,6 +23,7 @@ use App\Services\SharedService;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
@@ -259,7 +260,7 @@ class WorkController extends Controller
                         $q->select('id', 'name');
                     }
                 ])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project');
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price');
             },
             'shift_records' => function ($q) use ($year, $month) {
                 $q->whereYear('shift_day', $year)
@@ -337,6 +338,7 @@ class WorkController extends Controller
                     'day_show' => $index == 0 ? $date->format('Y-m-d') : '',
                     'user_name' => $user->name,
                     'user_id' => $userId,
+                    'user_code' => $user->user_code,
                     'work_authority' => $user->work_authority,
                     'work_time_day' => $user->work_time_day,
                     'work_type' => $user->work_type,
@@ -1049,6 +1051,7 @@ class WorkController extends Controller
             }
             $is_exist->car_mileage = $request->car_mileage ?? 0;
             $is_exist->car_used_project = $request->car_used_project;
+            $is_exist->gas_full_price = $request->gas_full_price;
             $is_exist->save();
             if($request->shiftType !== 0 && $request->shiftType !== 1){
                 $this->checkDepartment($request->day, $request->userId);
@@ -1866,6 +1869,58 @@ class WorkController extends Controller
         $date = Carbon::now()->toDateString();
         $data = $this->sharedService->createDepartureReport($user, $date);
         return response()->json($data);
+    }
+    public function get_my_car_data(Request $request){
+        $data = $request->validate([
+            'user_code' => 'required',
+            'mileage' => 'required|integer|min:2'
+        ], [
+            'user_code.required' => '関連するレコードが見つかりません。',
+            'mileage.integer' => '数字を入力してください。',
+            'mileage.required' => '走行距離が必要です。',
+            'mileage.min' => '最低走行距離が2㎞です。'
+        ]);
+        $user_code = $data['user_code'];
+        $mileage = $data['mileage'];
+        $queryParams = [
+            "app" => 777,
+            "query" => "従業員番号 = \"{$user_code}\" and 実燃費 != 0 order by 作成日時 desc limit 1",
+            "fields" => ["従業員番号", "氏名", "ガソリン単価", "実燃費", "作成日時"],
+        ];
+        
+        $queryString = http_build_query($queryParams);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryString";
+        $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $responseData = $profits->json();
+        $mileage_data = [];
+        $gas_price_per_km = 0;
+        if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])) {
+            $record = $responseData['records'][0];
+            $gas_full_price = ($mileage / $record['実燃費']['value']) * $record['ガソリン単価']['value'];
+            $mileage_data = [
+                'gas_unit_price'=>$record['ガソリン単価']['value'], 
+                'gas_consumption'=>$record['実燃費']['value'],
+                'gas_full_price'=>(int) $gas_full_price,
+                'status'=>'success'
+            ];
+            
+        } else {
+            throw ValidationException::withMessages(['message' => '関連するレコードが見つかりません。']);
+        }
+        return response()->json($mileage_data);
+        
+        
+    }
+    private function kintone_headers() {
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
+        $string = $user_name. ':'. $password;
+        $x_token = base64_encode($string);
+        $headers = [
+            'Authorization' => 'Basic',
+            'X-Cybozu-Authorization' => $x_token
+        ];
+        return $headers;
     }
 }
 

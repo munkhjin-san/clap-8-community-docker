@@ -89,6 +89,25 @@
                         </div>
                     </div>
                 </div>
+                <div class="report-field" v-if="car_mileage && car_data?.status == 'success'">
+                    <table>
+                        <thead>
+                            <tr>
+                                <td>実燃費</td>
+                                <td>ガソリン単価</td>
+                                <td>ガソリン代</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>{{ car_data.gas_consumption }}km/L</td>
+                                <td>{{ car_data.gas_unit_price }}円</td>
+                                <td>{{ car_data.gas_full_price }}円</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                </div>
                 <CustomField 
                     v-for="field in filterCustomValues" 
                     :shift_type="shift?.shift_type" 
@@ -115,7 +134,7 @@ import IncentiveField from './IncentiveField.vue'
 import { useAuthUserStore } from '../../store/auth';
 import Modal from '../Global/Modal.vue';
 import { DateTime } from 'luxon';
-import { customParser } from '@/utils/tools';
+import { customParser, useDebouncedRef } from '@/utils/tools';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
     const auth = useAuthUserStore()
@@ -190,13 +209,19 @@ import { useDialog } from '@/composables/dialog';
     const customValues = ref({})
     const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : workGroupAsOptions.value[0]?.id ?? '')
     const car_used_project = ref(timeCard.value?.car_used_project ?? workGroupAsOptions.value[0]?.id)
-    const car_mileage = ref(timeCard.value?.car_mileage ? timeCard.value.car_mileage : '')
+    const car_mileage = useDebouncedRef(timeCard.value?.car_mileage ? timeCard.value.car_mileage : '')
+    const car_data = ref({})
     const costDepartment = computed(() => {
         return workGroupAsOptions.value.find(group => group.id === todayWorkGroup.value)?.name
     })
     const hasTraining = ref(timeCard.value ? (timeCard.value.training_start_time ? 1 : 0) : undefined)
     const api = useApi()
     const { ask, ping, toast } = useDialog()
+    watch(car_mileage, (after) => {
+        if (after) {
+            getMyCarData()
+        }
+    })
     watch(todayWorkGroup, (newWorkGroup) => {
         costs.forEach(cost => {
             cost.department = workGroupAsOptions.value.find(group => group.id === newWorkGroup)?.name
@@ -224,7 +249,16 @@ import { useDialog } from '@/composables/dialog';
     const removeFile = async(index) => {
         costs[index].file_path = null
     }
+    const getMyCarData = async() => {
+        try {
+           const data = await api.get('/get_my_car_data', { user_code: props.item.user_code, mileage: car_mileage.value})
+           if (!data) return
+           car_data.value = data
+        } catch (e) {
 
+        }
+        
+    }
     onMounted(() => {
         if(props.item?.total_break_time){
             const newItem = {
@@ -437,7 +471,8 @@ import { useDialog } from '@/composables/dialog';
                 shiftType: props.item?.shift?.shift_type?.id ?? null,
                 vehicleData: vehicleData.value,
                 car_mileage: car_mileage.value,
-                car_used_project: car_used_project.value
+                car_used_project: car_used_project.value,
+                gas_full_price: car_data.value?.gas_full_price ?? 0
             }
             resolve(a)
         })
@@ -467,3 +502,25 @@ import { useDialog } from '@/composables/dialog';
     }
 
 </script>
+<style scoped>
+    table{
+        background-color: var(--background-color);
+        width: 100%;
+        border-collapse: separate; 
+        border-spacing: 0;
+        color: var(--primary-color);
+        border-top: 1px solid var(--primary-color);
+    }
+    table td{
+        padding: 10px;
+        font-size: 13px;
+        border-bottom: 1px solid var(--primary-color);
+        border-right: 1px solid var(--primary-color);
+    }
+    table td:first-child {
+        border-left: 1px solid var(--primary-color);
+    }
+    thead td:first-child{
+        border-left: 1px solid var(--primary-color);
+    }
+</style>
