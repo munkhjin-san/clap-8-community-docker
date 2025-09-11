@@ -250,7 +250,8 @@ import { useDialog } from '@/composables/dialog';
         costs[index].file_path = null
     }
     const getMyCarData = async() => {
-       
+        if (car_mileage.value < 2) return
+        
         const data = await api.get('/get_my_car_data', { user_code: props.item.user_code, mileage: car_mileage.value})
         if (!data) return
         car_data.value = data
