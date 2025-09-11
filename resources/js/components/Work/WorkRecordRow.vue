@@ -84,6 +84,17 @@
                 </div>
             </div>
         </td>
+        <td>
+            <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
+                <div @click.stop="boxPosition('mileageBox')" class="text-wrap">{{ mileageFormatted }}</div>
+                <div @click="menu.close()" ref="mileageBox" class="comment-box" id="mileageBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'mileageBox' && menu.id == item.time_card?.id">
+                    <div style="word-break: break-word;">{{ item.time_card?.car_project?.name }}: {{ mileageFormatted }}</div> 
+                    <div style="word-break: break-word;">ガソリン代: {{ item.time_card?.gas_full_price }}円</div>                             
+                </div>
+            </div>
+            <!-- <div>{{ item.time_card?.car_project?.name }}</div>
+            <div>{{ mileageFormatted }}</div> -->
+        </td>
         <td v-if="hasHeader('インセンティブ')">
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
                 <div v-if="responsive.mobile && item.time_card?.timecard_incentives.length">インセンティブ : </div>
@@ -96,17 +107,7 @@
                 </div> -->
             </div>
         </td>
-        <td>
-            <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
-                <div @click.stop="boxPosition('mileageBox')" class="text-wrap">{{ mileageFormatted }}</div>
-                <div @click="menu.close()" ref="mileageBox" class="comment-box" id="mileageBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'mileageBox' && menu.id == item.time_card?.id">
-                    <div style="word-break: break-word;">{{ item.time_card?.car_project?.name }}: {{ mileageFormatted }}</div> 
-                    <div style="word-break: break-word;">ガソリン代: {{ item.time_card?.gas_full_price }}円</div>                             
-                </div>
-            </div>
-            <!-- <div>{{ item.time_card?.car_project?.name }}</div>
-            <div>{{ mileageFormatted }}</div> -->
-        </td>
+        
         <td>
             <div style="position: relative;">
                 <div>
