@@ -757,6 +757,7 @@ class WorkController extends Controller
                     'end_time' => $end_time_val,
                     'status_flag' => $status_flag,
                     'planned_year' => $planned_year,
+                    "descendant_of" => null,
                 ];
             }
         }
