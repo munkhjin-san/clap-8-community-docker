@@ -100,7 +100,7 @@
             <div v-if="topRecords.length" class="px-[20px] text-center text-[var(--primary-color)]">
                 <p class="mb-[15px] jump-link" @click="viewFullRanking = true">グラリンピックランキング</p>
                 <div class="flex flex-wrap justify-center items-center">
-                    <div class="px-[10px] py-[8px] flex items-center gap-[10px]" v-for="(record, index) in topRecords.filter(rec => rec.user.id !== 513).slice(0, 2)" :key="record.user.id">
+                    <div class="px-[10px] py-[8px] flex items-center gap-[10px]" v-for="(record, index) in topRecords.filter(rec => rec.user.id !== 513).slice(0, 3)" :key="record.user.id">
                         <div class="text-[25px]" v-if="record.award">{{ record.award }}</div>
                         <div class="flex items-center gap-[10px] flex-wrap">
                             <UserPanel :user="record.user" with-name disable-instant/>

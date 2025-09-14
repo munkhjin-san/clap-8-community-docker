@@ -575,7 +575,10 @@ class BoardController extends Controller
         $active_user = $request->override_user ?? $this->active_user();
         $auth_user_id = $active_user->id;
         $leavePeriod = $this->user_onleave($auth_user_id);
-        $usercheck = boardToUser::where('user_id','=', $auth_user_id)->where('record_id', '=', $request->record_id)->first();       
+        $usercheck = boardToUser::where('user_id','=', $auth_user_id)->where('record_id', '=', $request->record_id)->first();   
+        if(empty($usercheck)){
+            throw ValidationException::withMessages(['message' => 'チャットメンバーではありません。']); 
+        }
         $timeLimit = $usercheck->created_at;    
         $targetBoard = boardRecord::findOrFail($request->record_id);
         $messageFrom = $targetBoard->message_from;     
@@ -1441,6 +1444,9 @@ class BoardController extends Controller
         $target = messageRecord::findOrFail($request->id);
         $board = boardRecord::findOrFail($target->record_id);
         $board_user = boardToUser::where('record_id', $target->record_id)->where('user_id', $active_user->id)->first();
+        if(empty($board_user)){
+            throw ValidationException::withMessages(['message' => 'チャットメンバーではありません。']); 
+        }
         $time_limit = $board_user->created_at;
             $messageFrom = $board->message_from;     
             $time_condition = $messageFrom == 0 && $time_limit;   
