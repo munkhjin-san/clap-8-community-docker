@@ -700,6 +700,11 @@ class RemindController extends Controller
         
     }
     public function remind_departure_report($badge = false) {
+        if(!in_array(Auth::id(), [833,832])){
+            return response()->json([
+                'remind_departure_report' => []
+            ]);
+        }
         $target_users = User::where('position_id', 15)->where('retire' , 0)->whereNotNull('email')
         ->whereHas('shift_records', function ($query) use ($badge) {
             $query->when($badge, fn($q) => $q->whereNull('departure_report'))
