@@ -33,7 +33,7 @@ class Kernel extends ConsoleKernel
         $schedule->job(new SendReport(610, 1283, 'weekly_legal'))->cron('15 9 * * 1');
         $schedule->job(new SendReport(610, 1303, 'weekly_balance'))->cron('15 9 * * 1');
         $schedule->job(new SendReport(610, 3599, 'weekly_officer'))->cron('15 9 * * 1');
-        $schedule->job(new SendReport(610, 1056, 'monthly_performance'))->cron('15 9 15 * *');
+        // $schedule->job(new SendReport(610, 1056, 'monthly_performance'))->cron('15 9 15 * *'); 
         $schedule->job(new SendReport(610, 1056, 'monthly_shift'))->cron('15 9 20 * *');
         $schedule->job(new SendReport(610, 1056, 'monthly_mailing'))->cron('15 9 20 * *');
         $schedule->job(new ProcessMessage())->hourly();
