@@ -719,6 +719,11 @@ class RemindController extends Controller
         ]);
     }
     public function check_departure_report(Request $request) {
+        $now = Carbon::now();
+        $cutoff = Carbon::today()->setTime(7, 30); 
+        if ($now->lessThan($cutoff)) {
+            return response()->json(['should_send' => false]);
+        }
         $check = shiftRecord::where('user_id', Auth::id())
                 ->where('shift_day', Carbon::now()->toDateString())
                 ->where('shift_type', 1)
