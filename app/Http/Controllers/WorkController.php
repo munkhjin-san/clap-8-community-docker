@@ -738,7 +738,9 @@ class WorkController extends Controller
                         "shift_day" => $shift['date'],
                         "descendant_of" => $shift_record->id,
                         "shift_type" => $shift['type'],
-                        "planned_year" => $shift_record->planned_year
+                        "planned_year" => $shift_record->planned_year,
+                        "created_at" => now(),
+                        "updated_at" => now(),
                     ];
                     $shift_record->delete();
                 }
@@ -758,6 +760,8 @@ class WorkController extends Controller
                     'status_flag' => $status_flag,
                     'planned_year' => $planned_year,
                     "descendant_of" => null,
+                    "created_at" => now(),
+                    "updated_at" => now(),
                 ];
             }
         }
