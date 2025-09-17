@@ -843,8 +843,8 @@ class WorkController extends Controller
              
             $start = Carbon::createFromFormat('H:i:s', $timecard_break->start_time);
             $end = Carbon::createFromFormat('H:i:s', $breakTime);
-            $diffinMinutes = (int) $start->diffInSeconds($end, true);
-
+            $diffinMinutes = (int) $start->diffInMinutes($end, true);
+            
             $timecard_break->update([
                 'break_by_minute' => ceil($diffinMinutes / 15) * 15,
                 'end_time' => $breakTime,
