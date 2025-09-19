@@ -121,7 +121,8 @@ import CustomFieldSub from './CustomFieldSub.vue';
             const selectedPart = parts.find(part => part.parts_value === value.value);
             return selectedPart ? selectedPart.sub_parts : [];
         }else if(type === 'checkbox'){
-            const sub_parts = parts.filter(part => Array.isArray(value.value) && value.value.includes(part.parts_value));
+            const sub_parts = parts.filter(part => Array.isArray(value.value) && value.value.map(Number).includes(Number(part.parts_value)));
+            console.log('sub', sub_parts);
             return sub_parts.map(part => part.sub_parts).flat();
         }
     })

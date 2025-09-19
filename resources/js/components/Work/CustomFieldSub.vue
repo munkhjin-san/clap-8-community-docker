@@ -30,19 +30,26 @@ onMounted(() => {
                 checked: true
             }
         }
-        if(!value.value.includes(props.subParts[0].parts_value)){
+        let includes = false;
+        props.subParts.forEach(part => {
+            if(Array.isArray(value.value) && value.value.map(Number).includes(Number(part.parts_value))){
+                includes = true;
+            }
+        })
+        if(!includes){
             value.value.push(props.subParts[0].parts_value);
         }
-        setSubPart(event);
+        // setSubPart(event);
     }
 })
 const setSubPart = (event) => {
     console.log('setSubPart', event);
     const targetValue = event.target.value;
     if(event.target.checked){
-        const otherParts = props.subParts.filter(part => part.parts_value !== targetValue);
+        const otherParts = props.subParts.filter(part => Number(part.parts_value) !== Number(targetValue));
+        console.log('otherParts', otherParts);
         otherParts.forEach(part => {
-            value.value = value.value.filter(v => v !== part.parts_value);
+            value.value = value.value.filter(v => Number(v) !== Number(part.parts_value));
         })
     }
 }

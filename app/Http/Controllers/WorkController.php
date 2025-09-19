@@ -991,7 +991,7 @@ class WorkController extends Controller
         // if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
         //     $night_difference_seconds -= $request->breakTime * 60;
         // }
-        if(array_key_exists(37, $request->customValues) && $request->customValues[37] && in_array(2, $request->customValues[37])){
+        if (is_array($request->customValues[37] ?? null) && in_array(2, $request->customValues[37], true)) {
             $this->checkWaitingAllowance($request);
         }
         DB::beginTransaction();
@@ -1036,7 +1036,20 @@ class WorkController extends Controller
             if($today != $request->day){
                 $is_exist->work_time_edit_flag = 1;
             }
-            foreach ($request->customValues as $key => $field) {
+            $customValues = $request->customValues;            
+            if (array_key_exists(37, $customValues)) {
+                $remoteAllowance = $customValues[37] ?? [];
+                $remoteAllowance = array_values(array_unique(array_map('intval', $remoteAllowance)));
+
+                if(is_array($remoteAllowance)){
+                    if(!in_array(3, $remoteAllowance, true)){
+                        $filteredRemoteWorkAllowance = array_filter($remoteAllowance, fn($value) => $value !== 4 && $value !== 5);
+                        $remoteAllowance = $filteredRemoteWorkAllowance;
+                    }
+                }
+                $customValues[37] = $remoteAllowance;
+            }
+            foreach ($customValues as $key => $field) {
                 
                customFieldDataRecord::where('table_record_id', $is_exist->id)
                     ->where('user_id', $request->userId)
