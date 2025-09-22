@@ -9,17 +9,40 @@
                 <div v-if="confirm || notify">
                     <div v-html="confirm || notify"></div>
                 </div>
+                <div v-if="input" class="mt-3">
+                    <!-- <label class="text-xs">{{ input.label || 'ダ名' }}</label> -->
+                    <input
+                        ref="inputEl"
+                        v-model="inputValue"
+                        type="text"
+                        class="cu-text-input mt-1"
+                        :placeholder="input.placeholder || ''"
+                        @keydown.stop
+                        @keydown.enter.prevent="options?.answers?.length ? sendAnswer(options.answers[0], 0) : submitInput()"
+                        @keydown.esc.prevent="emit('close')"
+                    />
+                    <p v-if="showError" class="i-error">{{ inputError }}</p>
+                </div>
                 <div style="display:flex;gap:20px;justify-content: space-evenly;margin: 20px 0 0 0;">
-            
-                    <div
-                        @click="sendAnswer(answer, index)"  
-                        :key="index" 
-                        v-for="(answer, index) in options?.answers"
-                        :style="{transform: `scale(${selected === index ? '1.3': '1'})`}" 
-                        class="cu-answer-button"
-                    >
-                        {{ answer.label }}
-                    </div>
+                    <template v-if="options?.answers?.length">
+                        <div
+                            @click="sendAnswer(answer, index)"  
+                            :key="index" 
+                            v-for="(answer, index) in options?.answers"
+                            :style="{transform: `scale(${selected === index ? '1.3': '1'})`}" 
+                            class="cu-answer-button"
+                        >
+                            {{ answer.label }}
+                        </div>
+                    </template>
+                    <template v-else-if="input">
+                        <div class="cu-answer-button"
+                            :class="{'opacity-60 pointer-events-none': !!inputError}"
+                            @click="submitInput()">
+                        {{ input.submitText || 'OK' }}
+                        </div>
+                        <div class="cu-answer-button" @click="emit('close')">Cancel</div>
+                    </template>
                 </div>               
             </div>
         </div>
@@ -29,35 +52,102 @@
 
 
 <script setup lang="ts">
-import {  ref } from 'vue';
+import {  ref, computed, watch, useTemplateRef } from 'vue';
 import { Answer, ConfirmOptions } from '@/interface/globalInterface'
+type InputOptions = {
+    value?: string;
+    placeholder?: string;
+    label?: string;
+    submitText?: string;
+    required?: boolean;
+    selectBaseName?: boolean;
+    validate?: (v:string) => string | null;
+}
 interface Props {
     confirm: string | null;
     notify: string | null;
     info: string | null;
     options: ConfirmOptions | null;
+    input?: InputOptions | null;
 }
-
 const props = defineProps<Props>()
 const cuToastCont = ref(null)
 const selected = ref()
 const emit = defineEmits<{
     (e: 'close'): void
     (e: 'handle', answer: Answer): void
+    (e: 'submit', payload: { input: string, answer?: Answer }): void
 }>()
+
 const sendAnswer = (answer: Answer, index: number) => {
-    selected.value = index        
-    emit('handle', answer)             
-    setTimeout(() => {
-        emit('close')   
-    }, 50);
-    
+  selected.value = index;
+  attempted.value = true;
+
+  if (props.input && inputError.value && !isCancel(answer)) return;
+  emit('handle', answer); // keep legacy event
+  emit('submit', { input: (inputValue.value ?? '').trim(), answer });
+  setTimeout(() => emit('close'), 50);
 }
 
+const inputEl = useTemplateRef('inputEl')
+const inputValue = ref<string>(props.input?.value ?? '');
+const dirty = ref(false);
+const attempted = ref(false);
+
+const isCancel = (answer: Answer | undefined) => {
+  if (typeof answer?.value === 'boolean' && answer.value === false) return true;
+  const label = String(answer?.label || '').toLowerCase();
+  return label === 'cancel' || label === 'キャンセル';
+}
+const inputError = computed(() => {
+  if (!props.input) return null;
+  const v = (inputValue.value ?? '').trim();
+  if (props.input.required && !v) return '名前は必須です。';
+  if (v.length > 255) return '名前が長すぎます。';
+  if (/[\\/:*?"<>|]/.test(v)) return '使用できない文字が含まれています（\\ / : * ? " < > |）。';
+  if (v === '.' || v === '..') return '「.」や「..」は使用できません。';
+  return props.input.validate ? props.input.validate(v) : null;
+});
+const showError = computed(() => !!inputError.value && (dirty.value || attempted.value));
+const submitInput = (answer?: Answer) => {
+  attempted.value = true;
+
+  if (props.input && inputError.value && !isCancel(answer)) return;
+  emit('submit', { input: (inputValue.value ?? '').trim(), answer });
+  emit('close');
+}
+watch(inputValue, () => { dirty.value = true; });
+watch(() => props.input, async(inp) => {
+  if (!inp) return;
+  inputValue.value = inp.value ?? '';
+  queueMicrotask(() => {
+    inputEl.value?.focus();
+    if (!inputEl.value) return;
+    if (inp.selectBaseName) {
+      const v = inputValue.value ?? '';
+      const dot = v.lastIndexOf('.');
+      const end = dot > 0 ? dot : v.length;
+      inputEl.value.setSelectionRange(0, end);
+    } else {
+      inputEl.value.select();
+    }
+  });
+}, { immediate: true, flush: 'post' });
 </script>
 <style lang="scss" scoped>
 $primary: #626262;
 $secondary: #fff;
+.cu-text-input {
+  border: 1px solid var(--input-border, #3a3a3a);
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.cu-text-input::placeholder { color: #999; }
+.cu-text-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.25);
+}
 
 .cu-toast-container {
 font-size: 14px;

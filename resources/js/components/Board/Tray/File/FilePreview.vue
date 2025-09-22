@@ -167,7 +167,7 @@ import { MenuList } from '@/interface/globalInterface';
     }      
     const canView = computed(() => {
         if(!source.value) return false
-        const possibleSources = ['post', 'message', 'calendar', 'user', 'notice', 'work', 'project']
+        const possibleSources = ['post', 'message', 'calendar', 'user', 'notice', 'work', 'project', 'storage']
         return possibleSources.includes(source.value)
     })
     const source = computed(() => {

@@ -38,8 +38,13 @@
                 :notify="pingData"
                 :info="toastData"
                 :options="respondOptions"
+                :input="inputOptions"
                 @close="resetDialog"
                 @handle="val => decision = val"
+                @submit="({ input, answer}) => {
+                    inputResult = input;
+                    if (answer) decision = answer;
+                }"
             ></Dialog>
         </Transition>
         <OverRide/>
@@ -95,7 +100,7 @@ import { useDialog } from '@/composables/dialog';
     const sideMenuView = useSideMenuView()
     const switchLoader = ref(false)
 
-    const { askData, pingData, toastData, respondOptions, decision, resetDialog, ask } = useDialog() 
+    const { askData, pingData, toastData, respondOptions, decision, resetDialog, ask, inputOptions, inputResult } = useDialog() 
     const instantUser = ref({
         id: null,
         name: null,

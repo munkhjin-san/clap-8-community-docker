@@ -14,6 +14,7 @@
                     :noDrop="noDrop"
                     :inputId="'taskUserSelector'"
                     :components="{Deselect}"
+                    :disabled="disabled"
                     :closeOnSelect="closeOnSelect"
                     @search:focus="focus = true"
                     @search:blur="focus = false"
@@ -64,6 +65,7 @@ import { useApi } from '@/composables/api';
         'options',
         'exclude',
         'modelValue',
+        'disabled'
     ])
     const error = ref('')
     const trigger = ref(false)
