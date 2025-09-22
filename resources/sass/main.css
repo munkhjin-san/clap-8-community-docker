@@ -3269,7 +3269,13 @@ div.recordFormTitle>p {
 .vs__selected {
   margin: 0;
 }
-
+.vs--disabled .vs__dropdown-toggle {
+  background-color: var(--background-color);
+}
+.vs--disabled .vs__search {
+  background-color: var(--background-color);
+  cursor: not-allowed;
+}
 .vs__dropdown-toggle {
   -webkit-appearance: none;
   -moz-appearance: none;

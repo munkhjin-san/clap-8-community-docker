@@ -18,7 +18,7 @@
             </div>  
         </div>
         <div class="mx-[20px] flex whitespace-nowrap overflow-auto hide-scrollbar">
-            <router-link :to="{name : tab.path}" v-for="tab in tabs" :key="tab.name" class="tab tab-link flex items-center gap-[5px]" :class="{active: route.fullPath.includes(tab.path)}">
+            <router-link :to="{name : tab.path}" v-for="tab in tabs" :key="tab.name" class="tab tab-link flex items-center gap-[5px]" :class="{active: tab.path ? route.fullPath.includes(tab.path) : false}">
 
                 <div class="tab-name">{{ tab.name }}</div>
                 <span 
@@ -53,6 +53,7 @@
             :selected-project="selectedProject" 
             :user-list="userList"
             :has-privilage="hasPrivilage"
+            :fileAccess="fileAccess"
             :key="`rt_${route.params.projectId}`"
         />
     </div>
@@ -71,7 +72,23 @@ import { useRoute, useRouter } from 'vue-router';
     const initialLoader = ref(false)
     const auth = useAuthUserStore()
     const { selectedProject, memberData } = useProject() 
-    const tabs = [
+    const userId = computed(() => auth.activeUser?.id ?? auth.id ?? null);
+    type Tab = { name: string; path: string };
+
+    const fileAccess = computed<boolean>(() => {
+        const sp = selectedProject.value;
+        const uid = userId.value;
+
+        if (uid == null) return false;
+
+        return Boolean(
+            sp?.manager?.some(m => m.id === uid) ||
+            (auth.user?.position_id != null && auth.user.position_id < 6) ||
+            uid === 610 || uid === 608 ||
+            sp?.members?.some(member => member.id === uid)  
+        );
+    });
+    const baseTabs: Tab[] = [
         { name: '概要', path: 'overview'},
         { name: 'メンバー', path: 'project-members'},
         { name: '業務マニュアル', path: 'operation'},
@@ -80,7 +97,15 @@ import { useRoute, useRouter } from 'vue-router';
         { name: '収支', path: 'finance'},
         { name: 'ガントチャート', path: 'task-calendar'},
         { name: '物品', path: 'assets'},
-    ]
+    ];
+
+    const tabs = computed<Tab[]>(() => {
+        const t = [...baseTabs];
+        if (fileAccess.value) {
+            t.push({ name: 'ファイルストレージ', path: 'file-storage' });
+        }
+        return t;
+    });
     const totalMemberBadge = computed(() => {
         return badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
     })
@@ -90,7 +115,7 @@ import { useRoute, useRouter } from 'vue-router';
     const taskCommentBadge = computed(() => {
         return badge.taskCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
     })
-
+   
     const hasPrivilage = computed(() => {
         return (selectedProject.value?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6) || auth.activeUser.id == 610 || auth.activeUser.id == 608) ? true : false
     })

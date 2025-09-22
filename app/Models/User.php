@@ -223,4 +223,8 @@ class User extends Authenticatable
     public function post_entries(){
         return $this->hasMany(PostEntry::class)->whereHas('post');
     }
+    public function isProjectManager($projectId): bool
+    {
+        return $this->work_groups()->where('project_id', $projectId)->wherePivot('authority', 1)->exists();
+    }
 }
