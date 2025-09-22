@@ -384,6 +384,12 @@ const routes = [
                         props: true,
                         component: () => import('./components/AccountControl/ProjectControl/EvaluationMentor.vue')
                     },
+                    // {
+                    //     path: 'metriccontrol',
+                    //     name: 'metriccontrol',
+                    //     props: true,
+                    //     component: () => import('./components/AccountControl/ProjectControl/MetricControl/MetricList.vue')
+                    // }
 
                 ]
             },
