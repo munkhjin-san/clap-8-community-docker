@@ -1,6 +1,6 @@
 <template>
     <div class="post-root">        
-        <div class="post-header">
+        <div class="post-header justify-between">
             <HamBurger v-if="responsive.mobile"/>
             <div class="project-search-wrap">
                 <PostSearchBar 
@@ -8,6 +8,9 @@
                     :customPlaceHolder="`プロジェクト検索`" 
                     @search-start="(word) => {keywords = word}"
                 />                
+            </div>
+            <div class="c-bar-button mr-4" @click="totalFinanceWindow = true">
+                収支集計
             </div>            
         </div>
         <Transition name="modalFade">
@@ -22,7 +25,25 @@
             <div class="project-table">
                 <div class="project-header-row">
                     <div class="project-cell" style="min-width: 230px;">プロジェクト名</div>
-                    <div class="project-cell">期間</div>
+                    <div class="project-cell cursor-pointer relative">
+                        <div @click.stop="menu.setMenu({parent: 'projectDateSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
+                            期間
+                            <Back class="rotate-[270deg]" size="10"/>
+                        </div>
+                        <div v-if="start && end" class="flex flex-wrap">
+                           {{ start.toLocaleString(DateTime.DATE_SHORT) }} ~ {{ end.toLocaleString(DateTime.DATE_SHORT) }}
+                        </div>
+                        <Transition name="slidePop">
+                            <ProjectDateSort
+                                v-if="menu.parent == 'projectDateSelect'" 
+                                id="projectDateSelect"
+                                v-model:date_start="start"
+                                v-model:date_end="end"
+                                @filter="filterByDate"
+                                @reset="getProjects"
+                            />
+                        </Transition>
+                    </div>
                     <div class="project-cell">サービスカテゴリ</div>
                     <div class="project-cell">顧客企業</div>
                     <div class="project-cell">業種区分</div>
@@ -157,6 +178,7 @@
             <ProjectTotalFinance 
                 v-if="totalFinanceWindow"
                 :projects="projectList.filter(pr => pr.name !== '役員')"
+                :ownProjectIds="ownProjectIds"
                 @close="totalFinanceWindow = false"
             />
         </Transition>
@@ -189,6 +211,8 @@ import { useProject } from '@/composables/project';
 import Back from '../Icons/Back.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
+import ProjectDateSort from './ProjectDateSort.vue';
+import { useDialog } from '@/composables/dialog';
 const keywords = ref('')
 const initialLoader = ref(true)
 const menu = useMenuStore()
@@ -206,13 +230,19 @@ const badge = useBadgeStore()
 const taskComponent = useTemplateRef<ComponentExposed<typeof TaskComponent>>('taskComponent')
 const totalFinanceWindow = ref(false)
 const api = useApi()
-
-const { getProjects, projectList } = useProject()
+const start = ref<DateTime | null>(null)
+const end = ref<DateTime | null>(null)
+const unitOptions = ['1', '1000', '10000', '1000000'] 
+const { getProjects, projectList, usersProjects } = useProject()
+const { ping } = useDialog()
 onMounted(async() => {
     await getProjectData();
     getSelectableUsers()
 })
-
+const ownProjectIds = computed(() => {
+    const savedIds = JSON.parse(localStorage.getItem('projectIds') || '[]')
+    return savedIds ?? usersProjects.value.map(p => p.id)
+})
 const totalSpan = computed(() => {
     let startPoint: DateTime = DateTime.now().startOf('year');
     let endPoint: DateTime = DateTime.now().plus({ year: 1 }).endOf('year');
@@ -326,6 +356,14 @@ const activeMembers = computed(() => {
     const uniqueTargets = target.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i)
     return uniqueTargets
 })
+const filterByDate = () => {
+    if (!start.value || !end.value) {
+        ping('両方の日付を選択してください')
+        return
+    }
+    getProjects(start.value, end.value)
+    menu.close()
+}
 const plainText = (text?: string | null) => {
     if(!text) return ''
     return text.replace(/<("[^"]*"|'[^']*'|[^'">])*>/g,'').replace(/&nbsp;/g, '')
@@ -334,7 +372,8 @@ const totalBadges = (projectId: number) => {
     return badge.goalsBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
     badge.salaryIssueByFilter([{by: 'project_id', value: projectId}]).length +
     badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
-    badge.taskCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
+    badge.taskCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length 
+    // + badge.financeCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
 }
 const jumpToProject = (project: Project) => {
     const routeName = route.name === 'project' ? 'overview' : 
@@ -347,6 +386,7 @@ const jumpToProject = (project: Project) => {
 }
 provide('editProjects', (rec) => {editData.value = rec; createWindow.value = true})
 provide('setTotalFinanceWindow', (flag:boolean) => {totalFinanceWindow.value = flag})
+provide('unitOptions', unitOptions)
 </script>
 <style scoped>
     .project-title-cell{

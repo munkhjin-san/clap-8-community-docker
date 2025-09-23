@@ -79,13 +79,13 @@ class DriveController extends Controller
                         ->whereColumn('a.node_id','drive_nodes.id')
                         ->where('a.user_id',$u->id);
                 });
-            })->with('owner:id,name,icon_bg,icon_path'); // eager load owner relationship
+            })->with('owner:id,name,icon_bg,icon_path', 'acls:node_id,user_id');
        $items = $q->orderByRaw("FIELD(type,'folder','file')")
         ->orderBy('name')
         ->get(['id','type','name','size','mime','updated_at','storage_path','ext','owner_id','visibility']);
 
         return response()->json([
-            'parent' => $parent ? ['id'=>$parent->id,'name'=>$parent->name] : ['id'=>null,'name'=>'Root'],
+            'parent' => $parent ? ['id'=>$parent->id,'name'=>$parent->name] : ['id'=>null,'name'=>'ホーム'],
             'path'   => $this->buildPath($parent, $projectId),
             'items'  => $items,
         ]);
@@ -102,7 +102,7 @@ class DriveController extends Controller
                 ->whereNull('deleted_at')
                 ->first();
         }
-        array_unshift($crumbs, ['id'=>null,'name'=>'Root']);
+        array_unshift($crumbs, ['id'=>null,'name'=>'ホーム']);
         return $crumbs;
     }
 
@@ -112,7 +112,7 @@ class DriveController extends Controller
             'file.*' => 'required|file|max:51200', // 50MB each
             'project_id' => 'required'
         ]);
-
+        
         $ownerId = $req->user()->id;
         $uploaded = [];
         foreach ($req->file('file', []) as $f) {
@@ -137,7 +137,9 @@ class DriveController extends Controller
                 'storage_path' => $storagePath,
                 'owner_id' => $ownerId,
             ]);
+
             $members = ProjectMember::where('project_id', $req->input('project_id'))
+                ->where('user_id', '!=', $ownerId)
                 ->pluck('user_id')
                 ->unique()    
                 ->values()
@@ -147,6 +149,7 @@ class DriveController extends Controller
                 'visibility' => 'public',
                 'members' => $members,
                 'cascade' => false,
+                'initial' => true
             ]), $node->id);
             $uploaded[] = ['id'=>$node->id,'name'=>$node->name,'type'=>'file','size'=>$size,'mime'=>$mime];
         }
@@ -159,9 +162,9 @@ class DriveController extends Controller
             'project_id' => 'required'
         ]);
         // enforce unique per parent
-        if (DriveNode::where('parent_id', $req->parent_id)->where('name',$req->name)->where('project_id', $req->project_id)->whereNull('deleted_at')->exists()) {
-            return response()->json(['message'=>'同名の項目が既に存在します'], 409);
-        }
+        // if (DriveNode::where('parent_id', $req->parent_id)->where('name',$req->name)->where('project_id', $req->project_id)->whereNull('deleted_at')->exists()) {
+        //     return response()->json(['message'=>'同名の項目が既に存在します'], 409);
+        // }
         $node = DriveNode::create([
             'id' => (string) \Str::uuid(),
             'parent_id' => $req->parent_id,
@@ -170,7 +173,9 @@ class DriveController extends Controller
             'name' => $req->name,
             'owner_id' => $req->user()->id,
         ]);
+        $excludeId = (int) $req->user()->id;   
         $members = ProjectMember::where('project_id', $req->input('project_id'))
+            ->where('user_id', '!=', $excludeId)
             ->pluck('user_id')
             ->unique()    
             ->values()
@@ -181,6 +186,7 @@ class DriveController extends Controller
             'visibility' => 'public',
             'members' => $members,
             'cascade' => false,
+            'initial' => true
         ]), $node->id);
         return response()->json($node);
     }
@@ -195,9 +201,9 @@ class DriveController extends Controller
             ->whereNull('deleted_at')
             ->firstOrFail();
         // enforce unique per parent
-        if (DriveNode::where('parent_id', $node->parent_id)->where('name',$req->name)->where('project_id', $req->project_id)->whereNull('deleted_at')->where('id','!=',$id)->exists()) {
-            return response()->json(['message'=>'同名の項目が既に存在します'], 409);
-        }
+        // if (DriveNode::where('parent_id', $node->parent_id)->where('name',$req->name)->where('project_id', $req->project_id)->whereNull('deleted_at')->where('id','!=',$id)->exists()) {
+        //     return response()->json(['message'=>'同名の項目が既に存在します'], 409);
+        // }
 
         $node->name = $req->name;
         $node->save();
@@ -256,12 +262,9 @@ class DriveController extends Controller
 
         // 4) read + orient + size
         $abs = Storage::disk('local')->path($storageKey);
-        $img = Image::read($abs)->resize($dim, $dim);
-       
-        // if (!$isOriginal) {
-        //     // square thumbnail; switch to scaleDown() if you want letterboxing
-        //     $img = $img->resize($dim, $dim);
-        // }
+        $img = Image::read($abs);
+        $img->scaleDown(null, 30);
+        $size = (int) $dim;
 
         // 5) return; your helper should encode and set headers
         return $this->image_response($img);
@@ -588,6 +591,7 @@ class DriveController extends Controller
             'members'    => 'array',
             'members.*'  => 'integer|exists:users,id',
             'cascade'    => 'boolean',
+            'initial'    => 'boolean' 
         ]);
 
         $node = DriveNode::with(['project:id'])->findOrFail($id);
@@ -601,7 +605,7 @@ class DriveController extends Controller
             // 2) Replace explicit ACLs on THIS node
             DriveNodeAcl::where('node_id',$node->id)->whereNull('inherited_from')->delete();
 
-            if ($node->visibility === 'private') {
+            if ($node->visibility === 'private' || ($data['initial'] ?? false)) {
                 $rows = collect($data['members'] ?? [])
                     ->unique()
                     ->map(fn($uid) => [
@@ -667,7 +671,7 @@ class DriveController extends Controller
 
         $members = DriveNodeAcl::where('node_id', $node->id)
                 ->whereNull('inherited_from')
-                ->with('members:id,name,email')
+                ->with('members:id,name,email,icon_bg,icon_path') // eager load user relationship
                 ->get()
                 ->pluck('members')      // collection of User models
                 ->filter()           // drop nulls, just in case
@@ -678,6 +682,21 @@ class DriveController extends Controller
             'nodeId'     => (string)$node->id,
             'visibility' => $node->visibility,          // 'public' | 'private'
             'members'    => $members,                   // array of userIds (explicit only)
+        ]);
+    }
+    public function previewFile(string $id) 
+    {
+        $node = DriveNode::findOrFail($id);
+        abort_unless($node->type === 'file', 404);
+
+        return response()->json([
+            'id' => (string)$node->id,
+            'name' => $node->name,
+            'mime' => $node->mime,
+            'size' => $node->size,
+            'ext'  => $node->ext,
+            'storage_path' => $node->storage_path,
+            'type' => $node->type,
         ]);
     }
 }

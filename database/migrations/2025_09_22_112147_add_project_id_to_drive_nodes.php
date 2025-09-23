@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('drive_nodes', function (Blueprint $table) {
-            $table->enum('visibility', ['public', 'private'])->default('public')->after('owner_id');
+            $table->integer('project_id')->nullable()->after('owner_id');
         });
     }
 
@@ -22,8 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('drive_nodes', function (Blueprint $table) {
-            $table->dropIndex(['visibility']); // drop if you added it
-            $table->dropColumn('visibility');
+            //
         });
     }
 };

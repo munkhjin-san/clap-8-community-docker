@@ -167,7 +167,7 @@ import { MenuList } from '@/interface/globalInterface';
     }      
     const canView = computed(() => {
         if(!source.value) return false
-        const possibleSources = ['post', 'message', 'calendar', 'user', 'notice', 'work', 'project', 'storage']
+        const possibleSources = ['post', 'message', 'calendar', 'user', 'notice', 'work', 'project', 'storage', 'deeplink']
         return possibleSources.includes(source.value)
     })
     const source = computed(() => {
@@ -252,6 +252,9 @@ import { MenuList } from '@/interface/globalInterface';
         docUrl.value = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`   
     }        
     const filePreviewClose = () => {
+        if (source.value === 'deeplink') {
+            window.close(); 
+        }
         const data = {
             active: false,
             files: [],

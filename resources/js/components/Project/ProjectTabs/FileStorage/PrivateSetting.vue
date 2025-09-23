@@ -62,7 +62,7 @@ function onSave () {
 <template>
     <Modal @close="emit('close')">
         <template #title>
-            <p>「{{ node.name }}」アクセス権限</p>
+            <p>「{{ node.name }}」アクセス権限設定</p>
         </template>
         <template #content>
             <div v-if="owner">

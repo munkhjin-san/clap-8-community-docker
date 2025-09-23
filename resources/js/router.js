@@ -235,7 +235,7 @@ const routes = [
                         component: () => import('./components/Project/ProjectTabs/TaskCalendar.vue'),
                     },
                     {
-                        path: 'file-storage',
+                        path: 'file-storage/:parentId?',
                         name: 'file-storage',
                         props: true,
                         component: () => import ('./components/Project/ProjectTabs/FileStorage.vue'),
@@ -755,6 +755,12 @@ const routes = [
                 component: () => import('./components/Survey/MySurveyDetail.vue'),
             },
         ]
+    },
+    {
+        path: '/file-preview/:fileId',
+        name: 'file-preview',
+        component: () => import('./components/Global/FilePreviewDeeplink.vue'),
+        props: true,
     }
 
     

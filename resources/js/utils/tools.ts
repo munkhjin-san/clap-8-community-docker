@@ -139,10 +139,49 @@ const kintoneFileUrlBuilder = (file:any) => {
     return `/kintone_file?${params.toString()}`
 }
 
-const amountOfMoneyParser = (amount: number) => {
+const amountOfMoneyParser = (amount: number, unit?: number) => {
     if (Number.isNaN(amount)) return '-';
+    if (unit)  return new Intl.NumberFormat("ja-JP").format(Math.round(amount/unit))
     return new Intl.NumberFormat("ja-JP").format(amount);
 }
+const truncatedName = (filename: string, maxLength: number) => {
+  if (!filename) return ''
+
+  // split extension
+  const lastDot = filename.lastIndexOf('.')
+  if (lastDot === -1) {
+    // no extension, just truncate raw
+    return filename.length > maxLength
+      ? filename.slice(0, maxLength - 3) + '...'
+      : filename
+  }
+
+  const name = filename.slice(0, lastDot)
+  const ext = filename.slice(lastDot)
+
+  if (filename.length <= maxLength) return filename
+
+  // leave room for extension + ellipsis
+  const keep = maxLength - ext.length - 3
+  return name.slice(0, keep) + '...' + ext
+}
+const valueTypeOptions = [
+  { name: '額', value: 'amount' },
+  { name: '率', value: 'rate' }
+]
+
+const lineOptions = [
+  { name: '売上', value: 'sales' },
+  { name: '販管費', value: 'expense' },
+  { name: '利益', value: 'profit' },
+  { name: '利益率', value: 'profit_rate' }
+]
+
+const kindOptions = [
+  { name: '入力', value: 'input' },
+  { name: '計算', value: 'derived' }
+]
+
 export { 
     debounce, 
     mentionFormatter, 
@@ -158,5 +197,9 @@ export {
     customParser,
     fileSizeParser,
     kintoneFileUrlBuilder,
-    amountOfMoneyParser
+    amountOfMoneyParser,
+    truncatedName,
+    valueTypeOptions,
+    lineOptions,
+    kindOptions
 }

@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Builder;
+use Carbon\Carbon;
 
 class ProjectRecord extends Model
 {
@@ -38,5 +40,27 @@ class ProjectRecord extends Model
         'partners' => 'array',
         'customers' => 'array',
         'industry_type' => 'array',
+        'date_start' => 'date',
+        'date_end' => 'date',
     ];
+
+    public function scopeActiveOn(Builder $q, ?Carbon $day = null): Builder
+    {
+        $day ??= now('Asia/Tokyo')->startOfDay();
+
+        return $q->whereDate('date_start', '<=', $day)
+                ->where(function ($q) use ($day) {
+                    $q->whereNull('date_end')
+                      ->orWhereDate('date_end', '>=', $day);
+                });
+    }
+
+    public function scopeOverlapping(Builder $q, Carbon $start, Carbon $end): Builder
+    {
+        return $q->whereDate('date_start', '<=', $end)
+                 ->where(function ($q) use ($start) {
+                     $q->whereNull('date_end')
+                       ->orWhereDate('date_end', '>=', $start);
+                 });
+    }
 }

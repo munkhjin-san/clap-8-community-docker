@@ -250,7 +250,7 @@
                                                 <div class="flex items-center gap-[5px]">
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(data.settlement.sales) }}</div>
-                                                    <DeltaNumbers type="sales" :planned="data.yearly_plan.sales"
+                                                    <DeltaNumbers type="sales" :planned="data.profit.sales"
                                                         :actual="data.settlement.sales" />
                                                 </div>
                                             </td>
@@ -258,7 +258,7 @@
                                                 <div class="flex items-center gap-[5px]">
                                                     <div class="inner-col"><span class="mobile">販管費</span>{{
                                                         amountOfMoneyParser(data.settlement.expense) }}</div>
-                                                    <DeltaNumbers type="expense" :planned="data.yearly_plan.expense"
+                                                    <DeltaNumbers type="expense" :planned="data.profit.expense"
                                                         :actual="data.settlement.expense" />
                                                 </div>
                                             </td>
@@ -268,7 +268,7 @@
                                                         amountOfMoneyParser(data.settlement.sales -
                                                         data.settlement.expense) }}</div>
                                                     <DeltaNumbers type="profit"
-                                                        :planned="data.yearly_plan.sales - data.yearly_plan.expense"
+                                                        :planned="data.profit.sales - data.profit.expense"
                                                         :actual="data.settlement.sales - data.settlement.expense" />
                                                 </div>
                                             </td>
@@ -277,7 +277,7 @@
                                                     <div class="inner-col"><span class="mobile">利益率</span>{{
                                                         percentizer(data.settlement).display }}</div>
                                                     <DeltaNumbers type="profit_rate"
-                                                        :planned="percentizer(data.yearly_plan).value"
+                                                        :planned="percentizer(data.profit).value"
                                                         :actual="percentizer(data.settlement).value" />
                                                 </div>
                                             </td>
@@ -373,7 +373,7 @@
                                                 <div class="inner-col"><span class="mobile">売上</span>{{
                                                     amountOfMoneyParser(summarizeData.settlement.sales)
                                                     }}</div>
-                                                <DeltaNumbers type="sales" :planned="summarizeData.yearly_plan.sales"
+                                                <DeltaNumbers type="sales" :planned="summarizeData.profit.sales"
                                                     :actual="summarizeData.settlement.sales" />
                                             </div>
                                         </td>
@@ -382,7 +382,7 @@
                                                 <div class="inner-col"><span class="mobile">販管費</span>{{
                                                     amountOfMoneyParser(summarizeData.settlement.expense) }}</div>
                                                 <DeltaNumbers type="expense"
-                                                    :planned="summarizeData.yearly_plan.expense"
+                                                    :planned="summarizeData.profit.expense"
                                                     :actual="summarizeData.settlement.expense" />
                                             </div>
                                         </td>
@@ -392,7 +392,7 @@
                                                     amountOfMoneyParser(summarizeData.settlement.sales -
                                                     summarizeData.settlement.expense) }}</div>
                                                 <DeltaNumbers type="profit"
-                                                    :planned="summarizeData.yearly_plan.sales - summarizeData.yearly_plan.expense"
+                                                    :planned="summarizeData.profit.sales - summarizeData.profit.expense"
                                                     :actual="summarizeData.settlement.sales - summarizeData.settlement.expense" />
                                             </div>
                                         </td>
@@ -402,7 +402,7 @@
                                                     percentizer(summarizeData.settlement).display }}
                                                 </div>
                                                 <DeltaNumbers type="profit_rate"
-                                                    :planned="percentizer(summarizeData.yearly_plan).value"
+                                                    :planned="percentizer(summarizeData.profit).value"
                                                     :actual="percentizer(summarizeData.settlement).value" />
                                             </div>
                                         </td>
@@ -482,6 +482,7 @@ import { useApi } from '@/composables/api';
 
 const props = defineProps<{
     projects: Project[]
+    ownProjectIds: number[]
 }>()
 const emit = defineEmits<{
     close: []
@@ -545,7 +546,7 @@ const endMonthRef = useTemplateRef('endMonthRef')
 const api = useApi()
 
 onMounted(() => {
-    selectedProjects.value = route.params.projectId ? [Number(route.params.projectId)] : props.projects && props.projects.length ? [props.projects[0].id] : []
+    selectedProjects.value = route.params.projectId ? [Number(route.params.projectId)] : props.ownProjectIds && props.ownProjectIds.length ? props.ownProjectIds : []
 })
 const possibleTypes = [{ value: 'sales', label: '売上' }, { value: 'expense', label: '販管費' }, { value: 'profit', label: '利益' }]
 const possibleScenarios = [{ value: 'yearly_plan', label: '年度予算' }, { value: 'profit', label: '損益計画' }, { value: 'settlement', label: '実績' }]
@@ -601,6 +602,7 @@ const managersProjects = (manager: User) => {
 }
 
 watch(() => [selectedProjects.value], () => {
+    localStorage.setItem('projectIds', JSON.stringify(selectedProjects.value))
     getTotalFinance()
 })
 

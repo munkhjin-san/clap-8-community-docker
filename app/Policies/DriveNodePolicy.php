@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\User;
 use App\Models\DriveNode;
 use App\Models\DriveNodeAcl;
+use Illuminate\Auth\Access\Response;
 
 class DriveNodePolicy
 {
@@ -16,7 +17,7 @@ class DriveNodePolicy
         //
     }
     // app/Policies/DriveNodePolicy.php
-    public function view(User $u, DriveNode $n): bool
+    public function view(User $u, DriveNode $n): Response
     {
         
         // if ($n->visibility === 'public') {
@@ -25,11 +26,14 @@ class DriveNodePolicy
         //     // return $nodeCompanyId && $u->company_id === $nodeCompanyId;
         //     return true;
         // }
-        if ($n->owner_id == $u->id || $u->isProjectManager($n->project_id)) return true;
+        if ($n->owner_id == $u->id || $u->isProjectManager($n->project_id)) return Response::allow();
         // private: explicit ACL on node (or inherited)
-        return DriveNodeAcl::where('node_id',$n->id)
-            ->where('user_id',$u->id)
-            ->exists();
+
+        $hasAcl = DriveNodeAcl::where('node_id', $n->id)
+                ->where('user_id', $u->id)
+                ->exists();
+        if ($hasAcl) return Response::allow();
+        return Response::denyAsNotFound(__('drive.not_found'));
     }
     public function update(User $u, DriveNode $n): bool
     {

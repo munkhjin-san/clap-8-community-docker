@@ -38,10 +38,20 @@
 
             <div v-if="hasPrivilage" class="project-detail-header">
                 <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">管理者用非公開メモ</span></div> 
-                <div class="leading-normal mt-[10px]" ref="memoBody" :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease'}">
-                    <p ref="memoInnerBody" v-html="sanitized(selectedProject?.private_memo ?? '')"></p>
+                <div class="leading-normal mt-[10px]">
+                    <div v-html="displayHtml"></div>
+
+                    <div
+                        v-if="isTruncated"
+                        @click="toggleFull"
+                        class="mt-[10px] cursor-pointer text-sm"
+                        role="button"
+                        :aria-expanded="isExpanded ? 'true' : 'false'"
+                    >
+                        <CommandButton :buttons="[{title: isExpanded ? '閉じる' : '続きを表示する', action:() => ''}]"/>
+
+                    </div>
                 </div>
-                <div @click="toggleFull" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
             </div> 
 
             <div class="project-detail-header">
@@ -70,20 +80,21 @@
     </div>
 </template>
 <script setup lang="ts">
-import { inject, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, inject, onMounted, ref, useTemplateRef, watch } from 'vue';
 import ItemMenu from '../../Global/ItemMenu.vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { DateTime } from 'luxon';
 import { useProject } from '@/composables/project';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
+import CommandButton from '@/components/Global/CommandButton.vue';
     const props = defineProps(['userList', 'hasPrivilage'])
     const editProjects = inject('editProjects') as (project: any) => void
 
     const { selectedProject } = useProject()
     const dynamicHeight = ref('auto')
-    const memoBody = useTemplateRef('memoBody')
-    const memoInnerBody = useTemplateRef('memoInnerBody')
+    // const memoBody = useTemplateRef('memoBody')
+    // const memoInnerBody = useTemplateRef('memoInnerBody')
 
 
     const sanitized = (text: string) => {
@@ -93,15 +104,114 @@ import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
         const saveText = DOMPurify.sanitize(markedText)
         return saveText
     }
+    const fullHtml = computed(() => sanitized(selectedProject?.value?.private_memo ?? ''));
+    const isExpanded = ref(false);
+    const isTruncated = ref(false);
+    const excerptHtml = ref('');
+    
     onMounted(() => {
-        if(memoBody.value && memoBody.value?.clientHeight > 42){
-            dynamicHeight.value = '42px'
-        }
+        // if(memoBody.value && memoBody.value?.clientHeight > 42){
+        //     dynamicHeight.value = '42px'
+        // }
               
     })
-    const toggleFull = () => {
-        dynamicHeight.value = dynamicHeight.value == '42px' ? `${memoInnerBody.value?.clientHeight}px` : '42px'
+    const displayHtml = computed(() => isExpanded.value ? fullHtml.value : excerptHtml.value);
+    const toggleFull = () => { isExpanded.value = !isExpanded.value; };
+    const buildHtmlExcerpt = (html: string, opts?: { maxChars?: number; maxBlocks?: number; skipTags?: string[] }): { html: string; truncated: boolean } => {
+        const maxChars = opts?.maxChars ?? 280;
+        const maxBlocks = opts?.maxBlocks ?? 5;
+        const skipSet = new Set((opts?.skipTags ?? []).map(t => t.toUpperCase()));
+
+        // trivial cases
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        if (!tmp.textContent || tmp.textContent.trim() === '' || html === '未設定') {
+            return { html, truncated: false };
+        }
+
+        let used = 0;
+        let blocks = 0;
+        let truncated = false;
+
+        const out = document.createElement('div');
+
+        // Walk top-level blocks only; keeps structure tidy
+        for (const child of Array.from(tmp.childNodes)) {
+            if (blocks >= maxBlocks || used >= maxChars) break;
+
+            const { clone, added, hitLimit } = cloneWithLimit(child, maxChars - used, skipSet);
+            if (!clone) continue;
+
+            out.appendChild(clone);
+            used += added;
+            blocks += 1;
+            if (hitLimit) { truncated = true; break; }
+        }
+
+        // If we didn’t reach limits, no need to truncate
+        if (!truncated && used < maxChars && blocks < maxBlocks) {
+            return { html, truncated: false };
+        }
+
+        // Add ellipsis politely
+        out.append('…');
+        return { html: out.innerHTML, truncated: true };
     }
+
+    const cloneWithLimit = (node: Node, remaining: number, skipSet: Set<string>): { clone?: Node; added: number; hitLimit: boolean } => {
+        // Text node
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.nodeValue ?? '';
+            if (text.length <= remaining) {
+            return { clone: document.createTextNode(text), added: text.length, hitLimit: false };
+            }
+            const sliced = text.slice(0, Math.max(0, remaining));
+            return { clone: document.createTextNode(sliced), added: sliced.length, hitLimit: true };
+        }
+
+        // Element node
+        if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node as HTMLElement;
+            if (skipSet.has(el.tagName)) {
+            // skip entirely in preview
+            return { clone: undefined, added: 0, hitLimit: false };
+            }
+
+            const clone = el.cloneNode(false) as HTMLElement;
+
+            // Inline elements: treat like text container
+            const isInline = getComputedStyle(el).display === 'inline' || ['A','EM','STRONG','SPAN','SMALL','S','U','I','B','SUB','SUP'].includes(el.tagName);
+
+            let added = 0;
+            let hitLimit = false;
+
+            for (const child of Array.from(el.childNodes)) {
+            if (added >= remaining) { hitLimit = true; break; }
+            const res = cloneWithLimit(child, remaining - added, skipSet);
+            if (res.clone) clone.appendChild(res.clone);
+            added += res.added;
+            if (res.hitLimit) { hitLimit = true; break; }
+            }
+
+            // If an inline became empty and we didn’t add anything, drop it
+            if (isInline && !clone.textContent) {
+            return { clone: undefined, added: 0, hitLimit };
+            }
+            return { clone, added, hitLimit };
+        }
+
+        // Ignore comments/others
+        return { clone: undefined, added: 0, hitLimit: false };
+    }
+    watch(fullHtml, (html) => {const { html: ex, truncated } = buildHtmlExcerpt(html, {
+            maxChars: 280,          // tweak to taste
+            maxBlocks: 6,           // limit number of top-level blocks
+            skipTags: ['TABLE','PRE','CODE','IFRAME','VIDEO'] // avoid heavy stuff in preview
+        });
+        excerptHtml.value = ex;
+        isTruncated.value = truncated;
+        isExpanded.value = false;
+    }, { immediate: true });
 
 </script>
 <style scoped>

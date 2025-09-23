@@ -139,6 +139,7 @@ $primary: #626262;
 $secondary: #fff;
 .cu-text-input {
   border: 1px solid var(--input-border, #3a3a3a);
+  color: var(--primary-color);
   padding: 8px 12px;
   outline: none;
   transition: border-color .15s, box-shadow .15s;

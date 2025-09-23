@@ -15,8 +15,19 @@ use App\Models\SalaryIssue;
 use App\Models\ProjectGoal;
 use App\Models\taskRecord;
 use App\Models\User;
+use App\Models\ProjectFinanceComment;
+use App\Models\ProjectFinanceLastRead;
+use App\Models\ProjectMetric;
+use App\Models\ProjectMetricFormula;
+use App\Models\ProjectMetricValue;
+use App\Models\ProjectExpense;
+use App\Models\ProjectSale;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\ProjectMention;
+use App\Jobs\SendProjectEmail;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Carbon\CarbonPeriod;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Http\Request;
@@ -26,12 +37,15 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BoardController;
 use App\Services\SharedService;
 use App\Imports\EvaluationImport;
+use App\Http\Requests\StoreMetricRequest;
 use Illuminate\Database\Eloquent\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use Google_Client;
 use Google_Service_Sheets;
 use Google\Service\Exception as GoogleServiceException;
 use App\Http\Requests\FinanceRequest;
+use DB;
+use Illuminate\Support\Str;
 class ProjectController extends Controller
 {
     //
@@ -50,29 +64,47 @@ class ProjectController extends Controller
         }
     }
     public function get_projects(Request $request) {
+        $data = $request->validate([
+            'start' => ['nullable', 'date_format:Y-m-d'],
+            'end'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start'],
+            'year'        => ['nullable','integer'],
+            'which_half'  => ['nullable','string'],
+        ]);
         $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
-        $year = $request->year;
-        $which_half = $request->which_half;
-        $projects = ProjectRecord::with([
-                        'project_conditions' => function ($q) use($weekStartDate) {
-                            $q->where('week_start_date', $weekStartDate);
-                        },
-                        'manager' => function ($q) use ($year, $which_half)  {
-                            $q->when($year && $which_half, function ($query) use($year, $which_half) {
-                                $query->with(['evaluation' => function ($subQuery) use ($year, $which_half) {
-                                    $subQuery->where('year', $year)->where('which_half', $which_half)->with('mentor');
-                                }]);
-                            })->where('retire', 0);
-                        },
-                        'members' => function ($q) use ($year, $which_half)  {
-                            $q->when($year && $which_half, function ($query) use($year, $which_half) {
-                                $query->with(['evaluation' => function ($subQuery) use ($year, $which_half) {
-                                    $subQuery->where('year', $year)->where('which_half', $which_half)->with('mentor');
-                                }]);
-                            })->where('retire', 0);
-                        }
+        $year = $data['year'] ?? null;
+        $which_half = $data['which_half'] ?? null;
+        $usersLoader = function (bool $withEval = false) use ($year, $which_half) {
+            return function ($q) use ($withEval, $year, $which_half) {
+                $q->select('users.id','users.name','users.icon_path','users.icon_bg')
+                ->where('retire', 0);
+
+                if ($withEval && $year && $which_half) {
+                    $q->with(['evaluation' => fn($e) => $e->where('year', $year)
+                                                        ->where('which_half', $which_half)
+                                                        ->with('mentor')]);
+                }
+            };
+        };
+
+        $tz = 'Asia/Tokyo';
+
+        $query = ProjectRecord::query();
+        if (!empty($data['start']) && !empty($data['end'])) {
+            $start = Carbon::parse($data['start'], $tz)->startOfDay();
+            $end   = Carbon::parse($data['end'],   $tz)->endOfDay();
+
+            $query->overlapping($start, $end);
+        } else {
+            $today = now($tz)->startOfDay();
+            $query->activeOn($today);
+        }
+        $projects = $query->with([
+                        'project_conditions' => fn($q) => $q->where('week_start_date', $weekStartDate),
+                        'director:id,name,icon_path,icon_bg',
+                        'manager' => $usersLoader(true),
+                        'members' => $usersLoader(true),
+                        'director'
                     ])
-                    ->with('director')
                     ->get();
         $sortedProjects = $projects->sortByDesc(function ($project) {
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
@@ -1736,13 +1768,18 @@ class ProjectController extends Controller
         $settlementResponse = [];
 
         foreach($settlement_for_project as $settlement){
-            $totalExpense = round((float)  str_replace(',', '', $settlement[$settlement_expense_index]) + (float) str_replace(',', '', $settlement[$settlement_additional_expense_index]), 0, PHP_ROUND_HALF_UP);
-            $totalSales = round((float)  str_replace(',', '', $settlement[$settlement_sales_index]), 0, PHP_ROUND_HALF_UP);
+            $expenseVal    = $settlement[$settlement_expense_index]    ?? 0;
+            $additionalVal = $settlement[$settlement_additional_expense_index] ?? 0;
+            $salesVal      = $settlement[$settlement_sales_index]      ?? 0;
+            $profitVal     = $settlement[$settlement_profit_index]     ?? 0;
+            $profitRateVal = $settlement[$settlement_profit_rate_index] ?? 0;
+            $totalExpense = round((float)  str_replace(',', '', $expenseVal) + (float) str_replace(',', '', $additionalVal), 0, PHP_ROUND_HALF_UP);
+            $totalSales = round((float)  str_replace(',', '', $salesVal), 0, PHP_ROUND_HALF_UP);
             $settlementData = [
                 'sales' => $totalSales,
                 'expense' => $totalExpense ?? 0,
-                'profit' => round((float) str_replace(',', '', $settlement[$settlement_profit_index]), 0, PHP_ROUND_HALF_UP),
-                'profit_rate' => (float) str_replace('%', '', $settlement[$settlement_profit_rate_index]),
+                'profit' => round((float) str_replace(',', '', $profitVal), 0, PHP_ROUND_HALF_UP),
+                'profit_rate' => (float) str_replace('%', '', $profitRateVal),
             ];
             $settlementResponse[] = $settlementData;
         }
@@ -2292,5 +2329,660 @@ class ProjectController extends Controller
         $projects = ProjectRecord::inRandomOrder()->take($count)->get();
         return response()->json($projects);
     }
+    public function mentionable_users(Request $request) {
+        $request->validate([
+            'projectIds' => 'required'
+        ]);
+        $projects = ProjectRecord::whereIn('id', $request->projectIds)
+            ->with('manager:id,name,icon_path,icon_bg')
+            ->get();
 
+        $managers = $projects->pluck('manager')->flatten(1)->unique('id')->values();
+        $directors = User::where('position_id', '<', 6)
+            ->orWhere('id', 610)
+            ->select('id', 'name', 'icon_path', 'icon_bg')
+            ->get();
+        $users = $managers->concat($directors)->unique('id')->values();
+
+        return response()->json($users);
+    }
+    public function project_finance_comment(Request $req) {
+        $user = $this->active_user();
+        $data = $req->validate([
+            'project_record_id'   => ['required','integer','exists:project_records,id'],
+            'comment'             => ['required','string','max:20000'],
+            'type'                => ['nullable','string','in:年度予算,損益計画,実績'],
+            'mentioned_user_ids'  => ['array'],
+            'mentioned_user_ids.*'=> ['integer','exists:users,id'],
+            'period'              => ['required','date_format:Y-m']
+        ]);
+
+        DB::transaction(function () use (&$comment, $data, $user) {
+            $comment = ProjectFinanceComment::create([
+                'project_record_id' => $data['project_record_id'],
+                'user_id'           => $user->id,
+                'comment'           => $data['comment'],
+                'type'              => $data['type'] ?? null,
+                'period'            => $data['period']
+            ]);
+
+            if (!empty($data['mentioned_user_ids'])) {
+                $rows = collect($data['mentioned_user_ids'])
+                    ->unique()
+                    ->map(fn($uid) => [
+                        'comment_id'        => $comment->id,
+                        'mentioned_user_id' => $uid,
+                        'created_at'        => now(),
+                        'updated_at'        => now(),
+                    ])->all();
+
+                DB::table('project_finance_comment_mentions')->insert($rows);
+            }
+        });
+        if(!empty($data['mentioned_user_ids'])){     
+            $emails = User::whereIn('id', $data['mentioned_user_ids'])
+                    ->pluck('email')
+                    ->filter()          // drop null/empty
+                    ->unique()
+                    ->values()
+                    ->all();          
+            $project = ProjectRecord::findOrFail($data['project_record_id']);              
+            
+            $e_title = $project->name;
+                                                 
+            $rawContent    = (string) ($data['comment'] ?? '');
+            $emailContent  = preg_replace('/\s*\[To:[^:\]\|]+(?:\|\d+)?:\]\s*/u', ' ', $rawContent);
+            $emailContent  = trim(preg_replace('/\s{2,}/', ' ', $emailContent));
+
+            $blocked = preg_match('/\b(pass|pw|password)\b/i', $rawContent)
+            || str_contains($rawContent, 'パスワード')
+            || str_contains($rawContent, 'ﾊﾟｽﾜｰﾄﾞ');        
+            $url = rtrim(config('app.url'), '/') . "/project/{$project->id}/finance";
+            $url .= "?period={$data['period']}";
+
+            SendProjectEmail::dispatch($emails, new ProjectMention($project, $emailContent, $blocked, $url, auth()->user()));
+            
+        }
+        // load author for UI if you want
+        $comment->load(['author:id,name,icon_path,icon_bg']);
+
+        return response()->json($comment, 201);
+    }
+
+    public function get_project_finance_comments(Request $req) {
+        $data = $req->validate([
+            'project_record_id' => ['required','integer','exists:project_records,id'],
+            'period'            => ['required','date_format:Y-m']
+        ]);
+        $periodDate = Carbon::createFromFormat('Y-m', $data['period'])->startOfMonth()->toDateString();
+
+        $comment = ProjectFinanceComment::where('project_record_id', $data['project_record_id'])
+                ->whereDate('period', $periodDate)
+                ->with(['author:id,name,icon_path,icon_bg'])
+                ->get();
+        
+        return response()->json($comment);
+    }
+    public function monthlyCount(Request $req, ProjectRecord $project)
+    {
+        $data = $req->validate([
+            'period' => ['required','string'], // e.g. "September-25" or "Sep-25" or "2025-09"
+        ]);
+
+        $periodDate = Carbon::createFromFormat('Y-m', $data['period'])->startOfMonth()->toDateString(); // Carbon
+        $count = ProjectFinanceComment::where('project_record_id', $project->id)
+            ->whereDate('period', $periodDate)
+            ->count();
+
+        // always return a stable key
+        return response()->json(
+            $count,
+        );
+    }
+
+    public function get_finance_comment_badge() {
+        $user = $this->active_user();
+        $userId = $user->id;
+
+        $isDirector = ($user->position_id < 6) || ($userId === 610);
+
+        if ($isDirector) {
+            $projectIds = ProjectRecord::query()->pluck('id');
+        } else {
+            $projectIds = ProjectRecord::query()
+                ->whereHas('manager', fn($q) => $q->where('users.id', $userId))
+                ->pluck('id');
+
+            if ($projectIds->isEmpty()) {
+                return response()->json([]);
+            }
+        }
+
+        $q = DB::table('project_finance_comments as c')
+            ->select('c.project_record_id', 'c.period', DB::raw('COUNT(*) as unread_count'))
+            ->leftJoin('project_finance_last_reads as lr', function ($j) use ($userId) {
+                $j->on('lr.project_record_id', '=', 'c.project_record_id')
+                ->where('lr.user_id', '=', $userId);
+            })
+            ->whereIn('c.project_record_id', $projectIds)
+            ->whereNull('c.deleted_at')       // if SoftDeletes
+            ->where('c.user_id', '!=', $userId)
+            ->where(function ($w) {
+                $w->whereColumn('c.created_at', '>', 'lr.last_read_at')
+                ->orWhereNull('lr.last_read_at');
+            });
+         $rows = $q->groupBy('c.project_record_id', 'c.period')->get();
+
+        $data = $rows->map(fn($r) => [
+            'project_id' => (int) $r->project_record_id,
+            'period'     => $r->period,   
+            'comments'   => (int) $r->unread_count,
+        ])->values();
+
+        return response()->json($data);
+    }
+
+    public function mark_finance_read(Request $request, int $projectId) {
+        $user = $this->active_user();
+        
+        $lastRead = ProjectFinanceLastRead::updateOrCreate(
+            ['project_record_id' => $projectId, 'user_id' => $user->id],
+            ['last_read_at' => now()]
+        );
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function finance_comment_update(Request $request){
+        $request->validate([
+            'id' => 'required',
+            'comment' => 'required',
+        ]); 
+        $comment = ProjectFinanceComment::findOrFail($request->id);
+        $comment->update(['comment' => $request->comment]);
+        return response(200);
+
+    }
+    public function finance_comment_delete(Request $request){
+        $request->validate([
+            'id' => 'required',
+        ]); 
+        $comment = ProjectFinanceComment::findOrFail($request->id);
+        $comment->delete();
+        return response(200);
+
+    }
+
+
+    // #Metrics
+
+    public function project_metrics(Request $req) {
+        $q = ProjectMetric::query()
+            ->when($req->boolean('active'), fn($qq) => $qq->where('is_active', 1))
+            ->orderBy('sort_order')->orderBy('id');
+
+        return $q->get()->map(fn($m) => [
+            'id'         => $m->id,
+            'code'       => $m->code,
+            'label_ja'   => $m->label_ja,
+            'label_en'   => $m->label_en,
+            'kind'       => $m->kind,
+            'value_type' => $m->value_type,
+            'line'       => $m->line,
+            'is_active'  => (bool)$m->is_active,
+            'sort_order' => $m->sort_order,
+            'scenario_code' => $m->scenario_code,
+            'scenario_label_ja' => $m->scenario_label_ja,
+            'expression' => $m->formula?->expression,
+            'aliases'    => $m->aliases ?? [],
+        ]);
+    }
+    public function project_sales_expenses(ProjectRecord $project, Request $req) {
+        $data = $req->validate([
+            'start' => ['required', 'date_format:Y-m-d'],
+            'end'   => ['required', 'date_format:Y-m-d'],
+        ]);
+        
+        $start = Carbon::parse($data['start'])->startOfMonth();
+        $end = Carbon::parse($data['end'])->startOfMonth();
+
+        $expenses = ProjectExpense::query()
+            ->where('project_record_id', $project->id)
+            ->whereBetween('period', [$start, $end])
+            ->orderBy('period')
+            ->get();
+
+        $sales = ProjectSale::query()
+            ->where('project_record_id', $project->id)
+            ->whereBetween('period', [$start, $end])
+            ->orderBy('period')
+            ->get();
+        
+        $expMap = $expenses->keyBy(fn ($r) => Carbon::parse($r->period)->startOfMonth()->toDateString());
+        $salMap = $sales->keyBy(fn ($r) => Carbon::parse($r->period)->startOfMonth()->toDateString());
+
+        $periods = CarbonPeriod::create($start, '1 month', $end);
+        $out = [];
+
+        foreach ($periods as $p) {
+            $ymd = $p->toDateString();
+
+            $e = $expMap->get($ymd);
+            $s = $salMap->get($ymd);
+
+            $out[$ymd] = [
+                // sales side
+                'internal_sales' => $s?->internal_sales,
+                'sales'          => $s?->sales,
+
+                // expense side
+                'bonus'          => $e?->bonus,
+                'indirect'       => $e?->indirect,
+                'internal_orders'=> $e?->internal_orders,
+                'outsourcing'    => $e?->outsourcing,
+                'salaries'       => $e?->salaries,
+                'sga_other'      => $e?->sga_other,
+            ];
+        }
+
+        return response()->json($out);
+    
+    }
+    public function project_metrics_with_values(ProjectRecord $project, Request $req) {
+        $data = $req->validate([
+            'start' => ['required', 'date_format:Y-m-d'],
+            'end'   => ['required', 'date_format:Y-m-d'],
+            'active'=> ['sometimes', 'boolean'],
+        ]);
+        $metrics = ProjectMetric::query()
+            ->when($req->boolean('active'), fn($q) => $q->where('is_active', 1))
+            ->with([
+                'formula:id,project_metric_id,expression',
+                'values' => fn($q) => $q
+                    ->where('project_record_id', $project->id)
+                    ->whereBetween('period', [$data['start'], $data['end']])
+                    ->orderBy('period'),
+            ])
+            ->orderBy('id')
+            ->get();
+        return $metrics->map(function ($m) {
+            $vals = [];
+            foreach ($m->values as $v) {
+                $vals[$v->period->format('Y-m-d')] = $v->value;
+            }
+            return [
+                'id'                => $m->id,
+                'code'              => $m->code,
+                'label_ja'          => $m->label_ja,
+                'label_en'          => $m->label_en,
+                'kind'              => $m->kind,
+                'value_type'        => $m->value_type,
+                'line'              => $m->line,
+                'is_active'         => (bool) $m->is_active,
+                'sort_order'        => $m->sort_order,
+                'scenario_code'     => $m->scenario_code,
+                'scenario_label_ja' => $m->scenario_label_ja,
+                'expression'        => $m->formula?->expression,
+                'aliases'           => $m->aliases ?? [],
+                'values'            => $vals,
+            ];
+        });
+    }
+    public function project_metrics_for_period(ProjectRecord $project, Request $req) {
+        $period = $req->validate(['period' => ['required', 'date_format:Y-m-d']])['period'];
+
+        $metrics = ProjectMetric::with([
+            'formula:id,project_metric_id,expression',
+            'values' => fn($q) => $q
+                ->where('project_record_id', $project->id)
+                ->where('period', $period),
+        ])->orderBy('sort_order')->orderBy('id')->get();
+
+        return $metrics->map(fn($m) => [
+            'id'         => $m->id,
+            'code'       => $m->code,
+            'label_ja'   => $m->label_ja,
+            'label_en'   => $m->label_en,
+            'kind'       => $m->kind,
+            'value_type' => $m->value_type,
+            'line'       => $m->line,
+            'is_active'  => (bool) $m->is_active,
+            'sort_order' => $m->sort_order,
+            'scenario_code' => $m->scenario_code,
+            'scenario_label_ja' => $m->scenario_label_ja,
+            'expression' => $m->formula?->expression,
+            'aliases'    => $m->aliases ?? [],
+            'value'      => optional($m->values->first())->value,
+        ]);
+    }
+    public function metric_store(StoreMetricRequest $req) {
+        $data = $req->validated();
+
+        $metric = ProjectMetric::create([
+            'code' => $data['code'],
+            'label_ja' => $data['label_ja'],
+            'kind' => $data['kind'],
+            'value_type' => $data['value_type'],
+            'line' => $data['line'] ?? null,
+            'is_active' => $data['is_active'] ?? true,
+            'sort_order' => $data['sort_order'] ?? 0,
+            'scenario_code' => $data['scenario_code'],
+            'scenario_label_ja' => $data['scenario_label_ja'],
+            'aliases' => $data['aliases'] ?? [],
+        ]);
+
+        if ($metric->kind === 'derived') {
+            $expr = $this->normalizeToCodes($data['expression'] ?? '');
+            $this->assertValidFormulaOrFail($expr, $metric->code);
+            $metric->formula()->create([
+                'expression' => $expr,
+                'version'    => 1,
+            ]);
+        }
+
+        return response()->json(['id' => $metric->id], 201);
+    }
+    public function validateExpression(Request $req)
+    {
+        $req->validate([
+            'expression'  => ['required','string'],
+            'target_code' => ['nullable','string']
+        ]);
+
+        $expr = (string) $req->input('expression');
+        $target = (string) $req->input('target_code', '');
+
+        // Throws 422 with message if invalid
+        $this->assertValidFormulaOrFail($expr, $target);
+
+        return response()->json([
+            'ok'         => true,
+            'normalized' => $this->normalizeToCodes($expr),
+        ]);
+    }
+    protected function tokenize(string $expr): array
+    {
+        $tokens = [];
+        $parts = preg_split('/\s+/', trim($expr));
+        
+        foreach ($parts as $part) {
+            preg_match_all('/[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[\+\-\*\/\(\)]/', $part, $m);
+            $tokens = array_merge($tokens, $m[0] ?? []);
+        }
+        
+        return array_filter($tokens);
+    }
+
+
+    protected function allMetricAliases(): array
+    {
+        return ProjectMetric::query()->get()->flatMap(function ($m) {
+            $set = array_filter(array_unique([
+                $m->code,
+                mb_strtolower($m->label_ja ?? ''),
+                mb_strtolower($m->label_en ?? ''),
+                ...array_map('mb_strtolower', (array)($m->aliases ?? [])),
+            ]));
+            return collect($set)->mapWithKeys(fn($k) => [$k => $m->code]);
+        })->toArray();
+    }
+    protected function normalizeToCodes(string $expr): string
+    {
+        $expr = mb_convert_kana($expr, 'as');
+        $expr = preg_replace('/\s+/', ' ', trim($expr));
+
+        $alias = $this->allMetricAliases(); // label_ja/label_en/aliases/code => code
+
+        $out = [];
+        foreach ($this->tokenize($expr) as $tok) {
+            if (in_array($tok, ['+','-','*','/','(',')'], true) || is_numeric($tok)) {
+                $out[] = $tok; continue;
+            }
+            $key = mb_strtolower(\Illuminate\Support\Str::of($tok)->replace(['-', ' '], '_'));
+            $out[] = $alias[$key] ?? $tok;
+        }
+        return implode(' ', $out);
+    }
+
+
+
+   protected function assertValidFormulaOrFail(string $expr, string $targetCode = ''): void
+    {
+        $normalized = $this->normalizeToCodes($expr);
+        $tokens = $this->tokenize($normalized);
+        \Log::info('Tokens: ', $tokens);
+        if (empty($tokens)) abort(422, 'Empty expression.');
+
+        // known metric codes and allowed functions
+        $codes = ProjectMetric::pluck('code')->all();
+        $codeSet = array_flip($codes);
+        $funcs = ['nullif','pct','ratio'];
+
+        // quick operator spam (++ ** //)
+        if (preg_match('/[+\-*\/]{2,}/', implode(' ', $tokens))) {
+            abort(422, 'Invalid operator sequence.');
+        }
+
+        $paren = 0;
+        $prevType = null;
+        $prevTok  = null;
+
+        foreach ($tokens as $i => $tok) {
+            $op_check = in_array($tok, ['+','-','*','/'], true);
+            $lpar_check = $tok === '(';
+            $rpar_check = $tok === ')';
+            $num_check = is_numeric($tok);
+            $id_check = preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $tok);
+            // Let's test each condition manually
+            if ($op_check) {
+                $type = 'op';
+            } elseif ($lpar_check) {
+                $type = 'lpar';
+            } elseif ($rpar_check) {
+                $type = 'rpar';
+            } elseif ($num_check) {
+                $type = 'num';
+            } elseif ($id_check) {
+                $type = 'id';
+            } else {
+                $type = 'bad';
+            }
+                
+            // Now try the original match
+            // $match_type = match (true) {
+            //     in_array($tok, ['+','-','*','/'], true) => 'op',
+            //     $tok === '('                           => 'lpar',
+            //     $tok === ')'                           => 'rpar', 
+            //     is_numeric($tok)                       => 'num',
+            //     preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $tok) => 'id',
+            //     default                                => 'bad',
+            // };
+
+            // id must be known (or an allowed function name)
+            if ($type === 'id' && !isset($codeSet[$tok]) && !in_array($tok, $funcs, true)) {
+                abort(422, "Unknown identifier: {$tok}");
+            }
+            // simple function rule: func must be followed by '('
+            if (in_array($tok, $funcs, true)) {
+                if (($tokens[$i+1] ?? null) !== '(') {
+                    abort(422, "Function {$tok} must be followed by '('");
+                }
+            }
+
+            // parens balance
+            if ($type === 'lpar') $paren++;
+            if ($type === 'rpar') { $paren--; if ($paren < 0) abort(422, 'Parentheses mismatch.'); }
+            // core sequence rules
+            if (in_array($type, ['id','num'], true) && in_array($prevType, ['id','num','rpar'], true)) {
+                abort(422, "Missing operator between '{$prevTok}' and '{$tok}'.");
+            }
+            
+            if ($type === 'lpar' && in_array($prevType, ['id','num','rpar'], true)) {
+                abort(422, "Missing operator before '(' at token {$i}.");
+            }
+            if ($type === 'op' && ($prevType === null || $prevType === 'op' || $prevType === 'lpar')) {
+                abort(422, 'Operator in invalid position.');
+            }
+            if ($type === 'rpar' && $prevType === 'op') {
+                abort(422, 'Operator cannot precede ")".');
+            }
+
+            $prevType = $type;
+            $prevTok  = $tok;
+        }
+
+        if ($paren !== 0) abort(422, 'Parentheses mismatch.');
+        if (in_array($prevType, ['op','lpar'], true)) abort(422, 'Expression cannot end with operator or "(".');
+
+        // optional: cycle check
+        if ($targetCode && $this->dependsOn($targetCode, $targetCode, [])) {
+            abort(422, 'Cyclic dependency detected.');
+        }
+    }
+
+    
+
+
+    // crude dependency check using current formulas
+    protected function dependsOn(string $start, string $needle, array $seen): bool
+    {
+        if (isset($seen[$start])) return false;
+        $seen[$start] = true;
+
+        $f = ProjectMetric::where('code', $start)->first()?->formula?->expression;
+        if (!$f) return false;
+
+        preg_match_all('/[A-Za-z_][A-Za-z0-9_]*/', $f, $m);
+        $deps = array_values(array_unique(array_filter($m[0], fn($x) => !in_array($x, ['nullif','pct','ratio'], true))));
+
+        foreach ($deps as $d) {
+            if ($d === $needle) return true;
+            if ($this->dependsOn($d, $needle, $seen)) return true;
+        }
+        return false;
+    }
+
+    public function metric_delete(int $id) {
+        $exists = ProjectMetric::where('id', $id)->exists();
+        if (! $exists) {
+            abort(404, 'メトリックが見つかりません');
+        }
+
+        ProjectMetric::destroy($id);
+
+        return response()->json(['status' => 'ok']);
+    }
+    public function metric_toggle(Request $req, int $id) {
+        $data = $req->validate([
+            'is_active'  => 'required',
+        ]);
+
+        $metric = ProjectMetric::findOrFail($id);
+        $metric->update(['is_active' => $data['is_active']]);
+        
+        return response()->json(['status' => 'ok']);
+    }
+    public function yearly_budget_store(ProjectRecord $project, Request $req) {
+        $data = $req->validate([
+            'scenario_code'          => ['required','string'],                 // e.g. 'annual_budget'
+            'project_record_id'      => ['required','integer','in:'.$project->id],
+            'months'                 => ['required','array','min:1'],
+
+            'months.*.period'        => ['required','date_format:Y-m-d'],      // 'YYYY-MM-01'
+            'months.*.sales'         => ['required','array'],
+            'months.*.sales.sales'           => ['nullable','numeric'],
+            'months.*.sales.internal_sales'  => ['nullable','numeric'],
+
+            'months.*.expenses'      => ['required','array'],
+            'months.*.expenses.salaries'        => ['nullable','numeric'],
+            'months.*.expenses.outsourcing'     => ['nullable','numeric'],
+            'months.*.expenses.internal_orders' => ['nullable','numeric'],
+            'months.*.expenses.sga_other'       => ['nullable','numeric'],
+            'months.*.expenses.indirect'        => ['nullable','numeric'],
+            'months.*.expenses.bonus'           => ['nullable','numeric'],
+        ]);
+
+        $codes = [
+            'sales' => "{$data['scenario_code']}_sales",
+            'expenses' => "{$data['scenario_code']}_expenses",
+        ];
+        $metricIds = ProjectMetric::whereIn('code', array_values($codes))
+            ->pluck('id', 'code');
+
+        DB::transaction(function () use ($project, $data, $metricIds, $codes) {
+            $now = now();
+            $mvRows = [];
+
+            foreach ($data['months'] as $m) {
+                $period = Carbon::parse($m['period'])->startOfMonth()->toDateString();
+
+                ProjectSale::updateOrCreate(
+                    ['project_record_id' => $project->id, 'period' => $period],
+                    [
+                        'sales'          => $m['sales']['sales']          ?? 0,
+                        'internal_sales' => $m['sales']['internal_sales'] ?? 0,
+                    ]
+                );
+
+                ProjectExpense::updateOrCreate(
+                    ['project_record_id' => $project->id, 'period' => $period],
+                    [
+                        'salaries'        => $m['expenses']['salaries']        ?? 0,
+                        'outsourcing'     => $m['expenses']['outsourcing']     ?? 0,
+                        'internal_orders' => $m['expenses']['internal_orders'] ?? 0,
+                        'sga_other'       => $m['expenses']['sga_other']       ?? 0,
+                        'indirect'        => $m['expenses']['indirect']        ?? 0,
+                        'bonus'           => $m['expenses']['bonus']           ?? 0,
+                    ]
+                );
+
+                // 2) Compute totals (use payload; if you want canonical truth, re-read from DB here)
+                $totalSales =
+                    ($m['sales']['sales']          ?? 0) +
+                    ($m['sales']['internal_sales'] ?? 0);
+
+                $totalExpenses =
+                    ($m['expenses']['salaries']        ?? 0) +
+                    ($m['expenses']['outsourcing']     ?? 0) +
+                    ($m['expenses']['internal_orders'] ?? 0) +
+                    ($m['expenses']['sga_other']       ?? 0) +
+                    ($m['expenses']['indirect']        ?? 0) +
+                    ($m['expenses']['bonus']           ?? 0);
+
+                // 3) Upsert ONLY the total metrics (if they exist)
+                if ($metricIds->has($codes['sales'])) {
+                    $mvRows[] = [
+                        'project_record_id' => $project->id,
+                        'project_metric_id' => $metricIds[$codes['sales']],
+                        'period'            => $period,
+                        'value'             => $totalSales,
+                        'source'            => 'manual',
+                        'created_at'        => $now,
+                        'updated_at'        => $now,
+                    ];
+                }
+                if ($metricIds->has($codes['expenses'])) {
+                    $mvRows[] = [
+                        'project_record_id' => $project->id,
+                        'project_metric_id' => $metricIds[$codes['expenses']],
+                        'period'            => $period,
+                        'value'             => $totalExpenses,
+                        'source'            => 'manual',
+                        'created_at'        => $now,
+                        'updated_at'        => $now,
+                    ];
+                }
+            }
+
+            if ($mvRows) {
+                ProjectMetricValue::upsert(
+                    $mvRows,
+                    ['project_record_id','project_metric_id','period'],
+                    ['value','source','updated_at']
+                );
+            }
+        });
+
+        return response()->json(['ok' => true]);
+    }
 } 

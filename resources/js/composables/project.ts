@@ -19,14 +19,16 @@ export function useProject() {
         list.value = projects;
     };
 
-    const getProjects = async () => {
+    const getProjects = async (start?: DateTime, end?: DateTime) => {
         try {
             const today = DateTime.now()
             const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
             const year = which_half ==='second' ? (today.year - 1).toString() : today.year.toString()
             const params = {
                 year: year,
-                which_half: which_half
+                which_half: which_half,
+                start: start,
+                end: end,
             }
             const response = await axios.get('/get_projects', { params: params });
             list.value = [...response.data];

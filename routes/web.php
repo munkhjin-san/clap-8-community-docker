@@ -149,7 +149,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'remind',
         'contact',
         'asset-partner',
-        'survey-answers'
+        'survey-answers',
+        'file-preview'
     ])->where('any', '.*')->name('board');
 
     Route::get('/board_default_thumbnail/{name}/{size}/{color?}', [ContentController::class, 'board_default_thumbnail']);
@@ -506,7 +507,16 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::get('/get_contracts', [ProjectController::class, 'get_contracts']);
 
-        Route::get('/metric_list', [ProjectController::class, 'metric_list']);
+        Route::get('/project_metrics', [ProjectController::class, 'project_metrics']);
+        Route::post('/project_metrics', [ProjectController::class, 'metric_store']);
+        Route::put('/project_metrics/{metric}', [ProjectController::class, 'metric_update']);
+        Route::delete('/project_metrics/{metric}', [ProjectController::class, 'metric_delete']);
+        Route::post('metrics/validate-expression', [ProjectController::class, 'validateExpression']);
+        Route::put('/project_metrics/{metric}/active', [ProjectController::class, 'metric_toggle']);
+        Route::post('/project_metrics/{project}/yearly_budget', [ProjectController::class, 'yearly_budget_store']);
+        Route::get('/project_metrics/{project}/by_period', [ProjectController::class, 'project_metrics_for_period']);
+        Route::get('/project_metrics/{project}/with_values', [ProjectController::class, 'project_metrics_with_values']);
+        Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);
@@ -601,6 +611,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/drive/{id}/sharing',  [DriveController::class,'update']);   // set visibility + members (+ cascade)
         Route::post('/drive/{id}/share/grant',  [DriveController::class,'grant']);  // optional fine-grain
         Route::delete('/drive/{id}/share/revoke',[DriveController::class,'revoke']);
+        Route::get('/drive/preview/{id}', [DriveController::class, 'previewFile']);
         // Regulations
         Route::get('/get_regulation_list', [SupportController::class, 'get_regulations']);
         Route::get('/regulations', [SupportController::class, 'get_regulations']);

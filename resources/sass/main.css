@@ -350,6 +350,7 @@ textarea {
   letter-spacing: -.022em;
   color: gray;
   left: 10px;
+  line-height: normal;
 }
 
 .form-wrapper {
@@ -3247,7 +3248,8 @@ div.recordFormTitle>p {
 
 /*スクロールバー全体*/
 ::-webkit-scrollbar {
-  width: 4px;
+    width: 8px;
+  
 }
 
 
