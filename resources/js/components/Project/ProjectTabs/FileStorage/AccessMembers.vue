@@ -6,7 +6,7 @@
         <template #content>
             <div class="flex flex-col">
                 <div v-if="owner" class="mb-4">
-                    <p class="form-title mb-4">所有者</p>
+                    <p class="form-title mb-4">オーナー</p>
                     <div class="flex items-center p-[10px] hover:bg-[var(--bg3)]">
                         <UserPanel :withName="true" :user="owner" size="30"/>
                     </div>
