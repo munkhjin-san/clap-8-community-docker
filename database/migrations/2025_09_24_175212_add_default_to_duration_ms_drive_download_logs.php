@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('drive_download_logs', function (Blueprint $table) {
+        Schema::table('drive_download_logs', function (Blueprint $t) {
             $t->unsignedBigInteger('duration_ms')->default(0)->change();
         });
     }
