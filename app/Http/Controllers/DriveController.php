@@ -319,7 +319,7 @@ class DriveController extends Controller
             'bytes_expected' => $size,
             'manifest' => [['id' => $id, 'name' => $filename, 'size' => $size]],
         ]);
-        return response()->streamDownload(function () use ($path, $log) {
+        return response()->streamDownload(function () use ($path, $log, $size) {
             try {
                 $stream = $this->readStream($path);
                 if ($stream === false) throw new \RuntimeException('Failed to read file');
