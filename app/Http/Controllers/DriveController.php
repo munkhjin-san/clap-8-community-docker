@@ -30,9 +30,15 @@ class DriveController extends Controller
     protected function finishLog(DriveDownloadLog $log, array $overrides = []): void
     {
         $end = now();
+
+        $start = $log->started_at instanceof \Carbon\Carbon
+        ? $log->started_at
+        : ($log->created_at ?? $end);
+
+        $ms = max(0, (int) $end->diffInRealMilliseconds($start));
         $log->fill(array_merge([
             'ended_at' => $end,
-            'duration_ms' => $end->diffInMilliseconds($log->started_at),
+            'duration_ms' => $ms,
             'success' => true,
         ], $overrides))->save();
     }
@@ -313,7 +319,7 @@ class DriveController extends Controller
             'bytes_expected' => $size,
             'manifest' => [['id' => $id, 'name' => $filename, 'size' => $size]],
         ]);
-        return response()->streamDownload(function () use ($path) {
+        return response()->streamDownload(function () use ($path, $log) {
             try {
                 $stream = $this->readStream($path);
                 if ($stream === false) throw new \RuntimeException('Failed to read file');
