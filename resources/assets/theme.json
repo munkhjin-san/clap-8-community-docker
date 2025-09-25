@@ -12,7 +12,7 @@
 {"className": "--primary-button", "dark" : "#4b4b4b", "light" : "#000000"},
 {"className": "--menu-bg", "dark" : "#4a4a4a", "light" : "#ffffff"},
 {"className": "--soft-bg", "dark" : "#00000020", "light" : "#e7e7e790"},
-{"className": "--scroll-bar", "dark" : "#5e5e5e", "light" : "#000000"},
+{"className": "--scroll-bar", "dark" : "#5e5e5e", "light" : "#808080"},
 {"className": "--secondary-background", "dark" : "#3d3d3d", "light" : "#e6e6e6"},
 {"className": "--selected-background", "dark" : "#3d3d3d", "light" : "rgba(204, 223, 245, 0.5)"},
 {"className": "--check-inactive", "dark" : "#898989", "light" : "#c0c0c0"},

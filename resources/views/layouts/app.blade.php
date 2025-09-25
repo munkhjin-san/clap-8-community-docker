@@ -84,7 +84,7 @@
     --primary-button: #000000;
     --menu-bg: #ffffff;
     --soft-bg: #e7e7e790;
-    --scroll-bar: #000000;
+    --scroll-bar: #808080;
     --secondary-background: #e6e6e6;
     --selected-background: rgba(204, 223, 245, 0.5);
     --check-inactive: #c0c0c0;
