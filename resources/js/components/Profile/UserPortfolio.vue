@@ -3,7 +3,7 @@
 
     <div class="p-header">
         <p class="record-inner" style="font-size: 16px;padding:5px 15px 0 15px"><strong>{{ portfolio?.lesson_theme?.title }}</strong></p>
-        <ItemMenu :items="[
+        <ItemMenu v-if="editable" :items="[
             {title: '編集する', action:() => emit('editPortfolio')}
         ]"/>
     </div>
