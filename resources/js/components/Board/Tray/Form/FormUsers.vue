@@ -16,7 +16,9 @@
                         <div class="flex flex-col gap-1">   
                             <div>回答日付：<span class="text-[gray] text-[12px]">{{ answer.updated_at && DateTime.fromISO(answer.updated_at).toFormat('yyyy/M/d HH:mm') }}</span></div>
                             <div :class="answer.status == 2 ? 'text-[green]' : answer.status == 1 ? 'text-[orange]' : ''">{{ answer.status == 2 ? '回答済み' : answer.status == 1 ? '一時保存中' : '' }}</div>
+                            <div v-if="form.repeat_setting == 1" class="text-sm flex items-center gap-2">対象月: {{ DateTime.fromISO(answer.target_date || '').toFormat('yyyy年M月') }}</div>
                         </div>
+                        
                         
                         <div v-if="hasPrivilage(answer)" @click="userAnswer = answer" class="jump-link">閲覧</div>
                         <div v-if="editable(answer)" @click="answer.id && emit('editAnswer', form, answer.id)" class="jump-link">編集</div>
