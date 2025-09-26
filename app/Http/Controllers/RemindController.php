@@ -618,8 +618,9 @@ class RemindController extends Controller
                     $qq->where('repeat_setting', 1)
                     ->where(function ($w) use ($userId, $today, $prevStart, $prevEnd, $currStart, $currEnd) {
                         // BEFORE repeat day: must have no completed answer in PREVIOUS month
-                        $w->where(function ($w1) use ($userId, $today, $prevStart, $prevEnd) {
+                        $w->where(function ($w1) use ($userId, $today, $prevStart, $prevEnd, $currStart) {
                                 $w1->where('repeat_day', '>', $today->day)
+                                ->where('created_at', '<=', $currStart) // created ON/BEFORE first day of CURRENT month
                                 ->whereDoesntHave('survey_answers', fn($a) =>
                                     $a->where('user_id', $userId)
                                         ->where('status', 2)

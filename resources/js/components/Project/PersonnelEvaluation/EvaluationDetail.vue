@@ -1,6 +1,6 @@
 <template>
     <div class="goals-wrap overflow-auto">
-        <div class="absolute w-full h-full bg-[var(--background-color)] z-[10] flex items-center justify-center" v-if="initialLoader">
+        <div class="absolute w-full h-full bg-[var(--background-color)] z-[10] flex items-center justify-center left-0 top-0" v-if="initialLoader">
             <div id="loaderMini">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
             </div>
@@ -19,7 +19,7 @@
                     <div class="flex gap-[20px] flex-wrap mt-[20px]">
                         <div>
                             <div class="mb-[10px]">雇用形態</div>
-                            <div>{{ memberData?.positions?.name || '未設定' }}</div>
+                            <div>{{ computedMemberData?.positions?.name || '未設定' }}</div>
                         </div>
                         <div>
                             <div class="mb-[10px]">等級</div>
@@ -36,7 +36,7 @@
                     </div>
 
                     <div class="flex gap-[20px] flex-wrap mt-[20px]"
-                        v-if="(auth.id === memberData?.id || auth.id === evaluationData?.mentor?.id)">
+                        v-if="(auth.id === computedMemberData?.id || auth.id === evaluationData?.mentor?.id)">
 
                         <div>
                             <div class="mb-[10px]">給料（非公開）</div>
@@ -109,18 +109,18 @@
                         </div>
                     </div>
                     <div class="mt-[30px] flex gap-[20px]">
-                        <CommandButton v-if="memberData && auth.user?.position_id !== 13 && (evaluationData.status == 0 || evaluationData.status == 1)" :buttons="[
+                        <CommandButton v-if="computedMemberData && auth.user?.position_id !== 13 && (evaluationData.status == 0 || evaluationData.status == 1)" :buttons="[
                             {title: evaluationData.status == 0 ? '人事考課開始' : '編集する', action: () => handleClick(1)},
                         ]" />
 
-                        <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631 ].includes(auth.activeUser.id) && evaluationData.status == 2" :buttons="[
+                        <CommandButton v-if="auth.activeUser.id && computedMemberData && [610, 608, 631 ].includes(auth.activeUser.id) && evaluationData.status == 2" :buttons="[
                             {title:'承認する', action: () => updateStatus(3)},
                         ]" />
-                        <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631 ].includes(auth.activeUser.id) && (evaluationData.status == 2 || evaluationData.status == 3)" :buttons="[
+                        <CommandButton v-if="auth.activeUser.id && computedMemberData && [610, 608, 631 ].includes(auth.activeUser.id) && (evaluationData.status == 2 || evaluationData.status == 3)" :buttons="[
                             {title:'差し戻し', action: () => updateStatus(1)},
                         ]" />
 
-                        <CommandButton v-if="auth.activeUser.id && memberData && [610, 608, 631, evaluationData?.mentor?.id ].includes(auth.activeUser.id) && evaluationData.status == 1" :buttons="[
+                        <CommandButton v-if="auth.activeUser.id && computedMemberData && [610, 608, 631, evaluationData?.mentor?.id ].includes(auth.activeUser.id) && evaluationData.status == 1" :buttons="[
                             {title:'申請する', action: () => updateStatus(2)},
                         ]" />
                     </div>
@@ -154,6 +154,7 @@ import { useProject } from '@/composables/project';
 import { useApi } from '@/composables/api';
 const props = defineProps([
     'date',
+    'memberDataRemind'
 ])
 
 const statuses = [
@@ -195,6 +196,9 @@ const reload = async () => {
     await getEvaluations()
 
 }
+const computedMemberData = computed(() => {
+    return props.memberDataRemind || memberData.value
+})
 const updateStatus = async (status: number) => {
 
     await api.post('/set_increase_request', {
@@ -212,12 +216,12 @@ const updateStatus = async (status: number) => {
 }
 const getEvaluations = async () => {
     const span = route.params.span as string
-    if (memberData.value && span) {
+    if (computedMemberData.value && span) {
 
         const params = {
             year: span?.split('-')[0],
             which_half: span?.split('-')[1],
-            user_id: memberData.value?.id
+            user_id: computedMemberData.value?.id
         }
         const data = await api.post('/get_evaluation_data', params, {
             loadingRef: initialLoader,

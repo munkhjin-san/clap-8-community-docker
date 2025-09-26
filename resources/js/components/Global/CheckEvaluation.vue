@@ -4,7 +4,7 @@
         <p>{{ `${memberData?.name} ~ ${date?.short_name}` }}</p>
     </template>
     <template #content>
-        <EvaluationDetail :member-data="memberData" :date="date"/>
+        <EvaluationDetail :member-data-remind="memberData" :date="date"/>
     </template>
 </Modal>
 </template>
