@@ -131,7 +131,7 @@ import { CalendarRecord, NormalMonthDay, WeeksArray } from '@/interface/calendar
 <style lang="scss" scoped>    
     $primary_gray: #ddd;
     .weekday-header{
-        width: 100%;
+        width: calc(100% - 1px);
         height: 40px;
         display: flex;
         justify-content: space-around;
