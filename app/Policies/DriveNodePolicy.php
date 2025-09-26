@@ -37,13 +37,8 @@ class DriveNodePolicy
     }
     public function update(User $u, DriveNode $n): bool
     {
+        // Only owner or project manager can modify/move
         if ($n->owner_id == $u->id) return true;
-
-        if ($n->visibility === 'public') {
-            return true;
-        }
-
-        // private: require explicit editor if you ever add roles; for now owner/manager only
         return $u->isProjectManager($n->project_id);
     }
     public function share(User $u, DriveNode $n): bool

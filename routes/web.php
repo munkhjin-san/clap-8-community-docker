@@ -506,6 +506,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_salary_issue_badge', [ProjectController::class, 'get_salary_issue_badge']);
 
         Route::get('/get_contracts', [ProjectController::class, 'get_contracts']);
+        Route::post('/download_yearly_template', [ProjectController::class, 'download_yearly_template']);
+        Route::post('/upload_yearly_budget', [ProjectController::class, 'upload_yearly_budget']);
 
         Route::get('/project_metrics', [ProjectController::class, 'project_metrics']);
         Route::post('/project_metrics', [ProjectController::class, 'metric_store']);
@@ -612,6 +614,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/drive/{id}/share/grant',  [DriveController::class,'grant']);  // optional fine-grain
         Route::delete('/drive/{id}/share/revoke',[DriveController::class,'revoke']);
         Route::get('/drive/preview/{id}', [DriveController::class, 'previewFile']);
+        Route::post('/drive/move', [DriveController::class,'move']);
         // Regulations
         Route::get('/get_regulation_list', [SupportController::class, 'get_regulations']);
         Route::get('/regulations', [SupportController::class, 'get_regulations']);

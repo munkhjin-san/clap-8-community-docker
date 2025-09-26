@@ -76,7 +76,9 @@
             <div v-if="isGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 px-3 pb-2 under960:p-0 under960:py-3">
                 <div v-for="n in filtered" :key="n.id"
                     class="group under960:text-[12px] under960:h-[40px] md:hover:bg-[var(--calendarBorder)] md:bg-[var(--bg3)] cursor-pointer select-none relative h-[50px] max-h-[50px] flex items-center px-[10px] under960:px-4"
-                    :class="{ 'md:bg-[var(--calendarBorder)]': selected.has(n.id) }" :data-item="true" :data-id="n.id"
+                    :class="[{ 'md:bg-[var(--calendarBorder)]': selected.has(n.id) }, dropTarget === n.id ? 'ring-2 ring-blue-400' : '']" :data-item="true" :data-id="n.id"
+                    draggable="true" @dragstart="onItemDragStart(n, $event)" @dragend="onItemDragEnd"
+                    @dragover.stop.prevent="onItemDragOver(n, $event)" @dragleave="onItemDragLeave(n)" @drop.stop.prevent="onItemDrop(n, $event)"
                     @click.stop="toggleSelect(n, $event)" @touchstart="onTouchStart($event)" @touchmove="onTouchMove($event)" @touchend="onTouchEnd(n, $event)" @dblclick="onDblClick(n)">
                     <div class="flex items-center gap-3 w-full justify-between">
                         <div v-if="isImage(n)" class="max-w-[35px] max-h-[35px] min-w-[35px] min-h-[35px] flex items-center justify-center">
@@ -103,6 +105,7 @@
                                 { title: '開く', action: () => { onDblClick(n) } },
                                 { title: 'ダウンロード', action: () => { selected.clear(); selected.add(n.id); downloadSelected() } },
                                 ...(n.type === 'file' ? [{ title: 'リンクをコピー', action: () => copyFileLink(n) }] : []),
+                                ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '移動', action: () => { openMoveDialog(n.id) } }] : []),
                                 ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: 'アクセス権限', action: () => handleShareClick(n, true) }] : []),
                                 ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '名前変更', action: () => { renameOne(n.id) } }] : []),
                                 ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '削除', action: () => { removeSelected(n.id) } }] : []),
@@ -142,7 +145,9 @@
                     <tbody>
                         <tr v-for="n in filtered" :key="n.id"
                             class="relative hover:bg-[var(--bg3)] cursor-pointer select-none"
-                            :class="{ 'bg-[var(--bg3)]': selected.has(n.id) }" :data-item="true" :data-id="n.id"
+                            :class="[ selected.has(n.id) ? 'bg-[var(--bg3)]' : '', dropTarget === n.id ? 'ring-2 ring-blue-400' : '' ]" :data-item="true" :data-id="n.id"
+                            draggable="true" @dragstart="onItemDragStart(n, $event)" @dragend="onItemDragEnd"
+                            @dragover.stop.prevent="onItemDragOver(n, $event)" @dragleave="onItemDragLeave(n)" @drop.stop.prevent="onItemDrop(n, $event)"
                             @click.stop="toggleSelect(n, $event)" @dblclick="onDblClick(n)"
                             style="border-bottom: 1px solid var(--calendarBorder)"
                         >
@@ -191,6 +196,7 @@
                                         { title: '開く', action: () => { onDblClick(n) } },
                                         { title: 'ダウンロード', action: () => { selected.clear(); selected.add(n.id); downloadSelected() } },
                                         ...(n.type === 'file' ? [{ title: 'リンクをコピー', action: () => copyFileLink(n) }] : []),
+                                        ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '移動', action: () => { openMoveDialog(n.id) } }] : []),
                                         ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: 'アクセス権限', action: () => { handleShareClick(n, true) } }] : []),
                                         ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '名前変更', action: () => { renameOne(n.id) } }] : []),
                                         ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '削除', action: () => { removeSelected(n.id) } }] : []),
@@ -223,6 +229,42 @@
                         <span>ファイルアップロード</span>
                         <input type="file" class="hidden" multiple @change="onPickFiles" />
                     </label>
+                </div>
+            </div>
+        </Transition>
+        <!-- Move Dialog -->
+        <Transition name="modalFade">
+            <div v-if="moveDlg.open" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" @click.self="closeMoveDialog">
+                <div class="bg-[var(--bg2)] w-[90vw] max-w-xl rounded shadow p-4">
+                    <div class="text-sm mb-3">
+                        <div class="flex items-center justify-between">
+                            <div class="text-white/80">移動先を選択</div>
+                            <button class="text-white/70 hover:text-white bg-[inherit]" @click="closeMoveDialog">✕</button>
+                        </div>
+                        <div class="mt-2 text-xs text-white/70 flex flex-wrap gap-1">
+                            <template v-for="(c, i) in moveDlg.path" :key="c.id ?? 'root'">
+                                <span v-if="i > 0">/</span>
+                                <button class="underline bg-[inherit]" @click="moveBrowse(c.id)">{{ c.name }}</button>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="max-h-[50vh] overflow-y-auto border border-white/10">
+                        <div v-for="f in moveDlg.folders" :key="f.id" class="px-3 py-2 hover:bg-white/10 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <Folder />
+                                <button class="underline bg-[inherit]" @click="moveBrowse(f.id)">{{ f.name }}</button>
+                            </div>
+                            <button class="text-xs px-2 py-1 bg-white/10 hover:bg-white/20" @click="confirmMove(f.id)">ここへ</button>
+                        </div>
+                        <div v-if="moveDlg.folders.length === 0" class="px-3 py-6 text-center text-white/50 text-sm">フォルダがありません</div>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between">
+                        <div class="text-xs text-white/60">現在: {{ moveDlg.path.at(-1)?.name ?? 'ホーム' }}</div>
+                        <div class="flex gap-2">
+                            <button class="px-3 py-1 bg-white/10 hover:bg-white/20 text-sm" @click="confirmMove(null)">ホームへ移動</button>
+                            <button class="l-button" @click="closeMoveDialog">キャンセル</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </Transition>
@@ -316,6 +358,7 @@ const api = {
 
     multiZip: (ids: string[]) =>
         axios.post(`/drive/zip`, { ids, project_id: projectId }, { responseType: 'blob', withCredentials: true }),
+    move: (ids: string[], dest_id: string | null) => tsApi.post('/drive/move', { ids, dest_id, project_id: projectId }, { toast: '移動しました' }),
 }
 const { ask, askInput, toast, ping } = useDialog()
 const grid = useTemplateRef('grid');
@@ -354,6 +397,7 @@ const marquee = reactive({
     additive: false,          // Ctrl/Meta pressed to add to selection instead of replace
     baseline: new Set<string>(),
 });
+const dropTarget = ref<string | null>(null)
 const isManager = computed(() => {
     if (!props.selectedProject) return false
     return props.selectedProject.manager?.some(manager => manager.id === auth.id) ? true : false
@@ -658,6 +702,53 @@ const onDrop = (e: DragEvent) => {
 }
 const onDragOver = (e: DragEvent) => { e.preventDefault() }
 
+// internal drag & drop (move)
+const onItemDragStart = (n: Node, e: DragEvent) => {
+    if (!selected.value.has(n.id)) {
+        selected.value.clear();
+        selected.value.add(n.id);
+    }
+    // permission check: all selected items must be movable by user
+    if (!canMoveAllSelected()) {
+        e.preventDefault();
+        ping('移動権限がありません');
+        return;
+    }
+    const ids = Array.from(selected.value);
+    e.dataTransfer?.setData('application/x-drive-ids', JSON.stringify(ids));
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+}
+const onItemDragEnd = () => { dropTarget.value = null }
+const onItemDragOver = (n: Node, e: DragEvent) => {
+    const data = e.dataTransfer?.getData('application/x-drive-ids');
+    if (!data) return;
+    if (n.type !== 'folder') return;
+    dropTarget.value = n.id;
+    e.preventDefault();
+}
+const onItemDragLeave = (n: Node) => {
+    if (dropTarget.value === n.id) dropTarget.value = null;
+}
+const onItemDrop = async(n: Node, e: DragEvent) => {
+    const data = e.dataTransfer?.getData('application/x-drive-ids');
+    if (!data) return;
+    if (n.type !== 'folder') return;
+    try {
+        const ids: string[] = JSON.parse(data);
+        if (!ids.length) return;
+        working.value = true;
+        await api.move(ids, n.id);
+        await load(parentId.value);
+        selected.value.clear();
+        toast?.('移動しました');
+    } catch (err: any) {
+        alert(err?.response?.data?.message || '移動に失敗しました');
+    } finally {
+        working.value = false;
+        dropTarget.value = null;
+    }
+}
+
 const renameOne = async(menu_id?: string) => {
     const id = menu_id || [...selected.value][0];
     if (!id) {
@@ -738,6 +829,55 @@ const navigateTo = (id: string | null) => {
 const toBreadcrumb = (id: string | null) => { navigateTo(id) }
 const currentId = computed(() => route.params.parentId as string | null)
 const previewId = computed(() => route.query.preview as string | undefined)
+
+// Move dialog state and actions
+const moveDlg = ref<{ open: boolean, path: {id: string|null, name: string}[], folders: Node[], browsing: string|null, pendingIds: string[]|null }>({ open: false, path: [], folders: [], browsing: null, pendingIds: null })
+const canMoveNode = (n: Node) => (isManager.value || n.owner_id == auth.activeUser.id)
+const canMoveAllSelected = () => {
+    const ids = Array.from(selected.value)
+    if (ids.length === 0) return false
+    const byId = new Map(items.value.map(i => [i.id, i]))
+    return ids.every(id => {
+        const node = byId.get(id)
+        return node ? canMoveNode(node) : false
+    })
+}
+const openMoveDialog = (menu_id?: string) => {
+    const ids = menu_id ? [menu_id] : Array.from(selected.value)
+    if (menu_id) {
+        const n = items.value.find(i => i.id === menu_id)
+        if (n && !canMoveNode(n)) { ping('移動権限がありません'); return }
+    } else if (!canMoveAllSelected()) { ping('移動権限がありません'); return }
+    if (!ids.length) {
+        ping('移動するアイテムを選択してください')
+        return
+    }
+    moveDlg.value.pendingIds = ids
+    moveDlg.value.open = true
+    moveBrowse(null)
+}
+const closeMoveDialog = () => { moveDlg.value.open = false; moveDlg.value.pendingIds = null }
+const moveBrowse = async(pid: string|null) => {
+    try {
+        const data = await api.list(pid)
+        moveDlg.value.browsing = pid
+        moveDlg.value.path = data.path
+        moveDlg.value.folders = (data.items as Node[]).filter(i => i.type === 'folder')
+    } catch (e) {}
+}
+const confirmMove = async(dest: string|null) => {
+    if (!moveDlg.value.pendingIds?.length) return
+    try {
+        working.value = true
+        await api.move(moveDlg.value.pendingIds, dest)
+        await load(parentId.value)
+        selected.value.clear()
+        closeMoveDialog()
+        toast?.('移動しました')
+    } catch (err: any) {
+        alert(err?.response?.data?.message || '移動に失敗しました')
+    } finally { working.value = false }
+}
 watch([currentId, previewId], async ([pid, fid]) => {
     if(pid === lastLoadedId.value) return         // avoid double loads
     await load(pid ?? null)                                 // load is driven by the route

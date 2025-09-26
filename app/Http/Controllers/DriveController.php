@@ -705,4 +705,69 @@ class DriveController extends Controller
             'type' => $node->type,
         ]);
     }
+
+    public function move(Request $req)
+    {
+        $data = $req->validate([
+            'project_id' => 'required',
+            'ids'        => 'required|array|min:1',
+            'ids.*'      => 'uuid',
+            'dest_id'    => 'nullable|uuid',
+        ]);
+
+        $projectId = $data['project_id'];
+        $destId = $data['dest_id'] ?? null;
+        $user = $req->user();
+
+        $dest = null;
+        if ($destId) {
+            $dest = DriveNode::where('id', $destId)
+                ->where('project_id', $projectId)
+                ->whereNull('deleted_at')
+                ->firstOrFail();
+            abort_unless($dest->type === 'folder', 422, '移動先はフォルダである必要があります');
+            // authorize view/update on destination context
+            $this->authorize('view', $dest);
+        }
+
+        // fetch all nodes to move
+        $nodes = DriveNode::whereIn('id', $data['ids'])
+            ->where('project_id', $projectId)
+            ->whereNull('deleted_at')
+            ->get();
+
+        if ($nodes->count() !== count($data['ids'])) {
+            abort(404);
+        }
+
+        // authorization on each node
+        foreach ($nodes as $n) {
+            $this->authorize('update', $n);
+        }
+
+        // prevent cycles: destination cannot be inside any of moving folders
+        if ($dest) {
+            $movingIds = $nodes->pluck('id')->all();
+            $cursor = $dest;
+            while ($cursor) {
+                if (in_array($cursor->id, $movingIds, true)) {
+                    abort(422, 'フォルダを自身またはその子孫に移動できません');
+                }
+                if (!$cursor->parent_id) break;
+                $cursor = DriveNode::where('id', $cursor->parent_id)
+                    ->where('project_id', $projectId)
+                    ->whereNull('deleted_at')
+                    ->first();
+            }
+        }
+
+        DB::transaction(function () use ($nodes, $destId) {
+            foreach ($nodes as $n) {
+                $n->parent_id = $destId; // allow null = root
+                $n->save();
+            }
+        });
+
+        return response()->noContent();
+    }
 }
