@@ -142,9 +142,32 @@ class ContentController extends Controller
         return $this->image_response($img);  
     }
     public function board_default_thumbnail($name, $size, $color){
+        function getTextColor($hexColor) {
+            //check valid hex color
+            if (!preg_match('/^#?[0-9A-Fa-f]{6}$/', $hexColor)) {
+                return '#FFFFFF'; // Default to white if invalid
+            }
+            $hex = str_replace('#', '', $hexColor);
+
+            // Get RGB values from the hex code
+            $r = hexdec(substr($hex, 0, 2));
+            $g = hexdec(substr($hex, 2, 2));
+            $b = hexdec(substr($hex, 4, 2));
+
+            // Calculate luminance using the W3C formula
+            $luminance = (0.2126 * $r + 0.7152 * $g + 0.0722 * $b) / 255;
+
+            // Use a threshold to decide on the text color
+            // A common threshold is 0.5, but you can adjust it
+            if ($luminance > 0.5) {
+                return '#000000'; // Black text for light backgrounds
+            } else {
+                return '#FFFFFF'; // White text for dark backgrounds
+            }
+        }
         $boardname_no_space = preg_replace('/\s+/', '', $name);
         $bg = $color;
-        $text_color = '#fff';
+        $text_color = getTextColor($bg);
         $firstChar = mb_substr($boardname_no_space, 0, 3, "UTF-8"); 
         $img = Image::create(200, 200)->fill($bg);   
         $length = mb_strlen($boardname_no_space);       
