@@ -26,7 +26,12 @@ class DriveNodePolicy
         //     // return $nodeCompanyId && $u->company_id === $nodeCompanyId;
         //     return true;
         // }
-        if ($n->owner_id == $u->id || $u->isProjectManager($n->project_id)) return Response::allow();
+        $active_user = $this->active_user($u);
+        if ($n->owner_id == $u->id || 
+            $u->isProjectManager($n->project_id) || 
+            $active_user->id == 610 || 
+            $active_user->id == 608 || 
+            $u->position_id < 6) return Response::allow();
         // private: explicit ACL on node (or inherited)
 
         $hasAcl = DriveNodeAcl::where('node_id', $n->id)
@@ -48,5 +53,12 @@ class DriveNodePolicy
         // if you have “manager” via project_members.authority == 1
         return $n->owner_id == $u->id || $u->isProjectManager($n->project_id);
     }
-
+    private function active_user($u){
+        $sub = $u->linked()->where('main_id', $u->id)->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return $u;
+        }
+    }
 }
