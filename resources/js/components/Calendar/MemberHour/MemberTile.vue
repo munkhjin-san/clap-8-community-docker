@@ -16,15 +16,23 @@
                     <AllDayRecord                        
                         :key="record.id"
                         :record="record"
+                        :day="dayData"
                     />
-                </div>               
+                </div>   
+                <div style="position: relative;cursor: pointer;width: fit-content;" v-for="record in fullDayGoogleEvents">
+                    <AllDayGoogleEvent                        
+                        :key="record.id"
+                        :record="record"
+                        :day="dayData"
+                    />
+                </div>              
             </div>            
         </div>  
     </div>
      <HourBlock
         v-for="hour in hoursOfDay"
         :data="hour"
-        :fullDayIndex="fullDayRecords.length"
+        :fullDayIndex="fullDayRecords.length + fullDayGoogleEvents.length"
         @create="(date, user) => emit('create', date, user)"
     /> 
 </div>
@@ -35,24 +43,36 @@ import UserPanel from '@/components/Global/UserPanel.vue'
 import AllDayRecord from '../AllDayRecord.vue';
 import { computed, inject } from 'vue';
 import { DateTime } from 'luxon';
-import { MemberHourDay } from '@/interface/calendarInterface';
+import { GoogleEventItem, MemberHourDay, NormalHourDay } from '@/interface/calendarInterface';
     
     const props = defineProps<{
         userData:MemberHourDay
         hideName: boolean
         orderCreator: Function
+        googleEventOrderCreator: Function
     }>()
+    const dayData = computed<NormalHourDay>(() => {
+        return {
+            full: props.userData.date,
+            day: props.userData.date,
+            day_holiday: null
+        }
+    })
     const emit = defineEmits(['create', 'viewFull'])
     
     const fullDayRecords = computed(() => {
         return props.userData.records.filter(ob => Math.abs(DateTime.fromSQL(ob.date_start).diff(DateTime.fromSQL(ob.date_end), 'hours').hours) >= 23)  
+    })
+    const fullDayGoogleEvents = computed(() => {
+        return props.userData.googleEvents.filter(ob => ob.all_day === true)  
     })
     const hoursOfDay = computed(() => {
         const hours:MemberHourDay[] = [];
         let currentHour = DateTime.now().startOf('day');
         for (let i = 0; i < 24; i++) {
             const hourRecords = orderedData.value.filter(ob => DateTime.fromSQL(ob.date_start).hour === currentHour.hour)
-            hours.push({hour: currentHour.toFormat('H:mm'), records: hourRecords, user: props.userData.user, date: props.userData.date});
+            const hourGoogleEvents = orderedGoogleEvents.value.filter(ob => ob.start_time && DateTime.fromISO(ob.start_time).hour === currentHour.hour)
+            hours.push({hour: currentHour.toFormat('H:mm'), records: hourRecords, user: props.userData.user, date: props.userData.date, googleEvents: hourGoogleEvents});
             currentHour = currentHour.plus({ hours: 1 });
         }
         return hours;
@@ -67,6 +87,13 @@ import { MemberHourDay } from '@/interface/calendarInterface';
         const ordered = props.orderCreator(0, sortedList, props.userData.date, props.userData.user.id)
         return ordered
     })
+    const orderedGoogleEvents = computed<GoogleEventItem[]>(() => {
+        const max = orderedData.value.length ? Math.max(...orderedData.value.map(order => Number(order.order))) + 1 : 0;
+        const eventsWithTime = props.userData.googleEvents.filter(ob => ob.all_day === false && ob.start_time)
+        const ordered = props.googleEventOrderCreator(max, eventsWithTime, props.userData.date, props.userData.user.id)
+        return ordered
+    })
+
 
     const pushInstantUser = inject<Function>('pushInstantUser') as Function
     

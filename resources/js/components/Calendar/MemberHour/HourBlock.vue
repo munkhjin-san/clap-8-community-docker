@@ -6,6 +6,13 @@
             :user="data.user"
             :fullDayIndex="fullDayIndex"
         />
+        <GoogleEventWrap
+            v-for="item in data.googleEvents" 
+            :record="item"
+            :user="data.user"
+            :fullDayIndex="fullDayIndex" 
+            :offset="layer"
+        />
         <div v-if="dragActive && draggingCalendar" style="position: absolute;left: 0;top:0;z-index: 9;height: 100%;width: 100%;display: flex;">
             <div @mouseup="gotMove(val)" v-for="val in hours" class="min-separete">
                 <div class="min-popup">{{ fullDate(val) }}</div>
@@ -19,6 +26,7 @@ import { computed, inject, Ref, ref } from 'vue';
 import { DateTime } from 'luxon';
 import { CalendarRecord, MemberHourDay } from '@/interface/calendarInterface';
 import { useCalendar } from '@/composables/calendar';
+import GoogleEventWrap from './GoogleEventWrap.vue';
 
     const props = defineProps<{
         data: MemberHourDay
@@ -29,7 +37,20 @@ import { useCalendar } from '@/composables/calendar';
     const dragActive = ref(false)
     const beforeState = ref(0)
     const {draggingCalendar, setDraggingCalendar} = useCalendar()
+    const googleItemLayer = computed(() => {
+        if(props.data.googleEvents.length){
+            const num = props.data.googleEvents.map(ob => Number(ob.order))
+            const max = num.length ? Math.max(...num) + 1 : 0;
+            return max   
+        }
+        return 0        
+    })
     const layer = computed(() => {
+        if(googleItemLayer.value){
+            const num = props.data.googleEvents.map(ob => Number(ob.order))
+            const max = num.length ? Math.max(...num) + 1 : 0;
+            return max   
+        }
         const num = props.data.records.map(ob => Number(ob.order))
         const max = num.length ? Math.max(...num) + 1 : 0;
         return max        

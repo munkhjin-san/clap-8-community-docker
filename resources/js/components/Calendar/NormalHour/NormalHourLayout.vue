@@ -36,7 +36,9 @@
                     :day="day"
                     :hoursOfDay="hoursOfDay"
                     :orderCreator="orderCreator"
+                    :googleEventOrderCreator="googleEventOrderCreator"
                     :records="records"
+                    :googleEvents="googleEvents"
                     :activeDay="activeDay"
                     @releaseScroll="emit('releaseScroll')"
                     @load="val => emit('load', val)"
@@ -54,7 +56,7 @@ import DayTile from './DayTile.vue'
 import HourTitle from './HourTitle.vue';
 import { computed, onMounted, onUnmounted, watch, ref, useTemplateRef } from 'vue';
 import { useFocused } from '@/store/focused';
-import { NormalHourDay, CalendarRecord } from '@/interface/calendarInterface';
+import { NormalHourDay, CalendarRecord, GoogleEventItem } from '@/interface/calendarInterface';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
     const focused = useFocused()
@@ -62,6 +64,7 @@ import { useCalendar } from '@/composables/calendar';
         daysOfMonth: NormalHourDay[]
         records: CalendarRecord[]
         initialLoader: boolean
+        googleEvents: GoogleEventItem[]
     }>()
     const emit = defineEmits(['scroll', 'load', 'releaseScroll', 'create', 'setListView'])
     const {draggingCalendar} = useCalendar()
@@ -171,6 +174,34 @@ import { useCalendar } from '@/composables/calendar';
         }
         return cooked
         
+
+    }
+    const googleEventOrderCreator = (order:number, list: GoogleEventItem[], date: string) => {
+        let break_point_rear = DateTime.fromFormat(`${date} 00:01`, 'yyyy-MM-dd HH:mm')
+        let cooked:GoogleEventItem[] = [];
+        let reserved:GoogleEventItem[] = [];
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i]
+            if(i == 0){
+                item['order'] = order
+                cooked.push(item)
+                break_point_rear = DateTime.fromFormat(`${item.end_date} ${item.end_time}`, 'yyyy-MM-dd HH:mm')
+            }else{
+                if(DateTime.fromFormat(`${item.start_date} ${item.start_time}`, 'yyyy-MM-dd HH:mm').diff(break_point_rear, 'minutes').as('minutes') >= 0){
+                    item['order'] = order
+                    cooked.push(item)
+                    break_point_rear = DateTime.fromFormat(`${item.end_date} ${item.end_time}`, 'yyyy-MM-dd HH:mm')
+                }
+                else{
+                    reserved.push(item)
+                }
+            }
+        }
+        if(reserved.length){
+            let uld = googleEventOrderCreator(order + 1, reserved, date);
+            cooked = cooked.concat(uld)
+        }
+        return cooked       
 
     }
     const containerScroll = async(day:string) => {

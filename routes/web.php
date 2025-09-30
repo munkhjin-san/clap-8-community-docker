@@ -27,6 +27,7 @@ use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\RemindController;
 use App\Http\Controllers\DriveController;
+use App\Http\Controllers\GoogleController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -93,6 +94,8 @@ Route::prefix('cdn_external')->group(function () {
 });
 Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
+    Route::get('auth/google/auth', [GoogleController::class, 'redirect'])->name('google.auth');
+    Route::get('auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
     // pusher authorize
     Route::post('/pusher_authorizition',  [BoardController::class, "pusher_auth"]);
     Route::post('/pusher_subscribe',  [BoardController::class, "pusher_subscribe"]);
@@ -334,6 +337,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/calendar_temp_reserve', [CalendarController::class, 'calendar_temp_reserve']);
         Route::get('/all_facility_items', [CalendarController::class, 'all_facility_items']);
         Route::post('/calendar_temp_confirm', [CalendarController::class, 'calendar_temp_confirm']);
+        Route::get('/check_google_calendars', [GoogleController::class, 'check_google_calendars']);
+        Route::post('/save_google_calendar_settings', [GoogleController::class, 'save_google_calendar_settings']);
+        Route::post('/disconnect_google_calendar', [GoogleController::class, 'disconnect_google_calendar']);
+        Route::post('/get_google_calendar_events', [GoogleController::class, 'get_google_calendar_events']);
 
         Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);

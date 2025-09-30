@@ -54,7 +54,8 @@
                         :key="`${user.id}_${day.day_full}`" 
                         :user="user" 
                         :day="day"
-                        :beforeState="beforeState"                       
+                        :beforeState="beforeState"          
+                        :google-events="user.id == auth.id ? googleEvents : []"             
                         @addRecord="(type, day, user) => emit('addRecord',type, day, user)"
                         @create="(date, user) => emit('create', date, user)"
                         />
@@ -68,9 +69,10 @@ import DayBlock from './DayBlock.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { computed, ComputedRef, inject, onMounted, onUnmounted, Ref, ref, useTemplateRef, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
-import { CalendarGroupUser, CalendarRecord, MemberMonthDay } from '@/interface/calendarInterface';
+import { CalendarGroupUser, CalendarRecord, GoogleEventItem, MemberMonthDay } from '@/interface/calendarInterface';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
+import { useAuthUserStore } from '@/store/auth';
     const props = defineProps<{
         records: CalendarRecord[];
         selectedYear: number;
@@ -80,8 +82,10 @@ import { useCalendar } from '@/composables/calendar';
         activeYear: number;
         activeMembers: CalendarGroupUser[];
         appendLock: boolean;
+        googleEvents: GoogleEventItem[]
     }>()
     const emit = defineEmits(['addRecord', 'create', 'resetFastCreate', 'setListView', 'scrollHorizontal'])
+    const auth = useAuthUserStore()
     const responsive = useResponsive()
     const cursorPos = ref([0, 0])
     const beforeState = ref(0)

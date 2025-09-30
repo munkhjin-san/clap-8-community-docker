@@ -227,4 +227,15 @@ class User extends Authenticatable
     {
         return $this->work_groups()->where('project_id', $projectId)->wherePivot('authority', 1)->exists();
     }
+    public function oauthCredentials()
+    {
+        return $this->hasMany(OAuthCredential::class);
+    }
+
+    public function googleCalendarCredential()
+    {
+        return $this->hasOne(OAuthCredential::class)
+            ->where('provider', 'google')
+            ->where('service', 'calendar');
+    }
 }

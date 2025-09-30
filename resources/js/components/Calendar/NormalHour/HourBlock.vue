@@ -8,6 +8,12 @@
         @setDayIndex="val => emit('setDayIndex', val)"
         @setParentDroppable="dragActive = true"
     />
+    <GoogleEventWrap 
+        v-for="(record, index) in hourGoogleEvents"
+        :record="record"
+        :order="index"
+        :fullDayIndex="fullDayIndex"
+    />
     <div v-if="dragActive && draggingCalendar" style="position: absolute;left: 0;top:0;z-index: 9;height: 100%;width: 100%;display: flex;">
         <div @mouseup="gotMove(val)" v-for="val in hours" class="min-separete">
             <div class="min-popup">{{ fullDate(val) }}</div>
@@ -18,11 +24,12 @@
    
 </template>
 <script setup lang="ts">
-import { CalendarRecord, NormalHourDay } from '@/interface/calendarInterface';
+import { CalendarRecord, GoogleEventItem, NormalHourDay } from '@/interface/calendarInterface';
 import CardWrap from './CardWrap.vue';
 import { computed, inject, Ref, ref } from 'vue';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
+import GoogleEventWrap from './GoogleEventWrap.vue';
     const dragActive = ref(false)
     const beforeState = ref(0)
     const {draggingCalendar, setDraggingCalendar} = useCalendar()
@@ -31,6 +38,7 @@ import { useCalendar } from '@/composables/calendar';
         hour: string;
         day: NormalHourDay;
         fullDayIndex: number;
+        hourGoogleEvents: GoogleEventItem[];
     }>()
     const emit = defineEmits(['create', 'setDayIndex'])
 

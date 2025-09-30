@@ -5,7 +5,7 @@
         :class="[{'pop-cal-card' : expanded}]"
         :style="{
             minWidth: recordWidth, 
-            marginTop: `${(record.order * 60) + ((record.order + 1) * 10) + (fullDayIndex * 35)}px`,
+            marginTop: `${record.order !== undefined ? ((record.order * 60) + ((record.order + 1) * 10) + (fullDayIndex * 35)) : 0}px`,
             left: recordLeft,
             maxHeight: maxHeight,
             opacity: opacity,

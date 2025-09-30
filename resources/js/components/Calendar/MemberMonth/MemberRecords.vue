@@ -14,9 +14,23 @@
             :record="record"
             :user="user"
         />
+        <GoogleEventWrap 
+            v-for="record in googleEvents" 
+            style="position: relative;" 
+            :key="record.id"
+            :record="record"
+            :user="user"
+        />
     </div>
 </template>
 <script setup lang="ts">
+import { User } from '@/interface/globalInterface';
 import CardWrap from './CardWrap.vue';
-const props = defineProps(['dayRecords', 'user'])
+import GoogleEventWrap from './GoogleEventWrap.vue';
+import { CalendarRecord, GoogleEventItem } from '@/interface/calendarInterface';
+const props = defineProps<{
+    dayRecords: CalendarRecord[]
+    user: User
+    googleEvents: GoogleEventItem[]
+}>()
 </script>

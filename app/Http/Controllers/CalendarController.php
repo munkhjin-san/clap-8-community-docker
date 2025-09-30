@@ -18,10 +18,16 @@ use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use App\Mail\Calendar;
-use Auth;
-use DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\GoogleController;
 class CalendarController extends Controller
 {
+
+    protected $googleController;
+    public function __construct(GoogleController $googleController) {
+        $this->googleController = $googleController;
+    }
     private function active_user(){
         $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
         if($sub){

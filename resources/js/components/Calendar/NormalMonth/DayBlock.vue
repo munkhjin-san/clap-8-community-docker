@@ -23,7 +23,15 @@
                 :key="record.id"
                 @fromMonth="val => emit('fromMonth', val)"                
             />
-        </transition-group>     
+        </transition-group>    
+        <transition-group name="modalFade" tag="div" style="display: flex;flex-direction: column;gap: 10px;padding: 0 0 10px 0;">
+            <GoogleEventWrap
+                v-for="event in googleDayEvents"
+                :googleEvent="event"
+                :key="event.id"      
+                :day="day.day_full"     
+            />
+        </transition-group>   
 </div>
 </template>
 
@@ -32,7 +40,15 @@ import { DateTime } from 'luxon'
 import CardWrap from './CardWrap.vue'
 import { ref, computed, inject, } from 'vue'
 import { useCalendar } from '@/composables/calendar'
-    const props = defineProps(['day', 'records', 'selectedYear', 'selectedMonth'])
+import GoogleEventWrap from './GoogleEventWrap.vue'
+import { CalendarRecord, GoogleEventItem, NormalMonthDay } from '@/interface/calendarInterface'
+    const props = defineProps<{
+        day: NormalMonthDay
+        records: CalendarRecord[];
+        googleDayEvents: GoogleEventItem[];
+        selectedYear: number;
+        selectedMonth: number;
+    }>()
     const emit = defineEmits(['fromMonth', 'addRecord', 'jumpToDate', 'create'])
 
     const dragActive = ref(false)     

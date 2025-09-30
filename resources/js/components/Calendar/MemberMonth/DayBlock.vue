@@ -11,7 +11,8 @@
         <MemberRecords
             :dayRecords="dayRecordsAfter" 
             :user="user"
-            />
+            :google-events="dayGoogleEvents"
+        />
     </div>
 </template>
 <script setup lang="ts">
@@ -19,7 +20,14 @@ import MemberRecords from './MemberRecords.vue';
 import { computed, inject, ref } from 'vue';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
-    const props = defineProps(['day', 'user','beforeState'])
+import { User } from '@/interface/globalInterface';
+import { GoogleEventItem, MemberMonthDay } from '@/interface/calendarInterface';
+    const props = defineProps<{
+        day: MemberMonthDay
+        user: User
+        beforeState: number
+        googleEvents: GoogleEventItem[]
+    }>()
     const emit = defineEmits(['addRecord', 'create'])
     const {draggingCalendar, setDraggingCalendar} = useCalendar()
     const dragActive = ref(false)
@@ -30,6 +38,14 @@ import { useCalendar } from '@/composables/calendar';
             return new Date(a.date_start).getTime() - new Date(b.date_start).getTime();
         }); 
         return user_records
+    })
+    const dayGoogleEvents = computed(() => {
+        return props.googleEvents.filter((ob: GoogleEventItem) => {
+            const startDate = DateTime.fromISO(ob.start_date);
+            const endDate = ob.end_date ? DateTime.fromISO(ob.end_date) : startDate;
+            const dayDate = DateTime.fromISO(props.day.day_full);
+            return (dayDate >= startDate && dayDate <= endDate);        
+        })
     })
     const gotMove = () => {
         if( draggingCalendar.value){

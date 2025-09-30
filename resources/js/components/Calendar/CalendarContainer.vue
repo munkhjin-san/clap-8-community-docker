@@ -57,6 +57,7 @@
             ref="normalHourLayoutRef"
             :daysOfMonth="daysOfMonth"
             :records="recordList"
+            :google-events="computedGoogleEvents"
             :initialLoader="initialLoader"
             :holidays="holidays"
             @scroll="scrollListen"
@@ -68,6 +69,7 @@
             v-if="viewType == 1"
             ref="normalMonthLayoutRef"
             :records="recordList"
+            :google-events="computedGoogleEvents"
             :selected-year="selectedYear"
             :selected-month="selectedMonth"
             :initialLoader="initialLoader"
@@ -85,6 +87,7 @@
             v-if="viewType == 2"
             ref="memberMonthLayoutRef"
             :records="recordList"
+            :google-events="computedGoogleEvents"
             :selected-year="selectedYear"
             :selected-month="selectedMonth"
             :initialLoader="initialLoader"
@@ -105,6 +108,7 @@
         <MemberHourLayout 
             v-if="viewType == 3"
             :records="dayRecords"
+            :google-events="computedGoogleEvents"
             :activeMembers="activeMembers"
             :selectedDate="selectedDate"
             :initialLoader="initialLoader"
@@ -131,6 +135,14 @@
                 @close="closeCreate"
             />
         </Transition>
+        <FloatButton :order="4" title="設定" @action="settingsView = true">
+            <template #icon>
+                <Gear v-if="!googleLoading" fill="black" size="18"/>
+                <div v-else id="loaderMini">
+                    <div class="spinner-nano" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                </div>
+            </template>
+        </FloatButton>
         <FloatButton 
             @click.stop="menu.setMenu( {name : 'calendarViewMenu', id: 79})" 
             :style="{zIndex: initialLoader ? 41 : 7}"
@@ -186,6 +198,10 @@
         <Transition name="modalFade">
             <MeetingSummary :calendar-record="summeryViewing" v-if="summeryViewing" @close="setSummaryViewing(null)"/>
         </Transition>
+        <Transition name="modalFade">
+            <CalendarSettings v-if="settingsView" @close="closeSetting" />
+
+        </Transition>
         <DragItem v-if="draggingCalendar"/>
     </div>        
 </template>
@@ -214,7 +230,7 @@ import { useTempRecord } from '@/store/tempRecord';
 import MeetingSummary from './MeetingSummary.vue';
 import { User } from '@/interface/globalInterface';
 import { DateTime, DayNumbers, MonthNumbers } from 'luxon';
-import { CalendarRecord, FacilityItem, FastCreateData, NormalHourDay } from '@/interface/calendarInterface';
+import { CalendarRecord, FacilityItem, FastCreateData, GoogleEventItem, NormalHourDay } from '@/interface/calendarInterface';
 import MonthPickerNew from '../Global/MonthPickerNew.vue';
 import { useCalendar } from '@/composables/calendar';
 import TempReserve from './TempReserve.vue';
@@ -222,7 +238,9 @@ import FloatButton from '../Global/FloatButton.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
-    const { ask, ping } = useDialog()
+import Gear from '../Icons/Gear.vue';
+import CalendarSettings from './CalendarSettings.vue';
+    const { ask, ping, toast } = useDialog()
     const api = useApi()
     const viewMenu = [
         {title: '月（スケジュール）', value: 1},
@@ -242,6 +260,7 @@ import { useApi } from '@/composables/api';
     const bottomOffset = ref(0)
     const appendLock = ref(true)
     const records = ref<CalendarRecord[]>([])
+    const googleEvents = ref<GoogleEventItem[]>([])
     const selectedMonth = ref(DateTime.now().month)
     const selectedYear = ref(DateTime.now().year) 
     const selectedDay = ref(DateTime.now().day)
@@ -255,7 +274,8 @@ import { useApi } from '@/composables/api';
     const searchKey = ref('')
     const searchResult = ref([])
     const searchFetch = ref(0)
-
+    const settingsView = ref(false)
+    const googleLoading = ref(false)
 
     const searching = ref(0)
     const preSelected = ref('')
@@ -309,6 +329,7 @@ import { useApi } from '@/composables/api';
         }
         getFacilities()  
         getDepartments()      
+        getGoogleEvents()
         window.addEventListener("keydown", onKeyDown);
         if(sharingData.active){
             createWindow.value = true
@@ -316,6 +337,25 @@ import { useApi } from '@/composables/api';
         if(auth.activeUser){
             preSelectedMembers.value.push(auth.activeUser as User)
         }
+
+        const query = route.query
+        if(query && query.sync_success && query.sync_success == 'true'){
+            if(query.stamp){
+            
+                const checkStamp = localStorage.getItem('googleCalendarSyncStamp')
+                if(!checkStamp || (checkStamp && Number(checkStamp) !== Number(query.stamp))){                    
+                    toast('Googleカレンダーと正常に同期しました。')
+                    settingsView.value = true
+                }
+                localStorage.setItem('googleCalendarSyncStamp', query.stamp as string)
+            }
+        }
+    })
+    const computedGoogleEvents = computed(() => {
+        const hasSelectedFacility = Object.values(facilitiesList.value).some(
+            categoryArray => categoryArray.some(facility => facility.selected)
+        );        
+        return hasSelectedFacility ? [] : googleEvents.value
     })
     const preSelectedDepartment = computed(() => {
         return departmentsList.value.find(dep => 
@@ -601,6 +641,7 @@ import { useApi } from '@/composables/api';
             selectedDay.value = DateTime.now().day
             records.value = []
             getCalendar(selectedDateInstance.value.toISODate()!, 'mounted')
+            getGoogleEvents()
         }
                     
     }
@@ -640,6 +681,7 @@ import { useApi } from '@/composables/api';
         const dateInstance = selectedDateInstance.value
         if(!dateInstance.isValid) return
         getCalendar(dateInstance.toISODate(), 'setDate')
+        getGoogleEvents()
         
         
     }
@@ -706,6 +748,19 @@ import { useApi } from '@/composables/api';
         }                
         records.value = []
         getCalendar(date, 'search')
+        
+    }
+    const getGoogleEvents = async() => {
+      
+        googleLoading.value = true
+        const month = selectedMonth.value
+        const year = selectedYear.value
+        const gEvents = await api.post('/get_google_calendar_events', {month, year}, { silent: true});
+        googleEvents.value = gEvents && gEvents.google_events ? gEvents.google_events : [];
+
+        googleLoading.value = false
+        
+
         
     }
     const getCalendar = async(day:string, method?:string, replaceId?: number) => {
@@ -791,6 +846,12 @@ import { useApi } from '@/composables/api';
         if(!date.isValid) return
         getCalendar(date.toISODate(), 'updated', id)
 
+    }
+    const closeSetting = (flag:boolean) => {
+        settingsView.value = false
+        if(flag){
+            getGoogleEvents()
+        }
     }
     provide('deleteCalendar', deleteRecord)
     provide('editRecord', editRecord)

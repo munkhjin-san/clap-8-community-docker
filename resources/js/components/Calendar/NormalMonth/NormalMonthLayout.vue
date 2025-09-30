@@ -25,6 +25,7 @@
                                 :key="day.day_full"
                                 :day="day"
                                 :records="dayRecords(day)"
+                                :google-day-events="dayGoogleEvents(day)"
                                 :selectedMonth="selectedMonth"
                                 :selectedYear="selectedYear"                               
                                 @fromMonth="val => emit('fromMonth', val)"
@@ -44,10 +45,11 @@
 import DayBlock from './DayBlock.vue';
 import { computed, ComputedRef, inject, onMounted, ref, useTemplateRef} from 'vue';
 import { DateTime } from 'luxon';
-import { CalendarRecord, NormalMonthDay, WeeksArray } from '@/interface/calendarInterface';
+import { CalendarRecord, GoogleEventItem, NormalMonthDay, WeeksArray } from '@/interface/calendarInterface';
 
     const props = defineProps<{
         records: CalendarRecord[];
+        googleEvents: GoogleEventItem[];
         selectedYear: number;
         selectedMonth: number;
         initialLoader: boolean;
@@ -114,6 +116,14 @@ import { CalendarRecord, NormalMonthDay, WeeksArray } from '@/interface/calendar
             const dateB = new Date(b.date_start);
             return dateA.getTime() - dateB.getTime();
         }); 
+    }
+    const dayGoogleEvents = (day: NormalMonthDay) => {
+        return props.googleEvents.filter((ob: GoogleEventItem) => {
+            const startDate = DateTime.fromISO(ob.start_date);
+            const endDate = ob.end_date ? DateTime.fromISO(ob.end_date) : startDate;
+            const dayDate = DateTime.fromISO(day.day_full);
+            return (dayDate >= startDate && dayDate <= endDate);        
+        })
     }
     const containerScroll = async(day:string) => {
         const index = calendarData.value.findIndex(ob => {

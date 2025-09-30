@@ -37,6 +37,7 @@
                     :hideName="hideName"
                     :key="userData.user.id"
                     :orderCreator="orderCreator"
+                    :googleEventOrderCreator="googleEventOrderCreator"
                     @create="(date, user) => emit('create', date, user)"
                     @viewFull="hideName = false"
                 />
@@ -50,8 +51,9 @@ import MemberTile from './MemberTile.vue'
 import { computed, inject, onMounted, onUnmounted, Ref, ref, useTemplateRef, watch } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useFocused } from '@/store/focused';
-import { CalendarGroupUser, CalendarRecord, MemberHourDay } from '@/interface/calendarInterface';
+import { CalendarGroupUser, CalendarRecord, GoogleEventItem, MemberHourDay } from '@/interface/calendarInterface';
 import { useCalendar } from '@/composables/calendar';
+import { useAuthUserStore } from '@/store/auth';
     const responsive = useResponsive()
     const focused = useFocused()
     const props = defineProps<{
@@ -59,6 +61,7 @@ import { useCalendar } from '@/composables/calendar';
         activeMembers: CalendarGroupUser[];
         selectedDate: string;
         initialLoader: boolean;
+        googleEvents: GoogleEventItem[];
     }>()
     const emit = defineEmits(['create', 'resetFastCreate', 'scrollHorizontal'])
     const hideName = ref(false)
@@ -71,6 +74,7 @@ import { useCalendar } from '@/composables/calendar';
     const cal_week_view = useTemplateRef('cal_week_view')
     const currentMinute = ref<string>('')
     const {draggingCalendar} = useCalendar()
+    const auth = useAuthUserStore()
     watch(() => focused.active, () => {
         currentMinute.value = getCurrentMinute()
     })
@@ -112,14 +116,53 @@ import { useCalendar } from '@/composables/calendar';
         
 
     }
+    const googleEventOrderCreator = (order:number, list: GoogleEventItem[], date: string) => {
+        let break_point_rear = DateTime.fromFormat(`${date} 00:01`, 'yyyy-MM-dd HH:mm')
+        let cooked:GoogleEventItem[] = [];
+        let reserved:GoogleEventItem[] = [];
+        for (let i = 0; i < list.length; i++) {
+            let item = list[i]
+            if(i == 0){
+                item['order'] = order
+                cooked.push(item)
+                break_point_rear = DateTime.fromFormat(`${item.end_date} ${item.end_time}`, 'yyyy-MM-dd HH:mm')
+            }else{
+                if(DateTime.fromFormat(`${item.start_date} ${item.start_time}`, 'yyyy-MM-dd HH:mm').diff(break_point_rear, 'minutes').as('minutes') >= 0){
+                    item['order'] = order
+                    cooked.push(item)
+                    break_point_rear = DateTime.fromFormat(`${item.end_date} ${item.end_time}`, 'yyyy-MM-dd HH:mm')
+                }
+                else{
+                    reserved.push(item)
+                }
+            }
+        }
+        if(reserved.length){
+            let uld = googleEventOrderCreator(order + 1, reserved, date);
+            cooked = cooked.concat(uld)
+        }
+        return cooked       
+
+    }
     const listMembers = computed(() => {
         const uniqueUserIds = new Set();
         const memberList:MemberHourDay[] = [];
+        const dateInstance = DateTime.fromISO(props.selectedDate);
+        if(!dateInstance.isValid) return memberList;
         props.activeMembers.forEach((user) => {
             if (!uniqueUserIds.has(user.id)) {
                 uniqueUserIds.add(user.id);
                 const user_records = props.records.filter(ob => ob.calendar_users.some(community_user => community_user.id === user.id))
-                memberList.push({user: user, records:user_records, date: props.selectedDate});
+                let googleEvents:GoogleEventItem[] = []
+                if(user.id == auth.id){
+                    googleEvents = props.googleEvents.filter((ob) => {
+                        const startDate = DateTime.fromISO(ob.start_date);
+                        const endDate = ob.end_date ? DateTime.fromISO(ob.end_date) : startDate;
+                        const dayDate = DateTime.fromISO(props.selectedDate);
+                        return (dayDate >= startDate && dayDate <= endDate);
+                    });
+                }
+                memberList.push({user: user, records:user_records, date: props.selectedDate, googleEvents: googleEvents});
             }
         });
         

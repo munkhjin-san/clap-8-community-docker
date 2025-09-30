@@ -89,6 +89,7 @@ export interface MemberMonthDay {
 export interface MemberHourDay {
     user: CalendarGroupUser
     records: CalendarRecord[]
+    googleEvents: GoogleEventItem[]
     date: string
     hour?: string
 }
@@ -155,6 +156,47 @@ export interface FacList {
     zoom_value: Fac[];
     qualified_care: Fac[];
 
+}
+
+export interface GoogleCalendar {
+    id: string,
+    summary: string,
+    events: GoogleEventItem[]
+    description?: string
+    timeZone?: string
+    accessRole?: string
+    backgroundColor?: string
+    foregroundColor?: string
+    selected?: boolean
+}
+
+export interface GoogleEventItem {
+    all_day: boolean
+    calendarId: string
+    calendarName: string
+    color: string
+    foregroundColor: string
+    textColor: string
+    end_date: string
+    end_time: string | null
+    id: string
+    start_date: string
+    start_time: string | null
+    summary: string
+    description: string | null
+    timezone: string
+    user_info: GoogleUserInfo
+    order: number
+}
+export interface GoogleUserInfo {
+    avatar_url: string,
+    name: string
+}
+export interface GoogleCalendarListResponse {
+    calendars: GoogleCalendar[]
+    user_info: GoogleUserInfo
+    status: string,
+    calendar_ids: string[]
 }
 
 

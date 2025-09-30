@@ -9,11 +9,9 @@
 
         }"
         :class="[{'pop-cal-card' : expanded}]">
-            <CalendarCard
+            <GoogleEventCard
                 :record="record"
-                :viewable="viewable"
-                :editable="editable"
-                :expanded="expanded"
+                :expanded="expanded"    
                 :unique-id="unique"
                 @selectRecord="selectRecord"
             />                
@@ -21,45 +19,34 @@
     </div>
 </template>
 <script setup lang="ts">
-import CalendarCard from './CalendarCard.vue';
 import { computed } from 'vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
-import { CalendarRecord, NormalHourDay } from '@/interface/calendarInterface';
+import GoogleEventCard from './GoogleEventCard.vue';
+import { GoogleEventItem, NormalHourDay } from '@/interface/calendarInterface';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
+    // const props = defineProps(['record', 'day'])
     const props = defineProps<{
-        record: CalendarRecord
-        day: NormalHourDay;
+        record: GoogleEventItem, 
+        day: NormalHourDay
     }>()
-    const viewable = computed(() => {
-        return (props.record.release_flag == 0 && props.record.members_only == 0) || editable.value
-    })
-    
-    const editable = computed (() => {
-        const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
-        return (me.length || props.record.edit_all || canview.value) && props.record.shift == 0
-    })
-    const canview = computed(() => {
-        const me = props.record.calendar_view_users.some(user => 
-             user.id === auth.activeUser.id
-        );      
-        return me && props.record.shift == 0
-    })
 
+
+
+
+    const expanded = computed(() => {
+        return menu.parent == unique.value
+    })
     const unique = computed(() => {
         const u = Math.floor(100000 + Math.random() * 900000).toString()
         const r = props.record.id.toString()
         const d = props.day.full.replace(/-/g, '')
         return `cal_${r}_${d}_${u}`
     })
-    const expanded = computed(() => {
-        return menu.parent == unique.value
-    })
-
-    const selectRecord = () => {
+    const selectRecord = (_event:Event) => {
         menu.setMenu( {parent: unique.value})
     }    
 
