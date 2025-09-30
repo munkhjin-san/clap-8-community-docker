@@ -2343,7 +2343,7 @@ class ProjectController extends Controller
             ->get();
 
         $managers = $projects->pluck('manager')->flatten(1)->unique('id')->values();
-        $directors = User::where('position_id', '<', 6)
+        $directors = User::where('position_id', '<', 6)->where('retire', 0)
             ->orWhere('id', 610)
             ->select('id', 'name', 'icon_path', 'icon_bg')
             ->get();
