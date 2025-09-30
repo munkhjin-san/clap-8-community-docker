@@ -2334,23 +2334,40 @@ class ProjectController extends Controller
         $projects = ProjectRecord::inRandomOrder()->take($count)->get();
         return response()->json($projects);
     }
-    public function mentionable_users(Request $request) {
+    public function mentionable_users(Request $request)
+    {
+        $user = $this->active_user();
+
         $request->validate([
-            'projectIds' => 'required'
+            'projectIds' => 'required',
         ]);
+
         $projects = ProjectRecord::whereIn('id', $request->projectIds)
             ->with('manager:id,name,icon_path,icon_bg')
             ->get();
 
         $managers = $projects->pluck('manager')->flatten(1)->unique('id')->values();
-        $directors = User::where('position_id', '<', 6)->where('retire', 0)
-            ->orWhere('id', 610)
+
+        $directors = User::where(function ($q) {
+                $q->where('position_id', '<', 6)
+                ->where('retire', 0);
+            })
+            ->where(function ($q) use ($user) {
+                $q->where('id', '!=', $user->id)  // exclude current user
+                ->orWhere('id', 610);           // but still allow 610
+            })
             ->select('id', 'name', 'icon_path', 'icon_bg')
             ->get();
-        $users = $managers->concat($directors)->unique('id')->values();
+
+        $users = $managers
+            ->concat($directors)
+            ->reject(fn ($u) => $u->id === $user->id) // also filter at collection level just in case
+            ->unique('id')
+            ->values();
 
         return response()->json($users);
     }
+
     public function project_finance_comment(Request $req) {
         $user = $this->active_user();
         $data = $req->validate([
