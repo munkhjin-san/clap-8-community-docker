@@ -1068,8 +1068,15 @@ class WorkController extends Controller
                 
             }
             $is_exist->car_mileage = $request->car_mileage ?? 0;
-            $is_exist->car_used_project = $request->car_used_project;
-            $is_exist->gas_full_price = $request->gas_full_price;
+
+            if ($is_exist->car_mileage > 0) {
+                $is_exist->car_used_project = $request->car_used_project;
+                $is_exist->gas_full_price = $request->gas_full_price ?? 0;
+            } else {
+                $is_exist->car_used_project = null;
+                $is_exist->gas_full_price = 0;
+            }
+
             $is_exist->save();
             if($request->shiftType !== 0 && $request->shiftType !== 1){
                 $this->checkDepartment($request->day, $request->userId);
