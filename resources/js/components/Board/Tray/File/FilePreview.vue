@@ -327,7 +327,7 @@ import { MenuList } from '@/interface/globalInterface';
             project_id: file.project_id
         }
         await api.post('/drive/access_logs', payload)
-    }, { immediate: true })
+    })
 </script>
 <style lang="scss">
     // .vue-pdf-embed > div {
