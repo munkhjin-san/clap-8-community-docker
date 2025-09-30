@@ -6,6 +6,12 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
 use App\Services\SharedService;
+use App\Services\BoardControllerProxy;
+use GuzzleHttp\Client as Http;
+use App\Domain\Contracts\{PlanProvider,ActualProvider};
+use App\Infrastructure\Kintone\{KintoneClient,KintonePlanProvider};
+use App\Infrastructure\Sheets\{GoogleSheetsClient,GoogleSheetsActualProvider};
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -18,6 +24,15 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SharedService::class, function ($app) {
             return new SharedService();
         });
+        $this->app->singleton(Http::class, fn() => new Http(['timeout' => 15]));
+        $this->app->singleton(KintoneClient::class, fn($app) => new KintoneClient($app->make(Http::class)));
+        $this->app->singleton(GoogleSheetsClient::class);
+
+        $this->app->bind(PlanProvider::class, KintonePlanProvider::class);
+        $this->app->bind(ActualProvider::class, GoogleSheetsActualProvider::class);
+        $this->app->bind(BoardControllerProxy::class, fn($app) =>
+            new BoardControllerProxy($app->make(\App\Http\Controllers\BoardController::class))
+        );
     }
 
     /**

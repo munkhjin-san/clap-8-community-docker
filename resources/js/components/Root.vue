@@ -141,7 +141,7 @@ import { useDialog } from '@/composables/dialog';
         badge.getSalaryIssueBadge()
         badge.getAssetBadge()
         badge.getTaskCommentBadge()
-        
+        badge.getFinanceCommentBadge()
     })
     const postHandler = () => {
         if(!auth.isPartner){

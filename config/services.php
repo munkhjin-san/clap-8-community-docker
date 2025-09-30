@@ -44,6 +44,8 @@ return [
             'client_id'     => env('GOOGLE_CLIENT_ID'),
             'client_secret' => env('GOOGLE_CLIENT_SECRET'),
             'redirect'      => env('GOOGLE_URL'),
+            'credentials_json' => env('GOOGLE_SHEETS_CREDENTIALS'),
+            'spreadsheet_id' => env('GOOGLE_SHEETS_SPREADSHEET_ID'),
     ],
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),

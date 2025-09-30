@@ -85,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import PdfViewer from './PdfViewer.vue'
 import Swiper from 'swiper';
 import type { Swiper as SwiperType } from 'swiper';
@@ -130,12 +130,12 @@ import { MenuList } from '@/interface/globalInterface';
             // thumbsSwiper.value.slideTo(f_index.value, false)
         }
         const firstFile = currentFile.value
-        
         if(doc_extensions.indexOf(firstFile.extension) > -1 && f_index.value == 0 && firstFile.extension !== 'pdf'){
             // docLoader.value = true
             getDocs()
         }
     })
+    
     const fileMenu = computed(() => {
         const file = currentFile.value
         const list:MenuList[] = []; 
@@ -157,7 +157,9 @@ import { MenuList } from '@/interface/globalInterface';
         builtInApps.forEach(app => {
             share.children.push({ title: app.name_jp, action: () => shareTo(app.name, file)})
         });
-        list.push(share)
+        if (source.value !== 'storage' && source.value !== 'deeplink'){
+            list.push(share)
+        }
         return list
     })
     const refreshReader = () => {
@@ -230,6 +232,7 @@ import { MenuList } from '@/interface/globalInterface';
     const changeSwiperIndex = (swiper) => {
         docUrl.value = ''
         f_index.value = swiper.realIndex
+        filePreview.index = swiper.realIndex
         pdfKey.value = 0
         const firstFile = currentFile.value                
         if(doc_extensions.indexOf(firstFile.extension) > -1){
@@ -270,7 +273,7 @@ import { MenuList } from '@/interface/globalInterface';
         menu.setMenu( {name: '', id: null})
 
     }
-    const direcDownload = () => {                 
+    const direcDownload = async() => {                 
         fetch(currentFile.value.file_path)
         .then(response => response.blob())
         .then(blob => {
@@ -286,6 +289,14 @@ import { MenuList } from '@/interface/globalInterface';
 
             URL.revokeObjectURL(url);
         })
+        if (source.value !== 'storage') return
+        const payload = {
+            id: currentFile.value.id,
+            name: currentFile.value.name,
+            project_id: currentFile.value.project_id,
+            path: currentFile.value.storage_path
+        }
+        await api.post('/drive/download_logs', payload)
     }
     const shareTo = (to, file) => {
         let path = route.name == 'room' ? `/cdn/shared_files/${file.board_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}` : file.file_path
@@ -306,7 +317,17 @@ import { MenuList } from '@/interface/globalInterface';
         }
         filePreviewClose()
     }
-   
+    watch(() => currentFile.value?.id, async (id) => {
+        if (!id) return
+        if (source.value !== 'storage') return
+        const file = currentFile.value
+        const payload = {
+            id: file.id,
+            name: file.name,
+            project_id: file.project_id
+        }
+        await api.post('/drive/access_logs', payload)
+    }, { immediate: true })
 </script>
 <style lang="scss">
     // .vue-pdf-embed > div {

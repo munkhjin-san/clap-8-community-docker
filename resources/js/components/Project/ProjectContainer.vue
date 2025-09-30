@@ -232,7 +232,6 @@ const totalFinanceWindow = ref(false)
 const api = useApi()
 const start = ref<DateTime | null>(null)
 const end = ref<DateTime | null>(null)
-const unitOptions = ['1', '1000', '10000', '1000000'] 
 const { getProjects, projectList, usersProjects } = useProject()
 const { ping } = useDialog()
 onMounted(async() => {
@@ -386,7 +385,6 @@ const jumpToProject = (project: Project) => {
 }
 provide('editProjects', (rec) => {editData.value = rec; createWindow.value = true})
 provide('setTotalFinanceWindow', (flag:boolean) => {totalFinanceWindow.value = flag})
-provide('unitOptions', unitOptions)
 </script>
 <style scoped>
     .project-title-cell{

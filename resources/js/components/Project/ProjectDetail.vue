@@ -23,21 +23,27 @@
                 <div class="tab-name">{{ tab.name }}</div>
                 <span 
                     class="side-notification" 
-                    style="position: unset;width: 15px" 
+                    style="position: unset;width: 15px;z-index: 1;" 
                     v-if="tab.path == 'project-members'&& totalMemberBadge"
                 >{{ totalMemberBadge }}
                 </span>
                 <span 
                     class="side-notification" 
-                    style="position: unset;width: 15px" 
+                    style="position: unset;width: 15px;z-index: 1;" 
                     v-if="tab.path == 'assets'&& assetBadge"
                 >{{ assetBadge }}
                 </span>
                 <span 
                     class="side-notification" 
-                    style="position: unset;width: 15px" 
+                    style="position: unset;width: 15px;z-index: 1;" 
                     v-if="tab.path == 'task-calendar'&& taskCommentBadge"
                 >{{ taskCommentBadge }}
+                </span>
+                <span 
+                    class="side-notification" 
+                    style="position: unset;width: 15px;z-index: 1;" 
+                    v-if="tab.path == 'finance'&& financeCommentBadge"
+                >{{ financeCommentBadge }}
                 </span>
             </router-link>
         </div>
@@ -52,6 +58,7 @@
             v-if="selectedProject"
             :selected-project="selectedProject" 
             :user-list="userList"
+            :mentionable-users="mentionableUsers"
             :has-privilage="hasPrivilage"
             :fileAccess="fileAccess"
             :key="`rt_${route.params.projectId}`"
@@ -59,18 +66,22 @@
     </div>
 </template>
 <script setup lang="ts">
+import { useApi } from '@/composables/api';
 import { useProject } from '@/composables/project';
+import { User } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
-import { computed, provide, ref } from 'vue';
+import { computed, onMounted, provide, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
     const props = defineProps(['userList'])
     const route = useRoute()
     const router = useRouter()
+    const api = useApi()
     const badge = useBadgeStore()
     const initialLoader = ref(false)
     const auth = useAuthUserStore()
+    const mentionableUsers = ref<User[]>([])
     const { selectedProject, memberData } = useProject() 
     const userId = computed(() => auth.activeUser?.id ?? auth.id ?? null);
     type Tab = { name: string; path: string };
@@ -115,7 +126,9 @@ import { useRoute, useRouter } from 'vue-router';
     const taskCommentBadge = computed(() => {
         return badge.taskCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
     })
-   
+    const financeCommentBadge = computed(() => {
+        return badge.financeCommentBadgeByFilter([{ by: 'project_id', value: Number(route.params.projectId)}]).length
+    })
     const hasPrivilage = computed(() => {
         return (selectedProject.value?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6) || auth.activeUser.id == 610 || auth.activeUser.id == 608) ? true : false
     })
@@ -167,10 +180,18 @@ import { useRoute, useRouter } from 'vue-router';
         if(item.route.name === 'psuedo') return
         router.push(item.route)
     }
+    const getMentionableUsers = async() => {
+        const data = await api.get('/mentionable_users', {projectIds: [route.params.projectId]})
+        if (data) {
+            mentionableUsers.value = data
+        }
+    }
     provide('setLoader', (value: boolean) => {
         initialLoader.value = value
     })
-
+    onMounted(() => {
+        getMentionableUsers()
+    })
 </script>
 <style scoped>
     .tab{

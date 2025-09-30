@@ -27,28 +27,38 @@
                         
                     </div>
                 </Transition>
-                <div class="ml-auto hidden md:flex inline-flex items-center gap-1 border border-white/10 bg-[var(--bg2)]/60 backdrop-blur supports-[backdrop-filter]:bg-[var(--bg2)]/40"
-                    role="group" aria-label="View mode toggle">
-                    <!-- GRID -->
-                    <button :aria-pressed="isGrid" :class="[baseBtn, isGrid ? activeBtn : idleBtn]"
-                        class="h-5 w-5 flex items-center justify-center" title="グリッド表示 (V)" @click="setView('grid')">
-                        <Grid size="14" />
-                    </button>
+                <div class="ml-auto hidden md:flex items-center gap-2">
+                    <div class="inline-flex items-center gap-1 border border-white/10 bg-[var(--bg2)]/60 backdrop-blur supports-[backdrop-filter]:bg-[var(--bg2)]/40"
+                        role="group" aria-label="View mode toggle">
+                        <!-- GRID -->
+                        <button :aria-pressed="isGrid" :class="[baseBtn, isGrid ? activeBtn : idleBtn]"
+                            class="h-5 w-5 flex items-center justify-center" title="グリッド表示 (V)" @click="setView('grid')">
+                            <Grid size="14" />
+                        </button>
 
-                    <!-- LIST -->
-                    <button :aria-pressed="!isGrid" :class="[baseBtn, !isGrid ? activeBtn : idleBtn]"
-                        class="h-5 w-5 flex items-center justify-center" title="リスト表示 (V)" @click="setView('list')">
-                        <List size="14" />
-                    </button>
+                        <!-- LIST -->
+                        <button :aria-pressed="!isGrid" :class="[baseBtn, !isGrid ? activeBtn : idleBtn]"
+                            class="h-5 w-5 flex items-center justify-center" title="リスト表示 (V)" @click="setView('list')">
+                            <List size="14" />
+                        </button>
+                    </div>
+                    <ItemMenu :items="[{ title: '履歴', action: openLogs }]" />
                 </div>
-                
-                
+                <div class="md:hidden">
+                    <ItemMenu :items="[{ title: '履歴', action: openLogs }]" />
+                </div>
+
             </div>
             <!-- Progress -->
-            <div v-if="progress > 0 && working" class="px-3 py-1 text-sm text-gray-600 fixed bottom-3 left-0 right-0 shadow-md bg-[var(--bg3)] mx-auto w-fit">
+            <div v-if="progress > 0 && working" class="px-3 py-1 text-sm text-[var(--primary-color)] fixed bottom-3 left-0 right-0 shadow-md bg-[var(--bg3)] mx-auto w-fit">
                 <span>アップロード中…</span> 
                 <span>{{ display }}</span>
                 <span>%</span>
+            </div>
+            <div v-if="downloadProgress && working" class="px-3 py-1 text-sm text-[var(--primary-color)] fixed bottom-3 left-0 right-0 shadow-md bg-[var(--bg3)] mx-auto w-fit flex gap-2 items-center">
+                <span>ダウンロード中…</span> 
+                <div class="spinner-mini" style="width:8px; height: 8px; border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                
             </div>
             <div class="flex items-center justify-between p-2 bg-[var(--bg3)] mx-3 mb-3">
                 <div class="text-sm text-gray-600 flex flex-wrap gap-1">
@@ -64,12 +74,6 @@
             </div>
         </div>
         <!-- Breadcrumb -->
-
-
-        <!-- Drop zone hint -->
-        <!-- <div class="hidden md:flex mx-3 mb-2 p-2 rounded-lg border border-dashed text-xs text-gray-500">
-            ここにファイルをドラッグ＆ドロップしてアップロード
-        </div> -->
 
         <!-- Grid/List -->
         <div class="relative h-full pb-5" ref="grid" @click="onBackgroundClick">
@@ -97,14 +101,14 @@
                             <div class="truncate-2 font-medium text-sm whitespace-nowrap overflow-hidden text-ellipsis">{{ truncatedName(n.name, 25) }}</div>
                             <div class="text-[11px] text-gray-600">
                                 <span v-if="n.type === 'file'">{{ fileSizeParser(n.size) }}</span>
-                                <!-- <span>{{ DateParser(n.updated_at) }}</span> -->
                             </div>
                         </div>
                         <div class="ml-auto self-start" @click.stop @touchend.stop>
                             <ItemMenu :items="[
                                 { title: '開く', action: () => { onDblClick(n) } },
                                 { title: 'ダウンロード', action: () => { selected.clear(); selected.add(n.id); downloadSelected() } },
-                                ...(n.type === 'file' ? [{ title: 'リンクをコピー', action: () => copyFileLink(n) }] : []),
+                                { title: '履歴', action: () => openActivity(n) },
+                                ...(n.type === 'file' ? [{ title: 'URLコピー', action: () => copyFileLink(n) }] : []),
                                 ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '移動', action: () => { openMoveDialog(n.id) } }] : []),
                                 ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: 'アクセス権限', action: () => handleShareClick(n, true) }] : []),
                                 ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '名前変更', action: () => { renameOne(n.id) } }] : []),
@@ -112,26 +116,9 @@
                             ]" />
                         </div>
                     </div> 
-                    <!-- <div class="flex items-center mt-2" @click="openAccessibles(n)">
-                        <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in accessibleUsers(n).slice(0,3)">  
-                            <UserPanel :title="user.name" :disableInstant="true" size="15" :user="user" imgClass="userSmallIcon"/>                                         
-                        </div>
-                        <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="accessibleUsers(n).length > 3">...({{accessibleUsers(n).length}})</span>
-                    </div> -->
                 </div>
             </div>
             <div v-else class="px-4 pb-2">
-                <!-- header -->
-                <!-- <div
-                    class="grid grid-cols-[auto_1fr_auto_auto_auto] items-center gap-3 px-3 py-2 text-xs uppercase opacity-60">
-                    <div>種類</div>
-                    <div>名前</div>
-                    <div class="text-right">サイズ</div>
-                    <div class="text-right">更新日</div>
-                    <div>
-                        <ItemMenu :items="[]" />
-                    </div>
-                </div> -->
                 <table class="w-full table-auto border-collapse">
                     <thead>
                         <tr class="text-[12px]">
@@ -176,7 +163,7 @@
                                         </div>
                                         <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="accessibleUsers(n).length > 3">...({{accessibleUsers(n).length}})</span>
                                     </div>
-                                    <span class="text-xs" v-else>公共</span>
+                                    <span class="text-xs" v-else>メンバーのみ</span>
                                 </div>
                             </td>
                             <td>
@@ -195,7 +182,8 @@
                                     <ItemMenu :items="[
                                         { title: '開く', action: () => { onDblClick(n) } },
                                         { title: 'ダウンロード', action: () => { selected.clear(); selected.add(n.id); downloadSelected() } },
-                                        ...(n.type === 'file' ? [{ title: 'リンクをコピー', action: () => copyFileLink(n) }] : []),
+                                        { title: '履歴', action: () => openActivity(n) },
+                                        ...(n.type === 'file' ? [{ title: 'URLコピー', action: () => copyFileLink(n) }] : []),
                                         ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '移動', action: () => { openMoveDialog(n.id) } }] : []),
                                         ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: 'アクセス権限', action: () => { handleShareClick(n, true) } }] : []),
                                         ...(isManager || n.owner_id == auth.activeUser.id ? [{ title: '名前変更', action: () => { renameOne(n.id) } }] : []),
@@ -235,35 +223,61 @@
         <!-- Move Dialog -->
         <Transition name="modalFade">
             <div v-if="moveDlg.open" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" @click.self="closeMoveDialog">
-                <div class="bg-[var(--bg2)] w-[90vw] max-w-xl rounded shadow p-4">
+                <div class="bg-[var(--background-color)] w-[90vw] max-w-xl shadow p-4">
                     <div class="text-sm mb-3">
                         <div class="flex items-center justify-between">
-                            <div class="text-white/80">移動先を選択</div>
-                            <button class="text-white/70 hover:text-white bg-[inherit]" @click="closeMoveDialog">✕</button>
+                            <div>移動先を選択</div>
+                            <CloseIcon class="cursor-pointer" @click="closeMoveDialog" size="11"/>
                         </div>
-                        <div class="mt-2 text-xs text-white/70 flex flex-wrap gap-1">
+                        <div class="mt-2 text-xs flex flex-wrap gap-1">
                             <template v-for="(c, i) in moveDlg.path" :key="c.id ?? 'root'">
                                 <span v-if="i > 0">/</span>
                                 <button class="underline bg-[inherit]" @click="moveBrowse(c.id)">{{ c.name }}</button>
                             </template>
                         </div>
                     </div>
-                    <div class="max-h-[50vh] overflow-y-auto border border-white/10">
-                        <div v-for="f in moveDlg.folders" :key="f.id" class="px-3 py-2 hover:bg-white/10 flex items-center justify-between">
+                    <div class="max-h-[50vh] overflow-y-auto border border-[var(--calendarToday)] border-solid">
+                        <div v-for="f in moveDlg.folders" :key="f.id" class="p-3 hover:bg-[var(--bg3)] flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <Folder />
                                 <button class="underline bg-[inherit]" @click="moveBrowse(f.id)">{{ f.name }}</button>
                             </div>
-                            <button class="text-xs px-2 py-1 bg-white/10 hover:bg-white/20" @click="confirmMove(f.id)">ここへ</button>
+                            <button class="text-xs px-2 py-1 bg-[var(--primary-button)] text-white" @click="confirmMove(f.id)">移動</button>
                         </div>
-                        <div v-if="moveDlg.folders.length === 0" class="px-3 py-6 text-center text-white/50 text-sm">フォルダがありません</div>
+                        <div v-if="moveDlg.folders.length === 0" class="px-3 py-6 text-center text-sm">フォルダがありません</div>
                     </div>
                     <div class="mt-3 flex items-center justify-between">
-                        <div class="text-xs text-white/60">現在: {{ moveDlg.path.at(-1)?.name ?? 'ホーム' }}</div>
+                        <div class="text-xs">現在: {{ moveDlg.path.at(-1)?.name ?? 'ホーム' }}</div>
                         <div class="flex gap-2">
-                            <button class="px-3 py-1 bg-white/10 hover:bg-white/20 text-sm" @click="confirmMove(null)">ホームへ移動</button>
-                            <button class="l-button" @click="closeMoveDialog">キャンセル</button>
+                            <button class="px-2 py-1 text-xs" @click="confirmMove(null)">ホームへ移動</button>
+                            <button class="px-2 py-1 text-xs bg-[var(--primary-button)] text-white" @click="closeMoveDialog">キャンセル</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </Transition>
+        <Transition name="modalFade">
+            <div v-if="logsDlg" class="fixed inset-0 bg-black/60 z-40 flex items-center justify-center px-4" @click.self="closeLogs">
+                <div class="bg-[var(--background-color)] w-full max-w-3xl max-h-[80vh] shadow-lg flex flex-col">
+                    <div class="flex items-center justify-between px-4 py-3 ">
+                        <h3 class="text-sm font-semibold">プロジェクト全体の履歴</h3>
+                        <CloseIcon size="12" class="cursor-pointer" @click="closeLogs"/>
+                    </div>
+                    <div class="overflow-y-auto p-4">
+                        <FileLogs :projectId="projectIdNumber ?? undefined" />
+                    </div>
+                </div>
+            </div>
+        </Transition>
+        <Transition name="modalFade">
+            <div v-if="activityDlg.open" class="fixed inset-0 bg-black/60 z-40 flex items-center justify-center px-4" @click.self="closeActivity">
+                <div class="bg-[var(--background-color)] w-full max-w-3xl max-h-[80vh] shadow-lg flex flex-col">
+                    <div class="flex items-center justify-between px-4 py-3">
+                        <h3 class="text-sm font-semibold">{{ activityDlg.node?.name ?? '履歴' }}</h3>
+                        <CloseIcon size="12" class="cursor-pointer" @click="closeActivity"/>
+                    </div>
+                    <div class="overflow-y-auto p-4">
+                        <FileLogs :projectId="projectIdNumber ?? undefined" :itemId="activityDlg.node?.id ?? null" />
                     </div>
                 </div>
             </div>
@@ -291,7 +305,6 @@ import { useAuthUserStore } from '@/store/auth';
 import PrivateSetting from './FileStorage/PrivateSetting.vue';
 import { sharingApi } from '@/composables/sharing';
 import { useApi } from '@/composables/api';
-import axios from 'axios';
 import { TaskUser, User } from '@/interface/globalInterface';
 import Grid from '@/components/Icons/Grid.vue';
 import List from '@/components/Icons/List.vue';
@@ -302,6 +315,7 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import AccessMembers from './FileStorage/AccessMembers.vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import AddIcon from '@/components/Form/AddIcon.vue';
+import FileLogs from './FileStorage/FileLogs.vue';
 import { useMenuStore } from '@/store/menu';
 import Download from '@/components/Icons/Download.vue';
 import Trash from '@/components/Icons/Trash.vue';
@@ -348,16 +362,16 @@ const api = {
         return tsApi.post('/drive/upload', fd, { toast: 'アップロードが完了しました' }, { onUploadProgress: e => { progress.value = Math.round((e.loaded / e.total!) * 100) } })
     },
     rename: (id: string, payload: { name: string, project_id: string | null }) => tsApi.patch(`/drive/${id}`, payload, { toast: '名前を変更しました' }),
-    remove: (id: string) => tsApi.del(`/drive/${id}`, {}, { toast: '削除しました' }),
+    remove: (payload: {ids: string[] | string}) => tsApi.post('/drive/delete', payload, { toast: '削除しました' }),
     // downloads:
-    file: (id: string) =>
-        axios.get(`/drive/files/${id}/download`, { responseType: 'blob', withCredentials: true }),
+    file: (node: Node) =>
+        tsApi.get(`/drive/files/${node.id}/download`, {}, { rawResponse: true }, { responseType: 'blob' }),
 
     folderZip: (id: string) =>
-        axios.get(`/drive/folders/${id}/download.zip`, { responseType: 'blob', withCredentials: true }),
+        tsApi.get(`/drive/folders/${id}/download.zip`, {}, { rawResponse: true }, { responseType: 'blob' }),
 
     multiZip: (ids: string[]) =>
-        axios.post(`/drive/zip`, { ids, project_id: projectId }, { responseType: 'blob', withCredentials: true }),
+        tsApi.post(`/drive/zip`, { ids, project_id: projectId }, { rawResponse: true }, { responseType: 'blob' }),
     move: (ids: string[], dest_id: string | null) => tsApi.post('/drive/move', { ids, dest_id, project_id: projectId }, { toast: '移動しました' }),
 }
 const { ask, askInput, toast, ping } = useDialog()
@@ -371,8 +385,10 @@ const items = ref<Node[]>([])
 const selected = ref<Set<string>>(new Set<string>());
 const working = ref(false)
 const progress = ref(0)
+const downloadProgress = ref(false)
 const q = ref('')
 const projectId = route.params.projectId as string | null
+const projectIdNumber = computed(() => projectId ? Number(projectId) : null)
 const router = useRouter()
 
 const isMobile = computed(() => window.matchMedia('(max-width: 768px)').matches)
@@ -540,15 +556,14 @@ const onUp = () => {
 }
 const load = async (id: string | null) => {
     working.value = true
-    try {
-        const data = await api.list(id)
-        parentId.value = data.parent?.id ?? null
-        path.value = data.path
-        items.value = data.items
-        selected.value.clear()
-    } finally {
-        working.value = false
-    }
+   
+    const data = await api.list(id)
+    parentId.value = data.parent?.id ?? null
+    path.value = data.path
+    items.value = data.items
+    selected.value.clear()
+    working.value = false
+    
 }
 
 const SELECT_MODE: 'touch' | 'center' | 'ratio' | 'cover' = 'ratio';
@@ -683,15 +698,12 @@ const upload = async(files: File[]) => {
     if (!files.length) return
     working.value = true
     progress.value = 0
-    try {
-        await api.upload(parentId.value, files)
-        await load(parentId.value)
-    } catch (e: any) {
-        alert(e?.response?.data?.message || 'アップロードに失敗しました')
-    } finally {
-        working.value = false
-        progress.value = 0
-    }
+    
+    await api.upload(parentId.value, files)
+    await load(parentId.value)
+    working.value = false
+    progress.value = 0
+    
 }
 
 // drag & drop
@@ -733,20 +745,17 @@ const onItemDrop = async(n: Node, e: DragEvent) => {
     const data = e.dataTransfer?.getData('application/x-drive-ids');
     if (!data) return;
     if (n.type !== 'folder') return;
-    try {
-        const ids: string[] = JSON.parse(data);
-        if (!ids.length) return;
-        working.value = true;
-        await api.move(ids, n.id);
-        await load(parentId.value);
-        selected.value.clear();
-        toast?.('移動しました');
-    } catch (err: any) {
-        alert(err?.response?.data?.message || '移動に失敗しました');
-    } finally {
-        working.value = false;
-        dropTarget.value = null;
-    }
+    const ids: string[] = JSON.parse(data);
+    if (!ids.length) return;
+    working.value = true;
+    await api.move(ids, n.id);
+    await load(parentId.value);
+    selected.value.clear();
+    toast?.('移動しました');
+
+    working.value = false;
+    dropTarget.value = null;
+    
 }
 
 const renameOne = async(menu_id?: string) => {
@@ -796,8 +805,8 @@ const removeSelected = async(menu_id?: string) => {
     const answer = await ask('選択項目を削除しますか？')
     if (!answer.value) return
     working.value = true
-    if (menu_id) await api.remove(menu_id)
-    else for (const id of selected.value) { await api.remove(id) }
+    if (menu_id) await api.remove({ids: menu_id})
+    else { await api.remove({ids: Array.from(selected.value)}) }
     await load(parentId.value)
     working.value = false
 }
@@ -867,8 +876,8 @@ const moveBrowse = async(pid: string|null) => {
 }
 const confirmMove = async(dest: string|null) => {
     if (!moveDlg.value.pendingIds?.length) return
+    working.value = true
     try {
-        working.value = true
         await api.move(moveDlg.value.pendingIds, dest)
         await load(parentId.value)
         selected.value.clear()
@@ -876,7 +885,31 @@ const confirmMove = async(dest: string|null) => {
         toast?.('移動しました')
     } catch (err: any) {
         alert(err?.response?.data?.message || '移動に失敗しました')
-    } finally { working.value = false }
+    } finally {
+        working.value = false
+    }
+}
+const logsDlg = ref(false)
+const openLogs = () => {
+    if (!projectIdNumber.value) {
+        ping?.('プロジェクトが選択されていません')
+        return
+    }
+    logsDlg.value = true
+}
+const closeLogs = () => { logsDlg.value = false }
+const activityDlg = ref<{ open: boolean, node: Node | null }>({ open: false, node: null })
+const openActivity = (node: Node) => {
+    if (!projectIdNumber.value) {
+        ping?.('プロジェクトが選択されていません')
+        return
+    }
+    activityDlg.value.open = true
+    activityDlg.value.node = node
+}
+const closeActivity = () => {
+    activityDlg.value.open = false
+    activityDlg.value.node = null
 }
 watch([currentId, previewId], async ([pid, fid]) => {
     if(pid === lastLoadedId.value) return         // avoid double loads
@@ -939,12 +972,13 @@ const downloadSelected = async() => {
     }
     const chosen = items.value.filter(i => ids.includes(i.id)); // [{id,name,type}]
     working.value = true;
+    downloadProgress.value = true
     try {
         if (ids.length === 1) {
             const n = chosen[0];
             if (n.type === 'file') {
                 // single file → download as-is
-                const res = await api.file(n.id);
+                const res = await api.file(n);
                 saveBlobResponse(res, n.name);
             } else {
                 const res = await api.folderZip(n.id);
@@ -952,16 +986,15 @@ const downloadSelected = async() => {
             }
             return
         }
-
-        // multiple selection → zip them all server-side
         const zipName = pickZipName(chosen);
         const res = await api.multiZip(ids);
         saveBlobResponse(res, zipName);
     } catch (e: any) {
         const msg = e?.message || e?.response?.data?.message || 'ダウンロードに失敗しました';
-        alert(msg);
+        ping(msg);
     } finally {
         working.value = false;
+        downloadProgress.value = false
     }
 }
 
@@ -1084,9 +1117,6 @@ const activeBtn = 'text-white bg-[var(--bg2)] ring-1 ring-white/20 shadow-sm'
 
 const display = ref(0);
 let timer: number | null = null;
-
-
-
 watch(
   () => progress.value,
   (newVal, oldVal) => {

@@ -518,6 +518,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/project_metrics/{project}/yearly_budget', [ProjectController::class, 'yearly_budget_store']);
         Route::get('/project_metrics/{project}/by_period', [ProjectController::class, 'project_metrics_for_period']);
         Route::get('/project_metrics/{project}/with_values', [ProjectController::class, 'project_metrics_with_values']);
+        Route::post('/project_metrics/{project}/values', [ProjectController::class, 'metric_values_store']);
         Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
@@ -599,7 +600,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/drive/folders', [DriveController::class,'createFolder']);
         Route::post('/drive/upload', [DriveController::class,'upload']);
         Route::patch('/drive/{id}', [DriveController::class,'rename']);
-        Route::delete('/drive/{id}', [DriveController::class,'destroy']);
+        Route::post('/drive/delete', [DriveController::class,'destroy']);
         Route::get('/drive_thumbnail/{b64path}/{size}/{color?}', [DriveController::class, 'drive_thumbnail'])
         ->where([
             'b64path' => '[A-Za-z0-9\-_]+',    // base64url
@@ -614,7 +615,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/drive/{id}/share/grant',  [DriveController::class,'grant']);  // optional fine-grain
         Route::delete('/drive/{id}/share/revoke',[DriveController::class,'revoke']);
         Route::get('/drive/preview/{id}', [DriveController::class, 'previewFile']);
+        Route::get('/drive/logs', [DriveController::class, 'logs']);
         Route::post('/drive/move', [DriveController::class,'move']);
+        Route::post('/drive/access_logs', [DriveController::class, 'writeAccessLogs']);
+        Route::post('/drive/download_logs', [DriveController::class, 'writeDownloadLogs']);
         // Regulations
         Route::get('/get_regulation_list', [SupportController::class, 'get_regulations']);
         Route::get('/regulations', [SupportController::class, 'get_regulations']);

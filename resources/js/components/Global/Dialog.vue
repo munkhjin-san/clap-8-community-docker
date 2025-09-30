@@ -138,17 +138,14 @@ watch(() => props.input, async(inp) => {
 $primary: #626262;
 $secondary: #fff;
 .cu-text-input {
-  border: 1px solid var(--input-border, #3a3a3a);
+  border: 1px solid var(--primary-color);
   color: var(--primary-color);
   padding: 8px 12px;
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
 .cu-text-input::placeholder { color: #999; }
-.cu-text-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59,130,246,.25);
-}
+
 
 .cu-toast-container {
 font-size: 14px;

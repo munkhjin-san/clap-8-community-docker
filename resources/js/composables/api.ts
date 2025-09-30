@@ -8,6 +8,7 @@ interface ApiOptions {
     silent?: boolean;
     toast?: string
     loadingRef?: Ref<boolean>;
+    rawResponse?: boolean;
 }
 const dialog = useDialog()
 export function useApi() {
@@ -43,7 +44,7 @@ export function useApi() {
                 }, 400);
                 
             }
-            return response.data;
+            return options?.rawResponse ? response : response.data
         } catch (error) {
             console.error('API request failed:', error);
             if(!options?.silent) {
@@ -80,7 +81,7 @@ export function useApi() {
                     dialog.toast(options.toast)
                 }, 400);
             }
-            return response.data;
+            return options?.rawResponse ? response : response.data
         } catch (error) {
             console.error('API request failed:', error);
             if(!options?.silent) {

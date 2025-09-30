@@ -139,9 +139,8 @@ const kintoneFileUrlBuilder = (file:any) => {
     return `/kintone_file?${params.toString()}`
 }
 
-const amountOfMoneyParser = (amount: number, unit?: number) => {
+const amountOfMoneyParser = (amount: number) => {
     if (Number.isNaN(amount)) return '-';
-    if (unit)  return new Intl.NumberFormat("ja-JP").format(Math.round(amount/unit))
     return new Intl.NumberFormat("ja-JP").format(amount);
 }
 const truncatedName = (filename: string, maxLength: number) => {
@@ -166,8 +165,9 @@ const truncatedName = (filename: string, maxLength: number) => {
   return name.slice(0, keep) + '...' + ext
 }
 const valueTypeOptions = [
-  { name: '額', value: 'amount' },
-  { name: '率', value: 'rate' }
+  { name: '件', value: 'amount' },
+  { name: '率', value: 'rate' },
+  { name: '金', value: 'currency'},
 ]
 
 const lineOptions = [

@@ -144,7 +144,15 @@ interface Candidate {
     last_candidate: string;
     next_candidate: string;
 }
-
+export interface FinanceComment {
+    id: number;
+    project_record: number;
+    user_id: number;
+    comment: string;
+    type: string;
+    author: User;
+    created_at: string;
+}
 interface QuickEditText {
     text:string, 
     id: number | null, 

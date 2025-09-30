@@ -23,7 +23,7 @@ import BoardIcon from '../Mixed/BoardIcon.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { useKeyboardStore } from '@/store/keyboardStore';
 import { useBoardList } from '@/composables/board';
-    const props = defineProps(['mentionAbleList', 'forced'])
+    const props = defineProps(['mentionAbleList', 'forced', 'fromProject'])
     const emit = defineEmits(['mentionUser', 'close'])
     const { openedBoard } = useBoardList()
     const highlighted = ref(-1)
@@ -44,6 +44,7 @@ import { useBoardList } from '@/composables/board';
         }
     }
     const mentionBoxPosition = () => {
+        if (props.fromProject) return `bottom:55px;left:auto;visibility:visible;width:fit-content`
         if(props.forced){
             return `bottom: 45px;left:0px;visibility:visible;width:fit-content`
         }else{

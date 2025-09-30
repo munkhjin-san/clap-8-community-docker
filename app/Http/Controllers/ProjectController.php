@@ -20,6 +20,7 @@ use App\Models\ProjectFinanceLastRead;
 use App\Models\ProjectMetric;
 use App\Models\ProjectMetricFormula;
 use App\Models\ProjectMetricValue;
+use App\Models\ProjectMetricSubMetric;
 use App\Models\ProjectExpense;
 use App\Models\ProjectSale;
 use Illuminate\Support\Facades\Mail;
@@ -37,7 +38,10 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BoardController;
 use App\Services\SharedService;
 use App\Imports\EvaluationImport;
+use App\Exports\YearlyBudgetTemplate;
+use App\Imports\YearlyBudgetImport;
 use App\Http\Requests\StoreMetricRequest;
+use App\Http\Requests\UpdateMetricRequest;
 use Illuminate\Database\Eloquent\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use Google_Client;
@@ -94,9 +98,6 @@ class ProjectController extends Controller
             $end   = Carbon::parse($data['end'],   $tz)->endOfDay();
 
             $query->overlapping($start, $end);
-        } else {
-            $today = now($tz)->startOfDay();
-            $query->activeOn($today);
         }
         $projects = $query->with([
                         'project_conditions' => fn($q) => $q->where('week_start_date', $weekStartDate),
@@ -1678,7 +1679,7 @@ class ProjectController extends Controller
                 "sales" => $totalSales,
                 "expense" => $totalExpense,
                 "profit" => round((float) $project[$profit_index], 0, PHP_ROUND_HALF_UP),
-                "profit_rate" => (float) $project[$profit_rate_index],
+                "profit_rate" => round((float) $project[$profit_rate_index], 2, PHP_ROUND_HALF_UP),
                 "month_target_indexes" => $month_target_indexes
             ];
             $allPlanData[] = $planData;
@@ -1911,7 +1912,7 @@ class ProjectController extends Controller
 
         $queryParamsSpecs = [
             'app' => 1068,
-            "query" => "部門 in (\"{$project_names_str}\") and 日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\" limit 500 offset {$offset}",
+            "query" => "日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\" limit 500 offset {$offset}",
             "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付'],
             "totalCount" => "true",
         ];
@@ -2006,11 +2007,11 @@ class ProjectController extends Controller
         $totalCount = $firstLoad['totalCount'] ?? 0;
         $fisrtData = $firstLoad['records'] ?? [];
         $firstDataClean = $this->kintone_record_cleaner($fisrtData);
-
+        
         if(count($firstDataClean)){
             $profitDataCollection = collect($firstDataClean);
         }
-        if($totalCount > 500){
+        if((int)$totalCount > 500){
             $offset = 500;
             while($offset < $totalCount){
                 $profitData = $this->profitCollector($startInstance, $endInstance, $offset, $project_names_str);
@@ -2192,14 +2193,18 @@ class ProjectController extends Controller
                         $settlement_additional_expense_index = array_search('間接費配賦', $settlement_headers);
                         $settlement_profit_index = array_search('利益', $settlement_headers);
                         $settlement_profit_rate_index = array_search('利益率', $settlement_headers);                                
- 
-                        $totalSales = round((float) str_replace(',', '', $settlementOfProject[$settlement_sales_index]), 0, PHP_ROUND_HALF_UP);
-                        $totalExpense = round((float) str_replace(',', '', $settlementOfProject[$settlement_expense_index]) + (float) str_replace(',', '', $settlementOfProject[$settlement_additional_expense_index]), 0, PHP_ROUND_HALF_UP);
+                        $settlement_sales_val = $settlementOfProject[$settlement_sales_index] ?? 0;
+                        $settlement_expense_val = $settlementOfProject[$settlement_expense_index] ?? 0;
+                        $settlement_additional_expense_val = $settlementOfProject[$settlement_additional_expense_index] ?? 0;
+                        $settlement_profit_val = $settlementOfProject[$settlement_profit_index] ?? 0;
+                        $settlement_profit_rate_val = $settlementOfProject[$settlement_profit_rate_index] ?? 0; 
+                        $totalSales = round((float) str_replace(',', '', $settlement_sales_val), 0, PHP_ROUND_HALF_UP);
+                        $totalExpense = round((float) str_replace(',', '', $settlement_expense_val) + (float) str_replace(',', '', $settlement_additional_expense_val), 0, PHP_ROUND_HALF_UP);
                         $plan_res_data[$project_name][$month]['settlement']= [
                             'sales' => $totalSales,
                             'expense' => $totalExpense ?? 0,
-                            'profit' => round((float)(float) str_replace(',', '', $settlementOfProject[$settlement_profit_index]), 0, PHP_ROUND_HALF_UP),
-                            'profit_rate' => (float) str_replace('%', '', $settlementOfProject[$settlement_profit_rate_index]),
+                            'profit' => round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP),
+                            'profit_rate' => (float) str_replace('%', '', $settlement_profit_rate_val),
                         ];
                         $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $totalSales;
                         $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $totalExpense;
@@ -2516,26 +2521,42 @@ class ProjectController extends Controller
 
     // #Metrics
 
-    public function project_metrics(Request $req) {
-        $q = ProjectMetric::query()
-            ->when($req->boolean('active'), fn($qq) => $qq->where('is_active', 1))
-            ->orderBy('sort_order')->orderBy('id');
+    public function project_metrics(Request $req)
+    {
+        $metrics = ProjectMetric::query()
+            ->when($req->boolean('active'), fn($query) => $query->where('is_active', 1))
+            ->with([
+                'formula:id,project_metric_id,expression',
+                'subMetrics:id,project_metric_id,expression,sort_order',
+            ])
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
-        return $q->get()->map(fn($m) => [
-            'id'         => $m->id,
-            'code'       => $m->code,
-            'label_ja'   => $m->label_ja,
-            'label_en'   => $m->label_en,
-            'kind'       => $m->kind,
-            'value_type' => $m->value_type,
-            'line'       => $m->line,
-            'is_active'  => (bool)$m->is_active,
-            'sort_order' => $m->sort_order,
-            'scenario_code' => $m->scenario_code,
-            'scenario_label_ja' => $m->scenario_label_ja,
-            'expression' => $m->formula?->expression,
-            'aliases'    => $m->aliases ?? [],
-        ]);
+        $labelMap = $metrics->pluck('label_ja', 'id')->all();
+
+        return $metrics->map(function (ProjectMetric $metric) use ($labelMap) {
+            return [
+                'id'               => $metric->id,
+                'label_ja'         => $metric->label_ja,
+                'kind'             => $metric->kind,
+                'value_type'       => $metric->value_type,
+                'line'             => $metric->line,
+                'is_active'        => (bool) $metric->is_active,
+                'sort_order'       => $metric->sort_order,
+                'scenario_label_ja'=> $metric->scenario_label_ja,
+                'expression'       => $this->denormalizeExpression($metric->formula?->expression, $labelMap),
+                'expression_normalized' => $metric->formula?->expression,
+                'sub_metrics'      => $metric->subMetrics
+                    ->sortBy('sort_order')
+                    ->map(fn($sub) => [
+                        'id'         => $sub->id,
+                        'expression' => $this->denormalizeExpression($sub->expression, $labelMap),
+                        'expression_normalized' => $sub->expression,
+                        'sort_order' => $sub->sort_order,
+                    ])->values(),
+            ];
+        });
     }
     public function project_sales_expenses(ProjectRecord $project, Request $req) {
         $data = $req->validate([
@@ -2598,6 +2619,7 @@ class ProjectController extends Controller
             ->when($req->boolean('active'), fn($q) => $q->where('is_active', 1))
             ->with([
                 'formula:id,project_metric_id,expression',
+                'subMetrics:id,project_metric_id,expression,sort_order',
                 'values' => fn($q) => $q
                     ->where('project_record_id', $project->id)
                     ->whereBetween('period', [$data['start'], $data['end']])
@@ -2605,25 +2627,33 @@ class ProjectController extends Controller
             ])
             ->orderBy('id')
             ->get();
-        return $metrics->map(function ($m) {
+
+        $labelMap = $metrics->pluck('label_ja', 'id')->all();
+
+        return $metrics->map(function (ProjectMetric $metric) use ($labelMap) {
             $vals = [];
-            foreach ($m->values as $v) {
+            foreach ($metric->values as $v) {
                 $vals[$v->period->format('Y-m-d')] = $v->value;
             }
             return [
-                'id'                => $m->id,
-                'code'              => $m->code,
-                'label_ja'          => $m->label_ja,
-                'label_en'          => $m->label_en,
-                'kind'              => $m->kind,
-                'value_type'        => $m->value_type,
-                'line'              => $m->line,
-                'is_active'         => (bool) $m->is_active,
-                'sort_order'        => $m->sort_order,
-                'scenario_code'     => $m->scenario_code,
-                'scenario_label_ja' => $m->scenario_label_ja,
-                'expression'        => $m->formula?->expression,
-                'aliases'           => $m->aliases ?? [],
+                'id'                => $metric->id,
+                'label_ja'          => $metric->label_ja,
+                'kind'              => $metric->kind,
+                'value_type'        => $metric->value_type,
+                'line'              => $metric->line,
+                'is_active'         => (bool) $metric->is_active,
+                'sort_order'        => $metric->sort_order,
+                'scenario_label_ja' => $metric->scenario_label_ja,
+                'expression'        => $this->denormalizeExpression($metric->formula?->expression, $labelMap),
+                'expression_normalized' => $metric->formula?->expression,
+                'sub_metrics'       => $metric->subMetrics
+                    ->sortBy('sort_order')
+                    ->map(fn($sub) => [
+                        'id'         => $sub->id,
+                        'expression' => $this->denormalizeExpression($sub->expression, $labelMap),
+                        'expression_normalized' => $sub->expression,
+                        'sort_order' => $sub->sort_order,
+                    ])->values(),
                 'values'            => $vals,
             ];
         });
@@ -2633,233 +2663,359 @@ class ProjectController extends Controller
 
         $metrics = ProjectMetric::with([
             'formula:id,project_metric_id,expression',
+            'subMetrics:id,project_metric_id,expression,sort_order',
             'values' => fn($q) => $q
                 ->where('project_record_id', $project->id)
                 ->where('period', $period),
         ])->orderBy('sort_order')->orderBy('id')->get();
 
-        return $metrics->map(fn($m) => [
-            'id'         => $m->id,
-            'code'       => $m->code,
-            'label_ja'   => $m->label_ja,
-            'label_en'   => $m->label_en,
-            'kind'       => $m->kind,
-            'value_type' => $m->value_type,
-            'line'       => $m->line,
-            'is_active'  => (bool) $m->is_active,
-            'sort_order' => $m->sort_order,
-            'scenario_code' => $m->scenario_code,
-            'scenario_label_ja' => $m->scenario_label_ja,
-            'expression' => $m->formula?->expression,
-            'aliases'    => $m->aliases ?? [],
-            'value'      => optional($m->values->first())->value,
+        $labelMap = $metrics->pluck('label_ja', 'id')->all();
+
+        return $metrics->map(fn(ProjectMetric $metric) => [
+            'id'               => $metric->id,
+            'label_ja'         => $metric->label_ja,
+            'kind'             => $metric->kind,
+            'value_type'       => $metric->value_type,
+            'line'             => $metric->line,
+            'is_active'        => (bool) $metric->is_active,
+            'sort_order'       => $metric->sort_order,
+            'scenario_label_ja'=> $metric->scenario_label_ja,
+            'expression'       => $this->denormalizeExpression($metric->formula?->expression, $labelMap),
+            'expression_normalized' => $metric->formula?->expression,
+            'sub_metrics'      => $metric->subMetrics
+                ->sortBy('sort_order')
+                ->map(fn($sub) => [
+                    'id'         => $sub->id,
+                    'expression' => $this->denormalizeExpression($sub->expression, $labelMap),
+                    'expression_normalized' => $sub->expression,
+                    'sort_order' => $sub->sort_order,
+                ])->values(),
+            'value'            => optional($metric->values->first())->value,
         ]);
     }
-    public function metric_store(StoreMetricRequest $req) {
+    public function metric_store(StoreMetricRequest $req)
+    {
         $data = $req->validated();
 
         $metric = ProjectMetric::create([
-            'code' => $data['code'],
-            'label_ja' => $data['label_ja'],
-            'kind' => $data['kind'],
-            'value_type' => $data['value_type'],
-            'line' => $data['line'] ?? null,
-            'is_active' => $data['is_active'] ?? true,
-            'sort_order' => $data['sort_order'] ?? 0,
-            'scenario_code' => $data['scenario_code'],
-            'scenario_label_ja' => $data['scenario_label_ja'],
-            'aliases' => $data['aliases'] ?? [],
+            'label_ja'         => $data['label_ja'],
+            'kind'             => $data['kind'],
+            'value_type'       => $data['value_type'],
+            'line'             => $data['line'] ?? null,
+            'is_active'        => $data['is_active'] ?? true,
+            'sort_order'       => $data['sort_order'] ?? 0,
+            'scenario_label_ja'=> $data['scenario_label_ja'] ?? null,
         ]);
 
         if ($metric->kind === 'derived') {
-            $expr = $this->normalizeToCodes($data['expression'] ?? '');
-            $this->assertValidFormulaOrFail($expr, $metric->code);
+            $normalized = $this->normalizeExpression($data['expression'] ?? '', [$metric->id => $metric->label_ja]);
+            $this->assertValidExpression($normalized['tokens'], $normalized['metric_ids'], $metric->id);
+
             $metric->formula()->create([
-                'expression' => $expr,
+                'expression' => $normalized['expression'],
                 'version'    => 1,
             ]);
         }
 
+        $this->syncSubMetrics($metric, $data['sub_metrics'] ?? []);
+
         return response()->json(['id' => $metric->id], 201);
+    }
+
+    public function metric_update(UpdateMetricRequest $req, ProjectMetric $metric)
+    {
+        $data = $req->validated();
+
+        $metric->update([
+            'label_ja'         => $data['label_ja'],
+            'kind'             => $data['kind'],
+            'value_type'       => $data['value_type'],
+            'line'             => $data['line'] ?? null,
+            'is_active'        => $data['is_active'] ?? $metric->is_active,
+            'sort_order'       => $data['sort_order'] ?? $metric->sort_order,
+            'scenario_label_ja'=> $data['scenario_label_ja'] ?? null,
+        ]);
+
+        if ($metric->kind === 'derived') {
+            $normalized = $this->normalizeExpression($data['expression'] ?? '', [$metric->id => $metric->label_ja]);
+            $this->assertValidExpression($normalized['tokens'], $normalized['metric_ids'], $metric->id);
+
+            $metric->formula()->updateOrCreate(
+                [],
+                ['expression' => $normalized['expression'], 'version' => 1]
+            );
+        } else {
+            $metric->formula()?->delete();
+        }
+
+        $this->syncSubMetrics($metric, $data['sub_metrics'] ?? []);
+
+        return response()->json(['status' => 'ok']);
     }
     public function validateExpression(Request $req)
     {
-        $req->validate([
-            'expression'  => ['required','string'],
-            'target_code' => ['nullable','string']
+        $data = $req->validate([
+            'expression'        => ['required','string'],
+            'target_metric_id'  => ['sometimes','nullable','integer','exists:project_metrics,id'],
+            'target_label_ja'   => ['sometimes','nullable','string'],
         ]);
 
-        $expr = (string) $req->input('expression');
-        $target = (string) $req->input('target_code', '');
+        $targetId = $data['target_metric_id'] ?? null;
+        if (! $targetId && ! empty($data['target_label_ja'])) {
+            $targetId = ProjectMetric::where('label_ja', $data['target_label_ja'])->value('id');
+        }
 
-        // Throws 422 with message if invalid
-        $this->assertValidFormulaOrFail($expr, $target);
+        $extraLabels = [];
+        if ($targetId) {
+            $label = ProjectMetric::where('id', $targetId)->value('label_ja');
+            if ($label) {
+                $extraLabels[$targetId] = $label;
+            }
+        }
+
+        $normalized = $this->normalizeExpression($data['expression'], $extraLabels);
+        $this->assertValidExpression($normalized['tokens'], $normalized['metric_ids'], $targetId);
 
         return response()->json([
             'ok'         => true,
-            'normalized' => $this->normalizeToCodes($expr),
+            'normalized' => $this->denormalizeExpression($normalized['expression'], $this->metricLabelMap($extraLabels)),
         ]);
     }
-    protected function tokenize(string $expr): array
+    protected function metricLabelMap(array $extra = []): array
     {
-        $tokens = [];
-        $parts = preg_split('/\s+/', trim($expr));
-        
-        foreach ($parts as $part) {
-            preg_match_all('/[A-Za-z_][A-Za-z0-9_]*|\d+(?:\.\d+)?|[\+\-\*\/\(\)]/', $part, $m);
-            $tokens = array_merge($tokens, $m[0] ?? []);
+        return array_replace(ProjectMetric::pluck('label_ja', 'id')->all(), $extra);
+    }
+
+    protected function denormalizeExpression(?string $expression, array $labelMap): ?string
+    {
+        if (! $expression) {
+            return null;
         }
-        
-        return array_filter($tokens);
+
+        $rendered = preg_replace_callback('/\{\{m:(\d+)\}\}/u', function (array $match) use ($labelMap) {
+            $metricId = (int) $match[1];
+            return $labelMap[$metricId] ?? "[未定義:{$metricId}]";
+        }, $expression);
+
+        return preg_replace('/\s+/', ' ', trim($rendered));
     }
 
-
-    protected function allMetricAliases(): array
+    protected function normalizeExpression(string $expression, array $extraLabels = []): array
     {
-        return ProjectMetric::query()->get()->flatMap(function ($m) {
-            $set = array_filter(array_unique([
-                $m->code,
-                mb_strtolower($m->label_ja ?? ''),
-                mb_strtolower($m->label_en ?? ''),
-                ...array_map('mb_strtolower', (array)($m->aliases ?? [])),
-            ]));
-            return collect($set)->mapWithKeys(fn($k) => [$k => $m->code]);
-        })->toArray();
-    }
-    protected function normalizeToCodes(string $expr): string
-    {
-        $expr = mb_convert_kana($expr, 'as');
-        $expr = preg_replace('/\s+/', ' ', trim($expr));
+        $normalized = preg_replace('/\s+/', ' ', trim($expression));
+        if ($normalized === '') {
+            return ['expression' => '', 'tokens' => [], 'metric_ids' => []];
+        }
 
-        $alias = $this->allMetricAliases(); // label_ja/label_en/aliases/code => code
+        $labelMap = array_filter($this->metricLabelMap($extraLabels), fn($label) => filled($label));
+        if (empty($labelMap)) {
+            abort(422, '参照できるメトリックがありません。');
+        }
 
-        $out = [];
-        foreach ($this->tokenize($expr) as $tok) {
-            if (in_array($tok, ['+','-','*','/','(',')'], true) || is_numeric($tok)) {
-                $out[] = $tok; continue;
+        $replacements = [];
+        foreach ($labelMap as $id => $label) {
+            $replacements[$label] = "{{m:{$id}}}";
+        }
+
+        uksort($replacements, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
+
+        foreach ($replacements as $label => $placeholder) {
+            $pattern = '/' . preg_quote($label, '/') . '/u';
+            $normalized = preg_replace($pattern, ' ' . $placeholder . ' ', $normalized);
+        }
+
+        $normalized = preg_replace('/\s+/', ' ', trim($normalized));
+
+        preg_match_all('~\{\{m:\d+\}\}|\d+(?:\.\d+)?|[+\-*\/()]|[A-Za-z_][A-Za-z0-9_]*~u', $normalized, $matches);
+        $tokens = $matches[0] ?? [];
+
+        $unused = trim(preg_replace('~\{\{m:\d+\}\}|\d+(?:\.\d+)?|[+\-*\/()]|[A-Za-z_][A-Za-z0-9_]*~u', ' ', $normalized));
+        if ($unused !== '') {
+            abort(422, '不明な語句が式に含まれています: ' . $unused);
+        }
+
+        $metricIds = [];
+        foreach ($tokens as $token) {
+            if (preg_match('~\{\{m:(\d+)\}\}~', $token, $m)) {
+                $metricIds[] = (int) $m[1];
             }
-            $key = mb_strtolower(\Illuminate\Support\Str::of($tok)->replace(['-', ' '], '_'));
-            $out[] = $alias[$key] ?? $tok;
         }
-        return implode(' ', $out);
+
+        return [
+            'expression'  => $normalized,
+            'tokens'      => $tokens,
+            'metric_ids'  => array_values(array_unique($metricIds)),
+        ];
     }
 
-
-
-   protected function assertValidFormulaOrFail(string $expr, string $targetCode = ''): void
+    protected function assertValidExpression(array $tokens, array $metricIds, ?int $targetMetricId = null): void
     {
-        $normalized = $this->normalizeToCodes($expr);
-        $tokens = $this->tokenize($normalized);
-        \Log::info('Tokens: ', $tokens);
-        if (empty($tokens)) abort(422, 'Empty expression.');
-
-        // known metric codes and allowed functions
-        $codes = ProjectMetric::pluck('code')->all();
-        $codeSet = array_flip($codes);
-        $funcs = ['nullif','pct','ratio'];
-
-        // quick operator spam (++ ** //)
-        if (preg_match('/[+\-*\/]{2,}/', implode(' ', $tokens))) {
-            abort(422, 'Invalid operator sequence.');
+        if (empty($tokens)) {
+            abort(422, '式を入力してください。');
         }
 
+        $funcs = ['nullif','pct','ratio'];
         $paren = 0;
         $prevType = null;
-        $prevTok  = null;
+        $prevToken = null;
 
-        foreach ($tokens as $i => $tok) {
-            $op_check = in_array($tok, ['+','-','*','/'], true);
-            $lpar_check = $tok === '(';
-            $rpar_check = $tok === ')';
-            $num_check = is_numeric($tok);
-            $id_check = preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $tok);
-            // Let's test each condition manually
-            if ($op_check) {
+        foreach ($tokens as $index => $token) {
+            $type = null;
+            $metricId = null;
+
+            if (preg_match('/\{\{m:(\d+)\}\}/', $token, $m)) {
+                $type = 'metric';
+                $metricId = (int) $m[1];
+            } elseif (in_array($token, ['+','-','*','/'], true)) {
                 $type = 'op';
-            } elseif ($lpar_check) {
+            } elseif ($token === '(') {
                 $type = 'lpar';
-            } elseif ($rpar_check) {
+            } elseif ($token === ')') {
                 $type = 'rpar';
-            } elseif ($num_check) {
+            } elseif (is_numeric($token)) {
                 $type = 'num';
-            } elseif ($id_check) {
-                $type = 'id';
+            } elseif (in_array(strtolower($token), $funcs, true)) {
+                $type = 'func';
             } else {
-                $type = 'bad';
+                abort(422, '使用できないトークンです: ' . $token);
             }
-                
-            // Now try the original match
-            // $match_type = match (true) {
-            //     in_array($tok, ['+','-','*','/'], true) => 'op',
-            //     $tok === '('                           => 'lpar',
-            //     $tok === ')'                           => 'rpar', 
-            //     is_numeric($tok)                       => 'num',
-            //     preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $tok) => 'id',
-            //     default                                => 'bad',
-            // };
 
-            // id must be known (or an allowed function name)
-            if ($type === 'id' && !isset($codeSet[$tok]) && !in_array($tok, $funcs, true)) {
-                abort(422, "Unknown identifier: {$tok}");
-            }
-            // simple function rule: func must be followed by '('
-            if (in_array($tok, $funcs, true)) {
-                if (($tokens[$i+1] ?? null) !== '(') {
-                    abort(422, "Function {$tok} must be followed by '('");
+            if ($type === 'func') {
+                $next = $tokens[$index + 1] ?? null;
+                if ($next !== '(') {
+                    abort(422, '関数は直後に"("が必要です: ' . $token);
                 }
             }
 
-            // parens balance
-            if ($type === 'lpar') $paren++;
-            if ($type === 'rpar') { $paren--; if ($paren < 0) abort(422, 'Parentheses mismatch.'); }
-            // core sequence rules
-            if (in_array($type, ['id','num'], true) && in_array($prevType, ['id','num','rpar'], true)) {
-                abort(422, "Missing operator between '{$prevTok}' and '{$tok}'.");
+            if ($type === 'metric' && $metricId && ! ProjectMetric::where('id', $metricId)->exists()) {
+                abort(422, '存在しないメトリックが参照されています。');
             }
-            
-            if ($type === 'lpar' && in_array($prevType, ['id','num','rpar'], true)) {
-                abort(422, "Missing operator before '(' at token {$i}.");
+
+            if ($type === 'lpar') {
+                $paren++;
+            } elseif ($type === 'rpar') {
+                $paren--;
+                if ($paren < 0) {
+                    abort(422, '括弧の対応が正しくありません。');
+                }
             }
-            if ($type === 'op' && ($prevType === null || $prevType === 'op' || $prevType === 'lpar')) {
-                abort(422, 'Operator in invalid position.');
+
+            if (in_array($type, ['metric','num','func'], true) && in_array($prevType, ['metric','num','rpar'], true)) {
+                abort(422, '演算子が不足しています。');
             }
-            if ($type === 'rpar' && $prevType === 'op') {
-                abort(422, 'Operator cannot precede ")".');
+
+            if ($type === 'lpar' && in_array($prevType, ['metric','num','rpar'], true)) {
+                abort(422, '"(" の前に演算子を挿入してください。');
+            }
+
+            if ($type === 'op' && ($prevType === null || in_array($prevType, ['op','lpar'], true))) {
+                abort(422, '演算子の位置が不正です。');
+            }
+
+            if ($type === 'rpar' && in_array($prevType, ['op','lpar'], true)) {
+                abort(422, '閉じ括弧の前に値が必要です。');
             }
 
             $prevType = $type;
-            $prevTok  = $tok;
+            $prevToken = $token;
         }
 
-        if ($paren !== 0) abort(422, 'Parentheses mismatch.');
-        if (in_array($prevType, ['op','lpar'], true)) abort(422, 'Expression cannot end with operator or "(".');
+        if ($paren !== 0) {
+            abort(422, '括弧の数が一致しません。');
+        }
 
-        // optional: cycle check
-        if ($targetCode && $this->dependsOn($targetCode, $targetCode, [])) {
-            abort(422, 'Cyclic dependency detected.');
+        if (in_array($prevType, ['op','lpar'], true)) {
+            abort(422, '式の末尾に演算子または"("は使用できません。');
+        }
+
+        // if ($targetMetricId && in_array($targetMetricId, $metricIds, true)) {
+        //     abort(422, '自分自身を参照する式は登録できません。');
+        // }
+
+        if ($targetMetricId) {
+            foreach ($metricIds as $id) {
+                if ($this->dependsOnMetric($id, $targetMetricId, [$targetMetricId => true])) {
+                    abort(422, '循環参照が検出されました。');
+                }
+            }
         }
     }
 
-    
-
-
-    // crude dependency check using current formulas
-    protected function dependsOn(string $start, string $needle, array $seen): bool
+    protected function dependsOnMetric(int $startId, int $needleId, array $seen = []): bool
     {
-        if (isset($seen[$start])) return false;
-        $seen[$start] = true;
-
-        $f = ProjectMetric::where('code', $start)->first()?->formula?->expression;
-        if (!$f) return false;
-
-        preg_match_all('/[A-Za-z_][A-Za-z0-9_]*/', $f, $m);
-        $deps = array_values(array_unique(array_filter($m[0], fn($x) => !in_array($x, ['nullif','pct','ratio'], true))));
-
-        foreach ($deps as $d) {
-            if ($d === $needle) return true;
-            if ($this->dependsOn($d, $needle, $seen)) return true;
+        if (isset($seen[$startId])) {
+            return false;
         }
+
+        $seen[$startId] = true;
+
+        $expression = ProjectMetric::find($startId)?->formula?->expression;
+        if (! $expression) {
+            return false;
+        }
+
+        preg_match_all('/\{\{m:(\d+)\}\}/', $expression, $matches);
+        $dependencies = array_unique(array_map('intval', $matches[1] ?? []));
+
+        foreach ($dependencies as $dependencyId) {
+            if ($dependencyId === $needleId) {
+                return true;
+            }
+
+            if ($this->dependsOnMetric($dependencyId, $needleId, $seen)) {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    protected function syncSubMetrics(ProjectMetric $metric, array $subMetrics): void
+    {
+        if (empty($subMetrics)) {
+            $metric->subMetrics()->delete();
+            return;
+        }
+
+        $keptIds = [];
+        foreach ($subMetrics as $index => $sub) {
+            if (! isset($sub['expression'])) {
+                continue;
+            }
+
+            $normalized = $this->normalizeExpression($sub['expression'], [$metric->id => $metric->label_ja]);
+            $this->assertValidExpression($normalized['tokens'], $normalized['metric_ids'], $metric->id);
+
+            $payload = [
+                'expression' => $normalized['expression'],
+                'sort_order' => $sub['sort_order'] ?? $index,
+            ];
+
+            if (! empty($sub['id'])) {
+                $metric->subMetrics()->where('id', $sub['id'])->update($payload);
+                $keptIds[] = $sub['id'];
+            } else {
+                $new = $metric->subMetrics()->create($payload);
+                $keptIds[] = $new->id;
+            }
+        }
+
+        if (! empty($keptIds)) {
+            $metric->subMetrics()->whereNotIn('id', $keptIds)->delete();
+        } else {
+            $metric->subMetrics()->delete();
+        }
+    }
+
+    protected function resolveScenarioLabel(string $value): string
+    {
+        $map = [
+            'annual_budget' => '年度予算',
+            'plan'          => '損益計画',
+            'actual'        => '実績',
+        ];
+
+        return $map[$value] ?? $value;
     }
 
     public function metric_delete(int $id) {
@@ -2882,9 +3038,62 @@ class ProjectController extends Controller
         
         return response()->json(['status' => 'ok']);
     }
+
+    public function metric_values_store(ProjectRecord $project, Request $req)
+    {
+        $data = $req->validate([
+            'period'            => ['required','date_format:Y-m-d'],
+            'values'            => ['required','array','min:1'],
+            'values.*.label_ja' => ['required','string'],
+            'values.*.value'    => ['nullable','numeric'],
+        ]);
+
+        $period = Carbon::parse($data['period'])->startOfMonth()->toDateString();
+
+        $labels = collect($data['values'])->pluck('label_ja')->filter()->unique()->values();
+        if ($labels->isEmpty()) {
+            abort(422, 'メトリックが指定されていません。');
+        }
+
+        $metricMap = ProjectMetric::whereIn('label_ja', $labels)->pluck('id', 'label_ja');
+        $missing = $labels->diff($metricMap->keys());
+        if ($missing->isNotEmpty()) {
+            abort(422, '未登録のメトリックがあります: '. $missing->join(', '));
+        }
+
+        $now = now();
+        $rows = [];
+        foreach ($data['values'] as $entry) {
+            $label = $entry['label_ja'];
+            if (! $metricMap->has($label)) {
+                continue;
+            }
+
+            $rows[] = [
+                'project_record_id' => $project->id,
+                'project_metric_id' => $metricMap[$label],
+                'period'            => $period,
+                'value'             => $entry['value'],
+                'source'            => 'manual',
+                'created_at'        => $now,
+                'updated_at'        => $now,
+            ];
+        }
+
+        if ($rows) {
+            ProjectMetricValue::upsert(
+                $rows,
+                ['project_record_id', 'project_metric_id', 'period'],
+                ['value','source','updated_at']
+            );
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
     public function yearly_budget_store(ProjectRecord $project, Request $req) {
         $data = $req->validate([
             'scenario_code'          => ['required','string'],                 // e.g. 'annual_budget'
+            'scenario_label_ja'      => ['sometimes','string'],
             'project_record_id'      => ['required','integer','in:'.$project->id],
             'months'                 => ['required','array','min:1'],
 
@@ -2902,14 +3111,14 @@ class ProjectController extends Controller
             'months.*.expenses.bonus'           => ['nullable','numeric'],
         ]);
 
-        $codes = [
-            'sales' => "{$data['scenario_code']}_sales",
-            'expenses' => "{$data['scenario_code']}_expenses",
-        ];
-        $metricIds = ProjectMetric::whereIn('code', array_values($codes))
-            ->pluck('id', 'code');
+        $scenarioLabel = $data['scenario_label_ja'] ?? $this->resolveScenarioLabel($data['scenario_code']);
 
-        DB::transaction(function () use ($project, $data, $metricIds, $codes) {
+        $metricIds = ProjectMetric::query()
+            ->where('scenario_label_ja', $scenarioLabel)
+            ->whereIn('line', ['sales','expense'])
+            ->pluck('id', 'line');
+
+        DB::transaction(function () use ($project, $data, $metricIds) {
             $now = now();
             $mvRows = [];
 
@@ -2950,10 +3159,10 @@ class ProjectController extends Controller
                     ($m['expenses']['bonus']           ?? 0);
 
                 // 3) Upsert ONLY the total metrics (if they exist)
-                if ($metricIds->has($codes['sales'])) {
+                if ($metricIds->has('sales')) {
                     $mvRows[] = [
                         'project_record_id' => $project->id,
-                        'project_metric_id' => $metricIds[$codes['sales']],
+                        'project_metric_id' => $metricIds['sales'],
                         'period'            => $period,
                         'value'             => $totalSales,
                         'source'            => 'manual',
@@ -2961,10 +3170,10 @@ class ProjectController extends Controller
                         'updated_at'        => $now,
                     ];
                 }
-                if ($metricIds->has($codes['expenses'])) {
+                if ($metricIds->has('expense')) {
                     $mvRows[] = [
                         'project_record_id' => $project->id,
-                        'project_metric_id' => $metricIds[$codes['expenses']],
+                        'project_metric_id' => $metricIds['expense'],
                         'period'            => $period,
                         'value'             => $totalExpenses,
                         'source'            => 'manual',
@@ -2985,4 +3194,31 @@ class ProjectController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+    public function download_yearly_template(Request $req) {
+        $data = $req->validate([
+            'year' => 'required|integer',
+            'rows' => 'array',
+            'projectName' => 'string',
+            'month' => 'integer',
+        ]);
+        $export = new YearlyBudgetTemplate(fiscalYear: $data['year'], fiscalMonth: $data['month'], rows: $data['rows'] ?? [], projectName: $data['projectName']);
+        return Excel::download(
+            $export,
+            "{$data['projectName']}_{$data['year']}_年度予算.xlsx"
+        );
+    }
+    public function upload_yearly_budget(Request $req) {
+        $data = $req->validate([
+            'file' => 'required|file|mimes:xlsx,xls',
+            'project_id' => 'required|integer',
+            'year' => 'required|integer',
+            'projectName' => 'string'
+        ]);
+    
+        Excel::import(new YearlyBudgetImport($data['project_id'], $data['year'], $data['projectName']), $data['file']);
+
+        return response()->json(['ok' => true]);
+    }
 } 
+

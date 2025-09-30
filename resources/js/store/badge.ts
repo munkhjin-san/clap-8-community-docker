@@ -11,7 +11,8 @@ interface State {
     managers_goals: any[]
     salary_issue: any[]
     asset: []
-    task_comment: {project_id: number, task_id: number, comments: number}[]
+    task_comment: {project_id: number, task_id: number, comments: number}[],
+    finance_comment: []
 }
 
 export const useBadgeStore = defineStore('badge', {
@@ -25,7 +26,8 @@ export const useBadgeStore = defineStore('badge', {
         managers_goals: [],
         salary_issue: [],
         asset: [],
-        task_comment: []
+        task_comment: [],
+        finance_comment: []
     }),
     actions: {
         setTaskBadge(payload: number[]){
@@ -84,6 +86,10 @@ export const useBadgeStore = defineStore('badge', {
         async getTaskCommentBadge(){
             const data = await axios.get('/get_task_comment_badge').then(response => response.data)
             this.task_comment = data
+        },
+        async getFinanceCommentBadge(){
+            const data = await axios.get('/projects/finance/unread-badges').then(response => response.data)
+            this.finance_comment = data
         }
     },
     getters: {
@@ -169,11 +175,19 @@ export const useBadgeStore = defineStore('badge', {
                 })
             }
         },
+        financeCommentBadgeByFilter(state){
+            return (filterData: {by: string, value: any}[]) => {
+                const userComments = state.finance_comment
+                return userComments.filter((comment) => {
+                    return filterData.every((filter) => comment[filter.by] === filter.value)
+                })
+            }
+        },
         goalAndSalaryTotal(state){
             return state.managers_goals.length + state.members_goals.length + state.salary_issue.length
         },
         projectTotal(state){
-            return this.goalAndSalaryTotal + state.asset.length + state.task_comment.length
+            return this.goalAndSalaryTotal + state.asset.length + state.task_comment.length + state.finance_comment.length
         },
         assetsBadgeByFilter(state){
             return (filterData: {by: string, value: any}[]) => {
