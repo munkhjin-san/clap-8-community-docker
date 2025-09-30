@@ -371,8 +371,8 @@ const totalBadges = (projectId: number) => {
     return badge.goalsBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
     badge.salaryIssueByFilter([{by: 'project_id', value: projectId}]).length +
     badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
-    badge.taskCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length 
-    // + badge.financeCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
+    badge.taskCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
+    badge.financeCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
 }
 const jumpToProject = (project: Project) => {
     const routeName = route.name === 'project' ? 'overview' : 

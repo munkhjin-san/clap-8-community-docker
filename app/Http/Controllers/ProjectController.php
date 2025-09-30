@@ -2349,24 +2349,26 @@ class ProjectController extends Controller
         $managers = $projects->pluck('manager')->flatten(1)->unique('id')->values();
 
         $directors = User::where(function ($q) {
-                $q->where('position_id', '<', 6)
-                ->where('retire', 0);
+                $q->where(function ($q) {
+                    $q->where('position_id', '<', 6)
+                    ->where('retire', 0);
+                })
+                ->orWhere('id', 610);
             })
-            ->where(function ($q) use ($user) {
-                $q->where('id', '!=', $user->id)  // exclude current user
-                ->orWhere('id', 610);           // but still allow 610
-            })
+            ->where('id', '!=', $user->id) 
             ->select('id', 'name', 'icon_path', 'icon_bg')
             ->get();
 
+
         $users = $managers
             ->concat($directors)
-            ->reject(fn ($u) => $u->id === $user->id) // also filter at collection level just in case
+            ->reject(fn ($u) => $u->id === $user->id)
             ->unique('id')
             ->values();
 
         return response()->json($users);
     }
+
 
     public function project_finance_comment(Request $req) {
         $user = $this->active_user();

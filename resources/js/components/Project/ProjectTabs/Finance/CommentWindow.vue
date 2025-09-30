@@ -16,6 +16,11 @@
             </div>
             <div class="c-b">
                 <div class="c-b-l" ref="commentParent">
+                    <Transition name="modalFade">
+                      <div class="work-loader" style="height: 100%; background-color: var(--bg3);" v-if="loading">
+                          <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                      </div> 
+                    </Transition>
                     <div class="post-no-comment-text" v-if="!commentsList.length">現在メッセージはありません。</div>
                     <CommentItem 
                         v-for="comment in commentsList" 
