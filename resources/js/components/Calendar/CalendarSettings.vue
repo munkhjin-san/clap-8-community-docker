@@ -18,7 +18,7 @@
                     </div>
                     <div class="mt-[15px]">
                         <LoaderButton class="!m-0" content="カレンダー連携" :loading="syncing" v-if="googleSettingData.status === '未設定'" @triggered="startSync"/>
-                        <LoaderButton class="!m-0" content="連携解除" :loading="syncing" v-if="googleSettingData.status === '接続済み'" @triggered="disconnectGoogleCalendar"/>
+                        <LoaderButton class="!m-0" content="連携解除" :loading="syncing" v-if="googleSettingData.status === '接続済み' || googleSettingData.status === 'エラーが発生しました'" @triggered="disconnectGoogleCalendar"/>
                     </div>
                 </div>
                 <div class="mt-[20px] flex flex-col gap-4">
@@ -37,7 +37,7 @@
                     ※ Google カレンダーのイベントは本人のみが閲覧できます。他のユーザーには表示されません。<br/>
                     ※ Google カレンダーのイベントの時間は、日本時間に基づいて表示されます。<br/>
                 </p>
-                <div class="si-box" v-if="googleSettingData.calendars">
+                <div class="si-box" v-if="googleSettingData.calendars && googleSettingData.calendars.length">
                     <LoaderButton :loading="loading" content="保存する" @triggered="save"/>
                 </div>
             </div>
@@ -79,6 +79,7 @@ const getGoogleCalendars = async() => {
         googleSettingData.value = res.data
     } catch (error) {
         console.error('Error fetching Google Calendars:', error)
+        googleSettingData.value.status = 'エラーが発生しました'
     } 
 }
 const save = async() => {

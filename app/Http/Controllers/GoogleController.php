@@ -125,12 +125,12 @@ class GoogleController extends Controller
         $service = new Google_Service_Calendar($client);
         $calendars = $service->calendarList->listCalendarList()->getItems();
         $timeMin = Carbon::create($year, $month, 1, 0, 0, 0, 'Asia/Tokyo')
-            ->startOfMonth()
+            ->startOfMonth()->startOfWeek()
             ->toRfc3339String();
 
         $timeMax = Carbon::create($year, $month, 1, 0, 0, 0, 'Asia/Tokyo')
             ->addMonthNoOverflow()
-            ->startOfMonth()
+            ->startOfMonth()->endOfWeek()
             ->toRfc3339String();
 
         $activeCalendarIds = $cred->calendar_ids ?? [];
