@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use App\Services\GoogleCalendarAuth;
 use Google\Service\Calendar\Event;
 use Google\Service\Calendar\EventDateTime;
+use Google\Service\Exception;
 
 class GoogleController extends Controller
 {    
@@ -63,10 +64,15 @@ class GoogleController extends Controller
         $userInfo = $oauth2->userinfo->get();
         $calendar_ids = [];
         // Store calendar IDs if available
-        $service = new Google_Service_Calendar($client);
-        $calendars = $service->calendarList->listCalendarList()->getItems();
-        foreach ($calendars as $calendar) {
-            $calendar_ids[] = $calendar->getId();
+        try {
+            $service = new Google_Service_Calendar($client);
+            $calendars = $service->calendarList->listCalendarList()->getItems();
+            foreach ($calendars as $calendar) {
+                $calendar_ids[] = $calendar->getId();
+            }
+        } catch (Exception $e) {
+            $next  = "/schedule?sync_success=false&stamp=".time();
+            return redirect($next);direct($next);
         }
         
         // $userData = [

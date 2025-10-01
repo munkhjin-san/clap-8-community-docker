@@ -339,13 +339,17 @@ import CalendarSettings from './CalendarSettings.vue';
         }
 
         const query = route.query
-        if(query && query.sync_success && query.sync_success == 'true'){
+        if(query && query.sync_success){
             if(query.stamp){
             
                 const checkStamp = localStorage.getItem('googleCalendarSyncStamp')
-                if(!checkStamp || (checkStamp && Number(checkStamp) !== Number(query.stamp))){                    
-                    toast('Googleカレンダーと正常に同期しました。')
-                    settingsView.value = true
+                if(!checkStamp || (checkStamp && Number(checkStamp) !== Number(query.stamp))){
+                    if (query.sync_success == 'true') {
+                        toast('Googleカレンダーと正常に同期しました。')
+                    } else if (query.sync_success == 'false') {
+                        ping('Googleカレンダ同期に失敗しました。再度試してみてください。')  
+                    }                    
+                    settingsView.value = true                    
                 }
                 localStorage.setItem('googleCalendarSyncStamp', query.stamp as string)
             }
