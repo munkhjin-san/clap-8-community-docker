@@ -908,7 +908,7 @@ class WorkController extends Controller
             // Anchor both times to an arbitrary date (today). If end < start, it crosses midnight.
         $start = Carbon::createFromFormat('H:i', $startTime);
         $end   = Carbon::createFromFormat('H:i', $endTime);
-        if ($end->lessThanOrEqualTo($start)) {
+        if ($end->lessThan($start)) {
             $end->addDay();
         }
 
@@ -936,8 +936,8 @@ class WorkController extends Controller
         $A1 = $aEnd->copy();
         $B0 = $bStart->copy();
         $B1 = $bEnd->copy();
-
-        if ($A1->lte($A0) || $B1->lte($B0)) {
+        
+        if ($A1->lte($A0) || $B1->lte($B0) || $A0 == $B0) {
             return 0;
         }
 
