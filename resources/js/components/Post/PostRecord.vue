@@ -137,7 +137,7 @@
             <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
         </div>
         <div class="post-footer">
-             <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable">
+             <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable && totalExpenses > 0">
                 <div class="text-[14px]">経費合計: {{ totalExpenses }}円</div>
             </div>
             <div v-if="record.app_type == 2 && record.chargeable" class="post-footer-wrap">

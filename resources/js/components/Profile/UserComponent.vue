@@ -145,16 +145,7 @@ import { useApi } from '@/composables/api';
         }
       },
       { immediate: true } 
-    )
-
-    onMounted(() => {
-        UserAllData.value = route.meta.data && Object.hasOwn(route.meta.data, 'id') ? route.meta.data : null;
-        // const newUserId = route.params.userId
-        // if (route.params.userId !== UserAllData.value.id) {
-        //   updateUser(newUserId);
-        //   getClaps(newUserId);
-        // }
-    })  
+    ) 
 </script>
 <style lang="scss" scoped>
 .menuLink{

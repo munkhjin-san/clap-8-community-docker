@@ -72,9 +72,6 @@ const routes = [
             },
 
         ],
-        beforeEnter: (to, from, next) => {
-            resolveBeforeEnter(to, next, from);
-        },
     },
     {
         path: '/post',
@@ -767,17 +764,6 @@ const routes = [
 
 
 ]
-function resolveBeforeEnter(to, next, from) {
-    axios.post('/profile_get_update_user', {id: to.params.userId})
-    .then(response => {
-        to.meta.data = response.data;
-        next();
-    })
-    .catch(error => {
-        next();
-        to.meta.data = null
-    });
-}
 function fetchPosts(to, next, from, path) {
     if(window.innerWidth < 959){
         document.body.style.background = 'var(--background-color)'
