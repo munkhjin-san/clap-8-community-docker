@@ -31,7 +31,8 @@ class customFieldDataRecord extends Model
         'user_id' => 'int',
         'value_int' => 'int',
         'deleted_flag' => 'int',
+        'date' => 'date:Y-m-d',
     ];
 
-    protected $fillable = ['value_int'];
+    protected $fillable = ['value_int', 'user_id', 'date', 'field_id', 'type_id', 'app_name'];
 }

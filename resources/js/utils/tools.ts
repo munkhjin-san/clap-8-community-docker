@@ -181,7 +181,14 @@ const kindOptions = [
   { name: '入力', value: 'input' },
   { name: '計算', value: 'derived' }
 ]
-
+const TODAY = DateTime.now().toISODate();
+const key = (id: number | null) => `weather:${id}:lastDone`;
+const markTodayDone = (userId: number | null) => {
+  localStorage.setItem(key(userId), TODAY);
+} 
+const isTodayDone = (userId: number | null) => {
+  return localStorage.getItem(key(userId)) === TODAY
+}
 export { 
     debounce, 
     mentionFormatter, 
@@ -201,5 +208,7 @@ export {
     truncatedName,
     valueTypeOptions,
     lineOptions,
-    kindOptions
+    kindOptions,
+    markTodayDone, 
+    isTodayDone
 }

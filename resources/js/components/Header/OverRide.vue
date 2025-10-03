@@ -61,6 +61,7 @@ import ProjectWeather from '../Global/ProjectWeather.vue'
 import SurveyUsers from '../Survey/SurveyUsers.vue'
 import { useSurveyUsers } from '@/store/surveyUsers'
 import WeatherPopup from '../Global/WeatherPopup.vue'
+import { isTodayDone } from '@/utils/tools'
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()
@@ -94,14 +95,12 @@ import WeatherPopup from '../Global/WeatherPopup.vue'
             });
         } 
     })
-
+    const checkToday = () => {
+        if (isTodayDone(auth.id)) return true
+        if (auth.weathers) return true
+    }
     onMounted(() => {
-        if(auth.user){                 
-            if(!auth.user.weathers){
-                weatherModal.value = true
-            }
-        }
-        
+        weatherModal.value = !checkToday()
     })
 
 

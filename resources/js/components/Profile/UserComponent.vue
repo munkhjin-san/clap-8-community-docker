@@ -1,6 +1,70 @@
 <template>
-    <div v-if="UserAllData" style="width: 100%;height:100%;left:0;top:55px;" class="user-conteiner-inner" :class="{scrollable : !showModalContent && !showSettingModalContent && !introUpload}">   
-        
+    <div style="width: 100%;height:100%;" class="user-conteiner-inner relative" :class="{scrollable : !showModalContent && !showSettingModalContent && !introUpload}">   
+        <Transition name="modalFade">
+            <div class="work-loader" style="height: 100%; z-index: 2" v-if="loading">
+                <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+            </div> 
+        </Transition>
+        <div v-if="UserAllData">
+            <div style="position:relative;height: 100%;">
+                <div style="height: 60px;display: flex;align-items: center;position: absolute;z-index:2;left: 0;top: 0;" v-if="responsive.mobile">
+                    <HamBurger/>
+                </div>
+                <div>
+                    <div v-if="UserAllData && auth.user && UserAllData !== null" class="row justify-content-center user-icon-content">  
+                        <div class="user-three-menu">
+                            <ItemMenu :items="[
+                                {title: 'プロフィール編集', action:() => router.push({name: 'personal-info-settings'})},
+                            ]"/>
+                        </div>    
+                        <UserIconEdit 
+                            :UserAllData="UserAllData"
+                            :clapData="clapData"
+                            :movExist="movExist"
+                            :key="movExist.length"
+                            @updateUser="updateUser"
+                        />
+                        
+                        <div v-if="UserAllData" class="second-bar">
+                            <div class="record-area" style="padding-right: 20px;">
+                                <div style="display:flex; gap: 10px; margin-bottom: 10px;">
+                                    <p class="record-inner title">役職</p>
+                                    <p class="record-inner record" v-if="UserAllData.positions !== null">{{UserAllData.positions.name}}</p>
+                                </div>
+                                <div style="display:flex; gap: 10px; margin-bottom: 10px;">
+                                    <p class="record-inner title">営業所</p>
+                                    <p class="record-inner record" v-if="UserAllData.offices !== null">{{UserAllData.offices.name}}</p>
+                                </div>
+                                <div v-if="UserAllData.motto !== null">
+                                    <p class="record-inner title">好きな言葉</p>
+                                    <p class="record-inner record">{{UserAllData.motto}}</p>
+                                </div>
+                                <div v-if="UserAllData.enjoy !== null">
+                                    <p class="record-inner title">私の「楽」</p>
+                                    <p class="record-inner record">{{UserAllData.enjoy}}</p>
+                                </div>
+                                <div v-if="UserAllData.intro !== null">
+                                    <p class="record-inner title">自己紹介</p>
+                                    <p class="record-inner record">{{UserAllData.intro}}</p>
+                                </div>
+                                <div v-if="UserAllData.recommend !== null">
+                                    <p class="record-inner title">推し</p>
+                                    <p class="record-inner record" v-html="urlCheck(UserAllData.recommend)"></p>
+                                </div>
+                                <div v-if="userPortfolio && userPortfolio.length">
+                                    <p class="record-inner title" style="margin-bottom: 10px;">ポートフォリオ</p>
+                                    <UserPortfolio class="record" @editPortfolio="editingPortfolio = portfolio" v-for="portfolio in userPortfolio" :portfolio="portfolio" @reload="updateUser"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div v-else style="display:flex;width: 100%;height: 100%;display: flex;align-items: center;justify-content: center;color: var(--primary-color);">
+            <p>メンバーが見つかりませんでした。</p>
+        </div>
         <router-view v-slot="{ Component }">
             <transition name="modalFade">
                 <component 
@@ -15,67 +79,9 @@
         <Transition name="modalFade">
             <UserPortfolioEdit v-if="editingPortfolio" :editTarget="editingPortfolio" @close="portfolioEditComplete"/>
         </Transition> 
-        <div style="position:relative;height: 100%;">
-            
-            <div style="height: 60px;display: flex;align-items: center;position: absolute;z-index:2;left: 0;top: 0;" v-if="responsive.mobile">
-                <HamBurger/>
-            </div>
-            
-            <div>
-                <div v-if="UserAllData && auth.user && UserAllData !== null" class="row justify-content-center user-icon-content">  
-                    <div class="user-three-menu">
-                        <ItemMenu :items="[
-                            {title: 'プロフィール編集', action:() => router.push({name: 'personal-info-settings'})},
-                        ]"/>
-                    </div>    
-                    <UserIconEdit 
-                        :UserAllData="UserAllData"
-                        :clapData="clapData"
-                        :movExist="movExist"
-                        :key="movExist.length"
-                        @updateUser="updateUser"
-                    />
-                    
-                    <div v-if="UserAllData" class="second-bar">
-                        <div class="record-area" style="padding-right: 20px;">
-                            <div style="display:flex; gap: 10px; margin-bottom: 10px;">
-                                <p class="record-inner title">役職</p>
-                                <p class="record-inner record" v-if="UserAllData.positions !== null">{{UserAllData.positions.name}}</p>
-                            </div>
-                            <div style="display:flex; gap: 10px; margin-bottom: 10px;">
-                                <p class="record-inner title">営業所</p>
-                                <p class="record-inner record" v-if="UserAllData.offices !== null">{{UserAllData.offices.name}}</p>
-                            </div>
-                            <div v-if="UserAllData.motto !== null">
-                                <p class="record-inner title">好きな言葉</p>
-                                <p class="record-inner record">{{UserAllData.motto}}</p>
-                            </div>
-                            <div v-if="UserAllData.enjoy !== null">
-                                <p class="record-inner title">私の「楽」</p>
-                                <p class="record-inner record">{{UserAllData.enjoy}}</p>
-                            </div>
-                            <div v-if="UserAllData.intro !== null">
-                                <p class="record-inner title">自己紹介</p>
-                                <p class="record-inner record">{{UserAllData.intro}}</p>
-                            </div>
-                            <div v-if="UserAllData.recommend !== null">
-                                <p class="record-inner title">推し</p>
-                                <p class="record-inner record" v-html="urlCheck(UserAllData.recommend)"></p>
-                            </div>
-                            <div v-if="userPortfolio && userPortfolio.length">
-                                <p class="record-inner title" style="margin-bottom: 10px;">ポートフォリオ</p>
-                                <UserPortfolio class="record" @editPortfolio="editingPortfolio = portfolio" v-for="portfolio in userPortfolio" :portfolio="portfolio" @reload="updateUser"/>
-                            </div>
-                        </div>
-                    </div>
-                    
-                </div>
-            </div>
-        </div>
+        
     </div>
-    <div v-else style="display:flex;width: 100%;height: 100%;display: flex;align-items: center;justify-content: center;color: var(--primary-color);">
-        <p>メンバーが見つかりませんでした。</p>
-    </div>
+    
     </template>
     
 <script setup>
@@ -83,7 +89,7 @@
 import UserIconEdit from './UserEditComps/UserIconEdit.vue';
 import HamBurger from '../Global/HamBurger.vue'
 import 'swiper/css'
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
@@ -102,6 +108,7 @@ import { useApi } from '@/composables/api';
     const clapData = ref(null)
     const editingPortfolio = ref(null)
     const api = useApi()
+    const loading = ref(true)
     const userPortfolio = computed(() => {
         return UserAllData.value.portfolio.filter(data => data.status == 3)
     })
@@ -109,17 +116,15 @@ import { useApi } from '@/composables/api';
         return UserAllData.value.user_album
     }) 
     const updateUser = async(targetId) => {
-        const id = targetId ? targetId : UserAllData.value ? UserAllData.value.id : null
+        const id = targetId ?? UserAllData.value?.id ?? null
         if(!id) return
   
-        const data = await api.post('/profile_get_update_user', {id: id})
-        if(data && Object.hasOwn(data, 'id')){
+        const data = await api.post('/profile_get_update_user', { id })
+        if (data && 'id' in data) {
             UserAllData.value = data
-            if(UserAllData.value.id == auth.id){
-                auth.setUser(data)
-            }
+            if (data.id === auth.id) auth.setUser(data)
         }  
-
+        loading.value = false
     }
     const getClaps = async(targetId) => {
         const id = targetId ? targetId : UserAllData.value ? UserAllData.value.id : null
@@ -146,6 +151,7 @@ import { useApi } from '@/composables/api';
       },
       { immediate: true } 
     ) 
+    provide('UserAllData', UserAllData)
 </script>
 <style lang="scss" scoped>
 .menuLink{

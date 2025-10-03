@@ -47,26 +47,28 @@ class CustomfieldController extends Controller{
     }
 
     public function saveWeather(Request $request){
-        $today = Carbon::now()->format('Y-m-d');
-        $exists = customFieldDataRecord::where('user_id', Auth::id())->where('date', $today)->where('field_id', 7)->where('type_id', 43)->where('app_name', 'work')->get();
+        $today = today()->toDateString();
         
-        if(count($exists)){
-            foreach($exists as $exist){
-                $exist->update(['value_int' => $request->value]);
-            }            
-            return response()->json($exists);
-        }else{
-            $auth_user_id = Auth::id();
-            $custom_field_data = new customFieldDataRecord;
-            $custom_field_data->field_id = 7;
-            $custom_field_data->type_id = 43;
-            $custom_field_data->app_name = 'work';
-            $custom_field_data->date = $today;
-            $custom_field_data->user_id = $auth_user_id;
-            $custom_field_data->value_int = $request->value;
-            $custom_field_data->save();
-            return response()->json($custom_field_data);
-        }
+        $keys = [
+            'user_id'  => Auth::id(),
+            'date'     => $today,
+            'field_id' => 7,
+            'type_id'  => 43,
+            'app_name' => 'work',
+        ];
+        $record = CustomFieldDataRecord::updateOrCreate(
+            $keys,
+            ['value_int' => (int) $request->value]
+        );
+        
+        $user = $request->user()->fresh()->load([
+            'positions','offices','icons',
+            'user_album' => fn($q) => $q->where('deleted_flag', 0)->with('tags'),
+            'weathers' => fn($q) => $q->where('type_id', 43)->whereDate('date', today()),
+            'days_weathers' => fn($q) => $q->where('type_id', 43)->where('deleted_flag', 0)->whereDate('date', '<', today())->latest('date')->limit(5),
+            'portfolio','linked',
+        ]);
+        return response()->json($user);
 
 
     }

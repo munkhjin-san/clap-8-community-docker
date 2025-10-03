@@ -54,6 +54,7 @@ import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { marked } from 'marked'
+import { markTodayDone } from '@/utils/tools';
 const emit = defineEmits(['close']);
 interface MessageData {
     content: string;
@@ -96,12 +97,10 @@ const getWelcomeMessage = async() => {
 }
 
 const setWeather = async (num: number) => {
-    let today = DateTime.now().toISODate();
     if(saving.value == num) return;
  
     saving.value = num;
-    await api.post('/save_weather', { today, value: num })
-    const user = await api.post('/profile_get_update_user', {id: auth.id})
+    const user = await api.post('/save_weather', { value: num })
     if(user && Object.hasOwn(user, 'id')){
         auth.setUser(user)           
     } 
@@ -109,6 +108,7 @@ const setWeather = async (num: number) => {
     setTimeout(() => {
         isOpen.value = false;
         toast('保存しました。')
+        markTodayDone(auth.id)
         emit('close')
     }, 300);
 

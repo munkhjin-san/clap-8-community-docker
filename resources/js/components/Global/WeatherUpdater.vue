@@ -14,14 +14,17 @@ import { useMenuStore } from '@/store/menu'
 import WeatherIcon from './WeatherIcon.vue'
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
+import { useAuthUserStore } from '@/store/auth';
+import { inject } from 'vue';
 const emit = defineEmits(['reload'])
 const menu = useMenuStore()
 const api = useApi()
+const { setUser } = useAuthUserStore()
+const UserAllData = inject('UserAllData')
 const saveWeather = async (value) => {
-    const today = DateTime.now().toISODate()
-    await api.post('/save_weather', { today: today, value: value })
-    sessionStorage.setItem('condition_for_session', value)
-    emit('reload')
+    const user = await api.post('/save_weather', { value: value })
+    setUser(user)
+    UserAllData.value = user
     menu.close()
 }
 </script>
