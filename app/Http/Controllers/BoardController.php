@@ -827,14 +827,14 @@ class BoardController extends Controller
                     if($chat->message_files && $chat->message_text == null){
                         $body = 'ファイルメッセージ';
                     }else{
-                        $body = $chat->message_text;
+                        $body = 'メッセージが届きました';
                     }
                 }else{
                     $push_title = $boardRecord->title;
                     if($chat->message_files && $chat->message_text == null){
                         $body = $user->name . ':' . 'ファイルメッセージ';
                     }else{
-                        $body = $user->name . ':' . $chat->message_text;
+                        $body = $user->name . ':' . 'メッセージが届きました';
                     }
                 }
                 $payload = [
