@@ -824,18 +824,10 @@ class BoardController extends Controller
                 $badge = url('/96x96.png');
                 if(!empty($boardRecord) && $boardRecord->private_flag == 1){
                     $push_title = $user->name;
-                    if($chat->message_files && $chat->message_text == null){
-                        $body = 'ファイルメッセージ';
-                    }else{
-                        $body = 'メッセージが届きました';
-                    }
+                    $body = 'メッセージが届きました';
                 }else{
                     $push_title = $boardRecord->title;
-                    if($chat->message_files && $chat->message_text == null){
-                        $body = $user->name . ':' . 'ファイルメッセージ';
-                    }else{
-                        $body = $user->name . ':' . 'メッセージが届きました';
-                    }
+                    $body = $user->name . 'からメッセージが届きました';
                 }
                 $payload = [
                     "body" => $body,
