@@ -827,7 +827,7 @@ class BoardController extends Controller
                     $body = 'メッセージが届きました';
                 }else{
                     $push_title = $boardRecord->title;
-                    $body = $user->name . 'からメッセージが届きました';
+                    $body = $user->name . 'さんからメッセージが届きました';
                 }
                 $payload = [
                     "body" => $body,
