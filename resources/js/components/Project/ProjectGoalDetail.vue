@@ -67,7 +67,7 @@
                             
                             <div class="absolute right-[10px] top-[10px] flex items-center gap-2">   
                                 <div>
-                                    <div class="p-[5px] bg-[var(--background-color)] text-[var(--primary-color)] text-[12px]">
+                                    <div class="p-[5px] bg-[var(--background-color)] text-[var(--primary-color)] text-[11px] whitespace-normal">
                                         <div class="flex items-center" :style="{color: badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ statuses[goal?.status] }}
                                             <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
                                         </div>

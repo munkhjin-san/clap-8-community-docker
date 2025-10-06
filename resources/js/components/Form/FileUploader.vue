@@ -19,7 +19,7 @@
         </div> 
         <p v-if="error" class="i-error" style="bottom: -15px;">{{ error }}</p>
 
-        <div class="file-area-content" v-if="uploadFiles" style="padding: 30px 10px 10px 10px;margin:0">
+        <div class="file-area-content max-w-[calc(100%-20px)]" v-if="uploadFiles" style="padding: 30px 10px 10px 10px;margin:0">
             <div class="file-wrap" v-for="(file, index) in uploadFiles" @click.stop>   
                 <div class="file-area-container">
                     <div class="flex-centered">             
