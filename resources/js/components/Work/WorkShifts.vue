@@ -402,8 +402,8 @@ import { useDialog } from '@/composables/dialog';
         }
         if(props.usersData[0].work_type == 1 && props.usersData[0].position_id < 13 && props.usersData[0].position_id > 4){
             const legalHolidays = selectedShifts.value.filter(shift => shift.type === 18);
-            if(legalHolidays.length < 4){
-                ping('法定休日は4日以上必要です。')
+            if(legalHolidays.length !== 4){
+                ping('法定休日は4日必要です。')
                 return
             }
         }
