@@ -266,7 +266,7 @@ import { useApi } from '@/composables/api';
                 '氏名' : car.user_name,
                 '日付' : car.date,
                 '部門' : car.project,
-                '勘定科目' : '旅費',
+                '勘定科目' : '旅費交通費',
                 '金額' : car.gas_full_price
             }
             data.push(row)

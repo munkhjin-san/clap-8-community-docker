@@ -1930,7 +1930,7 @@ class WorkController extends Controller
             $mileage_data = [
                 'gas_unit_price'=>$record['ガソリン単価']['value'], 
                 'gas_consumption'=>$record['実燃費']['value'],
-                'gas_full_price'=>(int) $gas_full_price,
+                'gas_full_price'=>ceil($gas_full_price / 10) * 10,
                 'status'=>'success'
             ];
             
