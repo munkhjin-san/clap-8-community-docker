@@ -29,9 +29,13 @@ class CreateDepartureAlert implements ShouldQueue
      */
     public function handle(): void
     {
+
         $target_users = User::where('position_id', 15)->where('retire' , 0)->whereNotNull('email')
         ->whereHas('shift_records', function ($query) {
             $query->where('shift_day', Carbon::now()->toDateString())->where('shift_type', 1)->whereNull('departure_report');
+        })
+        ->whereHas('related_projects', function ($query) {
+            $query->whereIn('project_records.id', [34, 36, 56]);
         })
         ->get();
         $target_users_ids = [];
