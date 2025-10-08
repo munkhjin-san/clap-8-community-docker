@@ -727,7 +727,6 @@ class RemindController extends Controller
         if ($now->lessThan($cutoff) || !$has_target_project) {
             return response()->json(['should_send' => false]);
         }
-        $target_projects = 
         $check = shiftRecord::where('user_id', Auth::id())
                 ->where('shift_day', Carbon::now()->toDateString())
                 ->where('shift_type', 1)
