@@ -38,10 +38,13 @@
                                 <option :value="type.id" v-for="type in groupedLeaves.main" :key="'m-'+type.id">{{ type.name }}</option>
                             </optgroup>
                             <optgroup label="休日">
-                                <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
+                                <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.holiday" :key="'h-'+type.id">{{ type.name }}</option>
                             </optgroup>
                             <optgroup label="年休">
                                 <option :value="type.id" v-for="type in groupedLeaves.planned" :key="'p-'+type.id">{{ type.name }}</option>
+                            </optgroup>
+                            <optgroup label="時間休日">
+                                <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
                             </optgroup>
                             <optgroup label="その他">
                                 <option :value="type.id" :disabled="type.id === 16 && odaCheck" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
@@ -226,13 +229,14 @@ import { useDialog } from '@/composables/dialog';
     })
     const categorize = (name) =>  {
         if (name.includes('年休') || name === '計画有給') return 'planned'
-        if (name.includes('休日')) return 'hourly'
+        if (name === '休日') return 'holiday'
+        if (name.includes('時間休日')) return 'hourly'
         if (name.includes('勤務')) return 'main'
         return 'other'
     }
 
     const groupedLeaves = computed(() => {
-        const g = { main: [], planned: [], hourly: [], other: [] }
+        const g = { main: [], holiday: [], planned: [], hourly: [], other: [] }
         for (const s of shiftTypes.value) g[categorize(s.name)].push(s)
         return g
     })
