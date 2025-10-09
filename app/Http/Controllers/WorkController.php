@@ -1039,7 +1039,9 @@ class WorkController extends Controller
             $customValues = $request->customValues;            
             if (array_key_exists(37, $customValues)) {
                 $remoteAllowance = $customValues[37] ?? [];
-                $remoteAllowance = array_values(array_unique(array_map('intval', $remoteAllowance)));
+                $remoteAllowance = is_array($remoteAllowance)
+                        ? array_values(array_unique(array_map('intval', $remoteAllowance)))
+                        : [(int)$remoteAllowance];
 
                 if(is_array($remoteAllowance)){
                     if(!in_array(3, $remoteAllowance, true)){
