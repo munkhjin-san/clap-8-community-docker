@@ -11,11 +11,14 @@ use App\Models\SupportMailRespondingLog;
 use App\Models\RegulationRecord;
 use App\Models\FileRecord;
 use App\Models\RegulationFile;
+use App\Models\SupportConversation;
+use App\Models\SupportConversationItem;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 use Intervention\Image\Laravel\Facades\Image;
+use Illuminate\Support\Facades\Http;
 use OpenAI;
 
 class SupportController extends Controller
@@ -103,46 +106,226 @@ class SupportController extends Controller
         ]);
         return response()->json($update);
     }
+
+    private function conversation($conversationId)
+    {
+        $apiKey = config('services.openai.api_key');
+        // dd($apiKey);
+        if($conversationId) {
+            $url = "https://api.openai.com/v1/conversations/{$conversationId}";
+        } else {
+            $url = "https://api.openai.com/v1/conversations";
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiKey}",
+        ])->post($url, [
+            'metadata' => (object) []
+        ]);
+        if($response->failed()) {
+            return null;
+        }
+        return $response->json();
+    }
+    public function get_conversations_history(Request $request)
+    {
+        $conversations = SupportConversation::with(['items' => function($q) {
+            $q->orderBy('created_at', 'asc');
+        }, 'user'])->where('user_id', $this->active_user()->id)->orderBy('created_at', 'desc')->get();
+        return response()->json($conversations);
+    }
+    private function generateSummary($text)
+    {
+        $apiKey = config('services.openai.api_key');
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiKey}",
+        ])->post("https://api.openai.com/v1/responses", [
+            'model' => 'gpt-4o-mini',
+            'input' => $text,
+            'instructions' => '次の文章をサポートチャットのタイトルとして最大20文字で要約してください: ' . $text,
+        ]);
+        if($response->failed()) {
+            return null;
+        }
+        $data = $response->json();
+        $summary = $data['output'][0]['content'][0]['text'] ?? '';
+        return $summary;
+    }
     public function support_add_message(Request $request){
         $request->validate([
             'message' => 'required|string|max:1000',
         ]);
+
+        $conversationId = $request->input('conversationId') ?? null;
+        $conversation = $this->conversation($conversationId);
+        
+
         $message = $request->input('message');
 
+        $title = '';
+        if($conversationId == null){
+            $title = $this->generateSummary($message);
+        }
+        $valid_conversation_id = $conversation ? $conversation['id'] : null;
+
+        if(!$valid_conversation_id) {
+            return response()->json(['reply' => '申し訳ございませんが現在、リクエストを処理できません。後でもう一度お試しください。']);
+        }
+        $supportConversation = SupportConversation::firstOrCreate([
+            'conversation_id' => $valid_conversation_id,
+            'user_id' => $this->active_user()->id,
+        ]);
+        if(!$conversationId){
+            $supportConversation->update(['title' => $title]);
+        }
+        $supportConversation->items()->create([
+            'message' => $message,
+            'role' => 'user',
+        ]);
         $apiKey = config('services.openai.api_key');
-        $client = OpenAI::client($apiKey);
-        $response = $client->responses()->create([
+        $response = Http::withToken($apiKey)
+        ->acceptJson()
+        ->asJson()
+        ->timeout(600)
+        ->post("https://api.openai.com/v1/responses", [
             'model' => 'gpt-4o-mini',
+            'conversation' => $valid_conversation_id,
+            'input' => $message,
             'tools' => [
                 [
                     'type' => 'file_search',
                     'vector_store_ids' => ["vs_68a7c6b10f048191b5fa9cd63fefefde"],
                 ]
             ],
-            'input' => $message,
-            'store' => true,
-            'metadata' => [
-                'user_id' => '123',
-                'session_id' => 'abc456'
-            ]
+            'instructions' => 'あなたは社内ナレッジ専用の回答アシスタントです。' .
+            '可能な限り file_search で文書根拠を使って回答してください。' .
+            '関連する根拠が見つからない場合は、はっきり「関連する社内ファイルが見つかりませんでした」と最初に明記してから、' .
+            '一般知識では推測せずに必要な情報を箇条書きで尋ねてください。',
+        ]);
+        
+        if($response->failed()) {
+            return response()->json(['message' => $response->json()], 500);
+        }
+        
+        $conversationUpdated = $response->json();
+        // dd($conversationUpdated);
+        // return response()->json($conversationUpdated);
+        $data = $this->responseParser($conversationUpdated);
+        // return response()->json($data);
+        $assistantMessage = $data['reply'];
+        $file_names = $data['file_names'];
+        $keywords = $data['keywords'];
+
+        $supportConversation->items()->create([
+            'message' => $assistantMessage,
+            'role' => 'assistant',
+            'source' => $file_names,
+            'keywords' => $keywords,
         ]);
 
-        $reply = '';
-        if($response->status !== 'completed') {
-            $reply = '申し訳ございませんが現在、リクエストを処理できません。後でもう一度お試しください。';
-        } else {
-            foreach ($response->output as $output) {
-                if(isset($output['role']) && $output['role'] === 'assistant') {
-                    foreach ($output['content'] as $content) {
-                        $reply .= $content['text'];
-                    }
-                }
+        $d = $supportConversation->load(['items' => function($q) {
+            $q->orderBy('created_at', 'asc');
+        }, 'user']);
+
+        return response()->json($d);
+
+        // $apiKey = config('services.openai.api_key');
+
+
+        // $client = OpenAI::client($apiKey);
+        // $response = $client->responses()->create([
+        //     'model' => 'gpt-4o-mini',
+        //     'tools' => [
+        //         [
+        //             'type' => 'file_search',
+        //             'vector_store_ids' => ["vs_68a7c6b10f048191b5fa9cd63fefefde"],
+        //         ]
+        //     ],
+        //     'input' => $message,
+        //     'store' => true,
+        //     'metadata' => [
+        //         'user_id' => '123',
+        //         'session_id' => 'abc456'
+        //     ]
+        // ]);
+
+        // $reply = '';
+        // if($response->status !== 'completed') {
+        //     $reply = '申し訳ございませんが現在、リクエストを処理できません。後でもう一度お試しください。';
+        // } else {
+        //     foreach ($response->output as $output) {
+        //         if(isset($output['role']) && $output['role'] === 'assistant') {
+        //             foreach ($output['content'] as $content) {
+        //                 $reply .= $content['text'];
+        //             }
+        //         }
                 
+        //     }
+        // }
+        // return response()->json(['reply' => $reply]);
+    }
+    private function responseParser($response)
+    {
+        $message = '';
+        $file_annotations = [];
+        $keywords = [];
+        foreach ($response['output'] as $output) {
+            if(isset($output['role']) && $output['role'] === 'assistant') {
+                foreach ($output['content'] as $content) {                    
+                    $message = $content['text'];
+                    $file_annotations = $content['annotations'] ?? [];
+                }
+            }        
+            if(isset($output['type']) && $output['type'] === 'file_search_call' && isset($output['queries'])) {
+
+                foreach ($output['queries'] as $query) {
+                    $keywords[] = $query;
+                }
             }
         }
-        return response()->json(['reply' => $reply]);
+        $file_names = array_map(fn($fa) => $fa['file_id'], $file_annotations);
+        $file_names = array_unique($file_names);
+        $files = RegulationFile::whereIn('vector_file_id', $file_names)->pluck('name')->toArray();
+        return [
+            'reply' => $message,
+            'file_names' => $files,
+            'keywords' => $keywords,
+        ];
     }
+    public function delete_conversation(Request $request)
+    {
+        $request->validate([
+            'id' => 'required'
+        ]);
 
+        $user_id = $this->active_user()->id;
+        $conversation = SupportConversation::where('id', $request->id)
+            ->where('user_id', $user_id)
+            ->first();
+
+        if (!$conversation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'チャットが見つかりません。'
+            ], 404);
+        }
+
+        // Delete conversation items first due to foreign key constraints
+        $conversation->items()->delete();
+        // Then delete the conversation itself
+        $conversation->delete();
+
+        //　execute silently delete in OpenAI
+        $apiKey = config('services.openai.api_key');
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiKey}",
+        ])->delete("https://api.openai.com/v1/conversations/{$conversation->conversation_id}");
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conversation deleted successfully.'
+        ]);
+    }
     // Regulation methods
     public function get_regulations(Request $request)
     {
