@@ -633,5 +633,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/regulation_delete', [SupportController::class, 'delete_regulation']);
         Route::post('/regulation_file_upload', [SupportController::class, 'regulation_file_upload']);
         Route::post('/support_add_message', [SupportController::class, 'support_add_message']);
+        Route::get('/get_conversations_history', [SupportController::class, 'get_conversations_history']);
+        Route::post('/delete_conversation', [SupportController::class, 'delete_conversation']);
 
+        Route::post('/scan_batch_cards', [ContactController::class, 'scan_batch_cards']);
+        Route::get('/check_batch_status', [ContactController::class, 'check_batch_status']);
+        Route::get('/get_batch_results', [ContactController::class, 'get_batch_results']);
 });

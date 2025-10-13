@@ -2,8 +2,7 @@
     <div class="post-root" @click="keyListView = false">
         <div class="post-header">
             <HamBurger v-if="responsive.mobile"/>
-            <div class="post-search-wrap" style="position: relative;" @click.stop>
-                
+            <div class="post-search-wrap" style="position: relative;" @click.stop>                
                 <div style="width:100%;display:flex;">
                     <div class="searchBarInner" style="margin: 0;width: 100%;">   
                         <input v-model="searchWord" @focus="keyListView = true" class="searchBarArea searchInputArea memberSearch" placeholder="キーワードを入力" type="search" style="margin: 0;width:100%;"/>
@@ -24,8 +23,7 @@
                         <div @click.prevent.stop="setKeyWord(key.text)" class="keyword-result" v-for="key in key_word_list">{{ key.text }}</div>
                     </div>
                 </Transition>
-            </div>
-            
+            </div>            
         </div>
      
         <div class="support-container">
@@ -34,24 +32,29 @@
                 <router-link :to="{name: 'regulations'}" :class="['t-selector', { tSelected: selectedRoute == 'regulations'}]">就業規則及び各種の規定</router-link>
                 <router-link :to="{name: 'email_consult'}" :class="['t-selector', { tSelected: selectedRoute == 'email_consult'}]">メール相談</router-link>
                 <router-link :to="{name: 'email_inbox'}" :class="['t-selector', { tSelected: selectedRoute == 'email_inbox'}]">メール相談（受信BOX）</router-link>
-                <router-link :to="{name: 'phone_consult'}" :class="['t-selector', { tSelected: selectedRoute == 'phone_consult'}]">電話相談</router-link>
-
-               
+                <router-link :to="{name: 'phone_consult'}" :class="['t-selector', { tSelected: selectedRoute == 'phone_consult'}]">電話相談</router-link>               
             </div>
-
-                    <div class="post-container scrollable" style="height: 100%;">
-                        <router-view v-slot="{ Component }">
-                            <transition name="supportShift" mode="out-in">
-                                <component :is="Component" :qaList="qaList" :tagList="tagList" @setKeyWord="setKeyWord"/>
-                            </transition>
-                        </router-view> 
-                    </div>
-
-            
-        </div>
-     
-    </div>
-    
+            <div class="post-container scrollable" style="height: 100%;">
+                <router-view v-slot="{ Component }">
+                    <transition name="supportShift" mode="out-in">
+                        <component 
+                            :is="Component" 
+                            :qaList="qaList" 
+                            :tagList="tagList" 
+                            @setChatBoxWindow="val => chatBoxWindow = val"
+                            @setKeyWord="setKeyWord"
+                        />
+                    </transition>
+                </router-view> 
+            </div>            
+        </div>    
+        <Transition name="shiftFromRight">
+            <ChatBox
+                v-if="chatBoxWindow"
+                @close="chatBoxWindow = false"
+            />
+        </Transition>
+    </div>    
 </template>
 <script setup>
 import { computed, onMounted, ref } from 'vue';
@@ -60,6 +63,7 @@ import { useRoute } from 'vue-router';
 import { useResponsive } from '@/store/responsive';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
+import ChatBox from './Regulations/ChatBox.vue';
     const route = useRoute()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
@@ -70,6 +74,7 @@ import { useApi } from '@/composables/api';
     const searchWord = ref('')
     const viewTrayUsers = [610, 516, 517, 519, 518, 526, 494, 604, 765]
     const api = useApi()
+    const chatBoxWindow = ref(false)
     
     const selectedRoute = computed(() => {
         return route.name
@@ -106,6 +111,16 @@ import { useApi } from '@/composables/api';
 
 </script>
 <style lang="scss">
+.shiftFromRight-enter-active,
+.shiftFromRight-leave-active {
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+}
+
+.shiftFromRight-enter-from,
+.shiftFromRight-leave-to {
+    transform: translateX(100%);
+}
 .supportShift-enter-active,
 .supportShift-leave-active {
     transition: transform 0.2s ease;
