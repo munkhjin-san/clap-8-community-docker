@@ -40,6 +40,7 @@ import { DateTime, Interval } from 'luxon';
     const props = defineProps<{
         record: GoogleEventItem;
         expanded: boolean;
+        day: string;
     }>()
 
     const facilityQuery = inject<Ref<number[]>>('facilityQuery')
@@ -72,7 +73,7 @@ import { DateTime, Interval } from 'luxon';
 
 
     const openOrClose = (event:Event) => {
-        if(menu.parent === props.record.id){
+        if(menu.parent === `dayRecord_${props.record.id}_${props.day}`){
             menu.close()
         }else{
             emit('selectRecord', event)

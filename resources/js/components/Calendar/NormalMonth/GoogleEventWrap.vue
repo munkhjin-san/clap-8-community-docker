@@ -20,6 +20,7 @@
             <GoogleEventCard 
                 :record="googleEvent" 
                 :expanded="expanded"
+                :day="day"
                 @select-record="selectRecord"
             />
         </div>
