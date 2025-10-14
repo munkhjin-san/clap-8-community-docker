@@ -23,6 +23,11 @@
                     />
                 </div>
             </div>
+            <Transition name="modalFade">
+                <div class="work-loader" v-if="processing">
+                    <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                </div> 
+            </Transition>
             <div v-if="checkLeave == 0">
                 <div class="shift-wrapper">
                     
@@ -180,6 +185,7 @@ import { useDialog } from '@/composables/dialog';
     const shiftRecords = ref([])
     const odaCheck = ref([])
     const badge = useBadgeStore()
+    const processing = ref(true)
     const weekHeaderArray = [
         { id: 1, name: '月' },
         { id: 2, name: '火' },
@@ -255,7 +261,6 @@ import { useDialog } from '@/composables/dialog';
         odaCheck.value = shiftData.odaCheck
         totalHolidayInYearByMinutes.value = shiftData.total_holidays
         userWorkMinutesPerDay.value = shiftData.user_work_minutes_per_day
-        
     }
     const getRemainingDays = async() => {
         const user_code = props.usersData[0].user_code
@@ -264,6 +269,7 @@ import { useDialog } from '@/composables/dialog';
         if (data) {
             zan_nissu.value = data
         }
+        processing.value = false
     }
     const displayTotalHolidays = computed(() => {
         let totalMinutes = totalHolidayInYearByMinutes.value;
