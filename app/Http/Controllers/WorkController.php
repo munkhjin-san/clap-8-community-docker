@@ -1980,8 +1980,6 @@ class WorkController extends Controller
                 'status'=>'success'
             ];
             
-        } else {
-            throw ValidationException::withMessages(['message' => '関連するレコードが見つかりません。']);
         }
         return response()->json($remaining_days);
     }
