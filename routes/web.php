@@ -394,6 +394,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/shift_add_department', [WorkController::class, 'shift_add_department']);
         Route::post('/get_planned_leaves', [WorkController::class, 'get_planned_leaves']);
         Route::get('/get_my_car_data', [WorkController::class, 'get_my_car_data']);
+        Route::get('/get_remaining_days', [WorkController::class, 'get_remaining_days']);
 
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
@@ -639,4 +640,5 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/scan_batch_cards', [ContactController::class, 'scan_batch_cards']);
         Route::get('/check_batch_status', [ContactController::class, 'check_batch_status']);
         Route::get('/get_batch_results', [ContactController::class, 'get_batch_results']);
+        Route::get('/get_batch_company_data', [ContactController::class, 'get_batch_company_data']);
 });

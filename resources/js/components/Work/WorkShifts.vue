@@ -52,6 +52,7 @@
                         </select>
                         <div class="shift-holiday">
                             <div>年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
+                            <p v-if="zan_nissu">残日数: <strong>{{ zan_nissu?.days ?? 0 }}</strong>日</p>
                             <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
                             <p>休日数: <strong>{{ holidayCount }}</strong>日</p>
                         </div>
@@ -191,9 +192,11 @@ import { useDialog } from '@/composables/dialog';
     const totalHolidayInYearByMinutes = ref(0)
     const userWorkMinutesPerDay = ref(0)
     const api = useApi()
+    const zan_nissu = ref(null)
     const { ping } = useDialog()
     onMounted(async() => {
         propsCheck()
+        getRemainingDays()
         await fetchShiftData()
         isShiftRecord()
     })
@@ -253,6 +256,14 @@ import { useDialog } from '@/composables/dialog';
         totalHolidayInYearByMinutes.value = shiftData.total_holidays
         userWorkMinutesPerDay.value = shiftData.user_work_minutes_per_day
         
+    }
+    const getRemainingDays = async() => {
+        const user_code = props.usersData[0].user_code
+        if (!user_code) return
+        const data = await api.get('/get_remaining_days', {user_code: user_code})
+        if (data) {
+            zan_nissu.value = data
+        }
     }
     const displayTotalHolidays = computed(() => {
         let totalMinutes = totalHolidayInYearByMinutes.value;

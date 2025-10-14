@@ -1954,5 +1954,36 @@ class WorkController extends Controller
         ];
         return $headers;
     }
+    public function get_remaining_days(Request $request) {
+        $data = $request->validate([
+            'user_code' => 'required',
+        ], [
+            'user_code.required' => '関連するレコードが見つかりません。',
+        ]);
+        $user_code = $data['user_code'];
+        $queryParams = [
+            "app" => 794,
+            "query" => "社員ｺｰﾄﾞ = \"{$user_code}\"",
+            "fields" => ["社員ｺｰﾄﾞ", "氏名", "残日数"],
+        ];
+        $queryString = http_build_query($queryParams);
+        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryString";
+        $response = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
+        $responseData = $response->json();
+        $remaining_days = [];
+        if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])) {
+            $record = $responseData['records'][0];
+            $remaining_days = [
+                'name'=>$record['氏名']['value'], 
+                'user_code'=>$record['社員ｺｰﾄﾞ']['value'],
+                'days'=>$record['残日数']['value'],
+                'status'=>'success'
+            ];
+            
+        } else {
+            throw ValidationException::withMessages(['message' => '関連するレコードが見つかりません。']);
+        }
+        return response()->json($remaining_days);
+    }
 }
 
