@@ -908,6 +908,18 @@
         height: calc(100% - 20px);
         padding-top: 0px;
     }
+    .shift-holiday{
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .shift-day{
+        margin-bottom: 10px;
+        padding-top: 5px;
+        font-size: 12px;
+    }
+    .shift-month{
+        height: 60px;
+    }
   }
   @media screen and (max-width: 540px) {
     
@@ -921,6 +933,11 @@
     
     .work-monthpicker{
         margin-bottom: 10px;
+    }
+    .work-button{
+        padding: 0 5px;
+        min-height: 25px;
+        font-size: 11px;
     }
     
   }
