@@ -1210,14 +1210,14 @@ class BoardController extends Controller
         if ($message_remind) {
             $message_remind->reminded = !$message_remind->reminded;
             $message_remind->save();
-            return response()->json($message_remind->reminded);
+            return response()->json($message_remind->reminded ? true : false);
         } else {
             $remind_user = new messageRemindUser;
             $remind_user->message_id = $request->id;
             $remind_user->user_id = $auth_user_id;
             $remind_user->reminded = 1;
             $remind_user->save();
-            return response()->json($remind_user->reminded);
+            return response()->json($remind_user->reminded ? true : false);
         }
 
         

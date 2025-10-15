@@ -35,7 +35,7 @@
         <div v-if="expanded && viewable" style="width: fit-content;max-width: 100%;">
             <div @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false" v-if="remarks" class="wrap cal-remark" v-html="remarks"></div>
             <div v-if="record.referrer" style="white-space: break-spaces;line-height: 1.5;user-select: all;">
-                <a :href="record.referrer">{{ record.referrer }}</a>
+                <a target="_blank" :href="record.referrer">{{ record.referrer }}</a>
             </div>
             <div v-if="record.department" style="border-radius:3px;padding: 5px;background: rgba(0,0,0,60%);width: fit-content;margin: 5px 0;">
                 <p style="color:#fff; font-size: 11px">{{record.department.name}}</p>
