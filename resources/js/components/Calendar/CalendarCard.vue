@@ -33,7 +33,7 @@
         <div @click="expanded ? $event.stopPropagation() : false" class="cal-card-item card-repet-info" v-if="expanded && record.repetition_type > 0 && viewable" v-html="repeatInformation"></div>        
         
         <div v-if="expanded && viewable" style="width: fit-content;max-width: 100%;">
-            <div @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false" v-if="remarks" class="wrap cal-remark" v-html="remarks"></div>
+            <div @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false" v-if="remarks" class="wrap cal-remark break-all" v-html="remarks"></div>
             <div v-if="record.referrer" style="white-space: break-spaces;line-height: 1.5;user-select: all;">
                 <a target="_blank" :href="record.referrer">{{ record.referrer }}</a>
             </div>

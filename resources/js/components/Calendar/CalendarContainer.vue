@@ -135,7 +135,7 @@
                 @close="closeCreate"
             />
         </Transition>
-        <FloatButton :order="4" title="設定" @action="settingsView = true">
+        <FloatButton :order="4" :style="{zIndex: initialLoader ? 41 : 7}" title="設定" @action="settingsView = true">
             <template #icon>
                 <Gear v-if="!googleLoading" fill="black" size="18"/>
                 <div v-else id="loaderMini">
