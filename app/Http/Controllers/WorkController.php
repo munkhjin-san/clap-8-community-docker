@@ -686,91 +686,123 @@ class WorkController extends Controller
     }
     public function shiftAdd(Request $request)
     {
-        $user = $this->active_user();
-        $user_id = $request->userId;
-        $position_id = $request->position_id;
-        $shift_array = $request->shift_array;
-        $start_time_val = $request->shiftTimeStart;
-        $end_time_val = $request->shiftEndStart;
-        $types = [0, 2, 3, 5, 14, 15, 16, 17];
+        $user         = $this->active_user();
+        $user_id      = $request->userId;
+        $position_id  = (int) $request->position_id;
+        $shift_array  = $request->shift_array;
+        $start_time   = $request->shiftTimeStart;
+        $end_time     = $request->shiftEndStart;
         [$year, $month] = explode('-', $request->yearMonth);
-        $shift_days = collect($shift_array)->pluck('date')->toArray();
-        $holidays = collect($shift_array)->filter(function ($shift) use($types) {
-            return in_array($shift['type'], $types);
-        })->pluck('date')->toArray();
-    
-        $overtimeCheck = shiftRecord::where('user_id', $user_id)
-            ->whereIn('shift_day', $holidays)
-            ->whereHas('overtime_request')
-            ->exists();
-        $holidays1 = collect($shift_array)->filter(function ($shift) {
-            return $shift['type'] !== 0;
-        })->pluck('date')->toArray();
-        $waitingAllowanceCheck = timecardRecord::where('user_id', $user_id)
-            ->whereIn('day', $holidays1)
-            ->whereHas('custom_field_data_records', function($q) {
-                $q->where('type_id', 37)->where('value_int', 2);
-            })
-            ->exists();
-        if($waitingAllowanceCheck){
-            throw ValidationException::withMessages(['message' => '「待機手当」は休日のみ支給されます。']);
-        }
-        if($overtimeCheck){
-            throw ValidationException::withMessages(['message' => '残業申請の日をお休みにすることができません。もう一回確認ください。']);
-        }
-        
-        $shift_record_check = shiftRecord::where('user_id', $user_id)
-            ->whereIn('shift_day', $shift_days)
-            ->get()
-            ->keyBy('shift_day');
-        $new_shift_records = [];
-        foreach ($shift_array as $shift) {
-            $status_flag = ($shift['type'] === 3) || ($position_id === 15 && $user_id !== $user->id) ? 1 : 2;
-            $planned_year = $shift['type'] === 3 ? $request->planned_year : $request->year;
-            if ($shift_record_check->has($shift['date'])) {
-                $shift_record = $shift_record_check[$shift['date']];
-                if ($shift_record->shift_type !== $shift['type']) {
-                    $new_shift_records[] = [
-                        "user_id" => $shift_record->user_id,
-                        "start_time" => $start_time_val,
-                        "end_time" => $end_time_val,
-                        "status_flag" => $status_flag,
-                        "shift_day" => $shift['date'],
-                        "descendant_of" => $shift_record->id,
-                        "shift_type" => $shift['type'],
-                        "planned_year" => $shift_record->planned_year,
-                        "created_at" => now(),
-                        "updated_at" => now(),
-                    ];
-                    $shift_record->delete();
-                }
-                if ($shift_record->start_time !== $start_time_val || $shift_record->end_time !== $end_time_val) {
-                    $shift_record->update([
-                        "start_time" => $start_time_val,
-                        "end_time" => $end_time_val
-                    ]);
-                }
-            } else {
-                $new_shift_records[] = [
-                    'user_id' => $user_id,
-                    'shift_day' => $shift['date'],
-                    'shift_type' => $shift['type'],
-                    'start_time' => $start_time_val,
-                    'end_time' => $end_time_val,
-                    'status_flag' => $status_flag,
-                    'planned_year' => $planned_year,
-                    "descendant_of" => null,
-                    "created_at" => now(),
-                    "updated_at" => now(),
-                ];
+
+        $shift_days = collect($shift_array)->pluck('date')->unique()->values()->all(); // ['2025-10-01', ...]
+        $start = Carbon::create($year, $month, 1)->startOfDay();
+        $end   = (clone $start)->endOfMonth()->endOfDay();
+
+        // Special behavior for position 15 on other employees:
+        $isSpecial = ($position_id === 15 && $user_id !== $user->id);
+
+        DB::transaction(function () use (
+            $isSpecial, $user_id, $shift_days, $start, $end,
+            $shift_array, $start_time, $end_time, $position_id, $request
+        ) {
+            if ($isSpecial) {
+                // 1) Delete all OTHER shifts in the month not in shift_days
+                shiftRecord::where('user_id', $user_id)
+                    ->whereBetween('shift_day', [$start, $end])
+                    ->when(!empty($shift_days), fn ($q) => $q->whereNotIn('shift_day', $shift_days))
+                    ->delete();
             }
-        }
-    
-        shiftRecord::insert($new_shift_records);
+
+            // 2) Your normal validations (kept as-is)
+            $holidayTypes = [0, 2, 3, 5, 14, 15, 16, 17];
+
+            $holidays = collect($shift_array)->whereIn('type', $holidayTypes)->pluck('date')->all();
+            $overtimeCheck = shiftRecord::where('user_id', $user_id)
+                ->whereIn('shift_day', $holidays)
+                ->whereHas('overtime_request')
+                ->exists();
+
+            $nonWorkDays = collect($shift_array)->reject(fn($s) => $s['type'] === 0)->pluck('date')->all();
+            $waitingAllowanceCheck = timecardRecord::where('user_id', $user_id)
+                ->whereIn('day', $nonWorkDays)
+                ->whereHas('custom_field_data_records', fn($q) => $q->where('type_id', 37)->where('value_int', 2))
+                ->exists();
+
+            if ($waitingAllowanceCheck) {
+                throw ValidationException::withMessages(['message' => '「待機手当」は休日のみ支給されます。']);
+            }
+            if ($overtimeCheck) {
+                throw ValidationException::withMessages(['message' => '残業申請の日をお休みにすることができません。もう一回確認ください。']);
+            }
+
+            // 3) Upsert for provided days
+            $existing = shiftRecord::where('user_id', $user_id)
+                ->whereIn('shift_day', $shift_days)
+                ->get()
+                ->keyBy('shift_day');
+
+            $newRows = [];
+
+            foreach ($shift_array as $shift) {
+                $date = $shift['date'];
+                $type = $shift['type'];
+
+                // status_flag rule preserved; if you want special behavior for 15, tweak here
+                $status_flag = ($type === 3) || ($isSpecial) ? 1 : 2;
+                $planned_year = $type === 3 ? $request->planned_year : $request->year;
+
+                if ($existing->has($date)) {
+                    $rec = $existing[$date];
+
+                    // if type changed, replace record
+                    if ($rec->shift_type !== $type) {
+                        $newRows[] = [
+                            'user_id'       => $rec->user_id,
+                            'shift_day'     => $date,
+                            'shift_type'    => $type,
+                            'start_time'    => $start_time,
+                            'end_time'      => $end_time,
+                            'status_flag'   => $status_flag,
+                            'planned_year'  => $rec->planned_year,
+                            'descendant_of' => $rec->id,
+                            'created_at'    => now(),
+                            'updated_at'    => now(),
+                        ];
+                        $rec->delete();
+                    } else {
+                        // same type, just time update if needed
+                        if ($rec->start_time !== $start_time || $rec->end_time !== $end_time) {
+                            $rec->update(['start_time' => $start_time, 'end_time' => $end_time]);
+                        }
+                    }
+                } else {
+                    // brand new for that day
+                    $newRows[] = [
+                        'user_id'       => $user_id,
+                        'shift_day'     => $date,
+                        'shift_type'    => $type,
+                        'start_time'    => $start_time,
+                        'end_time'      => $end_time,
+                        'status_flag'   => $status_flag,
+                        'planned_year'  => $planned_year,
+                        'descendant_of' => null,
+                        'created_at'    => now(),
+                        'updated_at'    => now(),
+                    ];
+                }
+            }
+
+            if (!empty($newRows)) {
+                shiftRecord::insert($newRows);
+            }
+        });
+
+        // 4) Calendar sync after transaction
         $this->sharedService->syncShiftToCalendar($user_id, $year, $month);
 
-        return response()->json($request);
+        return response()->json(['ok' => true]);
     }
+    
     public function getWorkGroup(Request $request){
         $user = $this->active_user();
         $auth_user_id = $user->id;
