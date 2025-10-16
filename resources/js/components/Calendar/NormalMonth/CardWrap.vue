@@ -71,7 +71,7 @@ import { useCalendar } from '@/composables/calendar';
         return me && props.record.shift == 0
     })
     const maxHeight = computed(() => {
-        return expanded.value ? 'unset' : '60px'
+        return expanded.value ? '100vh' : '60px'
     })
     const unique = computed(() => {
         const u = Math.floor(100000 + Math.random() * 900000).toString()
@@ -110,31 +110,43 @@ import { useCalendar } from '@/composables/calendar';
             emit('setParentDroppable')
         }            
     }
-    const selectRecord = (event:Event) => {
-        menu.setMenu( {parent: unique.value})
+    const M = 8;
 
-        
-        nextTick(() => {
-            const el = document.getElementById(`m_rec_${props.record.id}`)
-            if(el){                    
-                if(!event){
-                    el.scrollIntoView({block: 'center', behavior: 'instant'})                        
-                }                    
-                const rect = el.getBoundingClientRect();                    
-                const right_check = rect.x + rect.width
-                if(right_check > window.innerWidth){
-                    shiftRight.value = window.innerWidth - right_check - 5
-                }
-                const bottom_check = rect.y + rect.height
-                const value = responsive.mobile && auth.user?.footer_view ? 45 : 0
-                if(bottom_check > window.innerHeight - value){
-                    shiftBottom.value = window.innerHeight - value - bottom_check - 10
-                }
-            }
-            
-        })
+    const resetAndMeasure = async (el: HTMLElement) => {
+        shiftRight.value = 0;
+        shiftBottom.value = 0;
 
-    }
-    
+        await nextTick();
+        await new Promise(r => requestAnimationFrame(r));
+
+        // 3) measure and compute dy
+        const parent = document.getElementById('cal_month_inner') as HTMLElement;
+        const pr = parent.getBoundingClientRect();
+        const r  = el.getBoundingClientRect();
+
+        const footer = (responsive.mobile && auth.user?.footer_view) ? 45 : 0;
+        const bottomLimit = Math.min(pr.bottom, window.innerHeight - footer) - M;
+        const topLimit    = pr.top + M;
+        const right_check = r.x + r.width
+        if(right_check > window.innerWidth){
+            shiftRight.value = window.innerWidth - right_check - 5
+        }
+        let dy = 0;
+        const overflowBottom = r.bottom - bottomLimit;
+        if (overflowBottom > 0) dy -= overflowBottom;           
+        if (r.top + dy < topLimit) dy = topLimit - r.top;       
+
+        shiftBottom.value = dy;                                 
+    };
+
+    const selectRecord = async (event: Event) => {
+        menu.setMenu({ parent: unique.value });
+
+        await nextTick();                                      
+        const el = document.getElementById(`m_rec_${props.record.id}`);
+        if (!el) return;
+
+        await resetAndMeasure(el);
+    };    
 
 </script>
