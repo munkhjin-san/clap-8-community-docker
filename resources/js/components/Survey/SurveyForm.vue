@@ -11,7 +11,7 @@
                 </div>                
             </div>
             <div class="text-[16px]">{{ survey.title }}</div>
-            <div v-html="urlCheck(survey.description)"></div>
+            <div class="rich-wrapper" v-html="urlCheck(survey.description)"></div>
             <div class="flex flex-col gap-[30px]" :key="forceRefresh">
                 <div v-for="block in survey.blocks">
                     <SurveyBlock ref="blocks" :block="block" :answer="answer.block_answers.find(a => a.custom_form_block_id == block.id)"/>
@@ -144,8 +144,8 @@ const closePrize = () => {
     emit('saved', 2, answerId.value)
 }
 </script>
-<style scoped>
-p:empty::after {
-    content: "\00A0";
-}
+<style>
+.rich-wrapper p:empty::after { content: "\00A0"; }                  /* <p></p> */
+
+.rich-wrapper p:has(> br:only-child)::after { content: "\00A0"; }   /* <p><br></p> */
 </style>
