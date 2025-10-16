@@ -144,3 +144,8 @@ const closePrize = () => {
     emit('saved', 2, answerId.value)
 }
 </script>
+<style scoped>
+p:empty::after {
+    content: "\00A0";
+}
+</style>
