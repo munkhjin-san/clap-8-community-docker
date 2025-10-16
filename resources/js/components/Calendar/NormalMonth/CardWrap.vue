@@ -120,13 +120,13 @@ import { useCalendar } from '@/composables/calendar';
         await new Promise(r => requestAnimationFrame(r));
 
         // 3) measure and compute dy
-        const parent = document.getElementById('cal_month_inner') as HTMLElement;
+        const parent = document.getElementById('cal_month_view') as HTMLElement;
         const pr = parent.getBoundingClientRect();
         const r  = el.getBoundingClientRect();
 
         const footer = (responsive.mobile && auth.user?.footer_view) ? 45 : 0;
         const bottomLimit = Math.min(pr.bottom, window.innerHeight - footer) - M;
-        const topLimit    = pr.top + M;
+        const topLimit    = pr.top + M + 40;
         const right_check = r.x + r.width
         if(right_check > window.innerWidth){
             shiftRight.value = window.innerWidth - right_check - 5
