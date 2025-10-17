@@ -58,7 +58,7 @@
 import MentionBox from '@/components/Board/Message/MentionBox.vue';
 import { useApi } from '@/composables/api';
 import { User } from '@/interface/globalInterface';
-import { computed, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, Ref, ref, useTemplateRef } from 'vue';
 import CommentItem from './CommentItem.vue';
 import { FinanceComment } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge';
@@ -79,7 +79,12 @@ const showMentionBox = ref(false)
 const commentsList = ref<FinanceComment[]>([])
 const isSending = ref(false)
 const loading = ref(true)
-const commentText = useTemplateRef('commentText')
+type MentionBoxExpose = {
+  highlighted: Ref<number>;
+  mentionUser: (user: User, index: number) => void;
+}
+const commentText = useTemplateRef<HTMLElement>('commentText')
+const mentionBox = useTemplateRef<MentionBoxExpose>('mentionBox')
 const editingCommentId = ref<number | null>(null)
 const badge = useBadgeStore()
 const mentionNameToId = computed<Record<string, number>>(() => {
@@ -93,14 +98,14 @@ const mentionNameToId = computed<Record<string, number>>(() => {
   map['all'] = -1
   return map
 })
-const onDeletedComment = ( id:number) => {
+const onDeletedComment = (id: number) => {
   const idx = commentsList.value.findIndex(c => c.id === id)
   if (idx !== -1) commentsList.value.splice(idx, 1)
   setTimeout(() => {
     emit('getCommentCounts')
   }, 500)
 }
-function extractMentionIdsFromText(text: string): { ids: number[]; hasAll: boolean } {
+const extractMentionIdsFromText = (text: string): { ids: number[]; hasAll: boolean } => {
   const re = /\[To:([^:\]]+):\]/g
   const ids = new Set<number>()
   let hasAll = false
@@ -117,16 +122,16 @@ function extractMentionIdsFromText(text: string): { ids: number[]; hasAll: boole
   }
   return { ids: [...ids], hasAll }
 }
-function getPlainText(): string {
+const getPlainText = (): string => {
   return (commentText.value?.innerText || '').trim()
 }
-const send = async() => {
-    if (isSending.value) return
+const send = async () => {
+  if (isSending.value) return
 
-    const text = getPlainText()
-    if(!text) return
-    const { ids: mentioned_user_ids, hasAll } = extractMentionIdsFromText(text)
-    const finalMentions = hasAll
+  const text = getPlainText()
+  if (!text) return
+  const { ids: mentioned_user_ids, hasAll } = extractMentionIdsFromText(text)
+  const finalMentions = hasAll
     ? Array.from(
         new Set([
           ...mentioned_user_ids,
@@ -135,31 +140,30 @@ const send = async() => {
       ).filter(id => id !== -1)
     : mentioned_user_ids
 
-     isSending.value = true
-    
-    const payload = {
-        project_record_id: props.currentProjectId,
-        comment: text,                 // store raw with [To:Name:] markers
-        type: '実績',                // or 'expense' or whatever you set
-        mentioned_user_ids: finalMentions,
-        period: props.period
-    }
-    const data = await api.post('/project_finance_comment', payload)
+  isSending.value = true
 
-    commentsList.value.push(data)
+  const payload = {
+    project_record_id: props.currentProjectId,
+    comment: text, // store raw with [To:Name:] markers
+    type: '実績', // or 'expense' or whatever you set
+    mentioned_user_ids: finalMentions,
+    period: props.period,
+  }
+  const data = await api.post('/project_finance_comment', payload)
 
-    if (commentText.value) commentText.value.innerText = ''
-    keyCharacters.value = ''
-    showMentionBox.value = false
+  commentsList.value.push(data)
 
+  if (commentText.value) commentText.value.innerText = ''
+  closeMention()
 
-    isSending.value = false
-    emit('getCommentCounts')
-    
+  isSending.value = false
+  emit('getCommentCounts')
 }
-function closeMention() {
+const closeMention = () => {
   keyCharacters.value = ''
   showMentionBox.value = false
+  const highlight = mentionBox.value?.highlighted
+  if (highlight) highlight.value = -1
 }
 const filteredUsers = computed<User[]>(() => {
   const base = (props.mentionableUsers ?? []).slice() // clone
@@ -173,16 +177,32 @@ const filteredMentionable = computed(() => {
     u.name && u.name.toLowerCase().includes(q)
   )
 })
-function onInput() {
+let lastRange: Range | null = null
+const updateRangeFromSelection = () => {
+  const editorEl = commentText.value
+  if (!editorEl) return
+  const sel = window.getSelection()
+  if (!sel?.rangeCount) return
+  const range = sel.getRangeAt(0)
+  if (!editorEl.contains(range.startContainer)) return
+  lastRange = range.cloneRange()
+}
+const onInput = () => {
+  const editorEl = commentText.value
+  if (!editorEl) return
   const sel = window.getSelection()
   if (!sel || sel.rangeCount === 0) {
-    showMentionBox.value = false
+    closeMention()
     return
   }
   const range = sel.getRangeAt(0).cloneRange()
+  if (!editorEl.contains(range.startContainer)) {
+    closeMention()
+    return
+  }
+  lastRange = range.cloneRange()
   const pre = range.cloneRange()
-  if (!commentText.value) return
-  pre.setStart(commentText.value, 0)
+  pre.setStart(editorEl, 0)
   const textUpToCaret = pre.toString()
 
   // detect last @token
@@ -190,98 +210,244 @@ function onInput() {
   if (match) {
     keyCharacters.value = match[2]
     showMentionBox.value = true
+    nextTick(() => {
+      const highlight = mentionBox.value?.highlighted
+      if (highlight && highlight.value < 0) {
+        highlight.value = 0
+      }
+    })
   } else {
-    keyCharacters.value = ''
-    showMentionBox.value = false
+    closeMention()
   }
 }
-function insertMention(user: User) {
-  const el = commentText.value
-  if (!el) return
-  const sel = window.getSelection()
-  if (!sel || sel.rangeCount === 0) return
 
-  const caret = sel.getRangeAt(0).cloneRange()
-  const tokenRange = getAtTokenRange(el, caret) // find "@xxx" before caret
+// 1) normalizeRangeToText: always collapse to a text node caret
+const normalizeRangeToText = (range: Range): Range => {
+  const r = range.cloneRange();
+  r.collapse(true);
 
-  const label = user.id === -1 ? 'All' : user.name
-  replaceRangeWithText(tokenRange ?? caret, `[To:${label}:] `)
-  closeMention()
-}
-/** Find the Range covering the @token immediately before caret */
-function getAtTokenRange(rootEl: HTMLElement, caret: Range): Range | null {
-  const r = caret.cloneRange(); r.collapse(true)
+  if (r.startContainer.nodeType === Node.TEXT_NODE) return r;
 
-  // walk backward across text nodes
-  const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT)
-  let node: Node = r.endContainer
-  if (node.nodeType !== Node.TEXT_NODE) {
-    // try to get a text node at/just before caret
-    const child = node.childNodes[r.endOffset - 1]
-    node = (child && child.nodeType === Node.TEXT_NODE) ? child : node
+  const el = r.startContainer as Element;
+  let n: Node | null =
+    el.childNodes[r.startOffset] ??
+    el.childNodes[r.startOffset - 1] ??
+    el.lastChild ?? el.firstChild ?? el;
+
+  // dive to rightmost text node
+  let cur: Node | null = n;
+  while (cur && cur.nodeType !== Node.TEXT_NODE) {
+    cur = (cur.lastChild ?? cur.firstChild) as Node | null;
   }
-  walker.currentNode = node
+  if (!cur || cur.nodeType !== Node.TEXT_NODE) {
+    const t = document.createTextNode('');
+    el.appendChild(t);
+    cur = t;
+  }
+  r.setStart(cur, (cur as Text).data.length);
+  r.collapse(true);
+  return r;
+}
 
-  let current = walker.currentNode as Text
-  let remaining = current === r.endContainer ? r.endOffset : (current?.data.length ?? 0)
-  let start: { n: Text; o: number } | null = null
+// 2) getAtTokenRangeAcrossNodes: find "@word" spanning adjacent text nodes
+const getAtTokenRangeAcrossNodes = (rootEl: HTMLElement, caret: Range): Range | null => {
+  const r = normalizeRangeToText(caret);
+  const endNode = r.startContainer as Text;
+  const endOffset = r.startOffset;
 
-  while (current) {
-    const s = current.data ?? ''
-    const limit = current === r.endContainer ? remaining : s.length
-    for (let i = limit - 1; i >= 0; i--) {
-      const ch = s[i]
-      if (/\s/.test(ch)) break
-      if (ch === '@' || ch === '＠') { start = { n: current, o: i }; break }
+  // Walk left collecting text segments up to a boundary
+  const anchors: Array<{ node: Text; start: number; end: number }> = [];
+  let collected = '';
+  const MAX_BACK = 200;
+
+  // helper: push a text segment at the front
+  const pushSeg = (t: Text, from = 0, to = t.data.length) => {
+    anchors.unshift({ node: t, start: from, end: to });
+    collected = t.data.slice(from, to) + collected;
+  };
+
+  // include current text
+  pushSeg(endNode, 0, endOffset);
+
+  // walk to previous text nodes across the DOM
+  let cur: Node | null = endNode;
+  while (collected.length < MAX_BACK) {
+    // climb to a node with a left sibling
+    while (cur && !cur.previousSibling && cur !== rootEl) cur = cur.parentNode;
+    if (!cur || cur === rootEl) break;
+    cur = cur.previousSibling!;
+
+    // dive to rightmost text under that sibling
+    let n: Node | null = cur;
+    while (n && n.nodeType !== Node.TEXT_NODE) n = n.lastChild;
+    if (!n || n.nodeType !== Node.TEXT_NODE) continue;
+
+    const t = n as Text;
+    if (t.data.length === 0) continue;
+    pushSeg(t);
+
+    // stop if this segment ends with a boundary
+    if (/[\s([{>]/.test(t.data.slice(-1))) break;
+  }
+
+  // Find a trailing "@word" at the end of collected text
+  const m = /(?:^|[\s([{>])@([A-Za-z0-9._-]*)$/.exec(collected);
+  if (!m) return null;
+
+  // Compute token length ("@" + word)
+  const tokenLen = m[1].length + 1;
+
+  // Figure out the exact start node/offset within anchors
+  let toConsume = tokenLen;
+  let startNode = anchors[anchors.length - 1]!.node;
+  let startOffset = anchors[anchors.length - 1]!.end;
+
+  for (let i = anchors.length - 1; i >= 0 && toConsume > 0; i--) {
+    const seg = anchors[i];
+    const segLen = seg.end - seg.start;
+    const take = Math.min(segLen, toConsume);
+    startNode = seg.node;
+    startOffset = seg.end - take;
+    toConsume -= take;
+  }
+
+  // Build the range from '@' start to caret
+  const token = document.createRange();
+  token.setStart(startNode, startOffset);
+  token.setEnd(endNode, endOffset);
+
+  // Sanity: ensure it's exactly "@xxxx" with no whitespace
+  if (!/^@[\S]*$/.test(token.toString())) return null;
+  return token;
+}
+
+// 3) replaceRangeWithText: replace token, clean stray '@', restore caret
+const replaceRangeWithText = (range: Range, text: string): void => {
+  let target = range.cloneRange();
+
+  if (target.collapsed && target.startContainer.nodeType !== Node.TEXT_NODE) {
+    target = normalizeRangeToText(target);
+  }
+
+  target.deleteContents();
+
+  const tn = document.createTextNode(text);
+  target.insertNode(tn);
+
+  // cleanup: kill dangling '@' right before the inserted node
+  const prev = tn.previousSibling;
+  if (prev?.nodeType === Node.TEXT_NODE) {
+    const t = prev as Text;
+    if (t.data.endsWith('@') || t.data.endsWith('＠')) {
+      t.deleteData(t.length - 1, 1);
+      if (t.length === 0) prev.parentNode?.removeChild(prev);
     }
-    if (start) break
-    current = walker.previousNode() as Text
-    remaining = current ? (current.data ?? '').length : 0
   }
-  if (!start) return null
 
-  // token end is caret (collapsed) or next whitespace; caret is good enough
-  const token = document.createRange()
-  token.setStart(start.n, start.o)
-  token.setEnd(caret.endContainer, caret.endOffset)
+  // place caret after inserted text
+  const sel = window.getSelection();
+  if (!sel) return;
+  const after = document.createRange();
+  after.setStart(tn, tn.length);
+  after.collapse(true);
+  sel.removeAllRanges();
+  sel.addRange(after);
 
-  // sanity check
-  if (!/^[@＠][^\s@＠]*$/.test(token.toString())) return null
-  return token
+  // cache for next time
+  lastRange = after.cloneRange();
 }
 
-function replaceRangeWithText(range: Range, text: string) {
-  range.deleteContents()
-  const tn = document.createTextNode(text)
-  range.insertNode(tn)
+// 4) insertMention: main action (click or Enter from mention box)
+const insertMention = (user: User): void => {
+  const editorEl = commentText.value;
+  if (!editorEl) return;
 
-  const sel = window.getSelection()
-  if (!sel) return
-  const after = document.createRange()
-  after.setStart(tn, tn.length)
-  after.collapse(true)
-  sel.removeAllRanges()
-  sel.addRange(after)
+  // restore cached selection if focus moved to menu
+  let caret: Range | null = null;
+  const sel = window.getSelection();
+
+  if (lastRange) {
+    caret = lastRange.cloneRange();
+  } else if (sel && sel.rangeCount > 0) {
+    caret = normalizeRangeToText(sel.getRangeAt(0));
+  }
+  if (!caret) return;
+  if (!editorEl.contains(caret.startContainer)) return;
+
+  const tokenRange =
+    getAtTokenRangeAcrossNodes(editorEl, caret) ?? caret;
+
+  const label = user.id === -1 ? '全員' : (user.name ?? '');
+  if (!label) {
+    closeMention()
+    return
+  }
+  replaceRangeWithText(tokenRange, `[To:${label}:] `);
+  closeMention();
 }
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && showMentionBox.value) {
+const selectMentionFromKeyboard = () => {
+  const candidates = filteredMentionable.value
+  if (!candidates.length) {
+    closeMention()
+    return
+  }
+  const highlightedIndex = mentionBox.value?.highlighted?.value ?? 0
+  const safeIndex = highlightedIndex >= 0 && highlightedIndex < candidates.length ? highlightedIndex : 0
+  insertMention(candidates[safeIndex])
+}
+
+const onKeydown = (e: KeyboardEvent) => {
+  if (showMentionBox.value) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      selectMentionFromKeyboard()
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      closeMention()
+      return
+    }
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault()
+    }
+    return
+  }
+  if (e.key === 'Escape') {
     e.preventDefault()
     closeMention()
   }
 }
-const getComments = async() => {
-    const data = await api.get('/get_project_finance_comments', {project_record_id: props.currentProjectId, period: props.period})
-    commentsList.value = data
-    loading.value = false
-    
+const cleanupFns: Array<() => void> = []
+const addEditorListeners = () => {
+  const editorEl = commentText.value
+  if (!editorEl) return
+  const events: Array<keyof HTMLElementEventMap> = ['keyup', 'mouseup', 'input']
+  events.forEach(evt => editorEl.addEventListener(evt, updateRangeFromSelection))
+  cleanupFns.push(() => {
+    events.forEach(evt => editorEl.removeEventListener(evt, updateRangeFromSelection))
+  })
 }
-const markRead = async() => {
+const getComments = async () => {
+  const data = await api.get('/get_project_finance_comments', { project_record_id: props.currentProjectId, period: props.period })
+  commentsList.value = data
+  loading.value = false
+}
+const markRead = async () => {
   await api.post(`/projects/${props.currentProjectId}/finance/mark-read`)
 }
 onMounted(() => {
-    getComments()
-    markRead()
-    badge.getFinanceCommentBadge()
+  getComments()
+  markRead()
+  badge.getFinanceCommentBadge()
+  nextTick(() => {
+    addEditorListeners()
+    document.addEventListener('selectionchange', updateRangeFromSelection)
+    cleanupFns.push(() => document.removeEventListener('selectionchange', updateRangeFromSelection))
+  })
+})
+onBeforeUnmount(() => {
+  cleanupFns.splice(0).forEach(unbind => unbind())
 })
 </script>
 <style>
