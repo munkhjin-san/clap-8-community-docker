@@ -12,9 +12,6 @@
                 <FilePreview v-if="filePreview.active"/>
             </Transition> 
         </Teleport>
-        <Transition>
-            <ProjectWeather v-if="auth.user && auth.user.position_id === 6 && !weatherModal"/>
-        </Transition>
         <SharingData v-if="sharingData.active && (route.name == 'board' || route.name == 'room')"/>
         <Transition name="modalFade">
             <CheckWork v-if="auth.user" />
@@ -96,8 +93,8 @@ import { isTodayDone } from '@/utils/tools'
         } 
     })
     const checkToday = () => {
+        if (auth.user.weathers) return true
         if (isTodayDone(auth.id)) return true
-        if (auth.weathers) return true
     }
     onMounted(() => {
         weatherModal.value = !checkToday()

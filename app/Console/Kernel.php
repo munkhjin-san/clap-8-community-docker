@@ -29,10 +29,10 @@ class Kernel extends ConsoleKernel
         $schedule->job(new ResetCharge())->cron('15 9 10 3,6,9,12 *'); 
         $schedule->job(new RemoveFile('cost'))->cron('15 9 20 * *');
         $schedule->job(new SendReport(610, 3532, 'incident'))->cron('15 9 * * *');
-        $schedule->job(new SendReport(610, 3633, 'weekly_staff'))->cron('15 9 * * 1');
-        $schedule->job(new SendReport(610, 1283, 'weekly_legal'))->cron('15 9 * * 1');
-        $schedule->job(new SendReport(610, 1303, 'weekly_balance'))->cron('15 9 * * 1');
-        $schedule->job(new SendReport(610, 3599, 'weekly_officer'))->cron('15 9 * * 1');
+        // $schedule->job(new SendReport(610, 3633, 'weekly_staff'))->cron('15 9 * * 1');
+        // $schedule->job(new SendReport(610, 1283, 'weekly_legal'))->cron('15 9 * * 1');
+        // $schedule->job(new SendReport(610, 1303, 'weekly_balance'))->cron('15 9 * * 1');
+        // $schedule->job(new SendReport(610, 3599, 'weekly_officer'))->cron('15 9 * * 1');
         // $schedule->job(new SendReport(610, 1056, 'monthly_performance'))->cron('15 9 15 * *'); 
         $schedule->job(new SendReport(610, 1056, 'monthly_shift'))->cron('15 9 20 * *');
         $schedule->job(new SendReport(610, 1056, 'monthly_mailing'))->cron('15 9 20 * *');
@@ -44,6 +44,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('posts:close-expired')->dailyAt('02:00');
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(25, '08:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
+        // $schedule->command('queue:work database --queue=contact-batches --stop-when-empty --timeout=120 --tries=3')->everyMinute()->withoutOverlapping();
     }
 
     /**
