@@ -41,7 +41,7 @@ class SendVarianceAlerts extends Command
 
         $settlementResponse = [];
         $sent = 0;
-
+        
         foreach ($byName as $name => $project) {
             $plan = $P[$name] ?? null;
             $act  = $A[$name] ?? null;
@@ -50,6 +50,7 @@ class SendVarianceAlerts extends Command
             $v = [
                 'sales'   => VarianceService::achToVar(VarianceService::pct($act['sales']??null,   $plan['sales']??null)),
                 'expenses' => VarianceService::achToVar(VarianceService::pct($act['expenses']??null, $plan['expenses']??null)),
+                'profit'  => VarianceService::achToVar(VarianceService::pct($act['profit']??null,  $plan['profit']??null)),
             ];
             
              $settlementResponse[$name] = [
@@ -65,7 +66,7 @@ class SendVarianceAlerts extends Command
             if ($exists) continue;
             $rows = [];
 
-            foreach (['sales'=>'売上','expenses'=>'費用'] as $k=>$label) {
+            foreach (['sales'=>'売上','expenses'=>'費用','profit'=>'利益'] as $k=>$label) {
                 $var = $v[$k];
                 if ($var === null || abs($var) < $threshold) continue;
                 $rows[] = [
@@ -96,7 +97,7 @@ class SendVarianceAlerts extends Command
                 ->notifyManagersAboutPeriod($project, $pm->name, $period, $rows, $override_user, $boardId);
 
             }
-
+            
             VarianceAlertLog::create([
                 'project_record_id' => $project->id,
                 'period'     => $period,

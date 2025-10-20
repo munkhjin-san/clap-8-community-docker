@@ -32,6 +32,7 @@ class GoogleSheetsActualProvider implements ActualProvider
         $iProject   = $idx('部門') ?? $idx('案件名') ?? 1; // fallback to column 1 like your code
         $iSales     = $idx('収入');
         $iExpense   = $idx('支出');
+        $iProfit    = $idx('利益');
         $iIndirect  = $idx('間接費配賦'); // if you want to include it
 
         // sanity checks
@@ -52,11 +53,12 @@ class GoogleSheetsActualProvider implements ActualProvider
 
             $sales   = $this->f($row[$iSales]   ?? null);
             $expense = $this->f($row[$iExpense] ?? null) + $this->f($row[$iIndirect] ?? null);
-            
+            $profit = $this->f($row[$iProfit]  ?? null);
 
             $out[(string)$project] = [
                 'sales'   => $sales,
                 'expenses' => $expense,
+                'profit'  => $profit,
             ];
         }
 

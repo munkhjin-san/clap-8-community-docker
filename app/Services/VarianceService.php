@@ -17,7 +17,7 @@ final class VarianceService
 
     public static function anyOverThreshold(array $v, int|float $threshold): bool
     {
-        foreach (['sales','expense'] as $k) {
+        foreach (['sales','expense','profit'] as $k) {
             $x = $v[$k] ?? null;
             if ($x !== null && abs($x) >= $threshold) return true;
         }

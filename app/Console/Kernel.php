@@ -42,7 +42,7 @@ class Kernel extends ConsoleKernel
         $schedule->job(new RemoveTempSchedule())->cron('15 9 * * *');
 
         $schedule->command('posts:close-expired')->dailyAt('02:00');
-        $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(25, '08:00');
+        $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
         // $schedule->command('queue:work database --queue=contact-batches --stop-when-empty --timeout=120 --tries=3')->everyMinute()->withoutOverlapping();
     }

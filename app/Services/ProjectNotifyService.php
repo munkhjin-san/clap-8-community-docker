@@ -6,13 +6,15 @@ use App\Models\User;
 use App\Models\boardRecord;
 use App\Models\boardToUser;
 use App\Models\ProjectRecord;
+use App\Models\taskRecord;
 use Illuminate\Support\Collection;
 use Carbon\Carbon;
 final class ProjectNotifyService
 {
     public function __construct(
-        private readonly BoardControllerProxy $boardController // thin proxy around your real controller method
-    ) {}
+        private readonly BoardControllerProxy $boardController, // thin proxy around your real controller method
+    ) {
+    }
 
     /**
      * Send per-manager private board updates for a project.
@@ -36,7 +38,7 @@ final class ProjectNotifyService
         ];
 
         $this->boardController->chatAdd($payload);
-        
+        $this->createTask($overrideUser->id, $boardId, $message);
     }
 
     private function generateMessage(
@@ -77,6 +79,21 @@ final class ProjectNotifyService
             $deadline,
             $url
         );
+    }
+    public function createTask($override_user_id, $board_id, $message){
+        $mention_users = boardToUser::where('record_id', $board_id)->whereNot('user_id', 610)->pluck('user_id')->toArray();
+        $override_user = User::select('id', 'name', 'icon_path', 'icon_bg')
+                             ->findOrFail($override_user_id);
+        $eom = Carbon::now()->endOfMonth()->format('Y-m-d');
+        $task = taskRecord::create([
+            "user_id" => $override_user_id,
+            "updated_user" => $override_user_id,
+            "end_at" => $eom,
+            "remarks" => $message,
+            "board_id" => $board_id,
+        ]);
+        $task->executors()->sync($mention_users);
+        return $task;
     }
 
 }

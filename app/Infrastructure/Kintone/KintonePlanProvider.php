@@ -20,7 +20,7 @@ class KintonePlanProvider implements PlanProvider
         // If you want ALL departments for that month, drop 部門 filter from $query.
         $endOfMonth = $period->endOfMonth()->format('Y-m-d');
         $appId  = env('KINTONE_PLANS_APP_ID', 1068);
-        $fields = ['部門','日付','売上高合計','内部売上高合計','販売管理費合計','間接費配賦'];
+        $fields = ['部門','日付','売上高合計','内部売上高合計','販売管理費合計','間接費配賦', '利益'];
 
         $out = [];
         $query = sprintf('日付 = "%s"', $this->esc($endOfMonth));
@@ -38,10 +38,12 @@ class KintonePlanProvider implements PlanProvider
                     if ($dept === '') continue;
                     $totalSales = round((float) $r['売上高合計']['value'] + (float) $r['内部売上高合計']['value'], 0, PHP_ROUND_HALF_UP);
                     $totalExpense = round((float)  $r['販売管理費合計']['value'] + (float) $r['間接費配賦']['value'], 0, PHP_ROUND_HALF_UP);
+                    $totalProfit = $this->f($r['利益']['value']);
 
                     $out[$dept] = [
                         'sales'          => $totalSales,
                         'expenses'        => $totalExpense,
+                        'profit'         => $totalProfit,
                     ];
                 }
 
