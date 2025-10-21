@@ -66,7 +66,7 @@ class SendVarianceAlerts extends Command
             if ($exists) continue;
             $rows = [];
 
-            foreach (['sales'=>'売上','expenses'=>'費用','profit'=>'利益'] as $k=>$label) {
+            foreach (['sales'=>'売上','expenses'=>'販管費','profit'=>'利益'] as $k=>$label) {
                 $var = $v[$k];
                 if ($var === null || abs($var) < $threshold) continue;
                 $rows[] = [
