@@ -4,6 +4,7 @@
         <RouterView 
             :answer="selectedAnswer"
             :form="selectedForm"
+            @close="router.push({ name: 'survey-answers' })"
         />
     </Transition>
     <div class="post-header sticky top-0 bg-[var(--bg2)] z-[6]">
@@ -17,7 +18,7 @@
         </div>            
     </div>
     <div class="flex flex-col gap-[20px] p-[20px] pt-0">
-        <div v-for="form in searchResult" class="bg-[var(--background-color)] p-[20px] flex flex-col gap-[20px]">
+        <div v-for="form in searchResult" class="bg-[var(--background-color)] p-[20px] flex flex-col gap-[20px] color: var(--primary-color);">
             <div class="flex flex-col gap-[10px]">
                 <div class="font-semibold">タイトル</div>
                 <div>{{ form.title }}</div>
