@@ -18,7 +18,7 @@
         </div>            
     </div>
     <div class="flex flex-col gap-[20px] p-[20px] pt-0">
-        <div v-for="form in searchResult" class="bg-[var(--background-color)] p-[20px] flex flex-col gap-[20px] color: var(--primary-color);">
+        <div v-for="form in searchResult" class="bg-[var(--background-color)] p-[20px] flex flex-col gap-[20px] text-[var(--primary-color)]">
             <div class="flex flex-col gap-[10px]">
                 <div class="font-semibold">タイトル</div>
                 <div>{{ form.title }}</div>
