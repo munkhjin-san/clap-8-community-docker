@@ -144,8 +144,11 @@ import WeatherIcon from '@/components/Global/WeatherIcon.vue';
     const newsList = ref([])
     const breakTimeStore = useBreakTime()
     onMounted(() => {
-        getGlowdNews()
-        breakTimeStore.checkBreakTime()          
+        setTimeout(() => {
+            getGlowdNews()
+            breakTimeStore.checkBreakTime()       
+        }, 5000);
+       
     })
     
     const todayWeather = computed(() => {

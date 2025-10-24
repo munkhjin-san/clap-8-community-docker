@@ -123,25 +123,29 @@ import { useDialog } from '@/composables/dialog';
         }
         badge.getBoardBadge('mounted');
         
-        if(!auth.isPartner){
-            badge.getNoticeBadge()
-            badge.getPostBadge()
-            // badge.getProjectBadge()
-            badge.getRemindBadge()
-        }
-        if (isIOS.value) {
-            savePWAStatus()
-        }
-        // if(auth.user?.position_id == 6){
-            badge.getMembersGoalsBadge()
-        // }
-        if(auth.user?.position_id < 6){
-            badge.getManagersGoalsBadge()
-        }
-        badge.getSalaryIssueBadge()
-        badge.getAssetBadge()
-        badge.getTaskCommentBadge()
-        badge.getFinanceCommentBadge()
+        setTimeout(async() => {
+                
+            
+            if(!auth.isPartner){
+                await badge.getNoticeBadge()
+                await badge.getPostBadge()
+                // await badge.getProjectBadge()
+                await badge.getRemindBadge()
+            }
+            if (isIOS.value) {
+                savePWAStatus()
+            }
+            // if(auth.user?.position_id == 6){
+                await badge.getMembersGoalsBadge()
+            // }
+            if(auth.user?.position_id < 6){
+                await badge.getManagersGoalsBadge()
+            }
+            await badge.getSalaryIssueBadge()
+            await badge.getAssetBadge()
+            await badge.getTaskCommentBadge()
+            await badge.getFinanceCommentBadge()
+        }, 3000);
     })
     const postHandler = () => {
         if(!auth.isPartner){
