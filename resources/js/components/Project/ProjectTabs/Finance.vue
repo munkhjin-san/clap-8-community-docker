@@ -246,7 +246,7 @@
             </div> -->
             
         </div>
-        <div class="overflow-auto h-[calc(100%-100px)]" v-if="activeTab === 'case'">
+        <!-- <div class="overflow-auto h-[calc(100%-100px)]" v-if="activeTab === 'case'">
             <CaseConfirm 
                 :select-project="selectedProject" 
                 :refresh-key="caseRefreshKey"
@@ -266,11 +266,11 @@
                 @close="caseWindow = false"
                 @saved="handleCaseSaved"
             />
-        </div>
+        </div> -->
         
         
         
-        <YearlyBudget 
+        <!-- <YearlyBudget 
             v-else-if="activeTab === 'yearly'"
             :year="year"
             :selectedProjectName="selectedProject.name"
@@ -283,7 +283,7 @@
         <ActualResult 
             v-else-if="activeTab === 'actual'"
             :period="normalizedPeriod" 
-        />
+        /> -->
         <Transition name="smLoad">
             <CommentWindow 
                 v-if="commentView"  
@@ -315,13 +315,13 @@ import CommentWindow from './Finance/CommentWindow.vue';
 import { User } from '@/interface/globalInterface';
 import { Project } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge';
-import YearlyBudget from './Finance/YearlyBudget.vue';
-import MonthlyPlan from './Finance/MonthlyPlan.vue';
-import ActualResult from './Finance/ActualResult.vue';
-import CaseCreate from './Finance/CaseCreate.vue';
-import FloatButton from '@/components/Global/FloatButton.vue';
-import AddIcon from '@/components/Form/AddIcon.vue';
-import CaseConfirm from './Finance/CaseConfirm.vue';
+// import YearlyBudget from './Finance/YearlyBudget.vue';
+// import MonthlyPlan from './Finance/MonthlyPlan.vue';
+// import ActualResult from './Finance/ActualResult.vue';
+// import CaseCreate from './Finance/CaseCreate.vue';
+// import FloatButton from '@/components/Global/FloatButton.vue';
+// import AddIcon from '@/components/Form/AddIcon.vue';
+// import CaseConfirm from './Finance/CaseConfirm.vue';
 const auth = useAuthUserStore()
 const props = defineProps<{
     userList: any;
