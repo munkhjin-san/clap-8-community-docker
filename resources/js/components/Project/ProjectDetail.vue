@@ -58,7 +58,6 @@
             v-if="selectedProject"
             :selected-project="selectedProject" 
             :user-list="userList"
-            :mentionable-users="mentionableUsers"
             :has-privilage="hasPrivilage"
             :fileAccess="fileAccess"
             :key="`rt_${route.params.projectId}`"
@@ -68,10 +67,9 @@
 <script setup lang="ts">
 import { useApi } from '@/composables/api';
 import { useProject } from '@/composables/project';
-import { User } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
-import { computed, onMounted, provide, ref } from 'vue';
+import { computed, provide, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
     const props = defineProps(['userList'])
@@ -81,7 +79,6 @@ import { useRoute, useRouter } from 'vue-router';
     const badge = useBadgeStore()
     const initialLoader = ref(false)
     const auth = useAuthUserStore()
-    const mentionableUsers = ref<User[]>([])
     const { selectedProject, memberData } = useProject() 
     const userId = computed(() => auth.activeUser?.id ?? auth.id ?? null);
     type Tab = { name: string; path: string };
@@ -105,7 +102,7 @@ import { useRoute, useRouter } from 'vue-router';
         { name: '業務マニュアル', path: 'operation'},
         { name: '契約書', path: 'contracts'},
         { name: '派遣', path: 'dispatch'},
-        { name: '収支', path: 'finance'},
+        { name: '予算・実績', path: 'finance'},
         { name: 'ガントチャート', path: 'task-calendar'},
         { name: '物品', path: 'assets'},
     ];
@@ -118,7 +115,7 @@ import { useRoute, useRouter } from 'vue-router';
         return t;
     });
     const totalMemberBadge = computed(() => {
-        return badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
+        return badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
     })
     const assetBadge = computed(() => {
         return badge.assetsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
@@ -180,18 +177,10 @@ import { useRoute, useRouter } from 'vue-router';
         if(item.route.name === 'psuedo') return
         router.push(item.route)
     }
-    const getMentionableUsers = async() => {
-        const data = await api.get('/mentionable_users', {projectIds: [route.params.projectId]})
-        if (data) {
-            mentionableUsers.value = data
-        }
-    }
     provide('setLoader', (value: boolean) => {
         initialLoader.value = value
     })
-    onMounted(() => {
-        getMentionableUsers()
-    })
+
 </script>
 <style scoped>
     .tab{

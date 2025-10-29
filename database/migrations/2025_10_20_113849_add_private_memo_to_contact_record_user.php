@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('project_finance_comments', function (Blueprint $table) {
-            $table->date('period')->nullable()->index()->after('type');
+        Schema::table('contact_record_user', function (Blueprint $table) {
+            $table->text('private_memo')->nullable()->after('role');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('project_finance_comments', function (Blueprint $table) {
-           $table->dropColumn('period');
+        Schema::table('contact_record_user', function (Blueprint $table) {
+            $table->dropColumn('private_memo');
         });
     }
 };

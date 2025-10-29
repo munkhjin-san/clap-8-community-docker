@@ -9,8 +9,8 @@
                     @search-start="(word) => {keywords = word}"
                 />                
             </div>
-            <div class="c-bar-button mr-4" @click="totalFinanceWindow = true">
-                収支集計
+            <div class="c-bar-button mr-4" @click="router.push({name: 'total-finance'})">
+                収支切り替
             </div>            
         </div>
         <Transition name="modalFade">
@@ -91,7 +91,6 @@
                         <div class="flex w-full">
                             <div class="flex gap-2 items-center relative w-full">
                                 <p class="max-w-[calc(100%-60px)] overflow-hidden whitespace-nowrap text-ellipsis">{{ project.name }}</p>
-                                <WeatherIcon v-if="project.project_conditions.length" :which="project.project_conditions[0].value" size="15"/>
                                 <div class="flex items-center">
                                     <span class="side-notification" style="position: unset;width:15px" v-if="totalBadges(project.id) > 0">{{ totalBadges(project.id) }}</span>
                                 </div>
@@ -152,6 +151,8 @@
                                 :is="Component"
                                 :userList="userList"
                                 :maxInterval="totalSpan"
+                                :projects="projectList.filter(pr => pr.name !== '役員部門')"
+                                :ownProjectIds="ownProjectIds"
                                 ref="taskComponent"
                             />
                         </router-view>                        
@@ -174,14 +175,14 @@
                 :edit-data="editData"
             />
         </Transition>
-        <Transition name="modalFade">
+        <!-- <Transition name="modalFade">
             <ProjectTotalFinance 
                 v-if="totalFinanceWindow"
                 :projects="projectList.filter(pr => pr.name !== '役員')"
                 :ownProjectIds="ownProjectIds"
                 @close="totalFinanceWindow = false"
             />
-        </Transition>
+        </Transition> -->
 
     </div>
     
@@ -204,7 +205,6 @@ import TaskComponent from '../Task/TaskComponent.vue';
 import { ComponentExposed } from 'vue-component-type-helpers'
 import ProjectCreate from '../AccountControl/ProjectControl/ProjectCreate.vue';
 import FloatButton from '../Global/FloatButton.vue';
-import WeatherIcon from '../Global/WeatherIcon.vue';
 import ProjectMemberSort from './ProjectMemberSort.vue';
 import ProjectTotalFinance from './ProjectTotalFinance.vue';
 import { useProject } from '@/composables/project';
@@ -372,7 +372,8 @@ const totalBadges = (projectId: number) => {
     badge.salaryIssueByFilter([{by: 'project_id', value: projectId}]).length +
     badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
     badge.taskCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
-    badge.financeCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
+    badge.financeCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
+    badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
 }
 const jumpToProject = (project: Project) => {
     const routeName = route.name === 'project' ? 'overview' : 
@@ -383,6 +384,15 @@ const jumpToProject = (project: Project) => {
         params: { projectId: project?.id }
     });
 }
+const deleteProject = async(project: Project) => {
+    const data = await api.del('/delete_project', {id: project.id}, {
+        ask: 'プロジェクトを削除しますか？',
+        toast: '削除しました。'
+    })
+    router.push({name: 'project'})
+    data && getProjects()
+}
+provide('deleteProject', (rec: Project) => deleteProject(rec))
 provide('editProjects', (rec) => {editData.value = rec; createWindow.value = true})
 provide('setTotalFinanceWindow', (flag:boolean) => {totalFinanceWindow.value = flag})
 </script>

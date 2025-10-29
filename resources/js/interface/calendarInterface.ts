@@ -198,5 +198,9 @@ export interface GoogleCalendarListResponse {
     status: string,
     calendar_ids: string[]
 }
-
+export interface ProjectSetting {
+    id: number;
+    name: string;
+    color: string | null;
+}
 

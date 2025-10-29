@@ -28,6 +28,8 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\RemindController;
 use App\Http\Controllers\DriveController;
 use App\Http\Controllers\GoogleController;
+use App\Http\Controllers\CommunityController;
+use App\Http\Controllers\OpenAiController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -133,6 +135,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
     Route::get('/{name}/{any?}',[BoardController::class, "index"])
     ->whereIn('name', [
+        'community',
         'board', 
         'challenge', 
         'post', 
@@ -360,6 +363,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/mentionable_users', [ProjectController::class, 'mentionable_users']);
         Route::post('/project_finance_comment', [ProjectController::class, 'project_finance_comment']);
         Route::get('/get_project_finance_comments', [ProjectController::class, 'get_project_finance_comments']);
+        Route::get('/get_total_finance_badge', [ProjectController::class, 'get_total_finance_badge']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
@@ -482,8 +486,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/update_issue_report', [ProjectController::class, 'update_issue_report']);
         Route::delete('/delete_issue', [ProjectController::class, 'delete_issue']);
         Route::get('/project_badge', [ProjectController::class, 'get_project_badge']);
-        Route::get('/get_managing_projects', [ProjectController::class, 'get_managing_projects']);
-        Route::post('/update_project_conditions', [ProjectController::class, 'updateConditions']);
         Route::get('/check_evaluation_for_user_in_span ', [ProjectController::class, 'check_evaluation_for_user_in_span']);
         Route::get('/get_manuals', [ProjectController::class, 'get_manuals']);
         Route::post('/update_manuals', [ProjectController::class, 'update_manuals']);
@@ -508,6 +510,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/projects/finance/unread-badges', [ProjectController::class, 'get_finance_comment_badge']);
         Route::put('/finance_comment_update', [ProjectController::class, 'finance_comment_update']);
         Route::delete('/finance_comment_delete', [ProjectController::class, 'finance_comment_delete']);
+        Route::get('/get_comment_count_from_total', [ProjectController::class, 'get_comment_count_from_total']);
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
         Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);
@@ -528,6 +531,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_metrics/{project}/with_values', [ProjectController::class, 'project_metrics_with_values']);
         Route::post('/project_metrics/{project}/values', [ProjectController::class, 'metric_values_store']);
         Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
+        Route::get('/projects/{project}/cases', [ProjectController::class, 'project_cases']);
+        Route::post('/projects/{project}/cases', [ProjectController::class, 'project_case_store']);
+        Route::post('/project_goal_comment_create', [ProjectController::class, 'project_goal_comment_create']);
+        Route::post('/project_goal_report_file_upload', [ProjectController::class, 'project_goal_report_file_upload']);
+        Route::get('/project_list', [ProjectController::class, 'project_list']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);
@@ -552,10 +560,17 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('contact_item', [ContactController::class, 'delete_contact']);
         Route::post('upload_name_card', [ContactController::class, 'upload_name_card']);
         Route::get('contact_list', [ContactController::class, 'contact_list']);
+        Route::post('contact_private_memo', [ContactController::class, 'update_private_memo']);
         Route::get('google_test', [ContactController::class, 'index_test']);
         Route::post('scan_card', [ContactController::class, 'scan_card']);
         Route::get('get_contact_types', [ContactController::class, 'get_contact_types']);
-
+        Route::get('contact_duplicates', [ContactController::class, 'duplicate_index']);
+        Route::post('contact_duplicates/{contact}', [ContactController::class, 'resolve_duplicate']);
+        Route::post('/contact_create_comment', [ContactController::class, 'contact_create_comment']);
+        Route::post('/follow_contact', [ContactController::class, 'follow_contact']);
+        Route::post('/contact/{contact}/comment_read', [ContactController::class, 'contact_comment_read']);
+        Route::get('get_contact_comment_badge', [ContactController::class, 'get_contact_comment_badge']);
+        
         // Remind
         Route::get('/remind_attendance', [RemindController::class, 'remind_attendance']);
         Route::get('/remind_unsigned_messages', [RemindController::class, 'remind_unsigned_messages']);
@@ -641,4 +656,17 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/check_batch_status', [ContactController::class, 'check_batch_status']);
         Route::get('/get_batch_results', [ContactController::class, 'get_batch_results']);
         Route::get('/get_batch_company_data', [ContactController::class, 'get_batch_company_data']);
+        Route::get('/get_batch_results1', [ContactController::class, 'get_batch_results1']);
+
+        Route::get('get_office_list', [CommunityController::class, 'get_office_list']);
+        Route::post('/office_item', [CommunityController::class, 'create_office_item']);
+        Route::delete('/office_item', [CommunityController::class, 'delete_office_item']);
+
+        Route::post('/ai_correction_prepare', [OpenAiController::class, 'prepare']);
+        Route::post('/non_stream_prompt', [OpenAiController::class, 'non_stream_prompt']);
+        Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
+
+        Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
+        Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);
 });
+    

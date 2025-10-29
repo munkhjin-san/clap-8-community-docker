@@ -15,6 +15,7 @@
                     <div class="admin-tab-item" @click="router.push({name: 'asset-control'})" :class="{'selected-tab' : route.name == 'asset-control'}">物品</div>
                     <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
                     <div class="admin-tab-item" @click="router.push({name: 'refresh-control'})" :class="{'selected-tab' : route.name == 'refresh-control'}">リフレッシュ</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'admin-offices'})" :class="{'selected-tab' : route.name == 'admin-offices'}">営業所</div>
                 </div>
                 <div v-else class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
             </div>

@@ -98,12 +98,8 @@ import { useApi } from '@/composables/api';
     const dailyButtons = async(value, item) => {
         tempItem.value = null
         const targets = [dailyApproval, timeCardRemand, dailyCancel, overtTimeRequest]
-        const fn = targets[value]
-        try {
-            await fn(item)
-        } finally {
-            badge.getRemindBadge()
-        }
+        Promise.resolve(targets[value](item))
+        .finally(() => badge.getRemindBadge());
     }
     const overtTimeRequest = (item) => {
         overTimeRequestData.value = item

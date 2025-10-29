@@ -40,7 +40,6 @@ import { onMounted, computed, ref, provide } from 'vue';
 import WorkNotSubmitted from '../Work/WorkNotSubmitted.vue';
 import { useRoute } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
-import { getCustomFields, getWorkGroup } from '../../utils/workApi';
 
 import { DateTime, Interval } from 'luxon';
 import { useApi } from '@/composables/api';
@@ -49,8 +48,8 @@ import DepartureReportSend from '../Work/DepartureReportSend.vue';
     const shiftNotSubmittedList = ref([])
     const nextShiftNotSubmittedList = ref([])
     const timecardNotSubmittedList = ref([])
-    const workGroups = ref([])
-    const customFieldData = ref([])
+
+
     const route = useRoute()
     const departureReportFlag = ref(false)
     const api = useApi()
@@ -58,7 +57,6 @@ import DepartureReportSend from '../Work/DepartureReportSend.vue';
         if(!auth.isRegistered && !auth.isOnLeave){
             getNotSubmitted()
             checkDay() 
-            fetchDatas()
         }       
         if(auth.isRegistered && !auth.isOnLeave){
             getDepartureReport(false)
@@ -106,12 +104,6 @@ import DepartureReportSend from '../Work/DepartureReportSend.vue';
     const checkQuery = computed(() => {
         return route.query && route.query.user_id
     })
-    const fetchDatas = async() => {
-    
-        workGroups.value = await getWorkGroup()
-        customFieldData.value = await getCustomFields()
-
-    } 
     const getNotSubmitted = async() => {
   
         const data = await api.get('/remind_attendance')
@@ -123,6 +115,6 @@ import DepartureReportSend from '../Work/DepartureReportSend.vue';
         nextMonthShift: () => checkNextMonthShift(),
         notSubmitted: () => getNotSubmitted()
     })
-    provide('customInfo', customFieldData)
-    provide('workGroups', workGroups)
+
+
 </script>

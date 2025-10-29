@@ -20,9 +20,7 @@
                 </div>
             </div>
             <div v-if="pickerIs == 'month'" class="grid-container ">
-                <div @click.stop="setMonth(month as MonthNumbers)" :id="`m_${month}`" v-for="month in 12" class="grid-item">{{ month }}月
-                    <span class="side-notification" style="position: unset;" v-if="badgeByMonth(month) && withBadge">{{ badgeByMonth(month) }}</span>
-                </div>
+                <div @click.stop="setMonth(month as MonthNumbers)" :id="`m_${month}`" v-for="month in 12" class="grid-item">{{ month }}月</div>
             </div>
             <div v-if="pickerIs == 'year'" class="grid-container year-picker">
                 <div @click.stop="setYear(y)" :id="`y_${y}`" :class="{thisYear : y == year}" v-for="y in yearList" class="grid-item">{{ y }}年</div>
@@ -40,9 +38,6 @@ import { useBadgeStore } from '@/store/badge';
     const props = defineProps<{
         right?: string;
         left?: string;
-        withBadge?: boolean;
-        projectId?: number;
-        financeTotalBadge?: number;
     }>()
     
     const emit = defineEmits<{
@@ -57,12 +52,6 @@ import { useBadgeStore } from '@/store/badge';
     const menu = useMenuStore()
 
     const menuRef = useTemplateRef('menuRef')
-    const badgeByMonth = (month: number) => {
-        if(!props.withBadge || !props.projectId) return
-        const normalizedPeriod = DateTime.fromObject({ year: year.value, month: month }).toFormat('yyyy-MM-dd')
-        return badge.financeCommentBadgeByFilter([{ by: 'period', value: normalizedPeriod}, { by: 'project_id', value: props.projectId }]).length
-
-    }
     const yearList = computed(() => {
         const year = DateTime.now().year
         return Array.from({ length: 12 }, (_, i) => year - 5 + i);

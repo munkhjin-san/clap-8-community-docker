@@ -13,7 +13,6 @@
                 </div>
                 <div v-if="from !== 'board'" class="max-w-[calc(100%-280px)] overflow-hidden overflow-ellipsis whitespace-nowrap leading-normal flex items-center gap-2">
                     {{ project?.name }}
-                    <WeatherIcon v-if="project?.project_conditions.length" :which="project.project_conditions[0].value" size="16" />
                 </div>
                 <div class="flex items-center gap-[15px] ml-auto">
 
@@ -153,7 +152,6 @@ import TaskCreate from '../TaskCreate.vue';
 import TaskCategorizer from './TaskCategorizer.vue';
 import SubTaskControl from '../SubTaskControl.vue';
 import { useBadgeStore } from '@/store/badge';
-import WeatherIcon from '@/components/Global/WeatherIcon.vue';
 import GanttTaskBody from './GanttTaskBody.vue'
 import { useAuthUserStore } from '@/store/auth'
 import TaskSpanSelector from './TaskSpanSelector.vue'

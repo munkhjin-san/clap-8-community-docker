@@ -27,6 +27,6 @@ class ProjectGoal extends Model
         return $this->hasMany(ProjectGoalStep::class);
     }
     public function reports() {
-        return $this->hasMany(ProjectGoalReport::class);
+        return $this->hasMany(ProjectGoalReport::class)->with(['files']);
     }
 }

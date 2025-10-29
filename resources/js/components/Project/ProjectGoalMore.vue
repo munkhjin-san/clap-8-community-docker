@@ -5,10 +5,10 @@
                 <div class="admin-command-bar">            
                     <div class="sub-tab-container">
                         <div @click="sub_tab = 0" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 0 }]">成果目標
-                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length }}</span>
+                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length }}</span>
                         </div>
-                        <div @click="sub_tab = 1" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 1 }]">昇給課題
-                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length }}</span>
+                        <div @click="sub_tab = 1, badge.clearGoalIssue({column: 'salary_issue_id', value: goal?.salary_issue?.id})" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 1 }]">昇給課題
+                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length }}</span>
                         </div>
                     </div>       
                 </div>
@@ -31,6 +31,10 @@
                     <div class="mobile w-fit">
                         <div class="text-[13px] font-semibold">ステータス</div>
                         <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px] mt-[10px]">{{ statuses[goal?.status] }}</div>
+                    </div>
+                    <div>
+                        <div class="text-[13px] font-semibold">タイトル</div>
+                        <div class="kadai-content">{{ goal?.title }}</div>
                     </div>
                     <div>
                         <div class="text-[13px] font-semibold">期間</div>
@@ -59,10 +63,6 @@
                     <div v-if="goal?.expected_effect">
                         <div class="text-[13px] font-semibold">期待される効果</div>
                         <div class="kadai-content">{{ goal?.expected_effect }}</div>
-                    </div>
-                    <div v-if="goal?.comment">
-                        <div class="text-[13px] font-semibold">コメント</div>
-                        <div class="kadai-content">{{ goal?.comment }}</div>
                     </div>
                     <div v-if="goal?.ai_review">
                         <div class="text-[13px] font-semibold">AI判定とフィードバック</div>
@@ -108,19 +108,6 @@
                         <div class="text-[13px] font-semibold">評価点</div>
                         <div class="kadai-content">{{ overallScore }}点</div>
                     </div>
-
-                    <div v-if="goal.reports && goal.reports.length">
-                        <div>
-                            <p class="text-[13px] font-semibold mb-[10px]">進捗報告</p>
-                            <div v-for="report in goal.reports" class="mb-[10px]">
-                                <div class="flex gap-[10px]">
-                                    <div><span class="text-[gray] text-[12px]">{{ `【${DateTime.fromISO(report.created_at).toFormat('yyyy/M/d')}】 :` }}</span></div>
-                                    <div v-html="report.content" class="whitespace-break-spaces leading-normal"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div v-if="goal?.report">
                         <div class="mb-[10px] text-[13px] font-semibold">結果報告</div>
                         <div class="kadai-content">{{ goal?.report }}</div>
@@ -130,8 +117,10 @@
                         <div class="text-[13px] font-semibold">結果報告</div>
                         <div class="kadai-content">{{ goal?.result }}</div>
                     </div>
+                    <MessageArea which="goal" :item="goal" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
+                        
                     <div style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton v-if="reviewReport" @click="projectGoalReportCreate = goal" style="margin: 0;" :content="'進捗報告'"/>
+                        <!-- <LoaderButton v-if="reviewReport" @click="projectGoalReportCreate = goal" style="margin: 0;" :content="'進捗報告'"/> -->
                         <LoaderButton v-if="reviewReport" @click="progressReport(false)" style="margin: 0;" :content="'結果申請'"/>
                         <LoaderButton v-if="managerOrDirector && goal?.status === 7" @click="progressReport(true)" style="margin: 0;" :content="'結果承認'"/>
                     </div>
@@ -185,22 +174,6 @@
                     <div>
                         <div class="text-[13px] font-semibold mb-[10px]">修得要件</div>
                         <div v-if="salaryIssueRecord.actions" class="flex flex-col gap-[15px]">
-                            <!-- <div v-for="action in salaryIssueRecord.actions" :key="action.id" class="kadai-content flex gap-[10px] items-center">
-                                <select 
-                                    :disabled="!salaryIssueReport" 
-                                    :value="action.status" 
-                                    @change="salaryIssueActionComplete(action)" 
-                                    class="py-[5px] px-[10px]"
-                                    :style="{ background: action.status == 1 ? '#64bc44' : 'var(--bg3)', color: action.status == 1 ? 'white' : 'var(--primary-color)' }"
-                                >
-                                    <option :value="1">修得済み</option>
-                                    <option :value="0">未修得</option>
-                                </select>
-
-                                <div>
-                                    <div class="leading-[1.2]">{{ action.content }}</div>
-                                </div>
-                            </div> -->
                             <table>
                                 <thead>
                                     <tr>
@@ -249,6 +222,7 @@
                         <div class="kadai-content">{{ salaryIssueRecord.result }}</div>
                         <Files style="margin-top: 15px;" v-if="salaryIssueRecord?.files?.length" :items="salaryIssueRecord?.files" :path="'project_files'"/>
                     </div>
+                    <MessageArea which="salary_issue" :item="salaryIssueRecord" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
                     <div v-if="salaryIssueRecord.status < 2 && (auth.id === memberData?.id || evaluationData?.mentor_id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'変更'"/>
                         <LoaderButton style="margin: 0;" @click="deleteIssue(goal.salary_issue)" :content="'削除'"/>
@@ -363,7 +337,7 @@
 </template>
 <script setup lang="ts">
 import { useAuthUserStore } from '@/store/auth';
-import { computed, inject, reactive, ref } from 'vue';
+import { computed, inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import ProjectGoalResult from './ProjectGoalResult.vue';
 import ProjectSalaryIssueCreation from './ProjectSalaryIssueCreation.vue';
@@ -379,6 +353,7 @@ import { DateTime } from 'luxon';
 import { useProject } from '@/composables/project';
 import ProgressSlider from './ProgressSlider.vue';
 import { useApi } from '@/composables/api';
+import MessageArea from './MessageArea.vue';
 const props = defineProps([
     'goal', 
     'themeRecords',
@@ -404,7 +379,12 @@ const api = useApi()
 
 const projectGoalReportCreate = ref<ProjectGoal | null>(null)
 const badge = useBadgeStore()
-const router = useRouter()
+const router = useRouter()    
+onMounted(() => {
+    setTimeout(() => {
+        badge.clearGoalIssue({column: 'project_goal_id', value: props.goal?.id})
+    }, 3000);
+})
 const canCreateIssue = computed(() => {
     const start = props.goal?.start_date ? DateTime.fromSQL(props.goal.start_date) : null;
     const end = props.goal?.end_date ? DateTime.fromSQL(props.goal.end_date) : null

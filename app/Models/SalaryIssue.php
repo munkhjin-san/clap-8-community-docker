@@ -38,4 +38,7 @@ class SalaryIssue extends Model
         )->whereColumn('project_goals.year', 'evaluation_records.year')
          ->whereColumn('project_goals.which_half', 'evaluation_records.which_half');
     }
+    public function reports() {
+        return $this->hasMany(SalaryIssueReport::class)->with(['user', 'files']);
+    }
 }

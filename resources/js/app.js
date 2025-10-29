@@ -8,6 +8,7 @@ import VueLazyload from 'vue3-lazyload';
 import '@cyhnkckali/vue3-color-picker/dist/style.css'
 const app = createApp({});
 import '../sass/main.css'
+import 'vue3-emoji-picker/css'
 import { Settings } from 'luxon';
 Settings.defaultLocale = 'ja';
 

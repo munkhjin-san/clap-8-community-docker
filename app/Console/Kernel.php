@@ -36,7 +36,7 @@ class Kernel extends ConsoleKernel
         // $schedule->job(new SendReport(610, 1056, 'monthly_performance'))->cron('15 9 15 * *'); 
         $schedule->job(new SendReport(610, 1056, 'monthly_shift'))->cron('15 9 20 * *');
         $schedule->job(new SendReport(610, 1056, 'monthly_mailing'))->cron('15 9 20 * *');
-        $schedule->job(new ProcessMessage())->hourly();
+        // $schedule->job(new ProcessMessage())->hourly();
 
         // $schedule->job(new GenerateWelcomeMessage())->cron('0 * * * *');
         $schedule->job(new RemoveTempSchedule())->cron('15 9 * * *');
@@ -44,7 +44,6 @@ class Kernel extends ConsoleKernel
         $schedule->command('posts:close-expired')->dailyAt('02:00');
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
-        // $schedule->command('queue:work database --queue=contact-batches --stop-when-empty --timeout=120 --tries=3')->everyMinute()->withoutOverlapping();
     }
 
     /**

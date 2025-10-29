@@ -40,7 +40,5 @@ class messageFile extends Model
         'size' => 'int',      
         
     ];
-    protected $fillable = [
-        'removed_at', 'board_id', 'user_id', 'name', 'mime_type', 'extension', 'size', 'message_id'
-    ];
+    protected $guarded = [];
 }

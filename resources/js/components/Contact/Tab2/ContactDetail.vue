@@ -1,8 +1,26 @@
 <template>
-<Modal @close="router.back()">
+<Modal @close="router.push({name: 'tab2'})">
+    <template #title>
+        <div class="sub-tab-container">
+            <div @click="activeTab = 'detail'" :class="['sub-tab-item', { 'selected-sub-tab': activeTab == 'detail'}]">基本情報</div>
+            <div v-if="actionTypes.follower || actionTypes.owner" @click="activeTab = 'comment'" :class="['sub-tab-item flex', { 'selected-sub-tab': activeTab == 'comment'}]">
+                コメント
+                <span v-if="badge.contactBadge.some(c => c.contact_id === contact.id)" class="side-notification" style="position: static; width: 12px; height: 12px; min-width: 12px;">
+                    {{ badge.contactBadge.find(c => c.contact_id === contact.id).comments }}
+                </span>
+            </div>              
+        </div>
+    </template>
     <template #menu>
-        <div class="ml-auto">
-            <ItemMenu :items="[
+        
+        <div class="ml-auto flex gap-2">
+            <CommandButton
+                v-if="actionTypes.viewer" 
+                :buttons="[
+                    { title: 'フォロー', action: () => follow()}
+                ]"
+            />
+            <ItemMenu v-if="actionTypes.owner" :items="[
                 { title: '編集', action: () => emit('edit', contact) },
                 { title: '削除', action: () => emit('delete', Number(contact.id))}
             ]"/>
@@ -10,7 +28,8 @@
         </div>
     </template>
     <template #content>
-        <div v-if="contact" class="">
+        <div v-if="contact && activeTab == 'detail'" class="">
+             
             <table class="contact-detail-table">
                 <tr>
                     <td>コンタクト種類</td>
@@ -45,11 +64,15 @@
                     <td>{{ contact.description }}</td>
                 </tr>
                 <tr>
-                    <td>作成者</td>
-                    <td>{{ contact.creator?.name }}</td>
+                    <td>共同制作者</td>
+                    <td>
+                        <div v-for="co in contact.collaborators" :key="co.id">
+                            {{ co?.name }}
+                        </div>
+                    </td>
                 </tr>
                 <tr>
-                    <td>更新者</td>
+                    <td>最終更新者</td>
                     <td>{{ contact.updater?.name }}</td>
                 </tr>
                 <tr>                    
@@ -61,7 +84,7 @@
                 <tr>
                     <td colspan="2" style="white-space: normal;">
                         <h3 class="mb-[15px]">名刺データ</h3>
-                        <img v-if="contact.card_path" :src="`/cdn/card_files/${contact.card_path}.webp`"/>
+                        <img v-if="contact.card_path" :src="`/cdn/${contact.card_path}`"/>
                         <p v-else>名刺データはありません。</p>
                     </td>
                 </tr>
@@ -69,29 +92,59 @@
             </table>
 
         </div>
+        <div v-else-if="activeTab == 'comment'">
+            <ContactComment :item="contact" @refresh="emit('closeCreate', true)"/>
+        </div>
     </template>
 </Modal>
 </template>
 <script setup lang="ts">
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import Modal from '@/components/Global/Modal.vue';
 import { ContactRecord } from '@/interface/contactInterface';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
+import { computed, ref } from 'vue';
+import ContactComment from './Comment/ContactComment.vue';
+import CommandButton from '@/components/Global/CommandButton.vue';
+import { useAuthUserStore } from '@/store/auth';
+import { useApi } from '@/composables/api';
+import { useBadgeStore } from '@/store/badge';
 
 const router = useRouter()
 const props = defineProps<{
     contact: ContactRecord
 }>()
-
 const emit = defineEmits<{
     edit: [data: ContactRecord]
     delete: [id: number]
+    closeCreate: [flag: boolean]
 }>()
-const edit = () => {
+const badge = useBadgeStore()
+const auth = useAuthUserStore()
+const actionTypes = computed(() => {
+  const me = auth.activeUser?.id
+  const collabs = props.contact?.collaborators ?? []
 
-}
-const deleteContact = () => {
+  const mine = collabs.find(c => c.id === me)
+  const role = mine?.pivot?.role ?? null // 'owner' | 'follower' | null
 
+  const owner = role === 'owner'
+  const follower = role === 'follower'
+ 
+  const viewer = !owner && !follower
+
+  return { owner, follower, viewer }
+})
+
+const api = useApi()
+const activeTab = ref(useRoute().query.mention ? 'comment' : 'detail')
+const follow = async() => {
+    const message = 'フォローすると、この連絡先に関する更新通知を受け取れます。\nコメントの投稿や個人メモの保存もできます。\nこのコンタクトをフォローしますか？'
+    await api.post('/follow_contact', {record_id: props.contact?.id}, {
+        ask: message,
+        toast: 'コンタクトをフォローしました。',
+    })
+    emit('closeCreate', true)
 }
 </script>
 <style scoped>
