@@ -207,7 +207,7 @@ const openFileDialog = () => fileInput.value?.click();
 
 const inputId = `file-upload-${Math.random().toString(36).slice(2)}`
 
-const selectedFiles = ref<File[] | undefined>([]); // if you have it
+const selectedFiles = ref<File[]>([]); // if you have it
 
 const formatBytes = (n?: number) => {
   if (!n && n !== 0) return '';
@@ -218,7 +218,7 @@ const formatBytes = (n?: number) => {
 
 const items = computed(() =>
   previews.value.map((src, i) => {
-    const f = Array.isArray(selectedFiles.value) ? selectedFiles.value[i] : undefined;
+    const f = selectedFiles.value[i];
     const name = fileNames[i] ?? (f?.name ?? `file-${i + 1}`);
     const type = f?.type || '';
     return {
@@ -238,7 +238,7 @@ const removeAt = (i: number) => {
 
   if (url?.startsWith('blob:')) URL.revokeObjectURL(url);
 
-  if (Array.isArray(selectedFiles.value)) selectedFiles.value.splice(i, 1);
+  selectedFiles.value.splice(i, 1);
 }
 
 const clearAll = () => {
@@ -246,24 +246,21 @@ const clearAll = () => {
   previews.value.forEach(u => u?.startsWith('blob:') && URL.revokeObjectURL(u));
   previews.value.splice(0);
   fileNames.value.splice(0);
-  if (Array.isArray(selectedFiles.value)) selectedFiles.value.splice(0);
+  selectedFiles.value.splice(0);
 }
 const handleFileChange = (fileList: FileList | null) => {
   if (!fileList || fileList.length === 0) return
-  
-  previews.value.forEach(url => URL.revokeObjectURL(url))
 
   const files = Array.from(fileList)
-  selectedFiles.value = files
   const newPreviews = files.map(f => URL.createObjectURL(f))
   const newNames = files.map(f => f.name)
 
-  previews.value = newPreviews
-  fileNames.value = newNames
-  
+  selectedFiles.value.push(...files)
+  previews.value.push(...newPreviews)
+  fileNames.value.push(...newNames)
 }
 const execute = () => {
-  if (selectedFiles.value?.length === 0) return
+  if (selectedFiles.value.length === 0) return
   trigger.value++
   if (typeError.value || typeInputError.value) return
   const payload = {
@@ -295,6 +292,9 @@ const onDrop = (e: DragEvent) => {
 const onInputChange = (e: Event) => {
   const target = e.target as HTMLInputElement
   handleFileChange(target.files)
+  if (target) {
+    target.value = ''
+  }
 }
 
 const borderStyle = computed(() => {
@@ -314,4 +314,3 @@ onBeforeUnmount(() => {
   previews.value.forEach(url => URL.revokeObjectURL(url))
 })
 </script>
-
