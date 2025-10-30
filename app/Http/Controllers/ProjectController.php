@@ -30,6 +30,7 @@ use App\Models\ProjectMemberReportNotification;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
+use App\Jobs\SendGoalIssueMentionMail;
 use App\Jobs\SendProjectEmail;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -108,13 +109,21 @@ class ProjectController extends Controller
 
             $query->overlapping($start, $end);
         }
-        $projects = $query->with([
-                        'director:id,name,icon_path,icon_bg',
-                        'manager' => $usersLoader(true),
-                        'members' => $usersLoader(true),
-                        'director'
-                    ])
-                    ->get();
+        $user = $this->active_user();
+        $position_id = $user->position_id;
+        $projects = $query
+        ->when($position_id == 15, function ($q) use($user) {
+            $q->whereHas('members', function ($q) use($user) {
+                $q->where('users.id', $user->id);
+            });
+        })
+        ->with([
+            'director:id,name,icon_path,icon_bg',
+            'manager' => $usersLoader(true),
+            'members' => $usersLoader(true),
+            'director'
+        ])
+        ->get();
         $sortedProjects = $projects->sortByDesc(function ($project) {
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
             $isManager = in_array(Auth::id(), $project->manager->pluck('id')->toArray());
@@ -2826,12 +2835,13 @@ class ProjectController extends Controller
             'notes'       => ['nullable', 'string'],
             'report_date' => ['required', 'date_format:Y-m-d'],
             'state'       => ['required', Rule::in(['draft', 'submitted'])],
+            'member_id'   => ['nullable', 'integer']
         ]);
 
         $reportDate = Carbon::parse($data['report_date'])->startOfMonth();
         $attributes = [
             'project_record_id' => $project->id,
-            'user_id'           => $user->id,
+            'user_id'           => $data['member_id'] ?? $user->id,
             'status'            => $data['status'],
             'client_name'       => $data['client_name'],
             'case_count'        => $data['case_count'],
@@ -3562,9 +3572,27 @@ class ProjectController extends Controller
             }
         }
         $notification_targets = array_unique($notification_targets);
-        
+        $goal_record = $which === 'goal' ? $record : $record->project_goal;
         
         ProjectMemberReportNotification::insert($payload);
+
+        $syntax = '/\[To:(.*?)\:\]/';
+        preg_match_all($syntax, $report->content, $matches);
+        $mentioned_targets = $matches[1];
+        $users = User::whereNot('id', Auth::id())
+        ->whereNotNull('email')
+        ->where('retire', 0)
+        ->where('on_leave', 0)
+        ->whereIn('name', $mentioned_targets)
+        ->pluck('email')->toArray();
+
+        $emails = collect($users)->filter(function($email){
+            return filter_var($email, FILTER_VALIDATE_EMAIL);
+        })->toArray();
+
+
+        SendGoalIssueMentionMail::dispatch($emails, $goal_record, $report->content);
+
         return response()->json(['id' => $report->id], 201);
     }
     public function goal_issue_comment_badge(Request $request) {

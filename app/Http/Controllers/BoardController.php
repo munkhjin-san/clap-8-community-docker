@@ -121,7 +121,7 @@ class BoardController extends Controller
         if(in_array($name, $no_partner_zone) && Auth::user()->partner_flag == 1){
             return redirect('board');
         }
-        $no_registered_zone = ['post', 'learning', 'project'];
+        $no_registered_zone = ['post', 'learning'];
         if(in_array($name, $no_registered_zone) && Auth::user()->position_id == 15){
             return redirect('board');
         } 
