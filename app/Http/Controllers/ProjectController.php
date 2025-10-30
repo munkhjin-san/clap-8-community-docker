@@ -3591,7 +3591,7 @@ class ProjectController extends Controller
         })->toArray();
 
 
-        SendGoalIssueMentionMail::dispatch($emails, $goal_record, $report->content);
+        SendGoalIssueMentionMail::dispatchAfterResponse($emails, $goal_record, $report->content);
 
         return response()->json(['id' => $report->id], 201);
     }
