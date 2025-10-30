@@ -1,5 +1,5 @@
 <template>
-    <Modal @close="emit('closeModal')">
+    <Modal @close="emit('closeModal')" :loader="loading == 0">
         <template #title>
             <p>勤怠確定</p>
         </template>
@@ -10,11 +10,7 @@
             </div>
         </template>
         <template #content>
-            <Transition name="modalFade">
-                <div class="work-loader" v-if="loading == 0">
-                    <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
-                </div> 
-            </Transition>
+            
             <div v-if="attendanceData"> 
                 <div style="font-size:14px;line-height:2.0;">
                     <p>※ 確定した内容で今月の給与計算を行います。必ず内容を本人確認の上「今月の勤怠を確定」を行なってください。</p>

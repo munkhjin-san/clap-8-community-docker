@@ -28,8 +28,9 @@
 import { computed, inject } from 'vue';    
 import { TaskUser, User } from '@/interface/globalInterface'
 import { useTheme } from '@/store/theme';
+import { Collaborator } from '@/interface/contactInterface';
     const props = defineProps<{
-        user: User | TaskUser
+        user: User | TaskUser | Collaborator
         imgClass?: string
         imgStyle?: string
         size?: string | number

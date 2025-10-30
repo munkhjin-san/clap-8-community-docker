@@ -46,10 +46,21 @@ return [
             'redirect'      => env('GOOGLE_URL'),
             'credentials_json' => env('GOOGLE_SHEETS_CREDENTIALS'),
             'spreadsheet_id' => env('GOOGLE_SHEETS_SPREADSHEET_ID'),
+            'gemini_api_key' => env('GEMINI_API_KEY'),
+            'gemini_url' => env('GEMINI_URL'),
     ],
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'organization' => env('OPENAI_ORGANIZATION'),
+        'prompts' => [
+            'message_correction' => env('OPENAI_PROMPT_MESSAGE_CORRECTION_ID', ''),
+            'project_description_generation' => env('OPENAI_PROMPT_PROJECT_DESCRIPTION_GENERATION_ID', ''),
+            'project_miso_generation' => env('OPENAI_PROMPT_PROJECT_MISO_GENERATION_ID', ''),
+            'project_task_generation' => env('OPENAI_PROMPT_PROJECT_TASK_GENERATION_ID', ''),
+            'project_goal_generation' => env('OPENAI_PROMPT_PROJECT_GOAL_GENERATION_ID', ''),
+            'project_salary_issue_generation' => env('OPENAI_PROMPT_PROJECT_SALARY_ISSUE_GENERATION_ID', ''),
+            'project_salary_issue_guideline_generation' => env('OPENAI_PROMPT_PROJECT_SALARY_ISSUE_GUIDELINE_GENERATION_ID', ''),
+        ]
     ],
 
 ];

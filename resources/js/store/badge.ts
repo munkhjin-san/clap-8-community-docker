@@ -12,7 +12,9 @@ interface State {
     salary_issue: any[]
     asset: []
     task_comment: {project_id: number, task_id: number, comments: number}[],
-    finance_comment: []
+    finance_comment: [],
+    goal_issue_comment: [],
+    contact_comment: [],
 }
 
 export const useBadgeStore = defineStore('badge', {
@@ -27,11 +29,18 @@ export const useBadgeStore = defineStore('badge', {
         salary_issue: [],
         asset: [],
         task_comment: [],
-        finance_comment: []
+        finance_comment: [],
+        goal_issue_comment: [],
+        contact_comment: []
+
     }),
     actions: {
         setTaskBadge(payload: number[]){
             this.task = payload
+        },
+        async getGoalIssueCommentBadge(){
+            const data = await axios.get('/goal_issue_comment_badge').then(response => response.data)
+            this.goal_issue_comment = data
         },
         async getPostBadge(){
             const auth = useAuthUserStore()  
@@ -90,6 +99,14 @@ export const useBadgeStore = defineStore('badge', {
         async getFinanceCommentBadge(){
             const data = await axios.get('/projects/finance/unread-badges').then(response => response.data)
             this.finance_comment = data
+        },
+        async clearGoalIssue({column, value}: {column: string, value: any}){
+            const response = await axios.post('/clear_goal_issue_badge', {column: column, value: value})
+            this.goal_issue_comment = response.data
+        },
+        async getContactCommentBadge(){
+            const data = await axios.get('/get_contact_comment_badge').then(response => response.data)
+            this.contact_comment = data
         }
     },
     getters: {
@@ -196,8 +213,18 @@ export const useBadgeStore = defineStore('badge', {
                     return filterData.every((filter) => asset[filter.by] === filter.value)
                 })
             }
+        },
+        goalIssueCommentBadgeByFilter(state){
+            return (filterData: {by: string, value: any}[]) => {
+                const userComments = state.goal_issue_comment
+                return userComments.filter((comment) => {
+                    return filterData.every((filter) => comment[filter.by] == filter.value)
+                })
+            }
+        },
+        contactBadge(){
+            return this.contact_comment
         }
-
         
     }
 })

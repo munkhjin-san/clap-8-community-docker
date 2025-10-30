@@ -1,18 +1,10 @@
 <template>
-    <Modal @close="emit('close')">
+    <Modal @close="emit('close')" :loader="initialLoader">
         <template #title>
             <p>要約 : {{ calendarRecord.title }}</p>
         </template>
         
         <template #content>
-            <Transition name="modalFade">
-                <div class="cal-month-loader" style="height: calc(100% - 80px); top: 80px;" v-if="initialLoader">
-                    <div id="loaderMini">
-                        <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
-                    </div>
-                </div>
-            </Transition>
-            
             <div class="leading-normal whitespace-break-spaces">
                 
                 <div v-for="(summary, index) in summariesData" class="mb-[30px] flex flex-col gap-[20px]">

@@ -1,5 +1,5 @@
 <template>
-    <Modal @close="emit('close')">
+    <Modal @close="emit('close')" :loader="initialLoader">
         <template #title>
             <div>
                 <p>人事考課 : {{ memberData?.name }}</p>
@@ -8,13 +8,6 @@
             
         </template>
         <template #content>
-            <Transition name="modalFade">
-                <div v-if="initialLoader" class="flex items-center justify-center fixed top-0 left-0 w-full h-full bg-[var(--overlay)] z-50">
-                    <div id="loaderMini">
-                        <div class="spinner-mini" style="border-color: transparent #fff #fff;"></div>
-                    </div>
-                </div>
-            </Transition>
             <div :class="step == 1 ? 'h-0 overflow-hidden' : ''">
                 <div>メンター : <strong>{{ evaluationData?.mentor?.name }}</strong></div>
 

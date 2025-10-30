@@ -19,7 +19,11 @@
             <span style="line-height: 15px;" v-if="record.calendar_users.length > 3">...({{ record.calendar_users.length }})</span>
             <div style="margin: 1px 0 0 5px;overflow: hidden;" v-if="!expanded && fullDay">{{ viewable ? record.title : '予定' }}</div>
         </div>
-        <div v-if="!fullDay || expanded" @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false" :class="['cal-card-item', {'wrap cal-selectable' : expanded }]"><span class="bg-[tomato] text-[white] px-[5px] pb-[1px] rounded-md mr-[3px] text-[10px]" v-if="record.temp_flag == 1">仮</span>{{ viewable ? record.title : '予定' }}</div>
+        <div v-if="!fullDay || expanded" @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false" :class="['cal-card-item', {'wrap cal-selectable' : expanded }]">
+            <span class="bg-[tomato] text-[white] px-[5px] pb-[1px] rounded-md mr-[3px] text-[10px]" v-if="record.temp_flag == 1">仮</span>
+            <span :style="{background: projectColor}" class="w-[13px] min-w-[13px] h-[13px] inline-block mb-[-2px]" v-if="projectColor"></span>
+            {{ viewable ? record.title : '予定' }}
+        </div>
         <div v-if="!expanded && !fullDay" class="cal-card-item" style="white-space: nowrap;">{{ time }}</div>
         <div @click="expanded ? $event.stopPropagation() : false" @mousedown.stop v-if="expanded" :class="['cal-card-item', {'wrap cal-selectable' : expanded }]" style="line-height:1.5;margin: 10px 0;display: flex;gap: 10px;align-items: center;">                
             <div v-html="timeDetailed"></div>
@@ -256,6 +260,19 @@ import CommandButton from '@/components/Global/CommandButton.vue';
         }else if(props.record.repetition_type == 3){
             return  
         }
+    })
+    const projectColor = computed(() => {
+        const projectColorSettings = auth.user?.project_settings
+        const department_id = props.record?.department_id
+        if(!projectColorSettings || projectColorSettings.length == 0 || !department_id){
+            return null
+        }
+        const projectSetting = projectColorSettings.find(ps => ps.project_id == department_id)
+        if(!projectSetting || !projectSetting.color){
+            return null
+        }
+        return projectSetting.color   
+
     })
     const openOrClose = (event) => {
         if(menu.parent === props.uniqueId){

@@ -2,8 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendContactEmail;
+use App\Jobs\ProcessContactBatch;
+use App\Models\ContactBatch;
+use App\Models\ContactBatchItem;
 use App\Models\ContactRecord;
 use App\Models\ContactType;
+use App\Models\User;
+use App\Models\ContactCommentLastRead;
+use App\Mail\ContactMention;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\File;
@@ -11,14 +18,21 @@ use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use App\Services\ContactScanService; 
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
+
 class ContactController extends Controller
 {
 
     protected $gemini_url;
+    protected $contactScanService;
 
-    public function __construct()
+    public function __construct(ContactScanService $contactScanService)
     {
         $this->gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+        $this->contactScanService = $contactScanService;
     }
     public function get_contact_types(){
         $types = ContactType::all();
@@ -123,6 +137,7 @@ class ContactController extends Controller
             throw ValidationException::withMessages(['message' => 'APIキーが設定されていません。']);
         }
         $instruction = $this->instruction($cardData);
+        
         $payload = [
             'contents' => [
                 [
@@ -147,7 +162,7 @@ class ContactController extends Controller
                 'responseMimeType' => 'text/plain'
             ],
         ];
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey";
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$apiKey";
         $response = Http::withHeaders([
             'Content-Type' => 'application/json',
         ])->post($url, $payload);
@@ -159,7 +174,384 @@ class ContactController extends Controller
         $cleanJson = preg_replace('/^```html\n|\n```$/', '', $text);
         return $cleanJson;
     }
+    public function scan_batch_cards(Request $request)
+    {
+        $validated = $request->validate([
+            'images' => 'required|array|min:1|max:30',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'type_id' => 'required|integer',
+            'p_type' => 'nullable|string|max:100',
+        ]);
 
+        $authUser = Auth::user();
+
+        $typeId = (int) $validated['type_id'];
+        $pseudoType = $validated['p_type'] ?? null;
+
+        if ($typeId === -1) {
+            if (!$pseudoType) {
+                throw ValidationException::withMessages(['type_id' => '新規コンタクト種類の名称を入力してください。']);
+            }
+            $type = ContactType::firstOrCreate(['title' => $pseudoType]);
+            $typeId = $type->id;
+        }
+
+        $batch = ContactBatch::create([
+            'user_id' => $authUser?->id,
+            'status' => ContactBatch::STATUS_QUEUED,
+            'contact_type_id' => $typeId,
+            'pseudo_type' => $pseudoType,
+        ]);
+
+        $storageDisk = Storage::disk('local');
+        $directory = "contact_batches/{$batch->id}";
+        $storageDisk->makeDirectory($directory);
+        foreach ($request->file('images', []) as $index => $file) {
+            $extension = $file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'jpg';
+            $filename = Str::uuid()->toString() . '.' . $extension;
+            $relativePath = $file->storeAs($directory, $filename, 'local');
+
+            ContactBatchItem::create([
+                'contact_batch_id' => $batch->id,
+                'index' => $index,
+                'original_filename' => $file->getClientOriginalName(),
+                'stored_path' => $relativePath,
+                'status' => ContactBatchItem::STATUS_QUEUED,
+            ]);
+        }
+
+        if ($batch->items()->count() === 0) {
+            $batch->delete();
+            throw ValidationException::withMessages(['message' => '画像ファイルがありません。']);
+        }
+
+        ProcessContactBatch::dispatchSync($batch);
+
+        return response()->json($this->transformBatch($batch->fresh('items.contactRecord.collaborators')));
+    }
+    public function check_batch_status(Request $request) 
+    {
+        $validated = $request->validate([
+            'batch_id' => 'required|integer|exists:contact_batches,id',
+        ]);
+
+        $batch = ContactBatch::with(['items.contactRecord.collaborators'])->findOrFail($validated['batch_id']);
+        $this->assertBatchOwner($batch);
+
+        return response()->json($this->transformBatch($batch));
+    }
+    protected function transformBatch(ContactBatch $batch): array
+    {
+        $batch->loadMissing('items.contactRecord.collaborators');
+
+        $items = $batch->items->sortBy('index')->values();
+        $statusCounts = [
+            'total' => $items->count(),
+            ContactBatchItem::STATUS_SCANNING => $items->where('status', ContactBatchItem::STATUS_SCANNING)->count(),
+            ContactBatchItem::STATUS_COMPLETED => $items->where('status', ContactBatchItem::STATUS_COMPLETED)->count(),
+            ContactBatchItem::STATUS_FAILED => $items->where('status', ContactBatchItem::STATUS_FAILED)->count(),
+        ];
+        return [
+            'id' => $batch->id,
+            'status' => $this->mapBatchStatus($batch->status),
+            'counts' => $statusCounts,
+            'items' => $items->map(function (ContactBatchItem $item) {
+                $contact = $item->contactRecord;
+
+                return [
+                    'id' => $item->id,
+                    'original_filename' => $item->original_filename,
+                    'index' => $item->index,
+                    'status' => $this->mapItemStatus($item->status),
+                    'needs_review' => (bool) $item->needs_review,
+                    'card_hash' => $item->card_hash,
+                    'duplicate_candidates' => $item->duplicate_candidates,
+                    'contact_record_id' => $item->contact_record_id,
+                    'contact' => $contact ? [
+                        'id' => $contact->id,
+                        'name' => $contact->name,
+                        'company_name' => $contact->company_name,
+                        'is_duplicate' => (bool) $contact->is_duplicate,
+                        'duplicate_of' => $contact->duplicate_of,
+                        'card_path' => $contact->card_path,
+                        'collaborators' => $contact->collaborators
+                            ->map(fn ($user) => ['id' => $user->id, 'name' => $user->name, 'role' => $user->pivot->role])
+                            ->all(),
+                    ] : null,
+                ];
+            })->all(),
+        ];
+    }
+
+    private function mapBatchStatus(string $status): string
+    {
+        return match ($status) {
+            ContactBatch::STATUS_COMPLETED => 'completed',
+            ContactBatch::STATUS_FAILED => 'failed',
+            default => 'scanning',
+        };
+    }
+
+    private function mapItemStatus(string $status): string
+    {
+        return match ($status) {
+            ContactBatchItem::STATUS_COMPLETED => 'completed',
+            ContactBatchItem::STATUS_FAILED => 'failed',
+            default => 'scanning',
+        };
+    }
+
+    protected function assertBatchOwner(ContactBatch $batch): void
+    {
+        $userId = Auth::id();
+        if ($batch->user_id && $batch->user_id !== $userId) {
+            abort(403, '指定されたバッチにはアクセスできません。');
+        }
+    }
+    public function get_batch_results(Request $request)
+    {
+        $validated = $request->validate([
+            'batch_id' => 'required|integer|exists:contact_batches,id',
+        ]);
+
+        $batch = ContactBatch::with([
+            'items.contactRecord.collaborators',
+        ])->findOrFail($validated['batch_id']);
+        $this->assertBatchOwner($batch);
+        $apiKey = config('services.google.gemini_api_key');
+        if (empty($apiKey)) {
+            throw ValidationException::withMessages(['message' => 'APIキーが設定されていません。']);
+        }
+        if ($batch->scan_operation) {
+            $operationName = $batch->scan_operation;
+            $url = "https://generativelanguage.googleapis.com/v1beta/{$operationName}?key={$apiKey}";
+            $response = Http::get($url);
+
+            if ($response->failed()) {
+                throw new \RuntimeException('Failed to poll Gemini batch: ' . $response->body());
+            }
+            $state = data_get($response, 'metadata.state');
+            if ($state !== 'BATCH_STATE_SUCCEEDED') {
+                return response()->json($this->transformBatch($batch));
+            }
+            $contactRecord = null;
+            if ($state === 'BATCH_STATE_SUCCEEDED') {
+                $items = $batch->items()->get()->keyBy('id');
+                
+                $inlineResponses = data_get($response, 'response.inlinedResponses.inlinedResponses', []);
+                foreach ($inlineResponses as $inline) {
+                    $itemId = data_get($inline, 'metadata.batch_item_id');
+                    if (!$itemId || !$items->has($itemId)) {
+                        continue;
+                    }
+
+                    /** @var ContactBatchItem $item */
+                    $item = $items->get($itemId);
+
+                    if (isset($inline['error'])) {
+                        $message = data_get($inline, 'error.message', 'Unknown error during scan stage.');
+                        $item->update([
+                            'status' => ContactBatchItem::STATUS_FAILED,
+                            'error' => $message,
+                        ]);
+                        continue;
+                    }
+
+                    $rawText = data_get($inline, 'response.candidates.0.content.parts.0.text');
+
+                    if (!$rawText) {
+                        $item->update([
+                            'status' => ContactBatchItem::STATUS_FAILED,
+                            'error' => 'Scan response did not include text content.',
+                        ]);
+                        continue;
+                    }
+
+                    $parsed = $this->contactScanService->decodeJsonText($rawText);
+
+                    if ($parsed === null) {
+                        $item->update([
+                            'status' => ContactBatchItem::STATUS_FAILED,
+                            'error' => 'Scan response JSON could not be decoded.',
+                            'scan_result' => [
+                                'raw_text' => $rawText,
+                            ],
+                        ]);
+                        continue;
+                    }
+                    $scanData = $this->contactScanService->normalizeParsedContacts($parsed)[0];
+                    $contactRecord = $this->contactScanService->storeContactRecord($batch, $item, $scanData);
+                    $item->update([
+                        'status' => ContactBatchItem::STATUS_COMPLETED,
+                        'contact_record_id' => $contactRecord?->id
+                    ]);
+                }
+                $batch->update([
+                    'status' => ContactBatch::STATUS_COMPLETED,
+                    'error' => null,
+                ]);
+                $items->each(function (ContactBatchItem $item) {
+                    if ($item->status === ContactBatchItem::STATUS_SCANNING) {
+                        $item->update([
+                            'status' => ContactBatchItem::STATUS_FAILED,
+                            'error' => 'Scan result was not returned for this item.',
+                        ]);
+                    }
+                });
+                return response()->json(
+                    $this->transformBatch(
+                        $batch->fresh(['items.contactRecord.collaborators'])
+                    )
+                );
+
+            }
+            return $response->json();
+        }
+        
+
+        return response()->json($this->transformBatch($batch));
+    }
+    
+    public function duplicate_index()
+    {
+        $userId = Auth::id();
+
+        $duplicates = ContactRecord::with(['collaborators', 'type'])
+            ->where('is_duplicate', true)
+            ->when($userId, function ($query) use ($userId) {
+                $query->where(function ($q) use ($userId) {
+                    $q->where('created_by', $userId)
+                        ->orWhere('updated_by', $userId)
+                        ->orWhereHas('collaborators', function ($c) use ($userId) {
+                            $c->where('user_id', $userId);
+                        });
+                });
+            })
+            ->orderByDesc('updated_at')
+            ->get();
+
+        $payload = $duplicates->map(function (ContactRecord $contact) {
+            return [
+                'contact' => $this->formatContactRecord($contact),
+                'candidates' => $this->duplicateCandidates($contact),
+            ];
+        });
+
+        return response()->json([
+            'duplicates' => $payload,
+        ]);
+    }
+
+    public function resolve_duplicate(Request $request, ContactRecord $contact)
+    {
+        if (!$contact->is_duplicate) {
+            return response()->json([
+                'message' => 'このコンタクトは重複フラグが設定されていません。',
+            ], 422);
+        }
+
+        $data = $request->validate([
+            'action' => 'required|in:keep,merge',
+            'target_id' => 'nullable|integer|exists:contact_records,id',
+        ]);
+
+        if ($data['action'] === 'keep') {
+            $contact->update([
+                'is_duplicate' => false,
+                'duplicate_of' => null,
+            ]);
+
+            ContactBatchItem::where('contact_record_id', $contact->id)->update([
+                'needs_review' => false,
+                'duplicate_candidates' => null,
+            ]);
+
+            return response()->json([
+                'status' => 'kept',
+                'contact' => $this->formatContactRecord($contact->fresh(['collaborators', 'type'])),
+            ]);
+        }
+
+        $targetId = $data['target_id'] ?? $contact->duplicate_of;
+        if (!$targetId || $targetId == $contact->id) {
+            throw ValidationException::withMessages(['target_id' => '統合先のコンタクトを選択してください。']);
+        }
+
+        $target = ContactRecord::with(['collaborators', 'type'])->findOrFail($targetId);
+
+        $deletedCardPath = null;
+
+        DB::transaction(function () use ($contact, $target, &$deletedCardPath) {
+            $contact->loadMissing('collaborators');
+
+            $fields = ['position', 'address', 'phone', 'email', 'fax', 'url', 'description', 'data'];
+            foreach ($fields as $field) {
+                if (empty($target->$field) && !empty($contact->$field)) {
+                    $target->$field = $contact->$field;
+                }
+            }
+
+            if (empty($target->contact_type_id) && $contact->contact_type_id) {
+                $target->contact_type_id = $contact->contact_type_id;
+            }
+
+            if ((empty($target->card_path) || !Storage::disk('local')->exists($target->card_path)) && $contact->card_path) {
+                $target->card_path = $contact->card_path;
+            }
+
+            if (empty($target->card_hash) && $contact->card_hash) {
+                $target->card_hash = $contact->card_hash;
+            }
+
+            $target->is_duplicate = false;
+            $target->duplicate_of = null;
+            $target->save();
+
+            $collaboratorData = [];
+            foreach ($contact->collaborators as $user) {
+                $collaboratorData[$user->id] = ['role' => $user->pivot->role];
+            }
+
+            if ($contact->created_by) {
+                $collaboratorData[$contact->created_by] = ['role' => 'owner'];
+            }
+
+            if (!empty($collaboratorData)) {
+                $target->collaborators()->syncWithoutDetaching($collaboratorData);
+            }
+
+            ContactBatchItem::where('contact_record_id', $contact->id)->update([
+                'contact_record_id' => $target->id,
+                'needs_review' => false,
+                'duplicate_candidates' => null,
+            ]);
+
+            $contact->collaborators()->detach();
+            $contact->delete();
+
+            if ($contact->card_path && $contact->card_path !== $target->card_path) {
+                $deletedCardPath = $contact->card_path;
+            }
+        });
+
+        if ($deletedCardPath) {
+            Storage::disk('local')->delete($deletedCardPath);
+        }
+
+        $target->refresh();
+
+        return response()->json([
+            'status' => 'merged',
+            'target' => $this->formatContactRecord($target->loadMissing(['collaborators', 'type'])),
+        ]);
+    }
+    public function get_batch_company_data()
+    {
+        return response()->json([
+            'message' => 'Batch enrichment is handled automatically when the job completes.'],
+            410
+        );
+    }
     public function scan_card(Request $request)
     {
         $request->validate([
@@ -176,8 +568,51 @@ class ContactController extends Controller
     public function contact_list(Request $request)
     {
         
-        $contacts = ContactRecord::orderBy('created_at', 'desc')->with(['updater', 'creator', 'type'])->get();
+        $contacts = ContactRecord::orderBy('created_at', 'desc')
+            ->with(['comments' => 
+                function ($q) {
+                    $q->with(['user', 'files']);
+                },
+                'updater', 'creator', 'type', 'collaborators'
+            ])->get();
         return response()->json($contacts);
+    }
+    public function update_private_memo(Request $request)
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            abort(403, 'メモを更新するにはログインが必要です。');
+        }
+
+        $data = $request->validate([
+            'contact_id' => 'required|integer|exists:contact_records,id',
+            'private_memo' => 'nullable|string|max:2000',
+        ]);
+
+        $contact = ContactRecord::with(['collaborators' => function ($query) use ($userId) {
+            $query->where('users.id', $userId);
+        }])->findOrFail($data['contact_id']);
+
+        $existingPivot = $contact->collaborators->first();
+
+        if ($existingPivot) {
+            $contact->collaborators()->updateExistingPivot($userId, [
+                'private_memo' => $data['private_memo'] ?? '',
+            ]);
+            $role = $existingPivot->pivot->role;
+        } else {
+            $role = 'viewer';
+            $contact->collaborators()->attach($userId, [
+                'role' => $role,
+                'private_memo' => $data['private_memo'] ?? '',
+            ]);
+        }
+
+        return response()->json([
+            'contact_id' => $contact->id,
+            'private_memo' => $data['private_memo'] ?? '',
+            'role' => $role,
+        ]);
     }
     private function path_generator()
     {
@@ -237,7 +672,7 @@ class ContactController extends Controller
         $id = $request->id ?? null;
 
         $record = ContactRecord::updateOrCreate(["id" => $id], $validatedData);
-
+        
         if ($id == null) {
             $record->update([
                 'created_by' => $this->active_user()->id
@@ -256,11 +691,10 @@ class ContactController extends Controller
         return response('OK');
     }
     private function instruction($cardData)
-    {
-        
-        $name = $cardData['company_name'];
-        $url = $cardData['url'];
-        $address = $cardData['address'];
+    {   
+        $name = $cardData['company_name'] ?? '';
+        $url = $cardData['url'] ?? '';
+        $address = $cardData['address'] ?? '';
         return <<<EOD
             会社情報:
             会社名: $name
@@ -342,5 +776,199 @@ class ContactController extends Controller
 
 
             EOD;
+    }
+
+    private function formatContactRecord(ContactRecord $contact): array
+    {
+        $contact->loadMissing(['collaborators', 'type']);
+
+        return [
+            'id' => $contact->id,
+            'name' => $contact->name,
+            'company_name' => $contact->company_name,
+            'position' => $contact->position,
+            'address' => $contact->address,
+            'phone' => $contact->phone,
+            'email' => $contact->email,
+            'fax' => $contact->fax,
+            'url' => $contact->url,
+            'card_path' => $contact->card_path,
+            'card_hash' => $contact->card_hash,
+            'is_duplicate' => (bool) $contact->is_duplicate,
+            'duplicate_of' => $contact->duplicate_of,
+            'contact_type_id' => $contact->contact_type_id,
+            'type' => $contact->type ? [
+                'id' => $contact->type->id,
+                'title' => $contact->type->title,
+            ] : null,
+            'collaborators' => $contact->collaborators
+                ->map(fn ($user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'role' => $user->pivot->role,
+                ])->all(),
+        ];
+    }
+
+    private function duplicateCandidates(ContactRecord $contact): array
+    {
+        $query = ContactRecord::query()->where('id', '!=', $contact->id);
+
+        if ($contact->card_hash) {
+            $query->where('card_hash', $contact->card_hash);
+        } elseif ($contact->name && $contact->company_name) {
+            $query->where(function ($q) use ($contact) {
+                $q->whereRaw('LOWER(name) = ?', [mb_strtolower($contact->name ?? '')])
+                    ->whereRaw('LOWER(company_name) = ?', [mb_strtolower($contact->company_name ?? '')]);
+
+                if ($contact->email) {
+                    $q->orWhereRaw('LOWER(email) = ?', [mb_strtolower($contact->email ?? '')]);
+                }
+            });
+        } else {
+            return [];
+        }
+
+        $results = $query->limit(5)->get([
+            'id',
+            'name',
+            'company_name',
+            'email',
+            'phone',
+            'card_path',
+            'card_hash',
+            'updated_at',
+        ]);
+
+        if ($contact->duplicate_of && !$results->firstWhere('id', $contact->duplicate_of)) {
+            $target = ContactRecord::find($contact->duplicate_of);
+            if ($target) {
+                $results->prepend($target);
+            }
+        }
+
+        return $results->unique('id')->values()->map(function (ContactRecord $record) {
+            return [
+                'id' => $record->id,
+                'name' => $record->name,
+                'company_name' => $record->company_name,
+                'email' => $record->email,
+                'phone' => $record->phone,
+                'card_path' => $record->card_path,
+                'card_hash' => $record->card_hash,
+                'updated_at' => optional($record->updated_at)->toIso8601String(),
+            ];
+        })->all();
+    }
+    public function contact_create_comment(Request $request)
+    {
+        $data = $request->validate([
+            'record_id' => 'required',
+            'comment' => 'required|string',
+        ]);
+        $user = $this->active_user();
+        $record = ContactRecord::findOrFail($request->record_id);
+        $report = $record->comments()->create([
+            'comment' => $request->comment,
+            'user_id' => $user->id,
+        ]);
+        if($request->attached_temp_files){ 
+            foreach($request->attached_temp_files as $item){      
+                $file = messageFile::findOrFail($item['id']);
+                $file->update(['comment_record_id' => $report->id]);
+                $path = "contact_comment_files";
+                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);         
+                $srcPath = "{$file->id}.{$file->extension}";
+                $destPath = "{$file->id}_{$file->user_id}.{$file->extension}";
+                $temp_path = storage_path("app/temp_upload/{$srcPath}");
+                Storage::disk('local')->move("temp_upload/{$file->id}.{$file->extension}", "{$path}/{$destPath}");                
+            }
+        }
+        $syntax = '/\[To:(.*?)\:\]/';
+        preg_match_all($syntax, $request->comment, $matches);
+        $mentioned_targets = $matches[1];
+        $emails = User::query()
+            ->whereKeyNot($user->id)             
+            ->where('on_leave', false)         
+            ->whereIn('name', $mentioned_targets)
+            ->whereNotNull('email')
+            ->pluck('email')                    
+            ->filter(fn ($e) => filter_var($e, FILTER_VALIDATE_EMAIL))
+            ->map(fn ($e) => strtolower($e))     
+            ->unique()
+            ->values()
+            ->all();
+            
+        if(!empty($emails)){
+            $content = strip_tags(htmlspecialchars_decode($request->comment));
+            $blocked = preg_match('/\b(pass|pw|password)\b/i', $request->comment)
+            || str_contains($request->comment, 'パスワード')
+            || str_contains($request->comment, 'ﾊﾟｽﾜｰﾄﾞ');       
+            $url = rtrim(config('app.url'), '/') . "/contact/tab2/{$record->id}";
+            $url .= "?mention=true";          
+            SendContactEmail::dispatchSync($emails, new ContactMention($record, $content, $blocked, $url, $user));
+        }
+        
+        return response()->json(['id' => $report->id], 201);
+    }
+    public function follow_contact(Request $request)
+    {
+        $data = $request->validate([
+            'record_id' => 'required'
+        ]);
+        $user = $this->active_user();
+        $contact = ContactRecord::with(['collaborators', 'type'])->findOrFail($data['record_id']);
+        DB::transaction(function () use ($contact, $user) {
+            $collaboratorData = [];
+            
+            $collaboratorData[$user->id] = ['role' => 'follower'];
+            
+
+            if (!empty($collaboratorData)) {
+                $contact->collaborators()->syncWithoutDetaching($collaboratorData);
+            }
+        });
+        $contact->refresh();
+
+        return response()->json([
+            'status' => 'subscriped',
+            'target' => $this->formatContactRecord($contact->loadMissing(['collaborators', 'type'])),
+        ]);
+    }
+    public function contact_comment_read(Request $request, int $contactId) {
+        $user = $this->active_user();
+        
+        $lastRead = ContactCommentLastRead::updateOrCreate(
+            ['contact_record_id' => $contactId, 'user_id' => $user->id],
+            ['last_read_at' => now()]
+        );
+
+        return response()->json(['status' => 'ok']);
+    }
+    public function get_contact_comment_badge() {
+        $user = $this->active_user();
+        $userId = $user->id;
+               
+        $rows = DB::table('contact_record_comments as c')
+        ->join('contact_record_user as cc', function ($j) use ($userId) {
+            $j->on('cc.contact_record_id', '=', 'c.contact_record_id')
+              ->where('cc.user_id', '=', $userId);   // only contacts I collaborate on
+        })
+        ->leftJoin('contact_comment_last_reads as lr', function ($j) use ($userId) {
+            $j->on('lr.contact_record_id', '=', 'c.contact_record_id')
+              ->where('lr.user_id', '=', $userId);
+        })
+        ->where('c.user_id', '!=', $userId)
+        ->whereRaw('c.created_at > COALESCE(lr.last_read_at, "1970-01-01 00:00:00")')
+        ->groupBy('c.contact_record_id')
+        ->select('c.contact_record_id', DB::raw('COUNT(*) AS unread_count'))
+        ->get();
+
+        $data = $rows->map(fn($r) => [
+            'contact_id' => (int) $r->contact_record_id,
+            'comments'   => (int) $r->unread_count,
+        ])->values();
+
+        return response()->json($data);
     }
 }

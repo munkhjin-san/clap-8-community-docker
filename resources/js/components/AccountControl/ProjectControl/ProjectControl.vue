@@ -5,12 +5,13 @@
                 <div @click="router.push({name: 'projectlist'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'projectlist'}]">プロジェクト一覧</div>
                 <div @click="router.push({name: 'mentorcontrol'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'mentorcontrol'}]">人事考課管理</div>
                 <!-- <div @click="router.push({name: 'targetperiod'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'targetperiod'}]">評価指標期間管理</div> -->
+                <!-- <div @click="router.push({name: 'metriccontrol'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'metriccontrol'}]">マトリクス</div> -->
             </div>  
             <PostSearchBar 
-                    className="newChatMemberSearch" 
-                    :customPlaceHolder="route.name === 'projectlist' ? `プロジェクト検索` : `メンバーとメンター検索`" 
-                    @search-start="(word) => {keywords = word}"
-                /> 
+                className="newChatMemberSearch" 
+                :customPlaceHolder="customPlaceHolder" 
+                @search-start="(word) => {keywords = word}"
+            /> 
         </div>
         <!-- <CreatePeriod /> -->
         <router-view
@@ -24,7 +25,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { onMounted, provide, ref, watch } from 'vue';
+import { computed, onMounted, provide, ref, watch } from 'vue';
 import PostSearchBar from '@/components/Post/PostSearchBar.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { User } from '@/interface/globalInterface';
@@ -43,6 +44,16 @@ const selectedDate = ref({
     name: '',
     short_name: ''
 })
+const placeholders: Record<string, string> = {
+  projectlist: 'プロジェクト検索',
+  mentorcontrol: 'メンバーとメンター検索',
+  metriccontrol: 'メトリク検索',
+}
+
+const customPlaceHolder = computed(() => {
+  return placeholders[route.name as string] ?? '検索'
+})
+
 onMounted(() => {
     const options = detailedDateOptions()
     const today = DateTime.now()

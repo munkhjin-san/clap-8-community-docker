@@ -18,25 +18,33 @@ use App\Models\User;
 use App\Models\ProjectFinanceComment;
 use App\Models\ProjectFinanceLastRead;
 use App\Models\ProjectMetric;
+use App\Models\ProjectCase;
 use App\Models\ProjectMetricFormula;
 use App\Models\ProjectMetricValue;
 use App\Models\ProjectMetricSubMetric;
 use App\Models\ProjectExpense;
 use App\Models\ProjectSale;
+use App\Models\messageFile;
+use App\Models\ProjectMemberReportNotification;
+
+
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
+use App\Jobs\SendGoalIssueMentionMail;
 use App\Jobs\SendProjectEmail;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BoardController;
 use App\Services\SharedService;
+use App\Services\VarianceService;
 use App\Imports\EvaluationImport;
 use App\Exports\YearlyBudgetTemplate;
 use App\Imports\YearlyBudgetImport;
@@ -44,6 +52,9 @@ use App\Http\Requests\StoreMetricRequest;
 use App\Http\Requests\UpdateMetricRequest;
 use Illuminate\Database\Eloquent\Collection;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\File; 
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Laravel\Facades\Image;
 use Google_Client;
 use Google_Service_Sheets;
 use Google\Service\Exception as GoogleServiceException;
@@ -74,12 +85,11 @@ class ProjectController extends Controller
             'year'        => ['nullable','integer'],
             'which_half'  => ['nullable','string'],
         ]);
-        $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
         $year = $data['year'] ?? null;
         $which_half = $data['which_half'] ?? null;
         $usersLoader = function (bool $withEval = false) use ($year, $which_half) {
             return function ($q) use ($withEval, $year, $which_half) {
-                $q->select('users.id','users.name','users.icon_path','users.icon_bg')
+                $q->select('users.id','users.name','users.icon_path','users.icon_bg', 'users.position_id')
                 ->where('retire', 0);
 
                 if ($withEval && $year && $which_half) {
@@ -99,14 +109,21 @@ class ProjectController extends Controller
 
             $query->overlapping($start, $end);
         }
-        $projects = $query->with([
-                        'project_conditions' => fn($q) => $q->where('week_start_date', $weekStartDate),
-                        'director:id,name,icon_path,icon_bg',
-                        'manager' => $usersLoader(true),
-                        'members' => $usersLoader(true),
-                        'director'
-                    ])
-                    ->get();
+        $user = $this->active_user();
+        $position_id = $user->position_id;
+        $projects = $query
+        ->when($position_id == 15, function ($q) use($user) {
+            $q->whereHas('members', function ($q) use($user) {
+                $q->where('users.id', $user->id);
+            });
+        })
+        ->with([
+            'director:id,name,icon_path,icon_bg',
+            'manager' => $usersLoader(true),
+            'members' => $usersLoader(true),
+            'director'
+        ])
+        ->get();
         $sortedProjects = $projects->sortByDesc(function ($project) {
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
             $isManager = in_array(Auth::id(), $project->manager->pluck('id')->toArray());
@@ -175,7 +192,7 @@ class ProjectController extends Controller
                                         $q->with('user');
                                     }])
                                     ->with(['salaryIssue' => function ($q) {
-                                        $q->with(['files', 'actions']);
+                                        $q->with(['files', 'actions', 'reports']);
                                     }])
                                     ->get();
         $evalutaionRecord = EvaluationRecord::where('year', $year)
@@ -583,7 +600,7 @@ class ProjectController extends Controller
                                             $q->where('user_id', $user_id)
                                                 ->where('status', 3);
                                         }])
-                                        ->with(['candidate', 'checklist'])->first();
+                                        ->with(['candidate', 'checklist', 'user'])->first();
 
         if(!$evalutaionRecord) {
             return;
@@ -1018,43 +1035,6 @@ class ProjectController extends Controller
             'goal_counts' => $goalCounts,
             'year_half_counts' => $goalByWhich
         ];
-    }
-    public function get_managing_projects(Request $request)
-    {
-        $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
-        $projects = ProjectRecord::whereDoesntHave('project_conditions', function ($q) use($weekStartDate, $request) {
-            $q->where('user_id', $request->user()->id)
-                ->where('week_start_date', $weekStartDate);
-        })->whereHas('manager', function ($q) use($request) {
-            $q->where('users.id', $request->user()->id);
-        })->get();
-        return response()->json($projects);
-    }
-    public function updateConditions(Request $request)
-    {
-        $validated = $request->validate([
-            'selected' => 'required|array',
-            'selected.*.value' => 'required|integer|between:0,5', 
-            'selected.*.project_record_id' => 'required|integer|exists:project_records,id',
-        ]);
-
-        $userId = $request->user()->id; 
-        $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString();  
-
-        foreach ($validated['selected'] as $item) {
-            ProjectCondition::updateOrCreate(
-                [
-                    'project_record_id' => $item['project_record_id'],
-                    'user_id' => $userId,
-                    'week_start_date' => $weekStartDate,
-                ],
-                [
-                    'value' => $item['value'],
-                ]
-            );
-        }
-
-        return response()->json(['message' => 'Project conditions updated successfully.'], 200);
     }
     public function project_task_badge($user) {
         $badge_counts = ProjectRecord::whereHas('tasks', function ($q) use ($user) {
@@ -1616,8 +1596,12 @@ class ProjectController extends Controller
         $year = $request->year;
         $month = $request->month;
         $project_name = $project->name;
-
-        $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
+        $currentYear = Carbon::now()->year;
+        if ($year > $currentYear && ($month == 1 || $month == 2)) {
+            $file_path = storage_path("app/yearly_plan/{$currentYear}.xlsx");
+        } else {
+            $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
+        }
         $file_exists = file_exists($file_path);
         if(!$file_exists){
             return response()->json([]);   
@@ -1992,10 +1976,9 @@ class ProjectController extends Controller
         }        
         
         $projects = ProjectRecord::whereIn('id', $project_ids)->get();
-        $project_names = $projects->pluck('name')->toArray();   
+        $project_names = $projects->pluck('name', 'id')->toArray();   
 
         $project_names_str = implode('","', $project_names); 
-
 
         //get settlement data
         $batchSettlementData = $this->settlementCollector($startInstance, $endInstance);
@@ -2083,10 +2066,9 @@ class ProjectController extends Controller
         ];
         $sumData = [];
         $summarizeData = $defaultSumData;
-
+        $v = [];
         //process each data for each project
-        foreach($project_names as $project_name){
-            
+        foreach($project_names as $id => $project_name){
             $stDate = $startInstance->copy();
             $etDate = $endInstance->copy();
             $sumData[$project_name] = $defaultSumData;
@@ -2170,8 +2152,10 @@ class ProjectController extends Controller
                     $plan_res_data[$project_name][$month]['profit'] = $profitData;
                     $sumData[$project_name]['profit']['sales'] = ($sumData[$project_name]['profit']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['profit']['expense'] = ($sumData[$project_name]['profit']['expense'] ?? 0) + $totalExpense;
+                    $sumData[$project_name]['profit']['profit'] = ($sumData[$project_name]['profit']['profit'] ?? 0) + $profitData['profit'];
                     $summarizeData['profit']['sales'] = ($summarizeData['profit']['sales'] ?? 0) + $totalSales;
                     $summarizeData['profit']['expense'] = ($summarizeData['profit']['expense'] ?? 0) + $totalExpense;
+                    $summarizeData['profit']['profit'] = ($summarizeData['profit']['profit'] ?? 0) + $profitData['profit'];
                 }
                 else{
                     $plan_res_data[$project_name][$month]['profit'] = $default_data;
@@ -2208,6 +2192,7 @@ class ProjectController extends Controller
                         ];
                         $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $totalSales;
                         $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $totalExpense;
+                        $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
                         $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
                         $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
                  
@@ -2219,11 +2204,14 @@ class ProjectController extends Controller
                 }else{
                     $plan_res_data[$project_name][$month]['settlement'] = $default_data;
                 }
-
+                $sumData[$project_name]['settlement']['id'] = $id; 
+                $v[$project_name] = [
+                    'sales'   => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['sales']??null,   $sumData[$project_name]['profit']['sales']??null)),
+                    'expenses' => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['expense']??null, $sumData[$project_name]['profit']['expense']??null)),
+                    'profit'  => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['profit']??null,  $sumData[$project_name]['profit']['profit']??null)),
+                ];
                 $stDate->addMonth();
             }
-
-            
         }
 
         $final_data = [
@@ -2234,6 +2222,132 @@ class ProjectController extends Controller
         return response()->json( $final_data);
 
 
+    }
+    public function get_total_finance_badge(Request $request) {
+        $request->validate([
+            'interval'                  => 'required|array',
+            'interval.startYear'        => 'required|integer',
+            'interval.startMonth'       => 'required|integer|between:1,12',
+            'interval.endYear'          => 'required|integer',
+            'interval.endMonth'         => 'required|integer|between:1,12',
+        ]);
+        $interval = $request->input('interval');
+
+        $startInstance = Carbon::createFromDate($interval['startYear'], $interval['startMonth'], 1);
+        $endInstance = Carbon::createFromDate($interval['endYear'], $interval['endMonth'], 1);
+        $durationByMonth = (int) $startInstance->diffInMonths($endInstance, );
+        
+        if($durationByMonth < 0){
+            return response()->json([
+                'error' => true,
+                'message' => '開始日付は終了日付より前で設定してください。',
+            ], 422);
+        }
+        if($durationByMonth > 12){
+            return response()->json([
+                'error' => true,
+                'message' => '最大12ヶ月まで選択できます。',
+            ], 422);
+        }        
+        $active_user = $this->active_user();
+        $projects = ProjectRecord::when($active_user->position_id < 6 || $active_user->id === 610, function ($q) {
+            return $q;
+        }, function ($q) use ($active_user) {
+            return $q->whereHas('manager', fn($q) => $q->where('users.id', $active_user->id));
+        })->get();
+        $project_names = $projects->pluck('name')->toArray();
+        $project_names_str = implode('","', $project_names);
+        $batchSettlementData = $this->settlementCollector($startInstance, $endInstance);
+        //get settlement data
+
+
+        $profitDataCollection = collect();
+        $firstLoad = $this->profitCollector($startInstance, $endInstance, '0', $project_names_str);
+        $totalCount = $firstLoad['totalCount'] ?? 0;
+        $fisrtData = $firstLoad['records'] ?? [];
+        $firstDataClean = $this->kintone_record_cleaner($fisrtData);
+        
+        if(count($firstDataClean)){
+            $profitDataCollection = collect($firstDataClean);
+        }
+        if((int)$totalCount > 500){
+            $offset = 500;
+            while($offset < $totalCount){
+                $profitData = $this->profitCollector($startInstance, $endInstance, $offset, $project_names_str);
+                $totalCount = $profitData['totalCount'] ?? 0;
+                $profitRecords = $profitData['records'] ?? [];
+                if(count($profitRecords)){
+                    $profitRecordsClean = $this->kintone_record_cleaner($profitRecords);
+                    if(count($profitRecordsClean)){
+                        $profitDataCollection->push(...$profitRecordsClean);
+                    }
+                }
+                if($offset > 10000){
+                    break;
+                }
+                $offset += 500;
+            }
+        }     
+        $sumData = [];
+        $v = [];
+        foreach($project_names as $project_name){
+            $stDate = $startInstance->copy();
+            $etDate = $endInstance->copy();
+
+            while ($stDate->lessThanOrEqualTo($etDate)) {
+                $month = $stDate->month;
+                $year = $stDate->year;
+                $settle_tab_index = sprintf('%04d%02d', $year, $month);
+
+                $dateInstance = Carbon::createFromDate($year, $month, 1);
+                $profitData = $profitDataCollection->where('部門', $project_name)
+                ->filter(function ($item) use ($year, $month) {
+                    return Carbon::parse($item['日付'])->year == $year &&
+                            Carbon::parse($item['日付'])->month == $month;
+                })
+                ->first();
+                if($profitData){
+                    $totalSales = round( (float) $profitData['売上高合計'] + (float) $profitData['内部売上高合計'], 0, PHP_ROUND_HALF_UP);
+                    $totalExpense = round((float)  $profitData['販売管理費合計'] + (float) $profitData['間接費配賦'], 0, PHP_ROUND_HALF_UP);
+                    $totalProfit = round((float)(float) $profitData['利益'], 0, PHP_ROUND_HALF_UP);
+                    $sumData[$project_name]['profit']['sales'] = ($sumData[$project_name]['profit']['sales'] ?? 0) + $totalSales;
+                    $sumData[$project_name]['profit']['expense'] = ($sumData[$project_name]['profit']['expense'] ?? 0) + $totalExpense;
+                    $sumData[$project_name]['profit']['profit'] = ($sumData[$project_name]['profit']['profit'] ?? 0) + $totalProfit;
+                }
+                $settlements = $batchSettlementData[$settle_tab_index] ?? [];
+                if (!empty($settlements )) {
+                    $settlement_headers = $settlements[1];
+                    $settlement_data = array_slice($settlements, 2);
+                    $project_index_in_settlement = array_search($project_name, array_column($settlement_data, 1)); 
+                    if($project_index_in_settlement !== false){
+                        $settlementOfProject = $settlement_data[$project_index_in_settlement];
+                        $settlement_sales_index = array_search('収入', $settlement_headers);
+                        $settlement_expense_index = array_search('支出', $settlement_headers);
+                        $settlement_additional_expense_index = array_search('間接費配賦', $settlement_headers);
+                        $settlement_profit_index = array_search('利益', $settlement_headers);
+                        $settlement_profit_rate_index = array_search('利益率', $settlement_headers);                                
+                        $settlement_sales_val = $settlementOfProject[$settlement_sales_index] ?? 0;
+                        $settlement_expense_val = $settlementOfProject[$settlement_expense_index] ?? 0;
+                        $settlement_additional_expense_val = $settlementOfProject[$settlement_additional_expense_index] ?? 0;
+                        $settlement_profit_val = $settlementOfProject[$settlement_profit_index] ?? 0;
+                        $settlement_profit_rate_val = $settlementOfProject[$settlement_profit_rate_index] ?? 0; 
+                        $totalSales = round((float) str_replace(',', '', $settlement_sales_val), 0, PHP_ROUND_HALF_UP);
+                        $totalExpense = round((float) str_replace(',', '', $settlement_expense_val) + (float) str_replace(',', '', $settlement_additional_expense_val), 0, PHP_ROUND_HALF_UP);
+                        $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $totalSales;
+                        $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $totalExpense;
+                        $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
+                    }                   
+                }
+
+                $stDate->addMonth();
+            }
+            $v[$project_name] = [
+                'sales'   => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['sales']??null,   $sumData[$project_name]['profit']['sales']??null)),
+                'expenses' => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['expense']??null, $sumData[$project_name]['profit']['expense']??null)),
+                'profit'  => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['profit']??null,  $sumData[$project_name]['profit']['profit']??null)),
+            ];
+        }
+        return response()->json($v);
     }
     public function get_projects_external(Request $request){
         $projects = ProjectRecord::get();
@@ -2339,10 +2453,10 @@ class ProjectController extends Controller
         $user = $this->active_user();
 
         $request->validate([
-            'projectIds' => 'required',
+            'projectId' => 'required',
         ]);
 
-        $projects = ProjectRecord::whereIn('id', $request->projectIds)
+        $projects = ProjectRecord::where('id', $request->projectId)
             ->with('manager:id,name,icon_path,icon_bg')
             ->get();
 
@@ -2387,7 +2501,6 @@ class ProjectController extends Controller
                 'user_id'           => $user->id,
                 'comment'           => $data['comment'],
                 'type'              => $data['type'] ?? null,
-                'period'            => $data['period']
             ]);
 
             if (!empty($data['mentioned_user_ids'])) {
@@ -2424,7 +2537,7 @@ class ProjectController extends Controller
             $url = rtrim(config('app.url'), '/') . "/project/{$project->id}/finance";
             $url .= "?period={$data['period']}";
 
-            SendProjectEmail::dispatch($emails, new ProjectMention($project, $emailContent, $blocked, $url, auth()->user()));
+            SendProjectEmail::dispatchSync($emails, new ProjectMention($project, $emailContent, $blocked, $url, auth()->user()));
             
         }
         // load author for UI if you want
@@ -2436,12 +2549,9 @@ class ProjectController extends Controller
     public function get_project_finance_comments(Request $req) {
         $data = $req->validate([
             'project_record_id' => ['required','integer','exists:project_records,id'],
-            'period'            => ['required','date_format:Y-m']
         ]);
-        $periodDate = Carbon::createFromFormat('Y-m', $data['period'])->startOfMonth()->toDateString();
 
         $comment = ProjectFinanceComment::where('project_record_id', $data['project_record_id'])
-                ->whereDate('period', $periodDate)
                 ->with(['author:id,name,icon_path,icon_bg'])
                 ->get();
         
@@ -2449,13 +2559,7 @@ class ProjectController extends Controller
     }
     public function monthlyCount(Request $req, ProjectRecord $project)
     {
-        $data = $req->validate([
-            'period' => ['required','string'], // e.g. "September-25" or "Sep-25" or "2025-09"
-        ]);
-
-        $periodDate = Carbon::createFromFormat('Y-m', $data['period'])->startOfMonth()->toDateString(); // Carbon
         $count = ProjectFinanceComment::where('project_record_id', $project->id)
-            ->whereDate('period', $periodDate)
             ->count();
 
         // always return a stable key
@@ -2463,7 +2567,21 @@ class ProjectController extends Controller
             $count,
         );
     }
+    public function get_comment_count_from_total(Request $req) {
+        $data = $req->validate([
+            'projectIds' => ['array']
+        ]);
+        $projectIds = $data['projectIds'];
+        $counts = ProjectFinanceComment::whereIn('project_record_id', $projectIds)
+            ->select('project_record_id', DB::raw('COUNT(*) as comment_count'))
+            ->groupBy('project_record_id')
+            ->get()
+            ->mapWithKeys(fn($item) => [
+                $item->project_record_id => $item->comment_count,
+            ])->all();
+        return response()->json($counts);
 
+    }
     public function get_finance_comment_badge() {
         $user = $this->active_user();
         $userId = $user->id;
@@ -2483,7 +2601,7 @@ class ProjectController extends Controller
         }
 
         $q = DB::table('project_finance_comments as c')
-            ->select('c.project_record_id', 'c.period', DB::raw('COUNT(*) as unread_count'))
+            ->select('c.project_record_id', DB::raw('COUNT(*) as unread_count'))
             ->leftJoin('project_finance_last_reads as lr', function ($j) use ($userId) {
                 $j->on('lr.project_record_id', '=', 'c.project_record_id')
                 ->where('lr.user_id', '=', $userId);
@@ -2495,11 +2613,10 @@ class ProjectController extends Controller
                 $w->whereColumn('c.created_at', '>', 'lr.last_read_at')
                 ->orWhereNull('lr.last_read_at');
             });
-         $rows = $q->groupBy('c.project_record_id', 'c.period')->get();
+         $rows = $q->groupBy('c.project_record_id')->get();
 
         $data = $rows->map(fn($r) => [
             'project_id' => (int) $r->project_record_id,
-            'period'     => $r->period,   
             'comments'   => (int) $r->unread_count,
         ])->values();
 
@@ -2627,6 +2744,137 @@ class ProjectController extends Controller
 
         return response()->json($out);
     
+    }
+    public function project_cases(ProjectRecord $project, Request $req)
+    {
+        $user = $this->active_user();
+        abort_unless($user, 401, '認証が必要です。');
+
+        $isProjectMember = ProjectMember::where('project_id', $project->id)
+            ->where('user_id', $user->id)
+            ->exists();
+        $isDirector = (int) $project->director_id === (int) $user->id;
+        $isExecutive = ($user->position_id && $user->position_id < 6) || $user->id == 608;
+
+        abort_unless($isProjectMember || $isDirector || $isExecutive, 403, '閲覧権限がありません。');
+
+        $data = $req->validate([
+            'start' => ['nullable', 'date_format:Y-m-d'],
+            'end'   => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start'],
+            'state' => ['nullable', Rule::in(['draft', 'submitted'])],
+        ]);
+
+        $query = ProjectCase::query()
+            ->where('project_record_id', $project->id)
+            ->with(['reporter:id,name,icon_path,icon_bg']);
+
+        if (!empty($data['start'])) {
+            $query->whereDate('report_date', '>=', Carbon::parse($data['start'])->startOfMonth());
+        }
+        if (!empty($data['end'])) {
+            $query->whereDate('report_date', '<=', Carbon::parse($data['end'])->startOfMonth());
+        }
+        if (!empty($data['state'])) {
+            $query->where('state', $data['state']);
+        }
+
+        $cases = $query
+            ->orderBy('report_date')
+            ->orderBy('id')
+            ->get()
+            ->map(function (ProjectCase $case) {
+                return [
+                    'id'           => $case->id,
+                    'project_id'   => $case->project_record_id,
+                    'report_date'  => optional($case->report_date)->toDateString(),
+                    'status'       => $case->status,
+                    'client_name'  => $case->client_name,
+                    'case_count'   => $case->case_count,
+                    'amount'       => $case->amount,
+                    'notes'        => $case->notes,
+                    'state'        => $case->state,
+                    'submitted_at' => optional($case->submitted_at)?->toDateTimeString(),
+                    'reporter'     => $case->reporter ? [
+                        'id'        => $case->reporter->id,
+                        'name'      => $case->reporter->name,
+                        'icon_path' => $case->reporter->icon_path,
+                        'icon_bg'   => $case->reporter->icon_bg,
+                    ] : null,
+                ];
+            });
+
+        return response()->json(['cases' => $cases]);
+    }
+    public function project_case_store(ProjectRecord $project, Request $req)
+    {
+        $user = Auth::user();
+        abort_unless($user, 401, '認証が必要です。');
+
+        $isProjectMember = ProjectMember::where('project_id', $project->id)
+            ->where('user_id', $user->id)
+            ->exists();
+        $isDirector = (int) $project->director_id === (int) $user->id;
+
+        abort_unless($isProjectMember || $isDirector, 403, 'このプロジェクトには報告権限がありません。');
+
+        $allowedStatuses = [
+            '目標値',
+            '★竣工済',
+            '①受注済未竣工',
+            '②確度A',
+            '③確度B',
+            '④確度C',
+            '⑤確度D、E',
+        ];
+
+        $data = $req->validate([
+            'status'      => ['required', 'string', Rule::in($allowedStatuses)],
+            'client_name' => ['required', 'string', 'max:191'],
+            'case_count'  => ['required', 'integer', 'min:0'],
+            'amount'      => ['required', 'integer', 'min:0'],
+            'notes'       => ['nullable', 'string'],
+            'report_date' => ['required', 'date_format:Y-m-d'],
+            'state'       => ['required', Rule::in(['draft', 'submitted'])],
+            'member_id'   => ['nullable', 'integer']
+        ]);
+
+        $reportDate = Carbon::parse($data['report_date'])->startOfMonth();
+        $attributes = [
+            'project_record_id' => $project->id,
+            'user_id'           => $data['member_id'] ?? $user->id,
+            'status'            => $data['status'],
+            'client_name'       => $data['client_name'],
+            'case_count'        => $data['case_count'],
+            'amount'            => $data['amount'],
+            'notes'             => $data['notes'] ?? null,
+            'report_date'       => $reportDate,
+            'state'             => $data['state'],
+            'submitted_at'      => $data['state'] === 'submitted' ? now() : null,
+        ];
+
+        $case = ProjectCase::create($attributes);
+        $case->load('reporter:id,name,icon_path,icon_bg');
+
+        return response()->json([
+            'case' => [
+                'id'           => $case->id,
+                'project_id'   => $case->project_record_id,
+                'report_date'  => $case->report_date->toDateString(),
+                'status'       => $case->status,
+                'client_name'  => $case->client_name,
+                'case_count'   => $case->case_count,
+                'amount'       => $case->amount,
+                'notes'        => $case->notes,
+                'state'        => $case->state,
+                'submitted_at' => optional($case->submitted_at)?->toDateTimeString(),
+                'reporter'     => $case->reporter ? [
+                    'id'        => $case->reporter->id,
+                    'name'      => $case->reporter->name,
+                    'icon_path' => $case->reporter->icon_path,
+                    'icon_bg'   => $case->reporter->icon_bg,
+                ] : null,
+            ],
+        ], 201);
     }
     public function project_metrics_with_values(ProjectRecord $project, Request $req) {
         $data = $req->validate([
@@ -2849,6 +3097,7 @@ class ProjectController extends Controller
         $tokens = $matches[0] ?? [];
 
         $unused = trim(preg_replace('~\{\{m:\d+\}\}|\d+(?:\.\d+)?|[+\-*\/()]|[A-Za-z_][A-Za-z0-9_]*~u', ' ', $normalized));
+        
         if ($unused !== '') {
             abort(422, '不明な語句が式に含まれています: ' . $unused);
         }
@@ -2881,7 +3130,7 @@ class ProjectController extends Controller
         foreach ($tokens as $index => $token) {
             $type = null;
             $metricId = null;
-
+           
             if (preg_match('/\{\{m:(\d+)\}\}/', $token, $m)) {
                 $type = 'metric';
                 $metricId = (int) $m[1];
@@ -2898,7 +3147,7 @@ class ProjectController extends Controller
             } else {
                 abort(422, '使用できないトークンです: ' . $token);
             }
-
+            
             if ($type === 'func') {
                 $next = $tokens[$index + 1] ?? null;
                 if ($next !== '(') {
@@ -3239,5 +3488,161 @@ class ProjectController extends Controller
 
         return response()->json(['ok' => true]);
     }
-} 
+    public function project_goal_comment_create(Request $request) {
+        $data = $request->validate([
+            'record_id' => 'required',
+            'which' => 'required|string|in:goal,salary_issue',
+            'content' => 'required|string',
+        ]);
+        $user = $this->active_user();
+        $which = $request->which;
+
+        $record = $which === 'goal' ? ProjectGoal::findOrFail($request->record_id) : SalaryIssue::findOrFail($request->record_id);
+        $report = $record->reports()->create([
+            'content' => $request->content,
+            'user_id' => $user->id,
+        ]);
+
+        if($request->attached_temp_files){ 
+            foreach($request->attached_temp_files as $item){      
+                $file = messageFile::findOrFail($item['id']);
+                $col = $which === 'goal' ? 'project_goal_report_id' : 'salary_issue_report_id';
+                $file->update([$col => $report->id]);
+                $path = "project_goal_report_files";
+                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);         
+                $srcPath = "{$file->id}.{$file->extension}";
+                $destPath = "{$file->id}_{$file->user_id}.{$file->extension}";
+                $temp_path = storage_path("app/temp_upload/{$srcPath}");
+                Storage::disk('local')->move("temp_upload/{$file->id}.{$file->extension}", "{$path}/{$destPath}");                
+            }
+        }
+        
+        $notification_targets = [];
+        $payload = [];
+        if($which === 'goal'){
+            if($record->user_id !== $user->id){
+                $notification_targets[] = $record->user_id;
+            }else{
+                $notification_targets = $record->project->manager->pluck('id')->filter(function($uid) use ($user) {
+                    return $uid !== $user->id;
+                })->toArray();
+            }
+            foreach($notification_targets as $target_user_id){
+                $payload[] = [
+                    'user_id' => $record->user_id,
+                    'target_user_id' => $target_user_id,
+                    'from_user_id' => $user->id,
+                    'project_goal_id' => $record->id,
+                    'which_half' => $record->which_half,
+                    'project_id' => $record->project_id,
+                    'year' => $record->year,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                    
+                ];
+            }
+            
+        } else {
+            $notification_targets = [];
+            if($record->user_id !== $user->id){
+                $notification_targets[] = $record->user_id;
+            }else{
+                if(isset($record['mentor_id'])){
+                    $notification_targets[] = $record['mentor_id'];
+                }
+            }
+            $goal = $record->project_goal;
+            if(!$goal){
+                throw new \Exception("関連する目標が見つかりません。");
+            }
+            foreach($notification_targets as $target_user_id){
+                
+                $payload[] = [
+                    'user_id' => $record->user_id,
+                    'target_user_id' => $target_user_id,
+                    'from_user_id' => $user->id,
+                    'which_half' => $goal->which_half,
+                    'project_id' => $goal->project_id,
+                    'year' => $goal->year,
+                    'salary_issue_id' => $record->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                    
+                ];
+            }
+        }
+        $notification_targets = array_unique($notification_targets);
+        $goal_record = $which === 'goal' ? $record : $record->project_goal;
+        
+        ProjectMemberReportNotification::insert($payload);
+
+        $syntax = '/\[To:(.*?)\:\]/';
+        preg_match_all($syntax, $report->content, $matches);
+        $mentioned_targets = $matches[1];
+        $users = User::whereNot('id', Auth::id())
+        ->whereNotNull('email')
+        ->where('retire', 0)
+        ->where('on_leave', 0)
+        ->whereIn('name', $mentioned_targets)
+        ->pluck('email')->toArray();
+
+        $emails = collect($users)->filter(function($email){
+            return filter_var($email, FILTER_VALIDATE_EMAIL);
+        })->toArray();
+
+
+        SendGoalIssueMentionMail::dispatchAfterResponse($emails, $goal_record, $report->content);
+
+        return response()->json(['id' => $report->id], 201);
+    }
+    public function goal_issue_comment_badge(Request $request) {
+        $user = $this->active_user();
+        $goal_badge_count = ProjectMemberReportNotification::where('target_user_id', $user->id)
+            ->get();
+        return response()->json($goal_badge_count);
+    }
+    public function clear_goal_issue_badge(Request $request) {
+        $user = $this->active_user();
+        ProjectMemberReportNotification::where('target_user_id', $user->id)->where($request->column, $request->value)
+            ->delete();
+        $goal_badge_count = ProjectMemberReportNotification::where('target_user_id', $user->id)
+            ->get();
+        return response()->json($goal_badge_count);
+    }
+    public function project_list(Request $request) {
+        $user = $this->active_user();
+        $projects = ProjectRecord::select('id', 'name')->get();
+        $project_setting = $user->project_settings;
+        $myProjects = [];
+        $otherProjects = [];
+        foreach($projects as $project){
+            $is_member = $project->members->contains(function($member) use ($user){
+                return $member->id === $user->id;
+            });
+            $is_manager = $project->manager->contains(function($manager) use ($user){
+                return $manager->id === $user->id;
+            });
+
+            $setting = $project_setting->firstWhere('project_id', $project->id);
+        
+            if($is_member || $is_manager){
+                $myProjects[] = [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'color' => $setting ? $setting->color : null,
+                ];
+            } else {
+                $otherProjects[] = [
+                    'id' => $project->id,
+                    'name' => $project->name,
+                    'color' => $setting ? $setting->color : null,
+                ];
+            }
+        }
+        return response()->json([
+            'myProjects' => $myProjects,
+            'otherProjects' => $otherProjects,
+        ]);
+    }
+}
 

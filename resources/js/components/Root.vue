@@ -145,6 +145,8 @@ import { useDialog } from '@/composables/dialog';
             await badge.getAssetBadge()
             await badge.getTaskCommentBadge()
             await badge.getFinanceCommentBadge()
+            await badge.getGoalIssueCommentBadge()
+            await badge.getContactCommentBadge()
         }, 3000);
     })
     const postHandler = () => {

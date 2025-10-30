@@ -121,7 +121,7 @@ class BoardController extends Controller
         if(in_array($name, $no_partner_zone) && Auth::user()->partner_flag == 1){
             return redirect('board');
         }
-        $no_registered_zone = ['post', 'learning', 'project'];
+        $no_registered_zone = ['post', 'learning'];
         if(in_array($name, $no_registered_zone) && Auth::user()->position_id == 15){
             return redirect('board');
         } 
@@ -131,7 +131,7 @@ class BoardController extends Controller
         
         $user = auth()->user()->load(['weathers' => function($q) use($today){
             $q->where('type_id', 43)->where('date', $today);
-        }])->load('linked');
+        }, 'project_settings', 'linked']);
        
         return view('board')->with(array('initialDate'=> $date, 'user' => $user));
 
@@ -521,34 +521,29 @@ class BoardController extends Controller
             $file_extension = $file->getClientOriginalExtension();
             $path = '/temp_upload';     
             $file_name = $file->getClientOriginalName(); 
-            $file_size = $file->getSize();            
-            $newFile = new messageFile;
-            $newFile->name = $file_name;
-            $newFile->extension = $file_extension;
-            
-            $newFile->user_id = $auth_user_id;
-            $newFile->mime_type = $file_type;            
-            $newFile->save(); 
+            $file_size = $file->getSize();   
 
-        
+            $newFile = messageFile::create([
+                'name' => $file_name,
+                'extension' => $file_extension,
+                'user_id' => $auth_user_id,
+                'mime_type' => $file_type,
+            ]);
+
+            $set_path = "$newFile->id.$file_extension";
+
+            File::isDirectory(storage_path("app/$path")) or File::makeDirectory(storage_path("app/$path"), 0755, true, true);
+
             if($file_type == 'image'){
                 $img = Image::read($file);
-                $set_path = $newFile->id . '.' . $file_extension;
-                File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
-                $img->save(storage_path('app') . '/' . $path .'/'. $set_path, 30);  
+                $img->save(storage_path("app/$path/$set_path"), 30);
 
-            }else{                           
-                File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);   
-                $set_path = $newFile->id . '.' .$file_extension;
-                Storage::disk('local')->putFileAs(
-                    '/temp_upload', $file, $set_path
-                );
-                // return response()->json("ffffff");
+            }else{                
+                Storage::disk('local')->putFileAs('/temp_upload', $file, $set_path);
             }
-            $sizeAfter = File::size(storage_path('app/temp_upload/' . $request->board_id .'/'. $set_path));
-            
-            $newFile->size = $sizeAfter;
-            $newFile->save(); 
+
+            $sizeAfter = File::size(storage_path("app/temp_upload/$set_path"));
+            $newFile->update([ 'size' => $sizeAfter ]);
             $ids[] = $newFile;
                        
         }
@@ -621,9 +616,9 @@ class BoardController extends Controller
         ->where('draft_flag', 0)
         
         
-        ->latest('created_at')
-        ->orderBy('created_at', 'desc')
-        ->orderBy('id', 'desc')
+        // ->latest('created_at')
+        // ->orderBy('created_at', 'desc')
+        ->orderByDesc('id') 
         ->take($pagenate)
         ->get();
         $comment_list = $draft_messages->merge(items: $comment_list_pre);

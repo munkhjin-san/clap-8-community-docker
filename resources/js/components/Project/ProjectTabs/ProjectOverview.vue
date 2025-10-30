@@ -4,6 +4,7 @@
             <div v-if="hasPrivilage" class="absolute top-[20px] right-[20px]">
                 <ItemMenu :items="[
                     {title: '編集する', action: () => editProjects(selectedProject)},
+                    {title: '削除する', action: () => deleteProject(selectedProject)}
                 ]"/>
             </div>
             <div class="project-detail-header">
@@ -88,9 +89,10 @@ import { DateTime } from 'luxon';
 import { useProject } from '@/composables/project';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
 import CommandButton from '@/components/Global/CommandButton.vue';
+import { Project } from '@/interface/projectInterface';
     const props = defineProps(['userList', 'hasPrivilage'])
     const editProjects = inject('editProjects') as (project: any) => void
-
+    const deleteProject = inject('deleteProject') as (project: Project | null) => void
     const { selectedProject } = useProject()
     const dynamicHeight = ref('auto')
     // const memoBody = useTemplateRef('memoBody')

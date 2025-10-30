@@ -200,8 +200,6 @@ import { useBadgeStore } from '@/store/badge'
 import { useRoute } from 'vue-router';
 import { EvaluationRecord, EvaluationSkill } from '@/interface/evaluationInterface';
 import Modal from '../Global/Modal.vue';
-import OpenAI from 'openai';
-import GoalGenerateFormat from '../../../assets/GoalGenerateFormat.json'
 import { DateTime } from 'luxon';
 import { useProject } from '@/composables/project';
 import AiLoader from '../Global/AiLoader.vue';
@@ -249,7 +247,6 @@ const aiLoading = ref(false)
 const baseSkills = ref<string[]>([])
 const { ask, ping, toast } = useDialog()
 const api = useApi()
-const aiType = ref('openai')
 const keys = reactive({
     goalContent: 0,
     expectedEffect: 0,
@@ -268,7 +265,6 @@ const kpiRef = useTemplateRef<InstanceType<typeof ShortInput>[]>('kpiRef')
 
 onMounted(() => {
     getEvaluationData()
-
 })
 
 const getPreviousGoals = (): Promise<ProjectGoal[]> => {
@@ -290,73 +286,20 @@ const getPreviousGoals = (): Promise<ProjectGoal[]> => {
 
 const getEvaluationData = async() => {
 
-
-        const span = route.params.span as string
-        const [year, which_half] = span.split('-')
-        const response = await api.post('/get_evaluation_data', {
-            user_id: route.params.memberId,
-            year: year,
-            which_half: which_half  
-        }, {
-            silent: true
-        })
-        evaluationData.value = response && response.evaluation ? response.evaluation : null
-        baseSkills.value = response && response.base_skills ? response.base_skills  : []
+    const span = route.params.span as string
+    const [year, which_half] = span.split('-')
+    const response = await api.post('/get_evaluation_data', {
+        user_id: route.params.memberId,
+        year: year,
+        which_half: which_half  
+    }, {
+        silent: true
+    })
+    evaluationData.value = response && response.evaluation ? response.evaluation : null
+    baseSkills.value = response && response.base_skills ? response.base_skills  : []
         
 
 }
-const instruction = `
-プロジェクトの様子
-「プロジェクト名、ミッション、イノベーション、ストラテジー、オペレーション、概要」
-があげられます。
-そしてユーザーの職能レベルとその職能レベルのスキルシートがあげられます。
-あなたの役割はそのデータを基に、成果目標を提案することです。
-成果目標の仕組みは次の通りです。
-プロジェクトごとにメンバーの成果目標を構造化し、以下4項目を自動生成する。  
-成果目標は「KGI（50点）+KPI（10点*5=50点）」で構成する。
-
- 1. タイトル（10〜30文字）【json-index: title】
-- プロジェクト名や個人の取り組みのテーマを短く明示
-- 他者が見てすぐ内容をイメージできること
-
-
-
- 2. MISO（100〜200文字）【json-index: miso】
-- 以下4要素を織り交ぜて、個人目標の背景・意図・方法論を簡潔に表現する：
-  - Mission（目的・達成したい価値）
-  - Innovation（解決すべき問題・変革の視点）
-  - Strategy（どのように取り組むかの構造）
-  - Operation（どんな行動や運用で継続するか）
-- 表記は自由。文章中に4要素が自然に含まれていればよい
-- 決まり文句にならないよう、本人らしい言葉・仮説・視点を重視
-冒頭にこの成果目標を設定した背景を述べる。目標内容及び生成指示のカスタマイズがあればそれを参照。
-
----
-
- 3. KGI（1項目／50点配分）【json-index: kgi】
-- 成果目標としてのゴール指標（定量または定性）
-- 達成基準が明確なもの（例：○○件完了、顧客満足度4.5以上など）
-- あいまいな表現はNG（例：「うまくやる」「満足してもらう」など）
-
----
-
- 4. KPI（5項目／各10点=合計50点）【json-index: kpi】
-- KGIを支えるプロセス・行動・仕組みの観点から具体的に記述
-- それぞれ異なる視点（例：顧客対応、資料整備、リスク対応、振り返りなど）で構成
-- 「意識する」「気をつける」などの抽象表現は禁止
-- 各KPIは評価・実行・振り返りが可能な行動単位で記述
-
-
-成果目標の条件は以下の通りです。
-期間：達成に最短1か月から最長6か月の期間を要すること。期間はレベルに応じて適切なものとする。
-レベル：個々が保有している職能レベルスキルを発揮すること。
-内容：プロジェクトに貢献し、定性、定量の目標であること。個人の成長というよりは、プロジェクトへの貢献内容がメインとなります。
-
-
-もし、「目標内容および生成指示のカスタマイズ」があれば、それを考慮してください。
-目標内容および生成指示のカスタマイズがある場合、そのアイディアを拡大して、具体的な目標を生成してください。
-アイディアがない場合は、プロジェクトのミッションに会う、アイディアを提案してください。
-`
 const getAdvice = async() => {
     if(goalParams.kgi || goalParams.miso || (goalParams.steps?.length && goalParams.steps[0].content)){ 
         const answer = await ask('既存の目標がある場合、AIで生成した課題は上書きされます。よろしいでしょうか？')
@@ -432,84 +375,37 @@ const getAdvice = async() => {
             過去の成果目標の内容に重複しないように生成してください。
         `
     }
-    let instructionText = instruction
+    try{
+        aiLoading.value = true
+        const data = await api.post('/non_stream_prompt', {
+            message: combined,
+            config_key: 'project_goal_generation'
 
-    if(aiType.value == 'openai'){ 
+        })        
+        const parsedData = JSON.parse(data)
+        goalParams.title = parsedData.title || ''
+        goalParams.miso = parsedData.miso || ''
+        goalParams.kgi = parsedData.kgi || ''
 
-        try{
-            aiLoading.value = true
-            const openai = new OpenAI({
-                apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-                dangerouslyAllowBrowser: true 
-            });   
-            const response = await openai.responses.create({
-                model: "gpt-4.1-mini",
-                input: [
-                    {
-                        "role": "system",
-                        "content": [
-                            {
-                                "type": "input_text",
-                                "text": instructionText
-                            }
-                        ]
-                    },
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "input_text",
-                                "text": combined
-                            }
-                        ]
-                    }
-                ],
-                text: {
-                    "format": {
-                        "type": "json_schema",
-                        "name": "monthly_goal_creation",
-                        "strict": true,
-                        "schema": GoalGenerateFormat
-                    }
-                },
-        
-            });
-            if(response.output[0].type == 'message' && response.output[0].content[0].type == "output_text"){
-        
-                const parsedData = JSON.parse(response.output[0].content[0].text);
-                console.log(parsedData)
-                goalParams.title = parsedData.title || ''
-                goalParams.miso = parsedData.miso || ''
-                goalParams.kgi = parsedData.kgi || ''
-
-                if(parsedData.kpi){                 
-                    goalParams.steps = parsedData.kpi.map((step: any) => {
-                        return {
-                            content: step
-                        }
-                    })                    
+        if(parsedData.kpi){                 
+            goalParams.steps = parsedData.kpi.map((step: any) => {
+                return {
+                    content: step
                 }
-                keys.miso = keys.miso + 1
-                keys.kgi = keys.kgi + 1
-                finalize()
-            }
-        } catch (err) {
-            if (err instanceof OpenAI.APIError) {
-                if(err.status == 500){
-                    ping('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-                }else{
-                    ping('AI修正に失敗しました。<br>' + err.message)
-                }
-                
-            } else {
-                ping('AI修正に失敗しました。<br>' + err)
-            }
-
-        } finally{
-            aiLoading.value = false
-            release.value = true
+            })                    
         }
+        keys.miso = keys.miso + 1
+        keys.kgi = keys.kgi + 1
+        finalize()
+        
+    } catch (err) {            
+        ping('AI修正に失敗しました。<br>' + err)           
+
+    } finally{
+        aiLoading.value = false
+        release.value = true
     }
+    
 
 }
 

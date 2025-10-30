@@ -23,7 +23,7 @@
                         </div>
                         <div>
                             <div class="mb-[10px]">等級</div>
-                            <div>{{ evaluationData?.grade || '未設定' }}</div>
+                            <div>{{ gradeSplit(evaluationData?.current_salary_rank) || '未設定' }}</div>
                         </div>
                         <div>
                             <div class="mb-[10px]">職階</div>
@@ -36,7 +36,7 @@
                     </div>
 
                     <div class="flex gap-[20px] flex-wrap mt-[20px]"
-                        v-if="(auth.id === computedMemberData?.id || auth.id === evaluationData?.mentor?.id)">
+                        v-if="(auth.id === computedMemberData?.id || auth.id === evaluationData?.mentor_id)">
 
                         <div>
                             <div class="mb-[10px]">給料（非公開）</div>
@@ -231,6 +231,12 @@ const getEvaluations = async () => {
 
     }
 
+}
+const gradeSplit = (rank: string | undefined) => {
+    if (!rank) return
+    const m = rank.match(/^\s*([０-９0-9一二三四五六七八九十]+等級)/u);
+    const grade = m ? m[1] : null;
+    return grade
 }
 
 </script>

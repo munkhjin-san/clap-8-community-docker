@@ -146,7 +146,6 @@
 </template>
 <script lang="ts" setup>
 import { ref, inject, onMounted, useTemplateRef } from 'vue';
-import OpenAI from "openai";
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
@@ -216,10 +215,6 @@ const route = useRoute()
 const api = useApi()
 const { ask, ping, toast } = useDialog()
 onMounted(() => {
-    // if(props.selectedTheme){
-    //     getAdvice()
-    //     console.log(evaluationDate.value)
-    // }
     getEvaluationData()
 
 })
@@ -244,61 +239,6 @@ const getEvaluationData = async() => {
 
     initialLoader.value = false
 
-}
-const systemInstruction = () => {
-    return `
-        社内で成果目標に基づいて昇給課題を作成しようとしています。
-        本機能は、昇給判断に必要な「能力開発課題」をAIによって自動生成するものです。  
-        構成は以下の3点で構成され、**開発能力を1件に絞り、その構成要素（修得要件）を5件提示**することで、スキルの定着度を立体的かつ明確に評価可能とします。
-
-        昇給課題の評価は、該当する成果目標（KGI＋KPI）が100％達成されたことを前提とし、さらに修得要件5件中3件以上が「修得済」と判定された場合に「昇給対象」とします。
-        特にテーマを重要視して、各テーマの説明文章に記載されている能力を成長させることが求められます。
-
-        挙げられるデータは以下の通りです。
-        1. テーマ: 
-        2. テーマ説明:
-        3. 職能レベル: 
-        4. 職能レベル保留スキル:
-        5. 目標:
-        6. 期待される効果:
-        7. 目標期間:
-        8. 目標達成するためのKGI:
-
-        ## ■ 出力構成（昇給課題）
-
-        ### 1. 昇給課題タイトル（能力開発の方向性）（json-index: title）
-        - 内容：テーマに即した、目指す人物像やスキル像を1文で表現（20〜30文字程度）
-        - 例：「状況を構造的に捉え、仮説で動ける力を身につける」
-
-
-        ### 2. 開発能力（1件）（json-index: skill_theme）
-        - 内容：昇給判断において評価対象とするテーマに即した主要能力（例：仮説構築力、論点整理力、傾聴力など）
-        - 補足（任意）：能力の定義（1行）
-        ### 3. 修得要件（構成要素5件）（json-index: actions)
-        - 各開発能力を構成する、テーマに必要な5つのサブスキル・構成要素を明示
-        - 各項目は以下の条件で出力する：
-        - 各構成要素に対して「観察可能な行動・兆候・言動」の形で記述する
-        - あいまいな表現（例：意識する、努力する）は禁止
-        - 1行（最大2行）で評価者が確認できるように表現
-        - 出力形式（例）：
-        【修得要件】
-
-        1. 情報整理力：得られた情報を因果関係や優先度で構造化している
-        2. 問題抽出力：表層的な要望の背後にある課題構造を言語化できている
-        3. 仮説立案力：不明確な状況においても筋の通った仮説を提示できている
-        4. 検証設計力：仮説を前提に検証プロセス（観察・質問・実験）を設計している
-        5. 構造的表現力：提案や報告を背景→論点→結論の構造で説明できている
-
-
-
-        課題を生成するには次の要件を満たす必要があります。
-        1. テーマとテーマの説明を理解し、テーマに沿った開発能力を提案してください。。
-        2. 職能レベルと職能レベル保留スキルを考慮し、{skill_theme）}には今保留スキル以外、目標を達成するために必要とするスキルを考えてください。
-        ユーザーの希望やカスタマ指示があれば、できるだけそれに従ってください。
-        markdownを利用しないでください。
-        markdownを利用しないでください。
-        **などmarkdwonを利用しないでください。
-        `
 }
 const getAdvice = async() => {
     const validate = await customInstructionRef.value?.validate()
@@ -340,116 +280,38 @@ const getAdvice = async() => {
         ${goalDetail}\n\n 
         ユーザーの希望やカスタマ指示 : ${custom_instruction.value}       
     `
-    console.log(combined)
+    try{
+        aiLoading.value = true
+        const data = await api.post('/non_stream_prompt', {
+            message: combined,
+            config_key: 'project_salary_issue_generation'
 
-    if(aiType.value == 'openai'){ 
+        })        
+        const parsedData = JSON.parse(data)      
 
-        try{
-            aiLoading.value = true
-            const openai = new OpenAI({
-                apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-                dangerouslyAllowBrowser: true 
-            });   
-            const response = await openai.responses.create({
-                model: "gpt-4.1-mini",
-                input: [
-                    {
-                        "role": "system",
-                        "content": [
-                            {
-                                "type": "input_text",
-                                "text": systemInstruction()
-                            }
-                        ]
-                    },
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "input_text",
-                                "text": combined
-                            }
-                        ]
-                    }
-                ],
-                text: {
-                    "format": {
-                        "type": "json_schema",
-                        "name": "salary_issue_creation",
-                        "strict": true,
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "title": {
-                                    "type": "string",
-                                    "description": "昇給課題のタイトル"
-                                },
-                                "skill_theme": {
-                                    "type": "string",
-                                    "description": "昇給判断において評価対象とする主要能力"
-                                },
-                                "actions": {
-                                    "type": "array",
-                                    "description": "開発能力を構成するサブスキル・構成要素を明示",
-                                    "items": {
-                                        "type": "string"
-                                    }
-                                }
-                            },
-                            "required": [
-                                "title",
-                                "skill_theme",
-                                "actions"
-                            ],
-                            "additionalProperties": false
-                        }
-                    }
-                },
-
-            });
-            if(response.output[0].type == 'message' && response.output[0].content[0].type == "output_text"){
-
-                const parsedData = JSON.parse(response.output[0].content[0].text);
-                console.log(parsedData)
-                title.value = parsedData.title || ''
-                content_goal.value = parsedData.skill_theme || ''
-                actions.value = parsedData.actions.map((item: any) => {
-                    return {
-                        content: item
-                    }
-                })
-                // if(parsedData.title){
-                //     title.value = parsedData.title
-                // }
-                // if(parsedData.content){
-                //     content.value = parsedData.content
-                // }
-                // if(parsedData.content_goal){
-                //     content_goal.value = parsedData.content_goal
-                // }
-
-                keys.value.content++
-                keys.value.content_goal++
-                finalize()
-
+        console.log(parsedData)
+        title.value = parsedData.title || ''
+        content_goal.value = parsedData.skill_theme || ''
+        actions.value = parsedData.actions.map((item: any) => {
+            return {
+                content: item
             }
-        } catch (err) {
-            if (err instanceof OpenAI.APIError) {
-                if(err.status == 500){
-                    ping('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-                }else{
-                    ping('AI修正に失敗しました。<br>' + err.message)
-                }
-                
-            } else {
-                ping('AI修正に失敗しました。<br>' + err)
-            }
+        })
 
-        } finally{
-            aiLoading.value = false
-            release.value = true
-        }
+
+        keys.value.content++
+        keys.value.content_goal++
+        finalize()
+
+        
+    } catch (err) {        
+        ping('AI修正に失敗しました。<br>' + err)        
+
+    } finally{
+        aiLoading.value = false
+        release.value = true
     }
+    
 }
 const checkFields = async() => {
     const targets = [
@@ -560,9 +422,6 @@ const generateLearningResources = async() => {
 
     const actionsList = actions.value.map((item: any) => item.content).join('\n ')
     let prompt = `
-        昇給課題の修得スキルのガイドラインを生成してください。
-        この昇給課題は、以下の成果指標を達成するために必要なスキルを習得することを目的としています。
-
         --------------------------------------
         目標タイトル: ${props.chosenGoal.title}
         目標: ${props.chosenGoal.outcome_goal}
@@ -581,111 +440,38 @@ const generateLearningResources = async() => {
         1. テーマ: ${props.selectedTheme.title_full}
         2. テーマ説明: ${props.selectedTheme.content}
         3. 修得スキル: ${actionsList}
-        --------------------------------------
-
-
-        上記の条件に基づいて、各修得スキルごとに対して300-500文字でガイドラインを生成してください。
-        アウトプットのフォーマットは
-        title: 修得スキルをそのまま記載
-        content: ガイドラインの内容を記載     
-        
-        contentは読みやすく、ホワイトスペースを使用してください。
-        ※markdownを利用しないでください。
-        
+        --------------------------------------        
     `
     try{
         resourceLoading.value = true
-        const openai = new OpenAI({
-            apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-            dangerouslyAllowBrowser: true 
-        });   
-        const response = await openai.responses.create({
-            model: "gpt-4.1-mini",
-            input: [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": prompt
-                        }
-                    ]
+        const data = await api.post('/non_stream_prompt', {
+            message: prompt,
+            config_key: 'project_salary_issue_guideline_generation'
+
+        })        
+        const parsedData = JSON.parse(data)   
+        if(parsedData.data){
+            learningResources.value = parsedData.data.map((item: any) => {
+                return {
+                    title: item.title,
+                    content: item.content
                 }
-            ],
-            text: {
-                "format": {
-                    "type": "json_schema",
-                    "name": "salary_issue_creation",
-                    "strict": true,
-                    "schema": {
-                        "type": "object",
-                        "properties": {
-                            "data": {
-                                "type": "array",
-                                "minItems": 5,
-                                "maxItems": 5,
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title": { 
-                                            "type": "string" ,
-                                            "description": "ガイドラインのタイトル"
-                                        },
-                                        "content": { 
-                                            "type": "string",
-                                            "description": "ガイドラインの内容" 
-
-                                        }
-                                    },
-                                    "required": ["title", "content"],
-                                    "additionalProperties": false
-                                }
-                            }
-                        },
-                        "required": ["data"],
-                        "additionalProperties": false
-                    }
-                }
-            },
-
-        });
-        if(response.output[0].type == 'message' && response.output[0].content[0].type == "output_text"){
-
-            const parsedData = JSON.parse(response.output[0].content[0].text);
-            if(parsedData.data){
-                learningResources.value = parsedData.data.map((item: any) => {
-                    return {
-                        title: item.title,
-                        content: item.content
-                    }
-                })
-            }   
-            toast('ガイドラインを生成しました。内容を確認してください。')
-            setTimeout(() => {
-                learningResourcesParent.value?.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center',
-                    inline: 'nearest'
-                })
-            }, 100);        
-
-        }
-    } catch (err) {
-        if (err instanceof OpenAI.APIError) {
-            if(err.status == 500){
-                ping('AI修正に失敗しました。<br>AIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-            }else{
-                ping('AI修正に失敗しました。<br>' + err.message)
-            }
-            
-        } else {
-            ping('AI修正に失敗しました。<br>' + err)
-        }
+            })
+        }   
+        toast('ガイドラインを生成しました。内容を確認してください。')
+        setTimeout(() => {
+            learningResourcesParent.value?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+                inline: 'nearest'
+            })
+        }, 100);              
+    } catch (err) {        
+        ping('AI修正に失敗しました。<br>' + err)       
 
     } finally{
         resourceLoading.value = false
-    }
-    
+    }  
 
     
 }

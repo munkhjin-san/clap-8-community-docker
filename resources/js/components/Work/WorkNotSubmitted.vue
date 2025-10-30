@@ -45,7 +45,8 @@ import { useDialog } from '@/composables/dialog';
     const auth = useAuthUserStore()
     const props = defineProps(['item'])
     const { ping } = useDialog()
-    
+    const customFieldData = ref([])
+    const workGroups = ref([])
     const selectedYear = ref(props.item ? props.item.year : DateTime.now().year)
     const selectedMonth = ref(props.item ? props.item.month : DateTime.now().month)
     const reportModal = ref(false)
@@ -53,7 +54,7 @@ import { useDialog } from '@/composables/dialog';
     const { notSubmitted, nextMonthShift } = inject('checkWork')
     const shiftModal = ref(false)
     const editData = ref(null)
-    const timeCardAdd = (item) => {
+    const timeCardAdd = async(item) => {
         if(item.day){
             const { 
                 value, 
@@ -74,6 +75,7 @@ import { useDialog } from '@/composables/dialog';
                 day_full : value,
                 user_id : auth.id,
                 work_time_day: auth.user.work_time_day,
+                user_code: auth.user.user_code,
                 shift : {
                     start_time: shiftStartTime,
                     end_time: shiftEndTime,
@@ -88,6 +90,7 @@ import { useDialog } from '@/composables/dialog';
                 total_break_time: 0
             }
             reportModal.value = true
+
         }else{
             shiftModal.value = true
         }
@@ -98,5 +101,4 @@ import { useDialog } from '@/composables/dialog';
         nextMonthShift()
         reportModal.value = false
     }
-    
 </script>

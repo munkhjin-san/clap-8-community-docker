@@ -19,15 +19,17 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
     <link rel="icon" type="image/x-icon" sizes="36x36" href="/favicon.ico">
     <link rel="icon" type="image/png" sizes="36x36" href="/favicon.png"> -->
-    <link rel="apple-touch-icon" size="152x152" href="/app/public/logo152.png">
-    <link rel="icon" type="image/png" size="152x152" href="/app/public/logo152.png">
+    <!-- <link rel="apple-touch-icon" size="152x152" href="/app/public/logo152.png">
+    <link rel="icon" type="image/png" size="152x152" href="/app/public/logo152.png"> -->
+    <link rel="icon" href="/logo-black.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+    <!-- Dark mode -->
+    <link rel="icon" href="/logo-white.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
     <link rel="manifest" href="/manifest.json">
     <!-- <link rel="canonical" href="https://glowd.app/auth"> -->
     <title>MISO</title>
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
-
     <!-- Styles -->
     {{-- <link href="{{ mix('css/app.css') }}" rel="stylesheet"> --}}
     <link rel="preconnect" href="https://fonts.gstatic.com">

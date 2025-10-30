@@ -133,7 +133,6 @@ import { useDialog } from '@/composables/dialog'
     const todayStartTime = ref(null)
     const todayEndTime = ref(null)
     const customFieldData = ref([])
-    const customInfo = ref([])
     const recordsArray = ref([])
     const headerEl = ref(null)
     const editData = ref(null)
@@ -318,7 +317,6 @@ import { useDialog } from '@/composables/dialog'
     const fetchDatas = async () => {
         try{
             workGroups.value = await getWorkGroup()
-            customInfo.value = await getCustomFields()
             
         } catch (e){
             ping(e?.message || 'エラーが発生しました。') 
@@ -423,7 +421,6 @@ import { useDialog } from '@/composables/dialog'
         let scrollInto = document.getElementById('bottomTotal');
         scrollInto.scrollIntoView({ behavior: 'instant', block: 'start' });
     }
-    provide('customInfo', customInfo)
     provide('fetchShiftDataTable', fetchShiftDataTable)
     provide('stamps', {
         edit: (item) => timeStampEdit(item),
@@ -433,5 +430,4 @@ import { useDialog } from '@/composables/dialog'
         takeBreak: (item) => timeStampBreak(item),
         addDepartmentOnly: (item) => addDepartmentOnly(item)
     })
-    provide('workGroups', workGroups)
 </script>

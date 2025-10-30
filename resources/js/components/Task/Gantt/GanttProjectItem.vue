@@ -26,7 +26,6 @@
            
             <div class="truncated-task-remarks overflow-hidden overflow-ellipsis leading-[1.4] flex items-center">
                 {{ project.name }}
-                <WeatherIcon v-if="project.project_conditions.length" :which="project.project_conditions[0].value" size="15"/>
             </div>
            
             <div class="flex gap-[10px] items-center overflow-hidden">
@@ -58,7 +57,6 @@ import { Project } from '@/interface/projectInterface';
 import colors from 'assets/colors.json'
 import { useAuthUserStore } from '@/store/auth';
 import { useTheme } from '@/store/theme';
-import WeatherIcon from '@/components/Global/WeatherIcon.vue';
 const router = useRouter()
 const messageUsers = useMessageUsers()
 const props = defineProps<{

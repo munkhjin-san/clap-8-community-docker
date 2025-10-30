@@ -126,6 +126,9 @@ export interface Office {
     address: string;
     fax: string;
     tel: string;
+    post_code_1: string | null;
+    post_code_2: string | null;
+    employees: User[];
 }
 export interface Facility {
     id: number;

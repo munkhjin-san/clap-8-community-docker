@@ -22,14 +22,7 @@ const props = defineProps<{
 const value = defineModel<any>()
 
 onMounted(() => {
-// simulate event and pass to setsubpart of first elemenet
     if(props.subParts.length > 0){
-        const event = {
-            target: {
-                value: props.subParts[0].parts_value,
-                checked: true
-            }
-        }
         let includes = false;
         props.subParts.forEach(part => {
             if(Array.isArray(value.value) && value.value.map(Number).includes(Number(part.parts_value))){
@@ -39,15 +32,12 @@ onMounted(() => {
         if(!includes){
             value.value.push(props.subParts[0].parts_value);
         }
-        // setSubPart(event);
     }
 })
 const setSubPart = (event) => {
-    console.log('setSubPart', event);
     const targetValue = event.target.value;
     if(event.target.checked){
         const otherParts = props.subParts.filter(part => Number(part.parts_value) !== Number(targetValue));
-        console.log('otherParts', otherParts);
         otherParts.forEach(part => {
             value.value = value.value.filter(v => Number(v) !== Number(part.parts_value));
         })

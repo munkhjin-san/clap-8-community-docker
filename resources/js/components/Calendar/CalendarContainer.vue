@@ -137,10 +137,7 @@
         </Transition>
         <FloatButton :order="4" :style="{zIndex: initialLoader ? 41 : 7}" title="設定" @action="settingsView = true">
             <template #icon>
-                <Gear v-if="!googleLoading" fill="black" size="18"/>
-                <div v-else id="loaderMini">
-                    <div class="spinner-nano" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
-                </div>
+                <Gear fill="black" size="18"/>
             </template>
         </FloatButton>
         <FloatButton 

@@ -33,6 +33,7 @@ interface User{
   linked: User[]
   icon_bg: string | null
   partner_flag?: number | null
+  project_settings?: {project_id: number, color: string | null}[]
 }
 interface Weather{
   value_int: number | null

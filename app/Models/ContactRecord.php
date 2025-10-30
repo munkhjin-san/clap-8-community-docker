@@ -23,4 +23,16 @@ class ContactRecord extends Model
     public function type(){
         return $this->belongsTo(ContactType::class, 'contact_type_id');
     }
+
+    public function collaborators()
+    {
+        return $this->belongsToMany(User::class, 'contact_record_user', 'contact_record_id', 'user_id')
+            ->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg')
+            ->withTimestamps()
+            ->withPivot('role', 'private_memo');
+    }
+    public function comments()
+    {
+        return $this->hasMany(ContactRecordComment::class);
+    }
 }

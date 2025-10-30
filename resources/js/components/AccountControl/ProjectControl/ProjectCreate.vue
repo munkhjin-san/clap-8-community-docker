@@ -145,14 +145,6 @@
                                     placeHolder="顧客企業（正式名称）"
                                 />
                             </div>
-
-                            <!-- <div class="si-box flex flex-col gap-[15px]">
-                                <PartnerSelector 
-                                    name="customer"
-                                    v-model="projectParams.partners!"
-                                    placeHolder="パートナー企業（正式名称）"
-                                />
-                            </div> -->
                             <div class=si-box>
                                 <div style="background:inherit;">        
                                     <div style="position:relative;background:inherit;">
@@ -212,78 +204,64 @@
 
                             </div>
                             <div class="si-box relative">
-                                <p class="mb-[15px]">概要</p>
-                                <RichEditor 
-                                    name="description"
-                                    :initila-value="projectParams.description"
-                                    placeHolder="概要"
-                                    :key="inputKeys.description"
-                                    @content-updated="(val) => projectParams.description = val"
-                                />
-                                <div @click="generateAutoText('概要', 'description')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.description}"/>
-                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.description ? '生成中...' : '自動生成'}}</p>
-                                </div>
+                                <AiGenerationProject 
+                                    v-model:text="projectParams.description"
+                                    url-prefix="/project_generate_description"
+                                    place-holder="概要"
+                                    which="description"
+                                    ref="descriptionGenerator"
+                                    config-key="project_description_generation"
+                                    :data="projectParams"
+                                />                                                                
                             </div>
+                            <p class="text-[12px] text-[gray] mt-[10px] leading-normal">概要は管理者用の非公開メモから自動生成されます。プロジェクト情報を詳しく入力すると、より正確な概要が作成されます。</p>
  
                         </div>
                         <div class="mb-[60px] section-hd" id="miso">
                             <p class="mb-[20px]"><strong>MISO</strong></p>
                             <div class="relative">
-                                <p class="mb-[15px]">ミッション</p>
-                                <RichEditor 
-                                    name="mission"
-                                    :initila-value="projectParams.mission"
-                                    placeHolder="ミッション"
-                                    :key="inputKeys.mission"
-                                    @content-updated="(val) => projectParams.mission = val"
-                                />
-                                <div @click="generateAutoText('ミッション', 'mission')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.mission}"/>
-                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.mission ? '生成中...' : '自動生成'}}</p>
-                                </div>
+                                <AiGenerationProject 
+                                    v-model:text="projectParams.mission"
+                                    url-prefix="/project_generate_miso"
+                                    place-holder="ミッション"
+                                    which="mission"
+                                    ref="missionGenerator"
+                                    config-key="project_miso_generation"
+                                    :data="projectParams"
+                                /> 
+                            </div>
+                            <div class="si-box">                                
+                                <AiGenerationProject 
+                                    v-model:text="projectParams.innovation"
+                                    url-prefix="/project_generate_miso"
+                                    place-holder="イノベーション"
+                                    which="innovation"
+                                    ref="innovationGenerator"
+                                    config-key="project_miso_generation"
+                                    :data="projectParams"
+                                /> 
                             </div>
                             <div class="si-box">
-                                <p class="mb-[15px]">イノベーション</p>
-                                <RichEditor 
-                                    name="innovation"
-                                    :initila-value="projectParams.innovation"
-                                    placeHolder="イノベーション"
-                                    :key="inputKeys.innovation"
-                                    @content-updated="(val) => projectParams.innovation = val"
-                                />
-                                <div @click="generateAutoText('イノベーション', 'innovation')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.innovation}"/>
-                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.innovation ? '生成中...' : '自動生成'}}</p>
-                                </div>
+                                <AiGenerationProject 
+                                    v-model:text="projectParams.strategy_miso"
+                                    url-prefix="/project_generate_miso"
+                                    place-holder="ストラテジー"
+                                    which="strategy"
+                                    ref="strategyGenerator"
+                                    config-key="project_miso_generation"
+                                    :data="projectParams"
+                                /> 
                             </div>
                             <div class="si-box">
-                                <p class="mb-[15px]">ストラテジー</p>
-                                <RichEditor 
-                                    name="strategy_miso"
-                                    :initila-value="projectParams.strategy_miso"
-                                    placeHolder="イノベーション"
-                                    :key="inputKeys.strategy_miso"
-                                    @content-updated="(val) => projectParams.strategy_miso = val"
-                                />
-                                <div @click="generateAutoText('ストラテジー', 'strategy_miso')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.strategy_miso}"/>
-                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.strategy_miso ? '生成中...' : '自動生成'}}</p>
-                                </div>
-                            </div>
-                            <div class="si-box">
-                                <p class="mb-[15px]">オペレーション</p>
-                                <RichEditor 
-                                    name="operation"
-                                    :initila-value="projectParams.operation"
-                                    placeHolder="オペレーション"
-                                    :key="inputKeys.operation"
-                                    @content-updated="(val) => projectParams.operation = val"
-                                />
-                                <div @click="generateAutoText('オペレーション', 'operation')" title="概要を自動生成する" class="absolute bottom-[5px] right-[7px] bg-[var(--background-color)] flex items-center cursor-pointer">
-                                    <AiIcon size="15" class="mr-[5px]" fill="var(--primary-color)" :class="{'animate-pulse': inputLoading.operation}"/>
-                                    <p class="text-[var(--primary-color)] text-[12px]">{{inputLoading.operation ? '生成中...' : '自動生成'}}</p>
-                                </div>
+                                <AiGenerationProject 
+                                    v-model:text="projectParams.operation"
+                                    url-prefix="/project_generate_miso"
+                                    place-holder="オペレーション"
+                                    which="operation"
+                                    ref="operationGenerator"
+                                    config-key="project_miso_generation"
+                                    :data="projectParams"
+                                /> 
                             </div>
                         </div>
                         <div class="section-hd" id="tasks">
@@ -370,19 +348,14 @@ import { DateTime } from 'luxon';
 import CloseIcon from '@/components/Form/CloseIcon.vue';
 import 'styles/selector.css'
 import { useAuthUserStore } from '@/store/auth';
-import OpenAI from 'openai';
-import RichEditor from '@/components/Global/RichEditor.vue';
-import {marked} from 'marked'
-import DOMPurify from 'dompurify';
-import taskGenerateFormat from 'assets/taskGenerateFormat.json'
 import { type Node, type Edge, MarkerType, VueFlow, VueFlowStore, Position, Handle } from '@vue-flow/core';
 import CustomEdge from '@/components/Task/Gantt/CustomEdge.vue';
 import AiLoader from '@/components/Global/AiLoader.vue';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
 import ProjectIndustryTypes from 'assets/ProjectIndustryTypes.json'
-import AiIcon from '@/components/Icons/AiIcon.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import AiGenerationProject from '@/components/Global/AiGenerationProject.vue';
 
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
@@ -392,29 +365,13 @@ const loading = ref(false)
 const taskCreating = ref(false)
 const misoCreating = ref(false)
 const auth = useAuthUserStore()
-const step = ref(0)
+
 const stepTitles = [
     {name: '基本情報', hash: '#basic'},
     {name: '概要', hash: '#overview'},
     {name: 'MISO', hash: '#miso'},
     {name: 'タスク自動生成', hash: '#tasks'}
 ]
-const inputKeys = reactive({
-    mission: 0,
-    innovation: 0,
-    strategy_miso: 0,
-    operation: 0,
-    description: 0
-})
-
-const inputLoading = reactive({
-    mission: false,
-    innovation: false,
-    strategy_miso: false,
-    operation: false,
-    description: false
-})
-
 const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(props.editData) } : {
     name: '',
     description: '',
@@ -443,7 +400,6 @@ onMounted(() => {
         projectParams.date_start = DateTime.now().toISODate()
         projectParams.date_end = DateTime.now().plus({ days: 30 }).toISODate()
         if(auth.activeUser && projectManager.value){
-            // projectParams.manager = [auth.activeUser as User]
             projectManager.value.selectBy([auth.activeUser])
         }
         
@@ -535,9 +491,7 @@ const validation = async() => {
 }
 const managerValidation = async() => {
     if (!projectManager.value) return false
-
     const val = await projectManager.value?.validate() || { valid: false}
-
     return val.valid
 }
 
@@ -574,34 +528,22 @@ const createProject = async() => {
     loading.value = false
 }
 const generateTasks = async() => {
-    // const validate = await validation()
+
     const managerValidate = await managerValidation()
     if(!managerValidate) return
     if (!projectParams.mission && !projectParams.innovation && !projectParams.strategy_miso && !projectParams.operation) {
         ping('タスクを生成するには、ミッション、イノベーション、ストラテジー、オペレーションのいずれかが必要です。')
         return
     }
+    let result = {value: true}
+    if (generatedTasks.value.length) {
+        result = await ask('既存のタスクは上書きされます。よろしいですか？')
+    }
+    if (!result.value) return
     try {
         generatedTasks.value = []
-        taskCreating.value = true
-        const openai = new OpenAI({
-            apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-            dangerouslyAllowBrowser: true 
-        });       
-        const instructionText = `あなたはプロジェクトのタスクを自動生成するアシスタントです。\n
-        プロジェクトの概要と期間と4つの様子があげられます。\n
-        「ミッション、イノベーション、ストラテジー、オペレーション」\n
-        各様子に1つのメインタスクを生成し、その中にサブタスクも生成します。\n
-        メインタスクの内容の前必ず様子を記載する必要がある。\n
-        例：【ミッション】タスク内容(remarks)\n
-        期間(duration)はプロジェクトの期間に合わせます。日数です。\n
-        (id)はタスクのIDです。メインタスクの場合は、main_{unique_id} とします。\nサブタスクの場合は、sub_{unique_id} とします。\n
-        (start_at)はタスクの開始日です。プロジェクトの期間にあわせます。\n
-        (end_at)はタスクの終了日です。プロジェクトの期間にあわせます。\n
-        必要に応じてサブタスク（sub_tasks）を追加。ただし、不要な場合は sub_tasks: [] を返すこと。実行可能なステップに分解します。\n
-        タスク間の親子関係を適切に設定:\n   
-        - sub_tasks → サブタスクの配列（必要な場合）。\n  
-        - parent_task_id → 親タスクのID（サブタスクの場合）。`
+        taskCreating.value = true   
+
         const userMessage = 
         `
         プロジェクト名 : ${projectParams.name}
@@ -612,70 +554,25 @@ const generateTasks = async() => {
         ストラテジー : ${projectParams.strategy_miso}
         オペレーション : ${projectParams.operation}
         `
-        const response = await openai.responses.create({
-            model: "gpt-4.1-mini",
-            input: [
-                {
-                    "role": "system",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": instructionText
-                        }
-                    ]
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": userMessage
-                        }
-                    ]
-                }
-            ],
-            text: {
-                "format": {
-                    "type": "json_schema",
-                    "name": "tasks_schema",
-                    "strict": true,
-                    "schema": taskGenerateFormat
-                }
-            },
-        });
 
-        if(response.output[0].type == 'message' && response.output[0].content[0].type == "output_text"){
-     
-            const parsedData = JSON.parse(response.output[0].content[0].text);
-            generatedTasks.value = parsedData.tasks.map((task: Task) => {
-                return {
-                    ...task,
-                    executors: projectParams.manager,
-                    sub_tasks: task.sub_tasks.map((subTask: Task) => {
-                        return {
-                            ...subTask,
-                            executors: projectParams.manager,
-                        }
-                    })
-                }
-            })
-            console.log(generatedTasks)
-        }
+        const data = await api.post('/non_stream_prompt', { message: userMessage, config_key: 'project_task_generation' })
+        const parsedData = JSON.parse(data);
+        generatedTasks.value = parsedData.tasks.map((task: Task) => {
+            return {
+                ...task,
+                executors: projectParams.manager,
+                sub_tasks: task.sub_tasks.map((subTask: Task) => {
+                    return {
+                        ...subTask,
+                        executors: projectParams.manager,
+                    }
+                })
+            }
+        })
         taskCreating.value = false
         
-    } catch (err) {
-        if (err instanceof OpenAI.APIError) {
-            console.log(err.status); 
-            console.log(err); 
-            if(err.status == 500){
-                ping('タスクの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-            }else{
-                ping('タスクの自動生成に失敗しました。>' + err?.message)
-            }
-            
-        } else {
-            ping('タスクの自動生成に失敗しました。<br>' + err)
-        }
+    } catch (err) {        
+        ping('タスクの自動生成に失敗しました。<br>' + err)        
         taskCreating.value = false
     }
 }
@@ -698,179 +595,6 @@ const deleteTask = (id: number) => {
             }
         });
     }
-}
-
-const instruction = (val:string) => {
-    return `あなたはMISOフレームワークの自動生成アシスタントです。
-    MISOフレームワークとは
-    ■ Mission（ミッション：目的と背景の明確化）
-    ・プロジェクトの具体的な目的や存在意義を明確に記述
-    ・達成すべき定量的および定性的目標を設定
-    ・主要ステークホルダーとその具体的役割を示す
-
-    ■ Innovation（イノベーション：価値創造と差別化）
-    ・本質的な課題の分析と根本原因の明確化
-    ・競合との差別化を図るための独自かつ具体的なアイデアの提示
-
-    ■ Strategy（ストラテジー：戦略と施策の具体化）
-    ・プロジェクト成功に向けた具体的かつ実践可能な戦略
-    ・施策実施に必要なリソース、役割分担を具体的に提示
-    ・想定されるリスクへの対処戦略を具体的に明示
-
-    ■ Operation（オペレーション：実行と継続的改善）
-    ・実施プロセス（作業フロー）の具体的な提示
-    ・進捗管理と評価方法を具体的に設定
-    ・フィードバック収集手法と改善サイクルの具体的設計
-    ユーザーからは次のようなデータがあげられます。
-    プロジェクト名
-    プロジェクトの実施期間
-    プロジェクトの概要
-    あなたの役割はユーザーから挙げられたデータを分析し、MISOフレームワークの通り、プロジェクトの${val}を考え、具体的かつ実践的な${val}を生成することです。
-    ${val}のみを生成します。他の様子を別で生成するため今回はいりません。
-    不足情報がある場合は、AIが具体的に追加質問を行います。
-    
-    注意事項
-    テキストフォーマットはMarkdown形式で記述してください。
-    500文字以内で記述してください。
-    よけな付け足すをしないでください。例: プロジェクト名や期間そしてプロジェクトの${val}などを記載しない
-    文書はあまり長くせず少し要点をまとめた文章にしてください。
-    `
-}
-
-const descriptionInstruction = `
-挙げられたプロジェクトの情報から、プロジェクトの概要を生成してください。
-プロジェクトの概要は、プロジェクトの目的、背景、目標
-など、プロジェクトの全体像を示す内容を含めてください。
-    注意事項
-    テキストフォーマットはMarkdown形式で記述してください。
-    500文字以内で記述してください。
-    よけな付け足すをしないでください。例: プロジェクト名や期間そして「プロジェクトの概要」などを記載しない
-`
-
-const generateAutoText = async(index:string, indexVal:string) => {
-    
-
-    if(inputLoading[indexVal]){
-        return
-    }
-    const validationTargets:any = [startDateRef.value, endDateRef.value, projectTitle.value]
-    let result = true
-    if(indexVal == 'description'){
-        validationTargets.push(projectMemo.value)
-    }else{
-        validationTargets.push(projectManager.value)
-    }
-
-    for(const target of validationTargets){                
-        const val = await target?.validate() || {valid:false}
-        result = result && val.valid
-    }
-    if(!result){
-        ping('必須項目を入力してください。')
-        return
-    }
-
-    let confirmed = {value: true}
-    if(projectParams[indexVal]){
-        confirmed = await ask('既存の内容は上書きされます。よろしいですか？')
-    }
-    if(!confirmed.value){
-        return
-    }
-    inputLoading[indexVal] = true
-
-    const openai = new OpenAI({
-        apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-        dangerouslyAllowBrowser: true 
-    });  
-
-    let inputText = `
-        プロジェクト名 : ${projectParams.name}
-        プロジェクトの実施期間 : ${projectParams.date_start} ~ ${projectParams.date_end}
-        プロジェクトの概要 : ${indexVal == 'description' ? projectParams.private_memo : projectParams.description}
-    `
-    if(projectParams.customers && projectParams.customers.length){
-        inputText += `顧客企業 : ${projectParams.customers.join(', ')}`
-    }
-    if(projectParams.partners && projectParams.partners.length){
-        inputText += `パートナー企業 : ${projectParams.partners.join(', ')}`
-    }
-    if(projectParams.category && projectParams.category.length){
-        inputText += `サービスカテゴリ : ${projectParams.category.join(', ')}`
-    }
-    const instructionText = indexVal == 'description' ? descriptionInstruction : instruction(index)
-    try{
-        const response = await openai.responses.create({
-            model: "gpt-4.1-mini",
-            input: [
-                {
-                    "role": "system",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": instructionText
-                        }
-                    ]
-                },
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "input_text",
-                            "text": inputText
-                        }
-                    ]
-                }
-            ],
-            text: {
-                "format": {
-                    "type": "text"
-                }
-            },
-            stream: true
-        });
-        let rawText = '';
-        for await (const event of response) {
-            console.log(event);
-            if (event.type === 'response.output_text.delta') {
-                rawText += event.delta; 
-
-                const markedText = marked.parse(rawText) as string;
-                const sanitizedText = DOMPurify.sanitize(markedText);
-
-                projectParams[indexVal] = sanitizedText;
-                inputKeys[indexVal]++;
-            }
-        }
-    } catch (e) {
-        console.error(e);
-        ping('自動生成に失敗しました。')
-
-    } finally{
-        inputLoading[indexVal] = false
-    }
-
-}
-const shiftStep = async(from: number, to: number) => {
-    let valid = true
-    const validationTargets: (ComponentExposed<typeof ShortInput> | ComponentExposed<typeof LongInput> | null)[] = []
-    if(from == 0){
-        validationTargets.push(startDateRef.value, endDateRef.value, projectTitle.value, projectManager.value)
-    }
-    else if(from == 1){
-        validationTargets.push( projectMemo.value)
-    }
-    const filteredTargets = validationTargets.filter(target => target)
-    console.log(filteredTargets)
-    for(const target of filteredTargets){                
-        const val = await target?.validate() || {valid:false}
-        valid = valid && val.valid
-    }
-    if(!valid){
-        ping('必須項目を入力してください。')
-        return
-    }
-    step.value = to
 }
 const onScroll = (event) => {
     const target = event.target as HTMLElement

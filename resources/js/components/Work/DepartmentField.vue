@@ -31,13 +31,14 @@
     </div>
 </template>
 <script setup>
-import { computed, inject, ref } from 'vue'
+import { computed, inject, onMounted, ref } from 'vue'
 import { useAuthUserStore } from '@/store/auth'
 import LoaderButton from '../Global/LoaderButton.vue'
 import ItemSelector from '../Form/ItemSelector.vue';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
-const workGroups = inject('workGroups')
+import { getWorkGroup } from '@/utils/workApi';
+const workGroups = ref([])
 const auth = useAuthUserStore()
 const props = defineProps(['shiftForDepartment'])
 const emit = defineEmits(['close'])
@@ -71,4 +72,7 @@ const departmentAdd = async() => {
     emit('close')
 
 }
+onMounted(async() => {
+    workGroups.value = await getWorkGroup()
+})
 </script>

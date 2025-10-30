@@ -10,12 +10,12 @@
                         </div>                        
                     </div>
                     
-                    <button @click="setOption(option)" v-for="option in dateOptionsData" class="border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer relative">
+                    <button @click="setOption(option)" v-for="option in dateOptionsData" class="flex items-center border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer relative">
                         {{ option.name }}
                         <span class="side-notification" 
-                            style="right: 2px; top: 6px; left: auto;" 
-                            v-if="badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length"
-                        >{{ badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length }}
+                            style="right: 2px; top: 6px; left: auto;position:unset; width: fit-content;" 
+                            v-if="badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length > 0"
+                        >{{ badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length }}
                     </span>
                     </button>
                 </div>
@@ -30,7 +30,7 @@
                 :is="Component"
                 :key="route.fullPath"
             />
-            </router-view>
+        </router-view>
     </div>
 </template>
 <script setup lang="ts">

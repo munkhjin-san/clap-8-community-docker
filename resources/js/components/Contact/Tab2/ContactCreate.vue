@@ -12,9 +12,9 @@
                 <p class="text-white leading-normal">現在、企業データを検索中です。<br>ファイルや情報の容量によっては、数分かかる場合がありますので、<br>今しばらくお待ちください。</p>
             </div>
         </div>
-        <div>
+        <!-- <div>
             <Cropper ref="cropperInstanceRef" mode="scan" @scan="getScan" @crop="cropComplete"/>
-        </div>
+        </div> -->
               
 
         <div class="si-box">

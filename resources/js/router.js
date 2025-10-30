@@ -9,11 +9,33 @@ import { useProjectUsers } from '@/store/projectUsers'
 import { useKeyboardStore } from '@/store/keyboardStore'
 import axios from 'axios'
 const routes = [
+    {
+        name: 'community',
+        path: '/community',
+        component: () => import('./components/Community/CommunityContainer.vue'),
+        meta: {
+            title: 'コミュニティ',
+        },
+        redirect: { name: 'members' },
+        children: [
+            {
+                path: 'members',
+                name: 'members',
+                component: () => import('@/components/Community/MemberContainer.vue')
+            },
+            {
+                path: 'offices',
+                name: 'offices',
+                component: () => import('@/components/Community/OfficeContainer.vue')
+            }
+        ]
+            
+    },
     { 
         path: '/board', 
         name: 'board', 
         meta: {
-            title: 'MISO - チャット',
+            title: 'チャット',
         },        
         component: () => import('./components/Board/Board.vue'),
         children: [
@@ -41,7 +63,7 @@ const routes = [
         component: () => import('./components/Profile/UserComponent.vue'),
         props: true,
         meta: {
-            title: 'MISO - プロフィール',
+            title: 'プロフィール',
         }, 
         children: [
             
@@ -51,7 +73,7 @@ const routes = [
                 name: 'personal-info-settings',
                 props: true,
                 meta: {
-                    title: 'MISO - プロフィール編集',
+                    title: 'プロフィール編集',
                 },
                 beforeEnter: (to, from, next) => {
                     const rootElement = document.getElementById('app');
@@ -77,7 +99,7 @@ const routes = [
         path: '/post',
         name: 'post',
         meta: {
-            title: 'MISO - ポスト',
+            title: 'ポスト',
         },
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
@@ -88,7 +110,7 @@ const routes = [
         path: '/knowledge',
         name: 'knowledge',
         meta: {
-            title: 'MISO - ナレッジ',
+            title: 'ナレッジ',
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
@@ -99,7 +121,7 @@ const routes = [
         path: '/nice',
         name: 'nice',
         meta: {
-            title: 'MISO - ナイス',
+            title: 'ナイス',
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
@@ -110,7 +132,7 @@ const routes = [
         path: '/challenge',
         name: 'challenge',
         meta: {
-            title: 'MISO - チャレンジ',
+            title: 'チャレンジ',
         }, 
         component: () => import('./components/Post/PostContainer.vue'),
         beforeEnter: (to, from, next) => {
@@ -121,7 +143,7 @@ const routes = [
         path: '/project',
         name: 'project',
         meta: {
-            title: 'MISO - プロジェクト'
+            title: 'プロジェクト'
         },
         component: () => import('./components/Project/ProjectContainer.vue'),
         children: [
@@ -209,6 +231,20 @@ const routes = [
                         name: 'finance',
                         props: true,
                         component: () => import('./components/Project/ProjectTabs/Finance.vue'),
+                        // children: [
+                        //     {
+                        //         name: 'plan',
+                        //         path: 'plan',
+                        //         props: true,
+                        //         component: () => import('./components/Project/ProjectTabs/Finance/PlanScreen.vue')
+                        //     },
+                        //     {
+                        //         name: 'report',
+                        //         path: 'report',
+                        //         props: true,
+                        //         component: () => import('./components/Project/ProjectTabs/Finance/ScenarioReport.vue')
+                        //     }
+                        // ]
                     },
                     {
                         path: 'dispatch',
@@ -220,7 +256,7 @@ const routes = [
                         path: 'assets',
                         name: 'assets',
                         meta: {
-                            title: 'MISO - 物品'
+                            title: '物品'
                         },
                         props: true,
                         component: () => import('./components/Asset/AssetContainer.vue'),
@@ -240,11 +276,17 @@ const routes = [
                     
                 ]
             },
+            {
+                path: 'total-finance',
+                name: 'total-finance',
+                props: true,
+                component: () => import('@/components/Project/ProjectTotalFinance.vue'),
+            }
             // {
             //     path: 'gantt-chart',
             //     name: 'gantt-chart',
             //     meta: {
-            //         title: 'MISO - ガントチャート'
+            //         title: 'ガントチャート'
             //     },
             //     component: () => import('./components/Task/TaskComponent.vue'),
             //     children: [
@@ -260,7 +302,7 @@ const routes = [
             //     path: 'assets',
             //     name: 'assets',
             //     meta: {
-            //         title: 'MISO - 物品'
+            //         title: '物品'
             //     },
             //     props: true,
             //     component: () => import('./components/Asset/AssetContainer.vue'),
@@ -271,7 +313,7 @@ const routes = [
         path: '/schedule',
         name: 'schedule',
         meta: {
-            title: 'MISO - スケジュール',
+            title: 'スケジュール',
         }, 
         component: () => import('./components/Calendar/CalendarContainer.vue'),       
         
@@ -281,7 +323,7 @@ const routes = [
         name: 'timesheet',
         props: true,
         meta: {
-            title: 'MISO - タイムシート',
+            title: 'タイムシート',
         }, 
         component: () => import('./components/Work/WorkContainer.vue'),
     },
@@ -289,7 +331,7 @@ const routes = [
         path: '/admin_control',
         name: 'admin_control',
         meta: {
-            title: 'MISO - 管理画面',
+            title: '管理画面',
         }, 
         component: () => import('./components/AccountControl/AdminControlList.vue'),
         children: [
@@ -418,6 +460,13 @@ const routes = [
                 meta: { head: 'リフレッシュ' },
                 props: true,
                 component: () => import('@/components/AccountControl/RefreshControl/RefreshControl.vue'),
+            },
+            {
+                path: 'offices',
+                name: 'admin-offices',
+                meta: { head: '営業所管理' },
+                props: true,
+                component: () => import('@/components/AccountControl/Office/AdminOffice.vue'),
             }
         ],
     },
@@ -426,7 +475,7 @@ const routes = [
         name: 'survey',
         component: () => import('@/components/Survey/Survey.vue'),
         meta: {
-            title: 'MISO - アンケート',
+            title: 'フォーム',
         },
         children: [
             {
@@ -445,7 +494,7 @@ const routes = [
         path: '/support',
         name: 'support',
         meta: {
-            title: 'MISO - サポート',
+            title: 'サポート',
         }, 
         component: () => import('./components/Support/Support.vue'),
         children: [
@@ -460,7 +509,7 @@ const routes = [
         path: '/notice',
         name: 'notice',
         meta: {
-            title: 'MISO - お知らせ',
+            title: 'お知らせ',
         }, 
         component: () => import('./components/Notice/Notice.vue'),
         children: [
@@ -484,7 +533,7 @@ const routes = [
         component: () => import('./components/Settings/Settings.vue'),
         name: 'settings',
         meta: {
-            title: 'MISO - 設定',
+            title: '設定',
         }, 
         props: true,
         
@@ -493,7 +542,7 @@ const routes = [
         path: '/learning',
         name: 'learning',
         meta: {
-            title: 'MISO - ラーニング',
+            title: 'ラーニング',
             titleJp: 'ラーニング'
         }, 
         component: () => import('./components/Learning/LearningRoot.vue'),
@@ -683,7 +732,7 @@ const routes = [
         path: '/contact',
         name: 'contact',
         meta: {
-            title: 'MISO - コンタクト',
+            title: 'コンタクト',
         },
         redirect: {name: 'tab1'}, 
         component: () => import('@/components/Contact/MainContainer.vue'),
@@ -712,7 +761,7 @@ const routes = [
         path: '/remind',
         name: 'remind',
         meta: {
-            title: 'MISO - リマインド',
+            title: 'リマインド',
             titleJp: 'リマインド'
         }, 
         component: () => import('./components/Remind/RemindContainer.vue'),

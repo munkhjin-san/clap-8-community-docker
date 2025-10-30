@@ -43,34 +43,39 @@ import { useBoardList } from '@/composables/board';
             emit('close')
         }
     }
+    function getCaretClientRect(): DOMRect | null {
+        const sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return null;
+
+        const r = sel.getRangeAt(0).cloneRange();
+        r.collapse(true);
+
+        // Try native rects first
+        const rects = r.getClientRects();
+        if (rects && rects.length) return rects[0];
+
+        // Fallback: inject a temporary marker to measure
+        const marker = document.createElement("span");
+        // zero-width char keeps layout stable
+        marker.textContent = "\u200B";
+        marker.style.display = "inline-block";
+        r.insertNode(marker);
+
+        const rect = marker.getBoundingClientRect();
+        marker.remove(); // cleanup
+        return rect;
+    }
     const mentionBoxPosition = () => {
-        if (props.fromProject) return `bottom:55px;left:auto;visibility:visible;width:fit-content`
         if(props.forced){
-            return `bottom: 45px;left:0px;visibility:visible;width:fit-content`
+            return `bottom: 45px;left:0px;visibility:visible;width:fit-content;position:absolute`
         }else{
-            let x = 0,
-            y = 0;
-            const isSupported = typeof window.getSelection !== "undefined";
-            if (isSupported) {
-                const selection = window.getSelection();
-                if (selection && selection.rangeCount !== 0) {
-                    const range = selection.getRangeAt(0).cloneRange();
-                    range.collapse(true);
-                    const rect = range.getClientRects()[0];
-                    if (rect) {
-                        x = rect.left;
-                        y = rect.top;
-                    }
-                }
-            }
+            const caret = getCaretClientRect();
+            let x = caret ? caret.left : 0;
+            let y = caret ? caret.top : 0;
             var leftM = x - 80;      
             leftM = leftM < 0 ? 10 : leftM      
             var messagePanel = window.innerHeight;
             var bottomM = messagePanel - y + 5 - keyboardStore.height;  
-            const window_width = window.innerWidth
-            const pc = window_width > 959
-            const substract_from_left = pc ?  Math.floor(window_width * 0.2) : 0
-            leftM = leftM - substract_from_left
             var result = 'left:' + leftM + 'px;' + 'bottom:' + bottomM + 'px;visibility:visible'     
             return result
         }

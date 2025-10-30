@@ -22,17 +22,26 @@
                         type="date"
                         v-model="selectedDate"
                     />
-                    <div class="locale-selector" style="width: fit-content;position:relative;display: block;">
-                        <select 
-                            class="dropDownSelector cursor-pointer"
-                            :class="[{'date-color' : theme.dark }]" 
-                            name="scheduleHour" 
-                            v-model="selectedTime"
-                            style="height: 42px; font-size: 14px; border: solid 1px var(--primary-color);"
-                        >
-                            <option :value="option" v-for="option in availableHours" v-html="`${option}時`"></option>
-                        </select>  
-                    </div>
+
+                    <select 
+                        class="dropDownSelector cursor-pointer"
+                        :class="[{'date-color' : theme.dark }]" 
+                        name="scheduleHour" 
+                        v-model="selectedTime"
+                        style="height: 42px; font-size: 14px; border: solid 1px var(--primary-color);"
+                    >
+                        <option :value="option" v-for="option in availableHours" v-html="`${option}時`"></option>
+                    </select>  
+                    <select 
+                        class="dropDownSelector cursor-pointer"
+                        :class="[{'date-color' : theme.dark }]" 
+                        name="scheduleMinutes" 
+                        v-model="selectedMinutes"
+                        style="height: 42px; font-size: 14px; border: solid 1px var(--primary-color);"
+                    >
+                        <option :value="option" v-for="option in [0,15,30,45]" v-html="`${option}分`"></option>
+                    </select>  
+                 
                     
                    
                 </div>
@@ -56,6 +65,7 @@ import { useApi } from '@/composables/api'
 const theme = useTheme()
 const messageSchedule = useMessageSchedule()
 const selectedTime = ref(DateTime.now().plus({hours: 1}).hour)
+const selectedMinutes = ref(0)
 const selectedDate = ref(DateTime.now().toISODate())
 const error = ref('')
 const refreshMessage = inject('refreshMessage') as Function
@@ -71,7 +81,7 @@ const close = () => {
 
 const setSchedule = async() => {
 
-    const selectedDateTime = DateTime.fromISO(selectedDate.value).set({hour: selectedTime.value, minute: 0, second: 0})
+    const selectedDateTime = DateTime.fromISO(selectedDate.value).set({hour: selectedTime.value, minute: selectedMinutes.value, second: 0})
     const result = selectedDateTime > DateTime.now();
     const message_id = messageSchedule.message_id
     const formattedDateTime = selectedDateTime.toFormat('yyyy-MM-dd HH:mm:ss'); 

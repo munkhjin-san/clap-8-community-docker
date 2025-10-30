@@ -1,5 +1,5 @@
 <template>
-    <Modal @close="emit('closeModal')" persist>
+    <Modal @close="emit('closeModal')" persist :loader="spinner < 1">        
         <template #title>
             <p style="font-size: 18px;">{{formatedDay}}の日報を作成する</p>
         </template>
@@ -78,7 +78,7 @@
                 </div>
                 <IncentiveField v-if="item.position_id === 15" v-model="incentives"/>
                 <div class="report-field">
-                    <p class="report-header">マイカーの走行距離</p>
+                    <p class="report-header">マイカーの走行距離（往復）</p>
                     <div class="flex gap-4 items-center">
                         <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="car_used_project">
                             <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
@@ -125,7 +125,7 @@
     </Modal>
 </template>
 <script setup>
-import { computed, inject, onMounted, ref, reactive, watch, useTemplateRef } from 'vue';
+import { computed, onMounted, ref, reactive, watch, useTemplateRef } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { useTheme } from '@/store/theme';
 import CustomField from './CustomField.vue'
@@ -137,11 +137,10 @@ import { DateTime } from 'luxon';
 import { customParser, useDebouncedRef } from '@/utils/tools';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { getCustomFields, getWorkGroup } from '../../utils/workApi';
     const auth = useAuthUserStore()
-    const fields = inject('customInfo')
     const emit = defineEmits(['reload', 'closeModal'])
     const theme = useTheme()
-    const workGroups = inject('workGroups')
     
     const props = defineProps([
         'chosenDate', 
@@ -156,6 +155,9 @@ import { useDialog } from '@/composables/dialog';
         'item'
     ])
     const customFieldRef = useTemplateRef('customFieldRef')
+    const workGroups = ref([])
+    const fields = ref([])
+    const spinner = ref(0)
     const shift = computed(() => {
         return props.item?.shift
     })
@@ -207,8 +209,8 @@ import { useDialog } from '@/composables/dialog';
                         {label : '90分' , value : 90 }])
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
     const customValues = ref({})
-    const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : workGroupAsOptions.value[0]?.id ?? '')
-    const car_used_project = ref(timeCard.value?.car_used_project ?? workGroupAsOptions.value[0]?.id)
+    const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : '')
+    const car_used_project = ref(timeCard.value?.car_used_project ?? '')
     const car_mileage = useDebouncedRef('')
     const car_data = ref({})
     const costDepartment = computed(() => {
@@ -257,7 +259,20 @@ import { useDialog } from '@/composables/dialog';
         car_data.value = data
         
     }
-    onMounted(() => {
+    onMounted(async() => {
+        fields.value = await getCustomFields()
+        workGroups.value = await getWorkGroup()
+        setTimeout(() => {
+            if(!timeCard.value || !timeCard.value?.id){
+                todayWorkGroup.value = workGroupAsOptions.value[0]?.id ?? ''
+                car_used_project.value = todayWorkGroup.value
+                spinner.value++
+            } else {
+                spinner.value++
+            }
+        }, 100);
+
+        
         if(props.item?.total_break_time){
             const newItem = {
                 label: props.item?.total_break_time + '分',

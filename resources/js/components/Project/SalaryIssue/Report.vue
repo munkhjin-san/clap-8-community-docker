@@ -10,14 +10,14 @@
                 </div> 
             </div>
             <div>
-                <div class="si-box" style="margin-top: 0;">
+                <!-- <div class="si-box" style="margin-top: 0;">
                     <LongInput 
                         placeHolder="内容"
                         v-model="result"
                         ref="resultRef"
                         rules="required"
                     />
-                </div>
+                </div> -->
                 <!-- <div class="si-box">
                     <FileUploader 
                         v-model="uploadedFiles"
@@ -29,7 +29,7 @@
                     <LoaderButton style="margin: 0;" content="承認" @triggered="progressReport(9)" :loading="loading[3]"/>
                 </div>
                 <div v-else class="si-box" style="display: flex; gap: 20px; justify-content: center;">
-                    <LoaderButton style="margin: 0;" content="一時保存" @triggered="progressReport(6)" :loading="loading[0]"/>
+                    <!-- <LoaderButton style="margin: 0;" content="一時保存" @triggered="progressReport(6)" :loading="loading[0]"/> -->
                     <LoaderButton style="margin: 0;" content="申請する" @triggered="progressReport(7)" :loading="loading[1]"/>
                 </div>
             </div>
@@ -47,7 +47,7 @@ import { useDialog } from '@/composables/dialog';
 const props = defineProps(['chosenIssue', 'reviewing'])
 const emit = defineEmits(['close', 'reload'])
 const result = ref(props.chosenIssue?.result ?? '')
-const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
+// const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
 const loading = ref([false, false, false, false])
 const refresh = inject('refresh') as Function
 const uploadedFiles = ref<File[]>(props.chosenIssue?.files ?? [])
@@ -55,9 +55,9 @@ const badge = useBadgeStore()
 const api = useApi()
 const { ask } = useDialog()
 const progressReport = async(status: number) => {
-    const val = await resultRef.value?.validate() || {valid: false}
+    // const val = await resultRef.value?.validate() || {valid: false}
 
-    if(!val.valid) return
+    // if(!val.valid) return
 
     const loadstatus = status === 6 ? 0 : status === 7 ? 1 : status === 8 ? 2 : 3;
     let info_message = status === 6 ? '報告' : status === 7 ? '申請' : status === 8 ? '差戻' : '承認';

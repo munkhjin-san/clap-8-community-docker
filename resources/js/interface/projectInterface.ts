@@ -1,5 +1,5 @@
 import { DateTimeUnit, Interval } from "luxon";
-import { Task, User } from "./globalInterface";
+import { MessageFile, Task, User } from "./globalInterface";
 
 interface Project {
     id: number;
@@ -79,6 +79,7 @@ interface ProjectGoal {
     report: string;
     result: string;
     project: Project;
+    comment: string | null;
     salary_issue: SalaryIssue;
     evaluation: Evaluation;
     custom_instruction: string;
@@ -94,6 +95,7 @@ interface ProjectGoalReport {
     content: string;
     user: User;
     created_at: string;
+    files: MessageFile[]
 }
 interface ProjectGoalStep {
     id?: number; 
@@ -112,6 +114,8 @@ interface SalaryIssue {
     review: string;
     date: string;
     status: number;
+    result: string;
+    reports: ProjectGoalReport[]
 }
 interface Evaluation {
     id: number;
@@ -169,6 +173,7 @@ export interface FinancialData {
     expense: number;
     profit: number;
     profit_rate: number;
+    id?: number;
 }
   
 export interface MonthlyData {

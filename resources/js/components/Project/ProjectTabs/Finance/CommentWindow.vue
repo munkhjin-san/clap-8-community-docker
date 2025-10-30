@@ -64,7 +64,6 @@ import { FinanceComment } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge';
 type Props = {
     type: string;
-    mentionableUsers: User[]
     currentProjectId: number
     period: string;
 }
@@ -79,6 +78,8 @@ const showMentionBox = ref(false)
 const commentsList = ref<FinanceComment[]>([])
 const isSending = ref(false)
 const loading = ref(true)
+const mentionableUsers = ref<User[]>([])
+const commentParent = useTemplateRef('commentParent')
 type MentionBoxExpose = {
   highlighted: Ref<number>;
   mentionUser: (user: User, index: number) => void;
@@ -89,7 +90,7 @@ const editingCommentId = ref<number | null>(null)
 const badge = useBadgeStore()
 const mentionNameToId = computed<Record<string, number>>(() => {
   const map: Record<string, number> = {}
-  for (const u of props.mentionableUsers ?? []) {
+  for (const u of mentionableUsers.value ?? []) {
     if (!u?.name) continue
     map[u.name.toLowerCase()] = u.id
   }
@@ -134,7 +135,7 @@ const send = async () => {
     ? Array.from(
         new Set([
           ...mentioned_user_ids,
-          ...(props.mentionableUsers?.map(u => u.id) ?? []),
+          ...(mentionableUsers.value?.map(u => u.id) ?? []),
         ])
       ).filter(id => id !== -1)
     : mentioned_user_ids
@@ -157,6 +158,7 @@ const send = async () => {
 
   isSending.value = false
   emit('getCommentCounts')
+  scrollToEnd()
 }
 const closeMention = () => {
   keyCharacters.value = ''
@@ -165,7 +167,7 @@ const closeMention = () => {
   if (highlight) highlight.value = -1
 }
 const filteredUsers = computed<User[]>(() => {
-  const base = (props.mentionableUsers ?? []).slice() // clone
+  const base = (mentionableUsers.value ?? []).slice() // clone
   return [{ id: -1, name: '全員', icon_path: null } as User, ...base]
 })
 
@@ -406,17 +408,32 @@ const addEditorListeners = () => {
     events.forEach(evt => editorEl.removeEventListener(evt, updateRangeFromSelection))
   })
 }
+const getMentionableUsers = async() => {
+    const data = await api.get('/mentionable_users', {projectId: props.currentProjectId})
+    if (data) {
+        mentionableUsers.value = data
+    }
+}
 const getComments = async () => {
   const data = await api.get('/get_project_finance_comments', { project_record_id: props.currentProjectId, period: props.period })
   commentsList.value = data
   loading.value = false
+  scrollToEnd()
+  
+
+}
+const scrollToEnd = async() => {
+  await nextTick()
+  const el = commentParent.value
+  if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
 }
 const markRead = async () => {
   await api.post(`/projects/${props.currentProjectId}/finance/mark-read`)
 }
-onMounted(() => {
+onMounted(async() => {
+  getMentionableUsers()
   getComments()
-  markRead()
+  await markRead()
   badge.getFinanceCommentBadge()
   nextTick(() => {
     addEditorListeners()

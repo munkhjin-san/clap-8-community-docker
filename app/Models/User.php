@@ -23,7 +23,7 @@ class User extends Authenticatable
         'phone', 'password','icon_path', 'login', 
         'phone_isVerified', 'phone_prefix', 'q_token', 
         'is_public', 'color', 'language', 'work_email', 'footer_view', 'ical_key',
-        'award_charge', 'general_position'
+        'award_charge', 'general_position', 'office_id'
     ];
 
     /**
@@ -237,5 +237,9 @@ class User extends Authenticatable
         return $this->hasOne(OAuthCredential::class)
             ->where('provider', 'google')
             ->where('service', 'calendar');
+    }
+    public function project_settings()
+    {
+        return $this->hasMany(UserProjectSetting::class, 'user_id', 'id');
     }
 }

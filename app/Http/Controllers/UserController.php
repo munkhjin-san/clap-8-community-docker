@@ -295,7 +295,7 @@ class UserController extends Controller{
             ->where('date', '<', $today)
             ->orderBy('date', 'desc')
             ->limit(5);
-        }])->with(['portfolio', 'linked'])
+        }])->with(['portfolio', 'linked', 'project_settings'])
         ->first();         
 
         return response()->json($list);
@@ -306,7 +306,17 @@ class UserController extends Controller{
             'value' => 'required',
         ]);   
         try {
-            $request->user()->update(['color' => $request->value]);
+            $user = $request->user();
+            $user->update(['color' => $request->value]);
+            $project_colors = $request->project_colors;
+            if($project_colors && is_array($project_colors)){
+                foreach($project_colors as $key => $color){
+                    // dd($key, $color);
+                    $setting = $user->project_settings()->firstOrCreate(['project_id' => $key]);
+                    $setting->color = $color;
+                    $setting->save();
+                }
+            }
         } catch (ValidationException $exception) {
             throw ValidationException::withMessages(['message' => 'commonError']);
         }
