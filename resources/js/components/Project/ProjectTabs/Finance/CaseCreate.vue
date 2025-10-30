@@ -61,7 +61,7 @@
                     <ItemSelector 
                         :options="statusOptions"
                         v-model="params.status"
-                        place-holder="ステータス"
+                        place-holder="営業ステージ"
                         :multiple="false"
                         label="option"
                         :reduce="option => option"
@@ -78,7 +78,7 @@
                 <div class="si-box">
                     <ShortInput 
                         v-model="params.case_count"
-                        place-holder="案件"
+                        place-holder="目標件数"
                         type="number"
                     />
                 </div>
