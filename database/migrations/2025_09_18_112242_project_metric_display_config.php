@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('project_metric_display_config', function (Blueprint $t) {
             $t->bigIncrements('id');
-            $t->foreignId('project_metric_id')->constrained()->cascadeOnDelete();
+            $t->bigInteger('project_metric_id')->unsigned()->index();
             $t->enum('display_position', ['main', 'sub']);
             $t->bigInteger('parent_metric_id')->nullable();
             $t->enum('color_scheme', ['red', 'green', 'blue', 'yellow']);
