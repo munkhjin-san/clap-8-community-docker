@@ -151,7 +151,7 @@
                                 :is="Component"
                                 :userList="userList"
                                 :maxInterval="totalSpan"
-                                :projects="projectList.filter(pr => pr.name !== '役員部門')"
+                                :projects="projectList"
                                 :ownProjectIds="ownProjectIds"
                                 ref="taskComponent"
                             />

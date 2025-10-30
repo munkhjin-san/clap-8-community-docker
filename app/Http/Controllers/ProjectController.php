@@ -2569,16 +2569,21 @@ class ProjectController extends Controller
     }
     public function get_comment_count_from_total(Request $req) {
         $data = $req->validate([
-            'projectIds' => ['array']
+            'projectIds'   => ['sometimes', 'array'],
+            'projectIds.*' => ['integer'],
         ]);
-        $projectIds = $data['projectIds'];
-        $counts = ProjectFinanceComment::whereIn('project_record_id', $projectIds)
+        $ids = collect($data['projectIds'] ?? [])
+            ->filter(fn ($v) => $v !== null && $v !== '')
+            ->map(fn ($v) => (int) $v)
+            ->unique()
+            ->values();
+        if ($ids->isEmpty()) {
+            return response()->json((object)[]);
+        }
+         $counts = ProjectFinanceComment::whereIn('project_record_id', $ids)
             ->select('project_record_id', DB::raw('COUNT(*) as comment_count'))
             ->groupBy('project_record_id')
-            ->get()
-            ->mapWithKeys(fn($item) => [
-                $item->project_record_id => $item->comment_count,
-            ])->all();
+            ->pluck('comment_count', 'project_record_id');
         return response()->json($counts);
 
     }
