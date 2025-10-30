@@ -3,6 +3,21 @@
       <div class="flex flex-wrap items-center gap-4 md:justify-between justify-center">
         <div class="text-sm"><span class="p-[5px] text-xs bg-[var(--bg3)] mr-[10px]">期間</span> {{ selectProject?.date_start && selectProject.date_end ? `${DateTime.fromISO(selectProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
         <div class="flex items-center gap-4 flex-wrap md:justify-normal justify-center">
+          <!-- <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs uppercase p-[5px] tracking-wide bg-[var(--bg3)]">グラフ表示</span>
+            <div class="flex rounded border border-[var(--normalBorder)] overflow-hidden text-sm">
+              <button
+                v-for="option in displayOptions"
+                :key="option.value"
+                type="button"
+                class="px-3 py-1 transition"
+                :class="option.value === mode ? 'bg-[var(--hoverBorder)] !text-white' : 'bg-[var(--background-color)]'"
+                @click="mode = option.value"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div> -->
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs uppercase p-[5px] tracking-wide bg-[var(--bg3)]">粒度</span>
             <div class="flex rounded border border-[var(--normalBorder)] overflow-hidden text-sm">
@@ -92,7 +107,7 @@
                       <th>
                         {{ formatCell(totalByAllPrediction) }}
                       </th>
-                      <th></th>
+                      <th v-if="hasPrivilage"></th>
                     </tr>
                     <tr>
                       <th class="h-cell">合計目標値</th>
@@ -146,8 +161,14 @@ const grainOptions = [
   { label: '四半期', value: 'quarter' as const },
   { label: '年次', value: 'year' as const },
 ];
-
+const displayOptions = [
+  { label: 'ステージ', value: 'stage' as const },
+  { label: 'メンバー', value: 'member' as const },
+  { label: '集計', value: 'aggregate' as const}
+]
+type Mode = 'stage' | 'member' | 'aggregate'
 const grain = ref<Grain>('quarter');
+const mode = ref<Mode>('stage');
 const currentPeriod = ref(DateTime.now().startOf('month').minus({ months: 1 }));
 const loading = ref(false);
 
@@ -210,7 +231,6 @@ const periodLabel = computed(() => {
       return currentPeriod.value.toFormat('yyyy年M月');
   }
 });
-
 const setGrain = (next: Grain) => {
   if (grain.value === next) return;
   grain.value = next;
