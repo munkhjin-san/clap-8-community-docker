@@ -288,7 +288,7 @@ import { useApi } from '@/composables/api';
     }
     const sendIcon = async() => {
         if(iconType.value == 0) {
-            defaultIconCreate()
+            iconDeleteConfirm()
         }else if(iconType.value == 1 && cropperInstance.value){
             customIconCreate()
         }

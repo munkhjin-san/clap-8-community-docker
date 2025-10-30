@@ -58,7 +58,6 @@ import DepartureReportSend from '../Work/DepartureReportSend.vue';
             if(!auth.isRegistered && !auth.isOnLeave){
                 await getNotSubmitted()
                 checkDay() 
-                fetchDatas()
             }       
             if(auth.isRegistered && !auth.isOnLeave){
                 await getDepartureReport(false)
