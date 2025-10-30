@@ -69,6 +69,8 @@ const params = reactive<Partial<Office> >({
     fax: props.editTarget ? props.editTarget.fax : "",
     tel: props.editTarget ? props.editTarget.tel : "",
     employees: props.editTarget ? props.editTarget.employees : [],
+    post_code_1: props.editTarget ? props.editTarget.post_code_1 : "",
+    post_code_2: props.editTarget ? props.editTarget.post_code_2: ""
 })
 const loading = ref(false);
 const officeTitleRef = ref<InstanceType<typeof ShortInput> | null>(null);
