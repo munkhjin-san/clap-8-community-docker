@@ -209,7 +209,7 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
                         {label : '90分' , value : 90 }])
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
     const customValues = ref({})
-    const todayWorkGroup = ref(timeCard.value?.work_group_id ? timeCard.value.work_group_id : '')
+    const todayWorkGroup = ref(timeCard.value?.work_group_id ?? '')
     const car_used_project = ref(timeCard.value?.car_used_project ?? '')
     const car_mileage = useDebouncedRef('')
     const car_data = ref({})
@@ -263,7 +263,7 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
         fields.value = await getCustomFields()
         workGroups.value = await getWorkGroup()
         setTimeout(() => {
-            if(!timeCard.value || !timeCard.value?.id){
+            if(!timeCard.value || !timeCard.value?.work_group_id){
                 todayWorkGroup.value = workGroupAsOptions.value[0]?.id ?? ''
                 car_used_project.value = todayWorkGroup.value
                 spinner.value++
