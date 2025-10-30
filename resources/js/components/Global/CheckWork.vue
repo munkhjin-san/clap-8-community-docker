@@ -55,14 +55,17 @@ import DepartureReportSend from '../Work/DepartureReportSend.vue';
     const departureReportFlag = ref(false)
     const api = useApi()
     onMounted(() => {
-        if(!auth.isRegistered && !auth.isOnLeave){
-            getNotSubmitted()
-            checkDay() 
-            fetchDatas()
-        }       
-        if(auth.isRegistered && !auth.isOnLeave){
-            getDepartureReport(false)
-        }
+        setTimeout(async () => {
+            if(!auth.isRegistered && !auth.isOnLeave){
+                await getNotSubmitted()
+                checkDay() 
+                fetchDatas()
+            }       
+            if(auth.isRegistered && !auth.isOnLeave){
+                await getDepartureReport(false)
+            }
+        }, 3000);
+        
     })
     const getDepartureReport = async(reload) => {
         const date = DateTime.now().toISODate()
