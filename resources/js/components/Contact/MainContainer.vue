@@ -7,13 +7,17 @@
                     <PostSearchBar @search-start="(word) => {keyword = word}" className="newChatMemberSearch" :customPlaceHolder="`コンタクト検索`"/>                
                 </div>    
             </div>
-            <div class="sub-tab-container mb-[20px] ml-[20px]">
+            <!-- <div class="sub-tab-container mb-[20px] ml-[20px]">
                 <div @click="router.push({name: 'tab1'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'tab1'}]">コミュニティメンバー</div>
                 <div @click="router.push({name: 'tab2'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'tab2'}]">コンタクト</div>              
-            </div> 
+            </div>  -->
         </div>
         <div class="relative h-[calc(100%-115px)]">
-            <router-view v-slot="{ Component }">
+            <ContactContainer 
+                :keyword="keyword"
+                :container="container"
+            />
+            <!-- <router-view v-slot="{ Component }">
                 <KeepAlive>
                     <component
                         :is="Component"
@@ -21,7 +25,7 @@
                         :container="container"
                     ></component>
                 </KeepAlive>
-            </router-view>
+            </router-view> -->
         </div>
     </div>
 </template>
@@ -31,6 +35,7 @@ import { onActivated, ref, useTemplateRef } from 'vue';
 import HamBurger from '@/components/Global/HamBurger.vue';
 import PostSearchBar from '@/components/Post/PostSearchBar.vue';
 import { useRoute, useRouter } from 'vue-router';
+import ContactContainer from './Tab2/ContactContainer.vue';
 const responsive = useResponsive()
 const keyword = ref('')
 const route = useRoute()

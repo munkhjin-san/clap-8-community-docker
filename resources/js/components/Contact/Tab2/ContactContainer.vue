@@ -143,7 +143,7 @@ import PrivateMemoModal from './PrivateMemoModal.vue';
 
 const props = defineProps<{
     keyword: string
-    container: HTMLElement
+    container: HTMLElement | null
 }>();
 
 const router = useRouter();

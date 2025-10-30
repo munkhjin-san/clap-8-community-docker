@@ -734,27 +734,18 @@ const routes = [
         meta: {
             title: 'コンタクト',
         },
-        redirect: {name: 'tab1'}, 
         component: () => import('@/components/Contact/MainContainer.vue'),
+        
+            
         children: [
             {
-                path: 'tab1',
-                name: 'tab1',
-                component: () => import('@/components/Contact/Tab1/MemberContainer.vue')
-            },
-            {
-                path: 'tab2',
-                name: 'tab2',
-                component: () => import('@/components/Contact/Tab2/ContactContainer.vue'),
-                children: [
-                    {
-                        path: ':contactId',
-                        name: 'contactDetail',
-                        component: () => import('@/components/Contact/Tab2/ContactDetail.vue')
-                    }
-                ]
+                path: ':contactId',
+                name: 'contactDetail',
+                component: () => import('@/components/Contact/Tab2/ContactDetail.vue')
             }
         ]
+            
+        
 
     },
     {

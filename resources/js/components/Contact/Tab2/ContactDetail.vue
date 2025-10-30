@@ -1,5 +1,5 @@
 <template>
-<Modal @close="router.push({name: 'tab2'})">
+<Modal @close="router.push({name: 'contact'})">
     <template #title>
         <div class="sub-tab-container">
             <div @click="activeTab = 'detail'" :class="['sub-tab-item', { 'selected-sub-tab': activeTab == 'detail'}]">基本情報</div>
