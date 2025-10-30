@@ -27,7 +27,7 @@
                     <UserPanel size="20" with-name :user="viewData.reporter"/>
                 </div>
                 <div class="si-box">
-                    <p class="mb-2">ステータス</p>
+                    <p class="mb-2">営業ステージ</p>
                     <p>{{ viewData.status }}</p>
                 </div>
                 <div class="si-box">
@@ -35,7 +35,7 @@
                     <p>{{ viewData.client_name }}</p>
                 </div>
                 <div class="si-box">
-                    <p class="mb-2">案件</p>
+                    <p class="mb-2">目標件数</p>
                     <p>{{ viewData.case_count }}</p>
                 </div>
                 <div class="si-box">

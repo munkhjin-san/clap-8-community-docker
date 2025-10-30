@@ -35,10 +35,11 @@
             データを読み込んでいます...
         </div>
         <div v-else-if="hasData" class="mt-4">
-            <table class="report-table">
+            <span class="text-sm text-[gray]">着地予測＝確度別加重（A=90%, B=70%, C=50%, D,E=30%）</span>
+            <table class="report-table mt-2">
                 <thead>
                     <tr>
-                        <th class="h-cell">ステータス</th>
+                        <th class="h-cell">営業ステージ</th>
                         <th>メンバー</th>
                         <th v-for="bucket in buckets" :key="bucket.key">{{ bucket.label }}</th>
                         <th>合計</th>
@@ -83,7 +84,7 @@
                       <th v-if="hasPrivilage"></th>
                     </tr>
                     <tr>
-                      <th class="h-cell">着地予測</th>
+                      <th class="h-cell">着地予測 = Σ(売上金額 × 確度率)</th>
                       <th></th>
                       <th v-for="bucket in buckets" :key="'p-' + bucket.key">
                         {{ formatCell(totalByPrediction[bucket.key]) }}
@@ -371,7 +372,7 @@ const totalByAllGoal = computed<{ amount: number; count: number } | null>(() => 
     const a = Number(cell.amount);
     const c = Number(cell.count);
     if (Number.isFinite(a)) amount += a;
-    if (Number.isFinite(c)) count += c;
+    // if (Number.isFinite(c)) count += c;
   }
 
   return amount === 0 && count === 0 ? null : { amount, count };
@@ -391,7 +392,7 @@ const totalByGoal = computed<Record<string, Cell>>(() => {
         if (!totals[period]) totals[period] = { amount: 0, count: 0 };
 
         (totals[period] as { amount: number; count: number }).amount += a;
-        (totals[period] as { amount: number; count: number }).count  += c;
+        // (totals[period] as { amount: number; count: number }).count  += c;
 
       }
   }
@@ -417,7 +418,7 @@ const totalByPrediction = computed<Record<string, Cell>>(() => {
 
         // weighted amount, raw count
         (totals[period] as { amount: number; count: number }).amount += a * w;
-        (totals[period] as { amount: number; count: number }).count  += c;
+        // (totals[period] as { amount: number; count: number }).count  += c;
 
         // If you ALSO want weighted counts, use: += c * w
       }
@@ -438,7 +439,7 @@ const totalByAllPrediction = computed<{ amount: number; count: number } | null>(
     const a = Number(cell.amount);
     const c = Number(cell.count);
     if (Number.isFinite(a)) amount += a;
-    if (Number.isFinite(c)) count += c;
+    // if (Number.isFinite(c)) count += c;
   }
 
   return amount === 0 && count === 0 ? null : { amount, count };
@@ -458,7 +459,7 @@ const totalByBucket = computed<Record<string, Cell>>(() => {
           totals[key] = { amount: 0, count: 0 };
         }
         (totals[key] as { amount: number; count: number }).amount += cell.amount;
-        (totals[key] as { amount: number; count: number }).count += cell.count;
+        // (totals[key] as { amount: number; count: number }).count += cell.count;
       });
     });
   });
@@ -477,7 +478,7 @@ const totalByAllBuckets = computed<{ amount: number; count: number } | null>(() 
     const a = Number(cell.amount);
     const c = Number(cell.count);
     if (Number.isFinite(a)) amount += a;
-    if (Number.isFinite(c)) count += c;
+    // if (Number.isFinite(c)) count += c;
   }
 
   return amount === 0 && count === 0 ? null : { amount, count };
@@ -552,7 +553,7 @@ const totalOfRow = (row: Row): Cell => {
   Object.values(row.q).forEach(cell => {
     if (!cell) return;
     amount += cell.amount;
-    count += cell.count;
+    // count += cell.count;
   });
   return amount + count > 0 ? { amount, count } : null;
 }
@@ -560,7 +561,7 @@ const totalOfRow = (row: Row): Cell => {
 const formatCell = (cell: Cell | { amount: number; count: number } | undefined) => {
   if (!cell) return '—';
   const amt = new Intl.NumberFormat('ja-JP').format(cell.amount);
-  return `${amt}円/${cell.count}件`;
+  return cell.count > 0 ? `${amt}円/${cell.count}件` : `${amt}円`;
 }
 
 const hasData = computed(() => grouped.value.some(group => group.rows.length > 0));
