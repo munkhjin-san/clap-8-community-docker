@@ -2836,6 +2836,10 @@ class ProjectController extends Controller
             'report_date' => ['required', 'date_format:Y-m-d'],
             'state'       => ['required', Rule::in(['draft', 'submitted'])],
             'member_id'   => ['nullable', 'integer']
+        ], [
+            'client_name.required' => '居客は必須です。',
+            'case_count.required' => '案件は必須です。',
+            'amount.required' => '金額は必須です。'
         ]);
 
         $reportDate = Carbon::parse($data['report_date'])->startOfMonth();
@@ -3643,6 +3647,26 @@ class ProjectController extends Controller
             'myProjects' => $myProjects,
             'otherProjects' => $otherProjects,
         ]);
+    }
+    public function view_case(Request $request)
+    {
+        $data = $request->validate([
+            'id' => 'required|integer',
+            'period' => 'required|date_format:Y-m-d'
+        ]);
+        $case = ProjectCase::where('id', $data['id'])
+            ->where('report_date', $data['period'])
+            ->with('reporter')
+            ->first();
+
+        return response()->json(
+            $case
+        );
+    }
+    public function delete_case(ProjectCase $case)
+    {
+        $case->delete();
+        return response()->json(['status' => 'ok']);
     }
 }
 

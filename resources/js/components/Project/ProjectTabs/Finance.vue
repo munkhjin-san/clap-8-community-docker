@@ -1,12 +1,12 @@
 <template>
     <div class="h-full relative bg-[var(--background-color)]">
-        <!-- <div class="flex justify-between items-center p-4">
+        <div class="flex justify-between items-center p-4">
             <div class="sub-tab-container">
                 <div @click="changeBetweenTabs('check')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'check'}]">収支確認</div>
                 <div @click="changeBetweenTabs('case')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'case'}]">案件報告集計</div>
-                <div @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算入力</div>
+                <!-- <div @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算入力</div> -->
             </div>
-        </div> -->
+        </div>
         
         <!-- <div class="flex justify-between items-center p-4">
             <div class="sub-tab-container">
@@ -246,10 +246,12 @@
             </div> -->
             
         </div>
-        <!-- <div class="overflow-auto h-[calc(100%-100px)]" v-if="activeTab === 'case'">
+        <div class="overflow-auto h-[calc(100%-100px)]" v-if="activeTab === 'case'">
             <CaseConfirm 
                 :select-project="selectedProject" 
                 :refresh-key="caseRefreshKey"
+                :has-privilage="hasPrivilage"
+                @view="(val) => viewCase(val)"
             />
         
             <FloatButton @action="caseWindow = true">
@@ -261,12 +263,15 @@
             <CaseCreate 
                 v-if="caseWindow && selectedProject"
                 :project-id="selectedProject.id"
+                :selected-project="selectedProject"
                 :report-year="year"
                 :report-month="month"
-                @close="caseWindow = false"
+                :has-privilage="hasPrivilage"
+                :selected-case-id="selectedCaseId"
+                @close="caseWindow = false, selectedCaseId = null"
                 @saved="handleCaseSaved"
             />
-        </div> -->
+        </div>
         
         
         
@@ -275,8 +280,8 @@
             :year="year"
             :selectedProjectName="selectedProject.name"
             :selectedProjectId="selectedProject.id"
-        />
-        <MonthlyPlan 
+        /> -->
+        <!-- <MonthlyPlan 
             v-else-if="activeTab === 'monthly'"
             :period="normalizedPeriod" 
         />
@@ -318,10 +323,10 @@ import { useBadgeStore } from '@/store/badge';
 // import YearlyBudget from './Finance/YearlyBudget.vue';
 // import MonthlyPlan from './Finance/MonthlyPlan.vue';
 // import ActualResult from './Finance/ActualResult.vue';
-// import CaseCreate from './Finance/CaseCreate.vue';
-// import FloatButton from '@/components/Global/FloatButton.vue';
-// import AddIcon from '@/components/Form/AddIcon.vue';
-// import CaseConfirm from './Finance/CaseConfirm.vue';
+import CaseCreate from './Finance/CaseCreate.vue';
+import FloatButton from '@/components/Global/FloatButton.vue';
+import AddIcon from '@/components/Form/AddIcon.vue';
+import CaseConfirm from './Finance/CaseConfirm.vue';
 const auth = useAuthUserStore()
 const props = defineProps<{
     userList: any;
@@ -343,12 +348,18 @@ const year  = ref<number>(period ? Number(period.split('-')[0]) : DateTime.now()
 const month = ref<MonthNumbers>(period ? Number(period.split('-')[1]) as MonthNumbers : DateTime.now().month as MonthNumbers)
 const badge = useBadgeStore()
 const api = useApi()
+
 const handleCaseSaved = () => {
     caseWindow.value = false
     caseRefreshKey.value += 1
 }
 const commentCount = ref(0)
 const metrics_list = ref<MetricDTO[]>([])
+const selectedCaseId = ref<number | null>(null)
+const viewCase = (id: number | null) => {
+    selectedCaseId.value = id
+    caseWindow.value = true
+}
 type Line = 'sales'|'expense'|'profit'|'profit_rate'
 type ValueType = 'currency'|'amount'|'rate'
 type SubMetricDTO = {

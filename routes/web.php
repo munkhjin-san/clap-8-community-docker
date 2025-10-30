@@ -536,6 +536,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/project_goal_comment_create', [ProjectController::class, 'project_goal_comment_create']);
         Route::post('/project_goal_report_file_upload', [ProjectController::class, 'project_goal_report_file_upload']);
         Route::get('/project_list', [ProjectController::class, 'project_list']);
+        Route::post('/view_case', [ProjectController::class, 'view_case']);
+        Route::delete('/delete_case/{case}', [ProjectController::class, 'delete_case']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);
