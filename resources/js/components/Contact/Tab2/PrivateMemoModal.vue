@@ -2,7 +2,7 @@
     <Transition name="modalFade">
         <Modal v-if="open" @close="handleClose">
             <template #title>
-                <p>自分用メモ</p>
+                <p>非公開メモ</p>
             </template>
             <template #content>
                 <div class="space-y-8">

@@ -124,7 +124,7 @@
 import { useResponsive } from '@/store/responsive';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import ContactCreate from './ContactCreate.vue';
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { BatchPayload, ContactBatchSummary, ContactRecord, ContactType, DuplicateSummary } from '@/interface/contactInterface';
 import GridLayout from './Grid/GridLayout.vue';
 import TableLayout from './Table/TableLayout.vue';
@@ -143,6 +143,7 @@ import PrivateMemoModal from './PrivateMemoModal.vue';
 
 const props = defineProps<{
     keyword: string
+    container: HTMLElement
 }>();
 
 const router = useRouter();
@@ -443,21 +444,23 @@ const fileupload = async (payload: BatchPayload) => {
     if (payload.p_type) {
         formData.append('p_type', payload.p_type)
     }
-    try {
-        const data = await api.post('/scan_batch_cards', formData, {
-            toast: '名刺の取り込みを開始しました。',
-            loadingRef: uploadingBatch,
-        }, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        });
-        if (data) {
-            batchWindow.value = false;
-            startBatchPolling(Number(data.id), data);
-            await loadDuplicates();
-        }
-    } catch (error) {
-        // errors are handled inside useApi
+    
+    const data = await api.post('/scan_batch_cards', formData, {
+        toast: '名刺の取り込みを開始しました。',
+        loadingRef: uploadingBatch,
+    }, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    if (data) {
+        batchWindow.value = false;
+        startBatchPolling(Number(data.id), data);
+        await loadDuplicates();
     }
+    const el = props.container
+    if (!el) return
+    await nextTick();
+    requestAnimationFrame(() => el.scrollTo({ top: 0, behavior: 'smooth' }));
+   
 };
 
 const deleteContact = async (id: number) => {

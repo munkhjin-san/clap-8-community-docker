@@ -231,10 +231,9 @@ class ContactScanService
 
         if (!empty($normalized['card_hash'])) {
             $query->where('card_hash', $normalized['card_hash']);
-        } elseif (!empty($normalized['name']) && !empty($normalized['company_name'])) {
+        } elseif (!empty($normalized['name'])) {
             $query->where(function ($q) use ($normalized) {
-                $q->where('name', $normalized['name'])
-                    ->where('company_name', $normalized['company_name']);
+                $q->where('name', $normalized['name']);
 
                 if (!empty($normalized['email'])) {
                     $q->where('email', $normalized['email']);

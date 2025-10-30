@@ -19,6 +19,7 @@
                           <p v-if="typeInputError" class="text-[12px] text-[tomato]">必須です。</p>
                       </div>              
                   </div>
+                  <span class="text-xs text-[gray]">同じ種類の名刺をアップロードしてください</span>
               </div>
                 <div
                 class="mt-8 !box-border relative flex flex-col items-center justify-center w-full p-8 text-center border-2 bg-[var(--bg3)] border-[var(--bg2)] cursor-pointer"

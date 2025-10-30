@@ -4,7 +4,7 @@
         <div class="sub-tab-container">
             <div @click="activeTab = 'detail'" :class="['sub-tab-item', { 'selected-sub-tab': activeTab == 'detail'}]">基本情報</div>
             <div v-if="actionTypes.follower || actionTypes.owner" @click="activeTab = 'comment'" :class="['sub-tab-item flex', { 'selected-sub-tab': activeTab == 'comment'}]">
-                コメント
+                公開コメント
                 <span v-if="badge.contactBadge.some(c => c.contact_id === contact.id)" class="side-notification" style="position: static; width: 12px; height: 12px; min-width: 12px;">
                     {{ badge.contactBadge.find(c => c.contact_id === contact.id).comments }}
                 </span>
