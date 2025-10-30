@@ -13,7 +13,7 @@
         </template>
         <template #content>
             <div>
-                ｵﾝｻｲﾄ営業支援(現調・設置・工事)
+                {{ selectedProject.name }}
             </div>
             <div class="si-box">
                 <div class="mb-[10px]">対象月</div>

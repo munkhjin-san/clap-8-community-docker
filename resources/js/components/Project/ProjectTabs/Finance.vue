@@ -359,6 +359,7 @@ const selectedCaseId = ref<number | null>(null)
 const viewCase = (id: number | null) => {
     selectedCaseId.value = id
     caseWindow.value = true
+    selectedCaseId.value = null
 }
 type Line = 'sales'|'expense'|'profit'|'profit_rate'
 type ValueType = 'currency'|'amount'|'rate'
