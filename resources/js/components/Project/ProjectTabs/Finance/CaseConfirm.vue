@@ -50,9 +50,9 @@
                     <!-- group by status -->
                     <template v-for="group in grouped" :key="group.status">
                       <!-- one row per member inside the status group -->
-                      <tr v-for="(row, idx) in group.rows" :key="row.memberId">
+                      <tr v-for="(row, idx) in group.rows" :key="row.memberId" :class="{ 'border-diff-row': group.status === '目標値' && idx === group.rows.length - 1 }">
                           <!-- render status cell once with rowspan -->
-                          <td v-if="idx === 0" style="border-right: 1px solid var(--calendarBorder); position: sticky; left: 0; background-color: var(--background-color);" :rowspan="group.rows.length">{{ group.status }}</td>
+                          <td :class="{ 'border-diff': group.status === '目標値'}" v-if="idx === 0" style="border-right: 1px solid var(--calendarBorder); position: sticky; left: 0; background-color: var(--background-color);" :rowspan="group.rows.length">{{ group.status }}</td>
                           <td>{{ row.memberName }}</td>
 
                           <!-- render each quarter cell -->
@@ -578,6 +578,12 @@ const hasData = computed(() => grouped.value.some(group => group.rows.length > 0
   padding: 8px 10px;
   text-align: left;
   background-color: var(--bg3);
+}
+.border-diff {
+  border-bottom: 2px solid var(--primary-color) !important;
+}
+tr.border-diff-row > td {
+  border-bottom: 2px solid var(--primary-color);
 }
 .report-table td {
     padding: 10px;
