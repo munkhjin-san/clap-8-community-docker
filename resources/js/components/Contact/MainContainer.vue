@@ -18,6 +18,7 @@
                     <component
                         :is="Component"
                         :keyword="keyword"
+                        :container="container"
                     ></component>
                 </KeepAlive>
             </router-view>
