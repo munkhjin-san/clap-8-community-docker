@@ -55,6 +55,10 @@ class OpenAiController extends Controller
                 $package['prompt']['variables'][$key] = $value;
             }
         }
+        
+        if(empty($package['prompt']['variables'])){
+            Arr::forget($package['prompt'], 'variables');
+        }
         $apiKey = config('services.openai.api_key');
         if(!$apiKey){
             abort(500, 'OpenAI APIキーが設定されていません。');

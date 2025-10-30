@@ -1771,7 +1771,7 @@ img {
 }
 
 .mentionBox {
-  position: fixed;
+  position: absolute;
   z-index: 55;
   background: var(--side-menu-bg);
   color: var(--primary-color);
