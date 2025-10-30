@@ -46,8 +46,8 @@
                     </svg>
                   </div>
                 </div>
-                
-                <label class="font-semibold text-[gray]">
+                <span class="text-xs text-[gray]">複数アップロード可能</span>
+                <label class="text-[gray] mt-1">
                     {{ labelText }}
                 </label>
                 <p class="text-xs text-[gray] mt-1">PNG, JPG, or WEBP</p>
