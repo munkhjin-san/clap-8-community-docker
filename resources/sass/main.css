@@ -4697,6 +4697,7 @@ input:-webkit-autofill:active {
   min-width: 50px;
   justify-content: end;
   gap: 5px;
+  margin-left: auto;
 }
 
 .bell-icon {
@@ -6397,9 +6398,7 @@ input:autofill {
 .message-top-block {
   display: flex;
   align-items: center;
-  gap: 30px;
   position: relative;
-  justify-content: space-between;
   margin-bottom: 15px;
 
 

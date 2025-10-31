@@ -61,7 +61,8 @@ import { Post } from '@/interface/postInterface';
             { id: 0, state : DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち' },
             { id: 1, state : '達成' },
             { id: 2, state : '未達成' },
-            { id: 3, state : '中止' }
+            { id: 3, state : '中止' },
+            { id: 5, state : '進捗'}
         ]           
     })
     const update = async() => {

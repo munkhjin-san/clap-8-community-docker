@@ -63,6 +63,7 @@
                 v-if="viewType == 'grid'" 
                 :contacts="contactList"
                 :viewer-id="viewerId"
+                @reload="getContacts"
                 @open-memo="openPrivateMemo"
             />
             <TableLayout 

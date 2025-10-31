@@ -971,4 +971,18 @@ class ContactController extends Controller
 
         return response()->json($data);
     }
+    public function unfollow_contact(int $contactId)
+    {
+        $uid = $this->active_user()->id;
+
+        $deleted = DB::table('contact_record_user')
+            ->where('user_id', $uid)
+            ->where('contact_record_id', $contactId)
+            ->delete();
+
+        return response()->json([
+            'status' => $deleted ? 'deleted' : 'noop',
+            'deleted_rows' => $deleted,
+        ]);
+    }
 }

@@ -280,6 +280,7 @@ import CloseIcon from '../Form/CloseIcon.vue';
             2: '未達成',
             3: '中止',
             4: '不成立',
+            5: '進捗中'
         };
         return statusMap[props.record.status_flag];
     });
@@ -361,7 +362,7 @@ import CloseIcon from '../Form/CloseIcon.vue';
         return urlParse    
     })
     const updateStatus = () => {
-        if(isOwner.value && props.record.status_flag < 4){
+        if(isOwner.value && (props.record.status_flag < 4 || props.record.status_flag == 5)){
             emit('updateStatus', props.record)
         }
     }

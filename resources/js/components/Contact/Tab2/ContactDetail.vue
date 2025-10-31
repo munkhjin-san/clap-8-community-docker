@@ -20,6 +20,12 @@
                     { title: 'フォロー', action: () => follow()}
                 ]"
             />
+            <CommandButton 
+                v-if="actionTypes.follower"
+                :buttons="[
+                    {title: 'フォロー中', action: () => unfollow()}
+                ]"
+            />
             <ItemMenu v-if="actionTypes.owner" :items="[
                 { title: '編集', action: () => emit('edit', contact) },
                 { title: '削除', action: () => emit('delete', Number(contact.id))}
@@ -64,7 +70,7 @@
                     <td>{{ contact.description }}</td>
                 </tr>
                 <tr>
-                    <td>共同制作者</td>
+                    <td>関係者</td>
                     <td>
                         <div v-for="co in contact.collaborators" :key="co.id">
                             {{ co?.name }}
@@ -143,6 +149,14 @@ const follow = async() => {
     await api.post('/follow_contact', {record_id: props.contact?.id}, {
         ask: message,
         toast: 'コンタクトをフォローしました。',
+    })
+    emit('closeCreate', true)
+}
+const unfollow = async() => {
+    const message = 'フォローを解除しますか？\n通知やコメント、個人メモの機能が使えなくなります。'
+    await api.del(`/unfollow_contact/${props.contact.id}`, {}, {
+        ask: message,
+        toast: 'フォローを解除しました。'
     })
     emit('closeCreate', true)
 }

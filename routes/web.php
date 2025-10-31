@@ -572,6 +572,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/follow_contact', [ContactController::class, 'follow_contact']);
         Route::post('/contact/{contact}/comment_read', [ContactController::class, 'contact_comment_read']);
         Route::get('get_contact_comment_badge', [ContactController::class, 'get_contact_comment_badge']);
+        Route::delete('/unfollow_contact/{contact}', [ContactController::class, 'unfollow_contact']);
         
         // Remind
         Route::get('/remind_attendance', [RemindController::class, 'remind_attendance']);
