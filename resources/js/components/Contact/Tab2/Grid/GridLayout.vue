@@ -4,11 +4,22 @@
             <div class="flex gap-[15px] items-center">
                 <ContactIcon :contact="contact"/>
                 <p>{{ contact.name }}</p>
+                <div v-if="actionTypes(contact).viewer" title="フォロー" class="ml-auto" @click.stop="follow(contact.id)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true" role="img">
+                    <circle cx="9" cy="7" r="3"/>
+                    <!-- shoulders centered on x=9 (start at 2, end at 16 gives radius 7) -->
+                    <path d="M2 20a7 7 0 0 1 14 0"/>
+                    <path d="M19 8v6M22 11h-6"/>
+                    </svg>
+                </div>
             </div>
             <div class="text-[gray] text-[13px]">{{ contact.company_name }}</div>
             <div class="text-[13px]">{{ contact?.type?.title }}</div>
             <div class="flex items-center">
-                <span class="text-xs mr-2">共同制作者: </span>
+                <span class="text-xs mr-2">関係者: </span>
                 <div v-if="contact?.collaborators && contact?.collaborators.length" v-for="creator in contact.collaborators" :key="creator.id">
                     <UserPanel :disable-instant="true" :user="creator" :size="15"/>
                 </div>
@@ -16,13 +27,13 @@
                     <UserPanel :disable-instant="true" :user="contact.creator" :size="15"/>
                 </div>
             </div>
-            <div class="flex gap-2 items-center justify-between">
+            <div class="flex gap-5 items-center justify-end">
                 
                 <div @click.stop="openMemo(contact)"
                     v-if="contact?.collaborators?.some(co => co.id === auth.id)"
                     title="非公開メモ"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="appIcon" width="17" viewBox="0 0 25.51 22.62">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="appIcon" height="15" viewBox="0 0 25.51 22.62">
                         <path d="M25.51,19.04c0-2.15-.06-11.41-.07-13.39,0-.42-.01-1.56-.01-1.96v-.33s0-.08,0-.08c0-.76-.27-1.51-.76-2.08-.61-.72-1.55-1.15-2.5-1.12-.4,0-1.56.02-1.96.01C14.8.14,8.69-.01,3.19,0,1.51.03.06,1.49.04,3.17c0,0,0,.68,0,.68C.03,8.16,0,13.93,0,18.22c0,.2,0,.79,0,.98-.08,1.79,1.38,3.37,3.17,3.42,4.88,0,13.66,0,18.49-.02.1,0,.4,0,.49,0,1.4.05,2.74-.89,3.18-2.23.15-.42.18-.89.17-1.32ZM23.3,18.72s0,.63,0,.63c0,.54-.48,1.01-1.02,1.02-4.07-.02-12.77-.03-16.94-.03h-1.31s-.65,0-.65,0h-.08c-.3,0-.58-.13-.78-.36-.19-.22-.26-.5-.24-.77,0-.19,0-.79,0-.98,0-4.29-.01-10.05-.04-14.37v-.63c0-.32.16-.63.42-.83.17-.13.38-.21.6-.22h1.27c5.06-.03,10.64-.08,15.67-.14v.04s1.31,0,1.31,0h.65c.13,0,.26.01.38.05.45.12.8.55.83,1.01-.01,3.3-.06,12.16-.08,15.57Z"/>
                         <path d="M5.26,7.51c2.46.11,5.05.16,7.51.16,2.47-.01,5.05-.04,7.51-.2.47-.03.85-.4.88-.88.04-.52-.36-.98-.88-1.01-1.88-.13-3.76-.16-5.63-.19-3.09-.03-6.31.01-9.39.15-1.24.11-1.24,1.86,0,1.97Z"/>
                         <path d="M20.36,10.34c-1.89-.13-3.77-.16-5.66-.19-3.1-.03-6.35.01-9.44.15-1.24.11-1.24,1.86,0,1.97,2.47.11,5.07.16,7.55.16,2.49-.01,5.07-.04,7.55-.2.47-.03.85-.4.88-.88.04-.52-.36-.98-.88-1.01Z"/>
@@ -47,6 +58,7 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
 import { useRouter } from 'vue-router';
+import { useApi } from '@/composables/api';
 
 const router = useRouter()
 const props = defineProps<{
@@ -57,8 +69,9 @@ const badge = useBadgeStore()
 const auth = useAuthUserStore()
 const emit = defineEmits<{
     (e: 'open-memo', contact: ContactRecord): void;
+    (e: 'reload'): void
 }>();
-
+const api = useApi()
 const hasPrivateMemo = (contact: ContactRecord) => {
     if (!props.viewerId) {
         return false;
@@ -72,7 +85,29 @@ const hasPrivateMemo = (contact: ContactRecord) => {
         ),
     );
 };
+const actionTypes = (record: ContactRecord) => {
+  const me = auth.activeUser?.id
+  const collabs = record?.collaborators ?? []
 
+  const mine = collabs.find(c => c.id === me)
+  const role = mine?.pivot?.role ?? null // 'owner' | 'follower' | null
+
+  const owner = role === 'owner'
+  const follower = role === 'follower'
+ 
+  const viewer = !owner && !follower
+
+  return { owner, follower, viewer }
+}
+const follow = async(id: number | null) => {
+    if (!id) return
+    const message = 'フォローすると、この連絡先に関する更新通知を受け取れます。\nコメントの投稿や個人メモの保存もできます。\nこのコンタクトをフォローしますか？'
+    await api.post('/follow_contact', {record_id: id}, {
+        ask: message,
+        toast: 'コンタクトをフォローしました。',
+    })
+    emit('reload')
+}
 const openMemo = (contact: ContactRecord) => {
     emit('open-memo', contact);
 };
