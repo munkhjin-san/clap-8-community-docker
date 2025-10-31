@@ -166,7 +166,7 @@
                 </div>
                 <span v-if="dateComparsionError.hasError" class="form-error" style="font-size: 12px;color:tomato;position: absolute; bottom: -15px">{{ dateComparsionError.message }}</span>       
             </div>
-            <div class="si-box" v-if="app_type == 2">
+            <!-- <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">チャージ</p>
                 </div>
@@ -177,7 +177,7 @@
                     </label>
                     
                 </div> 
-            </div>       
+            </div>        -->
             
             <div class="si-box" v-if="app_type == 6">
                 <ShortInput 

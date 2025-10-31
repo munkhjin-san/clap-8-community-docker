@@ -67,7 +67,7 @@
                 </div>
                 <div v-for="grant in record.grants" :key="grant.id">
                     <div>{{ grant.content }}</div>
-                    <div>{{ grant.expenses }}円</div>
+                    <div v-if="grant.expenses">{{ grant.expenses }}円</div>
                     <div v-if="grant.file_path">
                         <div v-if="grant.file_path?.split('.').pop() == 'webp'">
                             <img @click="workFilePreview(grant.file_path, 'image', '/cdn/post_grant_files')" style="height:120px;cursor: pointer;" v-if="grant?.file_path" :src="`/cdn/post_grant_files/${grant?.file_path}`"/>
