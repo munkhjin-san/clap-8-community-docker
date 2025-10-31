@@ -47,6 +47,7 @@ import { customParser } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import { Post } from '@/interface/postInterface';
+import { useBadgeStore } from '@/store/badge';
     const props = defineProps<{
         record: Post
     }>()
@@ -65,6 +66,7 @@ import { Post } from '@/interface/postInterface';
             { id: 5, state : '進捗'}
         ]           
     })
+    const badge = useBadgeStore()
     const update = async() => {
         const params = {
             id: props.record.id,
@@ -77,7 +79,7 @@ import { Post } from '@/interface/postInterface';
             loadingRef: processing,
         })
         emit('close', props.record.id)
-
+        badge.getRemindBadge() 
     }
     const selectStatus = (id) => {
         selected.value = id

@@ -17,6 +17,7 @@ use App\Models\taskRecord;
 use App\Models\timecardRecord;
 use App\Models\User;
 use App\Models\workTemp;
+use App\Models\PostRecord;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -734,25 +735,66 @@ class RemindController extends Controller
                 ->exists();
         return response()->json(['should_send' => $check]);
     }
+    public function remind_challenge_progress()
+    {
+        $now = now();
+
+        $challenge = PostRecord::query()
+            ->where('app_type', 2)
+            ->where('status_flag', 0)
+            ->whereNotNull('date_start')
+            ->whereNotNull('date_end')
+            ->where('date_start', '<=', $now)
+            ->where('date_end', '>=', $now)    // active window
+            ->orderByDesc('date_start')
+            ->first();
+
+        if (!$challenge) {
+            return response()->json([
+                'is_halfway' => false,
+                'percent'    => 0,
+                'challenge'  => null,
+            ]);
+        }
+
+        $start = \Carbon\Carbon::parse($challenge->date_start);
+        $end   = \Carbon\Carbon::parse($challenge->date_end);
+
+        $elapsed = $start->diffInSeconds($now);
+        $total   = max(1, $start->diffInSeconds($end));
+        $pct     = (int) round(($elapsed / $total) * 100);
+        $pct     = max(0, min(100, $pct));
+
+        return response()->json([
+            'is_halfway' => $pct >= 50,
+            'percent'    => $pct,
+            'challenge'  => $challenge->only(['id','title','date_start','date_end', 'content_goal']),
+        ]);
+    }
     public function remind_badge(Request $request) {
-        $responses = [];
-    
-        $responses['remind_task_untouched'] = $this->remind_task_untouched()->getData(true);
-        $responses['remind_task_unfinished'] = $this->remind_task_unfinished()->getData(true);
-        $responses['remind_unsigned_messages'] = $this->remind_unsigned_messages($request)->getData(true);
-        $responses['remind_unchecked_messages'] = $this->remind_unchecked_messages($request)->getData(true);
-        $responses['remind_timesheet'] = $this->remind_timesheet($request)->getData(true);
-        $responses['remind_task_not_approved'] = $this->remind_task_not_approved()->getData(true);
-        $responses['remind_project_not_approved'] = $this->remind_project_not_approved()->getData(true);
-        $responses['remind_reminded_messages'] = $this->remind_reminded_messages()->getData(true);
-        $responses['remind_planned_leave'] = $this->remind_planned_leave($request)->getData(true);
-        $responses['remind_form'] = $this->remind_form()->getData(true);
-        $responses['remind_asset'] = $this->remind_asset()->getData(true);
-        $responses['remind_temp_reserved_schedules'] = $this->remind_temp_reserved_schedules()->getData(true);
-        $responses['remind_departure_report'] = $this->remind_departure_report(true)->getData(true);
+        $responses = [
+            'remind_task_untouched'        => $this->remind_task_untouched()->getData(true),
+            'remind_task_unfinished'       => $this->remind_task_unfinished()->getData(true),
+            'remind_unsigned_messages'     => $this->remind_unsigned_messages($request)->getData(true),
+            'remind_unchecked_messages'    => $this->remind_unchecked_messages($request)->getData(true),
+            'remind_timesheet'             => $this->remind_timesheet($request)->getData(true),
+            'remind_task_not_approved'     => $this->remind_task_not_approved()->getData(true),
+            'remind_project_not_approved'  => $this->remind_project_not_approved()->getData(true),
+            'remind_reminded_messages'     => $this->remind_reminded_messages()->getData(true),
+            'remind_planned_leave'         => $this->remind_planned_leave($request)->getData(true),
+            'remind_form'                  => $this->remind_form()->getData(true),
+            'remind_asset'                 => $this->remind_asset()->getData(true),
+            'remind_temp_reserved_schedules'=> $this->remind_temp_reserved_schedules()->getData(true),
+            'remind_departure_report'      => $this->remind_departure_report(true)->getData(true),
+            'challenge'                    => $this->remind_challenge_progress()->getData(true),
+        ];
         $count = 0;
         $counts = [];
         foreach ($responses as $key => $response) {
+            if ($key === 'challenge') {
+                $count += !empty($response['is_halfway']) ? 1 : 0;
+                continue;
+            }
             if ($key === 'remind_reminded_messages') {
                 $counts[$key] = count($response[$key]);
             } else {

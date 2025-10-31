@@ -344,6 +344,33 @@
                 </div>
 
             </div>
+            <div v-if="data.challenge && data.is_halfway">
+                <RemindHeader 
+                    :offset="offset"
+                    :length="1"
+                    title="チャレンジ進捗待ち"
+                    :expanded="expanded.remind_challenge_progress"
+                    @expand="expanded.remind_challenge_progress = !expanded.remind_challenge_progress"
+                />
+                <div v-if="expanded.remind_challenge_progress" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div class="bg-[var(--message-background)] p-[15px] text-[var(--primary-color) min-h-full]">
+                        
+                        <div class="flex gap-3 mb-3 relative">
+                            <PostIcon which="2" size="20"/>
+                            <p>{{ data.challenge.title }}</p>
+                            <div style="font-size:12px;color:grey;position:absolute;right:-10px;top:-10px">
+                                {{ data.challenge.date_start }} ~ {{ data.challenge.date_end }}
+                            </div>
+                        </div>
+                        <div>
+                            <p>{{ data.challenge.content_goal }}</p>
+                        </div>
+                        <button @click="router.push({name: 'post', query: {id: data.challenge.id} })" style="padding: 5px 10px; font-size: 12px; line-height: 1.5; border-radius: 0px; background: var(--primary-button); color: rgb(255, 255, 255); margin-top: 10px;">
+                            対応
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div v-if="combinedData.every(item => Object.values(item).every(value => !value.length))" class="no-comment-text">現在リマインドはありません。</div>
@@ -376,6 +403,7 @@ import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import ConfirmSchedule from './ConfirmSchedule.vue';
 import { DateTime } from 'luxon';
+import PostIcon from '../Post/PostIcon.vue';
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
 const combinedData = ref<{ [key: string]: any }[]>([])
@@ -399,6 +427,7 @@ const expanded = ref({
     remind_schedules: true,
     remind_temp_reserved_schedules: true,
     remind_departure_report: true,
+    remind_challenge_progress: true
 })
 
 const api = useApi()
@@ -443,7 +472,7 @@ const getRemindTotalData = async () => {
         getData('/remind_form'),
         getData('/remind_asset'),
         getData('/remind_temp_reserved_schedules'),
-        
+        getData('/remind_challenge_progress'),
         auth.id && [833,832].includes(auth.id) ? getData('/remind_departure_report') : Promise.resolve([]),
 
     ]);

@@ -45,7 +45,7 @@
                     </svg>
                     <span v-if="sideMenuView.active">リマインド</span> 
                     <span v-if="badge.remind.total && badge.remind.total > 0" class="side-notification">{{ badge.remind.total }}</span>  
-                    <span v-else-if="badge.remind.reminded_messages && badge.remind.reminded_messages > 0" class="side-notification" style="background-color: #000;">{{ badge.remind.reminded_messages }}</span> 
+                    <span v-else-if="badge.remind.remind_reminded_messages && badge.remind.remind_reminded_messages > 0" class="side-notification" style="background-color: #000;">{{ badge.remind.remind_reminded_messages }}</span> 
                 </div>
             </router-link>
             <router-link :to="{name: 'project'}" v-if="!auth.isPartner && auth.user" :class="['side-menu-route', { selectedRoute: isActive}]">

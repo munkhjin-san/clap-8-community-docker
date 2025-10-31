@@ -592,6 +592,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/remind_departure_report', [RemindController::class, 'remind_departure_report']);
         Route::get('/check_departure_report', [RemindController::class, 'check_departure_report']);
         Route::post('/send_departure_report', [WorkController::class, 'send_departure_report']);
+        Route::get('/remind_challenge_progress', [RemindController::class, 'remind_challenge_progress']);
 
 
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);
