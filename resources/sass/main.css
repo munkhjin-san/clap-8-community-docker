@@ -7548,7 +7548,11 @@ button.shift-button {
   }
 
 }
-
+@media screen and (max-width: 412px) {
+  .chargeFormeAddButton{
+    width: 100%;
+  }
+}
 @media screen and (max-width: 380px) {
   .c-bar-wrap {
     gap: 10px
