@@ -10,7 +10,7 @@
                 />                
             </div>
             <div class="c-bar-button mr-4" @click="router.push({name: 'total-finance'})">
-                収支切り替
+                集計
             </div>            
         </div>
         <Transition name="modalFade">
