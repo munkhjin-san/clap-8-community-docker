@@ -52,6 +52,9 @@ class MemberController extends Controller
                 }else if($block['level']){
                     $members = $block['employees'];
                     foreach($members as $member){
+                        if ($member['position_id'] > 11 && $member['position_id'] < 16) {
+                            continue;
+                        }
                         $user = User::find($member['id']);
                         $user->timestamps = false; 
                         $user->update(['award_charge' => $charge_amounts[$block['level']]]);
