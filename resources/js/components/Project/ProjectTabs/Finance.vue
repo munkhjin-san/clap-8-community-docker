@@ -48,7 +48,7 @@
                                 <div :id="p.period" class="month-header">
                                     <span>{{ p.year }}月{{ monthLabel(p.month) }}</span>
                                     <span
-                                        v-if="showAnyArrow(p.period)"
+                                        v-if="showAnyArrow(p.period) && hasPrivilage"
                                         class="variance-flag"
                                         title="計画との差が大きい月です"
                                     >
