@@ -34,7 +34,7 @@ class GenerateWelcomeMessage implements ShouldQueue
         if ($check_exists) {
             return;
         }
-        $modes = ['光モード', '影モード'];
+        $modes = ['影モード'];
         $mode = $modes[array_rand($modes)];
         $response = Http::withHeaders([
             'Authorization' => 'Bearer ' . $apiKey,
