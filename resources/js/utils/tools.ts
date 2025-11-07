@@ -140,7 +140,7 @@ const kintoneFileUrlBuilder = (file:any) => {
 }
 
 const amountOfMoneyParser = (amount: number) => {
-    if (Number.isNaN(amount)) return '-';
+    if (Number.isNaN(amount)) return '—';
     return new Intl.NumberFormat("ja-JP").format(amount);
 }
 const truncatedName = (filename: string, maxLength: number) => {
@@ -189,6 +189,23 @@ const markTodayDone = (userId: number | null) => {
 const isTodayDone = (userId: number | null) => {
   return localStorage.getItem(key(userId)) === TODAY
 }
+const contractTypeDefaults = [
+  {value: 'outsourcing', label: '業務委託契約', focus: '責任範囲・成果物・損害賠償'},
+  {value: 'quasi_mandate', label: '準委任契約', focus: '解除・支払・再委託制限'},
+  {value: 'work_contract', label: '請負契約', focus: '検収・保証・瑕疵担保'},
+  {value: 'nda', label: '秘密保持契約（NDA）', focus: '守秘義務・期間・違約金'},
+  {value: 'maintenance', label: '保守・サポート契約', focus: '継続期間・対応範囲・SLA'},
+  {value: 'license', label: '使用許諾契約', focus: '知財範囲・使用制限・責任'},
+  {value: 'joint_dev', label: '共同開発契約', focus: '知財共有・成果帰属・競業'},
+  {value: 'basic_agreement', label: '基本契約', focus: '契約期間・個別契約との関係'},
+  {value: 'subcontract', label: '下請契約', focus: '下請法対応・再委託・価格転嫁'}
+]
+const contractRoleDefaults = [
+  {value: '乙', label: '乙（受託者 / 委託先）'},
+  {value: '甲', label: '甲（発注者 / 委託者）'}
+]
+const isMobile = () => window.matchMedia('(max-width: 768px)').matches
+
 export { 
     debounce, 
     mentionFormatter, 
@@ -210,5 +227,8 @@ export {
     lineOptions,
     kindOptions,
     markTodayDone, 
-    isTodayDone
+    isTodayDone,
+    contractTypeDefaults,
+    contractRoleDefaults,
+    isMobile
 }

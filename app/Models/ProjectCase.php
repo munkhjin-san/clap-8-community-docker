@@ -16,6 +16,7 @@ class ProjectCase extends Model
     protected $casts = [
         'report_date'  => 'date',
         'submitted_at' => 'datetime',
+        'probability'  => 'float',
     ];
 
     public function project(): BelongsTo
@@ -33,4 +34,3 @@ class ProjectCase extends Model
         return $query->whereDate('report_date', $month->copy()->startOfMonth());
     }
 }
-

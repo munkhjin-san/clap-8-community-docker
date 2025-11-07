@@ -28,6 +28,7 @@
             </Transition>
             <Transition name="modalFade">
                 <MentionBox 
+                    style="position: fixed"
                     :forced="false"
                     v-if="keyCharacters.length || mentionBoxToggle" 
                     :mentionAbleList="mentionAbleList"

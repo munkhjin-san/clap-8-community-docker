@@ -29,7 +29,7 @@ type MemberSeries = {
   label: string;
   points: ChartPoint[];
 };
-type StatusSeries = {
+type StageSeries = {
   label: string;
   values: number[];
 };
@@ -49,17 +49,21 @@ const props = withDefaults(
     series?: ChartPoint[];
     metrics?: MetricKey[];
     memberSeries?: MemberSeries[];
-    statusSeries?: StatusSeries[];
+    stageSeries?: StageSeries[];
+    aggregateSeries?: ChartPoint[];
+    aggregateMetrics?: MetricKey[];
     actualSeries?: number[];
     labels?: string[];
     targetSeries?: number[];
-    mode?: 'aggregate' | 'member' | 'status';
+    mode?: 'aggregate' | 'member' | 'stage';
   }>(),
   {
     series: () => [],
     metrics: () => ['amount', 'count'],
     memberSeries: () => [],
-    statusSeries: () => [],
+    stageSeries: () => [],
+    aggregateSeries: () => [],
+    aggregateMetrics: () => ['amount'],
     actualSeries: () => [],
     labels: () => [],
     targetSeries: () => [],
@@ -67,15 +71,15 @@ const props = withDefaults(
   },
 );
 
-const activeMode = computed<'aggregate' | 'member' | 'status'>(() => {
-  if (props.mode === 'status' && (props.statusSeries.length || props.actualSeries.length)) {
-    return 'status';
+const activeMode = computed<'aggregate' | 'member' | 'stage'>(() => {
+  if (props.mode === 'stage' && (props.stageSeries.length || props.actualSeries.length)) {
+    return 'stage';
   }
   if (props.mode === 'member' && props.memberSeries.length) {
     return 'member';
   }
   if (!props.mode) {
-    if (props.statusSeries.length || props.actualSeries.length) return 'status';
+    if (props.stageSeries.length || props.actualSeries.length) return 'stage';
     if (props.memberSeries.length) return 'member';
   }
   return 'aggregate';
@@ -86,12 +90,11 @@ const resolvedLabels = computed(() => {
   if (activeMode.value === 'member' && props.memberSeries.length) {
     return props.memberSeries[0]?.points.map(point => point.label) ?? [];
   }
-  if (activeMode.value === 'status' && props.statusSeries.length) {
-    // Fall back to aggregate series labels if provided
-    if (props.series.length) {
-      return props.series.map(point => point.label);
-    }
-    return props.statusSeries[0]?.values.map((_, idx) => `Period ${idx + 1}`) ?? [];
+  if (activeMode.value === 'stage' && props.stageSeries.length) {
+    return props.stageSeries[0]?.values.map((_, idx) => props.series[idx]?.label ?? `Period ${idx + 1}`) ?? [];
+  }
+  if (activeMode.value === 'aggregate' && props.aggregateSeries.length) {
+    return props.aggregateSeries.map(point => point.label);
   }
   return props.series.map(point => point.label);
 });
@@ -111,7 +114,7 @@ const toRGBA = (hex: string, alpha: number) => {
 const chartData = computed(() => {
   const labels = resolvedLabels.value;
 
-  if (activeMode.value === 'status') {
+  if (activeMode.value === 'stage') {
     const palette = [
       '#2563eb',
       '#0ea5e9',
@@ -122,11 +125,9 @@ const chartData = computed(() => {
       '#ec4899',
     ];
 
-    const datasets: any[] = [];
-
-    props.statusSeries.forEach((series, index) => {
+    const datasets: any[] = props.stageSeries.map((series, index) => {
       const color = palette[index % palette.length];
-      datasets.push({
+      return {
         label: series.label,
         data: series.values,
         borderColor: color,
@@ -135,7 +136,7 @@ const chartData = computed(() => {
         fill: index === 0 ? 'origin' : '-1',
         stack: 'weighted',
         pointRadius: 3,
-      });
+      };
     });
 
     if (props.actualSeries.length) {
@@ -212,12 +213,15 @@ const chartData = computed(() => {
     };
   }
 
+  const source = props.aggregateSeries.length ? props.aggregateSeries : props.series;
+  const metrics = props.aggregateSeries.length ? props.aggregateMetrics : props.metrics;
+
   const datasets: any[] = [];
 
-  if (props.metrics.includes('amount')) {
+  if (metrics.includes('amount')) {
     datasets.push({
       label: '金額 (円)',
-      data: props.series.map(point => point.amount),
+      data: source.map(point => point.amount),
       borderColor: '#2563eb',
       backgroundColor: 'rgba(37, 99, 235, 0.15)',
       tension: 0.25,
@@ -226,10 +230,10 @@ const chartData = computed(() => {
     });
   }
 
-  if (props.metrics.includes('count')) {
+  if (metrics.includes('count')) {
     datasets.push({
       label: '案件数',
-      data: props.series.map(point => point.count),
+      data: source.map(point => point.count),
       borderColor: '#f97316',
       backgroundColor: 'rgba(249, 115, 22, 0.15)',
       tension: 0.25,
@@ -246,7 +250,7 @@ const chartData = computed(() => {
 });
 
 const chartOptions = computed(() => {
-  if (activeMode.value === 'status') {
+  if (activeMode.value === 'stage') {
     return {
       responsive: true,
       maintainAspectRatio: false,
@@ -274,7 +278,7 @@ const chartOptions = computed(() => {
           },
         },
         y: {
-          stacked: props.statusSeries.length > 0,
+          stacked: props.stageSeries.length > 0,
           beginAtZero: true,
           ticks: {
             callback(value: string | number) {

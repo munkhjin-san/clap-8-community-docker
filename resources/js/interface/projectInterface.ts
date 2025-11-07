@@ -1,6 +1,40 @@
 import { DateTimeUnit, Interval } from "luxon";
 import { MessageFile, Task, User } from "./globalInterface";
 
+export type ContractFindingSeverity = 'high' | 'medium' | 'low' | 'unknown'
+
+export interface ProjectContractFinding {
+    section?: string;
+    issue: string;
+    severity: ContractFindingSeverity;
+    rationale: string;
+    suggestion: string;
+}
+
+export interface ProjectContractResult {
+    overall_risk: ContractFindingSeverity;
+    findings: ProjectContractFinding[];
+}
+
+export interface ProjectContractResponse {
+    id: number;
+    project_record_id: number;
+    review_type: 'quick' | 'deep';
+    overall_risk: ContractFindingSeverity;
+    findings_count: number;
+    result_json?: ProjectContractResult;
+    response_hash?: string | null;
+    file_path?: string | null;
+    file_url?: string | null;
+    file_size?: number | null;
+    size?: number | null;
+    created_at?: string;
+    updated_at?: string;
+    role: string;
+    contract_type: string;
+    active: boolean;
+}
+
 interface Project {
     id: number;
     name: string;
@@ -43,6 +77,7 @@ interface Project {
     industry_type: string[]
     description: string
     private_memo: string
+    contract?: ProjectContractResponse | null
 }
 interface ProjectCondition {
     project_record_id: number;
@@ -185,4 +220,15 @@ export interface MonthlyData {
 export interface YearlyFinancialData {
     [project_name: string]: MonthlyData;
 }
-export type { Project, ProjectGoal, Evaluation, SalaryIssue, Increase, VirtualSpan,  QuickEditText, SubTaskPreData, ProjectGoalStep, ProjectGoalReport}
+export type {
+    Project,
+    ProjectGoal,
+    Evaluation,
+    SalaryIssue,
+    Increase,
+    VirtualSpan,
+    QuickEditText,
+    SubTaskPreData,
+    ProjectGoalStep,
+    ProjectGoalReport
+}

@@ -1,6 +1,6 @@
 <template>
-    <div>
-        <div class="c-c-text" :class="{'justify-end' : comment.author.id === auth.activeUser.id }">
+    <div class="flex flex-col" :class="{'items-end' : comment.author.id === auth.activeUser.id }">
+        <div class="c-c-text" >
             <UserPanel :user="comment.author" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15" style="margin-top: 2px;"/>
             <div :class="['c-c-w', {'c-c-active' : editable && editable == comment.id}]">
                 <p @click.stop="mentionClick" :class="['c-c-inner']" ref="editData" :contenteditable="editable && editable == comment.id ? true : false" @click="checkEdit" v-html="commentBody"></p>

@@ -37,6 +37,10 @@ class ProjectRecord extends Model
     public function project_conditions() {
         return $this->hasMany(ProjectCondition::class);
     }
+    public function contract()
+    {
+        return $this->hasOne(ProjectContract::class);
+    }
     protected $guarded = [];
 
     protected $casts = [

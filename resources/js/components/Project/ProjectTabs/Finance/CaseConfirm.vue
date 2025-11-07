@@ -3,8 +3,8 @@
       <div class="flex flex-wrap items-center gap-4 md:justify-between justify-center">
         <div class="text-sm"><span class="p-[5px] text-xs bg-[var(--bg3)] mr-[10px]">期間</span> {{ selectProject?.date_start && selectProject.date_end ? `${DateTime.fromISO(selectProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
         <div class="flex items-center gap-4 flex-wrap md:justify-normal justify-center">
-          <!-- <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-xs uppercase p-[5px] tracking-wide bg-[var(--bg3)]">グラフ表示</span>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs uppercase p-[5px] tracking-wide bg-[var(--bg3)]">グラフ</span>
             <div class="flex rounded border border-[var(--normalBorder)] overflow-hidden text-sm">
               <button
                 v-for="option in displayOptions"
@@ -17,7 +17,7 @@
                 {{ option.label }}
               </button>
             </div>
-          </div> -->
+          </div>
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs uppercase p-[5px] tracking-wide bg-[var(--bg3)]">粒度</span>
             <div class="flex rounded border border-[var(--normalBorder)] overflow-hidden text-sm">
@@ -50,7 +50,7 @@
             データを読み込んでいます...
         </div>
         <div v-else-if="hasData" class="mt-4">
-            <span class="text-sm text-[gray]">着地予測＝確度別加重（A=90%, B=70%, C=50%, D,E=30%）</span>
+            <span class="text-sm text-[gray]">着地予測＝確度別加重（A=90%, B=70%, C=50%, D=30%, E=10%）</span>
             <table class="report-table mt-2">
                 <thead>
                     <tr>
@@ -123,11 +123,13 @@
                 </tfoot>
             </table>
             <LineChart
-              mode="status"
+              :mode=mode
               :labels="chartLabels"
-              :status-series="statusChartSeries"
+              :stage-series="stageChartSeries"
               :actual-series="actualChartSeries"
               :target-series="targetChartSeries"
+              :member-series="memberChartSeries"
+              :aggregate-series="aggregateChartSeries"
             />
         </div>
         <div v-else class="mt-4 text-sm opacity-70">
@@ -141,8 +143,18 @@ import { Project } from '@/interface/projectInterface';
 import { DateTime } from 'luxon';
 import { computed, ref, watch } from 'vue';
 import LineChart from './LineChart.vue';
+import {
+  STAGE_PIPELINE_LIST,
+  STAGE_LABEL,
+  STAGE_WEIGHT,
+  DELIVERY_LABEL,
+  type RecordKind,
+  type Stage,
+  type DeliveryStatus,
+} from '@/utils/case';
 
-const statusOrder = ['目標値', '★竣工済', '①受注済未竣工', '②確度A', '③確度B', '④確度C', '⑤確度D、E'];
+const pipelineStatusLabels = STAGE_PIPELINE_LIST.map(stage => STAGE_LABEL[stage]);
+const statusOrder = ['目標値', DELIVERY_LABEL.COMPLETED, DELIVERY_LABEL.ORDERED_NOT_COMPLETED, ...pipelineStatusLabels];
 const fallbackStatus = '未分類';
 
 type Grain = 'month' | 'quarter' | 'year';
@@ -177,6 +189,10 @@ type CaseRecord = {
   project_id: number;
   report_date: string | null;
   status: string;
+  kind: RecordKind;
+  stage: Stage | null;
+  delivery_status: DeliveryStatus | null;
+  probability: number | null;
   client_name: string | null;
   case_count: number;
   amount: number;
@@ -297,6 +313,7 @@ const buildBuckets = (nextGrain: Grain, base: DateTime): Bucket[] => {
 }
 
 const buckets = computed<Bucket[]>(() => buildBuckets(grain.value, currentPeriod.value));
+const bucketLabels = computed(() => buckets.value.map(bucket => bucket.label));
 
 type Cell = { amount: number; count: number } | null;
 type Row = { memberId: number; memberName: string; q: Record<string, Cell>, caseId: number };
@@ -368,18 +385,9 @@ const grouped = computed<Group[]>(() => {
 
   return groups;
 });
-type Status = typeof statusOrder[number];
-
-// Weights for "prediction" (A–E only). Tweak in one place.
-const PREDICTION_WEIGHTS: Record<Status, number> = {
-  '目標値': 0,
-  '★竣工済': 0,
-  '①受注済未竣工': 0,
-  '②確度A': 0.9,
-  '③確度B': 0.7,
-  '④確度C': 0.5,
-  '⑤確度D、E': 0.3,
-};
+const PREDICTION_WEIGHTS: Record<string, number> = Object.fromEntries(
+  STAGE_PIPELINE_LIST.map(stage => [STAGE_LABEL[stage], STAGE_WEIGHT[stage]])
+);
 const totalByAllGoal = computed<{ amount: number; count: number } | null>(() => {
   const buckets = totalByGoal.value;
   if (!buckets) return null;
@@ -424,8 +432,8 @@ const totalByPrediction = computed<Record<string, Cell>>(() => {
   for (const b of buckets.value) totals[b.key] = null;
 
   for (const group of grouped.value) {
-    const w = PREDICTION_WEIGHTS[group.status as Status] ?? 0;
-    if (w <= 0) continue; // skip completed/ordered or unknowns
+    const weight = PREDICTION_WEIGHTS[group.status] ?? 0;
+    if (weight <= 0) continue; // skip non-pipeline rows
 
     for (const row of group.rows) {
       for (const [period, cell] of Object.entries(row.q)) {
@@ -437,10 +445,8 @@ const totalByPrediction = computed<Record<string, Cell>>(() => {
         if (!totals[period]) totals[period] = { amount: 0, count: 0 };
 
         // weighted amount, raw count
-        (totals[period] as { amount: number; count: number }).amount += a * w;
-        // (totals[period] as { amount: number; count: number }).count  += c;
-
-        // If you ALSO want weighted counts, use: += c * w
+        (totals[period] as { amount: number; count: number }).amount += a * weight;
+        // If you ALSO want weighted counts, use: += c * weight
       }
     }
   }
@@ -505,19 +511,18 @@ const totalByAllBuckets = computed<{ amount: number; count: number } | null>(() 
 });
 const chartLabels = computed(() => buckets.value.map(bucket => bucket.label));
 
-const statusChartSeries = computed(() => {
-  // optional: preindex groups by status for faster lookups
+const stageChartSeries = computed(() => {
   const byStatus = new Map<string, typeof grouped.value[number]>();
   for (const g of grouped.value) byStatus.set(g.status, g);
 
   const values = buckets.value.map(bucket => {
     let total = 0;
 
-    for (const status of statusOrder) {
-      const weight = PREDICTION_WEIGHTS[status as Status] ?? 0;
+    for (const label of pipelineStatusLabels) {
+      const weight = PREDICTION_WEIGHTS[label] ?? 0;
       if (weight <= 0) continue;
 
-      const group = byStatus.get(status);
+      const group = byStatus.get(label);
       if (!group) continue;
 
       for (const row of group.rows) {
@@ -534,13 +539,69 @@ const statusChartSeries = computed(() => {
     : [];
 });
 
+const memberChartSeries = computed(() => {
+  const bucketCount = buckets.value.length;
+  if (!bucketCount) return [];
 
-const actualStatusSet = new Set<Status>(['★竣工済', '①受注済未竣工']);
+  const map = new Map<number, { name: string; totals: number[] }>();
+
+  grouped.value.forEach(group => {
+    if (group.status === '目標値') return;
+    group.rows.forEach(row => {
+      const entry = map.get(row.memberId) ?? {
+        name: row.memberName,
+        totals: Array(bucketCount).fill(0),
+      };
+
+      buckets.value.forEach((bucket, idx) => {
+        const cell = row.q[bucket.key];
+        if (cell) {
+          entry.totals[idx] += cell.amount;
+        }
+      });
+
+      map.set(row.memberId, entry);
+    });
+  });
+
+  return Array.from(map.values())
+    .map(entry => ({
+      label: entry.name,
+      total: entry.totals.reduce((sum, value) => sum + value, 0),
+      points: bucketLabels.value.map((label, idx) => ({
+        label,
+        amount: Math.round(entry.totals[idx] ?? 0),
+        count: 0,
+      })),
+    }))
+    .filter(series => series.points.some(point => point.amount !== 0))
+    .sort((a, b) => b.total - a.total)
+    .map(({ label, points }) => ({ label, points }));
+});
+
+const aggregateChartSeries = computed(() => {
+  return bucketLabels.value.map((label, idx) => {
+    let amount = 0;
+    grouped.value.forEach(group => {
+      if (group.status === '目標値') return;
+      group.rows.forEach(row => {
+        const cell = row.q[buckets.value[idx].key];
+        if (cell) {
+          amount += cell.amount;
+        }
+      });
+    });
+    return { label, amount: Math.round(amount), count: 0 };
+  });
+});
+
+
+const actualStatusSet = new Set<string>([DELIVERY_LABEL.COMPLETED, DELIVERY_LABEL.ORDERED_NOT_COMPLETED]);
 const actualChartSeries = computed(() => {
   return buckets.value.map(bucket => {
     let total = 0;
     grouped.value.forEach(group => {
-      if (!actualStatusSet.has(group.status as Status)) return;
+      if (!actualStatusSet.has(group.status)) return;
       group.rows.forEach(row => {
         const cell = row.q[bucket.key];
         if (cell) {
@@ -567,6 +628,7 @@ const targetChartSeries = computed(() => {
     return Math.round(total);
   });
 });
+const aggregateMetrics = computed<('amount' | 'count')[]>(() => ['amount']);
 const totalOfRow = (row: Row): Cell => {
   let amount = 0;
   let count = 0;

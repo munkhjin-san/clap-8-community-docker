@@ -26,7 +26,7 @@ final class ProjectNotifyService
         }
         $periodDate = Carbon::parse($period)->format('Y-m');
         $url = rtrim(config('app.url'), '/') . "/project/{$project->id}/finance";
-        $url .= "?period={$periodDate}";
+        $url .= "?period_start={$periodDate}&period_end={$periodDate}";
         // Build the message once, unless you truly need per-manager variations.
         $message = $this->generateMessage($project->name, $pmName, $periodDate, $rows, $url);
 

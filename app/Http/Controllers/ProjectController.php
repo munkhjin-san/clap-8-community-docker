@@ -26,7 +26,7 @@ use App\Models\ProjectExpense;
 use App\Models\ProjectSale;
 use App\Models\messageFile;
 use App\Models\ProjectMemberReportNotification;
-
+use App\Models\ProjectContract;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
@@ -50,6 +50,8 @@ use App\Exports\YearlyBudgetTemplate;
 use App\Imports\YearlyBudgetImport;
 use App\Http\Requests\StoreMetricRequest;
 use App\Http\Requests\UpdateMetricRequest;
+use App\Infrastructure\Kintone\KintoneClient;
+use App\Infrastructure\Sheets\GoogleSheetsClient;
 use Illuminate\Database\Eloquent\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\File; 
@@ -66,7 +68,41 @@ class ProjectController extends Controller
     //
     protected $boardController;
     protected $sharedService;
-    public function __construct(BoardController $boardController, SharedService $sharedService){
+
+    private const CASE_KINDS = ['PLAN', 'PIPELINE', 'ACTUAL'];
+
+    private const CASE_STAGES = ['WON', 'A', 'B', 'C', 'D', 'E', 'LOST'];
+
+    private const CASE_STAGE_LABELS = [
+        'WON'  => '①受注済',
+        'A'    => '②確度A',
+        'B'    => '③確度B',
+        'C'    => '④確度C',
+        'D'    => '⑤確度D',
+        'E'    => '⑥確度E',
+        'LOST' => '失注',
+    ];
+
+    private const CASE_STAGE_WEIGHT = [
+        'WON'  => 1.0,
+        'A'    => 0.9,
+        'B'    => 0.7,
+        'C'    => 0.5,
+        'D'    => 0.3,
+        'E'    => 0.1,
+        'LOST' => 0.0,
+    ];
+
+    private const CASE_DELIVERY_LABELS = [
+        'COMPLETED'              => '★竣工済',
+        'ORDERED_NOT_COMPLETED'  => '①受注済未竣工',
+    ];
+    public function __construct(
+        BoardController $boardController, 
+        SharedService $sharedService, 
+        private KintoneClient $api,
+        private GoogleSheetsClient $client
+    ){
         $this->boardController = $boardController;
         $this->sharedService = $sharedService;
     } 
@@ -121,7 +157,8 @@ class ProjectController extends Controller
             'director:id,name,icon_path,icon_bg',
             'manager' => $usersLoader(true),
             'members' => $usersLoader(true),
-            'director'
+            'director',
+            'contract'
         ])
         ->get();
         $sortedProjects = $projects->sortByDesc(function ($project) {
@@ -415,6 +452,37 @@ class ProjectController extends Controller
         if(count($tasks)) {
             $this->create_generated_project_tasks($tasks, $project->id);
         }
+
+        $raw = $request->input('contract_data');
+        if (is_string($raw)) {
+            $contract = json_decode($raw, true);
+        } elseif (is_object($raw)) {
+            $contract = json_decode(json_encode($raw), true);
+        } else {
+            $contract = $raw;
+        }
+
+        if (!is_array($contract)) {
+            return response()->json($project);
+        }
+
+        $overall   = $contract['overall_risk'] ?? 'unknown';
+        $findings  = $contract['findings'] ?? [];
+        $findCount = is_array($findings) ? count($findings) : 0;
+
+        $responseHash = hash('sha256', json_encode($contract, JSON_UNESCAPED_UNICODE));
+        ProjectContract::create([
+            'project_record_id' => $project->id,
+            'review_type'       => 'quick',
+            'overall_risk'      => $overall,
+            'findings_count'    => $findCount,
+            'result_json'       => $contract, // see casts below
+            'response_hash'     => $responseHash,
+            'file_path'         => $request->input('contract_file_path'),
+            'role'              => $request->input('contract_role'),
+            'contract_type'     => $request->input('contract_type')
+        ]);
+        
         return response()->json($project);
     }
     public function get_salary_options() {
@@ -1585,131 +1653,195 @@ class ProjectController extends Controller
         return $headers;
     }
 
-    public function get_yearly_plan(Request $request){
+    public function get_yearly_plan(Request $request)
+    {
         $request->validate([
             'project_id' => 'required',
-            'year' => 'required',
+            'year'       => 'required|integer',
         ]);
-        
+
         $project = ProjectRecord::findOrFail($request->project_id);
 
-        $year = $request->year;
-        $month = $request->month;
+        $year         = (int) $request->year;
+        $month        = $request->month; // not strictly needed anymore
         $project_name = $project->name;
-        $currentYear = Carbon::now()->year;
-        if ($year > $currentYear && ($month == 1 || $month == 2)) {
-            $file_path = storage_path("app/yearly_plan/{$currentYear}.xlsx");
-        } else {
-            $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
-        }
-        $file_exists = file_exists($file_path);
-        if(!$file_exists){
-            return response()->json([]);   
-        }
-        $file = Excel::toCollection(new YearlyPlanImport, $file_path);
-        $data = $file[0];
-        $data->shift()->toArray();
-        $month_headers = $data->shift()->toArray();
+        $currentYear  = (int) now()->year;
 
-        $month_found = false;
-        $month_target_indexes = [];
-        foreach($month_headers as $key => $header){
-            if(!$month_found){
-                if($header == "{$year}年{$month}月"){
-                    $month_found = true;  
-                    $month_target_indexes[] = $key;      
+        // pick file by your existing rule
+        $filePathYear = ($year > $currentYear && ($month == 1 || $month == 2)) ? $currentYear : $year;
+        $file_path = storage_path("app/yearly_plan/{$filePathYear}.xlsx");
+        if (!file_exists($file_path)) {
+            return response()->json([]);
+        }
+
+        $sheet = Excel::toCollection(new YearlyPlanImport, $file_path)[0];
+
+        // 1) header rows
+        $sheet->shift();                 // title row
+        $monthHeaders = $sheet->shift(); // the row containing "YYYY年M月" labels
+        $subHeaders   = $sheet->shift(); // the row containing "合計 売上高" etc.
+
+        $monthHeaders = $monthHeaders->toArray();
+        $subHeaders   = $subHeaders->toArray();
+
+        // 2) Build: month number -> array of column indexes for that month
+      
+        $fyStart = 3;
+
+        $targetLabels = [];  
+        for ($i = 0; $i < 12; $i++) {
+            $d = Carbon::create($year, $fyStart, 1)->addMonthsNoOverflow($i);
+            $label = sprintf('%d年%d月', $d->year, $d->month);
+            $targetLabels[$label] = $d->month;  
+        }
+        $monthIndexMap = [];
+        foreach (array_values($targetLabels) as $m) {
+            $monthIndexMap[$m] = []; // 3..12 then 1..2
+        }
+        $currentMonthKey = null;
+        foreach ($monthHeaders as $absIdx => $h) {
+            if (is_string($h)) {
+                $label = preg_replace('/\s+/', '', $h); // tolerate spaces like "2025年 3月"
+                if (isset($targetLabels[$label])) {
+                    // start a new month block
+                    $currentMonthKey = $targetLabels[$label]; // 3..12,1,2
+                    $monthIndexMap[$currentMonthKey][] = $absIdx;
+                    continue;
                 }
-            }else{
-                if($header == null || $header == "{$year}年{$month}月"){
-                    $month_target_indexes[] = $key; 
-                }else{
-                    break;
+            }
+            // Null/blank cells under the same month continue the block
+            if ($currentMonthKey !== null && ($h === null || $h === '')) {
+                $monthIndexMap[$currentMonthKey][] = $absIdx;
+                continue;
+            }
+            // Any other non-null / non-matching header ends the current block
+            $currentMonthKey = null;
+        }
+        // 3) Find relative positions of required sub-headers within a month block
+        $labelToKey = [
+            '合計 売上高'          => 'sales_1',
+            '合計 内部売上高合計'  => 'sales_2',
+            '合計 給料手当'        => 'exp_1',
+            '合計 外注費'          => 'exp_2',
+            '合計 販管費その他'    => 'exp_3',
+            '合計 間接費配賦'      => 'exp_4',
+            '合計 内部発注合計'    => 'exp_5',
+            '業績連動型賞与引当金' => 'exp_6',
+            '利益'                => 'profit',
+            '利益率'              => 'profit_rate',
+        ];
+        $colIndexByMonth = [];
+
+        foreach (array_keys($monthIndexMap) as $m) {   // <- fiscal order
+            $colIndexByMonth[$m] = [];
+            $indexes = $monthIndexMap[$m] ?? [];
+            if (!$indexes) continue;
+
+            // relative idx -> header label (for that month's block)
+            $relativeHeaders = [];
+            foreach ($indexes as $rel => $abs) {
+                $relativeHeaders[$rel] = $subHeaders[$abs] ?? null;
+            }
+
+            foreach ($labelToKey as $label => $alias) {
+                $relPos = array_search($label, $relativeHeaders, true);
+                if ($relPos !== false) {
+                    $colIndexByMonth[$m][$alias] = $indexes[$relPos]; // absolute column index
+                }
+            }
+        }
+        // 4) Filter rows for this project
+        $rows = $sheet->filter(fn($row) => ($row[1] ?? null) === $project_name);
+        $fiscalOrder = [3,4,5,6,7,8,9,10,11,12,1,2];
+        $out = [];
+        foreach ($fiscalOrder as $m) {
+            $cols = $colIndexByMonth[$m] ?? [];
+            // initialize monthly totals
+            $sales = 0.0;
+            $expense = 0.0;
+            $profit = 0.0;
+            $profit_rate = null;
+
+            if (!empty($cols)) {
+                foreach ($rows as $row) {
+                    
+                    $get = fn($alias) => isset($cols[$alias]) ? (float) ($row[$cols[$alias]] ?? 0) : 0.0;
+                    
+                    // sales: two columns combined
+                    $sales    += round($get('sales_1') + $get('sales_2'), 0, PHP_ROUND_HALF_UP);
+                    // expenses: sum of six
+                    $expense  += round(
+                        $get('exp_1') + $get('exp_2') + $get('exp_3') +
+                        $get('exp_4') + $get('exp_5') + $get('exp_6'),
+                        0,
+                        PHP_ROUND_HALF_UP
+                    );
+
+                    // profit, profit_rate if present
+                    if (isset($cols['profit'])) {
+                        $profit += round((float) ($row[$cols['profit']] ?? 0), 0, PHP_ROUND_HALF_UP);
+                    }
+                    if (isset($cols['profit']) && $sales > 0) {
+                        // if multiple rows exist, last one wins; or average—pick your rule
+                        $profit_rate = round((float) ($row[$cols['profit']] / $sales * 100 ?? 0), 2, PHP_ROUND_HALF_UP);
+                    }
                 }
             }
             
-        }
-        // $month_headers = array_filter($month_headers, function($header) use ($year, $month){
-        //     return $header == "{$year}年{$month}月";
-        // });
-
-        $sub_headers = $data->shift()->toArray();
-        // $target_header_keys = array_keys($month_headers);
-        $sub_headers_for_target_month = array_filter($sub_headers, function ($key) use($month_target_indexes) {
-            return in_array($key, $month_target_indexes);
-        }, ARRAY_FILTER_USE_KEY);
-        $plan_sales_index_1 = array_search('合計 売上高', $sub_headers_for_target_month);
-        $plan_sales_index_2 = array_search('合計 内部売上高合計', $sub_headers_for_target_month);
-        $plan_expense_index_1 = array_search('合計 給料手当', $sub_headers_for_target_month);
-        $plan_expense_index_2 = array_search('合計 外注費', $sub_headers_for_target_month);
-        $plan_expense_index_3 = array_search('合計 販管費その他', $sub_headers_for_target_month);
-        $plan_expense_index_4 = array_search('合計 間接費配賦', $sub_headers_for_target_month);
-        $plan_expense_index_5 = array_search('合計 内部発注合計', $sub_headers_for_target_month);
-        $plan_expense_index_6 = array_search('業績連動型賞与引当金', $sub_headers_for_target_month);
-
-        $profit_index = array_search('利益', $sub_headers_for_target_month);
-        $profit_rate_index = array_search('利益率', $sub_headers_for_target_month);
-        
-        $projectsData = $data->filter(function ($row) use ($project_name) {
-            return $row[1] === $project_name; 
-        });
-
-        $allPlanData = [];
-        
-        foreach($projectsData as $project){
-            $planData = [];
-            $totalSales = round((float) $project[$plan_sales_index_1] + (float) $project[$plan_sales_index_2], 0, PHP_ROUND_HALF_UP);
-            $totalExpense = round((float)  $project[$plan_expense_index_1] + (float) $project[$plan_expense_index_2] + (float) $project[$plan_expense_index_3] + (float) $project[$plan_expense_index_4] + (float) $project[$plan_expense_index_5] + (float) $project[$plan_expense_index_6], 0, PHP_ROUND_HALF_UP);
-            $planData = [
-                "sales" => $totalSales,
-                "expense" => $totalExpense,
-                "profit" => round((float) $project[$profit_index], 0, PHP_ROUND_HALF_UP),
-                "profit_rate" => round((float) $project[$profit_rate_index], 2, PHP_ROUND_HALF_UP),
-                "month_target_indexes" => $month_target_indexes
+            $out[$m] = [
+                'sales'       => (int) $sales,
+                'expense'     => (int) $expense,
+                'profit'      => (int) $profit,
+                'profit_rate' => $profit_rate, // could be null if not found
             ];
-            $allPlanData[] = $planData;
-        } 
+            
+        }
 
-        return response()->json($allPlanData);
-
+        return response()->json($out);
     }
+
     public function get_profit(Request $request){
         $request->validate([
             'project_id' => 'required',
             'year' => 'required',
         ]);
         $project = ProjectRecord::findOrFail($request->project_id);
-        $year = $request->year;
-        $month = $request->month;
+        $year = (int) $request->year;
         $project_name = $project->name;
-        $dateInstance = Carbon::createFromDate($year, $month, 1);
-        $endOfMonth = $dateInstance->endOfMonth()->toDateString();
+        $startInstance = Carbon::createFromDate($year, 3, 1);
+        $endInstance = $startInstance->copy()->addMonthsNoOverflow(11);
+        $offset = 0; $limit = 500;
+        $startDate = $startInstance->copy()->startOfMonth()->toDateString();
+        $endDate = $endInstance->copy()->endOfMonth()->toDateString();
+        $out = [];
+        
+        $query = "部門 = \"{$project_name}\" and 日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\"";
+        $fields = ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付'];
+        
+        $recs = $this->api->getRecords(1068, $query . " limit {$limit} offset {$offset}", $fields);
 
-        $queryParamsSpecs = [
-            'app' => 1068,
-            "query" => "部門 = \"{$project_name}\" and 日付 = \"{$endOfMonth}\"",
-            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率"],
-        ];
-        $queryStringSpecs = http_build_query($queryParamsSpecs);
-        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
-        $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
-        $profitsData = $profits->json();
-        $profitRecords = $profitsData['records'] ?? [];
-
-        $profitResponse = [];
-        foreach($profitRecords as $profit){
-
-            $totalSales = round((float) $profit['売上高合計']['value'] + (float) $profit['内部売上高合計']['value'], 0, PHP_ROUND_HALF_UP);
-            $totalExpense = round((float)  $profit['販売管理費合計']['value'] + (float) $profit['間接費配賦']['value'], 0, PHP_ROUND_HALF_UP);
-            $profitData = [
-
-                "sales" => $totalSales,
-                "expense" => $totalExpense,
-                "profit" => round((float) $profit['利益']['value'], 0, PHP_ROUND_HALF_UP) ?? 0,
-                "profit_rate" => (float) $profit['利益率']['value'] ?? 0,
+        foreach($recs as $r) {
+            $date = (string)($r['日付']['value'] ?? '');
+            if ($date === '') continue;
+            $month = $date ? (int)date('n', strtotime($date)) : null;
+            $totalSales = round((float) $r['売上高合計']['value'] + (float) $r['内部売上高合計']['value'], 0, PHP_ROUND_HALF_UP);
+            $totalExpense = round((float)  $r['販売管理費合計']['value'] + (float) $r['間接費配賦']['value'], 0, PHP_ROUND_HALF_UP);
+            $totalProfit = $this->f($r['利益']['value']);
+            $totalProfitRate = $this->f($r['利益率']['value']);
+            $out[$month] = [
+                'sales'          => $totalSales,
+                'expense'        => $totalExpense,
+                'profit'         => round($totalProfit),
+                'profit_rate'   => $totalProfitRate
             ];
-            $profitResponse[] = $profitData;
         }
-        return response()->json($profitResponse);
+        return response()->json($out);
+    }
+    private function f($v): ?float
+    {
+        if ($v === null || $v === '') return null;
+        $f = (float) $v;
+        return is_finite($f) ? $f : null;
     }
     public function get_settlement(Request $request){
         $request->validate([
@@ -1717,58 +1849,95 @@ class ProjectController extends Controller
             'year' => 'required',
         ]);
         $project = ProjectRecord::findOrFail($request->project_id);
-        $year = $request->year;
-        $month = $request->month;
-        $tabName = sprintf('%04d%02d', $year, $month);
-        $project_name = $project->name;
-     
-        $client = new Google_Client();
-        $client->setApplicationName('Google Sheets API');
-        $client->setScopes(['https://www.googleapis.com/auth/spreadsheets.readonly']);
-        $client->setAuthConfig(storage_path('app/spread_json_key/gen-lang-client-0333646800-e777adab076d.json')); // Path to your Service Account credentials file
-        $client->setAccessType('offline');
-        $service = new Google_Service_Sheets($client);
-        try {
-            $response = $service->spreadsheets_values->get('1HTacPGjBDtg3KAK0hToBeJW__fqCp9iH01a38Ihjet8', $tabName);
-        } catch (GoogleServiceException $e) {
-            // return response()->json([
-            //     'error' => true,
-            //     'message' => '実績データ見つかりません<br>' . $e->getErrors()[0]['message'],
-            // ], $e->getCode() ?: 500);
-            return response()->json([]);
-        }
-        $settlements = $response->getValues();
-        $settlement_headers = $settlements[1];
-        $settlement_data = array_slice($settlements, 2);
+        $year = (int) $request->year;
+        $project_name = trim((string)($project->name ?? ''));
 
-        $settlement_sales_index = array_search('収入', $settlement_headers);
-        $settlement_expense_index = array_search('支出', $settlement_headers);
-        $settlement_additional_expense_index = array_search('間接費配賦', $settlement_headers);
-        $settlement_profit_index = array_search('利益', $settlement_headers);
-        $settlement_profit_rate_index = array_search('利益率', $settlement_headers);
-        $settlement_for_project = array_filter($settlement_data, function($settlement) use ($project_name){
-            return isset($settlement[1]) && $settlement[1] == $project_name;
-        });
-        
-        $settlementResponse = [];
+        $svc      = $this->client->svc;
+        $sheet_id = config('services.google.spreadsheet_id');
 
-        foreach($settlement_for_project as $settlement){
-            $expenseVal    = $settlement[$settlement_expense_index]    ?? 0;
-            $additionalVal = $settlement[$settlement_additional_expense_index] ?? 0;
-            $salesVal      = $settlement[$settlement_sales_index]      ?? 0;
-            $profitVal     = $settlement[$settlement_profit_index]     ?? 0;
-            $profitRateVal = $settlement[$settlement_profit_rate_index] ?? 0;
-            $totalExpense = round((float)  str_replace(',', '', $expenseVal) + (float) str_replace(',', '', $additionalVal), 0, PHP_ROUND_HALF_UP);
-            $totalSales = round((float)  str_replace(',', '', $salesVal), 0, PHP_ROUND_HALF_UP);
-            $settlementData = [
-                'sales' => $totalSales,
-                'expense' => $totalExpense ?? 0,
-                'profit' => round((float) str_replace(',', '', $profitVal), 0, PHP_ROUND_HALF_UP),
-                'profit_rate' => (float) str_replace('%', '', $profitRateVal),
-            ];
-            $settlementResponse[] = $settlementData;
+        $needed_ranges = [];
+        $sDate = Carbon::createFromDate((int) $year, 3, 1);
+        $eDate = $sDate->copy()->addMonthsNoOverflow(11);
+        for ($d = $sDate->copy(); $d->lessThanOrEqualTo($eDate); $d->addMonth()) {
+            $needed_ranges[] = sprintf('%04d%02d', $d->year, $d->month);
         }
-        return response()->json($settlementResponse);
+
+        $spreadsheet = $svc->spreadsheets->get($sheet_id);
+        $sheets = $spreadsheet->getSheets();
+        $existing = [];
+        foreach ($sheets as $sheet) {
+            $title = $sheet['properties']['title'];
+            if (in_array($title, $needed_ranges, true)) {
+                $existing[] = $title;
+            }
+        }
+        if (empty($existing)) {
+            return response()->json([]); 
+        }
+
+        $findRanges = array_map(fn($t) => "'{$t}'!B:B", $existing);
+        $findResp   = $svc->spreadsheets_values->batchGet($sheet_id, ['ranges' => $findRanges]);
+
+        $canon = function ($s) {
+            $s = preg_replace('/\s+/u', ' ', trim((string)$s));
+            return mb_strtolower($s);
+        };
+        $needle = $canon($project_name);
+
+        $hitRowsByTab = []; 
+        foreach ($findResp->getValueRanges() as $i => $vr) {
+            $title = $existing[$i];
+            $values = $vr->getValues() ?? []; 
+            $hits = [];
+            foreach ($values as $rIdx => $row) {
+                $colB = $row[0] ?? ''; 
+                if ($canon($colB) === $needle) {
+                    $hits[] = $rIdx + 1; 
+                }
+            }
+            $hitRowsByTab[$title] = $hits;
+        }
+
+        $detailRanges = [];
+        foreach ($hitRowsByTab as $title => $rows) {
+            foreach ($rows as $rowNum) {
+                $detailRanges[] = "'{$title}'!C{$rowNum}:G{$rowNum}";
+            }
+        }
+
+        if (empty($detailRanges)) {
+            $empty = [];
+            foreach ($existing as $t) $empty[$t] = [];
+            return response()->json($empty);
+        }
+
+        $detailResp = $svc->spreadsheets_values->batchGet($sheet_id, ['ranges' => $detailRanges]);
+
+        $result = [];
+        foreach ($existing as $t) {
+            $monthKey = (int) substr($t, 4, 2);
+            $result[$monthKey] = [];
+        }
+
+        $valueRanges = $detailResp->getValueRanges() ?? [];
+        $k = 0;
+        foreach ($hitRowsByTab as $title => $rows) {
+            foreach ($rows as $rowNum) {
+                $vals = $valueRanges[$k]->getValues()[0] ?? []; 
+                $month = (int) substr($title, 4, 2);
+                $result[$month] = [
+                    'row'      => $rowNum,
+                    'sales'   => $vals[0] ?? null, // C
+                    'expense'  => $vals[1] ?? null, // D
+                    'overhead' => $vals[2] ?? null, // E
+                    'profit'   => $vals[3] ?? null, // F
+                    'profit_rate'   => $vals[4] ?? null, // G
+                ];
+                $k++;
+            }
+        }
+
+        return response()->json($result);
     }
     public function get_asset_badge(Request $request){
         $active_user = $this->active_user();
@@ -2067,6 +2236,39 @@ class ProjectController extends Controller
         $sumData = [];
         $summarizeData = $defaultSumData;
         $v = [];
+        $defaultPeriodTotals = [
+            'yearly_plan' => $default_data,
+            'profit' => $default_data,
+            'settlement' => $default_data,
+        ];
+        $periodTotals = [];
+        $periodIterator = $startInstance->copy();
+        while ($periodIterator->lessThanOrEqualTo($endInstance)) {
+            $periodKey = $periodIterator->format('Y-m');
+            $periodTotals[$periodKey] = array_merge($defaultPeriodTotals, [
+                'year' => (int) $periodIterator->year,
+                'month' => (int) $periodIterator->month,
+            ]);
+            $periodIterator->addMonth();
+        }
+        $ensurePeriodKey = function (string $key) use (&$periodTotals, $defaultPeriodTotals) {
+            if (!array_key_exists($key, $periodTotals)) {
+                $periodTotals[$key] = array_merge($defaultPeriodTotals, [
+                    'year' => (int) substr($key, 0, 4),
+                    'month' => (int) substr($key, 5, 2),
+                ]);
+            }
+        };
+        $accumulatePeriodTotals = function (string $key, string $scenario, array $values) use (&$periodTotals, $ensurePeriodKey) {
+            $ensurePeriodKey($key);
+            $sales = (float) ($values['sales'] ?? 0);
+            $expense = (float) ($values['expense'] ?? 0);
+            $profit = array_key_exists('profit', $values) ? (float) $values['profit'] : ($sales - $expense);
+            $periodTotals[$key][$scenario]['sales'] = ($periodTotals[$key][$scenario]['sales'] ?? 0) + $sales;
+            $periodTotals[$key][$scenario]['expense'] = ($periodTotals[$key][$scenario]['expense'] ?? 0) + $expense;
+            $periodTotals[$key][$scenario]['profit'] = ($periodTotals[$key][$scenario]['profit'] ?? 0) + $profit;
+            $periodTotals[$key][$scenario]['profit_rate'] = 0;
+        };
         //process each data for each project
         foreach($project_names as $id => $project_name){
             $stDate = $startInstance->copy();
@@ -2076,6 +2278,7 @@ class ProjectController extends Controller
             while ($stDate->lessThanOrEqualTo($etDate)) {
                 $month = $stDate->month;
                 $year = $stDate->year;
+                $periodKey = sprintf('%04d-%02d', $year, $month);
                 $settle_tab_index = sprintf('%04d%02d', $year, $month);
                 $projectsData = $yearlyPlanData[$year]->first(fn($row) => $row[1] === $project_name);
                 if($projectsData){
@@ -2124,9 +2327,11 @@ class ProjectController extends Controller
                     $sumData[$project_name]['yearly_plan']['expense'] = ($sumData[$project_name]['yearly_plan']['expense'] ?? 0) + $totalExpense;
                     $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
                     $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
+                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData);
                 }
                 else{
                     $plan_res_data[$project_name][$month]['yearly_plan']  = $default_data;
+                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $default_data);
                 }
 
 
@@ -2156,9 +2361,11 @@ class ProjectController extends Controller
                     $summarizeData['profit']['sales'] = ($summarizeData['profit']['sales'] ?? 0) + $totalSales;
                     $summarizeData['profit']['expense'] = ($summarizeData['profit']['expense'] ?? 0) + $totalExpense;
                     $summarizeData['profit']['profit'] = ($summarizeData['profit']['profit'] ?? 0) + $profitData['profit'];
+                    $accumulatePeriodTotals($periodKey, 'profit', $profitData);
                 }
                 else{
                     $plan_res_data[$project_name][$month]['profit'] = $default_data;
+                    $accumulatePeriodTotals($periodKey, 'profit', $default_data);
                 }        
                 
 
@@ -2195,14 +2402,17 @@ class ProjectController extends Controller
                         $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
                         $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
                         $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
+                        $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$month]['settlement']);
                  
                     }else{
                         $plan_res_data[$project_name][$month]['settlement'] = $default_data;
+                        $accumulatePeriodTotals($periodKey, 'settlement', $default_data);
                     }                    
                     
 
                 }else{
                     $plan_res_data[$project_name][$month]['settlement'] = $default_data;
+                    $accumulatePeriodTotals($periodKey, 'settlement', $default_data);
                 }
                 $sumData[$project_name]['settlement']['id'] = $id; 
                 $v[$project_name] = [
@@ -2218,137 +2428,175 @@ class ProjectController extends Controller
             'plan_res_data' => $plan_res_data,
             'sumData' => $sumData,
             'summarizeData' => $summarizeData,
+            'periodTotals' => $periodTotals,
         ];
         return response()->json( $final_data);
 
 
     }
-    public function get_total_finance_badge(Request $request) {
-        $request->validate([
-            'interval'                  => 'required|array',
-            'interval.startYear'        => 'required|integer',
-            'interval.startMonth'       => 'required|integer|between:1,12',
-            'interval.endYear'          => 'required|integer',
-            'interval.endMonth'         => 'required|integer|between:1,12',
+    public function get_total_finance_badge(Request $request)
+    {
+        $data = $request->validate([
+            'interval'            => ['required','array'],
+            'interval.startYear'  => ['required','integer'],
+            'interval.startMonth' => ['required','integer','between:1,12'],
+            'interval.endYear'    => ['required','integer'],
+            'interval.endMonth'   => ['required','integer','between:1,12'],
         ]);
-        $interval = $request->input('interval');
 
-        $startInstance = Carbon::createFromDate($interval['startYear'], $interval['startMonth'], 1);
-        $endInstance = Carbon::createFromDate($interval['endYear'], $interval['endMonth'], 1);
-        $durationByMonth = (int) $startInstance->diffInMonths($endInstance, );
-        
-        if($durationByMonth < 0){
-            return response()->json([
-                'error' => true,
-                'message' => '開始日付は終了日付より前で設定してください。',
-            ], 422);
+        $start = Carbon::createFromDate($data['interval']['startYear'], $data['interval']['startMonth'], 1)->startOfMonth();
+        $end   = Carbon::createFromDate($data['interval']['endYear'],   $data['interval']['endMonth'],   1)->startOfMonth();
+
+        if ($end->lt($start)) {
+            return response()->json(['error' => true, 'message' => '開始日付は終了日付より前で設定してください。'], 422);
         }
-        if($durationByMonth > 12){
-            return response()->json([
-                'error' => true,
-                'message' => '最大12ヶ月まで選択できます。',
-            ], 422);
-        }        
-        $active_user = $this->active_user();
-        $projects = ProjectRecord::when($active_user->position_id < 6 || $active_user->id === 610, function ($q) {
-            return $q;
-        }, function ($q) use ($active_user) {
-            return $q->whereHas('manager', fn($q) => $q->where('users.id', $active_user->id));
-        })->get();
-        $project_names = $projects->pluck('name')->toArray();
-        $project_names_str = implode('","', $project_names);
-        $batchSettlementData = $this->settlementCollector($startInstance, $endInstance);
-        //get settlement data
 
-
-        $profitDataCollection = collect();
-        $firstLoad = $this->profitCollector($startInstance, $endInstance, '0', $project_names_str);
-        $totalCount = $firstLoad['totalCount'] ?? 0;
-        $fisrtData = $firstLoad['records'] ?? [];
-        $firstDataClean = $this->kintone_record_cleaner($fisrtData);
-        
-        if(count($firstDataClean)){
-            $profitDataCollection = collect($firstDataClean);
+        // Inclusive month count
+        $months = $start->diffInMonths($end) + 1;
+        if ($months > 12) {
+            return response()->json(['error' => true, 'message' => '最大12ヶ月まで選択できます。'], 422);
         }
-        if((int)$totalCount > 500){
-            $offset = 500;
-            while($offset < $totalCount){
-                $profitData = $this->profitCollector($startInstance, $endInstance, $offset, $project_names_str);
-                $totalCount = $profitData['totalCount'] ?? 0;
-                $profitRecords = $profitData['records'] ?? [];
-                if(count($profitRecords)){
-                    $profitRecordsClean = $this->kintone_record_cleaner($profitRecords);
-                    if(count($profitRecordsClean)){
-                        $profitDataCollection->push(...$profitRecordsClean);
-                    }
+
+        $active = $this->active_user();
+        $projects = ProjectRecord::when(
+            $active->position_id < 6 || $active->id === 610,
+            fn($q) => $q,
+            fn($q) => $q->whereHas('manager', fn($sq) => $sq->where('users.id', $active->id))
+        )->pluck('name')->all();
+        function escapeKintoneString(string $s): string {
+            // Kintone strings are double-quoted. Escape backslash and double-quote.
+            return str_replace(['\\', '"'], ['\\\\', '\"'], $s);
+        }
+
+        /**
+         * Build the Kintone query string for a chunk of project names and a date range [start, endNext).
+         */
+        function buildProjectsQuery(array $names, $start, $end): string {
+            $escaped = array_map(fn($n) => '"'.escapeKintoneString($n).'"', $names);
+            $ymdStart = $start->copy()->startOfMonth()->format('Y-m-d');
+            $ymdEndNext = $end->copy()->startOfMonth()->addMonth()->format('Y-m-d'); // exclusive upper bound
+            $projectsExpr = '部門 in ('.implode(',', $escaped).')';
+            $dateExpr = sprintf('日付 >= "%s" and 日付 < "%s"', $ymdStart, $ymdEndNext);
+            return $projectsExpr.' and '.$dateExpr;
+        }    
+        // If you must pass project names to an external API, escape them properly.
+        // Better: filter by 部門 after fetching instead of hand-built IN (...) strings.
+        $projectSet = array_flip($projects); // fast membership test
+
+        // Fetch profit data paginated and aggregate once: key = 部門|YYYY-MM
+        $profitSums = []; // [部門][yyyy-mm] = ['sales'=>..., 'expense'=>..., 'profit'=>...]
+        $offset = 0;
+        $totalCount = null;
+        $chunks = array_chunk($projects, 100);
+        foreach ($chunks as $namesChunk) {
+            $query = buildProjectsQuery($namesChunk, $start, $end);
+
+            $offset = 0;
+            do {
+                // Your collector should accept a query string. If it currently takes just names,
+                // move the string-building into it and pass the raw $namesChunk instead.
+                $batch = $this->profitCollector($start, $end, (string)$offset, $query);
+
+                $totalCount = (int)($batch['totalCount'] ?? 0);
+                $records = $this->kintone_record_cleaner($batch['records'] ?? []);
+
+                foreach ($records as $r) {
+                    $dept = $r['部門'] ?? null;
+                    if ($dept === null) continue;
+
+                    $ym = Carbon::parse($r['日付'])->startOfMonth()->format('Y-m');
+                    $sales   = (float)($r['売上高合計'] ?? 0) + (float)($r['内部売上高合計'] ?? 0);
+                    $expense = (float)($r['販売管理費合計'] ?? 0) + (float)($r['間接費配賦'] ?? 0);
+                    $profit  = (float)($r['利益'] ?? 0);
+
+                    $node = &$profitSums[$dept][$ym];
+                    if (!isset($node)) $node = ['sales'=>0,'expense'=>0,'profit'=>0];
+                    $node['sales']   += round($sales,   0, PHP_ROUND_HALF_UP);
+                    $node['expense'] += round($expense, 0, PHP_ROUND_HALF_UP);
+                    $node['profit']  += round($profit,  0, PHP_ROUND_HALF_UP);
+                    unset($node);
                 }
-                if($offset > 10000){
-                    break;
-                }
+
                 $offset += 500;
+                if ($offset > 10000) break; // your safety valve
+            } while ($offset < $totalCount);
+        }
+
+        // Settlements: pre-aggregate once per month sheet
+        $settlementSums = []; // [部門][yyyy-mm] = ['sales'=>..., 'expense'=>..., 'profit'=>...]
+        $batchSettlement = $this->settlementCollector($start, $end);
+
+        foreach ($batchSettlement as $tab => $rows) {
+            if (empty($rows) || count($rows) < 3) continue;
+            // headers at row index 1; data from index 2
+            $headers = $rows[1];
+            $col = [
+                'name'     => array_search('プロジェクト名', $headers) ?: 1, // fallback to col 1 like your current code
+                'sales'    => array_search('収入', $headers),
+                'expense'  => array_search('支出', $headers),
+                'indirect' => array_search('間接費配賦', $headers),
+                'profit'   => array_search('利益', $headers),
+            ];
+            $ym = substr($tab, 0, 4).'-'.substr($tab, 4, 2);
+
+            foreach (array_slice($rows, 2) as $row) {
+                $dept = $row[$col['name']] ?? null;
+                if ($dept === null || !isset($projectSet[$dept])) continue;
+
+                $sales   = (float)str_replace(',', '', $row[$col['sales']]   ?? 0);
+                $expense = (float)str_replace(',', '', $row[$col['expense']] ?? 0);
+                $ind     = (float)str_replace(',', '', $row[$col['indirect']] ?? 0);
+                $profit  = (float)str_replace(',', '', $row[$col['profit']]  ?? 0);
+
+                $node = &$settlementSums[$dept][$ym];
+                if (!isset($node)) $node = ['sales'=>0,'expense'=>0,'profit'=>0];
+                $node['sales']   += round($sales,           0, PHP_ROUND_HALF_UP);
+                $node['expense'] += round($expense + $ind,  0, PHP_ROUND_HALF_UP);
+                $node['profit']  += round($profit,          0, PHP_ROUND_HALF_UP);
+                unset($node);
             }
-        }     
-        $sumData = [];
-        $v = [];
-        foreach($project_names as $project_name){
-            $stDate = $startInstance->copy();
-            $etDate = $endInstance->copy();
+        }
 
-            while ($stDate->lessThanOrEqualTo($etDate)) {
-                $month = $stDate->month;
-                $year = $stDate->year;
-                $settle_tab_index = sprintf('%04d%02d', $year, $month);
+        // Accumulate across the selected months per project
+        $cursor = $start->copy();
+        $projectTotals = []; // [部門] => ['profit'=>..., 'settlement'=>...]
 
-                $dateInstance = Carbon::createFromDate($year, $month, 1);
-                $profitData = $profitDataCollection->where('部門', $project_name)
-                ->filter(function ($item) use ($year, $month) {
-                    return Carbon::parse($item['日付'])->year == $year &&
-                            Carbon::parse($item['日付'])->month == $month;
-                })
-                ->first();
-                if($profitData){
-                    $totalSales = round( (float) $profitData['売上高合計'] + (float) $profitData['内部売上高合計'], 0, PHP_ROUND_HALF_UP);
-                    $totalExpense = round((float)  $profitData['販売管理費合計'] + (float) $profitData['間接費配賦'], 0, PHP_ROUND_HALF_UP);
-                    $totalProfit = round((float)(float) $profitData['利益'], 0, PHP_ROUND_HALF_UP);
-                    $sumData[$project_name]['profit']['sales'] = ($sumData[$project_name]['profit']['sales'] ?? 0) + $totalSales;
-                    $sumData[$project_name]['profit']['expense'] = ($sumData[$project_name]['profit']['expense'] ?? 0) + $totalExpense;
-                    $sumData[$project_name]['profit']['profit'] = ($sumData[$project_name]['profit']['profit'] ?? 0) + $totalProfit;
-                }
-                $settlements = $batchSettlementData[$settle_tab_index] ?? [];
-                if (!empty($settlements )) {
-                    $settlement_headers = $settlements[1];
-                    $settlement_data = array_slice($settlements, 2);
-                    $project_index_in_settlement = array_search($project_name, array_column($settlement_data, 1)); 
-                    if($project_index_in_settlement !== false){
-                        $settlementOfProject = $settlement_data[$project_index_in_settlement];
-                        $settlement_sales_index = array_search('収入', $settlement_headers);
-                        $settlement_expense_index = array_search('支出', $settlement_headers);
-                        $settlement_additional_expense_index = array_search('間接費配賦', $settlement_headers);
-                        $settlement_profit_index = array_search('利益', $settlement_headers);
-                        $settlement_profit_rate_index = array_search('利益率', $settlement_headers);                                
-                        $settlement_sales_val = $settlementOfProject[$settlement_sales_index] ?? 0;
-                        $settlement_expense_val = $settlementOfProject[$settlement_expense_index] ?? 0;
-                        $settlement_additional_expense_val = $settlementOfProject[$settlement_additional_expense_index] ?? 0;
-                        $settlement_profit_val = $settlementOfProject[$settlement_profit_index] ?? 0;
-                        $settlement_profit_rate_val = $settlementOfProject[$settlement_profit_rate_index] ?? 0; 
-                        $totalSales = round((float) str_replace(',', '', $settlement_sales_val), 0, PHP_ROUND_HALF_UP);
-                        $totalExpense = round((float) str_replace(',', '', $settlement_expense_val) + (float) str_replace(',', '', $settlement_additional_expense_val), 0, PHP_ROUND_HALF_UP);
-                        $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $totalSales;
-                        $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $totalExpense;
-                        $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
-                    }                   
-                }
+        while ($cursor->lte($end)) {
+            $ym = $cursor->format('Y-m');
+            foreach ($projects as $dept) {
+                $p = $profitSums[$dept][$ym]      ?? ['sales'=>0,'expense'=>0,'profit'=>0];
+                $s = $settlementSums[$dept][$ym]  ?? ['sales'=>0,'expense'=>0,'profit'=>0];
 
-                $stDate->addMonth();
+                $pt = &$projectTotals[$dept]['profit'];
+                $st = &$projectTotals[$dept]['settlement'];
+                if (!isset($pt)) $pt = ['sales'=>0,'expense'=>0,'profit'=>0];
+                if (!isset($st)) $st = ['sales'=>0,'expense'=>0,'profit'=>0];
+
+                $pt['sales']   += $p['sales'];    $st['sales']   += $s['sales'];
+                $pt['expense'] += $p['expense'];  $st['expense'] += $s['expense'];
+                $pt['profit']  += $p['profit'];   $st['profit']  += $s['profit'];
+
+                unset($pt, $st);
             }
-            $v[$project_name] = [
-                'sales'   => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['sales']??null,   $sumData[$project_name]['profit']['sales']??null)),
-                'expenses' => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['expense']??null, $sumData[$project_name]['profit']['expense']??null)),
-                'profit'  => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['profit']??null,  $sumData[$project_name]['profit']['profit']??null)),
+            $cursor->addMonthNoOverflow();
+        }
+
+        // Final variance
+        $out = [];
+        foreach ($projects as $dept) {
+            $ps = $projectTotals[$dept]['profit']     ?? ['sales'=>0,'expense'=>0,'profit'=>0];
+            $ss = $projectTotals[$dept]['settlement'] ?? ['sales'=>0,'expense'=>0,'profit'=>0];
+
+            $out[$dept] = [
+                'sales'    => VarianceService::achToVar(VarianceService::pct($ss['sales'],   $ps['sales'])),
+                'expense' => VarianceService::achToVar(VarianceService::pct($ss['expense'], $ps['expense'])),
+                'profit'   => VarianceService::achToVar(VarianceService::pct($ss['profit'],  $ps['profit'])),
             ];
         }
-        return response()->json($v);
+
+        return response()->json($out);
     }
+
     public function get_projects_external(Request $request){
         $projects = ProjectRecord::get();
         return response()->json($projects);
@@ -2492,7 +2740,6 @@ class ProjectController extends Controller
             'type'                => ['nullable','string','in:年度予算,損益計画,実績'],
             'mentioned_user_ids'  => ['array'],
             'mentioned_user_ids.*'=> ['integer','exists:users,id'],
-            'period'              => ['required','date_format:Y-m']
         ]);
 
         DB::transaction(function () use (&$comment, $data, $user) {
@@ -2580,11 +2827,14 @@ class ProjectController extends Controller
         if ($ids->isEmpty()) {
             return response()->json((object)[]);
         }
-         $counts = ProjectFinanceComment::whereIn('project_record_id', $ids)
-            ->select('project_record_id', DB::raw('COUNT(*) as comment_count'))
-            ->groupBy('project_record_id')
-            ->pluck('comment_count', 'project_record_id');
-        return response()->json($counts);
+         $countsByName = DB::table('project_finance_comments as c')
+            ->join('project_records as pr', 'pr.id', '=', 'c.project_record_id')
+            ->whereIn('c.project_record_id', $ids)
+            ->whereNull('c.deleted_at')
+            ->groupBy('pr.name')
+            ->pluck(DB::raw('COUNT(*) as comment_count'), 'pr.name'); // ["Project Name" => count]
+
+        return response()->json($countsByName);
 
     }
     public function get_finance_comment_badge() {
@@ -2788,11 +3038,16 @@ class ProjectController extends Controller
             ->orderBy('id')
             ->get()
             ->map(function (ProjectCase $case) {
+                $label = $this->resolveCaseLabel($case);
                 return [
                     'id'           => $case->id,
                     'project_id'   => $case->project_record_id,
                     'report_date'  => optional($case->report_date)->toDateString(),
-                    'status'       => $case->status,
+                    'status'       => $label,
+                    'kind'         => $case->kind,
+                    'stage'        => $case->stage,
+                    'delivery_status' => $case->delivery_status,
+                    'probability'  => $case->probability,
                     'client_name'  => $case->client_name,
                     'case_count'   => $case->case_count,
                     'amount'       => $case->amount,
@@ -2822,19 +3077,11 @@ class ProjectController extends Controller
 
         abort_unless($isProjectMember || $isDirector, 403, 'このプロジェクトには報告権限がありません。');
 
-        $allowedStatuses = [
-            '目標値',
-            '★竣工済',
-            '①受注済未竣工',
-            '②確度A',
-            '③確度B',
-            '④確度C',
-            '⑤確度D、E',
-        ];
-
         $data = $req->validate([
-            'status'      => ['required', 'string', Rule::in($allowedStatuses)],
-            'client_name' => ['required', 'string', 'max:191'],
+            'kind'        => ['required', Rule::in(self::CASE_KINDS)],
+            'stage'       => ['nullable', Rule::in(self::CASE_STAGES)],
+            'delivery_status' => ['nullable', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
+            'client_name' => ['nullable', 'string', 'max:191'],
             'case_count'  => ['required', 'integer', 'min:0'],
             'amount'      => ['required', 'integer', 'min:0'],
             'notes'       => ['nullable', 'string'],
@@ -2842,17 +3089,38 @@ class ProjectController extends Controller
             'state'       => ['required', Rule::in(['draft', 'submitted'])],
             'member_id'   => ['nullable', 'integer']
         ], [
-            'client_name.required' => '居客は必須です。',
             'case_count.required' => '案件は必須です。',
             'amount.required' => '金額は必須です。'
         ]);
+
+        $kind = $data['kind'];
+        if ($kind === 'PIPELINE') {
+            $req->validate([
+                'stage' => ['required', Rule::in(['A', 'B', 'C', 'D', 'E'])],
+            ]);
+        }
+        if ($kind === 'ACTUAL') {
+            $req->validate([
+                'delivery_status' => ['required', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
+            ]);
+        }
+
+        [$stage, $delivery, $statusLabel, $probability] = $this->normalizeCaseAttributes(
+            $kind,
+            $data['stage'] ?? null,
+            $data['delivery_status'] ?? null
+        );
 
         $reportDate = Carbon::parse($data['report_date'])->startOfMonth();
         $attributes = [
             'project_record_id' => $project->id,
             'user_id'           => $data['member_id'] ?? $user->id,
-            'status'            => $data['status'],
-            'client_name'       => $data['client_name'],
+            'kind'             => $kind,
+            'stage'            => $stage,
+            'delivery_status'  => $delivery,
+            'status'           => $statusLabel,
+            'probability'      => $probability,
+            'client_name'      => $data['client_name'] ?? null,
             'case_count'        => $data['case_count'],
             'amount'            => $data['amount'],
             'notes'             => $data['notes'] ?? null,
@@ -2869,8 +3137,11 @@ class ProjectController extends Controller
                 'id'           => $case->id,
                 'project_id'   => $case->project_record_id,
                 'report_date'  => $case->report_date->toDateString(),
-                'status'       => $case->status,
-                'client_name'  => $case->client_name,
+                'status'       => $statusLabel,
+                'kind'         => $case->kind,
+                'stage'        => $case->stage,
+                'delivery_status' => $case->delivery_status,
+                'probability'  => $case->probability,
                 'case_count'   => $case->case_count,
                 'amount'       => $case->amount,
                 'notes'        => $case->notes,
@@ -2885,6 +3156,50 @@ class ProjectController extends Controller
             ],
         ], 201);
     }
+
+    private function normalizeCaseAttributes(string $kind, ?string $stage, ?string $delivery): array
+    {
+        $kind = strtoupper($kind);
+
+        switch ($kind) {
+            case 'PLAN':
+                return [null, null, '目標値', null];
+
+            case 'ACTUAL':
+                $delivery = $delivery ?: 'COMPLETED';
+                $stage = 'WON';
+                $label = self::CASE_DELIVERY_LABELS[$delivery] ?? self::CASE_STAGE_LABELS['WON'];
+                $probability = self::CASE_STAGE_WEIGHT['WON'];
+                return [$stage, $delivery, $label, $probability];
+
+            case 'PIPELINE':
+                $stage = strtoupper($stage ?? 'C');
+                $label = self::CASE_STAGE_LABELS[$stage] ?? $stage;
+                $probability = self::CASE_STAGE_WEIGHT[$stage] ?? null;
+                return [$stage, null, $label, $probability];
+
+            default:
+                return [$stage, $delivery, '不明', null];
+        }
+    }
+
+    private function resolveCaseLabel(ProjectCase $case): string
+    {
+        if ($case->kind === 'PLAN') {
+            return '目標値';
+        }
+
+        if ($case->kind === 'ACTUAL') {
+            return self::CASE_DELIVERY_LABELS[$case->delivery_status] ?? self::CASE_STAGE_LABELS[$case->stage] ?? ($case->status ?? '実績');
+        }
+
+        if ($case->kind === 'PIPELINE') {
+            return self::CASE_STAGE_LABELS[$case->stage] ?? ($case->status ?? '見込み');
+        }
+
+        return $case->status ?? '―';
+    }
+
     public function project_metrics_with_values(ProjectRecord $project, Request $req) {
         $data = $req->validate([
             'start' => ['required', 'date_format:Y-m-d'],
@@ -3673,5 +3988,27 @@ class ProjectController extends Controller
         $case->delete();
         return response()->json(['status' => 'ok']);
     }
+    public function preview_contract(ProjectRecord $project)
+    {
+        $contract = $project->contract;
+        abort_unless($contract && $contract->file_path, 404);
+
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($contract->file_path), 404);
+
+        $filename = basename($contract->file_path);
+
+        return $disk->response($contract->file_path, $filename, [
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            // optionally set type for PDFs
+            // 'Content-Type' => 'application/pdf',
+        ]);
+    }
+    public function get_project_contract(ProjectRecord $project)
+    {
+        $contract = $project->contract;
+        abort_unless($contract, 404);
+        return response()->json($contract);
+    }   
 }
 

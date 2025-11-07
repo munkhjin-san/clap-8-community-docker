@@ -538,6 +538,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_list', [ProjectController::class, 'project_list']);
         Route::post('/view_case', [ProjectController::class, 'view_case']);
         Route::delete('/delete_case/{case}', [ProjectController::class, 'delete_case']);
+        Route::get('/projects/{project}/contract/file', [ProjectController::class, 'preview_contract']);
+        Route::get('/projects/{project}/contract', [ProjectController::class, 'get_project_contract']);
+        Route::post('/save_review', [ProjectController::class, 'save_review']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);
@@ -669,6 +672,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/ai_correction_prepare', [OpenAiController::class, 'prepare']);
         Route::post('/non_stream_prompt', [OpenAiController::class, 'non_stream_prompt']);
         Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
+        Route::post('/review_document', [OpenAiController::class, 'review_document']);
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);

@@ -5,6 +5,7 @@
         </template>
         <template #menu>
             <ItemMenu 
+                v-if="selectedCaseId"
                 :items="[
                     {title: '編集', action: () => editCase()},
                     {title: '削除', action: () => deleteCase()}
@@ -27,13 +28,21 @@
                     <UserPanel size="20" with-name :user="viewData.reporter"/>
                 </div>
                 <div class="si-box">
-                    <p class="mb-2">営業ステージ</p>
-                    <p>{{ viewData.status }}</p>
+                    <p class="mb-2">区分</p>
+                    <p>{{ kindLabelMap[viewData.kind] ?? '―' }}</p>
                 </div>
-                <div class="si-box">
+                <div class="si-box" v-if="viewData.kind === 'PIPELINE'">
+                    <p class="mb-2">営業ステージ</p>
+                    <p>{{ stageLabelText(viewData.stage) }}</p>
+                </div>
+                <div class="si-box" v-else-if="viewData.kind === 'ACTUAL'">
+                    <p class="mb-2">実績ステータス</p>
+                    <p>{{ deliveryLabelText(viewData.delivery_status) }}</p>
+                </div>
+                <!-- <div class="si-box">
                     <p class="mb-2">顧客</p>
                     <p>{{ viewData.client_name }}</p>
-                </div>
+                </div> -->
                 <div class="si-box">
                     <p class="mb-2">目標件数</p>
                     <p>{{ viewData.case_count }}</p>
@@ -58,23 +67,50 @@
                     />
                 </div>
                 <div class="si-box">
-                    <ItemSelector 
-                        :options="statusOptions"
-                        v-model="params.status"
-                        place-holder="営業ステージ"
+                    <p class="mb-2">区分</p>
+                    <div class="kind-toggle">
+                        <button
+                            v-for="option in KIND_TAB_OPTIONS"
+                            :key="option.kind"
+                            type="button"
+                            class="kind-chip"
+                            :class="{ active: params.kind === option.kind }"
+                            @click="setKind(option.kind)"
+                        >
+                            {{ option.label }}
+                        </button>
+                    </div>
+                </div>
+                <div v-if="params.kind === 'PIPELINE'" class="si-box">
+                    <ItemSelector
+                        :options="pipelineStageOptions"
+                        v-model="params.stage"
+                        place-holder="確度"
                         :multiple="false"
-                        label="option"
-                        :reduce="option => option"
+                        label="label"
+                        :reduce="option => option.value"
                         :clearable="false"
                         :closeOnSelect="true"
                     />
                 </div>
-                <div class="si-box">
+                <div v-else-if="params.kind === 'ACTUAL'" class="si-box">
+                    <ItemSelector
+                        :options="deliveryOptions"
+                        v-model="params.delivery_status"
+                        place-holder="実績ステータス"
+                        :multiple="false"
+                        label="label"
+                        :reduce="option => option.value"
+                        :clearable="false"
+                        :closeOnSelect="true"
+                    />
+                </div>
+                <!-- <div class="si-box">
                     <ShortInput 
                         v-model="params.client_name"
                         place-holder="顧客"
                     />
-                </div>
+                </div> -->
                 <div class="si-box">
                     <ShortInput 
                         v-model="params.case_count"
@@ -127,6 +163,15 @@ import MemberSelector from '@/components/Form/MemberSelector.vue';
 import { User } from '@/interface/globalInterface';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
+import {
+    KIND_TAB_OPTIONS,
+    STAGE_PIPELINE_LIST,
+    STAGE_LABEL,
+    DELIVERY_LABEL,
+    type RecordKind,
+    type Stage,
+    type DeliveryStatus,
+} from '@/utils/case';
 const props = defineProps<{
     selectedProject: Project
     projectId: number;
@@ -145,11 +190,13 @@ const members = computed(() => {
     return props.selectedProject.members
 })
 const viewData = ref()
-const statusOptions = ['目標値', '★竣工済', '①受注済未竣工', '②確度A', '③確度B', '④確度C', '⑤確度D、E'];
+const kindLabelMap = Object.fromEntries(KIND_TAB_OPTIONS.map(item => [item.kind, item.label]));
 type Params = {
     client_name: string
     amount: string
-    status: string
+    kind: RecordKind
+    stage: Stage
+    delivery_status: DeliveryStatus
     notes: string
     case_count: string
     period: string
@@ -158,17 +205,39 @@ type Params = {
 const params = reactive<Params>({
     client_name: '',
     amount: '',
-    status: statusOptions[0],
+    kind: 'PIPELINE',
+    stage: 'C',
+    delivery_status: 'ORDERED_NOT_COMPLETED',
     notes: '',
     case_count: '',
     period: DateTime.now().startOf('month').minus({ months: 1 }).toISODate(),
     member: null
 });
+const pipelineStageOptions = computed(() => STAGE_PIPELINE_LIST.map(stage => ({ value: stage, label: STAGE_LABEL[stage] })));
+const deliveryOptions = computed(() => Object.entries(DELIVERY_LABEL).map(([value, label]) => ({ value: value as DeliveryStatus, label })));
+const setKind = (next: RecordKind) => {
+    if (params.kind === next) return;
+    params.kind = next;
+    if (next === 'PIPELINE') {
+        params.stage = 'C';
+        params.delivery_status = 'ORDERED_NOT_COMPLETED';
+    } else if (next === 'ACTUAL') {
+        params.stage = 'WON';
+        params.delivery_status = 'ORDERED_NOT_COMPLETED';
+    } else {
+        params.stage = 'WON';
+        params.delivery_status = 'ORDERED_NOT_COMPLETED';
+    }
+};
+const stageLabelText = (stage?: Stage | null) => stage ? (STAGE_LABEL[stage] ?? stage) : '—';
+const deliveryLabelText = (delivery?: DeliveryStatus | null) => delivery ? (DELIVERY_LABEL[delivery] ?? delivery) : '—';
 const editCase = () => {
     params.client_name = viewData.value.client_name
-    params.amount = viewData.value.amount
-    params.status = viewData.value.status
-    params.case_count = viewData.value.case_count
+    params.amount = String(viewData.value.amount ?? '')
+    params.kind = viewData.value.kind || 'PIPELINE'
+    params.stage = viewData.value.stage || (params.kind === 'PIPELINE' ? 'C' : 'WON')
+    params.delivery_status = viewData.value.delivery_status || 'ORDERED_NOT_COMPLETED'
+    params.case_count = String(viewData.value.case_count ?? '')
     params.notes = viewData.value.notes
     const sql = viewData.value?.report_date;
     if (sql) {
@@ -210,7 +279,9 @@ const resetForm = () => {
     params.amount = '';
     params.case_count = '';
     params.notes = '';
-    params.status = statusOptions[0];
+    params.kind = 'PIPELINE';
+    params.stage = 'C';
+    params.delivery_status = 'ORDERED_NOT_COMPLETED';
 };
 
 const submitCase = async (type: 1 | 2) => {
@@ -223,7 +294,9 @@ const submitCase = async (type: 1 | 2) => {
     await api.post(
         `/projects/${props.projectId}/cases`,
         {
-            status: params.status,
+            kind: params.kind,
+            stage: params.kind === 'PIPELINE' ? params.stage : params.kind === 'ACTUAL' ? 'WON' : null,
+            delivery_status: params.kind === 'ACTUAL' ? params.delivery_status : null,
             client_name: params.client_name.trim(),
             case_count: Number.isNaN(caseCount) ? 0 : caseCount,
             amount: Number.isNaN(amount) ? 0 : amount,
@@ -246,7 +319,11 @@ const get_case = async() => {
     viewData.value = data
     loading.value += 1
 }
-// watch([params.period, props.selectedCaseId] => () )
+watch(() => params.period, (newVal) => {
+    if (props.selectedCaseId && newVal) {
+        get_case()
+    }
+})
 onMounted(() => {
     if (props.selectedCaseId) {
         get_case()
@@ -255,3 +332,26 @@ onMounted(() => {
     }
 })
 </script>
+
+<style scoped>
+.kind-toggle {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.kind-chip {
+    border: 1px solid var(--normalBorder);
+    padding: 6px 12px;
+    font-size: 13px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.kind-chip.active {
+    background: var(--hoverBorder);
+    border-color: var(--hoverBorder);
+    color: #fff;
+}
+</style>

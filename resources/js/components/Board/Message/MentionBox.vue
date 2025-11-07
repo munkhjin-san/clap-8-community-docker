@@ -75,8 +75,13 @@ import { useBoardList } from '@/composables/board';
             var leftM = x - 80;      
             leftM = leftM < 0 ? 10 : leftM      
             var messagePanel = window.innerHeight;
-            var bottomM = messagePanel - y + 5 - keyboardStore.height;  
-            var result = 'left:' + leftM + 'px;' + 'bottom:' + bottomM + 'px;visibility:visible'     
+            var bottomM = messagePanel - y + 5 - keyboardStore.height; 
+            const leftPanel = document.getElementById('leftPanel')
+            if (leftPanel) {
+                leftM = leftM - leftPanel.clientWidth
+            } 
+            var result = 'left:' + leftM + 'px;' + 'bottom:' + bottomM + 'px;visibility:visible' 
+            
             return result
         }
 
