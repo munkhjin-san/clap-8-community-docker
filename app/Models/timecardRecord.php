@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Carbon\Carbon;
 
 class timecardRecord extends Model
 {
@@ -44,6 +45,20 @@ class timecardRecord extends Model
     }
     public function car_project(){
         return $this->hasOne(ProjectRecord::class, 'id', 'car_used_project');
+    }
+    protected $appends = ['training_minutes'];
+
+    public function getTrainingMinutesAttribute(): int
+    {
+        if (!$this->training_start_time || !$this->training_end_time) {
+            return 0;
+        }
+        $start = Carbon::parse("{$this->day} {$this->training_start_time}");
+        $end   = Carbon::parse("{$this->day} {$this->training_end_time}");
+        if ($end->lt($start)) {
+            $end->addDay(); // overnight
+        }
+        return $start->diffInMinutes($end);
     }
     protected $casts = [
         'record_id' => 'int',

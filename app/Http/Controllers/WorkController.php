@@ -259,8 +259,7 @@ class WorkController extends Controller
                     'car_project' => function ($q) {
                         $q->select('id', 'name');
                     }
-                ])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price');
+                ]);
             },
             'shift_records' => function ($q) use ($year, $month) {
                 $q->whereYear('shift_day', $year)
@@ -1292,7 +1291,7 @@ class WorkController extends Controller
             'time_card_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->whereYear('day', $currentYear)
                     ->whereMonth('day', $currentMonth)
-                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time', 'night_over_time', 'stamp_flag', 'car_mileage');
+                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time', 'night_over_time', 'stamp_flag', 'car_mileage', 'training_start_time', 'training_end_time');
             },
             'custom_field_data_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->where('type_id', 37)
@@ -1412,6 +1411,7 @@ class WorkController extends Controller
         $month_vehicle_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 6)->count();
         $month_special_commute_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 7)->count();
         $attendance_flag = !empty($attendance) ? true : false;
+        $totalTrainingMinutes = $user->time_card_records->sum('training_minutes');
         $responseArray = [
             'user' => $userData,
             'attendance_flag' => $attendance_flag,
@@ -1444,7 +1444,8 @@ class WorkController extends Controller
             'annual_costs' => $annual_costs,
             'annual_incentives' => $annual_incentive,
             'unapproved_shift_count' => $unapproved_shift_count,
-            'mileage' => $mileage
+            'mileage' => $mileage,
+            'month_training_minutes' => $totalTrainingMinutes
         ];
 
         return response()->json($responseArray);
@@ -1585,6 +1586,7 @@ class WorkController extends Controller
             $attendance_record->expenses = $request->expenses;
             $attendance_record->incentive = $request->incentive;
             $attendance_record->mileage = $request->mileage;
+            $attendance_record->training_time = $request->training_time;
             $attendance_record->save();
 
             return response()->json($attendance_record);

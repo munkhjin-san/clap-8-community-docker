@@ -11,6 +11,7 @@
     <td v-if="!responsive.mobile"></td>
     <td v-if="!responsive.mobile"></td>
     <td>{{ workTotalTimeFormat }}</td>
+    <td v-if="!responsive.mobile && hasHeader('研修時間')"></td>
     <td>
         <p v-if="data.work_type == 1 || showOverTime">
             {{ data?.month_over_time ? overTimeFormat : '' }}

@@ -19,6 +19,7 @@
             <div v-else>{{ endTimeFormatted }}</div>
         </td>
         <td>{{ workTimeFormatted }}</td>
+        <td v-if="hasHeader('研修時間')">{{ trainTimeFormatted }}</td>
         <td>{{ overTimeFormatted }}</td>
         <td>
             <div style="white-space: pre-wrap;" v-if="item.time_card?.stamp_flag == 1">{{ breakTimeFormatted }}</div>
@@ -256,6 +257,33 @@ const workTimeFormatted = computed(() => {
         }            
     }
     return ''
+})
+const durationJa = (startStr, endStr) => {
+  const [sh, sm, ss = 0] = startStr.split(":").map(Number);
+  const [eh, em, es = 0] = endStr.split(":").map(Number);
+
+  const start = new Date(0, 0, 0, sh, sm, ss);
+  const end = new Date(0, 0, 0, eh, em, es);
+
+  if (end < start) end.setDate(end.getDate() + 1);
+
+  const diffMs = end.getTime() - start.getTime();
+  const totalMinutes = Math.round(diffMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return `${hours}時間${minutes}分`;
+}
+const trainTimeFormatted = computed(() => {
+    const timeCard = props.item?.time_card
+    let label = ""
+    if (timeCard){
+        const mobileTitle = responsive.mobile ? '研修時間 : ' : ''
+        if (timeCard.training_start_time && timeCard.training_end_time) {
+            label = durationJa(timeCard.training_start_time, timeCard.training_end_time);
+            return mobileTitle + label
+        }
+    }
 })
 const countdown = computed(() => {
     const currentTime = DateTime.now();

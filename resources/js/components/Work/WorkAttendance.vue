@@ -146,6 +146,14 @@
                             <span>{{ attendanceData.night_over_time }}分</span>
                         </div>
                     </div>
+                    <div class="attendance-row" v-if="attendanceData.user.position_id === 15">
+                        <div class="attendance-title">
+                            <span>研修時間</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.month_training_minutes }}分</span>
+                        </div>
+                    </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>諸手当</span>
@@ -373,7 +381,8 @@ import Modal from '../Global/Modal.vue';
             remote_company_pay: attendanceData.value.month_remote_company_allowance_count,
             expenses: attendanceData.value.annual_costs,
             incentive: attendanceData.value.annual_incentives,
-            mileage: attendanceData.value.mileage
+            mileage: attendanceData.value.mileage,
+            training_time: attendanceData.value.month_training_minutes
         }
  
         sending.value = true

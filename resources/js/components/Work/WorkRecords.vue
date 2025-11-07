@@ -136,6 +136,8 @@ import { useApi } from '@/composables/api';
         if(includeRegistered.value){
             const index = headersArray.findIndex(element => element.title == 'ステータス')
             headersArray.splice(index, 0, {title: 'インセンティブ'})
+            const t_index = headersArray.findIndex(element => element.title == '時間外')
+            headersArray.splice(t_index, 0, {title: '研修時間'})
         }      
 
         return headersArray;
