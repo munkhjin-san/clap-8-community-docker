@@ -320,7 +320,7 @@
                   <th>
                     {{ formatCell(totalByAllPrediction) }}
                   </th>
-                  <th></th>
+                  <!-- <th></th> -->
                   <th v-if="hasPrivilage"></th>
                 </tr>
                 <tr>
@@ -332,7 +332,7 @@
                   <th>
                     {{ formatCell(totalByAllGoal) }}
                   </th>
-                  <th></th>
+                  <!-- <th></th> -->
                   <th v-if="hasPrivilage"></th>
                 </tr>
               </tfoot>
@@ -1950,7 +1950,7 @@ tr.border-diff-row > td {
   border: 1px solid var(--calendarBorder);
   /* border-radius: 12px; */
   padding: 12px;
-  background: linear-gradient(135deg, rgba(226, 232, 240, 0.35), rgba(226, 232, 240, 0.05));
+  background: var(--background-color);
   transition: box-shadow 0.3s ease;
 }
 .chart-shell.mood-good {
