@@ -43,6 +43,48 @@ ChartJS.register(
   Tooltip,
   Legend,
 );
+const focusMarkerPlugin = {
+  id: 'focusMarker',
+  afterDraw(chart: any) {
+    const index = chart.options?.plugins?.focusMarker?.index;
+    if (index == null) return;
+    const xScale = chart.scales.x;
+    if (!xScale) return;
+    const x = xScale.getPixelForValue(index);
+    const { top, bottom } = chart.chartArea;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(239,68,68,0.35)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+const valueLabelPlugin = {
+  id: 'valueLabels',
+  afterDatasetsDraw(chart: any, _args: any, opts: any) {
+    if (!opts?.enabled) return;
+    const datasetIndex = 0;
+    const dataset = chart.data.datasets[datasetIndex];
+    if (!dataset) return;
+    const meta = chart.getDatasetMeta(datasetIndex);
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#0f172a';
+    ctx.textAlign = 'center';
+    meta.data.forEach((point: any, idx: number) => {
+      const value = dataset.data[idx];
+      if (value == null || Number.isNaN(value)) return;
+      ctx.fillText(formatAbbrev(Number(value)), point.x, point.y - 8);
+    });
+    ctx.restore();
+  },
+};
+ChartJS.register(focusMarkerPlugin, valueLabelPlugin);
 
 const props = withDefaults(
   defineProps<{
@@ -56,6 +98,10 @@ const props = withDefaults(
     labels?: string[];
     targetSeries?: number[];
     mode?: 'aggregate' | 'member' | 'stage';
+    futureStartIndex?: number | null;
+    focusStartIndex?: number | null;
+    focusLength?: number;
+    projectionSeries?: (number | null)[];
   }>(),
   {
     series: () => [],
@@ -68,6 +114,10 @@ const props = withDefaults(
     labels: () => [],
     targetSeries: () => [],
     mode: 'aggregate',
+    futureStartIndex: null,
+    focusStartIndex: null,
+    focusLength: 1,
+    projectionSeries: () => [],
   },
 );
 
@@ -110,6 +160,41 @@ const toRGBA = (hex: string, alpha: number) => {
   const b = bigint & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+const formatAbbrev = (value: number) => {
+  const abs = Math.abs(value);
+  if (abs >= 100000000) return `${(value / 100000000).toFixed(1)}億`;
+  if (abs >= 10000) return `${(value / 10000).toFixed(1)}万`;
+  if (abs >= 1000) return `${(value / 1000).toFixed(1)}k`;
+  return `${value}`;
+};
+
+const segmentVisualConfig = (color: string) => {
+  const focusStart = props.focusStartIndex ?? null;
+  const focusLen = props.focusLength ?? 1;
+  const futureStart = props.futureStartIndex ?? null;
+  const hasFocus = focusStart != null;
+  const isFuture = (index: number) => futureStart != null && index >= futureStart;
+  const isInFocus = (index: number) =>
+    !hasFocus || (focusStart != null && index >= focusStart && index < focusStart + focusLen);
+  return {
+    segment: {
+      borderDash: (ctx: any) => (isFuture(ctx.p0DataIndex) ? [6, 6] : undefined),
+      borderColor: (ctx: any) => {
+        let base = color;
+        if (isFuture(ctx.p0DataIndex)) {
+          base = toRGBA(color, 0.35);
+        }
+        if (!isInFocus(ctx.p0DataIndex)) {
+          return toRGBA(base, 0.35);
+        }
+        return base;
+      },
+    },
+    pointBackgroundColor: (ctx: any) => (isInFocus(ctx.dataIndex) ? color : toRGBA(color, 0.35)),
+    pointBorderColor: (ctx: any) => (isInFocus(ctx.dataIndex) ? color : toRGBA(color, 0.35)),
+    pointRadius: (ctx: any) => (isInFocus(ctx.dataIndex) ? 6 : 3),
+  };
+};
 
 const chartData = computed(() => {
   const labels = resolvedLabels.value;
@@ -135,7 +220,7 @@ const chartData = computed(() => {
         tension: 0.3,
         fill: index === 0 ? 'origin' : '-1',
         stack: 'weighted',
-        pointRadius: 3,
+        ...segmentVisualConfig(color),
       };
     });
 
@@ -149,9 +234,8 @@ const chartData = computed(() => {
           backgroundColor: 'rgba(31, 41, 55, 0.1)',
           tension: 0.2,
           fill: false,
-          pointRadius: 4,
-          borderWidth: 2,
           stack: 'actual',
+          ...segmentVisualConfig('#1f2937'),
         });
       }
     }
@@ -167,11 +251,23 @@ const chartData = computed(() => {
           borderDash: [6, 4],
           tension: 0.15,
           fill: false,
-          pointRadius: 4,
-          borderWidth: 2,
           stack: 'target',
+          ...segmentVisualConfig('#ef4444'),
         });
       }
+    }
+    if (props.projectionSeries.length && props.projectionSeries.some(value => value != null)) {
+      datasets.push({
+        label: '到達予測',
+        data: props.projectionSeries,
+        borderColor: '#0f172a',
+        pointBackgroundColor: '#0f172a',
+        pointBorderColor: '#0f172a',
+        pointRadius: 8,
+        showLine: false,
+        borderWidth: 0,
+        spanGaps: true,
+      });
     }
 
     return {
@@ -203,7 +299,7 @@ const chartData = computed(() => {
         backgroundColor: toRGBA(color, 0.2),
         tension: 0.25,
         fill: false,
-        pointRadius: 4,
+        ...segmentVisualConfig(color),
       };
     });
 
@@ -226,7 +322,7 @@ const chartData = computed(() => {
       backgroundColor: 'rgba(37, 99, 235, 0.15)',
       tension: 0.25,
       fill: true,
-      pointRadius: 4,
+      ...segmentVisualConfig('#2563eb'),
     });
   }
 
@@ -238,14 +334,29 @@ const chartData = computed(() => {
       backgroundColor: 'rgba(249, 115, 22, 0.15)',
       tension: 0.25,
       fill: true,
-      pointRadius: 4,
       yAxisID: datasets.length ? 'y1' : 'y',
+      ...segmentVisualConfig('#f97316'),
     });
   }
 
   return {
     labels,
-    datasets,
+    datasets: props.projectionSeries.length && props.projectionSeries.some(value => value != null)
+      ? [
+          ...datasets,
+          {
+            label: '到達予測',
+            data: props.projectionSeries,
+            borderColor: '#0f172a',
+            pointBackgroundColor: '#0f172a',
+            pointBorderColor: '#0f172a',
+            pointRadius: 8,
+            showLine: false,
+            borderWidth: 0,
+            spanGaps: true,
+          },
+        ]
+      : datasets,
   };
 });
 
@@ -269,6 +380,12 @@ const chartOptions = computed(() => {
               return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} 円`;
             },
           },
+        },
+        focusMarker: {
+          index: props.focusStartIndex ?? null,
+        },
+        valueLabels: {
+          enabled: true,
         },
       },
       scales: {
@@ -309,6 +426,12 @@ const chartOptions = computed(() => {
               return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} 円`;
             },
           },
+        },
+        focusMarker: {
+          index: props.focusStartIndex ?? null,
+        },
+        valueLabels: {
+          enabled: false,
         },
       },
       scales: {
@@ -409,6 +532,12 @@ const chartOptions = computed(() => {
             return `${context.dataset.label}: ${value} 件`;
           },
         },
+      },
+      focusMarker: {
+        index: props.focusStartIndex ?? null,
+      },
+      valueLabels: {
+        enabled: true,
       },
     },
     scales,

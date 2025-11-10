@@ -279,7 +279,7 @@
                 :select-project="selectedProject" 
                 :refresh-key="caseRefreshKey"
                 :has-privilage="hasPrivilage"
-                @view="(val) => viewCase(val)"
+                @view="viewCase"
             />
         
             <FloatButton @action="caseWindow = true">
@@ -295,8 +295,8 @@
                 :report-year="year"
                 :report-month="month"
                 :has-privilage="hasPrivilage"
-                :selected-case-id="selectedCaseId"
-                @close="caseWindow = false, selectedCaseId = null"
+                :selected-case="selectedCaseMeta"
+                @close="caseWindow = false, selectedCaseMeta = null"
                 @saved="handleCaseSaved"
             />
         </div>
@@ -413,13 +413,22 @@ const month = ref<MonthNumbers>(periodEnd.value.month as MonthNumbers)
 const handleCaseSaved = () => {
     caseWindow.value = false
     caseRefreshKey.value += 1
-    selectedCaseId.value = null
+    selectedCaseMeta.value = null
 }
 const commentCount = ref(0)
 const metrics_list = ref<MetricDTO[]>([])
-const selectedCaseId = ref<number | null>(null)
-const viewCase = (id: number | null) => {
-    selectedCaseId.value = id
+type CaseTimelineEntry = { id: number; reportDate: string | null }
+type CaseDetailPayload = {
+  memberId: number
+  memberName: string
+  status: string
+  activeCase: CaseTimelineEntry | null
+  reportDate: string | null
+  timeline: Record<string, CaseTimelineEntry[]>
+}
+const selectedCaseMeta = ref<CaseDetailPayload | null>(null)
+const viewCase = (payload: CaseDetailPayload) => {
+    selectedCaseMeta.value = payload
     caseWindow.value = true
 }
 

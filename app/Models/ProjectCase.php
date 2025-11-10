@@ -14,7 +14,7 @@ class ProjectCase extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'report_date'  => 'date',
+        'report_date'  => 'date:Y-m-d',
         'submitted_at' => 'datetime',
         'probability'  => 'float',
     ];
