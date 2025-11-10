@@ -191,6 +191,7 @@ export interface FinanceComment {
     type: string;
     author: User;
     created_at: string;
+    checked_users: User[];
 }
 interface QuickEditText {
     text:string, 

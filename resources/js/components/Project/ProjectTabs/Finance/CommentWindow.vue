@@ -29,6 +29,7 @@
                         :mentionableUsers="mentionableUsers" 
                         @edit="(val) => editingCommentId = val"
                         @deleted="onDeletedComment"
+                        @reload="getComments"
                     />
                 </div>
                 

@@ -2799,7 +2799,7 @@ class ProjectController extends Controller
         ]);
 
         $comment = ProjectFinanceComment::where('project_record_id', $data['project_record_id'])
-                ->with(['author:id,name,icon_path,icon_bg'])
+                ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers'])
                 ->get();
         
         return response()->json($comment);
@@ -2908,7 +2908,19 @@ class ProjectController extends Controller
         return response(200);
 
     }
+    public function mark_finance_check(Request $request){
+        $active_user = $this->active_user();
+        $comment = ProjectFinanceComment::with('checkedUsers')->findOrFail($request->id);
+        if ($comment->checkedUsers()->where('user_id', $active_user->id)->exists()) {
+            $comment->checkedUsers()->detach($active_user->id);            
+        } else {
+            $comment->checkedUsers()->attach($active_user->id);            
+        }
 
+        $comment = $comment->fresh();
+        $comment->load('checkedUsers');
+        return response()->json($comment);
+    }
 
     // #Metrics
 
@@ -3110,11 +3122,11 @@ class ProjectController extends Controller
             $data['stage'] ?? null,
             $data['delivery_status'] ?? null
         );
-
         $reportDate = Carbon::parse($data['report_date'])->startOfMonth();
+        $user_id = $data['member_id'] ?? $user->id;
         $attributes = [
             'project_record_id' => $project->id,
-            'user_id'           => $data['member_id'] ?? $user->id,
+            'user_id'           => $user_id,
             'kind'             => $kind,
             'stage'            => $stage,
             'delivery_status'  => $delivery,
@@ -3128,6 +3140,13 @@ class ProjectController extends Controller
             'state'             => $data['state'],
             'submitted_at'      => $data['state'] === 'submitted' ? now() : null,
         ];
+        
+        $exists = ProjectCase::where('report_date', $reportDate)
+                ->where('user_id', $user_id)
+                ->where('project_record_id', $project->id)
+                ->where('status', $statusLabel)
+                ->exists();
+        abort_if($exists, 403, '同一日付・同一区分の報告は1件のみ登録できます。');
 
         $case = ProjectCase::create($attributes);
         $case->load('reporter:id,name,icon_path,icon_bg');
@@ -3155,6 +3174,98 @@ class ProjectController extends Controller
                 ] : null,
             ],
         ], 201);
+    }
+
+    public function project_case_update(ProjectRecord $project, ProjectCase $case, Request $req)
+    {
+        $user = Auth::user();
+        abort_unless($user, 401, '認証が必要です。');
+        abort_unless($case->project_record_id === $project->id, 404, '案件が見つかりません。');
+
+        $isProjectMember = ProjectMember::where('project_id', $project->id)
+            ->where('user_id', $user->id)
+            ->exists();
+        $isDirector = (int) $project->director_id === (int) $user->id;
+
+        abort_unless($isProjectMember || $isDirector, 403, 'このプロジェクトには報告権限がありません。');
+
+        $data = $req->validate([
+            'kind'        => ['required', Rule::in(self::CASE_KINDS)],
+            'stage'       => ['nullable', Rule::in(self::CASE_STAGES)],
+            'delivery_status' => ['nullable', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
+            'client_name' => ['nullable', 'string', 'max:191'],
+            'case_count'  => ['required', 'integer', 'min:0'],
+            'amount'      => ['required', 'integer', 'min:0'],
+            'notes'       => ['nullable', 'string'],
+            'report_date' => ['required', 'date_format:Y-m-d'],
+            'state'       => ['required', Rule::in(['draft', 'submitted'])],
+            'member_id'   => ['nullable', 'integer'],
+        ], [
+            'case_count.required' => '案件は必須です。',
+            'amount.required' => '金額は必須です。',
+        ]);
+
+        $kind = $data['kind'];
+        if ($kind === 'PIPELINE') {
+            $req->validate([
+                'stage' => ['required', Rule::in(['A', 'B', 'C', 'D', 'E'])],
+            ]);
+        }
+        if ($kind === 'ACTUAL') {
+            $req->validate([
+                'delivery_status' => ['required', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
+            ]);
+        }
+
+        [$stage, $delivery, $statusLabel, $probability] = $this->normalizeCaseAttributes(
+            $kind,
+            $data['stage'] ?? null,
+            $data['delivery_status'] ?? null
+        );
+
+        $reportDate = Carbon::parse($data['report_date'])->startOf('month');
+
+        $case->update([
+            'user_id'          => $data['member_id'] ?? $case->user_id,
+            'kind'             => $kind,
+            'stage'            => $stage,
+            'delivery_status'  => $delivery,
+            'status'           => $statusLabel,
+            'probability'      => $probability,
+            'client_name'      => $data['client_name'] ?? null,
+            'case_count'       => $data['case_count'],
+            'amount'           => $data['amount'],
+            'notes'            => $data['notes'] ?? null,
+            'report_date'      => $reportDate,
+            'state'            => $data['state'],
+            'submitted_at'     => $data['state'] === 'submitted' ? now() : null,
+        ]);
+
+        $case->load('reporter:id,name,icon_path,icon_bg');
+
+        return response()->json([
+            'case' => [
+                'id'           => $case->id,
+                'project_id'   => $case->project_record_id,
+                'report_date'  => optional($case->report_date)?->toDateString(),
+                'status'       => $statusLabel,
+                'kind'         => $case->kind,
+                'stage'        => $case->stage,
+                'delivery_status' => $case->delivery_status,
+                'probability'  => $case->probability,
+                'case_count'   => $case->case_count,
+                'amount'       => $case->amount,
+                'notes'        => $case->notes,
+                'state'        => $case->state,
+                'submitted_at' => optional($case->submitted_at)?->toDateTimeString(),
+                'reporter'     => $case->reporter ? [
+                    'id'        => $case->reporter->id,
+                    'name'      => $case->reporter->name,
+                    'icon_path' => $case->reporter->icon_path,
+                    'icon_bg'   => $case->reporter->icon_bg,
+                ] : null,
+            ],
+        ]);
     }
 
     private function normalizeCaseAttributes(string $kind, ?string $stage, ?string $delivery): array
@@ -3971,17 +4082,34 @@ class ProjectController extends Controller
     public function view_case(Request $request)
     {
         $data = $request->validate([
-            'id' => 'required|integer',
-            'period' => 'required|date_format:Y-m-d'
+            'id' => ['nullable', 'integer'],
+            'project_id' => ['nullable', 'integer', 'required_without:id'],
+            'member_id' => ['nullable', 'integer', 'required_with:project_id'],
+            'status' => ['nullable', 'string'],
+            'period' => ['nullable', 'date_format:Y-m-d'],
         ]);
-        $case = ProjectCase::where('id', $data['id'])
-            ->where('report_date', $data['period'])
-            ->with('reporter')
-            ->first();
 
-        return response()->json(
-            $case
-        );
+        $query = ProjectCase::query()->with('reporter');
+
+        if (!empty($data['id'])) {
+            $query->where('id', $data['id']);
+        } else {
+            $query->where('project_record_id', $data['project_id']);
+            if (!empty($data['member_id'])) {
+                $query->where('user_id', $data['member_id']);
+            }
+            if (!empty($data['status'])) {
+                $query->where('status', $data['status']);
+            }
+        }
+
+        if (!empty($data['period'])) {
+            $query->forMonth(Carbon::parse($data['period'])->startOf('month'));
+        }
+
+        $case = $query->orderByDesc('report_date')->first();
+
+        return response()->json($case);
     }
     public function delete_case(ProjectCase $case)
     {

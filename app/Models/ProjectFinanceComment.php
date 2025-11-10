@@ -20,6 +20,10 @@ class ProjectFinanceComment extends Model
     public function readers(){
         return $this->hasMany(ProjectFinanceLastRead::class, 'comment_id');
     }
+    public function checkedUsers()
+    {
+        return $this->belongsToMany(User::class, 'project_finance_comment_checks', 'comment_id')->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg', 'users.deleted_at');
+    } 
     protected $casts = [
         'period' => 'date',
     ];

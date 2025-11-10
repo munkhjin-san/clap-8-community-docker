@@ -511,6 +511,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/finance_comment_update', [ProjectController::class, 'finance_comment_update']);
         Route::delete('/finance_comment_delete', [ProjectController::class, 'finance_comment_delete']);
         Route::get('/get_comment_count_from_total', [ProjectController::class, 'get_comment_count_from_total']);
+        Route::post('/mark_finance_check', [ProjectController::class, 'mark_finance_check']);
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
         Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);
@@ -533,6 +534,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
         Route::get('/projects/{project}/cases', [ProjectController::class, 'project_cases']);
         Route::post('/projects/{project}/cases', [ProjectController::class, 'project_case_store']);
+        Route::put('/projects/{project}/cases/{case}', [ProjectController::class, 'project_case_update']);
         Route::post('/project_goal_comment_create', [ProjectController::class, 'project_goal_comment_create']);
         Route::post('/project_goal_report_file_upload', [ProjectController::class, 'project_goal_report_file_upload']);
         Route::get('/project_list', [ProjectController::class, 'project_list']);
