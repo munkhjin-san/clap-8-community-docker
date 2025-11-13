@@ -9,7 +9,7 @@ class messageFile extends Model
 {   
     use SoftDeletes;
     public function message_records(){
-        return $this->belongsTo(MessageRecord::class);
+        return $this->belongsTo(messageRecord::class, 'message_id', 'id');
     }
     public function user(){
         return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');

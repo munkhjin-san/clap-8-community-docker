@@ -31,10 +31,10 @@
                     <PostIcon which="4" size="20"/>
                     ヘルプ
                 </div> -->
-                <div @click="app_type = 5" :class="['pt-selector', { ptSelected: app_type == 5}]">
+                <!-- <div @click="app_type = 5" :class="['pt-selector', { ptSelected: app_type == 5}]">
                     <PostIcon which="5" size="20"/>
                     グラリンピック
-                </div>
+                </div> -->
                 <!-- <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
                     <PostIcon which="6" size="20"/>
                     リフレッシュ
