@@ -75,7 +75,9 @@ class CustomFormController extends Controller
     public function get_custom_forms(Request $request){
         $active_user = $this->active_user();
 
-        $forms = CustomForm::whereNull('board_record_id')->with(['blocks'])->orderBy('created_at', 'desc')
+        $forms = CustomForm::where(function($q) {
+            $q->whereNull('board_record_id')->orWhere('board_record_id', 3758);
+        })->with(['blocks'])->orderBy('created_at', 'desc')
         ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
             $q->whereHas('admins', function($q) use($active_user){
                 $q->where('user_id', $active_user->id);

@@ -129,8 +129,8 @@
                 <button @click="emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
                 <button v-else class="chargeFormeAddButton" disabled>{{canNotCharge}}</button>
             </div>  
-            <div @click="emit('setEntryData', {record: record, editData: null})" v-if="record.app_type == 5">                                    
-                <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加する</button>
+            <div v-if="record.app_type == 5">                                    
+                <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
             </div>  
         </div>
         <div class="post-footer mb-2.5 text-sm" v-if="record.app_type == 2 && record.chargeable">
