@@ -71,76 +71,112 @@ class ContentController extends Controller
         }       
 
     }
-    public function sharedThumbnail(Request $request){
-       
-        try {     
-            $filePath = storage_path('app/shared_files/' . $request->board_id . '/' . $request->path);
-            $mimeType = Storage::mimeType('shared_files/' . $request->board_id . '/' . $request->path);
-            // return $filePath;
-            if (Str::startsWith($mimeType, 'image/')) {
-                $img = Image::read($filePath)->scaleDown(height: 35);
-                return $this->image_response($img);
-            } 
-            
-        } catch (FileNotFoundException $exception) {
+    public function sharedThumbnail(Request $request)
+    {
+        $boardId = (int) $request->board_id;
+        $relativePath = ltrim($request->path, '/');
+
+        // Original file (on storage)
+        $originalRelPath = "shared_files/{$boardId}/{$relativePath}";
+        
+        if (!Storage::exists($originalRelPath)) {
             abort(404);
         }
+
+        // Thumbnail path on storage
+        $thumbDir  = "shared_files/{$boardId}/_thumbs";
+        $thumbName = md5($relativePath . '|h=35') . '.webp';
+        $thumbRelPath = "{$thumbDir}/{$thumbName}";
+
+        // Generate thumbnail only if it does not exist yet
+        if (!Storage::exists($thumbRelPath)) {
+            $originalPath = Storage::path($originalRelPath);
+
+            // read & resize ONCE
+            $img = Image::read($originalPath)->scaleDown(height: 35);
+
+            // store webp file in storage
+            Storage::put($thumbRelPath, $img->toWebp(70)); // 70 = quality, tweak as you like
+        }
+
+        $thumbPath = Storage::path($thumbRelPath);
+
+        return response()->file($thumbPath, [
+            'Content-Type'  => 'image/webp',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
     }
+
     private function image_response($img){
         return response($img->toWebp(), 200, );
     }
-    public function user_icon_thumbnail($path, $size, $color = '000000'){   
-        if($size == 'original'){
-            $path = storage_path('app/profile_icon_migrated/' . $path . '_original.webp' );
-            if (!file_exists($path)) {
-                $bg = $color;
-                $blank = Image::create(200, 200)->fill($bg)->resize(200, 200);
-                return $this->image_response($blank);  
-            }
-            $img = Image::read($path);
-            return $this->image_response($img);  
-        }else{
-            $path = storage_path('app/profile_icon_migrated/' . $path . '.webp' );
-            if (!file_exists($path)) {
-                $bg = $color;
-                $blank = Image::create(200, 200)->fill($bg)->resize($size, $size);
-                return $this->image_response($blank);  
-            }
-            $img = Image::read($path)->resize($size, $size);
-            return $this->image_response($img);          
-        }        
+    public function user_icon_thumbnail($path, $size, $color = '000000')
+    {
+        $size = (int) $size ?: 45;
+
+        $basePath = storage_path("app/profile_icon_migrated/{$path}_original.webp");
+        if (!file_exists($basePath)) {
+            // fallback (also cacheable, but leave it for now)
+            $bg = "#{$color}";
+            $blank = Image::create($size, $size)->fill($bg);
+            return $this->image_response($blank);
+        }
+
+        $thumbDir = storage_path('app/profile_icon_migrated/_thumbs');
+        @mkdir($thumbDir, 0775, true);
+        $thumbPath = "{$thumbDir}/" . md5($path.$size) . ".webp";
+
+        if (!file_exists($thumbPath)) {
+            $img = Image::read($basePath)->resize($size, $size);
+            $img->save($thumbPath, 80, 'webp');
+        }
+
+        return response()->file($thumbPath, [
+            'Content-Type'  => 'image/webp',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
     }
-    public function user_default_thumbnail($char, $size, $color = '#000'){      
-        
+
+    public function user_default_thumbnail($char, $size, $color = '#000')
+    {
         $regex = '/[А-Яа-яЁёөү]/u';
         $is_mn = preg_match($regex, $char);
         $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';
+
         $bg = $color;
         $text_color = '#fff';
         $resize = $size ? (int) $size : 30;
-        $cacheKey = 'chat_image_7' . md5($char.$color.$size);
-        if (Cache::has($cacheKey)) {
-            $cachedImage = Cache::get($cacheKey);
-            if(!empty($cachedImage)){
-                $img = Image::read($cachedImage);
-                return $this->image_response($img);
-            }            
-        }
-        $img = Image::create(200, 200)->fill($bg);
 
-        $img->text($char, 100, 100, function ($font) use ($font_path, $text_color) {
+        $cacheKey = 'chat_image_7' . md5($char.$color.$resize);
+
+        if ($cached = Cache::get($cacheKey)) {
+            return response($cached, 200, [
+                'Content-Type'  => 'image/webp',
+                'Cache-Control' => 'public, max-age=31536000, immutable',
+            ]);
+        }
+
+        $img = Image::create($resize, $resize)->fill($bg);
+
+        $img->text($char, $resize / 2, $resize / 2, function ($font) use ($font_path, $text_color, $resize) {
             $font->file(resource_path($font_path));
-            $font->size(130);
+            $font->size((int)($resize * 0.65));
             $font->color($text_color);
             $font->align('center');
             $font->valign('middle');
-            
-        })->resize($resize, $resize);
-        $imagedata = (string) $img->toWebp();     
-        Cache::put($cacheKey, (string) $imagedata, 2628000);
+        });
 
-        return $this->image_response($img);  
+        $imagedata = (string) $img->toWebp(85);
+
+        // use sane TTL: e.g. 30 days
+        Cache::put($cacheKey, $imagedata, now()->addDays(30));
+
+        return response($imagedata, 200, [
+            'Content-Type'  => 'image/webp',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
     }
+
     private function pickTextColor(string $hexColor) {
         //check valid hex color
         if (!preg_match('/^#?[0-9A-Fa-f]{6}$/', $hexColor)) {
@@ -276,16 +312,41 @@ class ContentController extends Controller
             'Cache-Control' => 'public, max-age=31536000, immutable'
         ]);
     }
-    public function board_icon_thumbnail($path, $size = 45, $color = 'light'){ 
-        $path = storage_path('app/board_icon_migrated/' . $path . '.webp' );
-        if (!file_exists($path)) {
-            $bg = $color === 'light' ? '#000' : '#ddd';
-            $blank = Image::create(200, 200)->fill($bg)->resize($size, $size);
-            return $this->image_response($blank);
+    public function board_icon_thumbnail($key, int $size = 45, string $mode = 'light')
+    {
+        $size = max(16, min(256, (int) $size));
+
+        $basePath = storage_path("app/board_icon_migrated/{$key}.webp");
+
+        if (!file_exists($basePath)) {
+            // fallback icon (also cacheable if you care)
+            $bg = $mode === 'light' ? '#000000' : '#DDDDDD';
+            $img = Image::create($size, $size)->fill($bg);
+            $binary = (string) $img->toWebp(80);
+
+            return response($binary, 200, [
+                'Content-Type'  => 'image/webp',
+                'Cache-Control' => 'public, max-age=31536000, immutable',
+            ]);
         }
-        $img = Image::read($path)->resize($size, $size);
-        return $this->image_response($img);
+
+        // cache per icon+size
+        $thumbDir  = storage_path('app/board_icon_migrated/_thumbs');
+        @mkdir($thumbDir, 0775, true);
+
+        $thumbPath = $thumbDir . '/' . md5($key.$size) . '.webp';
+
+        if (!file_exists($thumbPath)) {
+            $img = Image::read($basePath)->resize($size, $size);
+            $img->save($thumbPath, 80, 'webp');
+        }
+
+        return response()->file($thumbPath, [
+            'Content-Type'  => 'image/webp',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
     }
+
     public function kintone_file(Request $request){
         $request->validate([
             'key' => 'required',
