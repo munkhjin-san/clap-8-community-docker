@@ -112,22 +112,23 @@ class ContentController extends Controller
     }
     public function user_icon_thumbnail($path, $size, $color = '000000')
     {
-        $size = (int) $size ?: 45;
-
         $basePath = storage_path("app/profile_icon_migrated/{$path}_original.webp");
+
         if (!file_exists($basePath)) {
-            // fallback (also cacheable, but leave it for now)
-            $bg = "#{$color}";
-            $blank = Image::create($size, $size)->fill($bg);
-            return $this->image_response($blank);
+            $bg = '#'.ltrim($color, '#');
+            $img = Image::create(200, 200)->fill($bg);
+            $binary = (string) $img->toWebp(80);
+
+            return response($binary, 200, [
+                'Content-Type'  => 'image/webp',
+                'Cache-Control' => 'public, max-age=31536000, immutable',
+            ]);
         }
 
-        $thumbDir = storage_path('app/profile_icon_migrated/_thumbs');
-        @mkdir($thumbDir, 0775, true);
-        $thumbPath = "{$thumbDir}/" . md5($path.$size) . ".webp";
+        $thumbPath = storage_path("app/profile_icon_migrated/{$path}_thumb_200.webp");
 
         if (!file_exists($thumbPath)) {
-            $img = Image::read($basePath)->resize($size, $size);
+            $img = Image::read($basePath)->coverDown(200, 200, 'top'); // keep ratio, crop
             $img->save($thumbPath, 80, 'webp');
         }
 
@@ -136,6 +137,7 @@ class ContentController extends Controller
             'Cache-Control' => 'public, max-age=31536000, immutable',
         ]);
     }
+
 
     public function user_default_thumbnail($char, $size, $color = '#000')
     {
