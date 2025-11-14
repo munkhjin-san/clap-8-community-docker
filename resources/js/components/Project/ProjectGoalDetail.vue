@@ -4,7 +4,7 @@
             <div style="overflow: hidden; position: relative;height:100%;">
                 <div class="goals-inner" style="height: calc(100% - 20px); padding: 20px;">
                     <div v-if="projectGoals.length" class="mb-5 bg-[var(--bg3)] p-[10px] leading-6 text-sm">
-                        <span>現時点で達成評価点 ： {{ achievement_total }}点</span>
+                        <span>現時点で達成評価点 ： {{ totalOverallScore(projectGoals) }}点</span>
                     </div>
                     <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">                     
                         <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-more', params: { goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
@@ -285,6 +285,13 @@ const overallScore = (goal: ProjectGoal) => {
     const kgi = goal.achievement_rate
     const sum = kpi + kgi
     return Math.round(sum / 2)
+}
+const totalOverallScore = (goals: ProjectGoal[]) => {
+    if (!goals.length) return 0
+
+    return goals.reduce((acc, goal) => {
+        return acc + overallScore(goal)
+    }, 0)
 }
 provide('refresh', fetchMemberData)
 </script>

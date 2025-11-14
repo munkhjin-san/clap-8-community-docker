@@ -51,7 +51,7 @@
                     <!-- <div class="project-cell">{{ user?.evaluation?.grade }}</div> -->
                     <div class="project-cell">{{ user?.evaluation?.current_salary_rank }}</div>
                     <div class="project-cell">{{ user?.evaluation?.after_salary_rank }}</div>
-                    <div class="project-cell">{{ user?.outcome_goals_achievement_rate_total }}</div>
+                    <div class="project-cell">{{ totalOverallScore(user.outcome_goals) }}/{{ user.outcome_goals.length * 100 }}</div>
                     <div class="project-cell">
                         <div style="display: flex; gap: 10px;">
                             <CommandButton 
@@ -160,7 +160,31 @@ const getSalaryOptions = async() => {
     salary_options.value = await api.get('/get_salary_options')
 
 }
+const kpiCalculation = (steps: any) => {
+    if(steps && steps.length){
+        const totalProgress = steps.reduce((acc: number, step: any) => {
+            return acc + step.progress
+        }, 0)
+        
+        const maxProgress = steps.length * 100
+        return Math.round((totalProgress / maxProgress) * 100)
+    }
+    return 0
+}
+const overallScore = (goal) => {
+    if(!goal.steps || goal.steps.length === 0) return goal.achievement_rate
+    const kpi = kpiCalculation(goal.steps)
+    const kgi = goal.achievement_rate
+    const sum = kpi + kgi
+    return Math.round(sum / 2)
+}
+const totalOverallScore = (goals) => {
+    if (!goals.length) return 0
 
+    return goals.reduce((acc, goal) => {
+        return acc + overallScore(goal)
+    }, 0)
+}
 const setMentor = (user) => {    
     mentorSelectorData.view = true
     mentorSelectorData.user = user

@@ -413,13 +413,11 @@ class ProjectController extends Controller
                                     ->with('mentor', 'candidate');
                                 },
                             ]);
-                            $q->withSum(
-                                ['outcome_goals as outcome_goals_achievement_rate_total' => function ($q) use ($params) {
-                                    $q->where('year', $params['year'])
-                                    ->where('which_half', $params['which_half']);
-                                }],
-                                'achievement_rate'
-                            );
+                            $q->with(['outcome_goals' => function ($q) use ($params){
+                                $q->where('year', $params['year'])
+                                    ->where('which_half', $params['which_half'])
+                                    ->with('steps');
+                            }]);
                         })                     
                         ->with('positions')
                         ->get();
