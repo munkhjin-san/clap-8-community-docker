@@ -103,7 +103,7 @@ import { useMessageUsers } from '@/store/messageUsers';
     }
     const sending = ref(false)
     const checkEdit = () => {
-        const editable = props.comment.author.id == auth.id
+        const editable = props.comment.author.id == auth.activeUser.id
         if(editable) {
             emit('edit', props.comment.id)
         } else {
