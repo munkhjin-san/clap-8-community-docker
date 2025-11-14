@@ -1,8 +1,34 @@
 <template>
-    <div class="flex flex-col" :class="{'items-end' : comment.author.id === auth.activeUser.id }">
+    <div class="flex flex-col" :class="{'items-end' : comment.author.id === auth.activeUser.id }" @click.stop="emit('edit', null), emit('reply', null)">
         <div class="c-c-text" >
             <UserPanel :user="comment.author" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15" style="margin-top: 2px;"/>
             <div :class="['c-c-w', {'c-c-active' : editable && editable == comment.id}]">
+                <div
+                    v-if="comment.reply"
+                    class="border-b [border-bottom-style:solid] border-[var(--primary-color)] pb-1 text-[gray] leading-normal"
+                >
+                    <UserPanel :user="comment.reply.author" imgClass="userSmallIcon" size="15" />
+
+                    <!-- 表示部分 -->
+                    <Transition name="reply-expand" mode="out-in">
+                        <p v-if="isExpanded" key="expanded" v-html="comment.reply.comment"></p>
+                        <p v-else key="truncated">
+                            {{ truncatedReply }}
+                        </p>
+                    </Transition>
+
+                    <!-- ボタンは下に -->
+                    <button
+                        v-if="isTruncatable"
+                        type="button"
+                        class="mt-1 text-xs jump-link cursor-pointer"
+                        @click.stop="toggleExpand"
+                    >
+                        {{ isExpanded ? '閉じる' : '続きを表示する' }}
+                    </button>
+                </div>
+
+
                 <p @click.stop="mentionClick" :class="['c-c-inner']" ref="editData" :contenteditable="editable && editable == comment.id ? true : false" @click="checkEdit" v-html="commentBody"></p>
                 <div class="c-c-date">{{ DateParser(comment.created_at) }}</div>
                 <div class="flex w-fit">
@@ -27,6 +53,9 @@
             <button @click="update" class="c-c-command">保存</button>
             <button @click="remove" class="c-c-command">削除</button>
         </div>
+        <div v-if="replyable && replyable == comment.id" class="c-c-buttons">
+            <button @click="emit('replyComment', comment)" class="c-c-command">返信</button>
+        </div>
     </div>
 </template>
 <script setup lang="ts">
@@ -44,12 +73,15 @@ import { useMessageUsers } from '@/store/messageUsers';
         comment: FinanceComment
         editable: number | null
         mentionableUsers: User[]
+        replyable: number | null
     }>()
     const menu = useMenuStore()
     const emit = defineEmits<{
         (e: 'edit', val: number | null): void,
         (e: 'deleted', id: number): void
         (e: 'reload'): void
+        (e: 'reply', val: number | null): void
+        (e: 'replyComment', val: FinanceComment | null): void
     }>()
     const element = useTemplateRef('editData')
     const checking = ref(false)
@@ -74,7 +106,9 @@ import { useMessageUsers } from '@/store/messageUsers';
         const editable = props.comment.author.id == auth.id
         if(editable) {
             emit('edit', props.comment.id)
-        } 
+        } else {
+            emit('reply', props.comment.id)
+        }
     }
     const api = useApi()
     const update = async () => {
@@ -162,5 +196,34 @@ import { useMessageUsers } from '@/store/messageUsers';
     const reactedUsersListAll = computed(() => {
         return props.comment.checked_users && props.comment.checked_users.length ? Array.from(props.comment.checked_users).reverse() as User[] : []                
     })
+    const isExpanded = ref(false)
 
+    const plainReply = computed(() => {
+        const raw = props.comment.reply?.comment ?? ''
+        // HTML入りの場合はタグを削る
+        return raw.replace(/<[^>]*>/g, '')
+    })
+
+    const isTruncatable = computed(() => plainReply.value.length > 20)
+
+    const truncatedReply = computed(() => {
+        if (!isTruncatable.value) return plainReply.value
+        return plainReply.value.slice(0, 20) + '…'
+    })
+
+    const toggleExpand = () => {
+        isExpanded.value = !isExpanded.value
+    }
 </script>
+<style scoped>
+.reply-expand-enter-active,
+.reply-expand-leave-active {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.reply-expand-enter-from,
+.reply-expand-leave-to {
+    opacity: 0;
+    transform: translateY(-4px);
+}
+</style>

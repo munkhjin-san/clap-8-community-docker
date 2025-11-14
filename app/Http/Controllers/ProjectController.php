@@ -2857,6 +2857,7 @@ class ProjectController extends Controller
             'type'                => ['nullable','string','in:年度予算,損益計画,実績'],
             'mentioned_user_ids'  => ['array'],
             'mentioned_user_ids.*'=> ['integer','exists:users,id'],
+            'reply_id'            => ['integer', 'nullable']
         ]);
 
         DB::transaction(function () use (&$comment, $data, $user) {
@@ -2865,6 +2866,7 @@ class ProjectController extends Controller
                 'user_id'           => $user->id,
                 'comment'           => $data['comment'],
                 'type'              => $data['type'] ?? null,
+                'reply_id'          => $data['reply_id'] ?? null,
             ]);
 
             if (!empty($data['mentioned_user_ids'])) {
@@ -2916,7 +2918,7 @@ class ProjectController extends Controller
         ]);
 
         $comment = ProjectFinanceComment::where('project_record_id', $data['project_record_id'])
-                ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers'])
+                ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply'])
                 ->get();
         
         return response()->json($comment);

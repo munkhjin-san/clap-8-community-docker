@@ -24,6 +24,9 @@ class ProjectFinanceComment extends Model
     {
         return $this->belongsToMany(User::class, 'project_finance_comment_checks', 'comment_id')->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg', 'users.deleted_at');
     } 
+    public function reply() {
+        return $this->hasOne(ProjectFinanceComment::class, 'id', 'reply_id')->with(['author:id,name,icon_path,icon_bg']);
+    }
     protected $casts = [
         'period' => 'date',
     ];
