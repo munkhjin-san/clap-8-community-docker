@@ -69,14 +69,14 @@
                     </div>
                 </div>
 
-                <div class="projectModalContent relative">
+                <div class="projectModalContent relative" style="overflow: hidden;">
                     <div class="cal-month-loader" style="height: 100%; top: 0;opacity: 0.6;" v-if="loader">
                         <div id="loaderMini">
                             <div class="spinner-mini"
                                 style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
                         </div>
                     </div>
-                    <div class="overflow-auto h-full">
+                    <div class="h-full">
                         <div
                             class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-[60px] flex justify-between items-center px-[20px] flex-wrap gap-[10px] pb-[20px] after:flex-auto after:content-['']">
                             <div class="sub-tab-container">
@@ -492,7 +492,6 @@ const props = defineProps<{
 const emit = defineEmits<{
     close: []
 }>()
-console.log(isMobile())
 type PeriodCell = { year:number; month:number; period:string; fiscalYear:number }
 const pad2 = (n:number) => String(n).padStart(2, '0')
 const periodKey = (y:number, m:number) => `${y}-${pad2(m)}`
@@ -802,11 +801,11 @@ const fetchCommentCounts = async (token: number) => {
 
 const refreshTotalFinance = async () => {
     const token = ++activeFetchToken
-    if (!selectedProjects.value.length) {
-        loader.value = false
-        resetFinanceSummaries()
-        return
-    }
+    // if (!selectedProjects.value.length) {
+    //     loader.value = false
+    //     resetFinanceSummaries()
+    //     return
+    // }
     loader.value = true
     badgeLoader.value = 0
     try {
@@ -862,7 +861,7 @@ table {
     thead {
         position: sticky;
         top: 0;
-        z-index: 4;
+        z-index: 6;
         th {
             padding: 10px;
             font-weight: 500;
@@ -904,9 +903,8 @@ table {
 }
 
 .finance-table-scroll {
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding-bottom: 8px;
+    overflow: auto;
+    height: calc(100% - 120px);
 }
 
 .sticky-left {

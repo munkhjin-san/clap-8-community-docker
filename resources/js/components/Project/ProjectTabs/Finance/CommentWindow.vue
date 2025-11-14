@@ -163,7 +163,9 @@ const closeMention = () => {
   keyCharacters.value = ''
   showMentionBox.value = false
   const highlight = mentionBox.value?.highlighted
-  if (highlight) highlight.value = -1
+  if (highlight?.value) {
+    highlight.value = -1
+  }
 }
 const filteredUsers = computed<User[]>(() => {
   const base = (mentionableUsers.value ?? []).slice() // clone

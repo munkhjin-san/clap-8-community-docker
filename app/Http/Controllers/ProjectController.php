@@ -236,6 +236,7 @@ class ProjectController extends Controller
                                     ->where('which_half', $which_half)
                                     ->where('user_id', $user_id)->with('mentor')->first();
         $data = [
+            'achievement_total' => $project_goals->sum('achievement_rate'),
             'project_goals' => $project_goals,
             'evaluation' => $evalutaionRecord,
         ];
@@ -404,13 +405,22 @@ class ProjectController extends Controller
                         ->whereNotNull('user_code')
                         ->where('hide_flag', 0)
                         ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg', 'user_code', 'general_position')
-                        ->when(!empty($params), function ($q) use($params) {
-                            $q->with(['evaluation' => function ($q) use($params) {
-                                $q->where('year', $params['year'])
+                        ->when(!empty($params), function ($q) use ($params) {
+                            $q->with([
+                                'evaluation' => function ($q) use ($params) {
+                                    $q->where('year', $params['year'])
                                     ->where('which_half', $params['which_half'])
                                     ->with('mentor', 'candidate');
-                            }]);
-                        })                        
+                                },
+                            ]);
+                            $q->withSum(
+                                ['outcome_goals as outcome_goals_achievement_rate_total' => function ($q) use ($params) {
+                                    $q->where('year', $params['year'])
+                                    ->where('which_half', $params['which_half']);
+                                }],
+                                'achievement_rate'
+                            );
+                        })                     
                         ->with('positions')
                         ->get();
         $mentors = $userList->filter(function ($user) {
@@ -441,6 +451,7 @@ class ProjectController extends Controller
             'partners',
             'customers',
             'industry_type',
+            'is_new',
         ])->toArray();
 
         $project = ProjectRecord::updateOrCreate(['id' => $id], $filteredParams);
@@ -485,6 +496,114 @@ class ProjectController extends Controller
         
         return response()->json($project);
     }
+
+    public function show_contract(ProjectRecord $project)
+    {
+        $this->ensureProjectAccess($project);
+
+        $contract = $this->resolveProjectContract($project);
+        if (!$contract) {
+            return response()->json(null, 404);
+        }
+
+        $filePath = $contract->file_path;
+        $disk = Storage::disk('local');
+        $fileExists = $filePath && $disk->exists($filePath);
+
+        $payload = $contract->toArray();
+        $payload['file_size'] = $fileExists ? $disk->size($filePath) : null;
+        $payload['file_url'] = $fileExists ? route('projects.contract.preview', $project) : null;
+        $payload['download_url'] = $fileExists ? route('projects.contract.download', $project) : null;
+
+        return response()->json($payload);
+    }
+
+    public function preview_contract(ProjectRecord $project)
+    {
+        $this->ensureProjectAccess($project);
+
+        $contract = $this->resolveProjectContract($project);
+        abort_unless($contract, 404, '契約書が見つかりません。');
+
+        $filePath = $contract->file_path;
+        $disk = Storage::disk('local');
+        abort_if(!$filePath || !$disk->exists($filePath), 404, '契約書ファイルが見つかりません。');
+
+        $absolutePath = $disk->path($filePath);
+        $mime = $disk->mimeType($filePath) ?? 'application/pdf';
+        $filename = basename($filePath);
+
+        return response()->file($absolutePath, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
+    }
+
+    public function download_contract(ProjectRecord $project)
+    {
+        $this->ensureProjectAccess($project);
+
+        $contract = $this->resolveProjectContract($project);
+        abort_unless($contract, 404, '契約書が見つかりません。');
+
+        $filePath = $contract->file_path;
+        $disk = Storage::disk('local');
+        abort_if(!$filePath || !$disk->exists($filePath), 404, '契約書ファイルが見つかりません。');
+
+        $filename = basename($filePath);
+
+        return $disk->download($filePath, $filename);
+    }
+
+    public function store_contract(Request $request, ProjectRecord $project)
+    {
+        $this->ensureProjectAccess($project);
+
+        $data = $request->validate([
+            'contract_data'   => ['required', 'array'],
+            'file_path'       => ['required', 'string'],
+            'contract_role'   => ['required', 'string'],
+            'contract_type'   => ['required', 'string'],
+        ]);
+
+        $disk = Storage::disk('local');
+        abort_if(!$disk->exists($data['file_path']), 404, '契約書ファイルが見つかりません。');
+
+        $contractPayload = $data['contract_data'];
+        $overall   = $contractPayload['overall_risk'] ?? 'unknown';
+        $findings  = $contractPayload['findings'] ?? [];
+        $findCount = is_array($findings) ? count($findings) : 0;
+        $responseHash = hash('sha256', json_encode($contractPayload, JSON_UNESCAPED_UNICODE));
+
+        $current = $this->resolveProjectContract($project);
+        $version = $current ? ($current->version + 1) : 1;
+
+        if ($current && $current->file_path !== $data['file_path'] && $disk->exists($current->file_path)) {
+            $disk->delete($current->file_path);
+        }
+
+        $payload = [
+            'project_record_id' => $project->id,
+            'review_type'       => 'quick',
+            'overall_risk'      => $overall,
+            'findings_count'    => $findCount,
+            'result_json'       => $contractPayload,
+            'response_hash'     => $responseHash,
+            'file_path'         => $data['file_path'],
+            'role'              => $data['contract_role'],
+            'contract_type'     => $data['contract_type'],
+            'version'           => $version,
+            'active'            => true,
+        ];
+
+        $record = ProjectContract::updateOrCreate(
+            ['project_record_id' => $project->id],
+            $payload
+        );
+
+        return response()->json($record->fresh());
+    }
+
     public function get_salary_options() {
         $queryParamsSpecs = [
             'app' => 166,
@@ -2782,13 +2901,13 @@ class ProjectController extends Controller
             || str_contains($rawContent, 'パスワード')
             || str_contains($rawContent, 'ﾊﾟｽﾜｰﾄﾞ');        
             $url = rtrim(config('app.url'), '/') . "/project/{$project->id}/finance";
-            $url .= "?period={$data['period']}";
+            // $url .= "?period={$data['period']}";
 
             SendProjectEmail::dispatchSync($emails, new ProjectMention($project, $emailContent, $blocked, $url, auth()->user()));
             
         }
         // load author for UI if you want
-        $comment->load(['author:id,name,icon_path,icon_bg']);
+        $comment->load(['author:id,name,icon_path,icon_bg', 'checkedUsers']);
 
         return response()->json($comment, 201);
     }
@@ -4116,27 +4235,63 @@ class ProjectController extends Controller
         $case->delete();
         return response()->json(['status' => 'ok']);
     }
-    public function preview_contract(ProjectRecord $project)
+    public function save_review(Request $request)
     {
-        $contract = $project->contract;
-        abort_unless($contract && $contract->file_path, 404);
-
-        $disk = Storage::disk('local');
-        abort_unless($disk->exists($contract->file_path), 404);
-
-        $filename = basename($contract->file_path);
-
-        return $disk->response($contract->file_path, $filename, [
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
-            // optionally set type for PDFs
-            // 'Content-Type' => 'application/pdf',
+        $data = $request->validate([
+            'id' => 'required|integer',
         ]);
+        $raw = $request->input('summary');
+        if (is_string($raw)) {
+            $contract = json_decode($raw, true);
+        } elseif (is_object($raw)) {
+            $contract = json_decode(json_encode($raw), true);
+        } else {
+            $contract = $raw;
+        }
+        $overall   = $contract['overall_risk'] ?? $contract['overallRisk'] ?? 'unknown';
+        $findings  = $contract['findings'] ?? [];
+        $findCount = is_array($findings) ? count($findings) : 0;
+
+        $responseHash = hash('sha256', json_encode($contract, JSON_UNESCAPED_UNICODE));
+        $contractRecord = ProjectContract::findOrFail($data['id']);
+
+        $contractRecord->update([
+            'review_type' => 'deep',
+            'overall_risk' => $overall,
+            'findings_count' => $findCount,
+            'result_json' => $contract,
+            'response_hash' => $responseHash
+        ]);
+
+        return response()->json($contractRecord);
     }
-    public function get_project_contract(ProjectRecord $project)
+
+    protected function resolveProjectContract(ProjectRecord $project): ?ProjectContract
     {
-        $contract = $project->contract;
-        abort_unless($contract, 404);
-        return response()->json($contract);
-    }   
+        return $project->contract()->latest('updated_at')->first();
+    }
+
+    protected function ensureProjectAccess(ProjectRecord $project): void
+    {
+        abort_unless($this->userCanAccessProject($project), 403, '権限がありません。');
+    }
+
+    protected function userCanAccessProject(ProjectRecord $project): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+
+        if (($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610])) {
+            return true;
+        }
+
+        $project->loadMissing(['manager', 'members']);
+
+        return $project->manager->contains('id', $user->id)
+            || $project->members->contains('id', $user->id)
+            || $project->director_id === $user->id;
+    }
 }
 

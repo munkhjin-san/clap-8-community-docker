@@ -43,6 +43,10 @@
                     <div v-if="goal?.outcome_goal">
                         <div class="text-[13px] font-semibold">成果目標</div>
                         <div class="kadai-content">{{ goal?.outcome_goal }}</div>
+                    </div>
+                    <div v-if="goal?.private_memo">
+                        <div class="text-[13px] font-semibold">メモ</div>
+                        <div class="kadai-content">{{ goal?.private_memo }}</div>
                     </div>                    
                     <div v-if="goal?.miso">
                         <div class="text-[13px] font-semibold">MISO</div>

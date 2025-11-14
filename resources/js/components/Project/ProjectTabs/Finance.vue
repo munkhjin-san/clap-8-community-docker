@@ -29,7 +29,7 @@
             <div class="mb-[20px] mt-2 flex justify-end px-[20px] gap-4">
                 <LoaderButton @triggered="router.push({name: 'total-finance'})" style="margin: 0;" content="集計" :loading="false"/>
             </div>
-            <div class="overflow-x-auto min-w-auto md:min-w-[1400px] whitespace-nowrap m-5 pb-2">
+            <div class="overflow-x-auto whitespace-nowrap m-5 pb-2">
                 <table>
                     <thead>
                         <tr>
@@ -100,6 +100,7 @@
                                 <template v-for="p in periods" :key="p.period">
                                     <CellLoader :order="num" v-for="num in cellloadNum"/>
                                 </template>
+                                <CellLoader class="sticky right-0 bg-[var(--background-color)] border-l [border-left-style:solid] border-[var(--calendarBorder)]" :order="cellloadNum + 1" v-if="hasPrivilage"/>
                             </tr>
                         </template>
                         <template v-if="!loaderProfit">
@@ -140,6 +141,7 @@
                                 <template v-for="p in periods" :key="p.period">
                                     <CellLoader :order="num" v-for="num in cellloadNum"/>
                                 </template>
+                                <CellLoader class="sticky right-0 bg-[var(--background-color)] border-l [border-left-style:solid] border-[var(--calendarBorder)]" :order="cellloadNum + 1" v-if="hasPrivilage"/>
                             </tr>
                         </template>
                         <template v-if="!loaderSettlement">
@@ -193,6 +195,7 @@
                                 <template v-for="p in periods" :key="p.period">
                                     <CellLoader :order="num" v-for="num in cellloadNum"/>
                                 </template>
+                                <CellLoader class="sticky right-0 bg-[var(--background-color)] border-l [border-left-style:solid] border-[var(--calendarBorder)]" :order="cellloadNum + 1" v-if="hasPrivilage"/>
                             </tr>
                         </template>
                         <template v-if="!loaderSettlement && !loaderProfit">
@@ -308,6 +311,7 @@
             :year="year"
             :selectedProjectName="selectedProject.name"
             :selectedProjectId="selectedProject.id"
+            :selectedProjectIsNew="selectedProject.is_new"
         />
         <Transition name="smLoad">
             <CommentWindow 
@@ -770,7 +774,7 @@ const formatVariance = (line: VarianceKey, value: number | null) => {
   if (value == null || Number.isNaN(value)) return '—'
   const sign = value > 0 ? '+' : ''
   if (line === 'profit_rate') {
-    return `${sign}${value.toFixed(2)}pt`
+    return 'ー'
   }
   return `${sign}${value.toFixed(2)}%`
 }

@@ -3,7 +3,10 @@
         <div class="goals-wrap">
             <div style="overflow: hidden; position: relative;height:100%;">
                 <div class="goals-inner" style="height: calc(100% - 20px); padding: 20px;">
-                    <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative">                        
+                    <div v-if="projectGoals.length" v-for="goal in projectGoals" style="position: relative"> 
+                        <div class="mb-5 bg-[var(--bg3)] p-[10px] leading-6 text-sm">
+                            <span>現時点で達成評価点 ： {{ achievement_total }}点</span>
+                        </div>                       
                         <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-more', params: { goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
                      
                             <div>
@@ -160,6 +163,7 @@ const goalDate = ref('')
 const projectGoals = ref<ProjectGoal[]>([])
 const evaluationData = ref<EvaluationRecord | null>(null)
 const badge = useBadgeStore()
+const achievement_total = ref(0)
 const { memberData, isManagerOrMember, isManager } = useProject()
 const api = useApi()
 const statuses = [
@@ -228,6 +232,7 @@ const fetchMemberData = async () => {
             user_id: memberData.value?.id
         }
         const data = await api.post('/get_outcome_goals', params)
+        achievement_total.value = data.achievement_total
         projectGoals.value = data.project_goals
         evaluationData.value = data.evaluation
         setTimeout(() => {

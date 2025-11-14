@@ -78,6 +78,7 @@ interface Project {
     description: string
     private_memo: string
     contract?: ProjectContractResponse | null
+    is_new: boolean
 }
 interface ProjectCondition {
     project_record_id: number;

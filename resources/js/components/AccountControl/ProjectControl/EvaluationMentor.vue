@@ -17,6 +17,7 @@
                     <!-- <div class="project-cell">等級</div> -->
                     <div class="project-cell">現在の号俸</div>
                     <div class="project-cell">異動後の号俸</div>
+                    <div class="project-cell">合計評価点</div>
                     <div class="project-cell">アクション</div>
                 </div>
                 <div class="project-cell-row" v-for="user in searchResults">
@@ -50,6 +51,7 @@
                     <!-- <div class="project-cell">{{ user?.evaluation?.grade }}</div> -->
                     <div class="project-cell">{{ user?.evaluation?.current_salary_rank }}</div>
                     <div class="project-cell">{{ user?.evaluation?.after_salary_rank }}</div>
+                    <div class="project-cell">{{ user?.outcome_goals_achievement_rate_total }}</div>
                     <div class="project-cell">
                         <div style="display: flex; gap: 10px;">
                             <CommandButton 

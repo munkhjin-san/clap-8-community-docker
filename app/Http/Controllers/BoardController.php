@@ -908,6 +908,7 @@ class BoardController extends Controller
                     $msg_file_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
                     Storage::disk('local')->move($origin_path, $path_shared_files . '/' . $msg_file_path);
                 }
+                $chat_record->message_files()->delete();
                 // return response()->json($new_chat_record->board_record);
                 $this->mentionAndNotify($new_chat_record->board_record, $new_chat_record->user, $new_chat_record);
                 boardToUser::where('record_id', $new_chat_record->record_id)

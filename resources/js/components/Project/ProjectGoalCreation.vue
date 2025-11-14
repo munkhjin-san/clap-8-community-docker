@@ -93,17 +93,6 @@
 
                 </div>
                 <div class="si-box">
-                    <!-- <div class="mb-20px flex gap-[15px]">
-                        <label class="flex items-center gap-[10px] text-[12px]">
-                            <input type="radio" name="type_model" class="custom-f-radio" value="openai" v-model="aiType">
-                            <span>OpenAI</span>
-                        </label>
-                        <label class="flex items-center gap-[10px] text-[12px]">
-                            <input type="radio" name="type_model" class="custom-f-radio" value="gemini" v-model="aiType">
-                            <span>Gemini</span>
-                        </label>
-
-                    </div> -->
                     <LoaderButton :loading="aiLoading" content="成果目標提案作成" style="margin: 0; margin-top: 15px;" @triggered="getAdvice">
                         <template #icon>
                             <AiIcon :size="20" fill="#fff" class="mr-[5px]"/>
