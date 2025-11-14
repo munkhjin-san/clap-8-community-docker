@@ -2907,7 +2907,7 @@ class ProjectController extends Controller
             
         }
         // load author for UI if you want
-        $comment->load(['author:id,name,icon_path,icon_bg', 'checkedUsers']);
+        $comment->load(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply']);
 
         return response()->json($comment, 201);
     }
