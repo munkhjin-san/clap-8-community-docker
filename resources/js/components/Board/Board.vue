@@ -569,6 +569,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         const boardId = Number(route.params.chatId) || chatId 
         if(!boardId) return
         const response = await api.post('/get_messages', { record_id: boardId, page_index: pageIndex.value })
+        if(!response) return
         if(queue){
             removeError(queue.id)
             let box = document.getElementById('queueMessage_' + queue.u_id);                       
@@ -592,8 +593,13 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
             },500)
         }
         infiniteLock.value = currentLen.value == messageList.value.length
-        if(source == 'first_load'){                    
-            badge.updateBoardBadge(boardId)
+        if(source == 'first_load'){        
+            const hasUnread = badge.activeUsersBoardBadge[boardId] || 0   
+            console.log('hasUnread', hasUnread) 
+            if(hasUnread){
+                badge.updateBoardBadge(boardId)
+            }         
+            
         }                  
         messageLoader.value = false
         
