@@ -3,12 +3,12 @@
         <template #title>
             <p>{{ reportTitle }}</p>
         </template>
-        <template #menu>
+        <!-- <template #menu>
             <div v-if="viewData" class="modal-menu">
                 <button type="button" @click="editCase">編集</button>
                 <button type="button" class="danger" @click="deleteCase">削除</button>
             </div>
-        </template>
+        </template> -->
         <template #content>
             <div class="case-create">
                 <section class="case-create__context">
@@ -481,6 +481,7 @@ const handleClose = () => {
     padding: 8px 12px;
     min-width: 180px;
     background: var(--background-color);
+    color: var(--primary-color);
 }
 .history-chips {
     display: flex;
@@ -490,7 +491,6 @@ const handleClose = () => {
 }
 .history-chip {
     border: 1px solid var(--normalBorder);
-    border-radius: 999px;
     padding: 4px 10px;
     font-size: 12px;
     background: transparent;
@@ -520,7 +520,6 @@ const handleClose = () => {
 }
 .period-pill {
     border: 1px solid var(--calendarBorder);
-    border-radius: 999px;
     padding: 4px 12px;
     font-size: 12px;
 }
@@ -533,7 +532,6 @@ const handleClose = () => {
     display: inline-flex;
     align-items: center;
     padding: 4px 10px;
-    border-radius: 999px;
     font-size: 12px;
     background: var(--hoverBorder);
     color: #fff;
@@ -563,7 +561,7 @@ const handleClose = () => {
 }
 .case-notes {
     margin-top: 16px;
-    background: rgba(236, 253, 245, 0.6);
+    background: var(--bg3);
     padding: 12px;
     font-size: 14px;
     line-height: 1.6;

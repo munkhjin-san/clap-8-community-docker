@@ -1526,7 +1526,6 @@ const hasData = computed(() => grouped.value.some(group => group.rows.length > 0
 .control-chip-group {
   display: flex;
   border: 1px solid var(--normalBorder);
-  border-radius: 999px;
   overflow: hidden;
 }
 .control-chip-group .chip-button {
@@ -1641,7 +1640,6 @@ tr.border-diff-row > td {
 .settings-button {
   border: 1px solid var(--normalBorder);
   padding: 6px 14px;
-  border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
   background: var(--background-color);
@@ -1682,7 +1680,6 @@ tr.border-diff-row > td {
 .chip-button {
   border: 1px solid var(--normalBorder);
   padding: 4px 10px;
-  border-radius: 999px;
   font-size: 12px;
   background: var(--background-color);
   transition: background 0.2s ease, color 0.2s ease;
@@ -1842,8 +1839,8 @@ tr.border-diff-row > td {
 }
 .legend-chip {
   padding: 4px 8px;
-  border-radius: 999px;
   background: var(--bg3);
+  color: var(--primary-color);
 }
 .status-cell {
   display: flex;
@@ -1881,10 +1878,9 @@ tr.border-diff-row > td {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #475569;
-  background: rgba(71, 85, 105, 0.15);
+  color: var(--primary-color);
+  background: var(--bg3);
   padding: 4px 8px;
-  border-radius: 999px;
 }
 .summary-toggle {
   font-weight: 600;

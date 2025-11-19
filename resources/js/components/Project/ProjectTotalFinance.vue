@@ -585,7 +585,7 @@ const summarizeData = ref<{
 
 const MAX_RANGE_MONTHS = 12
 const currentMonth = DateTime.now().startOf('month')
-const defaultStart = DateTime.fromObject({ year: currentMonth.month >= 3 ? currentMonth.year : currentMonth.year - 1, month: isMobile() ? currentMonth.month : 3, day: 1 })
+const defaultStart = DateTime.fromObject({ year: currentMonth.month >= 3 ? currentMonth.year : currentMonth.year - 1, month: currentMonth.month, day: 1 })
 const defaultEnd = currentMonth
 
 const normalizeRange = (rawStart: DateTime, rawEnd: DateTime) => {

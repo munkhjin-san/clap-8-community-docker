@@ -5,7 +5,7 @@
             <div :class="['c-c-w', {'c-c-active' : editable && editable == comment.id}]">
                 <div
                     v-if="comment.reply"
-                    class="border-b [border-bottom-style:solid] border-[var(--primary-color)] pb-1 text-[gray] leading-normal"
+                    class="border-b [border-bottom-style:solid] border-[var(--primary-color)] pb-1 mb-1 text-[gray] leading-normal"
                 >
                     <UserPanel :user="comment.reply.author" imgClass="userSmallIcon" size="15" />
 

@@ -380,7 +380,7 @@ const initialEnd =
 
 const defaultFiscalYear = initialEnd.month >= 3 ? initialEnd.year : initialEnd.year - 1
 const parsedStart = parsePeriodParam(route.query.period_start)
-const fallbackStart = DateTime.fromObject({ year: defaultFiscalYear, month: isMobile() ? initialEnd.month : 3, day: 1 }).startOf('month')
+const fallbackStart = DateTime.fromObject({ year: defaultFiscalYear, month: initialEnd.month, day: 1 }).startOf('month')
 
 const normalizeRange = (start: DateTime, end: DateTime) => {
   let rangeStart = start
