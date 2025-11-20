@@ -148,7 +148,7 @@ import { useApi } from '@/composables/api';
     })
     const getBoardTasks = async() => {
        
-        const response = await api.get("/task_list", { record_id: props.board?.id, user_id: selectedUser.value, progress_flag: selectedStatus.value })
+        const response = await api.get("/task_list", { record_id: props.board?.id, user_id: selectedUser.value, progress_flag: selectedStatus.value }, { cancel: true })
         tasks.value = response
         initialLoader.value = false
 

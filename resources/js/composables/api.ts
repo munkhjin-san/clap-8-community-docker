@@ -10,25 +10,22 @@ interface ApiOptions {
     toast?: string;
     loadingRef?: Ref<boolean>;
     rawResponse?: boolean;
+    cancel?: boolean; // ← 追加: デフォルト true（後で適用）
 }
 
-// URLごとのAbortControllerを管理
+// URLごとのAbortController
 const pendingControllers = new Map<string, AbortController>();
 
-// URLからキーを作成（クエリ除外したいならここで制御）
 const getRequestKey = (url: string) => {
-    // クエリ除外するなら:
     return url.split("?")[0];
-    // そのまま使いたければ: return url;
 };
 
-// 既存リクエストをキャンセルして、新しいAbortControllerをセット
 const prepareAbortController = (url: string) => {
     const key = getRequestKey(url);
 
     const prev = pendingControllers.get(key);
     if (prev) {
-        prev.abort(); // 以前の同一URLリクエストをキャンセル
+        prev.abort();
     }
 
     const controller = new AbortController();
@@ -37,7 +34,6 @@ const prepareAbortController = (url: string) => {
     return { key, controller };
 };
 
-// finallyで自分が最後のControllerならマップから削除
 const clearAbortController = (key: string, controller: AbortController) => {
     const current = pendingControllers.get(key);
     if (current === controller) {
@@ -56,7 +52,7 @@ export function useApi() {
     };
 
     const handleError = (error: any, options?: ApiOptions) => {
-        // axiosのキャンセルは基本的に無視（トーストもダイアログも出さない）
+        // キャンセルは無視
         if (axios.isCancel?.(error) || error?.code === "ERR_CANCELED") {
             return;
         }
@@ -87,30 +83,39 @@ export function useApi() {
             return null;
         }
 
-        const { key, controller } = prepareAbortController(url);
+        const useCancel = options?.cancel ?? false;
+        let key: string | null = null;
+        let controller: AbortController | null = null;
+
+        if (useCancel) {
+            const prepared = prepareAbortController(url);
+            key = prepared.key;
+            controller = prepared.controller;
+        }
 
         try {
             const response = await axios.get(url, {
                 params: data,
                 ...axiosOptions,
-                signal: controller.signal,
+                // cancel === false のとき signal は渡さない
+                ...(controller ? { signal: controller.signal } : {}),
             });
 
             if (options?.toast) {
-                setTimeout(() => {
-                    dialog.toast(options.toast!);
-                }, 400);
+                setTimeout(() => dialog.toast(options.toast!), 400);
             }
 
             return options?.rawResponse ? response : response.data;
-        } catch (error) {
+        } catch (error: any) {
             handleError(error, options);
             if (!axios.isCancel?.(error) && error?.code !== "ERR_CANCELED") {
                 throw error;
             }
             return null;
         } finally {
-            clearAbortController(key, controller);
+            if (key && controller) {
+                clearAbortController(key, controller);
+            }
             if (loadingRef) loadingRef.value = false;
         }
     };
@@ -130,22 +135,28 @@ export function useApi() {
             return null;
         }
 
-        const { key, controller } = prepareAbortController(url);
+        const useCancel = options?.cancel ?? true;
+        let key: string | null = null;
+        let controller: AbortController | null = null;
+
+        if (useCancel) {
+            const prepared = prepareAbortController(url);
+            key = prepared.key;
+            controller = prepared.controller;
+        }
 
         try {
             const response = await axios.post(url, data, {
                 ...axiosOptions,
-                signal: controller.signal,
+                ...(controller ? { signal: controller.signal } : {}),
             });
 
             if (options?.toast) {
-                setTimeout(() => {
-                    dialog.toast(options.toast!);
-                }, 400);
+                setTimeout(() => dialog.toast(options.toast!), 400);
             }
 
             return options?.rawResponse ? response : response.data;
-        } catch (error) {
+        } catch (error: any) {
             handleError(error, options);
             if (!axios.isCancel?.(error) && error?.code !== "ERR_CANCELED") {
                 console.error("throw", error);
@@ -153,7 +164,9 @@ export function useApi() {
             }
             return null;
         } finally {
-            clearAbortController(key, controller);
+            if (key && controller) {
+                clearAbortController(key, controller);
+            }
             if (loadingRef) loadingRef.value = false;
         }
     };
@@ -173,29 +186,37 @@ export function useApi() {
             return null;
         }
 
-        const { key, controller } = prepareAbortController(url);
+        const useCancel = options?.cancel ?? true;
+        let key: string | null = null;
+        let controller: AbortController | null = null;
+
+        if (useCancel) {
+            const prepared = prepareAbortController(url);
+            key = prepared.key;
+            controller = prepared.controller;
+        }
 
         try {
             const response = await axios.put(url, data, {
                 ...axiosOptions,
-                signal: controller.signal,
+                ...(controller ? { signal: controller.signal } : {}),
             });
 
             if (options?.toast) {
-                setTimeout(() => {
-                    dialog.toast(options.toast!);
-                }, 400);
+                setTimeout(() => dialog.toast(options.toast!), 400);
             }
 
             return response.data;
-        } catch (error) {
+        } catch (error: any) {
             handleError(error, options);
             if (!axios.isCancel?.(error) && error?.code !== "ERR_CANCELED") {
                 throw error;
             }
             return null;
         } finally {
-            clearAbortController(key, controller);
+            if (key && controller) {
+                clearAbortController(key, controller);
+            }
             if (loadingRef) loadingRef.value = false;
         }
     };
@@ -215,29 +236,37 @@ export function useApi() {
             return null;
         }
 
-        const { key, controller } = prepareAbortController(url);
+        const useCancel = options?.cancel ?? true;
+        let key: string | null = null;
+        let controller: AbortController | null = null;
+
+        if (useCancel) {
+            const prepared = prepareAbortController(url);
+            key = prepared.key;
+            controller = prepared.controller;
+        }
 
         try {
             const response = await axios.patch(url, data, {
                 ...axiosOptions,
-                signal: controller.signal,
+                ...(controller ? { signal: controller.signal } : {}),
             });
 
             if (options?.toast) {
-                setTimeout(() => {
-                    dialog.toast(options.toast!);
-                }, 400);
+                setTimeout(() => dialog.toast(options.toast!), 400);
             }
 
             return response.data;
-        } catch (error) {
+        } catch (error: any) {
             handleError(error, options);
             if (!axios.isCancel?.(error) && error?.code !== "ERR_CANCELED") {
                 throw error;
             }
             return null;
         } finally {
-            clearAbortController(key, controller);
+            if (key && controller) {
+                clearAbortController(key, controller);
+            }
             if (loadingRef) loadingRef.value = false;
         }
     };
@@ -257,30 +286,38 @@ export function useApi() {
             return null;
         }
 
-        const { key, controller } = prepareAbortController(url);
+        const useCancel = options?.cancel ?? true;
+        let key: string | null = null;
+        let controller: AbortController | null = null;
+
+        if (useCancel) {
+            const prepared = prepareAbortController(url);
+            key = prepared.key;
+            controller = prepared.controller;
+        }
 
         try {
             const response = await axios.delete(url, {
                 data,
                 ...axiosOptions,
-                signal: controller.signal,
+                ...(controller ? { signal: controller.signal } : {}),
             });
 
             if (options?.toast) {
-                setTimeout(() => {
-                    dialog.toast(options.toast!);
-                }, 400);
+                setTimeout(() => dialog.toast(options.toast!), 400);
             }
 
             return response.data;
-        } catch (error) {
+        } catch (error: any) {
             handleError(error, options);
             if (!axios.isCancel?.(error) && error?.code !== "ERR_CANCELED") {
                 throw error;
             }
             return null;
         } finally {
-            clearAbortController(key, controller);
+            if (key && controller) {
+                clearAbortController(key, controller);
+            }
             if (loadingRef) loadingRef.value = false;
         }
     };

@@ -177,7 +177,7 @@ import { MessageFile } from '@/interface/globalInterface';
     }
     const getFileList = async() => {
         if(!openedBoard.value || !openedBoard.value.id) return
-        const response = await api.post('/get_file_list', {board_id: openedBoard.value.id})
+        const response = await api.post('/get_file_list', {board_id: openedBoard.value.id}, { cancel: true})
         fileListAll.value = response
         initialLoader.value = false          
 

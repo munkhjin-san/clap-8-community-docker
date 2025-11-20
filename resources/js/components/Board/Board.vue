@@ -188,6 +188,36 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
     const api = useApi()
     const { toast, ask } = useDialog()
     const { openedBoard, setList, boardList } = useBoardList()
+    const BOARD_REFRESH_COOLDOWN_MS = 2000
+    let boardRefreshTimer: ReturnType<typeof setTimeout> | null = null
+    let boardRefreshInFlight = false
+    let boardRefreshPending = false
+    let lastBoardRefreshAt = 0
+    const queueBoardListRefresh = () => {
+        const now = Date.now()
+        if(boardRefreshInFlight){
+            boardRefreshPending = true
+            return
+        }
+        if((now - lastBoardRefreshAt) < BOARD_REFRESH_COOLDOWN_MS){
+            if(!boardRefreshTimer){
+                boardRefreshTimer = setTimeout(() => {
+                    boardRefreshTimer = null
+                    queueBoardListRefresh()
+                }, BOARD_REFRESH_COOLDOWN_MS - (now - lastBoardRefreshAt))
+            }
+            return
+        }
+        boardRefreshInFlight = true
+        getBoardList().finally(() => {
+            lastBoardRefreshAt = Date.now()
+            boardRefreshInFlight = false
+            if(boardRefreshPending){
+                boardRefreshPending = false
+                queueBoardListRefresh()
+            }
+        })
+    }
     watch(() => focused.active, (after) => {
         if(after){            
             setTimeout(()=>{
@@ -271,7 +301,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
     const updateBoardHandler = (data) => {
         const related = data && data.length? data[0] : []
         if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
-            getBoardList()
+            queueBoardListRefresh()
         }
     }
     const socketMessageHandler = (data) => {        
@@ -568,7 +598,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
     const getMessageList = async(source?:string, queue?:any, chatId?:number) => {
         const boardId = Number(route.params.chatId) || chatId 
         if(!boardId) return
-        const response = await api.post('/get_messages', { record_id: boardId, page_index: pageIndex.value })
+        const response = await api.post('/get_messages', { record_id: boardId, page_index: pageIndex.value }, { cancel: true })
         if(!response) return
         if(queue){
             removeError(queue.id)

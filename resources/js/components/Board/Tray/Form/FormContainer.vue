@@ -103,7 +103,7 @@ const getBoardForms = async() => {
     }
     const data = await api.get('/get_board_forms', {
         board_id: openedBoard.value.id
-    }, { loadingRef: loading })
+    }, { loadingRef: loading, cancel: true })
     formList.value = data
     initialLoader.value = false
 

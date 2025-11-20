@@ -15,7 +15,10 @@ interface State {
     finance_comment: [],
     goal_issue_comment: [],
     contact_comment: [],
+    boardBadgeFetchedAt: number | null,
+    boardBadgeRequest: Promise<void> | null,
 }
+const BOARD_BADGE_CACHE_MS = 2000;
 
 export const useBadgeStore = defineStore('badge', {
     state: (): State => ({
@@ -31,7 +34,9 @@ export const useBadgeStore = defineStore('badge', {
         task_comment: [],
         finance_comment: [],
         goal_issue_comment: [],
-        contact_comment: []
+        contact_comment: [],
+        boardBadgeFetchedAt: null,
+        boardBadgeRequest: null
 
     }),
     actions: {
@@ -60,13 +65,25 @@ export const useBadgeStore = defineStore('badge', {
                 this.notice = response.data   
             }
         },
-        async getBoardBadge() {
-            const data = await axios.get('/board_badge').then(response => response.data)       
-            this.board = data        
+        async getBoardBadge(force = false) {
+            const now = Date.now()
+            if(!force && this.boardBadgeFetchedAt && (now - this.boardBadgeFetchedAt) < BOARD_BADGE_CACHE_MS){
+                return this.boardBadgeRequest ?? Promise.resolve()
+            }
+            if(!this.boardBadgeRequest){
+                this.boardBadgeRequest = axios.get('/board_badge').then(response => response.data).then(data => {
+                    this.board = data
+                    this.boardBadgeFetchedAt = Date.now()
+                }).finally(() => {
+                    this.boardBadgeRequest = null
+                })
+            }
+            return this.boardBadgeRequest
         },
         async updateBoardBadge(id:number) {
             const data = await axios.patch('/board_badge', {board_id: id}).then(response => response.data)   
-            this.board = data                    
+            this.board = data
+            this.boardBadgeFetchedAt = Date.now()                    
         },
         async getTaskBadge(){
             const data = await axios.get('/task_badge').then(response => response.data)       

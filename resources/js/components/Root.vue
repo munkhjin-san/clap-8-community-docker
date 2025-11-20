@@ -84,7 +84,6 @@ import { useSideMenuView } from '@/store/sideMenuView';
 import { useTitle } from '@vueuse/core'
 import axios from 'axios';
 import { instance as socket } from '@/utils/broadcaster'
-import { endPlay } from '@/utils/tts';
 import { PWAPrompt } from 'vue-ios-pwa-prompt'
 import { DateTime } from 'luxon';
 import { useDialog } from '@/composables/dialog';
@@ -116,12 +115,43 @@ import { useDialog } from '@/composables/dialog';
     onUnmounted(() => {
         removeEventListener()
     })
+    const BOARD_BADGE_COOLDOWN_MS = 2000
+    let badgeRefreshTimer = null
+    let badgeRefreshInFlight = false
+    let badgeRefreshPending = false
+    let lastBadgeRefreshAt = 0
+    const queueBoardBadgeRefresh = () => {
+        const now = Date.now()
+        if(badgeRefreshInFlight){
+            badgeRefreshPending = true
+            return
+        }
+        if((now - lastBadgeRefreshAt) < BOARD_BADGE_COOLDOWN_MS){
+            if(!badgeRefreshTimer){
+                badgeRefreshTimer = setTimeout(() => {
+                    badgeRefreshTimer = null
+                    queueBoardBadgeRefresh()
+                }, BOARD_BADGE_COOLDOWN_MS - (now - lastBadgeRefreshAt))
+            }
+            return
+        }
+        badgeRefreshInFlight = true
+        badge.getBoardBadge(true).finally(() => {
+            lastBadgeRefreshAt = Date.now()
+            badgeRefreshInFlight = false
+            if(badgeRefreshPending){
+                badgeRefreshPending = false
+                queueBoardBadgeRefresh()
+            }
+        })
+    }
+
     onMounted(async() => {    
         addEventListener()
         if(props.auth_user && props.auth_user.id){                  
             beamsInit()
         }
-        badge.getBoardBadge('mounted');
+        await badge.getBoardBadge(true);
         
         setTimeout(async() => {
                 
@@ -169,7 +199,7 @@ import { useDialog } from '@/composables/dialog';
     const boardBadgeHandler = (data) => {
         const related = data && data.length? data[0] : []
         if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
-            badge.getBoardBadge()
+            queueBoardBadgeRefresh()
         }
         
     }
@@ -248,7 +278,6 @@ import { useDialog } from '@/composables/dialog';
     })
     watch(() => [route.fullPath], () => {
             resetInstantUser()
-            endPlay()
         }
     )
     const setActiveUser = async(id) => {
