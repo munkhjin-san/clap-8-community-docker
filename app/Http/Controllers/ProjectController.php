@@ -2366,6 +2366,7 @@ class ProjectController extends Controller
             "profit" => 0,
             "profit_rate" => 0,
         ];
+        $default_settlement_data = $default_data + ['has_data' => false];
 
         $defaultSumData = [
             'yearly_plan' => [
@@ -2387,7 +2388,7 @@ class ProjectController extends Controller
         $defaultPeriodTotals = [
             'yearly_plan' => $default_data,
             'profit' => $default_data,
-            'settlement' => $default_data,
+            'settlement' => $default_settlement_data,
         ];
         $periodTotals = [];
         $periodIterator = $startInstance->copy();
@@ -2416,6 +2417,9 @@ class ProjectController extends Controller
             $periodTotals[$key][$scenario]['expense'] = ($periodTotals[$key][$scenario]['expense'] ?? 0) + $expense;
             $periodTotals[$key][$scenario]['profit'] = ($periodTotals[$key][$scenario]['profit'] ?? 0) + $profit;
             $periodTotals[$key][$scenario]['profit_rate'] = 0;
+            if (array_key_exists('has_data', $values)) {
+                $periodTotals[$key][$scenario]['has_data'] = ($periodTotals[$key][$scenario]['has_data'] ?? false) || !empty($values['has_data']);
+            }
         };
         //process each data for each project
         foreach($project_names as $id => $project_name){
@@ -2544,6 +2548,7 @@ class ProjectController extends Controller
                             'expense' => $totalExpense ?? 0,
                             'profit' => round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP),
                             'profit_rate' => (float) str_replace('%', '', $settlement_profit_rate_val),
+                            'has_data' => true,
                         ];
                         $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $totalSales;
                         $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $totalExpense;
@@ -2553,14 +2558,14 @@ class ProjectController extends Controller
                         $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$month]['settlement']);
                  
                     }else{
-                        $plan_res_data[$project_name][$month]['settlement'] = $default_data;
-                        $accumulatePeriodTotals($periodKey, 'settlement', $default_data);
+                        $plan_res_data[$project_name][$month]['settlement'] = $default_settlement_data;
+                        $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data);
                     }                    
                     
 
                 }else{
-                    $plan_res_data[$project_name][$month]['settlement'] = $default_data;
-                    $accumulatePeriodTotals($periodKey, 'settlement', $default_data);
+                    $plan_res_data[$project_name][$month]['settlement'] = $default_settlement_data;
+                    $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data);
                 }
                 $sumData[$project_name]['settlement']['id'] = $id; 
                 $v[$project_name] = [

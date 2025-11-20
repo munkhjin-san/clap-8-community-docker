@@ -212,6 +212,7 @@ export interface FinancialData {
     profit: number;
     profit_rate: number;
     id?: number;
+    has_data?: boolean;
 }
   
 export interface MonthlyData {

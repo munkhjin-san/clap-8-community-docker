@@ -224,27 +224,26 @@
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
-                                                            amountOfMoneyParser(data?.[p.month]?.settlement.sales) }}</div>
+                                                            amountOfMoneyParser(settlementValue(data?.[p.month]?.settlement, 'sales')) }}</div>
                                                         <DeltaNumbers type="sales" :planned="data?.[p.month]?.profit.sales"
-                                                            :actual="data?.[p.month]?.settlement.sales" />
+                                                            :actual="settlementValue(data?.[p.month]?.settlement, 'sales')" />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
-                                                            amountOfMoneyParser(data?.[p.month]?.settlement.expense) }}</div>
+                                                            amountOfMoneyParser(settlementValue(data?.[p.month]?.settlement, 'expense')) }}</div>
                                                         <DeltaNumbers type="expense" :planned="data?.[p.month]?.profit.expense"
-                                                            :actual="data?.[p.month]?.settlement.expense" />
+                                                            :actual="settlementValue(data?.[p.month]?.settlement, 'expense')" />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
-                                                            amountOfMoneyParser(data?.[p.month]?.settlement.sales -
-                                                            data?.[p.month]?.settlement.expense) }}</div>
+                                                            amountOfMoneyParser(settlementProfitValue(data?.[p.month]?.settlement)) }}</div>
                                                         <DeltaNumbers type="profit"
                                                             :planned="data?.[p.month]?.profit.profit"
-                                                            :actual="data?.[p.month]?.settlement.sales - data?.[p.month]?.settlement.expense" />
+                                                            :actual="settlementProfitValue(data?.[p.month]?.settlement)" />
                                                     </div>
                                                 </td>
                                                 <td>
@@ -359,31 +358,31 @@
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
-                                                            amountOfMoneyParser(periodEntry(p.period, 'settlement').sales)
+                                                            amountOfMoneyParser(settlementValue(periodEntry(p.period, 'settlement'), 'sales'))
                                                         }}</div>
                                                         <DeltaNumbers type="sales"
                                                             :planned="periodEntry(p.period, 'profit').sales"
-                                                            :actual="periodEntry(p.period, 'settlement').sales" />
+                                                            :actual="settlementValue(periodEntry(p.period, 'settlement'), 'sales')" />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
-                                                            amountOfMoneyParser(periodEntry(p.period, 'settlement').expense)
+                                                            amountOfMoneyParser(settlementValue(periodEntry(p.period, 'settlement'), 'expense'))
                                                         }}</div>
                                                         <DeltaNumbers type="expense"
                                                             :planned="periodEntry(p.period, 'profit').expense"
-                                                            :actual="periodEntry(p.period, 'settlement').expense" />
+                                                            :actual="settlementValue(periodEntry(p.period, 'settlement'), 'expense')" />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
-                                                            amountOfMoneyParser(periodEntry(p.period, 'settlement').sales - periodEntry(p.period, 'settlement').expense)
+                                                            amountOfMoneyParser(settlementProfitValue(periodEntry(p.period, 'settlement')))
                                                         }}</div>
                                                         <DeltaNumbers type="profit"
                                                             :planned="periodEntry(p.period, 'profit').profit"
-                                                            :actual="periodEntry(p.period, 'settlement').sales - periodEntry(p.period, 'settlement').expense" />
+                                                            :actual="settlementProfitValue(periodEntry(p.period, 'settlement'))" />
                                                     </div>
                                                 </td>
                                                 <td>
@@ -520,6 +519,7 @@ interface UnitData {
     sales: number,
     profit: number,
     id?: number
+    has_data?: boolean
 }
 type ScenarioKey = 'yearly_plan' | 'profit' | 'settlement'
 type PeriodTotalsEntry = {
@@ -534,16 +534,25 @@ const emptyUnit: UnitData = {
     expense: 0,
     sales: 0,
     profit: 0,
+    has_data: false,
 }
 
 type Key = 'sales' | 'expense' | 'profit';
+const hasSettlementEntry = (unit?: UnitData | null) => unit?.has_data === true
+const settlementValue = (unit: UnitData | undefined, key: Key) => hasSettlementEntry(unit) ? Number(unit?.[key] ?? 0) : NaN
+const settlementProfitValue = (unit: UnitData | undefined) => hasSettlementEntry(unit) ? Number(unit?.sales ?? 0) - Number(unit?.expense ?? 0) : NaN
+
 const showAnyArrow = (name: string): boolean => {
+  if (!projectHasSettlementData(name)) return false
   return (['sales','expense','profit'] as Key[]).some(k => {
     const v = variance.value?.[name]?.[k];
     return v != null && Math.abs(v) >= THRESHOLD;
   });
 }
 const percentizer = (data: UnitData | null | undefined) => {
+    if (data && 'has_data' in data && data.has_data === false) {
+        return { value: 0, display: '-' }
+    }
     const sales = Number(data?.sales ?? 0)
     const explicitProfit = data?.profit
     const derivedProfit = Number(data?.sales ?? 0) - Number(data?.expense ?? 0)
@@ -681,6 +690,11 @@ const menu = useMenuStore()
 const leftTab = ref<'project' | 'manager'>('project')
 const auth = useAuthUserStore()
 const dataByMonth = ref<Record<string, any>>({})
+const projectHasSettlementData = (projectName: string): boolean => {
+    const months = dataByMonth.value?.[projectName]
+    if (!months) return false
+    return Object.values(months).some((entry: any) => hasSettlementEntry(entry?.settlement))
+}
 const periodTotals = ref<Record<string, PeriodTotalsEntry>>({})
 const hasPeriodTotals = computed(() => Object.keys(periodTotals.value).length > 0)
 const periodEntry = (period: string, scenario: ScenarioKey): UnitData => periodTotals.value[period]?.[scenario] ?? emptyUnit
