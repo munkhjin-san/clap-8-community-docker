@@ -62,7 +62,6 @@ return [
 
     'debug' => (bool) env('APP_DEBUG', false),
 
-    'profile_heavy_endpoints' => (bool) env('PROFILE_HEAVY_ENDPOINTS', false),
 
     /*
     |--------------------------------------------------------------------------
