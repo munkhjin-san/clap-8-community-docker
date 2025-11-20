@@ -23,6 +23,7 @@ use App\Http\Controllers\MemberController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\LessonController;
+use App\Http\Controllers\LessonExamController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\RemindController;
@@ -458,6 +459,12 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/lesson_remove_summary', [LessonController::class, 'lesson_remove_summary']);
         Route::post('/save_summary_answers', [LessonController::class, 'save_summary_answers']);
         Route::get('/get_theme_data', [LessonController::class, 'get_theme_data']);
+        Route::get('/lesson_exam', [LessonExamController::class, 'get_exam']);
+        Route::post('/lesson_exam', [LessonExamController::class, 'save_exam']);
+        Route::delete('/lesson_exam', [LessonExamController::class, 'delete_exam']);
+        Route::get('/learning_exam', [LessonExamController::class, 'get_learning_exam']);
+        Route::post('/learning_exam_submit', [LessonExamController::class, 'submit_exam']);
+        Route::get('/lesson_exam_attempts', [LessonExamController::class, 'get_exam_attempts']);
         // Lessons
 
         // Project
@@ -540,8 +547,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_list', [ProjectController::class, 'project_list']);
         Route::post('/view_case', [ProjectController::class, 'view_case']);
         Route::delete('/delete_case/{case}', [ProjectController::class, 'delete_case']);
-        Route::get('/projects/{project}/contract/file', [ProjectController::class, 'preview_contract']);
-        Route::get('/projects/{project}/contract', [ProjectController::class, 'get_project_contract']);
+        Route::post('/projects/{project}/contract', [ProjectController::class, 'store_contract'])->name('projects.contract.store');
+        Route::get('/projects/{project}/contract', [ProjectController::class, 'show_contract'])->name('projects.contract.show');
+        Route::get('/projects/{project}/contract/file', [ProjectController::class, 'preview_contract'])->name('projects.contract.preview');
+        Route::get('/projects/{project}/contract/download', [ProjectController::class, 'download_contract'])->name('projects.contract.download');
         Route::post('/save_review', [ProjectController::class, 'save_review']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
@@ -675,8 +684,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/non_stream_prompt', [OpenAiController::class, 'non_stream_prompt']);
         Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
         Route::post('/review_document', [OpenAiController::class, 'review_document']);
+       
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);
 });
-    
+     Route::post('/tts_stream', [OpenAiController::class, 'stream_tts']);

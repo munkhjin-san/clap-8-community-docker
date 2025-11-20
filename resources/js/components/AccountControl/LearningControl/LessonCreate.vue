@@ -20,10 +20,16 @@
                     type="text"
                     v-model="title"
                 />
+                <span v-if="errors.title" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.title }}</span>
             </div>
             <div class="si-box">
                 <div style="font-size: 14px;margin-bottom: 15px;">基礎知識の内容</div>
-                <RichEditor ref="richEdit" :initilaValue="initialValue"/>
+                <RichEditor 
+                    ref="richEdit" 
+                    :initilaValue="initialValue"
+                    @content-updated="handleContentUpdated"
+                />
+                <span v-if="errors.content" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.content }}</span>
             </div>
             <div class="si-box" style="height: 70%;">
                 <div>
@@ -31,9 +37,13 @@
                         <input class="fish-eye" v-model="selectedPriority" type="radio" :id="priority.value" name="answer" :value="priority.value" >
                         <label style="margin-left:10px;cursor:pointer" :for="priority.value">{{priority.content}}</label>
                     </div>
+                    <span v-if="errors.priority" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.priority }}</span>
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">
+                        「ヘッダー」はレッスンページ上部の自由記述エリア、「セクション」は下部のカード一覧として表示されます。
+                    </p>
                 </div>
             </div>
-            <div class="si-box" v-if="has_case_study && selectedPriority">
+            <div class="si-box" v-if="has_case_study && !isHeader && selectedPriority !== null">
                 <div style="font-size: 14px;margin-bottom: 15px;">タイプ</div>
                 <OptionSelector 
                     :initialValue="material_type"
@@ -41,8 +51,16 @@
                     v-model="material_type"
                     unit=""
                 />
+                <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">
+                    {{ materialTypeDescription }}
+                </p>
             </div>
-            <div class="si-box">
+            <div class="si-box" v-if="isHeader">
+                <p class="form-helper" style="font-size: 12px;color: gray;margin: 0;">
+                    ヘッダーはイントロダクションとして表示されるため、理解依頼・質問依頼・理解チェックは利用できません。
+                </p>
+            </div>
+            <div class="si-box" v-if="!isHeader && !has_case_study">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">「理解」依頼</p>
                 </div>
@@ -53,10 +71,10 @@
                     <label for="for_understand" style="min-width: 80px;" :class="['cursor-pointer', {'disabled-toggle' : has_question}]"><span></span>
                         <div class="switch-toggle"></div>
                     </label>
-                    <span v-if="has_question" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">「質問」依頼ONのため設定できません</span>
                 </div>  
+                <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">ONにすると受講者へ「理解したか」を回答してもらい、完了しない限り次の要素に進めません。</p>
             </div>
-            <div class="si-box">
+            <div class="si-box" v-if="!isHeader">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">「質問」依頼</p>
                 </div>
@@ -67,8 +85,8 @@
                     <label for="for_question" style="min-width: 80px;" :class="['cursor-pointer', {'disabled-toggle' : has_understand}]"><span></span>
                         <div class="switch-toggle"></div>
                     </label>
-                    <span v-if="has_understand" style="font-size: 11px;color:gray;position: absolute;white-space: nowrap;left: 0;bottom: -27px;">「理解」依頼ONのため設定できません</span>
                 </div>  
+                <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">ONにすると受講者へ質問投稿を求めるタスクが表示されます。理解依頼と同時に設定することはできません。</p>
             </div>
             
             
@@ -89,7 +107,7 @@
             <div class="si-box">
                 <LoaderButton @triggered="createSend" :loading="processing" :content="'保存する'"/>
             </div>               
-        
+       
         </div>
     </div>      
 </template>
@@ -98,10 +116,11 @@
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue'
 import RichEditor from '../../Global/RichEditor.vue';
-import { computed, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import OptionSelector from '@/components/Form/OptionSelector.vue';
 import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
     const priorities = [
         {value: 0, content: 'ヘッダー'},
         {value: 1, content: 'セクション'},
@@ -112,33 +131,113 @@ import { useApi } from '@/composables/api';
     const processing = ref(false)
     const hasFeedBack =  ref(props.editTarget && props.editTarget.has_feedback ? props.editTarget.has_feedback : false)
     const has_question = ref(props.editTarget?.has_question === 1 ? true : false)
-    const has_understand = ref(props.editTarget?.has_understand === 0 ? false : true)
+    const has_understand = ref(props.editTarget?.has_understand === 0 ? false : props.has_case_study ? false : true)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : '')
     const richEdit = ref(null)
    
     const material_type = ref(props.editTarget?.material_type ?? '基礎知識')
     const selectedPriority = ref(props.editTarget ? props.editTarget.priority : null)
+    const isHeader = computed(() => selectedPriority.value === 0)
     const api = useApi()
+    const { toast, ping } = useDialog()
     const initialValue = computed(() => {
         return props.editTarget && props.editTarget.content ? props.editTarget.content : ''
     })
+    const richContent = ref(initialValue.value || '')
+    const errors = reactive({
+        title: '',
+        content: '',
+        priority: ''
+    })
+    watch(initialValue, (value) => {
+        richContent.value = value || ''
+    })
+    watch(title, () => {
+        errors.title = ''
+    })
+    watch(selectedPriority, () => {
+        errors.priority = ''
+    })
+    const cachedSectionSettings = ref({
+        hasUnderstand: has_understand.value,
+        hasQuestion: has_question.value,
+        materialType: material_type.value
+    })
+    const materialTypeDescription = computed(() => {
+        if(material_type.value === 'ケーススタディ'){
+            return 'ケーススタディにすると、学習画面ではカードとして表示され、基礎知識を完了すると順次開放されます。\n※基礎知識のセクションがないテーマでは、ケーススタディは最初から受講できます。'
+        }
+        return '基礎知識にすると通常のセクションとして表示され、すぐに受講可能になります。'
+    })
+    watch([has_understand, has_question, material_type], () => {
+        if(isHeader.value) return
+        cachedSectionSettings.value = {
+            hasUnderstand: has_understand.value,
+            hasQuestion: has_question.value,
+            materialType: material_type.value
+        }
+    })
+    watch(isHeader, (header) => {
+        if(header){
+            has_understand.value = false
+            has_question.value = false
+            material_type.value = '基礎知識'
+        }else{
+            has_understand.value = cachedSectionSettings.value.hasUnderstand ?? true
+            has_question.value = cachedSectionSettings.value.hasQuestion ?? false
+            material_type.value = cachedSectionSettings.value.materialType ?? '基礎知識'
+        }
+    }, { immediate: true })
     
+    const handleContentUpdated = (html) => {
+        richContent.value = html
+        errors.content = ''
+    }
+    const sanitizeHtml = (html) => {
+        if(!html) return ''
+        return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim()
+    }
+    const resetErrors = () => {
+        errors.title = ''
+        errors.content = ''
+        errors.priority = ''
+    }
+    const validateForm = () => {
+        resetErrors()
+        let valid = true
+        if(!title.value || !title.value.trim()){
+            errors.title = 'タイトルは必須です。'
+            valid = false
+        }
+        if(!richContent.value || !sanitizeHtml(richContent.value)){
+            errors.content = 'コンテンツは必須です。'
+            valid = false
+        }
+        if(selectedPriority.value === null || selectedPriority.value === undefined){
+            errors.priority = '優先度を選択してください。'
+            valid = false
+        }
+        if(!valid){
+            ping('入力内容を確認してください。')
+        }
+        return valid
+    }
     const createSend = async() => {
-        const richContent = richEdit.value.editor.getHTML()
-        processing.value = true
-        if(!richContent || !title.value || selectedPriority.value == null){
-            processing.value = false
+        if(processing.value){
             return
         }
-            
+        if(!validateForm()){
+            return
+        }
+        processing.value = true
         const params = {
             id: props.editTarget?.id,
             params: {
                 lesson_theme_id: route.params.themeId,
                 title: title.value,
-                content: richContent,
+                content: richContent.value,
                 content_detailed: props.editTarget ? props.editTarget.content_detailed : null,
-                assistant_id: props.editTarget?.assistant_id,
+                prompt_id: props.editTarget?.prompt_id,
                 has_feedback: hasFeedBack.value,
                 priority: selectedPriority.value,
                 has_question: has_question.value,
@@ -147,15 +246,17 @@ import { useApi } from '@/composables/api';
             }
             
         }
-
-        const response = await api.post('/lesson_add_record', params, {
-            toast: props.editTarget ? '編集しました。' :'保存しました。'
-        })
-
-        closeModal(true, response.id)     
-        processing.valddddue = false   
-                
-            
+        try{
+            const response = await api.post('/lesson_add_record', params, {
+                toast: props.editTarget ? '編集しました。' :'保存しました。'
+            })
+            closeModal(true, response.id)     
+        }catch(error){
+            console.error(error)
+            toast('保存に失敗しました。時間をおいて再度お試しください。')
+        }finally{
+            processing.value = false
+        }
     }
     const closeModal = (flag, id) => {
         processing.value = false

@@ -12,7 +12,7 @@
         <div style="height: 100%">
             <div class="lcontrol" v-if="route.name == 'learningcontrol'">
                 <h4 style="padding: 20px;">テーマ</h4>
-                <div style="display:grid;grid-template-columns: repeat(3, 1fr);gap: 20px;padding: 0 20px;">
+                <div style="display:grid;grid-template-columns: repeat(3, minmax(200px, 1fr));gap: 20px;padding: 0 20px;">
                     <div class="theme-item" v-for="theme in themeRecords">
                         <div @click="router.push({name: 'content', params: {themeId: theme.id}})" style="max-width: 90%;overflow: hidden;text-overflow: ellipsis;">
                             <div style="font-size: 20px;">{{ theme.title }}</div>
@@ -23,7 +23,7 @@
                                 <span>アクティブ：{{ theme.active ? 'ON' : 'OFF' }}</span>
                             </div>
                             <div style="font-size: 12px;margin-top: 15px;color: gray;">
-                                <span>アシスタントID：{{ theme.assistant_id }}</span>
+                                <span>プロンプトID：{{ theme.prompt_id }}</span>
                             </div>
                         </div>
                         <div style="position: absolute;right: 10px;top: 10px;">      

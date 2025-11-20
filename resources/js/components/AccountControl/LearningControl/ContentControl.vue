@@ -1,13 +1,38 @@
 <template>
     <div class="lcontrol">        
-        <div style="padding: 0 20px">
+        <div style="padding: 0 20px 20px;display:flex;flex-direction:column;gap:20px;">
+            <div v-if="has_case_study" class="lesson-preview exam-card p-5">
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="font-size:18px;">試験</div>
+                    <div v-if="exam" style="font-size:12px;color:gray;display:flex;flex-direction:column;gap:4px;">
+                        <span>タイトル：{{ exam.title || '未設定' }}</span>
+                        <span>合格基準：{{ exam.passing_score }}%</span>
+                        <span>最大受験回数：{{ exam.max_attempts }}回</span>
+                        <span>設問数：{{ exam.questions?.length || 0 }}問</span>
+                    </div>
+                    <div v-else style="font-size:12px;color:gray;">
+                        試験はまだ設定されていません。
+                    </div>
+                </div>
+                <div style="position:absolute;right:10px;top:10px;">
+                    <ItemMenu :items="examMenuItems"/>
+                </div>
+            </div>
             <div v-for="lesson in lessons" class="lesson-preview">
                 <div style="margin: 20px 40px 20px 20px;height: calc(100% - 40px);position: relative;" >
-                    <div v-html="lesson.title"></div>
+                    <div class="mb-2" style="display:flex;flex-direction:column;gap:8px;">
+                        <div v-html="lesson.title"></div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;">
+                            <span class="lesson-chip" style="background: var(--primary-color);color:#fff;padding:2px 8px;">{{ priorityLabel(lesson.priority) }}</span>
+                            <span class="lesson-chip" v-if="lesson.material_type" style="background: var(--bg2);color: var(--text-color);padding:2px 8px;">{{ lesson.material_type }}</span>
+                            <span class="lesson-chip" v-if="requestLabel(lesson)" style="background: #ffe8cc;color:#b15c00;padding:2px 8px;">{{ requestLabel(lesson) }}</span>
+                            <span class="lesson-chip" v-if="lesson.has_question && lesson.material_type === 'ケーススタディ'" style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;">QA ケース</span>
+                        </div>
+                    </div>
                     <div class="flex flex-col" style="font-size: 12px;color: gray;">
-                        <span>アシスタントID：{{ lesson.assistant_id }}</span>
-                        <div v-if="lesson.summaries.length" class="mt-[10px] text-sm" style="color: var(--primary-color);">要約</div>
-                        <div v-for="summary in lesson.summaries" :key="summary.id" class="flex justify-between items-center">
+                        <span>プロンプトID：{{ lesson.prompt_id }}</span>
+                        <div v-if="lesson.priority === 1 && lesson.summaries.length" class="mt-[10px] text-sm" style="color: var(--primary-color);">理解チェック</div>
+                        <div v-if="lesson.priority === 1" v-for="summary in lesson.summaries" :key="summary.id" class="flex justify-between items-center">
                             <span>{{ summary.title }}</span>
                             <ItemMenu :items="[
                                 {title: '編集する', action: () => editSummary(summary)},
@@ -25,12 +50,7 @@
                 </div>
                 
                 <div style="position: absolute;right: 10px;top: 10px;">                                            
-                    <ItemMenu :items="[
-                        {title: '編集する', action: () => editLesson(lesson)},
-                        {title: '削除する', action: () => deleteConfirm(lesson.id)},
-                        {title: 'AIアシスタント', action: () => editAssistant(lesson)},
-                        {title: '要約作成', action: () => summary(lesson.id)},
-                    ]"/> 
+                    <ItemMenu :items="lessonMenuItems(lesson)"/> 
                 </div>  
             </div>
         </div>
@@ -47,15 +67,6 @@
             
         </Transition>
         <Transition name="modalFade">
-            <AssistantCreate
-                v-if="createAssistantWindow"
-                @createFinish="createFinish"
-                :editTarget="editAssistantTarget"
-                :path="'/lesson_add_record'"
-                :editId="editTarget.id"
-            />
-        </Transition>
-        <Transition name="modalFade">
             <SummaryCreate 
                 v-if="createSummary"
                 :materialId="materialId"
@@ -63,17 +74,31 @@
                 @createFinish="createFinish"
             />
         </Transition>
+        <Transition name="modalFade">
+            <ExamCreate
+                v-if="examModal"
+                :themeId="Number(route.params.themeId)"
+                :examData="exam"
+                @close="closeExamModal"
+            />
+        </Transition>
+        <Transition name="modalFade">
+            <ExamAttempts 
+                v-if="examAttemptsModal"
+                :themeId="Number(route.params.themeId)"
+                @close="examAttemptsModal = false"
+            />
+        </Transition>
     </div>  
 </template>
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { useMenuStore } from '@/store/menu';
 import LessonCreate from './LessonCreate.vue';
-import AssistantCreate from './AssistantCreate.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
-import OpenAI from 'openai';
 import SummaryCreate from './SummaryCreate.vue';
+import ExamCreate from './ExamCreate.vue';
+import ExamAttempts from './ExamAttempts.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 const props = defineProps(['theme'])
@@ -88,8 +113,15 @@ const initialLoader = ref(null)
 const createSummary = ref(false)
 const materialId = ref(null)
 const summaryData = ref(null)
+const exam = ref(null)
+const examModal = ref(false)
+const examAttemptsModal = ref(false)
 onMounted(() => {
     getLesson()
+    getExam()
+})
+const has_case_study = computed(() => {
+    return props.theme?.has_case_study || false
 })
 const lessons = ref([])
 const getLesson = async() => {
@@ -121,26 +153,6 @@ const deleteConfirm = async(id) => {
     })            
     data && getLesson()
 }
-const editAssistant = async(lesson) => {
-    editTarget.value = lesson
-    if (lesson.assistant_id){
-        initialLoader.value = lesson.id
-        try {
-            const openai = new OpenAI({
-                apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-                dangerouslyAllowBrowser: true 
-            });
-            editAssistantTarget.value = await openai.beta.assistants.retrieve(lesson.assistant_id);
-            
-        }
-        catch(e) {
-            ping(e.response?.data.message || e?.message || 'エラーが発生しました。')
-        }finally{
-            initialLoader.value = null
-        }
-    }
-    createAssistantWindow.value = true
-}
 const summary = (id) => {
     materialId.value = id
     createSummary.value = true
@@ -156,4 +168,63 @@ const deleteSummary = async(id) => {
     })
     data && getLesson()   
 }
+const getExam = async() => {
+    const res = await api.get('/lesson_exam', {
+        lesson_theme_id: route.params.themeId
+    })
+
+    if (res.exists && res.exam) {
+        exam.value = res.exam
+    }
+}
+const openExamModal = () => {
+    examModal.value = true
+}
+const closeExamModal = (refresh) => {
+    examModal.value = false
+    if(refresh){
+        getExam()
+    }
+}
+const deleteExam = async() => {
+    if(!exam.value?.id) return
+    const data = await api.del('/lesson_exam', {exam_id: exam.value.id}, {
+        ask: '試験を削除しますか？',
+        toast: '試験を削除しました。'
+    })
+    if(data){
+        exam.value = null
+    }
+}
+const lessonMenuItems = (lesson) => {
+    const items = [
+        {title: '編集する', action: () => editLesson(lesson)},
+        {title: '削除する', action: () => deleteConfirm(lesson.id)},
+    ]
+    if(lesson.priority === 1 && !lesson.has_question){
+        items.push({title: '理解チェックを追加', action: () => summary(lesson.id)})
+    }
+    return items
+}
+const priorityLabel = (priority) => {
+    if(priority === 0) return 'ヘッダー'
+    if(priority === 1) return 'セクション'
+    return '未設定'
+}
+const requestLabel = (lesson) => {
+    if(lesson.has_question) return '質問依頼'
+    if(lesson.has_understand) return '理解依頼'
+    return ''
+}
+const examMenuItems = computed(() => {
+    const items = [
+        {title: exam.value ? '試験を編集する' : '試験を作成する', action: () => openExamModal()}
+    ]
+    if(exam.value){
+        // items.push({title: '試験結果を見る', action: () => examAttemptsModal.value = true})
+        items.push({title: '試験を削除する', action: () => deleteExam()})
+    }
+    return items
+})
 </script>
+

@@ -53,8 +53,10 @@
             <OpenAiReview 
                 v-if="selectedTopic && portfolio" 
                 assistand-id="asst_NnPHXCXimhJ09GNZwOfg107Y" 
+                config-key="lesson_portfolio_review"
+                
                 :soure-text="portfolio?.ai_review_final" 
-                :message="portfolioContent"
+                :message="portfolioContent || portfolio?.public_content"
                 confirm-text="ポジティブ・ネガティブフィードバックから得た発見と成長がポートフォリオに反映されている。"
                 ref="reviewElFinal"
             />

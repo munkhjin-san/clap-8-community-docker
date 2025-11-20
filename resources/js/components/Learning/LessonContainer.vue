@@ -130,7 +130,7 @@
 </template>
 <script setup>
 import { onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
-import { computed, onMounted, ref, inject, provide, defineAsyncComponent  } from 'vue';
+import { computed, onMounted, ref, inject, provide, defineAsyncComponent, watch  } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
@@ -175,14 +175,22 @@ import { useApi } from '@/composables/api';
         getThemes()
         next();
     })
+    const userNavigated = ref(false)
+    const ensureDefaultView = (isUserAction = false) => {
+        if(isUserAction){
+            userNavigated.value = true
+        }
+        if(route.name === 'top' && props.selectedTopic && props.selectedTopic.active == 1 && !props.selectedTopic.portfolio && !userNavigated.value){
+            router.replace({name: 'basic', params: {lessonThemeId: props.selectedTopic.id}})
+        }
+    }
+    watch(() => props.selectedTopic, () => {
+        ensureDefaultView()
+    }, { immediate: true })
     onMounted(async() => {
         await getLessons()
         getLessonPortfolios()
-       
-        // if(route.meta.data && Object.keys(route.meta.data).length){
-        //     materials.value = route.meta.data;
-            
-        // }
+        ensureDefaultView()
     })
     const pathGenerator = computed(() => {
         const relatedRoutes = route.matched.filter(rt => !['learning', 'top'].includes(rt.name))
@@ -195,7 +203,8 @@ import { useApi } from '@/composables/api';
         
         relatedRoutes.forEach(rt => {
             const label = rt.name == 'material' ? materialTitle.value : rt.meta?.nameJp
-            items.push({label: label, route: {name: rt.name}})
+            const params = Object.assign({}, route.params)
+            items.push({label: label, route: {name: rt.name, params}})
         });
         return items
     })

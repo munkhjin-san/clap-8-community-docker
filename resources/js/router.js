@@ -226,6 +226,12 @@ const routes = [
                         props: true,
                         component: () => import('./components/Project/ProjectTabs/Contracts.vue'),
                     },
+                    // {
+                    //     path: 'legal',
+                    //     name: 'legal',
+                    //     props: true,
+                    //     component: () => import('./components/Project/ProjectTabs/Legal.vue'),
+                    // },
                     {
                         path: 'finance',
                         name: 'finance',
@@ -669,18 +675,6 @@ const routes = [
                         props: true,
                         component: () => import('./components/Learning/Discussion/GroupDiscussion.vue'),
                     },
-                    // {
-                    //     path: 'portfoliodraft',
-                    //     name: 'portfoliodraft',
-                    //     meta: {
-                    //         nameJp: 'ポートフォリオ作成'
-                    //     },
-                    //     props: true,
-                    //     component: () => import('./components/Learning/BasicKnowledge/BasicDraftPortfolio.vue'),
-                    //     children: [
-                            
-                    //     ]
-                    // },
                     
                     {
                         path:'portfolioview',
@@ -699,6 +693,15 @@ const routes = [
                         },
                         props: true,
                         component: () => import('./components/Learning/Portfolio/CompletePortfolio.vue')
+                    },
+                    {
+                        path: 'exam',
+                        name: 'exam',
+                        meta: {
+                            nameJp: '試験'
+                        },
+                        props: true,
+                        component: () => import('./components/Learning/Exam/ExamContainer.vue')
                     },
                     
                     {

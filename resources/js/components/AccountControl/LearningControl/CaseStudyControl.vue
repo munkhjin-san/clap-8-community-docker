@@ -12,6 +12,9 @@
                         <div class="header-cell">ケーススタディ答え</div>
                         <div class="header-cell">基礎知識理解不能</div>
                         <div class="header-cell">理解できない理由</div>
+                        <div class="header-cell">試験受験回</div>
+                        <div class="header-cell">試験スコア</div>
+                        <div class="header-cell">試験結果</div>
                         <!-- <div class="header-cell">アンケート</div>                    -->
                     </div>
                 </div>
@@ -68,6 +71,15 @@
                                     {{ lesson?.reason_dnt_und }}
                                 </p>
                             </div>
+                        </div>
+                        <div class="body-cell border-none">
+                            <span v-if="lesson?.exam?.attempt_number">{{ lesson?.exam?.attempt_number }}</span>
+                        </div>
+                        <div class="body-cell border-none">
+                            <span v-if="lesson?.exam?.score">{{ lesson?.exam?.score }}%</span>
+                        </div>
+                        <div class="body-cell border-none">
+                            <span v-if="lesson?.exam?.status" :class="[lesson?.exam?.status === 'passed' ? 'passed' : 'failed']">{{ lesson?.exam?.status === 'passed' ? '合格' : '不合格' }}</span>
                         </div>
                     </div>
                 </div>
@@ -152,5 +164,11 @@ const downloadCSV = () => {
         overflow: hidden;
         word-break: break-all;
         
+    }
+    .passed{
+        color: rgb(34, 197, 94);
+    }
+    .failed{
+        color: tomato;
     }
 </style>

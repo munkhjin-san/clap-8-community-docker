@@ -36,7 +36,7 @@ class LessonMaterial extends Model
         'priority',
         'has_question',
         'has_understand',
-        'assistant_id',
+        'prompt_id',
         'material_type'
     ];
 }

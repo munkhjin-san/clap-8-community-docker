@@ -125,10 +125,10 @@ class ContentController extends Controller
             ]);
         }
 
-        $thumbPath = storage_path("app/profile_icon_migrated/{$path}_thumb_200.webp");
+        $thumbPath = storage_path("app/profile_icon_migrated/{$path}.webp");
 
         if (!file_exists($thumbPath)) {
-            $img = Image::read($basePath)->coverDown(200, 200, 'top'); // keep ratio, crop
+            $img = Image::read($basePath)->coverDown(200, 200); // keep ratio, crop
             $img->save($thumbPath, 80, 'webp');
         }
 

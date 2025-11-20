@@ -6310,7 +6310,6 @@ input:autofill {
   border: solid thin var(--calendarBorder);
   height: fit-content;
   white-space: nowrap;
-  margin-bottom: 20px;
   line-height: 1.5;
   position: relative;
 }

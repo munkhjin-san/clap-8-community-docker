@@ -41,27 +41,32 @@
                 </div> -->
             </div>
             <div class="si-box" v-if="app_type == 2">
-                <div class="switchLabel">
-                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">チャレンジ補助金</p>
+                <div style="display: flex; gap: 15px;font-size: 14px;flex-wrap: wrap;">
+                    <div @click="grantable = false" :class="['ch-selector', { chSelected: !grantable}]">通常チャレンジ</div>
+                    <div @click="grantable = true" :class="['ch-selector', { chSelected: grantable}]">チャレンジ補助金</div>
                 </div>
-                <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top: 10px;">    
-                    <input v-model="grantable" type="checkbox" id="charge">
-                    <label for="charge" style="min-width: 80px;" class="cursor-pointer"><span></span>
-                        <div class="switch-toggle"></div>
-                    </label>
-                    
-                </div> 
             </div>    
-            <div class="si-box" v-if="app_type == 5">
-                <p class="mb-[20px]">寄付先</p>
-                <OptionSelector 
+            <div class="si-box" v-if="app_type == 2 && !grantable">
+                <!-- <p class="mb-[20px]">寄付先</p> -->
+                <ItemSelector 
+                    placeHolder="寄付先"
+                    :options="npoList"
+                    rules="required"
+                    v-model="selectedNpo"
+                    :multiple="false"
+                    :clearable="true"
+                    :reduce="option => option"
+                    :close-on-select="true"
+                />
+                <p class="m-0 text-xs text-[gray]">新しい寄付先を追加したい場合は、経営管理本部に連絡してください。</p>
+                <!-- <OptionSelector 
                     :options="npoList"
                     rules="required"
                     name="npo"
                     unit=""
                     ref="npoRef"
                     v-model="selectedNpo"
-                />
+                /> -->
             </div>
             <div class="si-box">
                 <TagSelector 
@@ -244,6 +249,7 @@ import { Post, PostQuery } from '@/interface/postInterface'
 import OptionSelector from '../Form/OptionSelector.vue'
 import { useDialog } from '@/composables/dialog'
 import PostExpenses from './PostExpenses.vue'
+import ItemSelector from '../Form/ItemSelector.vue'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -281,10 +287,10 @@ import PostExpenses from './PostExpenses.vue'
     const recordDateEnd = useTemplateRef('recordDateEnd')
     const recordDateStart = useTemplateRef('recordDateStart')
     const uploadedReceiptsRef = useTemplateRef('uploadedReceiptsRef')
-    const npoRef = useTemplateRef('npoRef')
+    // const npoRef = useTemplateRef('npoRef')
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
-    const grantable = ref(true)
+    const grantable = ref(false)
     const npoList = [
         'e-Education',
         'にこスマ九州',
@@ -312,7 +318,7 @@ import PostExpenses from './PostExpenses.vue'
             contentGoalRef.value,
             recordDateEnd.value,
             recordDateStart.value,
-            npoRef.value,
+            // npoRef.value,
             uploadedReceiptsRef.value,
             refreshAmountRef.value
         ]

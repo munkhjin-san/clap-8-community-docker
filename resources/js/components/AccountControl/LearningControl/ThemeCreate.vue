@@ -21,6 +21,7 @@
                         type="text"
                         v-model="title"
                     />
+                    <span v-if="errors.title" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.title }}</span>
                 </div>
                 <div class="si-box">
                     <div class="switchLabel">
@@ -29,38 +30,56 @@
                 
 
                     <div class="selectSwitchArea" style="display: flex;width: 100%;">    
-                        <input v-model="portfolio" type="checkbox" id="portfolio_create">
-                        <label for="portfolio_create" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                        <input v-model="portfolio" type="checkbox" id="portfolio_create" :disabled="case_study">
+                        <label for="portfolio_create" style="min-width: 80px;" :class="['cursor-pointer', {'disabled-toggle' : case_study}]"><span></span>
                             <div class="switch-toggle"></div>
                         </label>
                         
                     </div>  
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">ONにすると受講者は全セクション完了後にポートフォリオ作成フローへ進みます。案内文が学習画面に表示されます。<br>※ポートフォリオが ON の場合、ケーススタディタイプは選択できません。</p>
                 </div>
                
-                <div class="si-box" style="height: 30%;" v-if="portfolio">
+                <div class="si-box" v-if="portfolio">
                     <div style="font-size: 14px;margin-bottom: 15px;">ポートフォリオに関する説明</div>
-                    <RichEditor ref="portfolioGuidance" :initilaValue="initialPortfolioGuidance"/>
+                    <RichEditor 
+                        ref="portfolioGuidance" 
+                        :initilaValue="initialPortfolioGuidance"
+                        @content-updated="handlePortfolioGuidanceUpdate"
+                    />
+                    <span v-if="errors.portfolioGuidance" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.portfolioGuidance }}</span>
                 </div>
-                <div class="si-box" style="height: 30%;" v-if="portfolio">
+                <div class="si-box" v-if="portfolio">
                     <div style="font-size: 14px;margin-bottom: 15px;">エピソードに関する説明</div>
-                    <RichEditor ref="episodeGuidance" :initilaValue="initialEpisodeGuidance"/>
+                    <RichEditor 
+                        ref="episodeGuidance" 
+                        :initilaValue="initialEpisodeGuidance"
+                        @content-updated="handleEpisodeGuidanceUpdate"
+                    />
+                    <span v-if="errors.episodeGuidance" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.episodeGuidance }}</span>
                 </div>
-                <div class="si-box" style="height: 30%;" v-if="portfolio">
+                <div class="si-box" v-if="portfolio">
                     <div style="font-size: 14px;margin-bottom: 15px;">タイトルに関する説明</div>
-                    <RichEditor ref="titleGuidance" :initilaValue="initialTitleGuidance"/>
+                    <RichEditor 
+                        ref="titleGuidance" 
+                        :initilaValue="initialTitleGuidance"
+                        @content-updated="handleTitleGuidanceUpdate"
+                    />
+                    <span v-if="errors.titleGuidance" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.titleGuidance }}</span>
                 </div>
-                <div class="si-box">
-                    <div class="switchLabel">
-                        <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">ケーススタディ</p>
-                    </div>
-                    <div class="selectSwitchArea" style="display: flex;width: 100%;">    
-                        <input v-model="case_study" type="checkbox" id="has_case_study">
-                        <label for="has_case_study" style="min-width: 80px;" class="cursor-pointer"><span></span>
+            <div class="si-box">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">ケーススタディ</p>
+                </div>
+                <div class="selectSwitchArea" style="display: flex;width: 100%;">    
+                        <input v-model="case_study" type="checkbox" id="has_case_study" :disabled="portfolio">
+                        <label for="has_case_study" style="min-width: 80px;" :class="['cursor-pointer', {'disabled-toggle' : portfolio}]"><span></span>
                             <div class="switch-toggle"></div>
                         </label>
                         
-                    </div>  
-                </div>
+                </div>  
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">ONにすると各レッスンで『ケーススタディ』タイプを選択でき、学習画面ではカード形式で表示されます。<br>※ケーススタディが ON の場合、ポートフォリオは選択できません。</p>
+                    <span v-if="errors.structure" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.structure }}</span>
+            </div>
                 <div class="si-box">
                     <div class="switchLabel">
                         <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">アクティブ</p>
@@ -74,6 +93,7 @@
                         </label>
                         
                     </div>  
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">OFFのテーマは受講者画面に表示されません（下書き状態）。</p>
                 </div>
                 <div class="si-box">
                     <div style="font-size: 13px;margin-bottom: 15px;">グループディスカッション日付（任意）</div>
@@ -94,6 +114,7 @@
                         :close-on-select="true"
                         v-model="selectedForm"
                     />
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">テーマ完了後に受講者へ表示するカスタムアンケートを選択できます。</p>
                 </div>
                 <div style="text-align: center;margin-top: auto;padding: 20px 0;">
                     <LoaderButton @triggered="create" :loading="loader" content="作成する"/>
@@ -105,13 +126,14 @@
     </div>
 </template>
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
 import { useTheme } from '@/store/theme';
 import RichEditor from '@/components/Global/RichEditor.vue';
 import ItemSelector from '@/components/Form/ItemSelector.vue';
 import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps(['editTarget'])
 const emit = defineEmits(['closeModal'])
 const title = ref(props.editTarget ? props.editTarget.title : '')
@@ -127,6 +149,7 @@ const case_study = ref(props.editTarget?.has_case_study === 1 ? true : false);
 const forms = ref([])
 const selectedForm = ref(props.editTarget?.custom_form_id ?? null)
 const api = useApi()
+const { toast, ping } = useDialog()
 const initialPortfolioGuidance = computed(() => {
     return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
 })
@@ -136,37 +159,121 @@ const initialEpisodeGuidance = computed(() => {
 const initialTitleGuidance = computed(() => {
     return props.editTarget && props.editTarget.title_guidance ? props.editTarget.title_guidance : ''
 })
-const create = async() => {
-    let episodeGuidanceContent = ''
-    let portfolioGuidanceContent = ''
-    let titleGuidanceContent = ''
-    if (portfolio.value) {
-        episodeGuidanceContent = episodeGuidance.value?.editor.getHTML()
-        portfolioGuidanceContent = portfolioGuidance.value?.editor.getHTML()
-        titleGuidanceContent = titleGuidance.value?.editor.getHTML()
-        if(!titleGuidanceContent || !episodeGuidanceContent || !portfolioGuidanceContent) return
+const portfolioGuidanceContent = ref(initialPortfolioGuidance.value || '')
+const episodeGuidanceContent = ref(initialEpisodeGuidance.value || '')
+const titleGuidanceContent = ref(initialTitleGuidance.value || '')
+const errors = reactive({
+    title: '',
+    portfolioGuidance: '',
+    episodeGuidance: '',
+    titleGuidance: '',
+    structure: ''
+})
+watch(initialPortfolioGuidance, (value) => {
+    portfolioGuidanceContent.value = value || ''
+})
+watch(initialEpisodeGuidance, (value) => {
+    episodeGuidanceContent.value = value || ''
+})
+watch(initialTitleGuidance, (value) => {
+    titleGuidanceContent.value = value || ''
+})
+watch(title, () => {
+    errors.title = ''
+})
+watch(portfolio, (value) => {
+    if(!value){
+        errors.portfolioGuidance = ''
+        errors.episodeGuidance = ''
+        errors.titleGuidance = ''
     }
-    if (!title.value) return
-    loader.value = true
-    await api.post('/create_learning_theme', {     
-        id: props.editTarget ? props.editTarget.id : null,
-        params: {
-            active: active.value,
-            discussion_date: discussionDate.value,
-            title: title.value,
-            episode_guidance: episodeGuidanceContent,
-            guidance: portfolioGuidanceContent,
-            title_guidance: titleGuidanceContent,
-            portfolio: portfolio.value,
-            has_case_study: case_study.value,
-            custom_form_id: selectedForm.value
+})
+const handlePortfolioGuidanceUpdate = (html) => {
+    portfolioGuidanceContent.value = html
+    errors.portfolioGuidance = ''
+}
+const handleEpisodeGuidanceUpdate = (html) => {
+    episodeGuidanceContent.value = html
+    errors.episodeGuidance = ''
+}
+const handleTitleGuidanceUpdate = (html) => {
+    titleGuidanceContent.value = html
+    errors.titleGuidance = ''
+}
+const sanitizeHtml = (html) => {
+    if(!html) return ''
+    return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim()
+}
+const resetErrors = () => {
+    errors.title = ''
+    errors.portfolioGuidance = ''
+    errors.episodeGuidance = ''
+    errors.titleGuidance = ''
+    errors.structure = ''
+}
+const validateForm = () => {
+    resetErrors()
+    let valid = true
+    if(!title.value || !title.value.trim()){
+        errors.title = 'タイトルは必須です。'
+        valid = false
+    }
+    if(portfolio.value){
+        if(!portfolioGuidanceContent.value || !sanitizeHtml(portfolioGuidanceContent.value)){
+            errors.portfolioGuidance = 'ポートフォリオ説明は必須です。'
+            valid = false
         }
-
-    },{       
-        toast: props.editTarget ? '編集しました。' :'保存しました。'       
-    })
-    loader.value = false
-    emit('closeModal', true)
+        if(!episodeGuidanceContent.value || !sanitizeHtml(episodeGuidanceContent.value)){
+            errors.episodeGuidance = 'エピソード説明は必須です。'
+            valid = false
+        }
+        if(!titleGuidanceContent.value || !sanitizeHtml(titleGuidanceContent.value)){
+            errors.titleGuidance = 'タイトル説明は必須です。'
+            valid = false
+        }
+    }
+    if(!portfolio.value && !case_study.value){
+        errors.structure = 'ポートフォリオまたはケーススタディのどちらかは必ずONにしてください。'
+        valid = false
+    }
+    if(!valid){
+        ping('入力内容を確認してください。')
+    }
+    return valid
+}
+const create = async() => {
+    if(loader.value){
+        return
+    }
+    if(!validateForm()){
+        return
+    }
+    loader.value = true
+    try{
+        await api.post('/create_learning_theme', {     
+            id: props.editTarget ? props.editTarget.id : null,
+            params: {
+                active: active.value,
+                discussion_date: discussionDate.value,
+                title: title.value,
+                episode_guidance: portfolio.value ? episodeGuidanceContent.value : '',
+                guidance: portfolio.value ? portfolioGuidanceContent.value : '',
+                title_guidance: portfolio.value ? titleGuidanceContent.value : '',
+                portfolio: portfolio.value,
+                has_case_study: case_study.value,
+                custom_form_id: selectedForm.value
+            }
+    
+        },{       
+            toast: props.editTarget ? '編集しました。' :'保存しました。'       
+        })
+        emit('closeModal', true)
+    }catch(error){
+        console.error(error)
+        toast('保存に失敗しました。時間をおいて再度お試しください。')
+    }finally{
+        loader.value = false
+    }
 
 }
 const getForms = async() => {

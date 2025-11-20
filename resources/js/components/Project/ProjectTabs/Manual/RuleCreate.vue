@@ -87,7 +87,6 @@ import LongInput from '@/components/Form/LongInput.vue';
 import 'styles/customForm.css'
 import CommandButton from '@/components/Global/CommandButton.vue';
 import AiLoader from '@/components/Global/AiLoader.vue';
-import OpenAI from 'openai';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 const props = defineProps<{
@@ -223,12 +222,6 @@ const generateRiskAssessment = async() => {
     try{
         resetAiResponse()
         reviewCreating.value = true
-        const openai = new OpenAI({
-            apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-            dangerouslyAllowBrowser: true 
-        });       
-        const assistant = await openai.beta.assistants.retrieve("asst_hsQ7RFefRtwW39fqB7FMp34P");
-        const thread = await openai.beta.threads.create();
         const neededKeys = ['作業', '作業詳細', '持ち出し備品利用ツール',]
         let text = ''
         for (const [key, value] of Object.entries(params.job)) {        
@@ -236,51 +229,15 @@ const generateRiskAssessment = async() => {
                 text += `${key} : ${value ? value : 'なし'}\n`
             }
         }
-        await openai.beta.threads.messages.create(thread.id, { role: "user", content: text });
-        let run = await openai.beta.threads.runs.createAndPoll(
-            thread.id,
-            { 
-                assistant_id: assistant.id,
-            }
-        );
-        if (run.status === 'completed') {
-            const messages = await openai.beta.threads.messages.list(
-                run.thread_id
-            );
-            for (const message of messages.data.reverse()) {            
-                if(message.role == 'assistant'){                
-                    try{
-                        if (message.content[0].type == 'text') {
-                            console.log(`${message.role} > ${message.content[0].text.value}`);
-                            const rawText = message.content[0].text.value
-                            const jsonData = JSON.parse(rawText)
-                            aiResponse.rule = params
-                            aiResponse.response = jsonData
-                            aiResponse.active = true
-                            reviewCreating.value = false
-                            console.log(jsonData)
-                        }
-                    }catch(err){
-                        ping('OpenAIレスポンスの解析に失敗しました。')
-                        reviewCreating.value = false
-                        return
-                    }
-                }
-            }
-        } 
-    }catch(err){
-        if (err instanceof OpenAI.APIError) {
-            console.log(err.status); 
-            console.log(err); 
-            if(err.status == 500){
-                ping('タスクの自動生成に失敗しました。<br>OpenAIサーバーから反応がありませんでした。しばらく立ってから再度お試しください。')
-            }else{
-                ping('タスクの自動生成に失敗しました。>' + err?.message)
-            }
-            
-        } else {
-            ping('タスクの自動生成に失敗しました。<br>' + err)
-        }
+
+        const data = await api.post('/non_stream_prompt', { message: text, config_key: 'project_risk_assessment_generation' })
+        const jsonData = JSON.parse(data)
+        aiResponse.rule = params
+        aiResponse.response = jsonData
+        aiResponse.active = true
+        reviewCreating.value = false
+    }catch(err){        
+        ping('タスクの自動生成に失敗しました。<br>' + err)        
         reviewCreating.value = false
     }
 

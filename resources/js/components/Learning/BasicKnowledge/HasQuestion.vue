@@ -12,8 +12,9 @@
         />
         <p v-else><strong>課題への回答<br></strong>{{ material?.answer?.answer }}</p>
         <OpenAiReview 
-            :assistand-id="material?.assistant_id" 
-            :soure-text="material?.answer?.ai_review" 
+            v-if="material.prompt_id"
+            :prompt-id="material.prompt_id" 
+            :source-text="material?.answer?.ai_review" 
             :message="answer"
             :confirm-text="'業務リスク管理の基礎を効果的に理解し、実務で活用できる視点を身につけている。'"
             :answer="true"
@@ -55,7 +56,7 @@ onMounted(() => {
 })
 const finish = async(status: number) => {
     if (status === 2) {
-        if(props.material.assistant_id && !reviewEl.value?.reviewResultRaw){
+        if(props.material.prompt_id && !reviewEl.value?.reviewResultRaw){
             ping('AI分析を必須として実施し、完了してください。')
             return
         }
@@ -65,7 +66,7 @@ const finish = async(status: number) => {
             if (!val.valid) return
         }
         
-        if((props.material.assistant_id && !aiVal)){
+        if((props.material.prompt_id && !aiVal)){
             return
         }
     }        

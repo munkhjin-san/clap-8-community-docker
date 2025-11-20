@@ -42,9 +42,9 @@
             </div>
             
             <OpenAiReview 
-                v-if="selectedTopic && portfolio && selectedTopic.assistant_id" 
-                :assistand-id="selectedTopic.assistant_id" 
-                :soure-text="portfolio?.ai_review_pre" 
+                v-if="selectedTopic && portfolio && selectedTopic.prompt_id" 
+                :prompt-id="selectedTopic.prompt_id" 
+                :source-text="portfolio?.ai_review_pre" 
                 :message="storyContent + episodeContent"
                 :confirm-text="'発表用ポートフォリオは、研修テーマに沿った内容であり、発表時間が５分程度の内容にまとめられている。'"
                 ref="reviewEl"
@@ -92,12 +92,12 @@ const params = computed(() => {
         }
 })
 const finishReview = async(status) => {
-    if(props.selectedTopic.assistant_id && !reviewEl.value?.reviewResultRaw){
+    if(props.selectedTopic.prompt_id && !reviewEl.value?.reviewResultRaw){
         ping('知識研修を完了する前、AI分析してください。')
         return
     }
     const valid = await reviewEl.value?.validate()
-    if(props.selectedTopic.assistant_id && !valid){
+    if(props.selectedTopic.prompt_id && !valid){
         return
     }
     await saveItems('summary', status, targetRefs.value, params.value)

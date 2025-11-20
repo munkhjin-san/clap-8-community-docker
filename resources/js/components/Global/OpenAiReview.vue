@@ -16,63 +16,74 @@
         </div>
 </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import {marked} from 'marked'
 import DOMPurify from 'dompurify';
-import OpenAI from "openai";
 import { ref, computed } from 'vue';
 import LoaderButton from './LoaderButton.vue';
 import { useDialog } from '@/composables/dialog';
-const props = defineProps(['soureText', 'assistandId', 'message', 'confirmText', 'answer'])
-const reviewResultRaw = ref(props.soureText ? props.soureText : '')
+import { useApi } from '@/composables/api';
+import { useSSE } from '@/composables/sse';
+const props = defineProps<{
+    sourceText?: string,
+    assistandId?: number,
+    message: string,
+    confirmText: string,
+    answer?: boolean,
+    configKey?: string,
+    promptId?: string
+}>()
+const reviewResultRaw = ref(props.sourceText ? props.sourceText : '')
 const loading = ref(false)
 const markedResponse = computed(() => {
     return marked(reviewResultRaw.value);
 })
 const sanitizedResponse = computed(() => {
-    return DOMPurify.sanitize(markedResponse.value);
+    return DOMPurify.sanitize(markedResponse.value as string);
 })
 const checked = ref(false)
 const validateCounter = ref(0)
+const api = useApi()
 const { ping } = useDialog()
+const { on, start, stop } = useSSE({autoReconnect: false})
 const validate = async() => {
     validateCounter.value ++
     return checked.value
 }
-const openAiReview = async() => {       
-        
-    try{      
-
-        loading.value = true 
-        const full = props.answer ? `質問に関する回答内容：${props.message}` : `ポートフォリオ内容："""${props.message}"""`
-
-        reviewResultRaw.value = ''
-        const openai = new OpenAI({
-            apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-            dangerouslyAllowBrowser: true 
-        });       
-
-        const assistant = await openai.beta.assistants.retrieve( props.assistandId );
-        const thread = await openai.beta.threads.create();
-        await openai.beta.threads.messages.create( thread.id, {role: "user", content: full });
-        const run = openai.beta.threads.runs.stream(thread.id, { assistant_id: assistant.id })
-            .on('textDelta', (textDelta, snapshot) => {
-                let before = reviewResultRaw.value ? reviewResultRaw.value : ''
-                reviewResultRaw.value = before + textDelta.value
-            }).on('end', () => {
-                loading.value = false
-            })
-        for await (const event of run) {                
-            if(event.event == 'thread.run.completed'){
-                console.log(event.data);
-            }
+on('update', (payload:any) => {
+    try{
+        const parsed = JSON.parse(payload)
+        if(parsed?.event === 'response.output_text.delta'){
+            reviewResultRaw.value += parsed.response.delta
         }
+    }
+    catch{}
+});
+on('error', (e) => {
+    ping('エラーが発生しました。しばらくしてから再度お試しください。')
+    loading.value = false
+});
+on('complete', () => {
+    loading.value = false
+});
+const openAiReview = async() => {               
+    try{      
+        const text = props.answer ? `質問に関する回答内容：${props.message}` : `ポートフォリオ内容："""${props.message}"""`        
+        if (!text) return
+        const {id} = await api.post('/ai_correction_prepare', { text })
+        if(!id) return
+        stop();
+        reviewResultRaw.value = ''
+        loading.value = true
+        if(props.promptId){
+            start('/stream_prompt', { request_id: id, prompt_id: props.promptId })
+        }else if(props.configKey){
+            start( `/stream_prompt`, { request_id: id, config_key: props.configKey } )
+        }
+        
     }catch(e){
         ping(e)
-    }finally{
-        loading.value = false
-    }
-        
+    }        
 }
 defineExpose({reviewResultRaw, loading, validate})
 </script>

@@ -406,7 +406,7 @@
                             </table>
 
                         </div>
-                        <div v-if="tab == 'pie' || tab == 'bar'">
+                        <div class="overflow-auto h-[calc(100%-115px)]" v-if="tab == 'pie' || tab == 'bar'">
                             <div class="px-[20px]">
                                 <div v-if="tab == 'pie'" class="flex gap-[15px] mt-[10px]">
                                     <label v-for="item in possibleScenarios"
@@ -540,7 +540,7 @@ const emptyUnit: UnitData = {
 type Key = 'sales' | 'expense' | 'profit';
 const hasSettlementEntry = (unit?: UnitData | null) => unit?.has_data === true
 const settlementValue = (unit: UnitData | undefined, key: Key) => hasSettlementEntry(unit) ? Number(unit?.[key] ?? 0) : NaN
-const settlementProfitValue = (unit: UnitData | undefined) => hasSettlementEntry(unit) ? Number(unit?.sales ?? 0) - Number(unit?.expense ?? 0) : NaN
+const settlementProfitValue = (unit: UnitData | undefined) => hasSettlementEntry(unit) ? Number(unit?.profit ?? 0) : NaN
 
 const showAnyArrow = (name: string): boolean => {
   if (!projectHasSettlementData(name)) return false

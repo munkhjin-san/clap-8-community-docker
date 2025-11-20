@@ -17,6 +17,9 @@ class LessonTheme extends Model
     public function materials() {
         return $this->hasMany(LessonMaterial::class, 'lesson_theme_id');
     }
+    public function exam(){
+        return $this->hasOne(LessonExam::class, 'lesson_theme_id');
+    }
     public function form(){
         return $this->hasOne(CustomForm::class, 'id', 'custom_form_id');
     }
@@ -33,4 +36,3 @@ class LessonTheme extends Model
         return $this->form?->survey_answers?->where('user_id', Auth::id())->first()?->updated_at;
     }
 }
-
