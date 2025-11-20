@@ -480,17 +480,22 @@ class ProjectController extends Controller
         $findCount = is_array($findings) ? count($findings) : 0;
 
         $responseHash = hash('sha256', json_encode($contract, JSON_UNESCAPED_UNICODE));
-        ProjectContract::create([
-            'project_record_id' => $project->id,
-            'review_type'       => 'quick',
-            'overall_risk'      => $overall,
-            'findings_count'    => $findCount,
-            'result_json'       => $contract, // see casts below
-            'response_hash'     => $responseHash,
-            'file_path'         => $request->input('contract_file_path'),
-            'role'              => $request->input('contract_role'),
-            'contract_type'     => $request->input('contract_type')
-        ]);
+
+        $projectContract = ProjectContract::updateOrCreate(
+            [
+                'project_record_id' => $project->id,
+                'review_type'       => 'quick',    // ここをキーにして「1案件1件」にする
+            ],
+            [
+                'overall_risk'      => $overall,
+                'findings_count'    => $findCount,
+                'result_json'       => $contract,
+                'response_hash'     => $responseHash,
+                'file_path'         => $request->input('contract_file_path'),
+                'role'              => $request->input('contract_role'),
+                'contract_type'     => $request->input('contract_type'),
+            ]
+        );
         
         return response()->json($project);
     }
@@ -2038,21 +2043,47 @@ class ProjectController extends Controller
 
         $valueRanges = $detailResp->getValueRanges() ?? [];
         $k = 0;
+        function toNumberOrNull($val)
+        {
+            if ($val === null || $val === '') {
+                return null;
+            }
+
+            // remove thousands separators
+            $normalized = str_replace(',', '', $val);
+
+            // you can use int if you're dealing with whole yen
+            return is_numeric($normalized) ? (float) $normalized : null;
+        }
+
         foreach ($hitRowsByTab as $title => $rows) {
             foreach ($rows as $rowNum) {
-                $vals = $valueRanges[$k]->getValues()[0] ?? []; 
+                $vals = $valueRanges[$k]->getValues()[0] ?? [];
+
                 $month = (int) substr($title, 4, 2);
+
+                $baseExpense = isset($vals[1]) ? toNumberOrNull($vals[1]) : null; // D
+                $overhead    = isset($vals[2]) ? toNumberOrNull($vals[2]) : null; // E
+
+                $totalExpense = null;
+                if ($baseExpense !== null || $overhead !== null) {
+                    $totalExpense = ($baseExpense ?? 0) + ($overhead ?? 0);
+                }
+
                 $result[$month] = [
-                    'row'      => $rowNum,
-                    'sales'   => $vals[0] ?? null, // C
-                    'expense'  => $vals[1] ?? null, // D
-                    'overhead' => $vals[2] ?? null, // E
-                    'profit'   => $vals[3] ?? null, // F
-                    'profit_rate'   => $vals[4] ?? null, // G
+                    'row'          => $rowNum,
+                    'sales'        => isset($vals[0]) ? toNumberOrNull($vals[0]) : null, // C
+                    'expense'      => $totalExpense,    // D + E
+                    'overhead'     => $overhead,        // E
+                    'profit'       => isset($vals[3]) ? toNumberOrNull($vals[3]) : null, // F
+                    'profit_rate'  => $vals[4] ?? null, // G (probably already % or plain)
                 ];
+
                 $k++;
             }
         }
+
+
 
         return response()->json($result);
     }
