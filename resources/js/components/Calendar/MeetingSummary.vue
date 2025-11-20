@@ -20,12 +20,10 @@
                             <input type="checkbox" class="hidden" :value="summary.id" v-model="expandedSummaries"/>
                         </label>
                         <div class="flex gap-[10px]">
-                            <div class="flex gap-[10px]" v-if="ttsStore.active && ttsStore.id == summary.id">
-                                <CommandButton 
-                                    :buttons="[
-                                        { title: ttsStore.play ? '一時停止' : '再開する', action: () => stopPlay(summary.id) },
-                                        { title: 'ストップ', action: () => endPlay()}
-                                    ]"
+                            <div class="h-[25px]">
+                                <TTSPlayer
+                                    :text="prepareText(summary)" 
+                                    :key="`tts_message_${summary.id}`"
                                 />
                             </div>
                             <ItemMenu 
@@ -34,7 +32,6 @@
                                     { title: '編集', action: () => editSummary(summary) },
                                     { title: 'コピー', action: () => copySummary(summary) },
                                     { title: 'シェア', action: () => {}, children: [{ title: 'チャット', action: () => shareSummary(summary)}] },
-                                    { title: '読み上げる', action: () => convertToSpeech(prepareText(summary), summary.id)},
                                     { title: '削除', action: () => deleteSummary(summary) },
                                 ]"
                             />
@@ -102,11 +99,10 @@ import RichEditor from '../Global/RichEditor.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { useSharingDataStore } from '@/store/sharingData';
 import { useRouter } from 'vue-router';
-import { convertToSpeech, endPlay, stopPlay } from '@/utils/tts';
-import { useTtsStore } from '@/store/ttsStore';
 import { ComponentExposed } from 'vue-component-type-helpers';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import TTSPlayer from '../Global/TTSPlayer.vue';
 const api = useApi()
 const props = defineProps(['calendarRecord']);
 const emit = defineEmits(['close']);
@@ -117,7 +113,6 @@ const summaryRef = useTemplateRef<HTMLElement[]>('summaryRef')
 const summaryEditor = useTemplateRef('summaryEditor')
 const sharingData = useSharingDataStore()
 const router = useRouter()
-const ttsStore = useTtsStore()
 const menuRef = useTemplateRef<ComponentExposed<typeof ItemMenu>[]>('menuRef')
 const { toast } = useDialog()
 const combinedSummary = ref<{

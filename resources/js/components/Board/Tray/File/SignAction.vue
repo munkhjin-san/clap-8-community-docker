@@ -85,7 +85,6 @@ import { useResponsive } from '@/store/responsive';
 import { useBadgeStore } from '@/store/badge';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
-import { APIError } from 'openai';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const props = defineProps(['file', 'viewer', 'source'])
