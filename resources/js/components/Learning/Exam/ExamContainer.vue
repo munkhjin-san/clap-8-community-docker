@@ -271,23 +271,22 @@ const getCorrectOptionLabel = (question) => {
 }
 .option-item--reveal{
     border: 1px solid var(--bg3);
-    border-radius: 6px;
     padding: 8px 10px;
 }
 .option-item--correct{
     border-color: rgb(34, 197, 94);
     background: rgba(34, 197, 94, 0.08);
 }
-.option-item--selected{
+/* .option-item--selected{
     box-shadow: inset 0 0 0 1px var(--primary-color);
-}
+} */
 .option-item--selected-wrong{
     border-color: tomato;
     background: rgba(255, 99, 71, 0.08);
 }
 .option-badge{
     font-size: 11px;
-    border-radius: 9999px;
+    /* border-radius: 9999px; */
     padding: 2px 8px;
     border: 1px solid transparent;
     margin-left: auto;
@@ -307,7 +306,6 @@ const getCorrectOptionLabel = (question) => {
     background: var(--bg3);
     padding: 10px 12px;
     margin-top: 10px;
-    border-radius: 4px;
     font-size: 13px;
     line-height: 1.5;
 }
