@@ -1938,7 +1938,7 @@ class ProjectController extends Controller
         $out = [];
         
         $query = "部門 = \"{$project_name}\" and 日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\"";
-        $fields = ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付'];
+        $fields = ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付', '業績連動賞与積立金'];
         
         $recs = $this->api->getRecords(1068, $query . " limit {$limit} offset {$offset}", $fields);
 
@@ -1947,7 +1947,7 @@ class ProjectController extends Controller
             if ($date === '') continue;
             $month = $date ? (int)date('n', strtotime($date)) : null;
             $totalSales = round((float) $r['売上高合計']['value'] + (float) $r['内部売上高合計']['value'], 0, PHP_ROUND_HALF_UP);
-            $totalExpense = round((float)  $r['販売管理費合計']['value'] + (float) $r['間接費配賦']['value'], 0, PHP_ROUND_HALF_UP);
+            $totalExpense = round((float)  $r['販売管理費合計']['value'] + (float) $r['間接費配賦']['value'] + (float) $r['業績連動賞与積立金']['value'], 0, PHP_ROUND_HALF_UP);
             $totalProfit = $this->f($r['利益']['value']);
             $totalProfitRate = $this->f($r['利益率']['value']);
             $out[$month] = [
@@ -2214,7 +2214,7 @@ class ProjectController extends Controller
         $queryParamsSpecs = [
             'app' => 1068,
             "query" => "日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\" limit 500 offset {$offset}",
-            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付'],
+            "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付', '業績連動賞与積立金'],
             "totalCount" => "true",
         ];
         
@@ -2499,7 +2499,7 @@ class ProjectController extends Controller
                 ->first();
                 if($profitData){
                     $totalSales = round( (float) $profitData['売上高合計'] + (float) $profitData['内部売上高合計'], 0, PHP_ROUND_HALF_UP);
-                    $totalExpense = round((float)  $profitData['販売管理費合計'] + (float) $profitData['間接費配賦'], 0, PHP_ROUND_HALF_UP);
+                    $totalExpense = round((float)  $profitData['販売管理費合計'] + (float) $profitData['間接費配賦'] + (float) $profitData['業績連動賞与積立金'], 0, PHP_ROUND_HALF_UP);
                     $profitData = [
                         "sales" => $totalSales,
                         "expense" => $totalExpense,

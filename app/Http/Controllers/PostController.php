@@ -342,13 +342,14 @@ class PostController extends Controller
                 $record->award_entry = $request->award_entry;
                 $record->chargeable = $request->chargeable;
                 $record->grantable = $request->grantable;
-                
+                $record->donatable = $request->donatable;
+                $record->donation_target = $request->donation_target;
             }else{
                 $record->content = $request->post_content;
             }    
-            if($request->app_type == 5 ){
-                $record->donation_target = $request->donation_target;
-            }        
+            // if($request->app_type == 5 ){
+            //     $record->donation_target = $request->donation_target;
+            // }        
             $record->referrer = $request->referrer; 
             $record->app_type = $request->app_type;    
             $record->refresh_amount = $request->refresh_amount;     

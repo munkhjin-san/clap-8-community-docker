@@ -40,13 +40,25 @@
                     リフレッシュ
                 </div> -->
             </div>
-            <div class="si-box" v-if="app_type == 2">
+             <div class="si-box" v-if="app_type == 2">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">NPO団体に寄付する</p>
+                </div>
+                <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top: 10px;">    
+                    <input v-model="donatable" type="checkbox" id="donate">
+                    <label for="donate" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    
+                </div> 
+            </div>       
+            <!-- <div class="si-box" v-if="app_type == 2">
                 <div style="display: flex; gap: 15px;font-size: 14px;flex-wrap: wrap;">
                     <div @click="grantable = false" :class="['ch-selector', { chSelected: !grantable}]">通常チャレンジ</div>
                     <div @click="grantable = true" :class="['ch-selector', { chSelected: grantable}]">チャレンジ補助金</div>
                 </div>
-            </div>    
-            <div class="si-box" v-if="app_type == 2 && !grantable">
+            </div>     -->
+            <div class="si-box" v-if="app_type == 2 && donatable">
                 <!-- <p class="mb-[20px]">寄付先</p> -->
                 <ItemSelector 
                     placeHolder="寄付先"
@@ -132,7 +144,7 @@
                     rules="required|max:2000"
                 /> 
             </div>
-            <div class="si-box" v-if="app_type == 2 && grantable">
+            <div class="si-box" v-if="app_type == 2">
                 <p class="form-lbl" style="font-size: 14px;">必要経費</p>
                <PostExpenses 
                     v-for="cost, index in costs"
@@ -235,7 +247,7 @@
 <script setup lang="ts">      
 import TagSelector from '../Form/TagSelector.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, onMounted, ref, useTemplateRef, reactive } from 'vue'
+import { computed, onMounted, ref, useTemplateRef, reactive, watch } from 'vue'
 import ShortInput from '../Form/ShortInput.vue'
 import LongInput from '../Form/LongInput.vue'
 import MemberSelector from '../Form/MemberSelector.vue'
@@ -291,6 +303,7 @@ import ItemSelector from '../Form/ItemSelector.vue'
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
     const grantable = ref(false)
+    const donatable = ref(false)
     const npoList = [
         'e-Education',
         'にこスマ九州',
@@ -308,7 +321,7 @@ import ItemSelector from '../Form/ItemSelector.vue'
         '一般社団法人バクチャー普及研究協議会'
     ]
     const api = useApi()
-    const { ping } = useDialog()
+    const { ping, ask } = useDialog()
     const validateTargets = computed(() => {
         return [
             recordTitle.value,
@@ -361,6 +374,21 @@ import ItemSelector from '../Form/ItemSelector.vue'
         costsFill()
 
     })
+    watch(donatable, (newVal) => {
+        if (newVal) {
+            confirmDonate()
+        }
+    })
+    const confirmDonate = async() => {
+        if(donatable.value){
+            const result = await ask('必要経費以外のチャージ総額はNPOに寄付します。よろしいでしょうか?')
+            if(result.value){
+                donatable.value = true
+            }else{
+                donatable.value = false
+            }
+        }
+    }
     const addCostField = () => {
         if(costs.length >= 10){
             ping('上限は10個です。')
@@ -432,7 +460,8 @@ import ItemSelector from '../Form/ItemSelector.vue'
             award_entry: 0,
             app_type: app_type.value,
             chargeable: chargeable.value,
-            grantable: grantable.value,
+            grantable: costs.length > 0,
+            donatable: donatable.value,
             donation_target: selectedNpo.value,
             refresh_amount: refresh_amount.value,
             grants: costs

@@ -23,7 +23,7 @@
                     <div class="mb-2" style="display:flex;flex-direction:column;gap:8px;">
                         <div v-html="lesson.title"></div>
                         <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:11px;">
-                            <span class="lesson-chip" style="background: var(--primary-color);color:#fff;padding:2px 8px;">{{ priorityLabel(lesson.priority) }}</span>
+                            <span class="lesson-chip" style="background: var(--hover-border);color:#fff;padding:2px 8px;">{{ priorityLabel(lesson.priority) }}</span>
                             <span class="lesson-chip" v-if="lesson.material_type" style="background: var(--bg2);color: var(--text-color);padding:2px 8px;">{{ lesson.material_type }}</span>
                             <span class="lesson-chip" v-if="requestLabel(lesson)" style="background: #ffe8cc;color:#b15c00;padding:2px 8px;">{{ requestLabel(lesson) }}</span>
                             <span class="lesson-chip" v-if="lesson.has_question && lesson.material_type === 'ケーススタディ'" style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;">QA ケース</span>

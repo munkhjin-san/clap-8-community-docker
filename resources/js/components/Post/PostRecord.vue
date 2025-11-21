@@ -39,7 +39,7 @@
                 <div @click="updateStatus" v-if="record.app_type == 2" class="text-sm whitespace-nowrap cursor-pointer">{{ status }}</div>
             </div>
         </div>
-        <div v-if="record.app_type == 5 && record.donation_target">
+        <div v-if="record.app_type == 2 && record.donation_target">
             <p>寄付先: {{ record.donation_target }}</p>
         </div>
         <div>
