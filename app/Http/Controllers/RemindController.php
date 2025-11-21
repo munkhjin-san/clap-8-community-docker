@@ -708,6 +708,9 @@ class RemindController extends Controller
             ]);
         }
         $target_users = User::where('position_id', 15)->where('retire' , 0)->whereNotNull('email')
+        ->whereHas('related_projects', function ($query) {
+            $query->whereIn('project_records.id', [34, 36, 56]);
+        })
         ->whereHas('shift_records', function ($query) use ($badge) {
             $query->when($badge, fn($q) => $q->whereNull('departure_report'))
                   ->where('shift_day', Carbon::now()->toDateString())
@@ -742,6 +745,7 @@ class RemindController extends Controller
         $challenge = PostRecord::query()
             ->where('app_type', 2)
             ->where('status_flag', 0)
+            ->where('user_id', Auth::id())
             ->whereNotNull('date_start')
             ->whereNotNull('date_end')
             ->where('date_start', '<=', $now)
@@ -751,9 +755,8 @@ class RemindController extends Controller
 
         if (!$challenge) {
             return response()->json([
-                'is_halfway' => false,
-                'percent'    => 0,
-                'challenge'  => null,
+                'remind_challenge' => [],
+                'order' => 12,
             ]);
         }
 
@@ -765,10 +768,23 @@ class RemindController extends Controller
         $pct     = (int) round(($elapsed / $total) * 100);
         $pct     = max(0, min(100, $pct));
 
+        if ($pct < 50) {
+            return response()->json([
+                'remind_challenge' => [],
+                'order'            => 12,
+            ]);
+        }
         return response()->json([
-            'is_halfway' => $pct >= 50,
-            'percent'    => $pct,
-            'challenge'  => $challenge->only(['id','title','date_start','date_end', 'content_goal']),
+            'remind_challenge' => [[
+                'id'          => $challenge->id,
+                'title'       => $challenge->title,
+                'content_goal'=> $challenge->content_goal,
+                'date_start'  => $challenge->date_start,
+                'date_end'    => $challenge->date_end,
+                'percent'     => $pct,
+                'is_halfway'  => true, // since pct >= 50
+            ]],
+            'order' => 12,
         ]);
     }
     public function remind_badge(Request $request) {
@@ -786,7 +802,7 @@ class RemindController extends Controller
             'remind_asset'                 => $this->remind_asset()->getData(true),
             'remind_temp_reserved_schedules'=> $this->remind_temp_reserved_schedules()->getData(true),
             'remind_departure_report'      => $this->remind_departure_report(true)->getData(true),
-            'challenge'                    => $this->remind_challenge_progress()->getData(true),
+            'remind_challenge'             => $this->remind_challenge_progress()->getData(true),
         ];
         $count = 0;
         $counts = [];

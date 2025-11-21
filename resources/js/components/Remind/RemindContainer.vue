@@ -344,28 +344,28 @@
                 </div>
 
             </div>
-            <div v-if="data.challenge && data.is_halfway">
+            <div v-if="data.remind_challenge?.length">
                 <RemindHeader 
                     :offset="offset"
-                    :length="1"
+                    :length="data.remind_challenge?.length"
                     title="チャレンジ進捗待ち"
                     :expanded="expanded.remind_challenge_progress"
                     @expand="expanded.remind_challenge_progress = !expanded.remind_challenge_progress"
                 />
                 <div v-if="expanded.remind_challenge_progress" class="md:grid flex flex-col md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <div class="bg-[var(--message-background)] p-[15px] text-[var(--primary-color) min-h-full]">
+                    <div v-for="item in data.remind_challenge" class="bg-[var(--message-background)] p-[15px] text-[var(--primary-color) min-h-full]">
                         
                         <div class="flex gap-3 mb-3 relative">
                             <PostIcon which="2" size="20"/>
-                            <p>{{ data.challenge.title }}</p>
+                            <p>{{ item.title }}</p>
                             <div style="font-size:12px;color:grey;position:absolute;right:-10px;top:-10px">
-                                {{ data.challenge.date_start }} ~ {{ data.challenge.date_end }}
+                                {{ item.date_start }} ~ {{ item.date_end }}
                             </div>
                         </div>
-                        <div>
-                            <p>{{ data.challenge.content_goal }}</p>
+                        <div class="text-sm leading-normal whitespace-break-spaces">
+                            <p>{{ item.content_goal }}</p>
                         </div>
-                        <button @click="router.push({name: 'post', query: {id: data.challenge.id} })" style="padding: 5px 10px; font-size: 12px; line-height: 1.5; border-radius: 0px; background: var(--primary-button); color: rgb(255, 255, 255); margin-top: 10px;">
+                        <button @click="router.push({name: 'post', query: {id: item.id} })" style="padding: 5px 10px; font-size: 12px; line-height: 1.5; border-radius: 0px; background: var(--primary-button); color: rgb(255, 255, 255); margin-top: 10px;">
                             対応
                         </button>
                     </div>
@@ -373,7 +373,7 @@
             </div>
         </div>
         
-        <div v-if="combinedData.every(item => Object.values(item).every(value => !value.length))" class="no-comment-text">現在リマインドはありません。</div>
+        <div v-if="hasNoRemindData" class="no-comment-text">現在リマインドはありません。</div>
         
         <Transition name="modalFade">
             <div class="cal-month-loader" style="height: 100%; top: 0; background-color: var(--bg2);" v-if="initialLoader">
@@ -388,7 +388,7 @@
 import { useAuthUserStore } from '@/store/auth';
 import ListBox from '../Task/List/ListBox.vue';
 import UserPanel from '../Global/UserPanel.vue';
-import { nextTick, onMounted, provide, ref, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, provide, ref, useTemplateRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import UncheckedMessageItem from '../Board/Message/UncheckedMessageItem.vue';
 import WorkMessage from '../Work/WorkMessage.vue';
@@ -491,6 +491,22 @@ const getRemindTotalData = async () => {
     }
     
 };
+const hasNoRemindData = computed(() => {
+  return combinedData.value.every(item => {
+    return Object.entries(item).every(([key, value]) => {
+      // ignore order or other meta fields
+      if (key === 'order') return true;
+
+      // only care about arrays (your remind_* fields)
+      if (Array.isArray(value)) {
+        return value.length === 0;
+      }
+
+      // ignore any non-array junk if it sneaks in
+      return true;
+    });
+  });
+});
 
 const saveSortOrder = () => {
     const order = combinedData.value.map((item, index) => ({
