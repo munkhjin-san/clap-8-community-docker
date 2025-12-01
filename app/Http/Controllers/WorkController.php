@@ -1829,8 +1829,8 @@ class WorkController extends Controller
                 ->with(['custom_field_data_records' => function ($q) {
                     $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
                 }])
-                ->with(['timecard_costs', 'timecard_incentives'])
-                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'car_mileage');
+                ->with(['timecard_costs', 'timecard_incentives', 'department'])
+                ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'car_mileage', 'work_group_id');
         }])->with(['shift_records' => function ($q) use($year, $month) {
             $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
                 ->with([
@@ -1894,6 +1894,7 @@ class WorkController extends Controller
                     '労働時間' => (empty($time_card_record) ? '' : floor($time_card_record->work_time / 60).'時間') . (empty($time_card_record) ? '' : ($time_card_record->work_time % 60).'分')   ,
                     '時間外' => empty($time_card_record) ? '' : ($time_card_record->over_time).'分',
                     '休憩時間' => empty($time_card_record) ? '' : ($time_card_record->break_time).'分',
+                    '部門' => empty($time_card_record) || empty($time_card_record->department) ? '' : $time_card_record->department->name,
                     '諸手当' => $allowances_value, 
                     'インシデント' => empty($incident) ? '' : $incident->label,
                     '目標達成率' => empty($satisfy) ? '' : $satisfy->label,
