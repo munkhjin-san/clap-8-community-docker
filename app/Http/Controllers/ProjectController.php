@@ -2414,7 +2414,7 @@ class ProjectController extends Controller
             "profit" => 0,
             "profit_rate" => 0,
         ];
-        $default_settlement_data = $default_data + ['has_data' => true];
+        $default_settlement_data = $default_data + ['has_data' => false];
 
         $defaultSumData = [
             'yearly_plan' => [
