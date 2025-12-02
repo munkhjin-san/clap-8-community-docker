@@ -32,7 +32,7 @@
                     <span 
                         title="コメントバッジ"
                         class="side-notification" 
-                        style="position: unset;width: 15px;z-index: 1;background-color:#FFA500;" 
+                        style="position: unset;width: 15px;z-index: 1;background-color:#F28C28;" 
                         v-if="tab.path == 'project-members'&& goalCommentBadge"
                     >{{ goalCommentBadge }}
                     </span>
@@ -48,14 +48,14 @@
                 <span 
                     title="コメントバッジ"
                     class="side-notification" 
-                    style="position: unset;width: 15px;z-index: 1;background-color:#FFA500;" 
+                    style="position: unset;width: 15px;z-index: 1;background-color:#F28C28;" 
                     v-if="tab.path == 'task-calendar'&& taskCommentBadge"
                 >{{ taskCommentBadge }}
                 </span>
                 <span 
                     title="コメントバッジ"
                     class="side-notification" 
-                    style="position: unset;width: 15px;z-index: 1;background-color:#FFA500;" 
+                    style="position: unset;width: 15px;z-index: 1;background-color:#F28C28;" 
                     v-if="tab.path == 'finance'&& financeCommentBadge"
                 >{{ financeCommentBadge }}
                 </span>

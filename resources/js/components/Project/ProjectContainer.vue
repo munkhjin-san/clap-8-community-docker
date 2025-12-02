@@ -93,7 +93,7 @@
                                 <p class="max-w-[calc(100%-60px)] overflow-hidden whitespace-nowrap text-ellipsis">{{ project.name }}</p>
                                 <div class="flex items-center gap-1">
                                     <span title="確認バッジ" class="side-notification" style="position: unset;width:15px;" v-if="confirmBadges(project.id) > 0">{{ confirmBadges(project.id) }}</span>
-                                    <span title="コメントバッジ" class="side-notification" style="position: unset;width:15px;background-color:#FFA500;" v-if="commentBadges(project.id) > 0">{{ commentBadges(project.id) }}</span>
+                                    <span title="コメントバッジ" class="side-notification" style="position: unset;width:15px;background-color:#F28C28;" v-if="commentBadges(project.id) > 0">{{ commentBadges(project.id) }}</span>
                                 </div>
                             </div>                           
                         </div>

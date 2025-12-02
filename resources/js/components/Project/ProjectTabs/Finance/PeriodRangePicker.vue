@@ -256,7 +256,7 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .badge-count{
-    background: #FFA500;
+    background: #F28C28;
     color: white;
     border-radius: 999px;
     padding: 1px 6px;
