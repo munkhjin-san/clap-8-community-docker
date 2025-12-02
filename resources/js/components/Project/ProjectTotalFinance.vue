@@ -89,7 +89,7 @@
                             </div>
                             <div class="flex items-center gap-2 text-sm">
                                 <label class="text-xs opacity-70">並び替え:</label>
-                                <select v-model="sortMode" class="border rounded px-2 py-1 bg-[var(--background-color)] text-sm">
+                                <select v-model="sortMode" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm">
                                     <option value="name">プロジェクト名</option>
                                     <option value="manager">管理者</option>
                                 </select>
