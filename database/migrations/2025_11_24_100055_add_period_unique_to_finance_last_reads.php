@@ -1,0 +1,31 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+
+
+        Schema::table('project_finance_last_reads', function (Blueprint $table) {
+            $table->unique(['project_record_id', 'user_id', 'period'], 'pf_last_reads_unique');
+        });
+
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::table('project_finance_last_reads', function (Blueprint $table) {
+            //
+        });
+    }
+};

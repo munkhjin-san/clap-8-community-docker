@@ -91,8 +91,9 @@
                         <div class="flex w-full">
                             <div class="flex gap-2 items-center relative w-full">
                                 <p class="max-w-[calc(100%-60px)] overflow-hidden whitespace-nowrap text-ellipsis">{{ project.name }}</p>
-                                <div class="flex items-center">
-                                    <span class="side-notification" style="position: unset;width:15px" v-if="totalBadges(project.id) > 0">{{ totalBadges(project.id) }}</span>
+                                <div class="flex items-center gap-1">
+                                    <span title="確認バッジ" class="side-notification" style="position: unset;width:15px;" v-if="confirmBadges(project.id) > 0">{{ confirmBadges(project.id) }}</span>
+                                    <span title="コメントバッジ" class="side-notification" style="position: unset;width:15px;background-color:#FFA500;" v-if="commentBadges(project.id) > 0">{{ commentBadges(project.id) }}</span>
                                 </div>
                             </div>                           
                         </div>
@@ -367,13 +368,23 @@ const plainText = (text?: string | null) => {
     if(!text) return ''
     return text.replace(/<("[^"]*"|'[^']*'|[^'">])*>/g,'').replace(/&nbsp;/g, '')
 }
+const commentBadges = (projectId: number) => {
+    return badge.taskCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
+    (badge.financeCommentBadgeByFilter({by: 'project_id', value: projectId})?.total_unread ?? 0) + 
+    badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
+}
 const totalBadges = (projectId: number) => {
     return badge.goalsBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
     badge.salaryIssueByFilter([{by: 'project_id', value: projectId}]).length +
     badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
     badge.taskCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
-    badge.financeCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length + 
+    (badge.financeCommentBadgeByFilter({by: 'project_id', value: projectId})?.total_unread ?? 0) + 
     badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: projectId}]).length
+}
+const confirmBadges = (projectId: number) => {
+    return badge.goalsBadgeByFilter([{by: 'project_id', value: projectId}]).length +
+    badge.salaryIssueByFilter([{by: 'project_id', value: projectId}]).length +
+    badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length
 }
 const jumpToProject = (project: Project) => {
     const routeName = route.name === 'project' ? 'overview' : 

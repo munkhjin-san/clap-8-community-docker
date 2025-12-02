@@ -51,7 +51,7 @@
                                     <div>評価点 {{ `${overallScore(goal)}点` }}</div>
                                 </div>
                                 <div v-else-if="goal?.achievement_rate !== null" class="kadai-content">{{ goal?.achievement_rate }}%</div>       
-                                <div v-if="badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length" class="mt-[10px] text-[tomato]">未読メッセージ{{ badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length }}件</div>                         
+                                <div v-if="badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length" class="mt-[10px] text-[orange]">未読メッセージ{{ badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length }}件</div>                         
                             </div>
                             <div v-if="goal?.salary_issue" class="mt-[5px]">
                                 <div class="w-full h-[1px] bg-[var(--calendarBorder)] mb-[15px]"></div>
@@ -65,7 +65,7 @@
                                         <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
                                     </div>
                                 </div>
-                                <div v-if="badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal.salary_issue.id}]).length" class="mt-[10px] text-[tomato]">未読メッセージ{{ badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal.salary_issue.id}]).length }}件</div>  
+                                <div v-if="badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal.salary_issue.id}]).length" class="mt-[10px] text-[#FFA500]">未読メッセージ{{ badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal.salary_issue.id}]).length }}件</div>  
                             </div>
 
                             

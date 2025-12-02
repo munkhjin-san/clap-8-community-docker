@@ -27,7 +27,7 @@
                             <UserPanel size="15" :user="message.actual_sender"/>
                         </div>                   
                     </div>
-                    <div>
+                    <div class="mr-[20px]">
                         <div @click.stop="pushInstantUser($event, message.user_id)" :class="{'!text-[12px]' :  message.actual_sender}" class="cursor-pointer text-[14px] break-keep">{{ messageUserName }}</div>
                         <div v-if="message.actual_sender" class="text-[12px] mt-[3px]">{{ message.actual_sender.name }}</div>
                     </div>
@@ -36,7 +36,7 @@
                 </div>                                     
                 <div class="m-date">{{messageKind}}</div>  
                 <div class="messageIconContainer">
-                    <div v-if="message.deleted_at == null && message.message" title="読み上げる" class="relative">
+                    <div v-if="message.deleted_at == null && message.message" title="読み上げる" class="relative min-w-[25px]">
                         <TTSPlayer 
                             :text="readableText" 
                             :key="`tts_message_${message.id}`"

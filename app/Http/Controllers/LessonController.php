@@ -136,7 +136,7 @@ class LessonController extends Controller
             "status" => $request->section_status,
             "content" => $request->update_content,
         ]);         
-        return response()->json();
+        return response()->json($update);
     }
 
     public function save_lesson_portfolio(Request $request){      

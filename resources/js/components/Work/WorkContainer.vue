@@ -149,7 +149,7 @@ import { useDialog } from '@/composables/dialog'
             usersCheckArray.value = [Number(query.user_id)]
         }
         fetchDatas()
-        fetchWorkData()
+        await fetchWorkData()
         fetchShiftDataTable(0)
         if(query.startDate){
             startDate.value = query.startDate

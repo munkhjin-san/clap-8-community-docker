@@ -5,10 +5,28 @@
                 <div class="admin-command-bar">            
                     <div class="sub-tab-container">
                         <div @click="sub_tab = 0" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 0 }]">成果目標
-                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length }}</span>
+                            <span 
+                                class="side-notification" 
+                                style="position: unset;width:15px" 
+                                v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length"
+                                :class="{
+                                    'side-notification--comment-only': !badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length && badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length
+                                }"
+                            >
+                                {{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length }}
+                            </span>
                         </div>
                         <div @click="sub_tab = 1, badge.clearGoalIssue({column: 'salary_issue_id', value: goal?.salary_issue?.id})" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 1 }]">昇給課題
-                            <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length }}</span>
+                            <span 
+                                class="side-notification" 
+                                style="position: unset;width:15px" 
+                                v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length"
+                                :class="{
+                                    'side-notification--comment-only': !badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length && badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length
+                                }"
+                            >
+                                {{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length }}
+                            </span>
                         </div>
                     </div>       
                 </div>

@@ -28,6 +28,6 @@ class ProjectFinanceComment extends Model
         return $this->hasOne(ProjectFinanceComment::class, 'id', 'reply_id')->with(['author:id,name,icon_path,icon_bg']);
     }
     protected $casts = [
-        'period' => 'date',
+        'period' => 'string',
     ];
 }

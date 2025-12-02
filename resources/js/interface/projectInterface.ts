@@ -79,6 +79,17 @@ interface Project {
     private_memo: string
     contract?: ProjectContractResponse | null
     is_new: boolean
+    has_forecast?: boolean
+    has_goals?: boolean
+    unit_id?: 'JPY' | 'COUNT' | 'HOUR' | 'CUSTOM'
+    custom_unit_label?: string | null
+    actual_statuses?: ProjectActualStatus[]
+}
+export type ProjectActualStatus = {
+    status_id: number | null;
+    label: string;
+    sort_order?: number;
+    is_system_default?: boolean;
 }
 interface ProjectCondition {
     project_record_id: number;
@@ -190,6 +201,7 @@ export interface FinanceComment {
     user_id: number;
     comment: string;
     type: string;
+    period?: string;
     author: User;
     created_at: string;
     checked_users: User[];

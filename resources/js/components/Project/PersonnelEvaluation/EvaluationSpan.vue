@@ -14,8 +14,11 @@
                         {{ option.name }}
                         <span class="side-notification" 
                             style="right: 2px; top: 6px; left: auto;position:unset; width: fit-content;" 
-                            v-if="badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length > 0"
-                        >{{ badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: userId}, {by: 'year', value: option.year}, {by: 'which_half', value: option.which_half}]).length }}
+                            v-if="confirmBadges(option) + commentBadges(option) > 0"
+                            :class="{
+                                'side-notification--comment-only': !confirmBadges(option) && commentBadges(option)
+                            }"
+                        >{{ confirmBadges(option) + commentBadges(option) }}
                     </span>
                     </button>
                 </div>
@@ -58,7 +61,8 @@ onMounted(() => {
         }
     }
 })
-const userId = computed(() => Number(route.params.memberId))
+const userId = Number(route.params.memberId)
+const projectId = Number(route.params.projectId)
 const dateOptions = reactive({
     name: '',
     year: '',
@@ -73,5 +77,28 @@ const setOption = (option) => {
     picker.value = false
     router.push({name: route.meta.pushTo as string, params: {span: `${option.year}-${option.which_half}`}})
 }
-
+const confirmBadges = (option: { year: string, which_half: string}) => {
+    const goalsBadge = badge.goalsBadgeByFilter([
+        {by: 'project_id', value: projectId}, 
+        {by: 'user_id', value: userId}, 
+        {by: 'year', value: option.year}, 
+        {by: 'which_half', value: option.which_half}
+    ]).length
+    const issuesBadge = badge.salaryIssueByFilter([
+        {by: 'project_id', value: projectId}, 
+        {by: 'user_id', value: userId}, 
+        {by: 'year', value: option.year}, 
+        {by: 'which_half', value: option.which_half}
+    ]).length
+    console.log(goalsBadge, issuesBadge)
+    return goalsBadge + issuesBadge
+}
+const commentBadges = (option: { year: string, which_half: string}) => {
+    return badge.goalIssueCommentBadgeByFilter([
+        {by: 'project_id', value: projectId}, 
+        {by: 'user_id', value: userId}, 
+        {by: 'year', value: Number(option.year)}, 
+        {by: 'which_half', value: option.which_half}
+    ]).length
+}
 </script>

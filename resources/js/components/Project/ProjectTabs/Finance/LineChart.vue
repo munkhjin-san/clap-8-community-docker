@@ -102,6 +102,7 @@ const props = withDefaults(
     focusStartIndex?: number | null;
     focusLength?: number;
     projectionSeries?: (number | null)[];
+    unitLabel?: string;
   }>(),
   {
     series: () => [],
@@ -118,6 +119,7 @@ const props = withDefaults(
     focusStartIndex: null,
     focusLength: 1,
     projectionSeries: () => [],
+    unitLabel: '円'
   },
 );
 
@@ -228,7 +230,7 @@ const chartData = computed(() => {
       const hasActual = props.actualSeries.some(value => value > 0);
       if (hasActual) {
         datasets.push({
-          label: '実績 (受注済/竣工済)',
+          label: '実績',
           data: props.actualSeries,
           borderColor: '#1f2937',
           backgroundColor: 'rgba(31, 41, 55, 0.1)',
@@ -377,7 +379,7 @@ const chartOptions = computed(() => {
           callbacks: {
             label(context: any) {
               const value = context.parsed.y;
-              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} 円`;
+              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} ${props.unitLabel}`;
             },
           },
         },
@@ -399,7 +401,7 @@ const chartOptions = computed(() => {
           beginAtZero: true,
           ticks: {
             callback(value: string | number) {
-              return `${new Intl.NumberFormat('ja-JP').format(Number(value))} 円`;
+              return `${new Intl.NumberFormat('ja-JP').format(Number(value))} ${props.unitLabel}`;
             },
           },
         },
@@ -423,7 +425,7 @@ const chartOptions = computed(() => {
           callbacks: {
             label(context: any) {
               const value = context.parsed.y;
-              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} 円`;
+              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} ${props.unitLabel}`;
             },
           },
         },
@@ -444,7 +446,7 @@ const chartOptions = computed(() => {
           beginAtZero: true,
           ticks: {
             callback(value: string | number) {
-              return `${new Intl.NumberFormat('ja-JP').format(Number(value))} 円`;
+              return `${new Intl.NumberFormat('ja-JP').format(Number(value))} ${props.unitLabel}`;
             },
           },
         },
@@ -481,7 +483,7 @@ const chartOptions = computed(() => {
       beginAtZero: true,
       ticks: {
         callback(value: string | number) {
-          return `${new Intl.NumberFormat('ja-JP').format(Number(value))} 円`;
+          return `${new Intl.NumberFormat('ja-JP').format(Number(value))} ${props.unitLabel}`;
         },
       },
     };
@@ -527,7 +529,7 @@ const chartOptions = computed(() => {
           label(context: any) {
             const value = context.parsed.y;
             if (context.dataset.label?.includes('金額')) {
-              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} 円`;
+              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} ${props.unitLabel}`;
             }
             return `${context.dataset.label}: ${value} 件`;
           },

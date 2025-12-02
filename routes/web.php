@@ -517,7 +517,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/projects/finance/unread-badges', [ProjectController::class, 'get_finance_comment_badge']);
         Route::put('/finance_comment_update', [ProjectController::class, 'finance_comment_update']);
         Route::delete('/finance_comment_delete', [ProjectController::class, 'finance_comment_delete']);
-        Route::get('/get_comment_count_from_total', [ProjectController::class, 'get_comment_count_from_total']);
+        Route::post('/get_comment_count_from_total', [ProjectController::class, 'get_comment_count_from_total']);
         Route::post('/mark_finance_check', [ProjectController::class, 'mark_finance_check']);
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
@@ -611,7 +611,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);
         Route::get('/welcome_message ', [AutoJobController::class, 'get_welcome_message']);
-
+        Route::get('/get_today_things', [AutoJobController::class, 'get_today_things']);
         // Asset
         Route::get('/get_possible_projects', [AssetController::class, 'get_possible_projects']);
         Route::get('/get_possible_projects_by_user', [AssetController::class, 'get_possible_projects_by_user']);

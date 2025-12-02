@@ -9,6 +9,7 @@ class ProjectFinanceLastRead extends Model
     protected $fillable = [
         'user_id',
         'project_record_id',
-        'last_read_at'
+        'last_read_at',
+        'period'
     ];
 }

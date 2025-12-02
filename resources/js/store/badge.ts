@@ -12,7 +12,7 @@ interface State {
     salary_issue: any[]
     asset: []
     task_comment: {project_id: number, task_id: number, comments: number}[],
-    finance_comment: [],
+    finance_comment: {total_unread: number, projects: {project_id: number, total_unread: number, period_counts: {[period: string]: number}}[]},
     goal_issue_comment: [],
     contact_comment: [],
     boardBadgeFetchedAt: number | null,
@@ -32,7 +32,7 @@ export const useBadgeStore = defineStore('badge', {
         salary_issue: [],
         asset: [],
         task_comment: [],
-        finance_comment: [],
+        finance_comment: {total_unread: 0, projects: []},
         goal_issue_comment: [],
         contact_comment: [],
         boardBadgeFetchedAt: null,
@@ -172,7 +172,7 @@ export const useBadgeStore = defineStore('badge', {
                     sum = sum + p.list[i];
                 }
             });
-            const projectBadge = this.projectTotal;
+            const projectBadge = this.projectTotal + this.projectCommentTotal;
             const remindBadge = this.remind.total
             const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : this.post; 
             sum = sum + postBadge + projectBadge + remindBadge
@@ -209,19 +209,20 @@ export const useBadgeStore = defineStore('badge', {
                 })
             }
         },
-        financeCommentBadgeByFilter(state){
-            return (filterData: {by: string, value: any}[]) => {
-                const userComments = state.finance_comment
-                return userComments.filter((comment) => {
-                    return filterData.every((filter) => comment[filter.by] === filter.value)
-                })
-            }
+        financeCommentBadgeByFilter(state) {
+            return (filterData: { by: string; value: any }) =>
+                state.finance_comment?.projects?.find(
+                    (comment) => comment.project_id === filterData.value
+                ) ?? null;
         },
         goalAndSalaryTotal(state){
             return state.managers_goals.length + state.members_goals.length + state.salary_issue.length
         },
         projectTotal(state){
-            return this.goalAndSalaryTotal + state.asset.length + state.task_comment.length + state.finance_comment.length
+            return this.goalAndSalaryTotal + state.asset.length
+        },
+        projectCommentTotal(state){
+            return state.task_comment.length + state.finance_comment.total_unread + state.goal_issue_comment.length
         },
         assetsBadgeByFilter(state){
             return (filterData: {by: string, value: any}[]) => {
@@ -235,7 +236,7 @@ export const useBadgeStore = defineStore('badge', {
             return (filterData: {by: string, value: any}[]) => {
                 const userComments = state.goal_issue_comment
                 return userComments.filter((comment) => {
-                    return filterData.every((filter) => comment[filter.by] == filter.value)
+                    return filterData.every((filter) => comment[filter.by] === filter.value)
                 })
             }
         },

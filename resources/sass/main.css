@@ -2882,6 +2882,9 @@ div.recordFormTitle>p {
   text-indent: 1px;
   line-height: 15px;
 }
+.side-notification--comment-only {
+  background: #FFA500;
+}
 
 .boxMenuComment {
   z-index: 99 !important;

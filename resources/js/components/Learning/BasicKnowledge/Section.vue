@@ -67,7 +67,7 @@
                         <LoaderButton @triggered="nextStage" :loading="processing" :content="selectedAnswer == 0  ? '次へ' : '完了'"/>
                     </div>
                 </div>
-                <div v-else-if="!material.has_question && (!material.answer || material?.answer?.status < 2)" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                <div v-else-if="!material.has_understand && !material.has_question && (!material.answer || material?.answer?.status < 2)" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <LoaderButton @triggered="nextStage" :loading="processing" :content="filteredSummaries.length > 0 ? '次へ' : '完了'"/>
                 </div>
             </div>
@@ -175,7 +175,7 @@ import TTSPlayer from '@/components/Global/TTSPlayer.vue';
         await getLessonPortfolios() 
         radioError.value = ''
         processing.value = false
-        return response.status
+        return response
 
                 
     }

@@ -21,27 +21,41 @@
             <router-link :to="{name : tab.path}" v-for="tab in tabs" :key="tab.name" class="tab tab-link flex items-center gap-[5px]" :class="{active: tab.path ? route.fullPath.includes(tab.path) : false}">
 
                 <div class="tab-name">{{ tab.name }}</div>
+                <div class="flex items-center gap-1">
+                    <span 
+                        title="確認バッジ"
+                        class="side-notification" 
+                        style="position: unset;width: 15px;z-index: 1;" 
+                        v-if="tab.path == 'project-members'&& goalBadges"
+                    >{{ goalBadges }}
+                    </span>
+                    <span 
+                        title="コメントバッジ"
+                        class="side-notification" 
+                        style="position: unset;width: 15px;z-index: 1;background-color:#FFA500;" 
+                        v-if="tab.path == 'project-members'&& goalCommentBadge"
+                    >{{ goalCommentBadge }}
+                    </span>
+                </div>
+                
                 <span 
-                    class="side-notification" 
-                    style="position: unset;width: 15px;z-index: 1;" 
-                    v-if="tab.path == 'project-members'&& totalMemberBadge"
-                >{{ totalMemberBadge }}
-                </span>
-                <span 
+                    title="確認バッジ"
                     class="side-notification" 
                     style="position: unset;width: 15px;z-index: 1;" 
                     v-if="tab.path == 'assets'&& assetBadge"
                 >{{ assetBadge }}
                 </span>
                 <span 
+                    title="コメントバッジ"
                     class="side-notification" 
-                    style="position: unset;width: 15px;z-index: 1;" 
+                    style="position: unset;width: 15px;z-index: 1;background-color:#FFA500;" 
                     v-if="tab.path == 'task-calendar'&& taskCommentBadge"
                 >{{ taskCommentBadge }}
                 </span>
                 <span 
+                    title="コメントバッジ"
                     class="side-notification" 
-                    style="position: unset;width: 15px;z-index: 1;" 
+                    style="position: unset;width: 15px;z-index: 1;background-color:#FFA500;" 
                     v-if="tab.path == 'finance'&& financeCommentBadge"
                 >{{ financeCommentBadge }}
                 </span>
@@ -60,6 +74,7 @@
             :user-list="userList"
             :has-privilage="hasPrivilage"
             :fileAccess="fileAccess"
+            :totalBadge="financeCommentBadge"
             :key="`rt_${route.params.projectId}`"
         />
     </div>
@@ -101,6 +116,7 @@ import { useRoute, useRouter } from 'vue-router';
         { name: 'メンバー', path: 'project-members'},
         { name: '業務マニュアル', path: 'operation'},
         { name: '契約書', path: 'contracts'},
+        { name: '法務レビュー', path: 'legal'},
         { name: '派遣', path: 'dispatch'},
         { name: '予算・実績', path: 'finance'},
         { name: 'ガントチャート', path: 'task-calendar'},
@@ -114,8 +130,11 @@ import { useRoute, useRouter } from 'vue-router';
         }
         return t;
     });
-    const totalMemberBadge = computed(() => {
-        return badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
+    const goalBadges = computed(() => {
+        return badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
+    })
+    const goalCommentBadge = computed(() => {
+        return badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
     })
     const assetBadge = computed(() => {
         return badge.assetsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
@@ -124,7 +143,7 @@ import { useRoute, useRouter } from 'vue-router';
         return badge.taskCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}]).length
     })
     const financeCommentBadge = computed(() => {
-        return badge.financeCommentBadgeByFilter([{ by: 'project_id', value: Number(route.params.projectId)}]).length
+        return badge.financeCommentBadgeByFilter({by: 'project_id', value: Number(route.params.projectId)})?.total_unread ?? 0
     })
     const hasPrivilage = computed(() => {
         return (selectedProject.value?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6) || auth.activeUser.id == 610 || auth.activeUser.id == 608) ? true : false

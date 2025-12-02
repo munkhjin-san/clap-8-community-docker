@@ -4,6 +4,7 @@
             <span>{{ displayStart }}</span>
             <span class="trigger-separator">~</span>
             <span>{{ displayEnd }}</span>
+            <span v-if="totalBadge" style="position: static;text-indent: inherit;" class="side-notification side-notification--comment-only">{{ totalBadge }}</span>
         </button>
         <div
             v-if="open"
@@ -28,6 +29,7 @@
                         @click="setStartMonth(m)"
                     >
                         {{ m }}月
+                        <span v-if="periodBadge && periodBadge[`${startYearModel}-${m.toString().padStart(2, '0')}`]" class="badge-count">{{ periodBadge[`${startYearModel}-${m.toString().padStart(2, '0')}`] }}</span>
                     </button>
                 </div>
             </div>
@@ -49,6 +51,8 @@
                         @click="setEndMonth(m)"
                     >
                         {{ m }}月
+                        <span v-if="periodBadge && periodBadge[`${endYearModel}-${m.toString().padStart(2, '0')}`]" class="badge-count">{{ periodBadge[`${endYearModel}-${m.toString().padStart(2, '0')}`] }}</span>
+
                     </button>
                 </div>
             </div>
@@ -75,6 +79,8 @@ const props = defineProps<{
     start: string;
     end: string;
     maxMonths?: number;
+    totalBadge?: number;
+    periodBadge?: { [key:string]: number };
 }>()
 
 const emit = defineEmits<{
@@ -249,6 +255,14 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped lang="scss">
+.badge-count{
+    background: #FFA500;
+    color: white;
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-size: 10px;
+    line-height: 1;
+}
 .period-range-picker {
     position: relative;
     display: inline-flex;
@@ -331,6 +345,9 @@ onBeforeUnmount(() => {
     font-size: 13px;
     cursor: pointer;
     transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .month-cell:hover {
     border-color: var(--primary-color);

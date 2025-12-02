@@ -97,6 +97,18 @@ class ProjectController extends Controller
         'COMPLETED'              => '★竣工済',
         'ORDERED_NOT_COMPLETED'  => '①受注済未竣工',
     ];
+    private const DEFAULT_ACTUAL_STATUSES = [
+        ['status_id' => 1, 'label' => '未着手', 'is_system_default' => true, 'sort_order' => 1],
+        ['status_id' => 2, 'label' => '進行中', 'is_system_default' => true, 'sort_order' => 2],
+        ['status_id' => 3, 'label' => '完了',   'is_system_default' => true, 'sort_order' => 3],
+        ['status_id' => 4, 'label' => 'キャンセル', 'is_system_default' => true, 'sort_order' => 4],
+    ];
+    private const SYSTEM_STATUS_LABELS = [
+        1 => '未着手',
+        2 => '進行中',
+        3 => '完了',
+        4 => 'キャンセル',
+    ];
     public function __construct(
         BoardController $boardController, 
         SharedService $sharedService, 
@@ -161,6 +173,14 @@ class ProjectController extends Controller
             'contract'
         ])
         ->get();
+        $projects = $projects->map(function (ProjectRecord $project) {
+            $project->actual_statuses = $project->actual_statuses ?: self::DEFAULT_ACTUAL_STATUSES;
+            $project->has_forecast = $project->has_forecast ?? true;
+            $project->has_goals = $project->has_goals ?? false;
+            $project->unit_id = $project->unit_id ?? 'JPY';
+            $project->custom_unit_label = $project->custom_unit_label ?? null;
+            return $project;
+        });
         $sortedProjects = $projects->sortByDesc(function ($project) {
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
             $isManager = in_array(Auth::id(), $project->manager->pluck('id')->toArray());
@@ -450,7 +470,17 @@ class ProjectController extends Controller
             'customers',
             'industry_type',
             'is_new',
+            'has_forecast',
+            'has_goals',
+            'unit_id',
+            'custom_unit_label',
         ])->toArray();
+
+        $filteredParams['has_forecast'] = array_key_exists('has_forecast', $params) ? (bool)$params['has_forecast'] : true;
+        $filteredParams['has_goals'] = array_key_exists('has_goals', $params) ? (bool)$params['has_goals'] : false;
+        $filteredParams['unit_id'] = $params['unit_id'] ?? 'JPY';
+        $filteredParams['custom_unit_label'] = $params['custom_unit_label'] ?? null;
+        $filteredParams['actual_statuses'] = $this->normalizeActualStatuses($params['actual_statuses'] ?? null);
 
         $project = ProjectRecord::updateOrCreate(['id' => $id], $filteredParams);
         $members = collect($params['members'])->pluck('id')->toArray();
@@ -936,12 +966,12 @@ class ProjectController extends Controller
         $managinProjectData = $this->members_of_project_managed_by_user($user);
         $selfProjects = $this->projects_participate_by_user($user);
         $projectData = array_merge($managinProjectData, $selfProjects);
-
+        
         if(!count($projectData)){
             return response()->json([]);
         }
         $goals = $this->goals_fetch_by_users($projectData, $date);
-
+        
         return response()->json($goals);
     }
 
@@ -1969,6 +1999,8 @@ class ProjectController extends Controller
         $request->validate([
             'project_id' => 'required',
             'year' => 'required',
+            'start'=> 'sometimes|date_format:Y-m',
+            'end'=> 'sometimes|date_format:Y-m',
         ]);
         $project = ProjectRecord::findOrFail($request->project_id);
         $year = (int) $request->year;
@@ -1978,8 +2010,9 @@ class ProjectController extends Controller
         $sheet_id = config('services.google.spreadsheet_id');
 
         $needed_ranges = [];
-        $sDate = Carbon::createFromDate((int) $year, 3, 1);
-        $eDate = $sDate->copy()->addMonthsNoOverflow(11);
+        $sDate = $request->start ? Carbon::createFromFormat('Y-m', $request->start) : Carbon::createFromDate((int) $year, 3, 1);
+        $eDate = $request->end ? Carbon::createFromFormat('Y-m', $request->end) : $sDate->copy()->addMonthsNoOverflow(11);
+
         for ($d = $sDate->copy(); $d->lessThanOrEqualTo($eDate); $d->addMonth()) {
             $needed_ranges[] = sprintf('%04d%02d', $d->year, $d->month);
         }
@@ -2028,9 +2061,26 @@ class ProjectController extends Controller
         }
 
         if (empty($detailRanges)) {
-            $empty = [];
-            foreach ($existing as $t) $empty[$t] = [];
-            return response()->json($empty);
+            // No matching project rows in any existing sheet.
+            // Still return per-month zeros so frontend can calculate variance.
+
+            $result = [];
+
+            foreach ($existing as $t) {
+                // $t is like "202504" → month = 4
+                $monthKey = (int) substr($t, 4, 2);
+
+                $result[$monthKey] = [
+                    'row'          => null,
+                    'sales'        => 0,
+                    'expense'      => 0,
+                    'overhead'     => 0,
+                    'profit'       => 0,
+                    'profit_rate'  => null,
+                ];
+            }
+
+            return response()->json($result);
         }
 
         $detailResp = $svc->spreadsheets_values->batchGet($sheet_id, ['ranges' => $detailRanges]);
@@ -2081,10 +2131,8 @@ class ProjectController extends Controller
 
                 $k++;
             }
+            
         }
-
-
-
         return response()->json($result);
     }
     public function get_asset_badge(Request $request){
@@ -2366,7 +2414,7 @@ class ProjectController extends Controller
             "profit" => 0,
             "profit_rate" => 0,
         ];
-        $default_settlement_data = $default_data + ['has_data' => false];
+        $default_settlement_data = $default_data + ['has_data' => true];
 
         $defaultSumData = [
             'yearly_plan' => [
@@ -2739,7 +2787,7 @@ class ProjectController extends Controller
         foreach ($projects as $dept) {
             $ps = $projectTotals[$dept]['profit']     ?? ['sales'=>0,'expense'=>0,'profit'=>0];
             $ss = $projectTotals[$dept]['settlement'] ?? ['sales'=>0,'expense'=>0,'profit'=>0];
-
+    
             $out[$dept] = [
                 'sales'    => VarianceService::achToVar(VarianceService::pct($ss['sales'],   $ps['sales'])),
                 'expense' => VarianceService::achToVar(VarianceService::pct($ss['expense'], $ps['expense'])),
@@ -2893,7 +2941,8 @@ class ProjectController extends Controller
             'type'                => ['nullable','string','in:年度予算,損益計画,実績'],
             'mentioned_user_ids'  => ['array'],
             'mentioned_user_ids.*'=> ['integer','exists:users,id'],
-            'reply_id'            => ['integer', 'nullable']
+            'reply_id'            => ['integer', 'nullable'],
+            'period'              => ['required', 'date_format:Y-m'],
         ]);
 
         DB::transaction(function () use (&$comment, $data, $user) {
@@ -2903,6 +2952,7 @@ class ProjectController extends Controller
                 'comment'           => $data['comment'],
                 'type'              => $data['type'] ?? null,
                 'reply_id'          => $data['reply_id'] ?? null,
+                'period'            => $data['period'],
             ]);
 
             if (!empty($data['mentioned_user_ids'])) {
@@ -2951,9 +3001,11 @@ class ProjectController extends Controller
     public function get_project_finance_comments(Request $req) {
         $data = $req->validate([
             'project_record_id' => ['required','integer','exists:project_records,id'],
+            'period'            => ['required','date_format:Y-m'],
         ]);
 
         $comment = ProjectFinanceComment::where('project_record_id', $data['project_record_id'])
+                ->where('period', $data['period'])
                 ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply'])
                 ->get();
         
@@ -2961,8 +3013,16 @@ class ProjectController extends Controller
     }
     public function monthlyCount(Request $req, ProjectRecord $project)
     {
-        $count = ProjectFinanceComment::where('project_record_id', $project->id)
-            ->count();
+        $data = $req->validate([
+            'period_start' => 'string|date_format:Y-m',
+            'period_end'   => 'string|date_format:Y-m',
+        ]);
+        $count = ProjectFinanceComment::select('period', DB::raw('COUNT(*) as comment_count'))
+                ->where('project_record_id', $project->id)
+                ->whereBetween('period', [$data['period_start'], $data['period_end']])
+                ->whereNull('deleted_at')
+                ->groupBy('period')
+                ->pluck('comment_count', 'period');
 
         // always return a stable key
         return response()->json(
@@ -2973,6 +3033,7 @@ class ProjectController extends Controller
         $data = $req->validate([
             'projectIds'   => ['sometimes', 'array'],
             'projectIds.*' => ['integer'],
+            'period' => ['nullable', 'date_format:Y-m'],
         ]);
         $ids = collect($data['projectIds'] ?? [])
             ->filter(fn ($v) => $v !== null && $v !== '')
@@ -2986,6 +3047,9 @@ class ProjectController extends Controller
             ->join('project_records as pr', 'pr.id', '=', 'c.project_record_id')
             ->whereIn('c.project_record_id', $ids)
             ->whereNull('c.deleted_at')
+            ->when(isset($data['period']), function ($query) use ($data) {
+                $query->where('c.period', $data['period']);
+            })
             ->groupBy('pr.name')
             ->pluck(DB::raw('COUNT(*) as comment_count'), 'pr.name'); // ["Project Name" => count]
 
@@ -3011,38 +3075,79 @@ class ProjectController extends Controller
         }
 
         $q = DB::table('project_finance_comments as c')
-            ->select('c.project_record_id', DB::raw('COUNT(*) as unread_count'))
-            ->leftJoin('project_finance_last_reads as lr', function ($j) use ($userId) {
-                $j->on('lr.project_record_id', '=', 'c.project_record_id')
-                ->where('lr.user_id', '=', $userId);
+            ->select(
+                'c.project_record_id',
+                'c.period',
+                DB::raw('COUNT(*) as unread_count')
+            )
+            // Prefer period-specific read rows
+            ->leftJoin('project_finance_last_reads as lrp', function ($j) use ($userId) {
+                $j->on('lrp.project_record_id', '=', 'c.project_record_id')
+                  ->on('lrp.period', '=', 'c.period')
+                  ->where('lrp.user_id', '=', $userId);
+            })
+            // Fallback to legacy null-period rows to avoid badge spikes
+            ->leftJoin('project_finance_last_reads as lrn', function ($j) use ($userId) {
+                $j->on('lrn.project_record_id', '=', 'c.project_record_id')
+                  ->whereNull('lrn.period')
+                  ->where('lrn.user_id', '=', $userId);
             })
             ->whereIn('c.project_record_id', $projectIds)
             ->whereNull('c.deleted_at')       // if SoftDeletes
             ->where('c.user_id', '!=', $userId)
             ->where(function ($w) {
-                $w->whereColumn('c.created_at', '>', 'lr.last_read_at')
-                ->orWhereNull('lr.last_read_at');
-            });
-         $rows = $q->groupBy('c.project_record_id')->get();
+                $w->whereNull(DB::raw('COALESCE(lrp.last_read_at, lrn.last_read_at)'))
+                  ->orWhereColumn('c.created_at', '>', DB::raw('COALESCE(lrp.last_read_at, lrn.last_read_at)'));
+            })
+            ->groupBy('c.project_record_id', 'c.period');
+            // no select('*'), or ONLY_FULL_GROUP_BY will yell again
 
-        $data = $rows->map(fn($r) => [
-            'project_id' => (int) $r->project_record_id,
-            'comments'   => (int) $r->unread_count,
-        ])->values();
+        $rows = $q->get();
+
+
+        $totalUnread = 0;
+        $projects = [];
+
+        foreach ($rows as $r) {
+            $projectId = (int) $r->project_record_id;
+            $period    = $r->period;
+            $count     = (int) $r->unread_count;
+
+            $totalUnread += $count;
+
+            if (!isset($projects[$projectId])) {
+                $projects[$projectId] = [
+                    'project_id'    => $projectId,
+                    'total_unread'  => 0,
+                    'period_counts' => [],   // period => count
+                ];
+            }
+
+            $projects[$projectId]['total_unread'] += $count;
+            $projects[$projectId]['period_counts'][$period] = $count;
+        }
+
+        $data = [
+            'total_unread' => $totalUnread,
+            'projects'     => array_values($projects),
+        ];
 
         return response()->json($data);
+
     }
 
-    public function mark_finance_read(Request $request, int $projectId) {
+    public function mark_finance_read(Request $request, ProjectRecord $project) {
+        $data = $request->validate(['period' => ['required', 'date_format:Y-m']]);
         $user = $this->active_user();
         
-        $lastRead = ProjectFinanceLastRead::updateOrCreate(
-            ['project_record_id' => $projectId, 'user_id' => $user->id],
+        ProjectFinanceLastRead::updateOrCreate(
+            ['project_record_id' => $project->id, 'user_id' => $user->id, 'period' => $data['period']],
             ['last_read_at' => now()]
         );
 
         return response()->json(['status' => 'ok']);
     }
+
 
     public function finance_comment_update(Request $request){
         $request->validate([
@@ -3248,19 +3353,18 @@ class ProjectController extends Controller
             'kind'        => ['required', Rule::in(self::CASE_KINDS)],
             'stage'       => ['nullable', Rule::in(self::CASE_STAGES)],
             'delivery_status' => ['nullable', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
+            'actual_status_label' => ['nullable', 'string', 'max:191'],
             'client_name' => ['nullable', 'string', 'max:191'],
-            'case_count'  => ['required', 'integer', 'min:0'],
+            'case_count'  => ['nullable', 'integer', 'min:0'],
             'amount'      => ['required', 'integer', 'min:0'],
             'notes'       => ['nullable', 'string'],
             'report_date' => ['required', 'date_format:Y-m-d'],
             'state'       => ['required', Rule::in(['draft', 'submitted'])],
             'member_id'   => ['nullable', 'integer']
-        ], [
-            'case_count.required' => '案件は必須です。',
-            'amount.required' => '金額は必須です。'
         ]);
 
         $kind = $data['kind'];
+        $this->ensureCaseKindAllowed($project, $kind);
         if ($kind === 'PIPELINE') {
             $req->validate([
                 'stage' => ['required', Rule::in(['A', 'B', 'C', 'D', 'E'])],
@@ -3268,14 +3372,15 @@ class ProjectController extends Controller
         }
         if ($kind === 'ACTUAL') {
             $req->validate([
-                'delivery_status' => ['required', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
+                'actual_status_label' => ['required', 'string', 'max:191'],
             ]);
         }
 
         [$stage, $delivery, $statusLabel, $probability] = $this->normalizeCaseAttributes(
             $kind,
             $data['stage'] ?? null,
-            $data['delivery_status'] ?? null
+            $data['delivery_status'] ?? null,
+            $data['actual_status_label'] ?? null
         );
         $reportDate = Carbon::parse($data['report_date'])->startOfMonth();
         $user_id = $data['member_id'] ?? $user->id;
@@ -3288,7 +3393,7 @@ class ProjectController extends Controller
             'status'           => $statusLabel,
             'probability'      => $probability,
             'client_name'      => $data['client_name'] ?? null,
-            'case_count'        => $data['case_count'],
+            'case_count'        => $data['case_count'] ?? 0,
             'amount'            => $data['amount'],
             'notes'             => $data['notes'] ?? null,
             'report_date'       => $reportDate,
@@ -3348,19 +3453,20 @@ class ProjectController extends Controller
             'kind'        => ['required', Rule::in(self::CASE_KINDS)],
             'stage'       => ['nullable', Rule::in(self::CASE_STAGES)],
             'delivery_status' => ['nullable', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
+            'actual_status_label' => ['nullable', 'string', 'max:191'],
             'client_name' => ['nullable', 'string', 'max:191'],
-            'case_count'  => ['required', 'integer', 'min:0'],
+            'case_count'  => ['nullable', 'integer', 'min:0'],
             'amount'      => ['required', 'integer', 'min:0'],
             'notes'       => ['nullable', 'string'],
             'report_date' => ['required', 'date_format:Y-m-d'],
             'state'       => ['required', Rule::in(['draft', 'submitted'])],
             'member_id'   => ['nullable', 'integer'],
         ], [
-            'case_count.required' => '案件は必須です。',
             'amount.required' => '金額は必須です。',
         ]);
 
         $kind = $data['kind'];
+        $this->ensureCaseKindAllowed($project, $kind);
         if ($kind === 'PIPELINE') {
             $req->validate([
                 'stage' => ['required', Rule::in(['A', 'B', 'C', 'D', 'E'])],
@@ -3368,14 +3474,15 @@ class ProjectController extends Controller
         }
         if ($kind === 'ACTUAL') {
             $req->validate([
-                'delivery_status' => ['required', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
+                'actual_status_label' => ['required', 'string', 'max:191'],
             ]);
         }
 
         [$stage, $delivery, $statusLabel, $probability] = $this->normalizeCaseAttributes(
             $kind,
             $data['stage'] ?? null,
-            $data['delivery_status'] ?? null
+            $data['delivery_status'] ?? null,
+            $data['actual_status_label'] ?? null
         );
 
         $reportDate = Carbon::parse($data['report_date'])->startOf('month');
@@ -3388,7 +3495,7 @@ class ProjectController extends Controller
             'status'           => $statusLabel,
             'probability'      => $probability,
             'client_name'      => $data['client_name'] ?? null,
-            'case_count'       => $data['case_count'],
+            'case_count'       => $data['case_count'] ?? 0,
             'amount'           => $data['amount'],
             'notes'            => $data['notes'] ?? null,
             'report_date'      => $reportDate,
@@ -3423,7 +3530,64 @@ class ProjectController extends Controller
         ]);
     }
 
-    private function normalizeCaseAttributes(string $kind, ?string $stage, ?string $delivery): array
+    private function normalizeActualStatuses($input): array
+    {
+        $rows = is_array($input) ? $input : [];
+        $clean = [];
+        $order = 1;
+
+        foreach ($rows as $row) {
+            $statusId = $row['status_id'] ?? null;
+            $customLabel = $row['custom_label'] ?? null;
+            $label = $statusId && isset(self::SYSTEM_STATUS_LABELS[$statusId])
+                ? self::SYSTEM_STATUS_LABELS[$statusId]
+                : trim((string) $customLabel);
+
+            if ($label === '') {
+                continue;
+            }
+
+            $clean[] = [
+                'status_id' => $statusId && isset(self::SYSTEM_STATUS_LABELS[$statusId]) ? (int) $statusId : null,
+                'label' => $label,
+                'sort_order' => $row['sort_order'] ?? $order,
+                'is_system_default' => $statusId && isset(self::SYSTEM_STATUS_LABELS[$statusId]),
+            ];
+            $order++;
+        }
+
+        if (!count($clean)) {
+            return self::DEFAULT_ACTUAL_STATUSES;
+        }
+
+        usort($clean, fn($a, $b) => ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0));
+        $reordered = [];
+        $i = 1;
+        foreach ($clean as $row) {
+            $reordered[] = [
+                'status_id' => $row['status_id'],
+                'label' => $row['label'],
+                'sort_order' => $i++,
+                'is_system_default' => $row['is_system_default'] ?? false,
+            ];
+        }
+
+        return $reordered;
+    }
+
+    private function ensureCaseKindAllowed(ProjectRecord $project, string $kind): void
+    {
+        $kind = strtoupper($kind);
+
+        if ($kind === 'PIPELINE' && !$project->has_forecast) {
+            abort(422, 'このプロジェクトではフォーキャスト（見込み）が無効です。');
+        }
+        if ($kind === 'PLAN' && !$project->has_goals) {
+            abort(422, 'このプロジェクトでは目標値入力が無効です。');
+        }
+    }
+
+    private function normalizeCaseAttributes(string $kind, ?string $stage, ?string $delivery, ?string $actualStatusLabel = null): array
     {
         $kind = strtoupper($kind);
 
@@ -3432,11 +3596,10 @@ class ProjectController extends Controller
                 return [null, null, '目標値', null];
 
             case 'ACTUAL':
-                $delivery = $delivery ?: 'COMPLETED';
                 $stage = 'WON';
-                $label = self::CASE_DELIVERY_LABELS[$delivery] ?? self::CASE_STAGE_LABELS['WON'];
+                $label = $actualStatusLabel ?: ($delivery ? (self::CASE_DELIVERY_LABELS[$delivery] ?? $delivery) : '実績');
                 $probability = self::CASE_STAGE_WEIGHT['WON'];
-                return [$stage, $delivery, $label, $probability];
+                return [$stage, null, $label, $probability];
 
             case 'PIPELINE':
                 $stage = strtoupper($stage ?? 'C');
@@ -3456,7 +3619,10 @@ class ProjectController extends Controller
         }
 
         if ($case->kind === 'ACTUAL') {
-            return self::CASE_DELIVERY_LABELS[$case->delivery_status] ?? self::CASE_STAGE_LABELS[$case->stage] ?? ($case->status ?? '実績');
+            if (!empty($case->status)) {
+                return $case->status;
+            }
+            return self::CASE_DELIVERY_LABELS[$case->delivery_status] ?? self::CASE_STAGE_LABELS[$case->stage] ?? '実績';
         }
 
         if ($case->kind === 'PIPELINE') {

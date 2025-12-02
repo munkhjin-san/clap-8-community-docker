@@ -35,8 +35,11 @@
                                 <span 
                                     class="side-notification" 
                                     style="position: unset;width: fit-content;" 
-                                    v-if="badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: member.id}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: member.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: member.id}]).length > 0">
-                                    {{ badge.goalsBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: member.id}]).length + badge.salaryIssueByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: member.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: Number(route.params.projectId)}, {by: 'user_id', value: member.id}]).length }}
+                                    v-if="confirmBadges(member.id) + commentBadges(member.id) > 0"
+                                    :class="{
+                                        'side-notification--comment-only': !confirmBadges(member.id) && commentBadges(member.id)
+                                    }">
+                                    {{ confirmBadges(member.id) + commentBadges(member.id) }}
                                 </span>
                             </div>
                         </div>
@@ -66,7 +69,15 @@ const badge = useBadgeStore()
 const route = useRoute()
 
 const { memberData, selectedProject } = useProject()
-
+const projectId = Number(route.params.projectId)
+const confirmBadges = (memberId: number) => {
+    const goalsBadge = badge.goalsBadgeByFilter([{by: 'project_id', value: projectId}, {by: 'user_id', value: memberId}]).length 
+    const issuesBadge = badge.salaryIssueByFilter([{by: 'project_id', value: projectId}, {by: 'user_id', value: memberId}]).length
+    return goalsBadge + issuesBadge
+}
+const commentBadges = (memberId: number) => {
+    return badge.goalIssueCommentBadgeByFilter([{by: 'project_id', value: projectId}, {by: 'user_id', value: memberId}]).length
+}
 </script>
 <style scoped>
 .project-header-row{

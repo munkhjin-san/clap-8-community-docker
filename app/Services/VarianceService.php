@@ -5,7 +5,8 @@ namespace App\Services;
 final class VarianceService
 {
     public static function pct(?float $num, ?float $den): ?float
-    {
+    {   
+        if ($den == 0.0 && $num > 0.0) return 0;
         if ($num === null || $den === null || $den == 0.0 || is_nan($num) || is_nan($den)) return null;
         return ($num / $den) * 100.0;
     }

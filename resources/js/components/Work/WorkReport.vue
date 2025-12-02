@@ -496,6 +496,10 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
     const saveTimeCard = async(status_flag) => {
         const validate = await showToastIfEmpty()
         if(!validate) return
+        if (isInvalidTime(formatTime(editStartTime.value)) || isInvalidTime(formatTime(editEndTime.value))) {
+            ping('就業時間は必須項目です。入力してください。')
+            return
+        }
         if(shift.value?.overtime_request){
             const confirm = await confirmOvertime()
             if(!confirm.value) return            
@@ -506,17 +510,20 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
         }
         loading.value[status_flag] = true
         const params = await buildParams(status_flag)
-
         await api.post('/save_time_card', params, {
             toast: '申請しました。'
         })
         emit('reload')
-
-
-        
-        
     }
-
+    const isInvalidTime = (t) => {
+        if (!t) return true             // null, undefined, empty
+        if (typeof t !== 'string') return true
+        if (!/^\d{2}:\d{2}$/.test(t)) return true // format sanity
+        const [h, m] = t.split(':').map(Number)
+        if (Number.isNaN(h) || Number.isNaN(m)) return true
+        if (h > 23 || m > 59) return true
+        return false
+    }
 </script>
 <style scoped>
     table{
