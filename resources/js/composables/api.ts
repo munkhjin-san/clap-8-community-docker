@@ -135,7 +135,7 @@ export function useApi() {
             return null;
         }
 
-        const useCancel = options?.cancel ?? true;
+        const useCancel = options?.cancel ?? false;
         let key: string | null = null;
         let controller: AbortController | null = null;
 
@@ -186,7 +186,7 @@ export function useApi() {
             return null;
         }
 
-        const useCancel = options?.cancel ?? true;
+        const useCancel = options?.cancel ?? false;
         let key: string | null = null;
         let controller: AbortController | null = null;
 
@@ -236,7 +236,7 @@ export function useApi() {
             return null;
         }
 
-        const useCancel = options?.cancel ?? true;
+        const useCancel = options?.cancel ?? false;
         let key: string | null = null;
         let controller: AbortController | null = null;
 
@@ -286,7 +286,7 @@ export function useApi() {
             return null;
         }
 
-        const useCancel = options?.cancel ?? true;
+        const useCancel = options?.cancel ?? false;
         let key: string | null = null;
         let controller: AbortController | null = null;
 

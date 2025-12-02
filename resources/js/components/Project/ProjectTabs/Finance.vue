@@ -4,7 +4,7 @@
             <div class="sub-tab-container">
                 <div @click="changeBetweenTabs('check')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'check'}]">収支確認</div>
                 <div @click="changeBetweenTabs('case')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'case'}]">案件報告集計</div>
-                <div @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算入力</div>
+                <!-- <div @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算入力</div> -->
             </div>
         </div>
         
