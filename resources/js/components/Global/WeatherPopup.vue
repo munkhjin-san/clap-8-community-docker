@@ -256,7 +256,7 @@ const randomPick = (arr: any[], count: number) => {
     return copy.slice(0, count);
 }
 const start = async () => {
-    if (!saving.value) return
+    if (saving.value === null) return
     loading.value = true;
     const user = await api.post('/save_weather', { value: saving.value, comment: todayComment.value })
     if(user && Object.hasOwn(user, 'id')){
