@@ -42,15 +42,19 @@ const menu = useMenuStore()
 </script>
 <style scoped>
 .bubble {
-  display: inline-block;
-  max-width: 280px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: var(--kebab-bg1);
-  color: var(--primary-color);
-  position: absolute;
-  top: -35px;
-  z-index: 1;
+    display: inline-block;
+    max-width: 280px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--kebab-bg1);
+    color: var(--primary-color);
+    position: absolute;
+    top: -35px;
+    z-index: 1;
+    box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
+    font-size: 14px;
+    line-height: 1.5;
+  
 }
 
 /* Tail */

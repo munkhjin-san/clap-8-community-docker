@@ -5,7 +5,7 @@
             <div
             v-for="(member, index) in members"
             :key="member.id"
-            class="flex gap-2 rounded-xl items-center p-2 [box-shadow:0_1px_1px_#0000004d,0_0_40px_#8080801a_inset] bg-[var(--background-color)]"
+            class="relative flex gap-2 rounded-xl items-center p-2 [box-shadow:0_1px_1px_#0000004d,0_0_40px_#8080801a_inset] bg-[var(--background-color)]"
             >
             <UserPanel
                 :user="member"
@@ -19,7 +19,7 @@
                 size="15"
                 style="min-width: 15px;"
             />
-            <div class="relative cursor-pointer min-w-0">
+            <div class="cursor-pointer min-w-0">
                 <p
                     class="truncate whitespace-nowrap text-sm min-w-0"
                     @click.stop="toggleComment(member)"
@@ -32,7 +32,7 @@
                     ref="commentBox"
                     class="comment-box text-sm"
                     :style="getCommentBoxStyle(index)"
-                    style="z-index: 9;"
+                    style="z-index: 9;width: 100%;"
                 >
                     <div style="word-break: break-word;">
                         {{ member?.custom_field_data_records?.[0]?.value_text }}
@@ -65,7 +65,6 @@ onMounted(() => {
         'ontouchstart' in window ||
         navigator.maxTouchPoints > 0
 })
-const commentBoxPos = ref<{ top: number; left: number }>({ top: 0, left: 0 });
 
 const openComment = (member) => {
   menu.setMenu({ name: 'commentBox', id: member.id });
@@ -96,10 +95,9 @@ const getCommentBoxStyle = (index: number) => {
     }
   }
 
-  // desktop: use calculated position
   return {
-    top: `${commentBoxPos.value.top}px`,
-    left: `${commentBoxPos.value.left}px`,
+    top: `100%`,
+    left: `0`,
   };
 };
 const toggleComment = (member) => {
