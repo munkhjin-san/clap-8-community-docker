@@ -18,6 +18,8 @@ use App\Models\timecardRecord;
 use App\Models\User;
 use App\Models\workTemp;
 use App\Models\PostRecord;
+use App\Models\CustomfieldRead;
+use App\Models\customFieldDataRecord;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -820,5 +822,25 @@ class RemindController extends Controller
         $counts['total'] = $count;
     
         return response()->json($counts);
+    }
+    public function get_today_readable(){
+        $active = $this->active_user();
+        $typeId = 43;
+        $latestId = customFieldDataRecord::where('type_id', $typeId)
+            ->whereNotNull('value_text')
+            ->max('id') ?? 0;
+        
+        $read = customFieldRead::where('user_id', $active->id)
+            ->where('type_id', $typeId)
+            ->first();
+
+        $latestReadId = $read?->last_read_customfield_id ?? 0;
+
+        $hasUnread = $latestId > $latestReadId;
+
+        return response()->json([
+            'has_unread' => $hasUnread,
+            'latest_id'  => $latestId,
+        ]);
     }
 }

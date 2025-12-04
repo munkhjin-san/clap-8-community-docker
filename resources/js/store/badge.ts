@@ -17,6 +17,7 @@ interface State {
     contact_comment: [],
     boardBadgeFetchedAt: number | null,
     boardBadgeRequest: Promise<void> | null,
+    communityBadge: boolean;
 }
 const BOARD_BADGE_CACHE_MS = 2000;
 
@@ -36,7 +37,8 @@ export const useBadgeStore = defineStore('badge', {
         goal_issue_comment: [],
         contact_comment: [],
         boardBadgeFetchedAt: null,
-        boardBadgeRequest: null
+        boardBadgeRequest: null,
+        communityBadge: false,
 
     }),
     actions: {
@@ -124,6 +126,10 @@ export const useBadgeStore = defineStore('badge', {
         async getContactCommentBadge(){
             const data = await axios.get('/get_contact_comment_badge').then(response => response.data)
             this.contact_comment = data
+        },
+        async getTodayReadableBadge(){
+            const data = await axios.get('/get_today_readable').then(response => response.data)
+            this.communityBadge = data.has_unread
         }
     },
     getters: {
@@ -242,6 +248,9 @@ export const useBadgeStore = defineStore('badge', {
         },
         contactBadge(){
             return this.contact_comment
+        },
+        communityBadgeStatus() {
+            return this.communityBadge
         }
         
     }

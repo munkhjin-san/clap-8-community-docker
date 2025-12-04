@@ -58,7 +58,8 @@ class CustomfieldController extends Controller{
         ];
         $record = CustomFieldDataRecord::updateOrCreate(
             $keys,
-            ['value_int' => (int) $request->value]
+            ['value_int' => (int) $request->value,
+            'value_text' => $request->comment ?? '']
         );
         
         $user = $request->user()->fresh()->load([

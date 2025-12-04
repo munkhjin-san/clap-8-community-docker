@@ -177,6 +177,7 @@ import { useDialog } from '@/composables/dialog';
             await badge.getFinanceCommentBadge()
             await badge.getGoalIssueCommentBadge()
             await badge.getContactCommentBadge()
+            await badge.getTodayReadableBadge()
         }, 3000);
     })
     const postHandler = () => {

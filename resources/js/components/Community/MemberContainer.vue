@@ -16,7 +16,7 @@
                         </div>
                     </div>
                 </Transition>
-                <div class="member-container" @scroll="scrollListen" ref="memberContainerRef">            
+                <div class="member-container" @scroll="scrollListen" @click="menu.close()" ref="memberContainerRef">            
                     <div v-for="(position, index) in positions" style="">
                         <p class="position-title" :class="{'first-position' : index == 0}">{{position.name}}</p>
                         <div v-if="position.employees" class="employee-container">
@@ -40,6 +40,14 @@
                 </div>      
             </div>   
         </div>
+        <Modal size="large" @close="today_members = []" v-if="today_members.length">
+            <template #title>
+                みんなのひとこと
+            </template>
+            <template #content>
+                <DailyMemberMessages :members="today_members"/>
+            </template>
+        </Modal>
     </div>
 </template>
 <script setup lang="ts">
@@ -52,12 +60,31 @@ import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { useAuthUserStore } from '@/store/auth';
 import MemberBlock from './MemberBlock.vue';
+import { useMenuStore } from '@/store/menu';
+import Modal from '../Global/Modal.vue';
+import DailyMemberMessages from '../Global/DailyMemberMessages.vue';
+import { useBadgeStore } from '@/store/badge';
 const keyword = ref('')
 const route = useRoute()
 const router = useRouter()
 const prevScrollPosition = ref(0)
 const container = useTemplateRef('container')
 const offset = ref(0)
+const menu = useMenuStore()
+const today_members = ref<{
+    id: number;
+    name: string;
+    icon_bg: string;
+    icon_path: string;
+    custom_field_data_records?: commentType[]
+    pivot: any 
+}[]>([])
+type commentType = {
+    value_text: string;
+    date: string;
+    type_id:number;
+    value_int: number;
+}
  const scrollPos = ref(0)
     const memberList = ref<Array<any>>([])
     const sortByShokkai = ref(false)
@@ -67,6 +94,7 @@ const offset = ref(0)
     const responsive = useResponsive()
     const { toast, ping } = useDialog()
     const api = useApi()
+    const badge = useBadgeStore()
     const sortableList = computed(() => {
         if (!keyword.value.trim()) {
             return memberList.value.map(position => ({
@@ -99,10 +127,12 @@ const offset = ref(0)
         const hasMembers = sortableList.value.filter( pos => pos.employees && pos.employees.length)
         return hasMembers.length ? hasMembers : []
     })
-    onMounted(() => {
+    onMounted(async() => {
         const val = JSON.parse(localStorage.getItem('memberViewType') || 'false')
         sortByShokkai.value = val == null ? false : val
-        getMembers()
+        await getMembers()
+        await markAsRead()
+        badge.getTodayReadableBadge()
     })
  
     const switchView = () => {
@@ -116,12 +146,15 @@ const offset = ref(0)
 
         initialLoader.value = true
         const response = await api.post('/get_members_list', {byShokkai: sortByShokkai.value})
-        memberList.value = response      
-
+        memberList.value = response.members      
+        today_members.value = response.today_unread_comments
         setTimeout(() => {
             initialLoader.value = false
         }, 200); 
     
+    }
+    const markAsRead = async() => {
+        await api.get('/mark_condition_asread')
     }
     const scrollListen = (event) => {
         scrollPos.value = event.target.scrollTop
@@ -150,7 +183,7 @@ const handleScroll = () => {
   display: flex;
   flex-wrap: wrap;
   flex-direction: row;
-  overflow-y: auto;
+  overflow: visible;
   -webkit-overflow-scrolling: touch;
   background: var(--background-color);
 }
@@ -159,6 +192,7 @@ const handleScroll = () => {
   margin: 10px 0;
   transition: transform .1s;
   align-self: center;
+  position: relative;
 }
 .employee-card > .employee-card-inner{
   margin:0 10px;

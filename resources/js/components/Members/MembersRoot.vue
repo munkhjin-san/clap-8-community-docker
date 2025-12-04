@@ -139,7 +139,7 @@ import { useApi } from '@/composables/api';
         const response = await api.post('/get_members_list', {byShokkai: sort}, {
             loadingRef: initialLoader,
         })
-        memberList.value = response      
+        memberList.value = response.members      
 
     }
     const scrollListen = (event) => {

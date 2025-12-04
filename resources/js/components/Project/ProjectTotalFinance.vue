@@ -94,21 +94,29 @@
                                     <option value="manager">管理者</option>
                                 </select>
                             </div>
-                            <div class="flex items-center gap-[20px] relative w-full justify-end flex-wrap md:flex-nowrap">
-                                <button @click="shiftRange(-1)" class="flex items-center justify-center h-[30px] w-[30px] min-w-[30px]">
-                                    <Back size="13"/>
-                                </button>
+                            <div class="flex items-center gap-[20px] relative w-full justify-center md:justify-end flex-wrap md:flex-nowrap">
+                                <div class="flex items-center">
+                                    <span v-if="previousMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ previousMonthCount }}</span>
+                                    <button @click="shiftRange(-1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
+                                        <Back size="13"/>
+                                    </button>
+                                </div>
+                                
                                 <PeriodRangePicker
                                     :start="periodStartIso"
                                     :end="periodEndIso"
                                     :max-months="isMobile() ? 1 : 12"
-                                    :total-badge="selectedBadge.total_unread"
+                                    :total-badge="thisMonthCount"
                                     :period-badge="selectedBadge.period_counts"
                                     @change="handleRangeChange"
                                 />
-                                <button @click="shiftRange(1)" class="flex items-center justify-center h-[30px] w-[30px] min-w-[30px]">
-                                    <Back size="13" class="rotate-180"/>
-                                </button>
+                                <div class="flex items-center">
+                                    <button @click="shiftRange(1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
+                                        <Back size="13" class="rotate-180"/>
+                                    </button>
+                                    <span v-if="nextMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ nextMonthCount }}</span>
+                                </div>
+                                
                             </div>
 
                             </div>
@@ -853,8 +861,44 @@ const periodStartIso = computed(() => periodStart.value.toFormat('yyyy-MM'))
 const periodEndIso = computed(() => periodEnd.value.toFormat('yyyy-MM'))
 
 const normalizedRange = computed(() => normalizeRange(periodStart.value, periodEnd.value))
+const nextMonthKey = computed(() =>
+  periodEnd.value.plus({ months: 1 }).toFormat('yyyy-MM')
+)
+const previosMonthKey = computed(() => 
+    periodStart.value.minus({ months: 1 }).toFormat('yyyy-MM')
+)
+const nextMonthCount = computed(() =>
+  selectedBadge.value.period_counts[nextMonthKey.value] ?? 0
+)
+const previousMonthCount = computed(() =>
+  selectedBadge.value.period_counts[previosMonthKey.value] ?? 0
+)
+const thisMonthCount = computed(() => {
+    const badge = selectedBadge.value
+    if (!badge || !badge.period_counts) return 0
+    if (periodStartIso.value === periodEndIso.value) {
+        return badge.period_counts[periodStartIso.value] ?? 0
+    }
+    let start = periodStart.value.startOf('month')
+    let end   = periodEnd.value.startOf('month')
 
+    if (start > end) {
+        const tmp = start
+        start = end
+        end = tmp
+    }
 
+    let sum = 0
+    let cursor = start
+
+    while (cursor <= end) {
+        const key = cursor.toFormat('yyyy-MM')
+        sum += badge.period_counts[key] ?? 0
+        cursor = cursor.plus({ months: 1 })
+    }
+
+    return sum
+})
 const intervalPayload = computed(() => ({
   startYear: normalizedRange.value.start.year,
   startMonth: normalizedRange.value.start.month as MonthNumbers,
@@ -1143,6 +1187,19 @@ const selectedBadge = computed(() => {
 </script>
 
 <style scoped lang="scss">
+.badge-count {
+    background: #F28C28;
+    color: white;
+    border-radius: 999px;
+    padding: 1px 6px;
+    font-size: 10px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 15px;
+    height: 15px;
+}
 .project-selector-left {
     display: flex;
     gap: 15px;

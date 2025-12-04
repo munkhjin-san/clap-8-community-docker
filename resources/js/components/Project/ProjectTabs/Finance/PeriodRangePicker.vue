@@ -2,8 +2,8 @@
     <div class="period-range-picker" ref="pickerRef">
         <button class="picker-trigger" type="button" @click.stop="togglePanel">
             <span>{{ displayStart }}</span>
-            <span class="trigger-separator">~</span>
-            <span>{{ displayEnd }}</span>
+            <span v-if="displayStart !== displayEnd" class="trigger-separator">~</span>
+            <span v-if="displayStart !== displayEnd">{{ displayEnd }}</span>
             <span v-if="totalBadge" style="position: static;text-indent: inherit;" class="side-notification side-notification--comment-only">{{ totalBadge }}</span>
         </button>
         <div
@@ -13,7 +13,7 @@
         >
             <div class="picker-column flex">
                 <header class="column-header">
-                    <span>開始</span>
+                    <span v-if="!isMobile()">開始</span>
                     <div class="year-controls">
                         <button type="button" @click="adjustStartYear(-1)">‹</button>
                         <span>{{ startYearModel }}年</span>
@@ -70,6 +70,7 @@
 </template>
 
 <script setup lang="ts">
+import { isMobile } from '@/utils/tools';
 import { DateTime } from 'luxon'
 import { ComputedRef, computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
@@ -237,6 +238,7 @@ const handleDocumentClick = (event: MouseEvent) => {
 }
 
 const togglePanel = () => {
+    
     open.value = !open.value
 }
 
@@ -387,10 +389,11 @@ onBeforeUnmount(() => {
 }
 @media screen and (max-width: 540px) {
     .picker-panel {
-        left: 0;
+        left: 50%;
         right: auto;
         grid-template-columns: 1fr;
         min-width: 240px;
+        transform: translateX(-50%);
     }
     .month-grid {
         grid-template-columns: repeat(4, minmax(48px, 1fr));

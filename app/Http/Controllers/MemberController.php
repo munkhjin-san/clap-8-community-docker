@@ -5,6 +5,8 @@ use App\Models\positionRecord;
 use App\Models\User;
 use App\Models\SalaryIssue;
 use App\Models\ProjectGoal;
+use App\Models\customFieldDataRecord;
+use App\Models\CustomfieldRead;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -80,7 +82,8 @@ class MemberController extends Controller
                             $q->where('deleted_flag', 0);
                         },
                         'offices',
-                        'today_weather'
+                        'today_weather',
+                        'today_comment'
                     ])
                     ->select('id', 'name', 'name_kana', 'motto', 'icon_path', 'icon_bg', 'icon_bg', 'icon_bg', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
             }
@@ -169,7 +172,8 @@ class MemberController extends Controller
                         $q->where('deleted_flag', 0);
                     },
                     'offices',
-                    'today_weather'
+                    'today_weather',
+                    'today_comment'
                 ])
                 ->select('id', 'name', 'name_kana', 'motto', 'icon_path', 'icon_bg', 'icon_bg', 'icon_bg', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code')
                 ->get();
@@ -190,7 +194,8 @@ class MemberController extends Controller
                                 $q->where('deleted_flag', 0);
                             },
                             'offices',
-                            'today_weather'
+                            'today_weather',
+                            'today_comment'
                         ])
                         ->select('id', 'name', 'name_kana', 'motto', 'icon_path', 'icon_bg', 'icon_bg', 'icon_bg', 'office_id', 'position_id', 'phone_number', 'work_email', 'user_code');
                 }
@@ -206,7 +211,66 @@ class MemberController extends Controller
 
         $sort = $request->byShokkai;
         $list = $this->fetch_members($sort);
-        return response()->json($list);      
+        $comments = $this->get_unread_today_comments();
+        return response()->json([
+            'members' => $list,
+            'today_unread_comments' => $comments
+        ]);      
+    }
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
+    public function get_unread_today_comments() {
+        $typeId = 43;
+        $user = $this->active_user();
+        $today = Carbon::now()->format('Y-m-d');
+        $read = CustomfieldRead::where('user_id', $user->id)
+        ->where('type_id', $typeId)
+        ->first();
+        $lastReadId = $read?->last_read_customfield_id ?? 0;
+        $items = User::where('retire', 0)
+            ->whereHas('custom_field_data_records', function ($q) use ($lastReadId, $today, $user) {
+                $q->where('id', '>', $lastReadId)
+                    ->where('user_id', '!=', $user->id)
+                    ->where('date', $today)
+                    ->where('type_id', 43)
+                    ->whereNotNull('value_text');
+            })->with(['custom_field_data_records' => function ($q) use ($lastReadId, $today, $user) {
+                $q->where('id', '>', $lastReadId)
+                    ->where('user_id', '!=', $user->id)
+                    ->where('date', $today)
+                    ->where('type_id', 43)
+                    ->whereNotNull('value_text')
+                    ->select('user_id', 'date', 'type_id', 'value_text', 'value_int');
+            }])->select('id', 'name', 'icon_bg', 'icon_path')->get();
+        return $items;
+
+    }
+    public function mark_condition_asread() {
+        $typeId = 43;
+        $user = $this->active_user();
+        $today = Carbon::now()->format('Y-m-d');
+        $latestId = customFieldDataRecord::where('type_id', $typeId)
+            ->where('date', $today)
+            ->whereNotNull('value_text')
+            ->max('id') ?? 0;
+
+        CustomfieldRead::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'type_id' => $typeId,
+            ],
+            [
+                'last_read_customfield_id' => $latestId,
+            ]
+        );
+
+        return response()->json(['status' => 'ok', 'last_read_id' => $latestId]);
     }
     public function get_kadai_list(Request $request){
 

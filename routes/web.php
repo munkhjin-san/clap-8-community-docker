@@ -360,6 +360,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_performance_options', [MemberController::class, 'get_performance_options']);
         Route::post('/get_performance_records', [MemberController::class, 'get_performance_records']);
         Route::post('/get_job_evaluation', [MemberController::class, 'get_job_evaluation']);
+        Route::get('/mark_condition_asread', [MemberController::class, 'mark_condition_asread']);
         Route::get('/get_evaluation_levels', [ProjectController::class, 'get_evaluation_levels']);
         Route::get('/mentionable_users', [ProjectController::class, 'mentionable_users']);
         Route::post('/project_finance_comment', [ProjectController::class, 'project_finance_comment']);
@@ -539,6 +540,20 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_metrics/{project}/with_values', [ProjectController::class, 'project_metrics_with_values']);
         Route::post('/project_metrics/{project}/values', [ProjectController::class, 'metric_values_store']);
         Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
+
+        // Project plan (accounts/amounts) - new prefixed schema
+        Route::get('/projects/{project}/plan/grid', [\App\Http\Controllers\ProjectPlanController::class, 'grid']);
+        Route::post('/projects/{project}/plan/grid', [\App\Http\Controllers\ProjectPlanController::class, 'save']);
+        Route::get('/projects/{project}/plan/scenarios', [\App\Http\Controllers\ProjectPlanController::class, 'scenarios']);
+        Route::post('/projects/{project}/plan/scenarios', [\App\Http\Controllers\ProjectPlanController::class, 'scenarioStore']);
+        Route::put('/projects/{project}/plan/scenarios/{scenario}', [\App\Http\Controllers\ProjectPlanController::class, 'scenarioUpdate']);
+        Route::delete('/projects/{project}/plan/scenarios/{scenario}', [\App\Http\Controllers\ProjectPlanController::class, 'scenarioDestroy']);
+        Route::get('/projects/{project}/plan/template', [\App\Http\Controllers\ProjectPlanController::class, 'downloadTemplate']);
+        Route::post('/projects/{project}/plan/template', [\App\Http\Controllers\ProjectPlanController::class, 'uploadTemplate']);
+        Route::get('/projects/{project}/accounts', [\App\Http\Controllers\ProjectPlanController::class, 'accounts']);
+        Route::post('/projects/{project}/accounts', [\App\Http\Controllers\ProjectPlanController::class, 'accountStore']);
+        Route::put('/projects/{project}/accounts/{account}', [\App\Http\Controllers\ProjectPlanController::class, 'accountUpdate']);
+        Route::delete('/projects/{project}/accounts/{account}', [\App\Http\Controllers\ProjectPlanController::class, 'accountDestroy']);
         Route::get('/projects/{project}/cases', [ProjectController::class, 'project_cases']);
         Route::post('/projects/{project}/cases', [ProjectController::class, 'project_case_store']);
         Route::put('/projects/{project}/cases/{case}', [ProjectController::class, 'project_case_update']);
@@ -607,6 +622,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/check_departure_report', [RemindController::class, 'check_departure_report']);
         Route::post('/send_departure_report', [WorkController::class, 'send_departure_report']);
         Route::get('/remind_challenge_progress', [RemindController::class, 'remind_challenge_progress']);
+        Route::get('/get_today_readable', [RemindController::class, 'get_today_readable']);
 
 
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);

@@ -97,7 +97,7 @@ const props = defineProps(['keyword'])
 
         initialLoader.value = true
         const response = await api.post('/get_members_list', {byShokkai: sortByShokkai.value})
-        memberList.value = response      
+        memberList.value = response.members      
 
         setTimeout(() => {
             initialLoader.value = false

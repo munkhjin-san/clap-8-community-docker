@@ -41,6 +41,7 @@ use App\Models\WelcomeMessage;
 use App\Models\workGroup;
 use App\Models\ProjectRecord;
 use App\Models\ProjectMember;
+use App\Models\customFieldDataRecord;
 use App\Mail\Warning;
 use Arr;
 use Illuminate\Support\Facades\Storage;
@@ -697,5 +698,72 @@ class AutoJobController extends Controller
         $data = $this->sharedService->createDepartureReport($user, $date);
         return view('departure_report_result', $data);
 
+    }
+    public function get_today_things() {
+        $date = Carbon::now()->format('Y-m-d');
+        $schedules = CalendarRecord::whereHas('calendar_users', function ($query) {
+                $query->where('users.id', Auth::id());
+            })
+            ->where(function ($q) use ($date) {
+                $q->whereDate('date_start', $date)
+                ->orWhereDate('date_end', $date);
+            })
+            ->with(['calendar_users', 'calendar_view_users'])
+            ->get();
+        $members = User::where('retire', 0)
+            ->whereHas('custom_field_data_records', function ($q) use ($date) {
+                $q->whereDate('date', $date)
+                    ->where('type_id', 43)
+                    ->whereNotNull('value_text');
+            })->with(['custom_field_data_records' => function ($q) use ($date) {
+                $q->whereDate('date', $date)
+                    ->where('type_id', 43)
+                    ->whereNotNull('value_text')
+                    ->select('user_id', 'date', 'type_id', 'value_text', 'value_int');
+            }])->select('id', 'name', 'icon_bg', 'icon_path')->get();
+        $progressExpr = "
+            TIMESTAMPDIFF(SECOND, created_at, NOW()) /
+            NULLIF(TIMESTAMPDIFF(SECOND, created_at, CONCAT(end_at, ' 23:59:59')), 0)
+        ";
+        // 1) Not started, already 50% of period passed
+        $notStartedReminders = TaskRecord::whereHas('executors', function ($q) {
+                $q->where('users.id', Auth::id())
+                ->where('progress_flag', 0); // not started
+            })
+            ->whereNotNull('end_at')
+            ->whereRaw("$progressExpr >= 0.5")
+            ->with([
+                'executors', 
+                'files', 
+                'supervisors', 
+                'project', 
+                'board.board_to_users',
+            ])
+            ->orderByDesc('created_at')
+            ->get();
+
+        // 2) In progress, already 80% of period passed
+        $inProgressReminders = TaskRecord::whereHas('executors', function ($q) {
+                $q->where('users.id', Auth::id())
+                ->where('progress_flag', 1); // working
+            })
+            ->whereNotNull('end_at')
+            ->whereRaw("$progressExpr >= 0.8")
+            ->with([
+                'executors', 
+                'files', 
+                'supervisors', 
+                'project', 
+                'board.board_to_users',
+            ])
+            ->orderByDesc('created_at')
+            ->get();
+        $tasks = $notStartedReminders->merge($inProgressReminders);
+
+        return response()->json([
+            'schedules' => $schedules,
+            'members' => $members,
+            'tasks' => $tasks,
+        ]);
     }
 }
