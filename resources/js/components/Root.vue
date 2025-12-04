@@ -174,7 +174,9 @@ import { useDialog } from '@/composables/dialog';
             await badge.getSalaryIssueBadge()
             await badge.getAssetBadge()
             await badge.getTaskCommentBadge()
-            await badge.getFinanceCommentBadge()
+            if(auth.user?.position_id <= 6 || auth.user.id === 610 || auth.user.id === 608) {
+                await badge.getFinanceCommentBadge()
+            }
             await badge.getGoalIssueCommentBadge()
             await badge.getContactCommentBadge()
             await badge.getTodayReadableBadge()
