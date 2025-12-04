@@ -1538,6 +1538,7 @@ class WorkController extends Controller
             }
             $closed_day = $shift_records->where('shift_type', 2)->count();
             $condolence_hours = $user_work_time_day * $request->condolence_leave;
+            $oda_hours = $user_work_time_day * $request->oda_leave;
             $transfer_hours = $user_work_time_day * $request->transfer_leave;
             $closed_hours = $user_work_time_day * $closed_day;
             $absence_days = ($working_hour_low - $request->worked_days) + $request->holiday_worked_days;
@@ -1554,7 +1555,7 @@ class WorkController extends Controller
             $attendance_record->petitionType1_count = $petitionType1_count;
             $attendance_record->closed_day = $closed_day;
             $attendance_record->absence_days = $absence_days >= 0 ? $absence_days : 0;
-            $absence_hours = $request->shift_working_hours - ($request->annual_leave * 60 + $condolence_hours + $transfer_hours + $closed_hours + $request->worked_hours);
+            $absence_hours = $request->shift_working_hours - ($request->annual_leave * 60 + $condolence_hours + $transfer_hours + $closed_hours + $request->worked_hours + $oda_hours);
             $attendance_record->absence_hour = $absence_hours >= 0 ? $absence_hours : 0;
             $attendance_record->date_year_month = $request->date_year_month;
             $attendance_record->user_id = $request->user['id'];
