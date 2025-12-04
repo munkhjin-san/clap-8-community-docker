@@ -3070,7 +3070,10 @@ class ProjectController extends Controller
                 ->pluck('id');
 
             if ($projectIds->isEmpty()) {
-                return response()->json([]);
+                return response()->json([
+                    'total_unread' => 0,
+                    'projects'     => [],
+                ]);
             }
         }
 
