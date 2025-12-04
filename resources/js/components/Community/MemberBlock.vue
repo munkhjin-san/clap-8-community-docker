@@ -14,7 +14,7 @@
                         <router-link style="font-size:17px;font-weight:bold;margin-right:5px;" class="user-link" :to="`/user/${member.id}`">{{member.name}}</router-link>
                         <WeatherIcon v-if="member.today_weather" :style="{minWidth: '20px', marginTop: member.today_weather.value_int == 2 ? '0' : '3px' }" :which="member.today_weather.value_int" size="15"/>
                         
-                        <div @click.stop="menu.setMenu({name: 'todayComment', id: member.id})" class="ml-[5px] flex items-center" v-if="member.today_comment" title="ひとこと">
+                        <div @click.stop="menu.setMenu({name: 'todayComment', id: member.id})" class="ml-[5px] flex items-center" v-if="member.today_comment && member.today_comment?.value_text" title="ひとこと">
                             <svg class="word-svg" xmlns="http://www.w3.org/2000/svg" id="b" data-name="Layer 2" viewBox="0 0 30.88051 24.97352">
 
                                 <path d="M10.55606,9.62179l.0546.06405c.04369.05122.08643.10446.12744.15921l.03031.04102.02192.03384.04359.06789c.03.04445.05602.09244.08107.14143.02617.04819.05066.09749.07036.15002.08557.20538.14022.43289.14638.66737.01404.46946-.17038.95105-.50548,1.2913-.33156.34197-.81002.54917-1.29145.54654-.23953.00081-.47583-.04475-.69015-.12699-.21493-.08193-.4087-.19579-.58226-.3254l-.05632-.04203-.04172-.05607c-.12946-.17366-.24322-.36743-.3249-.58241-.08148-.21458-.12684-.45067-.12567-.6899-.00051-.48057.2026-.95903.54382-1.29241.33939-.33672.82239-.52018,1.29226-.50755.23458.00546.46375.05607.67015.14174.05289.0197.10244.04395.15128.0693.04955.02435.0982.04981.1433.0793l.0689.04273.0343.02152.04198.03021c.03298.02414.0643.05001.09628.07526Z"/>
