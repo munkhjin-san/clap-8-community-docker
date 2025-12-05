@@ -51,27 +51,6 @@
                             <div class="members-block" key="daily-messages">
                                 <p class="leading-normal">みんなのひとこと</p>
                                 <DailyMemberMessages :members="members" />
-                                <!-- <div v-else class="member-chip-row" key="chips">
-                                    <div
-                                        v-for="member in members"
-                                        :key="member.id"
-                                        class="member-chip"
-                                    >
-                                        <UserPanel
-                                            :user="member"
-                                            :disable-instant="true"
-                                            :with-name="false"
-                                            size="22"
-                                        />
-                                        <WeatherIcon
-                                            v-if="member?.custom_field_data_records?.length"
-                                            :which="member?.custom_field_data_records[0]?.value_int"
-                                            size="14"
-                                            class="min-w-[18px]"
-                                        />
-                                        <span class="member-chip-text truncate">{{ member?.custom_field_data_records?.[0]?.value_text }}</span>
-                                    </div>
-                                </div> -->
                             </div>
                         </transition-group>
                     </div>
@@ -339,7 +318,6 @@ const markedConverter = (content: string) => {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    padding-right: 4px;
 }
 .greeting-text{
     line-height: 1.5;
@@ -452,12 +430,22 @@ const markedConverter = (content: string) => {
     transform: scale(1.2);
 }
 @media screen and (max-width: 959px) {
+    .condition-block{
+        gap: 20px;
+    }
+    .popup-body{
+        gap: 20px;
+    }
+    .popup-scroll{
+        gap: 20px;
+    }
     .w-inner{
         max-width: 100%;
         width: 100%;
         max-height: 100%;
         height: 100vh;
-        padding: 14px;
+        padding: 20px;
+        justify-content: center;
     }
     .popup-grid{
         grid-template-columns: 1fr;

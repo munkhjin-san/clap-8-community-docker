@@ -21,7 +21,7 @@
             />
             <div class="cursor-pointer min-w-0">
                 <p
-                    class="truncate whitespace-nowrap text-sm min-w-0"
+                    class="text-xs leading-snug line-clamp-2 min-w-0"
                     @click.stop="toggleComment(member)"
                 >
                     {{ member?.custom_field_data_records?.[0]?.value_text }}
