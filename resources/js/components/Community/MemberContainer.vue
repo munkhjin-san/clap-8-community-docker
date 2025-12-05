@@ -229,6 +229,8 @@ const handleScroll = () => {
 .employee-user-list{
   padding: 10px 0 0 0; 
   line-height: 17px;
+  align-items: center;
+  text-wrap: balance;
 }
 .position-title{
   font-size: 15px;

@@ -27,7 +27,7 @@
                         </div>
                     </div>
                     <div v-if="member.name_kana" class="employee-user-list">{{member.name_kana}}</div>
-                    <div v-if="member.motto" class="employee-user-list">{{member.motto}}</div> 
+                    <div v-if="member.motto" class="employee-user-list" style="text-wrap: inherit; text-overflow: ellipsis; overflow: hidden;">{{member.motto}}</div> 
                 </div> 
             </div>
         </div>
