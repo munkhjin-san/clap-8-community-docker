@@ -7149,7 +7149,10 @@ button.shift-button {
     width: calc(100% - 65px);
     margin-left: 0;
   }
-
+  .member-search-wrap {
+    width: calc(100% - 40px);
+    margin-left: 20px;
+  }
   .calendar-bar-container {
     height: 45px;
     margin-top: 0;

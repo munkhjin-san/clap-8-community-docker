@@ -2,7 +2,7 @@
     <div ref="container" @scroll="handleScroll" class="w-full h-full bg-[var(--bg2)] overflow-x-hidden overflow-y-auto">
         <div class="mem-header-section" :style="{'transform': `translateY(${offset}px)`}">
             <div class="post-header">
-                <div class="post-search-wrap">
+                <div class="post-search-wrap member-search-wrap">
                     <PostSearchBar @search-start="(word) => {keyword = word}" className="newChatMemberSearch" :customPlaceHolder="`コンタクト検索`"/>                
                 </div>
             </div>
