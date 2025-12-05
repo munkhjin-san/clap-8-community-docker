@@ -33,7 +33,7 @@
         </div>
         <FloatButton :order="2" @action="getTodayComments()" title="みんなのひとこと">
             <template #icon>
-                <Comment size="20" fill="black"/>
+                <Comment size="20" style="height:20px; width: auto;" fill="black"/>
             </template>
         </FloatButton>   
         <FloatButton :order="1" @action="switchView">
