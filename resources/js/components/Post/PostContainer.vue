@@ -85,11 +85,10 @@
                         <PostIcon which="4" size="20"/>
                         {{ apps[4] }}
                     </router-link> -->
-                    <router-link :to="`/${appName}?app_type=5`" :class="['pt-selector']">
+                    <!-- <router-link :to="`/${appName}?app_type=5`" :class="['pt-selector']">
                         <PostIcon which="5" size="20"/>
-                         <!--  -->
                         {{ apps[5] }}
-                    </router-link>
+                    </router-link> -->
                     <!-- <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
                         <PostIcon which="6" size="20"/>
                         {{ apps[6] }}
@@ -97,7 +96,7 @@
                 </div>
                 
             </div>
-            <div v-if="topRecords.length" class="px-[20px] text-center text-[var(--primary-color)]">
+            <!-- <div v-if="topRecords.length" class="px-[20px] text-center text-[var(--primary-color)]">
                 <p class="mb-[15px] jump-link" @click="viewFullRanking = true">グラリンピックランキング</p>
                 <div class="flex flex-wrap justify-center items-center">
                     <div class="px-[10px] py-[8px] flex items-center gap-[10px]" v-for="(record, index) in topRecords.filter(rec => rec.user.id !== 513).slice(0, 3)" :key="record.user.id">
@@ -108,7 +107,7 @@
                         </div>                        
                     </div>                    
                 </div>
-            </div>
+            </div> -->
             <div class="p-tag-container">
                 <div v-if="tagLoading == 0" :class="['p-tag-wrap']">
                     <div class="tag-skeleton" :style="{width: randomWidth()}" :index="num" v-for="num in 30"></div>                    
@@ -283,7 +282,7 @@ import { useTheme } from '@/store/theme';
             newRecord()
         }
         getTopTags()
-        getTopRecords()
+        // getTopRecords()
     })
     onUnmounted(() => {
         instance.off('post:new', postSocketHandler)

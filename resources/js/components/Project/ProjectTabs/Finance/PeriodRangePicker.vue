@@ -70,9 +70,10 @@
 </template>
 
 <script setup lang="ts">
+import { useDialog } from '@/composables/dialog';
 import { isMobile } from '@/utils/tools';
-import { DateTime } from 'luxon'
-import { ComputedRef, computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { DateTime } from 'luxon';
+import { ComputedRef, computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 type MonthNumber = 1|2|3|4|5|6|7|8|9|10|11|12
 
@@ -90,6 +91,7 @@ const emit = defineEmits<{
     (e: 'change', value: { start: string; end: string }): void;
 }>()
 
+const { ping } = useDialog()
 const MAX_MONTHS = computed(() => Math.max(1, props.maxMonths ?? 12))
 const months = Array.from({ length: 12 }, (_, idx) => (idx + 1) as MonthNumber)
 
@@ -117,15 +119,11 @@ const clampYear = (year: number) => {
     return Math.min(Math.max(year, min), max)
 }
 
-let syncing = false
-
 const syncFromProps = () => {
-    syncing = true
     startYearModel.value = currentStart.value.year
     startMonthModel.value = currentStart.value.month as MonthNumber
     endYearModel.value = currentEnd.value.year
     endMonthModel.value = currentEnd.value.month as MonthNumber
-    syncing = false
 }
 
 watch(() => [props.start, props.end], syncFromProps)
@@ -155,80 +153,60 @@ const emitRange = (start: DateTime, end: DateTime) => {
     emit('change', { start: startStr, end: endStr })
 }
 
-const normalizeRange = (start: DateTime, end: DateTime, constrainedBy: 'start' | 'end') => {
-    let s = start.startOf('month')
-    let e = end.startOf('month')
+const buildMonthDate = (year: number, month: MonthNumber) =>
+    DateTime.fromObject({ year, month, day: 1 }, { zone: 'Asia/Tokyo' }).startOf('month')
 
-    if (e < s) {
-        if (constrainedBy === 'start') {
-            e = s
-        } else {
-            s = e
-        }
+const validateRange = (start: DateTime, end: DateTime): string | null => {
+    if (!start.isValid || !end.isValid) return '有効な日付を選択してください。'
+    if (end < start) return '終了月は開始月以降を選択してください。'
+
+    const monthsDiff = monthsBetween(start, end) + 1
+    if (monthsDiff > MAX_MONTHS.value) {
+        return `最大${MAX_MONTHS.value}ヶ月まで選択できます。`
     }
 
-    const diff = monthsBetween(s, e)
-    const maxSpan = MAX_MONTHS.value - 1
-    if (diff > maxSpan) {
-        if (constrainedBy === 'start') {
-            e = s.plus({ months: maxSpan })
-        } else {
-            s = e.minus({ months: maxSpan })
-        }
-    }
-
-    return { start: s, end: e }
+    return null
 }
 
-const updateRange = (constrainedBy: 'start' | 'end') => {
-    if (syncing) return
+const tryUpdateRange = (start: DateTime, end: DateTime, options?: { silent?: boolean }) => {
+    const error = validateRange(start, end)
+    if (error) {
+        if (!options?.silent) ping(error)
+        return false
+    }
 
-    const startCandidate = DateTime.fromObject({
-        year: startYearModel.value,
-        month: startMonthModel.value,
-        day: 1,
-    }, { zone: 'Asia/Tokyo' })
-
-    const endCandidate = DateTime.fromObject({
-        year: endYearModel.value,
-        month: endMonthModel.value,
-        day: 1,
-    }, { zone: 'Asia/Tokyo' })
-
-    if (!startCandidate.isValid || !endCandidate.isValid) return
-
-    const { start, end } = normalizeRange(startCandidate, endCandidate, constrainedBy)
-
-    syncing = true
     startYearModel.value = start.year
     startMonthModel.value = start.month as MonthNumber
     endYearModel.value = end.year
     endMonthModel.value = end.month as MonthNumber
-    syncing = false
 
     emitRange(start, end)
+    return true
 }
 
-watch([startYearModel, startMonthModel], () => {
-    if (syncing) return
-    updateRange('start')
-})
-watch([endYearModel, endMonthModel], () => {
-    if (syncing) return
-    updateRange('end')
-})
+const applyRangeFromModels = (options?: { silent?: boolean }) => {
+    const startCandidate = buildMonthDate(startYearModel.value, startMonthModel.value)
+    const endCandidate = buildMonthDate(endYearModel.value, endMonthModel.value)
+    return tryUpdateRange(startCandidate, endCandidate, options)
+}
 
 const adjustStartYear = (delta: number) => {
     startYearModel.value = clampYear(startYearModel.value + delta)
+    applyRangeFromModels({ silent: true })
 }
 const adjustEndYear = (delta: number) => {
     endYearModel.value = clampYear(endYearModel.value + delta)
+    applyRangeFromModels({ silent: true })
 }
 const setStartMonth = (month: MonthNumber) => {
-    startMonthModel.value = month
+    const nextStart = buildMonthDate(startYearModel.value, month)
+    const currentEnd = buildMonthDate(endYearModel.value, endMonthModel.value)
+    tryUpdateRange(nextStart, currentEnd)
 }
 const setEndMonth = (month: MonthNumber) => {
-    endMonthModel.value = month
+    const currentStart = buildMonthDate(startYearModel.value, startMonthModel.value)
+    const nextEnd = buildMonthDate(endYearModel.value, month)
+    tryUpdateRange(currentStart, nextEnd)
 }
 
 const handleDocumentClick = (event: MouseEvent) => {
@@ -238,12 +216,12 @@ const handleDocumentClick = (event: MouseEvent) => {
 }
 
 const togglePanel = () => {
-    
     open.value = !open.value
 }
 
 watch(open, (isOpen) => {
     if (isOpen) {
+        syncFromProps()
         document.addEventListener('click', handleDocumentClick)
     } else {
         document.removeEventListener('click', handleDocumentClick)
