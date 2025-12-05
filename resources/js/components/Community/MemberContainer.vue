@@ -4,7 +4,7 @@
             <div class="post-header">
                 <div class="post-search-wrap">
                     <PostSearchBar @search-start="(word) => {keyword = word}" className="newChatMemberSearch" :customPlaceHolder="`コンタクト検索`"/>                
-                </div>    
+                </div>
             </div>
         </div>
         <div class="relative h-[calc(100%-115px)]">
@@ -27,27 +27,32 @@
                             />
                         </div>
                     </div>
-                </div>   
-                <div class="createBoardButton" :style="{position: 'fixed', bottom: auth?.user?.footer_view && responsive.mobile? '65px' : '20px'}" @click.stop="switchView">
-                    <div style="width: 100%;height: 100%;display: flex;align-items: center;justify-content: center;">       
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="12" viewBox="0 0 47 32" style="transform: rotate(90deg); margin-right: -5px;">
-                            <path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path>
-                        </svg>
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="12" viewBox="0 0 47 32" style="transform: rotate(270deg);">
-                            <path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"></path>
-                        </svg>
-                    </div>
-                </div>      
+                </div>
+                     
             </div>   
         </div>
-        <Modal size="large" @close="today_members = []" v-if="today_members.length">
-            <template #title>
-                みんなのひとこと
+        <FloatButton :order="2" @action="getTodayComments()" title="みんなのひとこと">
+            <template #icon>
+                <Comment size="20" fill="black"/>
             </template>
-            <template #content>
-                <DailyMemberMessages :members="today_members"/>
+        </FloatButton>   
+        <FloatButton :order="1" @action="switchView">
+            <template #icon>
+                <SortIcon size="12" fill="black"/>
             </template>
-        </Modal>
+        </FloatButton>
+        
+        <Teleport to="body">
+            <Modal size="large" @close="today_members = []" v-if="today_members.length">
+                <template #title>
+                    みんなのひとこと
+                </template>
+                <template #content>
+                    <DailyMemberMessages :members="today_members"/>
+                </template>
+            </Modal>
+        </Teleport>
+        
     </div>
 </template>
 <script setup lang="ts">
@@ -64,6 +69,10 @@ import { useMenuStore } from '@/store/menu';
 import Modal from '../Global/Modal.vue';
 import DailyMemberMessages from '../Global/DailyMemberMessages.vue';
 import { useBadgeStore } from '@/store/badge';
+import CommandButton from '../Global/CommandButton.vue';
+import FloatButton from '../Global/FloatButton.vue';
+import Comment from '../Icons/CommentIcon.vue';
+import SortIcon from '../Icons/SortIcon.vue';
 const keyword = ref('')
 const route = useRoute()
 const router = useRouter()
@@ -158,6 +167,12 @@ type commentType = {
     }
     const scrollListen = (event) => {
         scrollPos.value = event.target.scrollTop
+    }
+    const getTodayComments = async() => {
+        const response = await api.get('/get_today_comments')
+        if (response) {
+            today_members.value = response
+        }
     }
 onActivated(() => {
     offset.value = 0

@@ -225,30 +225,22 @@ class MemberController extends Controller
             return Auth::user();
         }
     }
-    public function get_unread_today_comments() {
+    public function get_today_comments() {
         $typeId = 43;
         $user = $this->active_user();
         $today = Carbon::now()->format('Y-m-d');
-        $read = CustomfieldRead::where('user_id', $user->id)
-        ->where('type_id', $typeId)
-        ->first();
-        $lastReadId = $read?->last_read_customfield_id ?? 0;
         $items = User::where('retire', 0)
-            ->whereHas('custom_field_data_records', function ($q) use ($lastReadId, $today, $user) {
-                $q->where('id', '>', $lastReadId)
-                    ->where('user_id', '!=', $user->id)
-                    ->where('date', $today)
+            ->whereHas('custom_field_data_records', function ($q) use ($today) {
+                $q->where('date', $today)
                     ->where('type_id', 43)
                     ->whereNotNull('value_text');
-            })->with(['custom_field_data_records' => function ($q) use ($lastReadId, $today, $user) {
-                $q->where('id', '>', $lastReadId)
-                    ->where('user_id', '!=', $user->id)
-                    ->where('date', $today)
+            })->with(['custom_field_data_records' => function ($q) use ($today) {
+                $q->where('date', $today)
                     ->where('type_id', 43)
                     ->whereNotNull('value_text')
                     ->select('user_id', 'date', 'type_id', 'value_text', 'value_int');
             }])->select('id', 'name', 'icon_bg', 'icon_path')->get();
-        return $items;
+        return response()->json($items);
 
     }
     public function mark_condition_asread() {
@@ -271,6 +263,30 @@ class MemberController extends Controller
         );
 
         return response()->json(['status' => 'ok', 'last_read_id' => $latestId]);
+    }
+    public function get_unread_today_comments() {
+        $typeId = 43;
+        $user = $this->active_user();
+        $today = Carbon::now()->format('Y-m-d');
+        $read = CustomfieldRead::where('user_id', $user->id)
+        ->where('type_id', $typeId)
+        ->first();
+        $lastReadId = $read?->last_read_customfield_id ?? 0;
+        $items = User::where('retire', 0)
+            ->whereHas('custom_field_data_records', function ($q) use ($lastReadId, $today, $user) {
+                $q->where('id', '>', $lastReadId)
+                    ->where('date', $today)
+                    ->where('type_id', 43)
+                    ->whereNotNull('value_text');
+            })->with(['custom_field_data_records' => function ($q) use ($lastReadId, $today, $user) {
+                $q->where('id', '>', $lastReadId)
+                    ->where('date', $today)
+                    ->where('type_id', 43)
+                    ->whereNotNull('value_text')
+                    ->select('user_id', 'date', 'type_id', 'value_text', 'value_int');
+            }])->select('id', 'name', 'icon_bg', 'icon_path')->get();
+        return $items;
+
     }
     public function get_kadai_list(Request $request){
 

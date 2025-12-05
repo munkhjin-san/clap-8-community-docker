@@ -825,8 +825,10 @@ class RemindController extends Controller
     }
     public function get_today_readable(){
         $active = $this->active_user();
+        $now = Carbon::now()->format('Y-m-d');
         $typeId = 43;
         $latestId = customFieldDataRecord::where('type_id', $typeId)
+            ->where('date', $now)
             ->whereNotNull('value_text')
             ->max('id') ?? 0;
         

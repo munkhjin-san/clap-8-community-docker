@@ -361,6 +361,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_performance_records', [MemberController::class, 'get_performance_records']);
         Route::post('/get_job_evaluation', [MemberController::class, 'get_job_evaluation']);
         Route::get('/mark_condition_asread', [MemberController::class, 'mark_condition_asread']);
+        Route::get('/get_today_comments', [MemberController::class, 'get_today_comments']);
         Route::get('/get_evaluation_levels', [ProjectController::class, 'get_evaluation_levels']);
         Route::get('/mentionable_users', [ProjectController::class, 'mentionable_users']);
         Route::post('/project_finance_comment', [ProjectController::class, 'project_finance_comment']);
