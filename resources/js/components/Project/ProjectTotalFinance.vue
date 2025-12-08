@@ -125,23 +125,24 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th :rowspan="2" class="sticky-left first-col">プロジェクト名</th>
-                                        <th :rowspan="2" class="sticky-left second-col">区分</th>
+                                        <th :rowspan="2" class="sticky-left first-col top-border">プロジェクト名</th>
+                                        <th :rowspan="2" class="sticky-left second-col top-border">区分</th>
                                         <th 
                                             v-for="(p, i) in periods"
                                             :key="p.period"
                                             colspan="4"
                                              :class="[
                                                 'border-r border-[var(--calendarBorder)]',
-                                                {'[border-right-style:solid]': i !== periods.length - 1} 
+                                                '[border-right-style:solid]',
+                                                'top-border'
                                             ]"
                                         >
                                             <div :id="p.period" class="flex justify-center">
                                                 <span>{{ p.year }}年{{ p.month }}月</span>
                                             </div>
                                         </th>
-                                        <th v-if="showTotals" colspan="4" class="totals-head">集計</th>
-                                        <th v-if="showComment" :rowspan="2" class="sticky-right comment-cell">コメント</th>
+                                        <th v-if="showTotals" colspan="4" class="totals-head top-border !text-center" data-cell="right-border">集計</th>
+                                        <th v-if="showComment" :rowspan="2" class="sticky-right comment-cell top-border">コメント</th>
                                     </tr>
                                     <tr>
                                         <template v-for="p in periods" :key="p.period">
@@ -159,10 +160,10 @@
                                         </template>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <!-- <tbody> -->
                                     
-                                    <template v-for="proj in sortedProjects" :key="proj.name">
-                                        <tr>
+                                    <tbody v-for="proj in sortedProjects">
+                                        <tr :key="`${proj.name}-yearly`">
                                             <td class="p-name sticky-left first-col" :rowspan="3">
                                                 <div>{{ proj.name }}</div>
                                                 <div v-if="managerNameFor(proj.name)" class="manager-note">
@@ -186,38 +187,38 @@
                                                     <div class="inner-col"><span class="mobile">利益</span>{{
                                                         amountOfMoneyParser(proj.data?.[p.month]?.yearly_plan.sales -
                                                         proj.data?.[p.month]?.yearly_plan.expense) }}</div>
+                                                    </td>
+                                                <td data-cell="right-border">
+                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                        percentizer(proj.data?.[p.month]?.yearly_plan).display }}</div>
                                                 </td>
-                                            <td>
-                                                <div class="inner-col"><span class="mobile">利益率</span>{{
-                                                    percentizer(proj.data?.[p.month]?.yearly_plan).display }}</div>
-                                            </td>
-                                        </template>
-                                        <template v-if="showTotals">
-                                            <td>
-                                                <div class="inner-col"><span class="mobile">売上</span>{{
-                                                    amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').sales)
-                                                }}</div>
-                                            </td>
-                                            <td>
-                                                <div class="inner-col"><span class="mobile">販管費</span>{{
-                                                    amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').expense)
-                                                }}</div>
-                                            </td>
-                                            <td>
-                                                <div class="inner-col"><span class="mobile">利益</span>{{
-                                                    amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').profit)
-                                                }}</div>
-                                            </td>
-                                            <td>
-                                                <div class="inner-col"><span class="mobile">利益率</span>{{
-                                                    percentizer(totalEntry(proj.name, 'yearly_plan')).display
-                                                }}</div>
-                                            </td>
-                                        </template>
+                                            </template>
+                                            <template v-if="showTotals">
+                                                <td>
+                                                    <div class="inner-col"><span class="mobile">売上</span>{{
+                                                        amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').sales)
+                                                    }}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                        amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').expense)
+                                                    }}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="inner-col"><span class="mobile">利益</span>{{
+                                                        amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').profit)
+                                                    }}</div>
+                                                </td>
+                                                <td>
+                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                        percentizer(totalEntry(proj.name, 'yearly_plan')).display
+                                                    }}</div>
+                                                </td>
+                                            </template>
                                             
                                             <td v-if="showComment" class="sticky-right comment-cell"></td>
                                         </tr>
-                                        <tr>
+                                        <tr :key="`${proj.name}-plan`">
 
                                             <td class="sub-name sticky-left second-col">
                                                 <span>損益計画</span>
@@ -249,7 +250,7 @@
                                                             :actual="proj.data?.[p.month]?.profit.profit" />
                                                     </div>
                                                 </td>
-                                                <td>
+                                                <td data-cell="right-border">
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(proj.data?.[p.month]?.profit).display }}</div>
@@ -303,7 +304,7 @@
                                             
                                             <td v-if="showComment" class="sticky-right comment-cell"></td>
                                         </tr>
-                                        <tr>
+                                        <tr :key="`${proj.name}-settlement`">
                                             <td class="sub-name sticky-left second-col flex gap-1 items-center">
                                                 <div v-if="showAnyArrow(proj.name as string)" class="flex" title="計画との差が大きい月です">
                                                     <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
@@ -338,7 +339,7 @@
                                                             :actual="settlementProfitValue(proj.data?.[p.month]?.settlement)" />
                                                     </div>
                                                 </td>
-                                                <td>
+                                                <td data-cell="right-border">
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(proj.data?.[p.month]?.settlement).display }}</div>
@@ -402,8 +403,8 @@
                                                 </div>
                                             </td>
                                         </tr>
-                                    </template>
-                                    <template v-if="hasPeriodTotals">
+                                    </tbody>
+                                    <tbody v-if="hasPeriodTotals">
                                         <tr class="summary-row">
                                             <td class="p-name sticky-left first-col" :rowspan="3">集計</td>
                                             <td class="sub-name sticky-left second-col">
@@ -425,7 +426,7 @@
                                                         amountOfMoneyParser(periodEntry(p.period, 'yearly_plan').profit)
                                                     }}</div>
                                                 </td>
-                                                <td>
+                                                <td data-cell="right-border">
                                                     <div class="inner-col"><span class="mobile">利益率</span>{{
                                                         percentizer(periodEntry(p.period, 'yearly_plan')).display
                                                     }}</div>
@@ -491,7 +492,7 @@
                                                             :actual="periodEntry(p.period, 'profit').profit" />
                                                     </div>
                                                 </td>
-                                                <td>
+                                                <td data-cell="right-border">
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(periodEntry(p.period, 'profit')).display
@@ -581,7 +582,7 @@
                                                             :actual="settlementProfitValue(periodEntry(p.period, 'settlement'))" />
                                                     </div>
                                                 </td>
-                                                <td>
+                                                <td data-cell="right-border">
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(periodEntry(p.period, 'settlement')).display
@@ -636,8 +637,8 @@
                                             </template>
                                             <td v-if="showComment" class="sticky-right comment-cell"></td>
                                         </tr>
-                                    </template>
-                                </tbody>
+                                    </tbody>
+                                <!-- </tbody> -->
 
 
 
@@ -789,18 +790,18 @@ const showAnyArrow = (name: string): boolean => {
 }
 const percentizer = (data: UnitData | null | undefined) => {
     if (data && 'has_data' in data && data.has_data === false) {
-        return { value: 0, display: '-' }
+        return { value: 0, display: '—' }
     }
     const sales = Number(data?.sales ?? 0)
     const explicitProfit = data?.profit
     const derivedProfit = Number(data?.sales ?? 0) - Number(data?.expense ?? 0)
     const profit = Number.isFinite(Number(explicitProfit)) ? Number(explicitProfit) : derivedProfit
     if (!sales || Number.isNaN(sales)) {
-        return { value: 0, display: '-' }
+        return { value: 0, display: '—' }
     }
     const value = (profit / sales) * 100
     if (!Number.isFinite(value)) {
-        return { value: 0, display: '-' }
+        return { value: 0, display: '—' }
     }
     return { value, display: `${value.toFixed(2)}%` }
 }
@@ -1208,8 +1209,11 @@ const selectedBadge = computed(() => {
     user-select: none;
     line-height: 1.5;
 }
-
+.top-border {
+    border-top: solid thin var(--calendarBorder);
+}
 table {
+    box-sizing: border-box !important;
     --first-col-width: 150px;
     --second-col-width: 75px;
     width: max-content;
@@ -1222,6 +1226,7 @@ table {
         position: sticky;
         top: 0;
         z-index: 6;
+        
         th {
             padding: 10px;
             font-weight: 500;
@@ -1229,7 +1234,7 @@ table {
             background-color: var(--bg3);
             border-bottom: 1px solid var(--calendarBorder);
         }
-        th:nth-of-type(4n + 4):has(~ th:nth-of-type(4n + 4)) {
+        th:nth-of-type(4n + 4) {
             border-right: 1px solid var(--calendarBorder);
         }
         th.sticky-left,
@@ -1240,13 +1245,14 @@ table {
 
     tbody {
         tr {
+            
             td {
                 padding: 10px;
                 border-bottom: 1px solid var(--calendarBorder);
                 font-weight: 400;
                 text-align: left;
                 border-left: none;
-
+                box-sizing: border-box !important;
                 span {
                     display: block;
                 }
@@ -1261,7 +1267,9 @@ table {
         }
     }
 }
-
+td[data-cell=right-border], th[data-cell=right-border] {
+    border-right: 1px solid var(--calendarBorder);
+}
 .finance-table-scroll {
     overflow: auto;
     height: calc(100% - 120px);
@@ -1278,6 +1286,7 @@ table {
     min-width: var(--first-col-width);
     max-width: var(--first-col-width);
     border-left: solid thin var(--calendarBorder);
+    border-right: solid thin var(--calendarBorder);
     z-index: 4;
 }
 
@@ -1289,11 +1298,10 @@ table {
 }
 
 .sticky-right {
-    position: sticky;
-    right: 0;
+    // position: sticky;
+    // right: 0;
     min-width: 80px;
     max-width: 80px;
-    border-left: solid thin var(--calendarBorder);
     z-index: 3;
 }
 
@@ -1415,6 +1423,7 @@ table {
                     border-left: solid thin var(--calendarBorder);
                     border-right: solid thin var(--calendarBorder);
                     border-bottom: none;
+
                 }
 
                 td:last-of-type {

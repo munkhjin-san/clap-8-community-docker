@@ -9,7 +9,6 @@
             >
             <UserPanel
                 :user="member"
-                :disable-instant="true"
                 :with-name="false"
                 size="25"
             />
