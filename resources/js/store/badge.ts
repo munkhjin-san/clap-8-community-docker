@@ -130,6 +130,21 @@ export const useBadgeStore = defineStore('badge', {
         async getTodayReadableBadge(){
             const data = await axios.get('/get_today_readable').then(response => response.data)
             this.communityBadge = data.has_unread
+        },
+        async getbadgeSummary() {
+            const data = await axios.get('/badge_summary').then(response => response.data)
+            this.goal_issue_comment = data.goal_issue_comment
+            this.post = data.post
+            this.notice = data.notice
+            this.members_goals = data.members_goals
+            this.managers_goals = data.managers_goals
+            this.salary_issue = data.salary_issue
+            this.asset = data.asset
+            this.task_comment = data.task_comment
+            this.finance_comment = data.finance_comment
+            this.goal_issue_comment = data.goal_issue_comment
+            this.contact_comment = data.contact_comment
+            this.communityBadge = data.today_readable.has_unread
         }
     },
     getters: {

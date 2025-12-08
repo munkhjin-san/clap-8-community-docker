@@ -20,12 +20,20 @@ use App\Models\workTemp;
 use App\Models\PostRecord;
 use App\Models\CustomfieldRead;
 use App\Models\customFieldDataRecord;
+use App\Services\BadgeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class RemindController extends Controller
 {
+    protected $badgeService;
+    public function __construct(
+        BadgeService $badgeService, 
+    ){
+        $this->badgeService = $badgeService;
+    } 
     private function active_user(){
         $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
         if($sub){
@@ -844,5 +852,27 @@ class RemindController extends Controller
             'has_unread' => $hasUnread,
             'latest_id'  => $latestId,
         ]);
+    }
+    public function badge_summary()
+    {
+        $user = $this->active_user();
+        $cacheKey = "badge_summary:user:{$user->id}";
+        $ttl     = 60;
+        $data = Cache::remember($cacheKey, $ttl, function () use ($user) {
+            return [
+                'notice' => $user->partner_flag === 0 && $user->position_id !== 15 ? $this->badgeService->notice($user) : 0,
+                'post' => $user->partner_flag === 0 && $user->position_id !== 15 ? $this->badgeService->post($user) : 0,
+                'members_goals' => $this->badgeService->membersGoals($user),
+                'managers_goals' => $user->position_id < 6 ? $this->badgeService->managersGoals($user) : [],
+                'salary_issue' => $this->badgeService->salaryIssue($user),
+                'asset' => $this->badgeService->asset($user),
+                'task_comment' => $this->badgeService->taskComment($user),
+                'finance_comment' => $user->position_id <= 6 || in_array($user->id, [610,608]) ? $this->badgeService->financeComment($user) : ['total_unread' => 0, 'projects' => []],
+                'goal_issue_comment' => $this->badgeService->goalIssueComment($user),
+                'contact_comment' => $this->badgeService->contactComment($user),
+                'today_readable' => $this->badgeService->todayReadable($user),
+            ];
+        });
+        return response()->json($data);
     }
 }

@@ -47,7 +47,7 @@
                         v-for="m in months"
                         :key="`end-${m}`"
                         type="button"
-                        :class="['month-cell', { selected: endMonthModel === m }]"
+                        :class="['month-cell', { selected: endMonthModel === m && currentEnd.toFormat('yyyy') == endYearModel.toString() }]"
                         @click="setEndMonth(m)"
                     >
                         {{ m }}月

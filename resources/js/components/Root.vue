@@ -151,37 +151,42 @@ import { useDialog } from '@/composables/dialog';
         if(props.auth_user && props.auth_user.id){                  
             beamsInit()
         }
-        await badge.getBoardBadge(true);
-        
-        setTimeout(async() => {
-                
-            
-            if(!auth.isPartner){
-                await badge.getNoticeBadge()
-                await badge.getPostBadge()
-                // await badge.getProjectBadge()
-                await badge.getRemindBadge()
-            }
-            if (isIOS.value) {
-                savePWAStatus()
-            }
-            // if(auth.user?.position_id == 6){
-                await badge.getMembersGoalsBadge()
-            // }
-            if(auth.user?.position_id < 6){
-                await badge.getManagersGoalsBadge()
-            }
-            await badge.getSalaryIssueBadge()
-            await badge.getAssetBadge()
-            await badge.getTaskCommentBadge()
-            if(auth.user?.position_id <= 6 || auth.activeUser.id === 610 || auth.activeUser.id === 608) {
-                await badge.getFinanceCommentBadge()
-            }
-            await badge.getGoalIssueCommentBadge()
-            await badge.getContactCommentBadge()
-            await badge.getTodayReadableBadge()
-        }, 3000);
+        loadBadges().catch(err => {
+            console.error('[badges] failed to load', err)
+        })
     })
+    async function loadBadges() {
+        const jobs = []
+
+        jobs.push(badge.getBoardBadge(true))
+
+        if(!auth.isPartner){
+            // jobs.push(badge.getNoticeBadge())
+            // jobs.push(badge.getPostBadge())
+            jobs.push(badge.getRemindBadge())
+        }
+        jobs.push(badge.getbadgeSummary())
+        // if(auth.user?.position_id < 6){
+        //     jobs.push(badge.getManagersGoalsBadge())
+        // }
+
+        // jobs.push(
+        //     badge.getMembersGoalsBadge(),
+        //     badge.getSalaryIssueBadge(),
+        //     badge.getAssetBadge(),
+        //     badge.getTaskCommentBadge(),
+        //     badge.getGoalIssueCommentBadge(),
+        //     badge.getContactCommentBadge(),
+        //     badge.getTodayReadableBadge()
+        // )
+
+        // if(auth.user?.position_id <= 6 || [610,608].includes(auth.activeUser.id)){
+        //     jobs.push(badge.getFinanceCommentBadge())
+        // }
+
+        await Promise.all(jobs)
+    }
+
     const postHandler = () => {
         if(!auth.isPartner){
             badge.getPostBadge()
