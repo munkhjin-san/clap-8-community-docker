@@ -87,7 +87,7 @@
                                 <button @click="tab = 'bar'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar' }]">棒グラフ</button>
                             </div>
-                            <div class="flex items-center gap-2 text-sm">
+                            <div v-if="tab === 'table'" class="flex items-center gap-2 text-sm">
                                 <label class="text-xs opacity-70">並び替え:</label>
                                 <select v-model="sortMode" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm">
                                     <option value="name">プロジェクト名</option>
@@ -105,7 +105,7 @@
                                 <PeriodRangePicker
                                     :start="periodStartIso"
                                     :end="periodEndIso"
-                                    :max-months="isMobile() ? 1 : 12"
+                                    :max-months="12"
                                     :total-badge="thisMonthCount"
                                     :period-badge="selectedBadge.period_counts"
                                     @change="handleRangeChange"
@@ -152,7 +152,7 @@
                                             <th>利益</th>
                                             <th>利益率</th>
                                         </template>
-                                        <template v-if="showTotals">
+                                        <template v-if="showTotals || isMobile()">
                                             <th class="totals-head">売上</th>
                                             <th class="totals-head">販管費</th>
                                             <th class="totals-head">利益</th>
@@ -173,7 +173,7 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>年度予算</span>
                                             </td>
-                                            <template v-for="p in periods" :key="p.period">
+                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile()">
                                                 
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
@@ -193,7 +193,7 @@
                                                         percentizer(proj.data?.[p.month]?.yearly_plan).display }}</div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals">
+                                            <template v-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').sales)
@@ -223,7 +223,7 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>損益計画</span>
                                             </td>
-                                            <template v-for="p in periods" :key="p.period">
+                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -260,7 +260,7 @@
                                                     </div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals">
+                                            <template v-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -305,7 +305,7 @@
                                             <td v-if="showComment" class="sticky-right comment-cell"></td>
                                         </tr>
                                         <tr :key="`${proj.name}-settlement`">
-                                            <td class="sub-name sticky-left second-col flex gap-1 items-center">
+                                            <td class="sub-name sticky-left second-col flex gap-1 items-center flex-center-col">
                                                 <div v-if="showAnyArrow(proj.name as string)" class="flex" title="計画との差が大きい月です">
                                                     <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
                                                         <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
@@ -313,7 +313,7 @@
                                                 </div>
                                                 実績
                                             </td>
-                                            <template v-for="p in periods" :key="p.period">
+                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -350,7 +350,7 @@
                                                 </td>
                                             </template>
                                             
-                                            <template v-if="showTotals">
+                                            <template v-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -410,7 +410,7 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>年度予算</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-yearly-${p.period}`">
+                                            <template v-for="p in periods" :key="`summary-yearly-${p.period}`" v-if="!isMobile()">
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(periodEntry(p.period, 'yearly_plan').sales)
@@ -432,7 +432,7 @@
                                                     }}</div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals">
+                                            <template v-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(totalSummaryEntry('yearly_plan').sales)
@@ -461,7 +461,7 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>損益計画</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-profit-${p.period}`">
+                                            <template v-for="p in periods" :key="`summary-profit-${p.period}`" v-if="!isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -503,7 +503,7 @@
                                                     </div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals">
+                                            <template v-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -551,7 +551,7 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>実績</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-settlement-${p.period}`">
+                                            <template v-for="p in periods" :key="`summary-settlement-${p.period}`" v-if="!isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -593,7 +593,7 @@
                                                     </div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals">
+                                            <template v-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -1377,6 +1377,7 @@ td[data-cell=right-border], th[data-cell=right-border] {
     .finance-table-scroll {
         overflow-x: visible;
         padding-bottom: 0;
+        height: calc(100% - 170px);
     }
     table tbody tr td.sticky-left:first-of-type {
         background-color: var(--bg3);
@@ -1436,9 +1437,10 @@ td[data-cell=right-border], th[data-cell=right-border] {
 
             }
 
-            tr:nth-child(3n) {
+            tr:not(.summary-row):nth-child(3n) {
                 margin-bottom: 20px;
             }
+
         }
     }
 
@@ -1471,6 +1473,10 @@ td[data-cell=right-border], th[data-cell=right-border] {
         justify-content: space-between;
         gap: 5px;
         width: 100%;
+    }
+    .flex-center-col {
+        display: flex;
+        justify-content: center;
     }
 }
 </style>

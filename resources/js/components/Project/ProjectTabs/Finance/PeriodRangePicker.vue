@@ -13,7 +13,7 @@
         >
             <div class="picker-column flex">
                 <header class="column-header">
-                    <span v-if="!isMobile()">開始</span>
+                    <span>開始</span>
                     <div class="year-controls">
                         <button type="button" @click="adjustStartYear(-1)">‹</button>
                         <span>{{ startYearModel }}年</span>
@@ -33,7 +33,7 @@
                     </button>
                 </div>
             </div>
-            <div class="picker-column md:flex hidden">
+            <div class="picker-column flex">
                 <header class="column-header">
                     <span>終了</span>
                     <div class="year-controls">

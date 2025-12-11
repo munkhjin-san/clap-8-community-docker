@@ -50,6 +50,21 @@
                         <div class="text-[13px] font-semibold">ステータス</div>
                         <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px] mt-[10px]">{{ statuses[goal?.status] }}</div>
                     </div>
+                    <div 
+                        v-if="canManageStatus" 
+                        class="flex flex-wrap items-center gap-[10px] bg-[var(--bg3)] px-[10px] py-[8px]"
+                    >
+                        <div class="text-[12px] font-semibold whitespace-nowrap">人事専用ステータス変更</div>
+                        <select 
+                            v-model.number="selectedGoalStatus" 
+                            class="py-[6px] text-[var(--primary-color)] px-[10px] text-[13px] bg-[var(--background-color)] border border-solid border-[var(--formBorder)] min-w-[180px]"
+                        >
+                            <option v-for="(label, index) in statuses" :key="index" :value="index">
+                                {{ label }}
+                            </option>
+                        </select>
+                        <LoaderButton style="margin: 0;" :content="'更新'" @click="updateGoalStatusDirectly" />
+                    </div>
                     <div>
                         <div class="text-[13px] font-semibold">タイトル</div>
                         <div class="kadai-content">{{ goal?.title }}</div>
@@ -172,6 +187,21 @@
                     <div class="mobile w-fit">
                         <div class="text-[13px] font-semibold">ステータス</div>
                         <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px] mt-[10px]">{{ salaryIssueStatus[salaryIssueRecord.status] }}</div>
+                    </div>
+                    <div 
+                        v-if="canManageStatus" 
+                        class="flex flex-wrap items-center gap-[10px] bg-[var(--bg3)] px-[10px] py-[8px]"
+                    >
+                        <div class="text-[12px] font-semibold whitespace-nowrap">人事専用ステータス変更</div>
+                        <select 
+                            v-model.number="selectedSalaryIssueStatus" 
+                            class="py-[6px] px-[10px] text-[13px] text-[var(--primary-color)] bg-[var(--background-color)] border border-solid border-[var(--formBorder)] min-w-[180px]"
+                        >
+                            <option v-for="(label, index) in salaryIssueStatus" :key="index" :value="index">
+                                {{ label }}
+                            </option>
+                        </select>
+                        <LoaderButton style="margin: 0;" :content="'更新'" @click="updateSalaryIssueStatusDirectly" />
                     </div>
                     <div>
                         <div class="text-[13px] font-semibold">テーマ</div>
@@ -359,7 +389,7 @@
 </template>
 <script setup lang="ts">
 import { useAuthUserStore } from '@/store/auth';
-import { computed, inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import { computed, inject, onMounted, reactive, ref, watch } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import ProjectGoalResult from './ProjectGoalResult.vue';
 import ProjectSalaryIssueCreation from './ProjectSalaryIssueCreation.vue';
@@ -397,6 +427,9 @@ const refreshRemind = inject('refreshRemind') as Function
 const issueReport = ref(null)
 const { memberData, isManagerOrMember, selectedProject } = useProject()
 const api = useApi()
+const canManageStatus = computed(() => auth.activeUser.id === 610)
+const selectedGoalStatus = ref<number | null>(props.goal?.status ?? null)
+const selectedSalaryIssueStatus = ref<number | null>(props.goal?.salary_issue?.status ?? null)
 
 
 const projectGoalReportCreate = ref<ProjectGoal | null>(null)
@@ -422,6 +455,20 @@ const canCreateIssue = computed(() => {
 const salaryIssueRecord = computed(() => {
     return props.goal?.salary_issue
 })
+watch(
+    () => props.goal?.status,
+    (value) => {
+        selectedGoalStatus.value = typeof value === 'number' ? value : null
+    },
+    { immediate: true }
+)
+watch(
+    () => props.goal?.salary_issue?.status,
+    (value) => {
+        selectedSalaryIssueStatus.value = typeof value === 'number' ? value : null
+    },
+    { immediate: true }
+)
 const reviewReport = computed(() => {
     return (memberData.value && auth.id === memberData.value.id 
             || managerOrDirector.value) 
@@ -596,6 +643,26 @@ const progressReport = (report: boolean) => {
 const addIssueReport = (report: boolean, goal: any) => {
     reviewing.value = report
     issueReport.value = goal?.salary_issue
+}
+const updateGoalStatusDirectly = async () => {
+    if (selectedGoalStatus.value === null || !props.goal?.id) return
+    await api.put('/approve_outcome_goal', { id: props.goal.id, status: selectedGoalStatus.value, comment: '' }, {
+        ask: 'この成果目標のステータスを変更しますか？',
+        toast: 'ステータスを更新しました。',
+    })
+    if (typeof refresh === 'function') {
+        refresh()
+    }
+}
+const updateSalaryIssueStatusDirectly = async () => {
+    if (selectedSalaryIssueStatus.value === null || !props.goal?.salary_issue?.id) return
+    await api.put('/approve_salary_issue', { id: props.goal.salary_issue.id, status: selectedSalaryIssueStatus.value, comment: '' }, {
+        ask: 'この昇給課題のステータスを変更しますか？',
+        toast: 'ステータスを更新しました。',
+    })
+    if (typeof refresh === 'function') {
+        refresh()
+    }
 }
 const kpiCalculation = (steps: any) => {
     if(steps && steps.length){
