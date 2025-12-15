@@ -297,8 +297,11 @@ class PostController extends Controller
             $height = 130;
             if($file_type == 'image' && $file_extension !== 'svg'){
                 $img = Image::read($file);
-                    
-                File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);                      
+                if (method_exists($img, 'strip')) {
+                    $img->strip();
+                }    
+                File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);
+                $img = $img->scaleDown(height: 1080);                     
                 $img->save(storage_path('app') . $path .'/'. $set_path, 30);  
                 File::isDirectory(storage_path('app') . $path .'/thumbnail') or File::makeDirectory(storage_path('app') . '/' . $path .'/thumbnail', 0755, true, true);
                 $thumbnail = $img->scale(height: 130);  
