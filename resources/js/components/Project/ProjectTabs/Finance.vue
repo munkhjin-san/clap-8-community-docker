@@ -3,8 +3,8 @@
         <div class="flex justify-between items-center p-4">
             <div class="sub-tab-container">
                 <div @click="changeBetweenTabs('check')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'check'}]">収支確認</div>
-                <div @click="changeBetweenTabs('case')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'case'}]">案件報告集計</div>
-                <!-- <div @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算入力</div> -->
+                <div v-if="selectedProject.has_actual_func" @click="changeBetweenTabs('case')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'case'}]">実績管理</div>
+                <!-- <div v-if="hasPrivilage" @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算</div> -->
             </div>
         </div>
         
@@ -299,7 +299,7 @@
                 @view="viewCase"
             />
         
-            <FloatButton @action="caseWindow = true">
+            <FloatButton v-if="selectedProject.has_goals && hasPrivilage" @action="caseWindow = true">
                 <template #icon>
                     <AddIcon size="15" fill="black"/>
                 </template>

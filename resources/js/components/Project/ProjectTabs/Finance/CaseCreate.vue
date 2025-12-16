@@ -53,18 +53,12 @@
                             <span class="period-pill">{{ periodLabel }}</span>
                         </div>
                         <div class="case-summary__meta">
-                            <span class="badge">{{ kindLabelMap[viewData.kind] ?? '―' }}</span>
-                            <span class="badge soft" v-if="viewData.kind === 'PIPELINE'">{{ stageLabelText(viewData.stage) }}</span>
-                            <span class="badge soft" v-else-if="viewData.kind === 'ACTUAL'">{{ deliveryLabelText(viewData.delivery_status) }}</span>
+                            <span class="badge">{{ viewData.status || '実績' }}</span>
                         </div>
                     </div>
                     <div class="case-metrics">
                         <div class="metric">
-                            <p>目標件数</p>
-                            <strong>{{ viewData.case_count }}</strong>
-                        </div>
-                        <div class="metric">
-                            <p>金額(円)</p>
+                            <p>{{ viewData.status === '目標値' ? '目標値' : '成果値' }} ({{ unitLabel }})</p>
                             <strong>{{ formatYen(viewData.amount) }}</strong>
                         </div>
                         <div class="metric">
@@ -92,56 +86,47 @@
                             v-model="params.member"
                         />
                     </div>
+                    <!-- <div class="si-box" v-if="params.entry_type === 'actual'">
+                        <p class="mb-2">実績項目</p>
+                        <ItemSelector
+                            :options="actualStatusOptions"
+                            v-model="params.actual_status_label"
+                            place-holder="実績項目"
+                            :multiple="false"
+                            label="label"
+                            :reduce="option => option.value"
+                            :clearable="true"
+                            :closeOnSelect="true"
+                        />
+                    </div> -->
                     <div class="si-box">
                         <p class="mb-2">区分</p>
                         <div class="kind-toggle">
                             <button
-                                v-for="option in KIND_TAB_OPTIONS"
-                                :key="option.kind"
                                 type="button"
-                                class="kind-chip"
-                                :class="{ active: params.kind === option.kind }"
-                                @click="setKind(option.kind)"
+                                class="kind-chip active"
                             >
-                                {{ option.label }}
+                                目標値
                             </button>
                         </div>
                     </div>
-                    <div v-if="params.kind === 'PIPELINE'" class="si-box">
-                        <ItemSelector
-                            :options="pipelineStageOptions"
-                            v-model="params.stage"
-                            place-holder="確度"
-                            :multiple="false"
-                            label="label"
-                            :reduce="option => option.value"
-                            :clearable="false"
-                            :closeOnSelect="true"
-                        />
-                    </div>
-                    <div v-else-if="params.kind === 'ACTUAL'" class="si-box">
-                        <ItemSelector
-                            :options="deliveryOptions"
-                            v-model="params.delivery_status"
-                            place-holder="実績ステータス"
-                            :multiple="false"
-                            label="label"
-                            :reduce="option => option.value"
-                            :clearable="false"
-                            :closeOnSelect="true"
-                        />
-                    </div>
-                    <div class="si-box">
-                        <ShortInput 
-                            v-model="params.case_count"
-                            place-holder="目標件数"
-                            type="number"
-                        />
-                    </div>
+                    <!-- <div class="si-box" v-if="hasGoals">
+                        <p class="mb-2">登録区分</p>
+                        <div class="flex gap-4">
+                            <label class="flex items-center gap-2 text-[13px] cursor-pointer">
+                                <input type="radio" class="custom-f-radio" value="actual" v-model="params.entry_type">
+                                実績
+                            </label>
+                            <label class="flex items-center gap-2 text-[13px] cursor-pointer">
+                                <input type="radio" class="custom-f-radio" value="goal" v-model="params.entry_type">
+                                目標値（ゴール）
+                            </label>
+                        </div>
+                    </div> -->
                     <div class="si-box">
                         <ShortInput 
                             v-model="params.amount"
-                            place-holder="金額(円)"
+                            :place-holder="`成果（${unitLabel}）`"
                             type="number"
                         />
                     </div>
@@ -156,7 +141,7 @@
                             style="margin: 0"
                             :loading="savingType === 2"
                             @triggered="submitCase(2)"
-                            content="申請する"
+                            content="保存する"
                         />
                     </div>
                 </section>
@@ -178,15 +163,7 @@ import { Project } from '@/interface/projectInterface';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import { User } from '@/interface/globalInterface';
 import UserPanel from '@/components/Global/UserPanel.vue';
-import {
-    KIND_TAB_OPTIONS,
-    STAGE_PIPELINE_LIST,
-    STAGE_LABEL,
-    DELIVERY_LABEL,
-    type RecordKind,
-    type Stage,
-    type DeliveryStatus,
-} from '@/utils/case';
+import { useAuthUserStore } from '@/store/auth';
 
 const props = defineProps<{
     selectedProject: Project
@@ -209,42 +186,60 @@ const emit = defineEmits<{
     (e: 'saved'): void;
 }>();
 const api = useApi();
-const reportTitle = computed(() => '案件報告');
-const members = computed(() => props.selectedProject.members);
+const reportTitle = computed(() => '実績報告');
+const members = computed(() => [...props.selectedProject.members, ...props.selectedProject.manager]);
 const viewData = ref<any | null>(null);
 const loading = ref(0);
 const savingType = ref<1 | 2 | null>(null);
 const editingCaseId = ref<number | null>(null);
 const suspendAutoFetch = ref(false);
 const lastFetchKey = ref<string | null>(null);
-const kindLabelMap = Object.fromEntries(KIND_TAB_OPTIONS.map(item => [item.kind, item.label]));
-
+const unitCode = computed(() => props.selectedProject?.unit_id ?? 'JPY');
+const unitLabel = computed(() => {
+    if (unitCode.value === 'COUNT') return '件';
+    if (unitCode.value === 'HOUR') return '時間';
+    if (unitCode.value === 'CUSTOM') return props.selectedProject?.custom_unit_label || '単位';
+    return '円';
+});
+const actualStatusOptions = computed(() => {
+    const rows = props.selectedProject.actual_statuses ?? [];
+    if (!rows.length) {
+        return [
+            { value: '実績', label: '実績' },
+        ];
+    }
+    return [...rows]
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map(r => {
+            const label = r.label || r.custom_label || '実績';
+            return { value: label, label };
+        });
+});
+const hasGoals = computed(() => props.selectedProject?.has_goals ?? false);
+const auth = useAuthUserStore()
 type Params = {
     client_name: string
     amount: string
-    kind: RecordKind
-    stage: Stage
-    delivery_status: DeliveryStatus
+    actual_status_label: string | null
+    entry_type: 'actual' | 'goal'
     notes: string
-    case_count: string
     period: string
     member: User | null
 }
-const defaultPeriod = props.selectedCase?.reportDate ?? DateTime.now().startOf('month').minus({ months: 1 }).toISODate();
+const manager = computed(() => {
+    return props.selectedProject.manager?.find(m => m.id === auth.id) || null;
+})
+const defaultPeriod = props.selectedCase?.reportDate ?? DateTime.now().startOf('month').toISODate();
 const params = reactive<Params>({
     client_name: '',
     amount: '',
-    kind: 'PIPELINE',
-    stage: 'C',
-    delivery_status: 'ORDERED_NOT_COMPLETED',
+    actual_status_label: null,
+    entry_type: 'goal',
     notes: '',
-    case_count: '',
     period: defaultPeriod,
-    member: null
+    member: manager.value ? manager.value : null
 });
 
-const pipelineStageOptions = computed(() => STAGE_PIPELINE_LIST.map(stage => ({ value: stage, label: STAGE_LABEL[stage] })));
-const deliveryOptions = computed(() => Object.entries(DELIVERY_LABEL).map(([value, label]) => ({ value: value as DeliveryStatus, label })));
 const historyMap = computed<Record<string, { id: number; reportDate: string | null }[]>>(() => props.selectedCase?.timeline ?? {});
 const caseIdForPeriod = computed<number | null>(() => {
     const period = params.period;
@@ -287,34 +282,12 @@ const historyChips = computed(() => {
 const periodLabel = computed(() => params.period ? DateTime.fromISO(params.period).toFormat('yyyy年M月') : '対象月');
 const statusText = computed(() => {
     if (!viewData.value) return '―';
-    if (viewData.value.kind === 'PIPELINE') {
-        return stageLabelText(viewData.value.stage);
-    }
-    if (viewData.value.kind === 'ACTUAL') {
-        return deliveryLabelText(viewData.value.delivery_status);
-    }
-    return '目標値';
+    return viewData.value.status || '実績';
 });
 
-const setKind = (next: RecordKind) => {
-    if (params.kind === next) return;
-    params.kind = next;
-    if (next === 'PIPELINE') {
-        params.stage = 'C';
-        params.delivery_status = 'ORDERED_NOT_COMPLETED';
-    } else if (next === 'ACTUAL') {
-        params.stage = 'WON';
-        params.delivery_status = 'ORDERED_NOT_COMPLETED';
-    } else {
-        params.stage = 'WON';
-        params.delivery_status = 'ORDERED_NOT_COMPLETED';
-    }
-};
-const stageLabelText = (stage?: Stage | null) => stage ? (STAGE_LABEL[stage] ?? stage) : '—';
-const deliveryLabelText = (delivery?: DeliveryStatus | null) => delivery ? (DELIVERY_LABEL[delivery] ?? delivery) : '—';
 const formatYen = (value?: number | null) => {
     if (value == null) return '―';
-    return `${new Intl.NumberFormat('ja-JP').format(value)}円`;
+    return `${new Intl.NumberFormat('ja-JP').format(value)}${unitLabel.value}`;
 };
 
 const resolveSelectedCaseKey = computed(() => {
@@ -349,7 +322,6 @@ const refreshView = async () => {
     try {
         const data = await api.post('/view_case', { id: currentId, period: params.period });
         viewData.value = data;
-        console.log(viewData.value)
     } finally {
         loading.value = 1;
     }
@@ -369,11 +341,9 @@ const hasPrivilage = computed(() => props.hasPrivilage);
 const resetForm = () => {
     params.client_name = '';
     params.amount = '';
-    params.case_count = '';
     params.notes = '';
-    params.kind = 'PIPELINE';
-    params.stage = 'C';
-    params.delivery_status = 'ORDERED_NOT_COMPLETED';
+    params.actual_status_label = actualStatusOptions.value[0]?.value ?? null;
+    params.entry_type = 'actual';
     if (!hasPrivilage.value) {
         params.member = null;
     }
@@ -392,10 +362,7 @@ const editCase = () => {
     suspendAutoFetch.value = true;
     params.client_name = viewData.value.client_name ?? '';
     params.amount = String(viewData.value.amount ?? '');
-    params.kind = viewData.value.kind || 'PIPELINE';
-    params.stage = viewData.value.stage || (params.kind === 'PIPELINE' ? 'C' : 'WON');
-    params.delivery_status = viewData.value.delivery_status || 'ORDERED_NOT_COMPLETED';
-    params.case_count = String(viewData.value.case_count ?? '');
+    params.actual_status_label = viewData.value.status || actualStatusOptions.value[0]?.value || null;
     params.notes = viewData.value.notes ?? '';
     params.period = viewData.value.report_date ?? params.period;
     params.member = viewData.value.reporter || null;
@@ -409,13 +376,11 @@ const deleteCase = async () => {
 const submitCase = async (type: 1 | 2) => {
     if (savingType.value) return;
     const amount = Number(params.amount || 0);
-    const caseCount = Number(params.case_count || 0);
+    const statusLabel = params.entry_type === 'goal' ? '目標値' : (params.actual_status_label || '実績');
     const payload = {
-        kind: params.kind,
-        stage: params.kind === 'PIPELINE' ? params.stage : params.kind === 'ACTUAL' ? 'WON' : null,
-        delivery_status: params.kind === 'ACTUAL' ? params.delivery_status : null,
+        actual_status_label: statusLabel,
         client_name: params.client_name.trim() || null,
-        case_count: Number.isNaN(caseCount) ? 0 : caseCount,
+        case_count: 0,
         amount: Number.isNaN(amount) ? 0 : amount,
         notes: params.notes || null,
         report_date: params.period || '',
@@ -452,8 +417,6 @@ const handleClose = () => {
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 16px;
-    border: 1px solid var(--calendarBorder);
-    padding: 16px;
     background: var(--background-color);
 }
 .case-create__period {
@@ -502,10 +465,7 @@ const handleClose = () => {
 }
 .case-summary,
 .case-form {
-    border: 1px solid var(--calendarBorder);
-    padding: 20px;
     background: var(--background-color);
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05);
 }
 .case-summary__header {
     display: flex;
@@ -582,11 +542,23 @@ const handleClose = () => {
     border-color: #fecaca;
     color: #b91c1c;
 }
-.case-form .si-box {
-    padding: 12px;
+.modal-menu {
+    display: flex;
+    gap: 8px;
 }
-.case-form .si-box + .si-box {
-    margin-top: 12px;
+.modal-menu button {
+    border: 1px solid var(--normalBorder);
+    padding: 6px 12px;
+    font-size: 12px;
+    background: var(--background-color);
+}
+.modal-menu button.danger {
+    border-color: #fecaca;
+    color: #b91c1c;
+}
+.ghost-button {
+    background: var(--background-color);
+    padding: 6px 10px;
 }
 .kind-toggle {
     display: flex;
@@ -605,24 +577,5 @@ const handleClose = () => {
     background: var(--hoverBorder);
     border-color: var(--hoverBorder);
     color: #fff;
-}
-.modal-menu {
-    display: flex;
-    gap: 8px;
-}
-.modal-menu button {
-    border: 1px solid var(--normalBorder);
-    padding: 6px 12px;
-    font-size: 12px;
-    background: var(--background-color);
-}
-.modal-menu button.danger {
-    border-color: #fecaca;
-    color: #b91c1c;
-}
-.ghost-button {
-    border: 1px solid var(--normalBorder);
-    background: var(--background-color);
-    padding: 6px 10px;
 }
 </style>

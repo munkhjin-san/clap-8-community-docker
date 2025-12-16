@@ -50,9 +50,9 @@ class ProjectRecord extends Model
         'industry_type' => 'array',
         'date_start' => 'date',
         'date_end' => 'date',
-        'has_forecast' => 'boolean',
         'has_goals' => 'boolean',
         'actual_statuses' => 'array',
+        'has_actual_func' => 'boolean'
     ];
 
     public function scopeActiveOn(Builder $q, ?Carbon $day = null): Builder

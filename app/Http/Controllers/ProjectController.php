@@ -69,45 +69,20 @@ class ProjectController extends Controller
     protected $boardController;
     protected $sharedService;
 
-    private const CASE_KINDS = ['PLAN', 'PIPELINE', 'ACTUAL'];
-
-    private const CASE_STAGES = ['WON', 'A', 'B', 'C', 'D', 'E', 'LOST'];
-
-    private const CASE_STAGE_LABELS = [
-        'WON'  => '①受注済',
-        'A'    => '②確度A',
-        'B'    => '③確度B',
-        'C'    => '④確度C',
-        'D'    => '⑤確度D',
-        'E'    => '⑥確度E',
-        'LOST' => '失注',
-    ];
-
-    private const CASE_STAGE_WEIGHT = [
-        'WON'  => 1.0,
-        'A'    => 0.9,
-        'B'    => 0.7,
-        'C'    => 0.5,
-        'D'    => 0.3,
-        'E'    => 0.1,
-        'LOST' => 0.0,
-    ];
-
-    private const CASE_DELIVERY_LABELS = [
-        'COMPLETED'              => '★竣工済',
-        'ORDERED_NOT_COMPLETED'  => '①受注済未竣工',
-    ];
+    private const CASE_KINDS = ['ACTUAL'];
     private const DEFAULT_ACTUAL_STATUSES = [
-        ['status_id' => 1, 'label' => '未着手', 'is_system_default' => true, 'sort_order' => 1],
-        ['status_id' => 2, 'label' => '進行中', 'is_system_default' => true, 'sort_order' => 2],
-        ['status_id' => 3, 'label' => '完了',   'is_system_default' => true, 'sort_order' => 3],
-        ['status_id' => 4, 'label' => 'キャンセル', 'is_system_default' => true, 'sort_order' => 4],
+        ['status_id' => 1, 'label' => '新規契約', 'is_system_default' => true, 'sort_order' => 1],
+        ['status_id' => 2, 'label' => '継続契約', 'is_system_default' => true, 'sort_order' => 2],
+        ['status_id' => 3, 'label' => 'リプレイス・アップグレード',   'is_system_default' => true, 'sort_order' => 3],
+        ['status_id' => 4, 'label' => 'オプション契約', 'is_system_default' => true, 'sort_order' => 4],
+        ['status_id' => 5, 'label' => 'アポイント取得', 'is_system_default' => true, 'sort_order' => 5],
     ];
     private const SYSTEM_STATUS_LABELS = [
-        1 => '未着手',
-        2 => '進行中',
-        3 => '完了',
-        4 => 'キャンセル',
+        1 => '新規契約',
+        2 => '継続契約',
+        3 => 'リプレイス・アップグレード',
+        4 => 'オプション契約',
+        5 => 'アポイント取得',
     ];
     public function __construct(
         BoardController $boardController, 
@@ -174,10 +149,10 @@ class ProjectController extends Controller
         ])
         ->get();
         $projects = $projects->map(function (ProjectRecord $project) {
-            $project->actual_statuses = $project->actual_statuses ?: self::DEFAULT_ACTUAL_STATUSES;
-            $project->has_forecast = $project->has_forecast ?? true;
+            $project->actual_statuses = $project->actual_statuses ?? [];
             $project->has_goals = $project->has_goals ?? false;
             $project->unit_id = $project->unit_id ?? 'JPY';
+            $project->has_actual_func = $project->has_actual_func ?? false;
             $project->custom_unit_label = $project->custom_unit_label ?? null;
             return $project;
         });
@@ -470,13 +445,13 @@ class ProjectController extends Controller
             'customers',
             'industry_type',
             'is_new',
-            'has_forecast',
             'has_goals',
+            'has_actual_func',
             'unit_id',
             'custom_unit_label',
         ])->toArray();
 
-        $filteredParams['has_forecast'] = array_key_exists('has_forecast', $params) ? (bool)$params['has_forecast'] : true;
+        $filteredParams['has_actual_func'] = array_key_exists('has_actual_func', $params) ? (bool)$params['has_actual_func'] : false;
         $filteredParams['has_goals'] = array_key_exists('has_goals', $params) ? (bool)$params['has_goals'] : false;
         $filteredParams['unit_id'] = $params['unit_id'] ?? 'JPY';
         $filteredParams['custom_unit_label'] = $params['custom_unit_label'] ?? null;
@@ -2300,7 +2275,12 @@ class ProjectController extends Controller
             }             
         }
         
-        $response = $service->spreadsheets_values->batchGet($sheet_id, ['ranges' => $ranges]);
+        $params = [
+            'ranges' => $ranges,
+            'valueRenderOption' => 'UNFORMATTED_VALUE'
+        ];
+
+        $response = $service->spreadsheets_values->batchGet($sheet_id, $params);
         $batchSettlementData = [];
 
         foreach ($response->getValueRanges() as $index => $range) {
@@ -2590,19 +2570,19 @@ class ProjectController extends Controller
                         $settlement_profit_val = $settlementOfProject[$settlement_profit_index] ?? 0;
                         $settlement_profit_rate_val = $settlementOfProject[$settlement_profit_rate_index] ?? 0; 
                         $totalSales = round((float) str_replace(',', '', $settlement_sales_val), 0, PHP_ROUND_HALF_UP);
-                        $totalExpense = round((float) str_replace(',', '', $settlement_expense_val) + (float) str_replace(',', '', $settlement_additional_expense_val), 0, PHP_ROUND_HALF_UP);
+                        $totalExpense = (float) str_replace(',', '', $settlement_expense_val) + (float) str_replace(',', '', $settlement_additional_expense_val);
                         $plan_res_data[$project_name][$month]['settlement']= [
                             'sales' => $totalSales,
                             'expense' => $totalExpense ?? 0,
-                            'profit' => round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP),
+                            'profit' => (float)(float) str_replace(',', '', $settlement_profit_val),
                             'profit_rate' => (float) str_replace('%', '', $settlement_profit_rate_val),
                             'has_data' => true,
                         ];
                         $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $totalSales;
                         $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $totalExpense;
                         $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
-                        $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
-                        $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
+                        // $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
+                        // $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
                         $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$month]['settlement']);
                  
                     }else{
@@ -2624,7 +2604,12 @@ class ProjectController extends Controller
                 $stDate->addMonth();
             }
         }
-
+        foreach($periodTotals as $key => &$periodTotal){
+            $periodTotal['settlement']['expense'] = (int) round($periodTotal['settlement']['expense'] ?? 0, 0, PHP_ROUND_HALF_UP);
+            $periodTotal['settlement']['profit'] = (int) round($periodTotal['settlement']['profit'] ?? 0, 0, PHP_ROUND_HALF_UP);
+            $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $periodTotal['settlement']['sales'];
+            $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $periodTotal['settlement']['expense'];
+        }
         $final_data = [
             'plan_res_data' => $plan_res_data,
             'sumData' => $sumData,
@@ -3353,9 +3338,6 @@ class ProjectController extends Controller
         abort_unless($isProjectMember || $isDirector, 403, 'このプロジェクトには報告権限がありません。');
 
         $data = $req->validate([
-            'kind'        => ['required', Rule::in(self::CASE_KINDS)],
-            'stage'       => ['nullable', Rule::in(self::CASE_STAGES)],
-            'delivery_status' => ['nullable', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
             'actual_status_label' => ['nullable', 'string', 'max:191'],
             'client_name' => ['nullable', 'string', 'max:191'],
             'case_count'  => ['nullable', 'integer', 'min:0'],
@@ -3366,25 +3348,11 @@ class ProjectController extends Controller
             'member_id'   => ['nullable', 'integer']
         ]);
 
-        $kind = $data['kind'];
-        $this->ensureCaseKindAllowed($project, $kind);
-        if ($kind === 'PIPELINE') {
-            $req->validate([
-                'stage' => ['required', Rule::in(['A', 'B', 'C', 'D', 'E'])],
-            ]);
-        }
-        if ($kind === 'ACTUAL') {
-            $req->validate([
-                'actual_status_label' => ['required', 'string', 'max:191'],
-            ]);
-        }
-
-        [$stage, $delivery, $statusLabel, $probability] = $this->normalizeCaseAttributes(
-            $kind,
-            $data['stage'] ?? null,
-            $data['delivery_status'] ?? null,
-            $data['actual_status_label'] ?? null
-        );
+        $kind = 'ACTUAL';
+        $statusLabel = $data['actual_status_label'] ?: '実績';
+        $stage = null;
+        $delivery = null;
+        $probability = null;
         $reportDate = Carbon::parse($data['report_date'])->startOfMonth();
         $user_id = $data['member_id'] ?? $user->id;
         $attributes = [
@@ -3453,9 +3421,6 @@ class ProjectController extends Controller
         abort_unless($isProjectMember || $isDirector, 403, 'このプロジェクトには報告権限がありません。');
 
         $data = $req->validate([
-            'kind'        => ['required', Rule::in(self::CASE_KINDS)],
-            'stage'       => ['nullable', Rule::in(self::CASE_STAGES)],
-            'delivery_status' => ['nullable', Rule::in(array_keys(self::CASE_DELIVERY_LABELS))],
             'actual_status_label' => ['nullable', 'string', 'max:191'],
             'client_name' => ['nullable', 'string', 'max:191'],
             'case_count'  => ['nullable', 'integer', 'min:0'],
@@ -3468,25 +3433,11 @@ class ProjectController extends Controller
             'amount.required' => '金額は必須です。',
         ]);
 
-        $kind = $data['kind'];
-        $this->ensureCaseKindAllowed($project, $kind);
-        if ($kind === 'PIPELINE') {
-            $req->validate([
-                'stage' => ['required', Rule::in(['A', 'B', 'C', 'D', 'E'])],
-            ]);
-        }
-        if ($kind === 'ACTUAL') {
-            $req->validate([
-                'actual_status_label' => ['required', 'string', 'max:191'],
-            ]);
-        }
-
-        [$stage, $delivery, $statusLabel, $probability] = $this->normalizeCaseAttributes(
-            $kind,
-            $data['stage'] ?? null,
-            $data['delivery_status'] ?? null,
-            $data['actual_status_label'] ?? null
-        );
+        $kind = 'ACTUAL';
+        $statusLabel = $data['actual_status_label'] ?: '実績';
+        $stage = null;
+        $delivery = null;
+        $probability = null;
 
         $reportDate = Carbon::parse($data['report_date'])->startOf('month');
 
@@ -3560,7 +3511,7 @@ class ProjectController extends Controller
         }
 
         if (!count($clean)) {
-            return self::DEFAULT_ACTUAL_STATUSES;
+            return [];
         }
 
         usort($clean, fn($a, $b) => ($a['sort_order'] ?? 0) <=> ($b['sort_order'] ?? 0));
@@ -3578,43 +3529,6 @@ class ProjectController extends Controller
         return $reordered;
     }
 
-    private function ensureCaseKindAllowed(ProjectRecord $project, string $kind): void
-    {
-        $kind = strtoupper($kind);
-
-        if ($kind === 'PIPELINE' && !$project->has_forecast) {
-            abort(422, 'このプロジェクトではフォーキャスト（見込み）が無効です。');
-        }
-        if ($kind === 'PLAN' && !$project->has_goals) {
-            abort(422, 'このプロジェクトでは目標値入力が無効です。');
-        }
-    }
-
-    private function normalizeCaseAttributes(string $kind, ?string $stage, ?string $delivery, ?string $actualStatusLabel = null): array
-    {
-        $kind = strtoupper($kind);
-
-        switch ($kind) {
-            case 'PLAN':
-                return [null, null, '目標値', null];
-
-            case 'ACTUAL':
-                $stage = 'WON';
-                $label = $actualStatusLabel ?: ($delivery ? (self::CASE_DELIVERY_LABELS[$delivery] ?? $delivery) : '実績');
-                $probability = self::CASE_STAGE_WEIGHT['WON'];
-                return [$stage, null, $label, $probability];
-
-            case 'PIPELINE':
-                $stage = strtoupper($stage ?? 'C');
-                $label = self::CASE_STAGE_LABELS[$stage] ?? $stage;
-                $probability = self::CASE_STAGE_WEIGHT[$stage] ?? null;
-                return [$stage, null, $label, $probability];
-
-            default:
-                return [$stage, $delivery, '不明', null];
-        }
-    }
-
     private function resolveCaseLabel(ProjectCase $case): string
     {
         if ($case->kind === 'PLAN') {
@@ -3625,14 +3539,38 @@ class ProjectController extends Controller
             if (!empty($case->status)) {
                 return $case->status;
             }
-            return self::CASE_DELIVERY_LABELS[$case->delivery_status] ?? self::CASE_STAGE_LABELS[$case->stage] ?? '実績';
-        }
-
-        if ($case->kind === 'PIPELINE') {
-            return self::CASE_STAGE_LABELS[$case->stage] ?? ($case->status ?? '見込み');
+            return '実績';
         }
 
         return $case->status ?? '―';
+    }
+
+    public function project_actual_status_suggestions(): JsonResponse
+    {
+        $rows = ProjectRecord::query()
+            ->where('has_actual_func', true)
+            ->pluck('actual_statuses')
+            ->filter()
+            ->toArray();
+
+        $labels = [];
+        foreach ($rows as $row) {
+            if (is_string($row)) {
+                $decoded = json_decode($row, true);
+            } else {
+                $decoded = $row;
+            }
+            if (!is_array($decoded)) continue;
+            foreach ($decoded as $item) {
+                $label = $item['label'] ?? $item['custom_label'] ?? null;
+                if (!$label) continue;
+                $labels[] = $label;
+            }
+        }
+
+        $unique = array_values(array_unique($labels));
+
+        return response()->json(['suggestions' => $unique]);
     }
 
     public function project_metrics_with_values(ProjectRecord $project, Request $req) {

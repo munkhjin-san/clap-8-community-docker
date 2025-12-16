@@ -79,8 +79,8 @@ interface Project {
     private_memo: string
     contract?: ProjectContractResponse | null
     is_new: boolean
-    has_forecast?: boolean
     has_goals?: boolean
+    has_actual_func: boolean
     unit_id?: 'JPY' | 'COUNT' | 'HOUR' | 'CUSTOM'
     custom_unit_label?: string | null
     actual_statuses?: ProjectActualStatus[]
@@ -90,6 +90,7 @@ export type ProjectActualStatus = {
     label: string;
     sort_order?: number;
     is_system_default?: boolean;
+    custom_label?: string;
 }
 interface ProjectCondition {
     project_record_id: number;

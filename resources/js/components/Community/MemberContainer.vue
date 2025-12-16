@@ -7,8 +7,8 @@
                 </div>
             </div>
         </div>
-        <div class="relative h-[calc(100%-115px)]">
-            <div>
+        <div class="relative h-[calc(100%-80px)]">
+            <div class="overflow-hidden h-full">
                 <Transition name="modalFade">
                     <div class="member-loader" v-if="initialLoader">
                         <div id="loaderMini">
@@ -188,7 +188,7 @@ const handleScroll = () => {
 <style>
 
 .member-container{
-    height: calc(100% - 80px);
+    height: 100%;
     overflow: hidden auto;
     padding: 0 20px 20px 20px;
     color: var(--primary-color);

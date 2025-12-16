@@ -78,6 +78,16 @@
             
         </td>
         <td>
+            <div style="position: relative;">
+                <div class="text-wrap comment-wrap" v-if="item?.time_card?.project_case.length" @click.stop="boxPosition('actualResultBox')"> 
+                    {{ totalResultFormatted + unitLabel }}
+                </div>
+                <div @click="menu.close()" ref="actualResultBox" class="comment-box" id="actualResultBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'actualResultBox' && menu.id == item.time_card?.id">
+                    <div style="word-break: break-word;">{{ actualResultFormatted }}</div>                              
+                </div>
+            </div> 
+        </td>
+        <td>
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
                 <div @click.stop="boxPosition('vehicleBox')" class="text-wrap">{{ hasVehicle }}</div>
                 <div @click="menu.close()" ref="vehicleBox" class="comment-box" id="vehicleBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'vehicleBox' && menu.id == item.time_card?.id">
@@ -176,7 +186,16 @@ const getDayClass = computed(() => {
         'today' : date === DateTime.now().toISODate(),
     }
 })
-
+const selectedProject = computed(() => {
+    return props.item?.time_card?.department
+})
+const unitCode = computed(() => selectedProject.value?.unit_id ?? 'JPY');
+const unitLabel = computed(() => {
+    if (unitCode.value === 'COUNT') return '件';
+    if (unitCode.value === 'HOUR') return '時間';
+    if (unitCode.value === 'CUSTOM') return selectedProject.value?.custom_unit_label || '単位';
+    return '円';
+});
 const dayFormatter = computed(() => {
     const value = props.item.day_show
     if(value){
@@ -335,6 +354,21 @@ const satisfyFormatted = computed(() => {
     const title = props.item?.satisfy && responsive.mobile ? '目標達成率 : ' : ''
     return  title + props.item?.satisfy
 })
+const totalResultFormatted = computed(() => {
+    const cases = props.item?.time_card?.project_case || [];
+    const title = cases.length && responsive.mobile ? '実績 : ' : '';
+    return title + cases.reduce((sum, c) => sum + Number(c.amount || 0), 0);
+})
+const actualResultFormatted = computed(() => {
+  const cases = props.item?.time_card?.project_case || [];
+
+  if (!cases.length) return '';
+
+  return cases
+    .filter(c => c.amount !== null && c.amount !== '' && c.amount !== undefined)
+    .map(c => `${c.status ?? '実績'}: ${c.amount}${unitLabel.value}`)
+    .join('\n');
+});
 
 const yenFmt = new Intl.NumberFormat('ja-JP');
 

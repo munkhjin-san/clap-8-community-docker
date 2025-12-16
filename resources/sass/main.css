@@ -6747,6 +6747,9 @@ button.shift-button {
 }
 
 @media screen and (max-width: 959px) {
+  .sub-tab-item {
+    font-size: 13px;
+  }
   .cal-m-day-title {
       margin: 0 auto;
       margin-inline: auto;

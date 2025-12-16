@@ -226,12 +226,12 @@ const routes = [
                         props: true,
                         component: () => import('./components/Project/ProjectTabs/Contracts.vue'),
                     },
-                    // {
-                    //     path: 'legal',
-                    //     name: 'legal',
-                    //     props: true,
-                    //     component: () => import('./components/Project/ProjectTabs/Legal.vue'),
-                    // },
+                    {
+                        path: 'legal',
+                        name: 'legal',
+                        props: true,
+                        component: () => import('./components/Project/ProjectTabs/Legal.vue'),
+                    },
                     {
                         path: 'finance',
                         name: 'finance',
@@ -429,6 +429,12 @@ const routes = [
                         props: true,
                         component: () => import('./components/AccountControl/ProjectControl/EvaluationMentor.vue')
                     },
+                    // {
+                    //     path: 'accounts',
+                    //     name: 'accountcontrol',
+                    //     props: true,
+                    //     component: () => import('./components/AccountControl/ProjectControl/AccountManager.vue')
+                    // },
                     // {
                     //     path: 'metriccontrol',
                     //     name: 'metriccontrol',

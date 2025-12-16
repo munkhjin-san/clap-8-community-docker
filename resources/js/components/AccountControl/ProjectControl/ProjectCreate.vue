@@ -23,9 +23,7 @@
                 </div>
                 <div class="projectModalContent" @scroll="onScroll">
                     <div class="projectModalContentInner">
-                        <AiLoader v-if="taskCreating || misoCreating" :message="taskCreating ? 
-                                    'ガントチャート用のタスクをAIで自動生成中です。<br>この処理には数分かかる場合があります。' : 
-                                    '自動生成中です。<br>この処理には数分かかる場合があります。'"/>
+                        <AiLoader v-if="loaderPayload.loading" :message="loaderPayload.message"/>
                         <div id="basic" class="mb-[60px] section-hd">
                             <p class="mb-[20px]"><strong>基本情報</strong></p>
                             <div class="relative">
@@ -83,6 +81,99 @@
                                         v-model="projectParams.date_end"
                                     />
                                 </div>
+                            </div>
+                            <div class="si-box">
+                                <p class="text-[14px]">部門</p>
+                                <div class="mt-[15px] flex flex-wrap gap-[15px]">
+                                    <label v-for="rp in [{value: 1, label: '新規'}, {value: 0, label: '既存'}]" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer" :key="rp.value">
+                                        <input class="custom-f-radio" type="radio" v-model="projectParams.is_new" :value="rp.value"/>
+                                        {{ rp.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="performance" class="mb-[60px] section-hd">
+                            <p class="mb-[20px]"><strong>実績管理機能</strong></p>
+                            <div class="selectSwitchArea" style="width: fit-content;">    
+                                <input type="checkbox" id="set_actual" v-model="projectParams.has_actual_func">
+                                <label for="set_actual" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer']"><span></span>
+                                    <div class="switch-toggle"></div>
+                                </label>
+                            </div>
+                            <p class="text-[12px] text-[gray] mt-[8px] leading-normal">
+                                実績確認機能をONにすると、メンバーの日々の実績（件数など）を記録・集計できるようになります。
+                            </p>
+                            <div v-if="projectParams.has_actual_func">
+                                <div class="si-box">
+                                    <p class="text-[14px]">目標</p>
+                                    <div class="mt-[10px] flex flex-wrap gap-[15px]">
+                                        <label class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer">
+                                            <input class="custom-f-checkbox" type="checkbox" v-model="projectParams.has_goals"/>
+                                            目標値（ゴール）
+                                        </label>
+                                    </div>
+                                    <p class="text-[12px] text-[gray] mt-[8px] leading-normal">メンバーごとの月次目標値を設定できます。設定した目標は、月・四半期・年間の実績画面で比較表示されます。</p>
+                                </div>
+                                <div class="si-box">
+                                    <p class="text-[14px]">成果単位</p>
+                                    <div class="mt-[10px] flex flex-wrap gap-[15px]">
+                                        <label v-for="unit in unitOptions" :key="unit.value" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer">
+                                            <input class="custom-f-radio" type="radio" v-model="projectParams.unit_id" :value="unit.value"/>
+                                            {{ unit.label }}
+                                        </label>
+                                    </div>
+                                    <div class="mt-[10px]" v-if="projectParams.unit_id === 'CUSTOM'">
+                                        <ShortInput 
+                                            name="custom_unit_label"
+                                            v-model="projectParams.custom_unit_label"
+                                            placeHolder="カスタム単位（例：リード、契約数など）"
+                                            type="text"
+                                        />
+                                    </div>
+                                </div>
+                            <div class="si-box">
+                                <p class="text-[14px]">実績項目</p>
+                                
+                                <div class="flex flex-col gap-[10px] mt-[10px]">
+                                    <div v-for="(row, index) in statusRows" :key="`status-${index}`" class="flex flex-wrap items-center gap-[10px]">
+                                        <input class="custom-f-checkbox" type="checkbox" v-model="row.selected"/>
+                                        <span v-if="row.is_system_default" class="text-[13px]">{{ row.label }}</span>
+                                        <input
+                                            v-else
+                                            v-model="row.label"
+                                            type="text"
+                                            class="flex-1 border border-solid border-[var(--normalBorder)] px-[10px] py-[8px] text-[13px] min-w-[200px]"
+                                            placeholder="実績を分類する項目名を設定してください。"
+                                        />
+                                            <button
+                                                v-if="!row.is_system_default"
+                                                type="button"
+                                                class="text-[12px] px-[10px] py-[6px] border-solid border border-[var(--normalBorder)]"
+                                                @click="removeStatusRow(index)"
+                                            >
+                                                削除
+                                            </button>
+                                        </div>
+                                        <button type="button" class="text-left text-[13px] text-[var(--primary-color)]" @click="addCustomStatus">
+                                            + 項目を追加
+                                        </button>
+                                    </div>
+                                    <div v-if="suggestedStatuses.length" class="flex flex-wrap items-center gap-[8px] mb-[10px]">
+                                        <span class="text-[12px] text-[gray] mr-[6px]">他プロジェクトからの候補:</span>
+                                        <button
+                                            v-for="s in suggestedStatuses"
+                                            :key="`sug-${s}`"
+                                            type="button"
+                                            class="px-[10px] py-[6px] text-[12px] border border-solid border-[var(--normalBorder)] bg-[var(--bg3)] hover:border-[var(--primary-color)]"
+                                            @click="() => addSuggestedStatus(s)"
+                                        >
+                                            {{ s }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p class="text-[12px] text-[gray] leading-normal">
+                                    すべての項目をOFFにすると、項目名は「実績」として表示されます。
+                                </p>
                             </div>
                         </div>
                         <div id="overview" class="mb-[60px] section-hd">
@@ -151,7 +242,7 @@
                                         <div style="position: relative;background:inherit;border: 1px solid var(--primary-color);" ref="industryTypeRef">
                                             <v-autocomplete
                                                 chips
-                                                :items="ProjectIndustryTypes"
+                                                :items="ProjectIndustryTypesData"
                                                 :multiple="true"
                                                 closable-chips
                                                 flat
@@ -319,13 +410,177 @@
                                             <CustomEdge v-bind="edgeProps" />
                                         </template>
                                     </VueFlow>
-                                </div> 
-                                
-                            </div>                            
-                            <div class="si-box">
-                                <LoaderButton @triggered="createProject" :loading="loading" content="保存する"/>
+                        </div> 
+                    </div>                            
+                </div>
+                <div class="section-hd mt-[60px]" id="legal">
+                    <p class="mb-5"><strong>契約レビュー</strong></p>
+                    <div class="selectSwitchArea" style="width: fit-content;">    
+                        <input type="checkbox" id="legal_review" v-model="legal_review">
+                        <label for="legal_review" style="min-width: 80px;width: fit-content;" :class="['cursor-pointer']"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                    </div>
+                    <p class="text-[12px] text-[gray] mt-[8px] leading-normal">
+                        契約書を AI が自動レビューし、リスクや不備の可能性を簡易的に確認できます。
+                        詳細な検証はプロジェクトの「リーガル」タブで実施できます。
+                    </p>
+                    <div v-if="legal_review" class="relative si-box" ref="flowContainer">
+                        <div class="mb-[30px]" style="background:inherit;">        
+                            <div style="position:relative;background:inherit;">
+                                <div style="position: relative;background:inherit;border: 1px solid var(--primary-color);" ref="serviceCategoryRef">
+                                    <v-autocomplete
+                                        chips
+                                        :items="contractTypeDefaults"
+                                        :multiple="false"
+                                        closable-chips
+                                        flat
+                                        tile
+                                        bg-color="var(--background-color)"
+                                        clear-on-select
+                                        hide-details
+                                        hide-selected
+                                        hide-no-data
+                                        focused
+                                        item-title="label"
+                                        eager
+                                        label="契約種別"
+                                        :menu-props="{ scrollStrategy: 'close'}"
+                                        v-model="contract_type"
+                                        
+                                    >
+                                        <template v-slot:chip="{ props, item }">
+                                            <v-chip
+                                                closable
+                                                v-bind="props"
+                                                :text="item.label"
+                                                :close-icon="CloseIcon"
+                                                rounded="0"
+                                                density="compact"
+                                            >
+                                            </v-chip>
+                                        </template>
+                                        <template v-slot:item="{ props, item }">
+                                            <!-- <v-list-item :width="serviceCategoryRef && serviceCategoryRef?.clientWidth ? serviceCategoryRef?.clientWidth - 32 : undefined" v-bind="props" :subtitle="item.raw.subtitle" :text="item.raw" rounded="0" density="compact" :ripple="false" variant="flat"></v-list-item>                     -->
+                                            <div v-bind="props" class="text-[14px] py-[15px] hover:bg-[var(--bg2)] cursor-pointer" :style="{width: serviceCategoryRef && serviceCategoryRef?.clientWidth ? `${serviceCategoryRef?.clientWidth}px` : undefined}">
+                                                <div class="px-[15px] text-[var(--primary-color)]">
+                                                    {{ item.raw.label }}
+                                                </div>
+                                                <div class="text-gray-500 text-[10px] px-[30px] mt-[10px]">
+                                                    {{ item.raw.focus }}
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </v-autocomplete>
+                                </div>
                             </div>
                         </div>
+                        <div class="mb-[30px]" style="background:inherit;">        
+                            <div style="position:relative;background:inherit;">
+                                <div style="position: relative;background:inherit;border: 1px solid var(--primary-color);" ref="serviceCategoryRef">
+                                    <v-autocomplete
+                                        chips
+                                        :items="contractRoleDefaults"
+                                        :multiple="false"
+                                        closable-chips
+                                        flat
+                                        tile
+                                        bg-color="var(--background-color)"
+                                        clear-on-select
+                                        hide-details
+                                        hide-selected
+                                        hide-no-data
+                                        focused
+                                        item-title="label"
+                                        eager
+                                        label="当事者区分"
+                                        :menu-props="{ scrollStrategy: 'close'}"
+                                        v-model="contract_role"
+                                        
+                                    >
+                                        <template v-slot:chip="{ props, item }">
+                                            <v-chip
+                                                closable
+                                                v-bind="props"
+                                                :text="item.label"
+                                                :close-icon="CloseIcon"
+                                                rounded="0"
+                                                density="compact"
+                                            >
+                                            </v-chip>
+                                        </template>
+                                        <template v-slot:item="{ props, item }">
+                                            <div v-bind="props" class="text-[14px] py-[15px] hover:bg-[var(--bg2)] cursor-pointer" :style="{width: industryTypeRef && industryTypeRef?.clientWidth ? `${industryTypeRef?.clientWidth}px` : undefined}">
+                                                <div class="px-[15px] text-[var(--primary-color)]">
+                                                    {{ item.raw.label }}
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </v-autocomplete>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-[30px]">
+                            <div
+                                class="legal-upload"
+                                :class="{'legal-upload--filled': !!uploadedMeta}"
+                                role="button"
+                                tabindex="0"
+                                @click="triggerFileInput"
+                                @keydown.enter.prevent="triggerFileInput"
+                                @keydown.space.prevent="triggerFileInput"
+                            >
+                                <input
+                                    ref="contractInput"
+                                    type="file"
+                                    class="legal-upload__input"
+                                    @change="onChange"
+                                />
+                                <template v-if="!uploadedMeta">
+                                    <div class="legal-upload__placeholder">
+                                        <div class="legal-upload__icon">
+                                            <FileIcon ext="file" />
+                                        </div>
+                                        <div class="legal-upload__text">
+                                            <p class="legal-upload__title">契約書ファイルをアップロード</p>
+                                            <p class="legal-upload__hint">PDF / Office ドキュメントなどを 1 件まで選択できます。</p>
+                                            <p class="legal-upload__cta">クリックしてファイルを選択</p>
+                                        </div>
+                                    </div>
+                                </template>
+                                <template v-else>
+                                    <div class="legal-upload__content">
+                                        <div class="legal-upload__info">
+                                            <div class="legal-upload__icon">
+                                                <FileIcon :ext="uploadedMeta.ext" />
+                                            </div>
+                                            <div class="legal-upload__details">
+                                                <p class="legal-upload__filename" :title="uploadedMeta.name">{{ uploadedMeta.name }}</p>
+                                                <p class="legal-upload__meta">{{ uploadedMeta.sizeLabel }}</p>
+                                            </div>
+                                        </div>
+                                        <div class="legal-upload__actions">
+                                            <button type="button" class="legal-upload__btn" @click.stop="previewUploaded">開く</button>
+                                            <button type="button" class="legal-upload__btn legal-upload__btn--ghost" @click.stop="clearUploaded">削除</button>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                            <ProjectContract :contract="contract"/>
+                        </div>
+                        
+                        <div>
+                            <CommandButton 
+                                :buttons="[
+                                    { title: 'AIレビュー', action:ai_review}
+                                ]"
+                            />
+                        </div>
+                    </div>
+                    <div class="si-box">
+                        <LoaderButton @triggered="createProject" :loading="loading" content="保存する"/>
+                    </div>
+                </div>
                     </div>
                 </div>
             </div>
@@ -338,8 +593,8 @@ import LongInput from '@/components/Form/LongInput.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import PartnerSelector from '@/components/Form/PartnerSelector.vue';
-import { computed, onMounted, reactive, ref, toRaw, useTemplateRef } from 'vue';
-import { Task } from '@/interface/globalInterface';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, toRaw, useTemplateRef } from 'vue';
+import { CommonFile, Task } from '@/interface/globalInterface';
 import { ComponentExposed } from 'vue-component-type-helpers';
 import { Project } from '@/interface/projectInterface';  
 import SampleTask from '@/components/Task/Gantt/SampleTask.vue';
@@ -354,8 +609,14 @@ import AiLoader from '@/components/Global/AiLoader.vue';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
 import ProjectIndustryTypes from 'assets/ProjectIndustryTypes.json'
 import { useApi } from '@/composables/api';
+const ProjectIndustryTypesData = ProjectIndustryTypes
 import { useDialog } from '@/composables/dialog';
 import AiGenerationProject from '@/components/Global/AiGenerationProject.vue';
+import FileIcon from '@/components/Board/Mixed/FileIcon.vue';
+import { useFilePreview } from '@/store/filePreview';
+import { filesize } from 'filesize';
+import ProjectContract from './ProjectContract.vue';
+import { contractTypeDefaults, contractRoleDefaults } from '@/utils/tools';
 
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
@@ -364,13 +625,37 @@ const {ask, ping, toast } = useDialog()
 const loading = ref(false)
 const taskCreating = ref(false)
 const misoCreating = ref(false)
+const contractReviewing = ref(false)
 const auth = useAuthUserStore()
+const filePreview = useFilePreview()
+const uploaded = ref<File | null>(null)
+const contractInput = ref<HTMLInputElement | null>(null)
+const contractPreviewUrl = ref<string | null>(null)
+const legal_review = ref(false)
+const unitOptions = [
+    { value: 'JPY', label: '円 (JPY)' },
+    { value: 'COUNT', label: '件' },
+    { value: 'HOUR', label: '時間' },
+    { value: 'CUSTOM', label: 'カスタム' },
+] as const
+type StatusRow = { status_id: number | null; label: string; selected: boolean; sort_order: number; is_system_default: boolean }
+const SYSTEM_STATUS_DEFAULTS: StatusRow[] = [
+    { status_id: 1, label: '新規契約', selected: true, sort_order: 1, is_system_default: true },
+    { status_id: 2, label: '継続契約', selected: true, sort_order: 2, is_system_default: true },
+    { status_id: 3, label: 'リプレイス・アップグレード', selected: true, sort_order: 3, is_system_default: true },
+    { status_id: 4, label: 'オプション契約', selected: true, sort_order: 4, is_system_default: true },
+    { status_id: 5, label: 'アポイント取得', selected: true, sort_order: 5, is_system_default: true },
+]
+const statusRows = ref<StatusRow[]>([])
+const suggestedStatuses = ref<string[]>([])
 
 const stepTitles = [
     {name: '基本情報', hash: '#basic'},
+    {name: '実績管理', hash: '#performance'},
     {name: '概要', hash: '#overview'},
     {name: 'MISO', hash: '#miso'},
-    {name: 'タスク自動生成', hash: '#tasks'}
+    {name: 'タスク自動生成', hash: '#tasks'},
+    {name: '契約レビュー', hash: '#legal'}
 ]
 const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(props.editData) } : {
     name: '',
@@ -385,10 +670,65 @@ const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(pro
     industry_type: [],
     date_start: '',
     date_end: '',
-    board_id: null
+    board_id: null,
+    is_new: 1,
+    has_goals: false,
+    has_actual_func: false,
+    unit_id: 'JPY',
+    custom_unit_label: ''
 })
+const contract_type = ref('outsourcing')
+const contract_role = ref('乙')
 const generatedTasks = ref<Task[]>([])
+type ContractResp = {
+    json: any;
+    path: string;
+    role: string;
+    type: string;
+}
+const contract = ref<ContractResp | null>(null)
 const flowInstance = ref<VueFlowStore | null>(null)
+const hydrateStatusRows = () => {
+    if (props.editData?.actual_statuses && Array.isArray(props.editData.actual_statuses)) {
+        statusRows.value = props.editData.actual_statuses.map((status, idx) => ({
+            status_id: status.status_id ?? status.id ?? null,
+            label: status.label ?? status.custom_label ?? '',
+            selected: true,
+            sort_order: status.sort_order ?? idx + 1,
+            is_system_default: status.is_system_default ?? Boolean(status.status_id),
+        }));
+        return;
+    }
+    statusRows.value.push({
+        status_id: null,
+        label: '',
+        selected: true,
+        sort_order: statusRows.value.length + 1,
+        is_system_default: false,
+    })
+}
+hydrateStatusRows();
+
+const fetchSuggestedStatuses = async() => {
+    try {
+        const data = await api.get('/project_actual_status_suggestions');
+        const list = Array.isArray(data?.suggestions) ? data.suggestions : [];
+        suggestedStatuses.value = list.filter((label: string) => !!label);
+    } catch (e) {
+        suggestedStatuses.value = [];
+    }
+}
+fetchSuggestedStatuses();
+
+
+if (props.editData) {
+    projectParams.has_goals = projectParams.has_goals ?? false;
+    projectParams.unit_id = projectParams.unit_id ?? 'JPY';
+    projectParams.custom_unit_label = projectParams.custom_unit_label ?? '';
+    projectParams.date_start = DateTime.fromISO(projectParams.date_start || '').toISODate() || DateTime.now().toISODate();
+    projectParams.date_end = DateTime.fromISO(projectParams.date_end || '').toISODate() || DateTime.now().plus({ days: 30 }).toISODate();
+    projectParams.has_actual_func = projectParams.has_actual_func ?? false;
+}
 onMounted(() => {
     if(projectParams.customers == null){
         projectParams.customers = []
@@ -422,7 +762,130 @@ const serviceCategories = ProjectServiceCategories
 const managerOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id <= 6)
 })
+const uploadedMeta = computed(() => {
+    if (!uploaded.value) return null
+    const name = uploaded.value.name
+    const extension = name.includes('.') ? name.split('.').pop()?.toLowerCase() || 'file' : 'file'
+    const formattedSize = filesize(
+        uploaded.value.size,
+        uploaded.value.size > 1000000 ? { standard: 'jedec', round: 1 } : { standard: 'jedec', round: 0 }
+    )
+    const mimeType = (() => {
+        if (!uploaded.value.type) return 'application'
+        if (uploaded.value.type.startsWith('image/')) return 'image'
+        if (uploaded.value.type.startsWith('video/')) return 'video'
+        if (uploaded.value.type.startsWith('audio/')) return 'audio'
+        if (uploaded.value.type.startsWith('text/')) return 'text'
+        return 'application'
+    })()
+    return {
+        name,
+        ext: extension,
+        sizeLabel: formattedSize,
+        mimeType,
+    }
+})
 const activeHash = ref('#basic');
+const loaderPayload = computed(() => {
+  const taskMessage = 'ガントチャート用のタスクをAIで自動生成中です。<br>この処理には数分かかる場合があります。'
+  const misoMessage = '自動生成中です。<br>この処理には数分かかる場合があります。'
+  const contractMessage = 'AIレビュー中です。<br>この処理には数分かかる場合があります。'
+
+  if (taskCreating.value)      return { loading: true,  message: taskMessage,    kind: 'task' }
+  if (misoCreating.value)      return { loading: true,  message: misoMessage,    kind: 'miso' }
+  if (contractReviewing.value) return { loading: true,  message: contractMessage, kind: 'contract' }
+
+  return { loading: false, message: '', kind: null }
+})
+
+const onChange = (event: Event) => {
+    const target = event.target as HTMLInputElement
+    const file = target && target.files ? target.files[0] : null
+    if (file) {
+        if (contractPreviewUrl.value) {
+            URL.revokeObjectURL(contractPreviewUrl.value)
+        }
+        uploaded.value = file
+        contractPreviewUrl.value = URL.createObjectURL(file)
+        // previewUploaded()
+    }
+    if (target) {
+        target.value = ''
+    }
+}
+const triggerFileInput = () => {
+    contractInput.value?.click()
+}
+const clearUploaded = () => {
+    if (filePreview.active) {
+        filePreview.setFilePreview({
+            active: false,
+            files: null,
+            source: null,
+            source_board_id: null,
+            index: 0,
+            message: null,
+        })
+    }
+    if (contractPreviewUrl.value) {
+        URL.revokeObjectURL(contractPreviewUrl.value)
+    }
+    contractPreviewUrl.value = null
+    uploaded.value = null
+    if (contractInput.value) {
+        contractInput.value.value = ''
+    }
+}
+const previewUploaded = () => {
+    if (!uploaded.value || !contractPreviewUrl.value || !uploadedMeta.value) return
+    filePreview.setFilePreview({
+        active: true,
+        files: [
+            {
+                id: 'legal-review-local',
+                name: uploaded.value.name,
+                file_path: contractPreviewUrl.value,
+                doc_path: contractPreviewUrl.value,
+                mime_type: uploadedMeta.value.mimeType,
+                extension: uploadedMeta.value.ext,
+                size: uploaded.value.size,
+            }
+        ],
+        source: 'storage',
+        source_board_id: null,
+        index: 0,
+        message: null,
+    })
+}
+const ai_review = async() => {
+    if (!uploaded.value) {
+        ping('契約書ファイルをアップロードしてください。')
+        return
+    }
+    
+    if (props.editData?.contract) {
+        let answer = { value: false}
+        answer = await ask('すでにレビュー結果が存在します。\n新しいファイルをレビューすると、現在のレビュー結果が上書きされます。\n新しいファイルをレビューしてもよろしいですか?')
+        if (!answer.value) return
+    }
+    
+    contractReviewing.value = true
+    const formData = new FormData();
+    formData.append('file', uploaded.value)
+    formData.append('role', contract_role.value)
+    formData.append('type', contract_type.value)
+    formData.append('review_type', 'quick')
+    const data = await api.post('/review_document', formData)
+    if (data) {
+        contract.value = data
+    }
+    contractReviewing.value = false
+}
+onBeforeUnmount(() => {
+    if (contractPreviewUrl.value) {
+        URL.revokeObjectURL(contractPreviewUrl.value)
+    }
+})
 
 const flowTasks = computed(() => {
     const nodes = <Node[]>[]
@@ -494,7 +957,64 @@ const managerValidation = async() => {
     const val = await projectManager.value?.validate() || { valid: false}
     return val.valid
 }
+const contractPayload = computed(() => {
+    const c = contract.value
+    if (!c || !c.json) return null
+    return {
+        data: c.json,
+        file_path: c.path,
+        type: c.type,
+        role: c.role
+    }
+})
+const addCustomStatus = () => {
+    statusRows.value.push({
+        status_id: null,
+        label: '',
+        selected: true,
+        sort_order: statusRows.value.length + 1,
+        is_system_default: false,
+    })
+}
+const addSuggestedStatus = (label: string) => {
+    const exists = statusRows.value.some(row => (row.label || '').trim() === label.trim());
+    if (exists) return;
+    statusRows.value.push({
+        status_id: null,
+        label: label,
+        selected: true,
+        sort_order: statusRows.value.length + 1,
+        is_system_default: false,
+    });
+}
+const removeStatusRow = (index: number) => {
+    const target = statusRows.value[index]
+    if (!target || target.is_system_default) return
+    statusRows.value.splice(index, 1)
+}
+const statusPayload = computed(() => {
+    let order = 1
+    return statusRows.value
+        .filter(row => row.selected && row.label?.trim())
+        .map(row => ({
+            status_id: row.is_system_default ? row.status_id : null,
+            custom_label: row.is_system_default ? null : row.label.trim(),
+            sort_order: order++,
+        }))
+})
+const buildParams = () => ({
+    id: props.editData?.id,
+    params: {
+        ...projectParams,
+        actual_statuses: statusPayload.value,
+    },
+    tasks: generatedTasks.value ?? [],
+    contract_data: contractPayload.value?.data,
+    contract_file_path: contractPayload.value?.file_path,
+    contract_role: contractPayload.value?.role,
+    contract_type: contractPayload.value?.type
 
+})
 const createProject = async() => {
     
     const validate = await validation()
@@ -511,12 +1031,7 @@ const createProject = async() => {
         ping('メンバーと管理者に同じユーザーが含まれています。')
         return
     }
-
-    const params = {
-        id: props.editData?.id,
-        params: projectParams,
-        tasks: generatedTasks.value
-    }
+    const params = buildParams()
     loading.value = true
     const data = await api.post('/create_project', params, {
         toast: '保存しました。',
@@ -623,7 +1138,6 @@ const jumpTo = (hash:string) => {
 }
 
 const updateTask = (data) => {
-    console.log(data)
     const task = generatedTasks.value.find(task => task.id === data.id)
     if (task) {
         task[data.column] = data.value
@@ -637,3 +1151,120 @@ const updateTask = (data) => {
     }
 }
 </script>
+<style scoped>
+.legal-upload {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border: 1px dashed var(--primary-color);
+    background: var(--bg3);
+    padding: 24px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.legal-upload:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+.legal-upload:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+.legal-upload--filled {
+    border-style: solid;
+}
+.legal-upload__input {
+    display: none;
+}
+.legal-upload__placeholder {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+.legal-upload__icon {
+    width: 64px;
+    min-width: 64px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.legal-upload__text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.legal-upload__title {
+    font-weight: 600;
+    font-size: 14px;
+    margin: 0;
+    color: var(--primary-color);
+}
+.legal-upload__hint,
+.legal-upload__cta {
+    font-size: 12px;
+    margin: 0;
+    color: var(--font-color, #555);
+}
+.legal-upload__cta {
+    font-weight: 500;
+}
+.legal-upload__content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.legal-upload__info {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+.legal-upload__details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.legal-upload__filename {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    color: var(--primary-color);
+    word-break: break-all;
+}
+.legal-upload__meta {
+    font-size: 12px;
+    color: var(--font-color, #666);
+    margin: 0;
+}
+.legal-upload__actions {
+    display: flex;
+    gap: 12px;
+}
+.legal-upload__btn {
+    background: var(--primary-color);
+    color: var(--background-color);
+    border: none;
+    padding: 6px 18px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+.legal-upload__btn:hover {
+    opacity: 0.85;
+}
+.legal-upload__btn--ghost {
+    background: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+@media (max-width: 959px) {
+    .legal-upload {
+        padding: 18px;
+        border-radius: 12px;
+    }
+    .legal-upload__icon {
+        width: 56px;
+        height: 56px;
+        min-width: 56px;
+    }
+}
+</style>

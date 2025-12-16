@@ -46,6 +46,10 @@ class timecardRecord extends Model
     public function car_project(){
         return $this->hasOne(ProjectRecord::class, 'id', 'car_used_project');
     }
+    public function project_case()
+    {
+        return $this->hasMany(ProjectCase::class);
+    }
     protected $appends = ['training_minutes'];
 
     public function getTrainingMinutesAttribute(): int

@@ -89,6 +89,31 @@
                         </div>
                     </div>
                 </div>
+                <div class="report-field" v-if="selectedProject && selectedProject.has_actual_func">
+                    <p class="report-header">実績報告</p>
+
+                    <div class="space-y-2">
+                        <div class="flex items-center gap-4"
+                            v-for="(row, index) in actualRows"
+                            :key="row.status ?? index">
+                            <div v-if="row.status" class="min-w-[120px]">
+                                {{ row.status }}
+                            </div>
+
+                            <input
+                                name="actual_val"
+                                :placeholder="unitLabel ? `実績値（${unitLabel}）` : '実績値'"
+                                type="number"
+                                style="padding: 0px 10px; height:38px; width: 100px; border:1px solid var(--primary-color); color:var(--primary-color);"
+                                v-model.number="row.value"
+                            />
+                        </div>
+
+
+                        
+                    </div>
+                </div>
+
                 <div class="report-field" v-if="car_mileage && car_data?.status == 'success'">
                     <table>
                         <thead>
@@ -210,9 +235,13 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
     const breakTimeSelect = ref(timeCard.value?.break_time ? timeCard.value.break_time : 0)
     const customValues = ref({})
     const todayWorkGroup = ref(timeCard.value?.work_group_id ?? '')
+    const selectedProject = ref(timeCard.value?.department ?? {})
     const car_used_project = ref(timeCard.value?.car_used_project ?? '')
     const car_mileage = useDebouncedRef('')
     const car_data = ref({})
+    const actualRows = ref([
+        { status: null, value: null },
+    ])
     const costDepartment = computed(() => {
         return workGroupAsOptions.value.find(group => group.id === todayWorkGroup.value)?.name
     })
@@ -228,7 +257,52 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
         costs.forEach(cost => {
             cost.department = workGroupAsOptions.value.find(group => group.id === newWorkGroup)?.name
         })
+        selectedProject.value = workGroupAsOptions.value.find(group => group.id === newWorkGroup)
     })
+    // watch(selectedProject, (newVal) => {
+    //     actualRows.value = [{ status: null, value: null }]
+    // })
+    const buildRowsFromStatuses = () => {
+        const statuses = selectedProject.value?.actual_statuses ?? []
+
+        if (statuses.length) {
+            actualRows.value = statuses.map((s) => ({
+            status: s.label ?? s.custom_label ?? null,
+            value: null,
+            }))
+        } else {
+            actualRows.value = [{ status: null, value: null }]
+        }
+    }
+    watch(
+        () => selectedProject.value?.actual_statuses,
+        () => buildRowsFromStatuses(),
+        { immediate: true, deep: true }
+    )
+    watch(
+        () => timeCard.value?.project_case,
+        (cases) => {
+            const list = cases || [];
+
+            if (!list.length) {
+                actualRows.value = [{ status: null, value: null }];
+                return;
+            }
+
+            actualRows.value = list.map(c => ({
+                status: c.status ?? null,
+                value: c.amount ?? null,
+            }));
+        },
+        { immediate: true }
+    );
+    const unitCode = computed(() => selectedProject.value?.unit_id ?? 'JPY');
+    const unitLabel = computed(() => {
+        if (unitCode.value === 'COUNT') return '件';
+        if (unitCode.value === 'HOUR') return '時間';
+        if (unitCode.value === 'CUSTOM') return selectedProject.value?.custom_unit_label || '単位';
+        return '円';
+    });
     const addCostField = () => {
         if(costs.length >= 10){
             ping('上限は10個です。')
@@ -488,7 +562,8 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
                 vehicleData: vehicleData.value,
                 car_mileage: car_mileage.value,
                 car_used_project: car_used_project.value,
-                gas_full_price: car_data.value?.gas_full_price ?? 0
+                gas_full_price: car_data.value?.gas_full_price ?? 0,
+                actual_results: actualRows.value,
             }
             resolve(a)
         })

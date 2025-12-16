@@ -19,6 +19,7 @@ use App\Models\workGroup;
 use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Models\ShiftOvertimeRequest;
+use App\Models\ProjectCase;
 use App\Services\SharedService;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Laravel\Facades\Image;
@@ -258,7 +259,10 @@ class WorkController extends Controller
                     },
                     'car_project' => function ($q) {
                         $q->select('id', 'name');
-                    }
+                    },
+                    'project_case' => function ($q) {
+                        $q->select('id', 'amount', 'status', 'timecard_record_id');
+                    },
                 ]);
             },
             'shift_records' => function ($q) use ($year, $month) {
@@ -455,7 +459,8 @@ class WorkController extends Controller
         $between_records = 0;
         $remaining_days = 0;
         $tempDate = $request->temp_date;
-        $yearForTemp = Carbon::now()->format('Y');
+        $now = Carbon::now();
+        $yearForTemp = (string) ($now->year + ($now->month === 12 ? 1 : 0));
         $work_temp = workTemp::where('user_code', $user_code)
                             ->where(function ($query) use ($yearForTemp, $tempDate) {
                                 if ($tempDate) {
@@ -762,7 +767,7 @@ class WorkController extends Controller
                             'start_time'    => $start_time,
                             'end_time'      => $end_time,
                             'status_flag'   => $status_flag,
-                            'planned_year'  => $rec->planned_year,
+                            'planned_year'  => $type === 3 ? $planned_year : $rec->planned_year,
                             'descendant_of' => $rec->id,
                             'created_at'    => now(),
                             'updated_at'    => now(),
@@ -1111,6 +1116,8 @@ class WorkController extends Controller
             }
 
             $is_exist->save();
+            $this->syncActualCases($request, $is_exist->id);
+            
             if($request->shiftType !== 0 && $request->shiftType !== 1){
                 $this->checkDepartment($request->day, $request->userId);
             }
@@ -1126,6 +1133,48 @@ class WorkController extends Controller
             throw $e;
         }
     }
+    private function syncActualCases(Request $request, int $timecardId)
+    {
+        $actualResults = $request->input('actual_results', []);
+
+        // if nothing sent, wipe old and exit
+        $hasAnyValue = collect($actualResults)->contains(function ($row) {
+            return isset($row['value']) && $row['value'] !== '' && $row['value'] !== null;
+        });
+
+        // remove all old ACTUAL records for this timecard
+        ProjectCase::where('timecard_record_id', $timecardId)
+            ->where('kind', 'ACTUAL')
+            ->delete();
+
+        if (!$hasAnyValue) {
+            // user cleared everything → no cases for this timecard
+            return;
+        }
+
+        foreach ($actualResults as $row) {
+            $value = $row['value'] ?? null;
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $statusLabel = $row['status'] ?? ($request->actual_status ?: '実績');
+
+            ProjectCase::create([
+                'project_record_id'  => $request->department,
+                'timecard_record_id' => $timecardId,
+                'user_id'            => $request->userId,
+                'kind'               => 'ACTUAL',
+                'status'             => $statusLabel,
+                'amount'             => $value,
+                'report_date'        => $request->day,
+                'state'              => 'submitted',
+                'submitted_at'       => now(),
+            ]);
+        }
+    }
+
+
     private function checkDepartment($day, $user_id){
         $shift = shiftRecord::where('shift_day', $day)
                             ->where('user_id', $user_id)

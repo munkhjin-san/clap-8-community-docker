@@ -34,7 +34,7 @@
                 </div>
                 <div v-if="hit === 800"
                     style="display: flex; margin-top: 20px; flex-direction: column; gap: 20px; align-items: center; font-size: 13px;">
-                    <div>{{ `最高額おめでとう！<br> 賞金は翌月のリフレッシュ<br>補助金に増額されます。` }}</div>
+                    <div>最高額おめでとう！<br> 賞金は翌月のリフレッシュ<br>補助金に増額されます。</div>
                     <div @click="emit('close', false)" class="nine-answer-button">OK</div>
                 </div>
                 <div v-if="missed"

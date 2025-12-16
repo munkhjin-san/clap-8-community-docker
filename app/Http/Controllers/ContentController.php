@@ -293,7 +293,7 @@ class ContentController extends Controller
         }
         
         // Encode to WebP and cache
-        $imageData = (string) $img->toWebp(quality: 10);
+        $imageData = (string) $img->toWebp();
         Cache::put($cacheKey, $imageData, now()->addMonth());
         
         return $this->imageResponse($imageData);
@@ -313,8 +313,8 @@ class ContentController extends Controller
             $blank = Image::create(200, 200)->fill($bg)->resize($size, $size);
             return $this->imageResponse($blank);
         }
-        $img = Image::read($path)->resize($size, $size);
-        $imageData = (string) $img->toWebp(quality: 80);
+        $img = Image::read($path);
+        $imageData = (string) $img->toWebp();
         Cache::put($cacheKey, $imageData, now()->addMonth());
         return $this->imageResponse($imageData);
     }

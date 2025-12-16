@@ -48,7 +48,7 @@ const pieData = computed(() => {
 const chartHeight = computed(() => {
     const baseHeight = 200;
     const heightPerProject = 40;
-    return baseHeight + (Object.keys(props.projectsData).length * heightPerProject / 3);
+    return baseHeight + (Object.keys(props.projectsData).length * heightPerProject / 4);
 });
 </script>
 <template>

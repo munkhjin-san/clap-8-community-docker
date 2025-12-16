@@ -14,8 +14,9 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler
 } from 'chart.js';
-import { computed, withDefaults } from 'vue';
+import { computed } from 'vue';
 import { Line } from 'vue-chartjs';
 
 type ChartPoint = {
@@ -42,6 +43,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
+  Filler,
 );
 const focusMarkerPlugin = {
   id: 'focusMarker',
@@ -84,7 +86,18 @@ const valueLabelPlugin = {
     ctx.restore();
   },
 };
-ChartJS.register(focusMarkerPlugin, valueLabelPlugin);
+const legendGapPlugin = {
+  id: 'legendGap',
+  beforeInit(chart: any, _args: any, opts: any) {
+    if (!chart?.legend || !opts?.gap) return;
+    const originalFit = chart.legend.fit;
+    chart.legend.fit = function fit() {
+      originalFit.bind(chart.legend)();
+      this.height += opts.gap;
+    };
+  },
+};
+ChartJS.register(focusMarkerPlugin, valueLabelPlugin, legendGapPlugin);
 
 const props = withDefaults(
   defineProps<{
@@ -162,6 +175,10 @@ const toRGBA = (hex: string, alpha: number) => {
   const b = bigint & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
+const applyAlpha = (color: string, alpha: number) => {
+  if (alpha >= 0.999) return color;
+  return toRGBA(color, alpha);
+};
 const formatAbbrev = (value: number) => {
   const abs = Math.abs(value);
   if (abs >= 100000000) return `${(value / 100000000).toFixed(1)}億`;
@@ -178,22 +195,19 @@ const segmentVisualConfig = (color: string) => {
   const isFuture = (index: number) => futureStart != null && index >= futureStart;
   const isInFocus = (index: number) =>
     !hasFocus || (focusStart != null && index >= focusStart && index < focusStart + focusLen);
+  const alphaAt = (index: number) => {
+    let alpha = 1;
+    if (isFuture(index)) alpha *= 0.35;
+    if (!isInFocus(index)) alpha *= 0.35;
+    return alpha;
+  };
   return {
     segment: {
       borderDash: (ctx: any) => (isFuture(ctx.p0DataIndex) ? [6, 6] : undefined),
-      borderColor: (ctx: any) => {
-        let base = color;
-        if (isFuture(ctx.p0DataIndex)) {
-          base = toRGBA(color, 0.35);
-        }
-        if (!isInFocus(ctx.p0DataIndex)) {
-          return toRGBA(base, 0.35);
-        }
-        return base;
-      },
+      borderColor: (ctx: any) => applyAlpha(color, alphaAt(ctx.p0DataIndex)),
     },
-    pointBackgroundColor: (ctx: any) => (isInFocus(ctx.dataIndex) ? color : toRGBA(color, 0.35)),
-    pointBorderColor: (ctx: any) => (isInFocus(ctx.dataIndex) ? color : toRGBA(color, 0.35)),
+    pointBackgroundColor: (ctx: any) => applyAlpha(color, alphaAt(ctx.dataIndex)),
+    pointBorderColor: (ctx: any) => applyAlpha(color, alphaAt(ctx.dataIndex)),
     pointRadius: (ctx: any) => (isInFocus(ctx.dataIndex) ? 6 : 3),
   };
 };
@@ -202,6 +216,7 @@ const chartData = computed(() => {
   const labels = resolvedLabels.value;
 
   if (activeMode.value === 'stage') {
+    const isForecastStage = props.stageSeries.some(series => series.label === '着地予測');
     const palette = [
       '#2563eb',
       '#0ea5e9',
@@ -220,8 +235,9 @@ const chartData = computed(() => {
         borderColor: color,
         backgroundColor: toRGBA(color, 0.3),
         tension: 0.3,
-        fill: index === 0 ? 'origin' : '-1',
-        stack: 'weighted',
+        clip: 12,
+        fill: isForecastStage ? (index === 0 ? 'origin' : '-1') : false,
+        stack: isForecastStage ? 'weighted' : undefined,
         ...segmentVisualConfig(color),
       };
     });
@@ -232,12 +248,13 @@ const chartData = computed(() => {
         datasets.push({
           label: '実績',
           data: props.actualSeries,
-          borderColor: '#1f2937',
+          borderColor: '#2563eb',
           backgroundColor: 'rgba(31, 41, 55, 0.1)',
           tension: 0.2,
           fill: false,
           stack: 'actual',
-          ...segmentVisualConfig('#1f2937'),
+          clip: 12,
+          ...segmentVisualConfig('#2563eb'),
         });
       }
     }
@@ -253,6 +270,7 @@ const chartData = computed(() => {
           borderDash: [6, 4],
           tension: 0.15,
           fill: false,
+          clip: 12,
           stack: 'target',
           ...segmentVisualConfig('#ef4444'),
         });
@@ -301,6 +319,7 @@ const chartData = computed(() => {
         backgroundColor: toRGBA(color, 0.2),
         tension: 0.25,
         fill: false,
+        clip: 12,
         ...segmentVisualConfig(color),
       };
     });
@@ -315,15 +334,17 @@ const chartData = computed(() => {
   const metrics = props.aggregateSeries.length ? props.aggregateMetrics : props.metrics;
 
   const datasets: any[] = [];
+  const isAggregate = props.aggregateSeries.length > 0;
 
   if (metrics.includes('amount')) {
     datasets.push({
-      label: '金額 (円)',
+      label: isAggregate ? '実績' : '金額 (円)',
       data: source.map(point => point.amount),
       borderColor: '#2563eb',
       backgroundColor: 'rgba(37, 99, 235, 0.15)',
       tension: 0.25,
-      fill: true,
+      fill: false,
+      clip: 12,
       ...segmentVisualConfig('#2563eb'),
     });
   }
@@ -337,13 +358,30 @@ const chartData = computed(() => {
       tension: 0.25,
       fill: true,
       yAxisID: datasets.length ? 'y1' : 'y',
+      clip: 12,
       ...segmentVisualConfig('#f97316'),
     });
   }
 
-  return {
-    labels,
-    datasets: props.projectionSeries.length && props.projectionSeries.some(value => value != null)
+  if (isAggregate && props.targetSeries.length) {
+    const hasTarget = props.targetSeries.some(value => value > 0);
+    if (hasTarget) {
+      datasets.push({
+        label: '目標値',
+        data: props.targetSeries,
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.05)',
+        borderDash: [6, 4],
+        tension: 0.15,
+        fill: false,
+        clip: 12,
+        ...segmentVisualConfig('#ef4444'),
+      });
+    }
+  }
+
+  const baseDatasets =
+    props.projectionSeries.length && props.projectionSeries.some(value => value != null)
       ? [
           ...datasets,
           {
@@ -358,15 +396,22 @@ const chartData = computed(() => {
             spanGaps: true,
           },
         ]
-      : datasets,
-  };
+      : datasets;
+
+  return { labels, datasets: baseDatasets };
 });
 
 const chartOptions = computed(() => {
   if (activeMode.value === 'stage') {
+    const isForecastStage = props.stageSeries.some(series => series.label === '着地予測');
     return {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 12,
+        },
+      },
       interaction: {
         intersect: false,
         mode: 'index' as const,
@@ -379,15 +424,18 @@ const chartOptions = computed(() => {
           callbacks: {
             label(context: any) {
               const value = context.parsed.y;
-              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} ${props.unitLabel}`;
+              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)}${props.unitLabel}`;
             },
           },
         },
         focusMarker: {
           index: props.focusStartIndex ?? null,
         },
+        legendGap: {
+          gap: 12,
+        },
         valueLabels: {
-          enabled: true,
+          enabled: isForecastStage,
         },
       },
       scales: {
@@ -397,11 +445,11 @@ const chartOptions = computed(() => {
           },
         },
         y: {
-          stacked: props.stageSeries.length > 0,
+          stacked: isForecastStage,
           beginAtZero: true,
           ticks: {
             callback(value: string | number) {
-              return `${new Intl.NumberFormat('ja-JP').format(Number(value))} ${props.unitLabel}`;
+              return `${new Intl.NumberFormat('ja-JP').format(Number(value))}${props.unitLabel}`;
             },
           },
         },
@@ -413,6 +461,11 @@ const chartOptions = computed(() => {
     return {
       responsive: true,
       maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 12,
+        },
+      },
       interaction: {
         intersect: false,
         mode: 'index' as const,
@@ -425,12 +478,15 @@ const chartOptions = computed(() => {
           callbacks: {
             label(context: any) {
               const value = context.parsed.y;
-              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} ${props.unitLabel}`;
+              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)}${props.unitLabel}`;
             },
           },
         },
         focusMarker: {
           index: props.focusStartIndex ?? null,
+        },
+        legendGap: {
+          gap: 12,
         },
         valueLabels: {
           enabled: false,
@@ -446,7 +502,7 @@ const chartOptions = computed(() => {
           beginAtZero: true,
           ticks: {
             callback(value: string | number) {
-              return `${new Intl.NumberFormat('ja-JP').format(Number(value))} ${props.unitLabel}`;
+              return `${new Intl.NumberFormat('ja-JP').format(Number(value))}${props.unitLabel}`;
             },
           },
         },
@@ -454,8 +510,9 @@ const chartOptions = computed(() => {
     };
   }
 
-  const usingAmount = props.metrics.includes('amount');
-  const usingCount = props.metrics.includes('count');
+  const metrics = props.aggregateSeries.length ? props.aggregateMetrics : props.metrics;
+  const usingAmount = metrics.includes('amount');
+  const usingCount = metrics.includes('count');
   const usingDualAxis = usingAmount && usingCount;
 
   const scales: {
@@ -483,7 +540,7 @@ const chartOptions = computed(() => {
       beginAtZero: true,
       ticks: {
         callback(value: string | number) {
-          return `${new Intl.NumberFormat('ja-JP').format(Number(value))} ${props.unitLabel}`;
+          return `${new Intl.NumberFormat('ja-JP').format(Number(value))}${props.unitLabel}`;
         },
       },
     };
@@ -498,7 +555,7 @@ const chartOptions = computed(() => {
       },
       ticks: {
         callback(value: string | number) {
-          return `${Number(value)} 件`;
+          return new Intl.NumberFormat('ja-JP').format(Number(value));
         },
       },
     };
@@ -507,7 +564,7 @@ const chartOptions = computed(() => {
       beginAtZero: true,
       ticks: {
         callback(value: string | number) {
-          return `${Number(value)} 件`;
+          return new Intl.NumberFormat('ja-JP').format(Number(value));
         },
       },
     };
@@ -516,6 +573,11 @@ const chartOptions = computed(() => {
   return {
     responsive: true,
     maintainAspectRatio: false,
+    layout: {
+      padding: {
+        top: 12,
+      },
+    },
     interaction: {
       intersect: false,
       mode: 'index' as const,
@@ -528,18 +590,22 @@ const chartOptions = computed(() => {
         callbacks: {
           label(context: any) {
             const value = context.parsed.y;
-            if (context.dataset.label?.includes('金額')) {
-              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)} ${props.unitLabel}`;
+            const axis = context.dataset.yAxisID ?? 'y';
+            if (axis === 'y') {
+              return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)}${props.unitLabel}`;
             }
-            return `${context.dataset.label}: ${value} 件`;
+            return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP').format(value)}`;
           },
         },
       },
       focusMarker: {
         index: props.focusStartIndex ?? null,
       },
+      legendGap: {
+        gap: 12,
+      },
       valueLabels: {
-        enabled: true,
+        enabled: false,
       },
     },
     scales,

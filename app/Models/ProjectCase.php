@@ -33,4 +33,8 @@ class ProjectCase extends Model
     {
         return $query->whereDate('report_date', $month->copy()->startOfMonth());
     }
+    public function timecardRecord()
+    {
+        return $this->belongsTo(TimecardRecord::class);
+    }
 }

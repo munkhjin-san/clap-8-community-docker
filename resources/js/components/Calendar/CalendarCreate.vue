@@ -201,6 +201,8 @@
                             ref="calendarNormalTimeEnd"
                             type="time"
                             v-model="time_end"
+                            @change="onEndChange"
+                            @input="onEndChange"
                         />
                     </div>
                 </div>
@@ -441,6 +443,7 @@ import Modal from '../Global/Modal.vue';
     const department_id = ref(props.editTarget?.department_id ?? props.preSelectedDepartment?.id ?? '')
     const members_only = ref(props.editTarget?.members_only ? true : false)
     const {  facilitiesList, departmentsList } = useCalendar()
+    const endTouched = ref(false)
     onMounted(() => {
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
             const repeats = props.editTarget.repeat_week.split(',').map(Number);
@@ -649,4 +652,15 @@ import Modal from '../Global/Modal.vue';
             localStorage.setItem('calendarDepartment', newVal)
         }
     })
+    watch(time_start, (newVal) => {
+        if (endTouched.value || !newVal) return
+
+        const dt = DateTime.fromFormat(newVal, 'HH:mm')
+        if (!dt.isValid) return
+
+        time_end.value = dt.plus({ hours: 1 }).toFormat('HH:mm')
+    })
+    const onEndChange = () => {
+        endTouched.value = true
+    }
 </script>

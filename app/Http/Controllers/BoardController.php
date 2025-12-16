@@ -518,7 +518,7 @@ class BoardController extends Controller
             $mime_type = $file->getMimeType();
             $mime_type_array = explode('/',$mime_type);
             $file_type = $mime_type_array[0];
-            $file_extension = $file->getClientOriginalExtension();
+            $file_extension = strtolower($file->getClientOriginalExtension());
             $path = '/temp_upload';     
             $file_name = $file->getClientOriginalName(); 
             $file_size = $file->getSize();   

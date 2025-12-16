@@ -45,13 +45,14 @@
         <div>
             <div>
                 <div class="record-content" v-html="body"></div>
-                <span @click="showAll = !showAll" class="jump-link" v-if="truncated">{{ showAll ? '閉じる' : '続きを表示する' }}</span>
+                <span @click="showAll('body')" class="jump-link" v-if="truncated.find(t => t.type === 'body')?.active">{{ truncated.find(t => t.type === 'body')?.expand ? '閉じる' : '続きを表示する' }}</span>
             </div>
             <div v-if="goal" class="mt-4">
                 <div class="post-separetor">
                     <div>達 成 条 件</div>
                 </div>
                 <div class="record-content" v-html="goal"></div>
+                <span @click="showAll('goal')" class="jump-link" v-if="truncated.find(t => t.type === 'goal')?.active">{{ truncated.find(t => t.type === 'goal')?.expand ? '閉じる' : '続きを表示する' }}</span>
             </div>
             <PostFiles class="mt-4" v-if="record.files.length" :items="record.files"/>
             <div v-if="result" class="mt-4">
@@ -59,9 +60,10 @@
                     <div>結 果 発 表</div>
                 </div>
                 <div class="record-content" v-html="result"></div>
+                <span @click="showAll('result')" class="jump-link" v-if="truncated.find(t => t.type === 'result')?.active">{{ truncated.find(t => t.type === 'result')?.expand ? '閉じる' : '続きを表示する' }}</span>
             </div>
             <PostFiles class="mt-4" v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
-            <div class="mt-4" v-if="record.grants && record.grants.length && record.grantable && totalExpenses > 0">
+            <div class="mt-4 mb-4" v-if="record.grants && record.grants.length && record.grantable && totalExpenses > 0">
                 <div class="post-separetor">
                     <div>必 要 経 費</div>
                 </div>
@@ -200,6 +202,7 @@ import PostEntryRecord from './PostEntryRecord.vue';
 import { workFilePreview } from '@/utils/workApi';
 import People from '../Icons/People.vue';
 import CloseIcon from '../Form/CloseIcon.vue';
+import FileIcon from '../Board/Mixed/FileIcon.vue';
     const messageUsers = useMessageUsers()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -220,8 +223,16 @@ import CloseIcon from '../Form/CloseIcon.vue';
     }>()
     const route = useRoute()
     const maxLength = ref(200)
-    const truncated = ref(false)
-    const showAll = ref(false)
+    const truncated = ref<{
+        type: string,
+        active: boolean,
+        expand: boolean
+    }[]>([
+        {type: 'body', active: false, expand: false},
+        {type: 'goal', active: false, expand: false},
+        {type: 'result', active: false, expand: false}
+    ])
+    // const showAll = ref(false)
     const expand = ref(false)
     const viewExpand = ref(false)
     const isExpanded = ref(false)
@@ -240,7 +251,10 @@ import CloseIcon from '../Form/CloseIcon.vue';
             }           
         }  
     })  
-    
+    const showAll = (type: string) => {
+        const item = truncated.value.find(t => t.type === type)
+        if (item) item.expand = !item.expand        
+    }
     const closeAndScroll = (id: number) => {
         viewEntries.value = false
         nextTick(() => {
@@ -344,20 +358,20 @@ import CloseIcon from '../Form/CloseIcon.vue';
     })
     const body = computed(() => {           
         const text = props.record.app_type == 2 ? props.record.content_rule : props.record.content
-        const truncate = cutter(text, maxLength.value)
+        const truncate = cutter(text, maxLength.value, 'body')
         const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
         return urlParse          
         
     })
     const goal = computed(() => {
         const text = props.record.app_type == 2 ? props.record.content_goal : ''
-        const truncate = cutter(text, maxLength.value)
+        const truncate = cutter(text, maxLength.value, 'goal')
         const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
         return urlParse    
     })
     const result = computed(() => {
         const text = props.record.app_type == 2 ? props.record.result : props.record.result
-        const truncate = cutter(text, maxLength.value)
+        const truncate = cutter(text, maxLength.value, 'result')
         const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
         return urlParse    
     })
@@ -388,21 +402,27 @@ import CloseIcon from '../Form/CloseIcon.vue';
     const setClap = () => {
         emit('setClap', props.record.id)
     }
-    const cutter = (string, len) => {
+    const cutter = (string, len, type) => {
         if(!string){
             return ''
         }
-        if(showAll.value || string.length <= len || string.length <= len + 50){
+        const showMore = truncated.value.find(t => t.type === type)?.expand
+        if(showMore || string.length <= len || string.length <= len + 50){
             return string
         }
         const last = string.substring(len - 5, len + 5)
         const check_emoji = last.match(/[\p{Emoji}\u200d]+/gu)
         if(!check_emoji){
-            truncated.value = true
+            
+            const item = truncated.value.find(t => t.type === type)
+            if (item) {
+                item.active = true
+            }
+            
             return string.substring(0, len) + '...'
         
         }else{
-            return cutter(string, len + 5)
+            return cutter(string, len + 5, type)
         }
         
     }

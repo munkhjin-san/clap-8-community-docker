@@ -110,7 +110,7 @@
                                                  
                 </div>  
                 <div v-if="message.draft_flag && !editing" style="margin-top: 15px; display: flex;">
-                    <div class="commentEditButton" @click="draftSend">送信</div>
+                    <div class="commentEditButton" @click="draftSend">{{ draftSending ? '送信中...' : '送信' }}</div>
                     <div v-if="message.reserved_at == null" class="commentEditButton" @click="setSchedule">予約送信</div>        
                 </div>                         
             </div>
@@ -182,6 +182,7 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
     const editing = ref(false)
     const reacting = ref(false)
     const showDate = ref(false)
+    const draftSending = ref(false)
     const messageBox = useTemplateRef('messageBox')
     const messageBoxBody = useTemplateRef('messageBoxBody')
     const { openedBoard } = useBoardList()
@@ -537,8 +538,13 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
         menu.close()
     }
     const draftSend = async() => {
+        if (draftSending.value) return
+        draftSending.value = true
         await api.put('/draft_send', {id: props.message.id, draft_flag: 0})
         refreshMessages()
+        setTimeout(() => {
+            draftSending.value = false
+        }, 200)
     }
     const setSchedule = () => {
         const data = {
