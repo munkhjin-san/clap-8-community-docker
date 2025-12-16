@@ -142,7 +142,7 @@
                                             v-else
                                             v-model="row.label"
                                             type="text"
-                                            class="flex-1 border border-solid border-[var(--normalBorder)] px-[10px] py-[8px] text-[13px] min-w-[200px]"
+                                            class="flex-1 border border-solid border-[var(--normalBorder)] px-[10px] py-[8px] text-[13px] min-w-[200px] text-[var(--primary-color)]"
                                             placeholder="実績を分類する項目名を設定してください。"
                                         />
                                             <button
@@ -171,7 +171,7 @@
                                         </button>
                                     </div>
                                 </div>
-                                <p class="text-[12px] text-[gray] leading-normal">
+                                <p class="text-[12px] text-[gray] leading-normal mt-[10px]">
                                     すべての項目をOFFにすると、項目名は「実績」として表示されます。
                                 </p>
                             </div>
