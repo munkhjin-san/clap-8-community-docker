@@ -3327,13 +3327,13 @@ class ProjectController extends Controller
     }
     public function project_case_store(ProjectRecord $project, Request $req)
     {
-        $user = Auth::user();
+        $user = $this->active_user();
         abort_unless($user, 401, '認証が必要です。');
 
         $isProjectMember = ProjectMember::where('project_id', $project->id)
             ->where('user_id', $user->id)
             ->exists();
-        $isDirector = (int) $project->director_id === (int) $user->id;
+        $isDirector = ($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610]);
 
         abort_unless($isProjectMember || $isDirector, 403, 'このプロジェクトには報告権限がありません。');
 

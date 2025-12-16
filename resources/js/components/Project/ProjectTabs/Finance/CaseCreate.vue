@@ -186,7 +186,7 @@ const emit = defineEmits<{
     (e: 'saved'): void;
 }>();
 const api = useApi();
-const reportTitle = computed(() => '実績報告');
+const reportTitle = computed(() => '目標値作成');
 const members = computed(() => [...props.selectedProject.members, ...props.selectedProject.manager]);
 const viewData = ref<any | null>(null);
 const loading = ref(0);
@@ -370,7 +370,7 @@ const editCase = () => {
 };
 const deleteCase = async () => {
     if (!viewData.value?.id) return;
-    await api.del(`/delete_case/${viewData.value.id}`, {}, { ask: '案件を削除しますか？', toast: '削除しました。' });
+    await api.del(`/delete_case/${viewData.value.id}`, {}, { ask: '目標値を削除しますか？', toast: '削除しました。' });
     emit('saved');
 };
 const submitCase = async (type: 1 | 2) => {
@@ -390,9 +390,9 @@ const submitCase = async (type: 1 | 2) => {
     savingType.value = type;
     try {
         if (editingCaseId.value) {
-            await api.put(`/projects/${props.projectId}/cases/${editingCaseId.value}`, payload, { toast: type === 2 ? '案件を更新しました。' : '一時保存しました。' });
+            await api.put(`/projects/${props.projectId}/cases/${editingCaseId.value}`, payload, { toast: type === 2 ? '目標値を更新しました。' : '一時保存しました。' });
         } else {
-            await api.post(`/projects/${props.projectId}/cases`, payload, { toast: type === 2 ? '案件を申請しました。' : '一時保存しました。' });
+            await api.post(`/projects/${props.projectId}/cases`, payload, { toast: type === 2 ? '目標値を保存しました。' : '一時保存しました。' });
         }
         emit('saved');
         resetForm();

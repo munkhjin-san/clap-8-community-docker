@@ -237,7 +237,7 @@
         </div>
       </div>
       <div v-else class="mt-4 text-sm opacity-70">
-        表示可能な案件データがありません。
+        表示可能な実績データがありません。
       </div>
     </section>
 
