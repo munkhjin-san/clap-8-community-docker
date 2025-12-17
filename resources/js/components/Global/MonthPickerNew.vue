@@ -20,10 +20,10 @@
                 </div>
             </div>
             <div v-if="pickerIs == 'month'" class="grid-container ">
-                <div @click.stop="setMonth(month as MonthNumbers)" :id="`m_${month}`" v-for="month in 12" class="grid-item">{{ month }}月</div>
+                <div @click.stop="setMonth(month as MonthNumbers)" :id="`m_${month}`" v-for="month in 12" class="grid-item" :class="{'opacity-50 cursor-not-allowed' : !isAvailable(month)}">{{ month }}月</div>
             </div>
             <div v-if="pickerIs == 'year'" class="grid-container year-picker">
-                <div @click.stop="setYear(y)" :id="`y_${y}`" :class="{thisYear : y == year}" v-for="y in yearList" class="grid-item">{{ y }}年</div>
+                <div @click.stop="setYear(y)" :id="`y_${y}`" :class="[{'thisYear' : y == year}, {'opacity-50 cursor-not-allowed' : !isAvailableYear(y)}]" v-for="y in yearList" class="grid-item">{{ y }}年</div>
             </div>
         </div>
        
@@ -31,13 +31,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef, } from 'vue'   
+import { computed, ref, useTemplateRef, } from 'vue'   
 import { useMenuStore } from "@/store/menu";
-import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
+import { DateTime, DayNumbers, MonthNumbers } from 'luxon';
 import { useBadgeStore } from '@/store/badge';
     const props = defineProps<{
         right?: string;
         left?: string;
+        min?: string;
+        max?: string;
     }>()
     
     const emit = defineEmits<{
@@ -52,6 +54,39 @@ import { useBadgeStore } from '@/store/badge';
     const menu = useMenuStore()
 
     const menuRef = useTemplateRef('menuRef')
+    const isAvailable = (m: number) => {
+        const dateToCheck = DateTime.fromObject({ year: year.value, month: m as MonthNumbers, day: 1 })
+        if(minDate.value && dateToCheck < minDate.value.startOf('month')){
+            return false
+        }
+        if(maxDate.value && dateToCheck > maxDate.value.endOf('month')){
+            return false
+        }
+        return true
+    }
+    const isAvailableYear = (y: number) => {
+        if(minDate.value && y < minDate.value.year){
+            return false
+        }
+        if(maxDate.value && y > maxDate.value.year){
+            return false
+        }
+        return true
+    }
+    const minDate = computed(() => {
+        if(props.min){
+            const instance = DateTime.fromISO(props.min)
+            return instance.isValid ? instance : null
+        }
+        return null
+    })
+    const maxDate = computed(() => {
+        if(props.max){
+            const instance = DateTime.fromISO(props.max)
+            return instance.isValid ? instance : null
+        }
+        return null
+    })
     const yearList = computed(() => {
         const year = DateTime.now().year
         return Array.from({ length: 12 }, (_, i) => year - 5 + i);
@@ -82,10 +117,12 @@ import { useBadgeStore } from '@/store/badge';
 
     }
     const setYear = (y: number) => {
+        if(!isAvailableYear(y)) return
         year.value = y
         pickerIs.value = 'month'
     }
     const setMonth = (m: MonthNumbers) => {
+        if(!isAvailable(m)) return
         month.value = m
         pickerIs.value = ''
         menu.close()

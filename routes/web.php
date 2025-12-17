@@ -31,6 +31,7 @@ use App\Http\Controllers\DriveController;
 use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\OpenAiController;
+use App\Http\Controllers\ProjectPlanController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -61,6 +62,8 @@ Route::get('app/public/{app_name}', function ($app_name, Request $request) {
     return redirect($url);
 });
 
+Route::get('/pdf-reader/{path}', [ContentController::class, 'pdf_reader'])
+    ->where('path', '.*');
 // temp_routes
 // Route::get('/reacted_users_make', [AutoJobController::class, 'reactedUsersMake']);
 // Route::get('/change_to_dummy', [AutoJobController::class, 'change_to_dummy']);
@@ -402,6 +405,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_planned_leaves', [WorkController::class, 'get_planned_leaves']);
         Route::get('/get_my_car_data', [WorkController::class, 'get_my_car_data']);
         Route::get('/get_remaining_days', [WorkController::class, 'get_remaining_days']);
+        Route::get('/get_work_temp', [WorkController::class, 'get_work_temp']);
 
         Route::post('/custom_field_data', [CustomfieldController::class, 'customFieldRecordListMessage']);
         Route::post('/today_weather', [CustomfieldController::class, 'getTodayWeather']);
@@ -541,20 +545,23 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_metrics/{project}/with_values', [ProjectController::class, 'project_metrics_with_values']);
         Route::post('/project_metrics/{project}/values', [ProjectController::class, 'metric_values_store']);
         Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
+        Route::get('/project_actual_status_suggestions', [ProjectController::class, 'project_actual_status_suggestions']);
 
         // Project plan (accounts/amounts) - new prefixed schema
-        Route::get('/projects/{project}/plan/grid', [\App\Http\Controllers\ProjectPlanController::class, 'grid']);
-        Route::post('/projects/{project}/plan/grid', [\App\Http\Controllers\ProjectPlanController::class, 'save']);
-        Route::get('/projects/{project}/plan/scenarios', [\App\Http\Controllers\ProjectPlanController::class, 'scenarios']);
-        Route::post('/projects/{project}/plan/scenarios', [\App\Http\Controllers\ProjectPlanController::class, 'scenarioStore']);
-        Route::put('/projects/{project}/plan/scenarios/{scenario}', [\App\Http\Controllers\ProjectPlanController::class, 'scenarioUpdate']);
-        Route::delete('/projects/{project}/plan/scenarios/{scenario}', [\App\Http\Controllers\ProjectPlanController::class, 'scenarioDestroy']);
-        Route::get('/projects/{project}/plan/template', [\App\Http\Controllers\ProjectPlanController::class, 'downloadTemplate']);
-        Route::post('/projects/{project}/plan/template', [\App\Http\Controllers\ProjectPlanController::class, 'uploadTemplate']);
-        Route::get('/projects/{project}/accounts', [\App\Http\Controllers\ProjectPlanController::class, 'accounts']);
-        Route::post('/projects/{project}/accounts', [\App\Http\Controllers\ProjectPlanController::class, 'accountStore']);
-        Route::put('/projects/{project}/accounts/{account}', [\App\Http\Controllers\ProjectPlanController::class, 'accountUpdate']);
-        Route::delete('/projects/{project}/accounts/{account}', [\App\Http\Controllers\ProjectPlanController::class, 'accountDestroy']);
+        Route::get('/projects/{project}/plan/grid', [ProjectPlanController::class, 'grid']);
+        Route::post('/projects/{project}/plan/grid', [ProjectPlanController::class, 'save']);
+        Route::post('/projects/{project}/plan/lock', [ProjectPlanController::class, 'lock']);
+        Route::post('/projects/{project}/plan/unlock', [ProjectPlanController::class, 'unlock']);
+        Route::get('/projects/{project}/plan/scenarios', [ProjectPlanController::class, 'scenarios']);
+        Route::post('/projects/{project}/plan/scenarios', [ProjectPlanController::class, 'scenarioStore']);
+        Route::put('/projects/{project}/plan/scenarios/{scenario}', [ProjectPlanController::class, 'scenarioUpdate']);
+        Route::delete('/projects/{project}/plan/scenarios/{scenario}', [ProjectPlanController::class, 'scenarioDestroy']);
+        Route::get('/projects/{project}/plan/template', [ProjectPlanController::class, 'downloadTemplate']);
+        Route::post('/projects/{project}/plan/template', [ProjectPlanController::class, 'uploadTemplate']);
+        Route::get('/projects/{project}/accounts', [ProjectPlanController::class, 'accounts']);
+        Route::post('/projects/{project}/accounts', [ProjectPlanController::class, 'accountStore']);
+        Route::put('/projects/{project}/accounts/{account}', [ProjectPlanController::class, 'accountUpdate']);
+        Route::delete('/projects/{project}/accounts/{account}', [ProjectPlanController::class, 'accountDestroy']);
         Route::get('/projects/{project}/cases', [ProjectController::class, 'project_cases']);
         Route::post('/projects/{project}/cases', [ProjectController::class, 'project_case_store']);
         Route::put('/projects/{project}/cases/{case}', [ProjectController::class, 'project_case_update']);

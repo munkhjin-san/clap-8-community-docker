@@ -585,11 +585,12 @@ class RemindController extends Controller
         foreach($tempData as $temp) {
             $startDate = $temp->date;
             $endDate = Carbon::parse($startDate)->addYear()->format('Y-m-d');
+            $planned_year = Carbon::createFromFormat('Y-m-d', $startDate)->year;
             $temp['notification_user'] = $notificationUser;
             $temp['endDate'] = $endDate;
-            $planned_shifts = shiftRecord::whereBetween('shift_day', [$startDate, $endDate])->where('shift_type', 3)->where('user_id', Auth::id())->count();
+            $planned_shifts = shiftRecord::where('planned_year', $planned_year)->where('shift_type', 3)->where('user_id', Auth::id())->count();
             $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $startDate);
-            $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $temp->planned_days - $planned_shifts;
+            $remaining_days = $planned_year === 2023 ? 0 : $temp->planned_days - $planned_shifts;
             if($remaining_days > 0){
                 $list[] = [
                     "shift_count" => $planned_shifts,

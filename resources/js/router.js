@@ -404,7 +404,7 @@ const routes = [
                         component: () => import('./components/AccountControl/WorkControl/AdminWork.vue')
                     },
                     {
-                        path: 'paidholdiay',
+                        path: 'paidholiday',
                         name: 'paidholiday',
                         props: true,
                         component: () => import('./components/AccountControl/WorkControl/WorkPlannedPaid.vue')

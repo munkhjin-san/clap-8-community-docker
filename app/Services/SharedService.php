@@ -289,6 +289,103 @@ class SharedService
             'work_minutes' => $convertIntoMinutes,
         ];
     }
+    public function planned_shift_calculator(iterable $shifts): array
+    {
+        $holidayDays = 0;
+        $workDays = 0;
+        $workMinutes = 0;
+        $paidLeaveDays = 0.0;
+        $paidLeaveMinutes = 0;
+
+        // normalize to Collection
+        $shifts = collect($shifts);
+
+        if ($shifts->isEmpty()) {
+            return [
+                'holidayDays' => 0,
+                'workDays' => 0,
+                'workMinutes' => 0,
+                'paidLeaveDays' => 0,
+                'paidLeaveMinutes' => 0,
+                'accountedMinutes' => 0,
+            ];
+        }
+
+        // Take start/end time from the first shift (same for the month)
+        $first = $shifts->first();
+        $minutesPerDay = $this->calcNetWorkMinutesPerDay(
+            $first->start_time,
+            $first->end_time
+        );
+
+        foreach ($shifts as $shift) {
+            // Prefer current shift type, fallback to old_shift if needed
+            $type = $shift->shiftType
+                ?? $shift->old_shift?->shiftType;
+
+            $typeId = $type?->id;
+
+            // Holiday (0 / 18)
+            if (in_array($typeId, [0, 18], true)) {
+                $holidayDays++;
+                continue;
+            }
+
+            $typeValue = $type?->value; // minutes or null
+
+            // Work day
+            if ($typeValue === null) {
+                $workDays++;
+                $workMinutes += $minutesPerDay;
+                continue;
+            }
+
+            // Leave
+            $mins = (int) $typeValue;
+            $paidLeaveMinutes += $mins;
+
+            if (isset($type->full_day)) {
+                if ((int)$type->full_day === 2) $paidLeaveDays += 1.0;
+                elseif ((int)$type->full_day === 1) $paidLeaveDays += 0.5;
+            } else {
+                if ($mins >= 480) $paidLeaveDays += 1.0;
+                elseif ($mins >= 240) $paidLeaveDays += 0.5;
+            }
+        }
+
+        return [
+            'holidayDays'      => $holidayDays,
+            'workDays'         => $workDays,
+            'workMinutes'      => $workMinutes,
+            'paidLeaveDays'    => $paidLeaveDays,
+            'paidLeaveMinutes' => $paidLeaveMinutes,
+            'accountedMinutes' => $workMinutes + $paidLeaveMinutes,
+        ];
+    }
+    private function calcNetWorkMinutesPerDay(string $startTime, string $endTime): int
+    {
+        [$sh, $sm] = array_map('intval', explode(':', $startTime));
+        [$eh, $em] = array_map('intval', explode(':', $endTime));
+
+        $start = $sh * 60 + $sm;
+        $end = $eh * 60 + $em;
+
+        if ($end < $start) {
+            $end += 24 * 60;
+        }
+
+        $gross = max(0, $end - $start);
+        $break = $this->calcBreakMinutes($gross);
+
+        return max(0, $gross - $break);
+    }
+
+    private function calcBreakMinutes(int $grossMinutes): int
+    {
+        if ($grossMinutes > 6 * 60) return 60;
+        if ($grossMinutes >= 3 * 60) return 30;
+        return 0;
+    }
     public function createDepartureReport($user, $date){
         $shift = shiftRecord::where('user_id', $user->id)
             ->where('shift_day', $date)

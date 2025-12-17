@@ -14,10 +14,12 @@
                     <div @click="checkLeave = 0" style="padding: 10px 0;" :class="['sub-tab-item', { 'selected-sub-tab': checkLeave == 0}]">予定入力</div>
                     <div v-if="usersData[0].position_id !== 15" @click="checkLeave = 1" style="padding: 10px 0;" :class="['sub-tab-item', { 'selected-sub-tab': checkLeave == 1}]">計画有給確認</div>
                 </div>
-                <div v-if="selectedShiftType == 3 && checkLeave == 0" style="margin-left:auto;">
+                <div v-if="selectedShiftType == 3 && checkLeave == 0" style="margin-left:auto;display:flex;gap: 10px;">
                     <MonthPickerNew 
                         v-model:month="shiftMonth"
                         v-model:year="shiftYear"
+                        :max="DateTime.fromISO(tempStartEnd).toISODate()"
+                        :min="tempStartDate"
                         right='0' 
                         @setDate="setDate"
                     />
@@ -38,28 +40,35 @@
                         </div>
                     </div> -->
                     <div class="my-4 flex gap-4 items-center justify-between flex-wrap">
-                        <select v-model="selectedShiftType" class="custom-a-input">
-                            <optgroup label="勤務">
-                                <option :value="type.id" v-for="type in groupedLeaves.main" :key="'m-'+type.id">{{ type.name }}</option>
-                            </optgroup>
-                            <optgroup label="休日">
-                                <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.holiday" :key="'h-'+type.id">{{ type.name }}</option>
-                            </optgroup>
-                            <optgroup label="年休">
-                                <option :value="type.id" v-for="type in groupedLeaves.planned" :key="'p-'+type.id">{{ type.name }}</option>
-                            </optgroup>
-                            <optgroup label="時間休日">
-                                <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
-                            </optgroup>
-                            <optgroup label="その他">
-                                <option :value="type.id" :disabled="type.id === 16 && odaCheck" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
-                            </optgroup>
-                        </select>
+                        <div class="flex gap-3 items-center">
+                            <select v-model="selectedShiftType" id="shift_type_selector" class="custom-a-input">
+                                <optgroup label="勤務">
+                                    <option :value="type.id" v-for="type in groupedLeaves.main" :key="'m-'+type.id">{{ type.name }}</option>
+                                </optgroup>
+                                <optgroup label="休日">
+                                    <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.holiday" :key="'h-'+type.id">{{ type.name }}</option>
+                                </optgroup>
+                                <optgroup label="年休">
+                                    <option :value="type.id" v-for="type in groupedLeaves.planned" :key="'p-'+type.id">{{ type.name }}</option>
+                                </optgroup>
+                                <optgroup label="時間休日">
+                                    <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
+                                </optgroup>
+                                <optgroup label="その他">
+                                    <option :value="type.id" :disabled="type.id === 16 && odaCheck" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
+                                </optgroup>
+                            </select>
+                            <select id="planned_year_selector" v-if="selectedShiftType === 3" v-model="plannedLeaveTargetYear" class="custom-a-input">
+                                <option :value="year" v-for="year in yearOptions">{{ year }}年度</option>
+                            </select>
+                            <p class="text-sm" v-if="selectedShiftType == 3">期間: {{ DateTime.fromISO(tempStartDate).isValid ? DateTime.fromISO(tempStartDate).toLocaleString() : '' }}~{{ DateTime.fromISO(tempStartEnd).isValid ? DateTime.fromISO(tempStartEnd).toLocaleString() : '' }}</p>
+                        </div>
+                        
                         <div class="shift-holiday">
-                            <div>年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
-                            <p v-if="zan_nissu">有給残日数: <strong>{{ zan_nissu?.days ?? 0 }}</strong>日</p>
+                            <div v-if="selectedShiftType !== 3">年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
+                            <p v-if="zan_nissu && selectedShiftType !== 3">有給残日数: <strong>{{ zan_nissu?.days ?? 0 }}</strong>日</p>
                             <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
-                            <p>休日数: <strong>{{ holidayCount }}</strong>日</p>
+                            <p v-if="selectedShiftType !== 3">休日数: <strong>{{ holidayCount }}</strong>日</p>
                         </div>
                     </div>
                     
@@ -125,6 +134,47 @@
                             />
                         </div>
                     </div>
+                    <div v-if="usersData[0].position_id !== 15">
+                        <section class="border mt-[10px] border-[var(--calendarBorder)] border-solid p-[10px]">
+                            <p class="text-sm font-medium leading-normal">
+                                法定上の所定労働時間（参考）
+                            </p>
+                            <p class="mt-2 text-sm font-semibold tracking-tight">
+                                {{ workTimeData.days }}日／{{ workTimeData.work_minutes / 60 }}時間
+                            </p>
+                            <p class="text-sm font-medium leading-normal mt-3">
+                                あなたの申請内容
+                            </p>
+
+                            <dl class="mt-3 space-y-2">
+                                <div class="flex items-baseline justify-between gap-6">
+                                    <dt class="text-sm">勤務日数</dt>
+                                    <dd class="text-sm tabular-nums">{{ summary.workDays }}日</dd>
+                                </div>
+
+                                <div class="flex items-baseline justify-between gap-6">
+                                    <dt class="text-sm">実働時間</dt>
+                                    <dd class="text-sm tabular-nums">{{ fmtHours(summary.workMinutes) }}時間</dd>
+                                </div>
+
+                                <div class="flex items-baseline justify-between gap-6">
+                                    <dt class="text-sm">有給（目安）</dt>
+                                    <dd class="text-sm tabular-nums">{{ summary.paidLeaveDays }}日</dd>
+                                </div>
+
+                                <div class="flex items-baseline justify-between gap-6">
+                                    <dt class="text-sm">有給相当時間</dt>
+                                    <dd class="text-sm tabular-nums">{{ fmtHours(summary.paidLeaveMinutes) }}時間</dd>
+                                </div>
+
+                                <!-- Total -->
+                                <div class="pt-3 mt-3 border-t [border-top-style:solid] border-[var(--calendarBorder)] flex items-baseline justify-between gap-6">
+                                    <dt class="text-sm font-semibold">合計計上時間</dt>
+                                    <dd class="text-sm font-semibold tabular-nums">{{ fmtHours(summary.accountedMinutes) }}時間</dd>
+                                </div>
+                            </dl>
+                        </section>
+                    </div>
 
                     <LoaderButton style="margin-top:30px;" @triggered="shiftAdd" :loading="loading" :content="attendanceFlag ? '勤怠確定後は編集できません' : '申請'"/>
                     
@@ -141,7 +191,7 @@
 </template>
 <script setup>
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useTheme } from '@/store/theme';
 import { useResponsive } from '@/store/responsive';
 import ShortInput from '../Form/ShortInput.vue';
@@ -153,6 +203,8 @@ import { DateTime } from 'luxon';
 import MonthPickerNew from '../Global/MonthPickerNew.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import YearPicker from '../Global/YearPicker.vue';
+import { useRoute } from 'vue-router';
     const responsive = useResponsive()
     const theme = useTheme()
     const emit = defineEmits(['closeModal', 'reload', 'viewPaidLeave'])
@@ -171,6 +223,7 @@ import { useDialog } from '@/composables/dialog';
     const loading = ref(false)
     const selectedShifts = ref([])
     const holidayCount = ref(0)
+    const workdayCount = ref(0)
     const startTime = ref('')
     const endTime = ref('')
     const shiftMonth = ref(props.selectedMonth)
@@ -199,14 +252,16 @@ import { useDialog } from '@/composables/dialog';
     const userWorkMinutesPerDay = ref(0)
     const api = useApi()
     const zan_nissu = ref(null)
+    const workTimeData = ref(null)
     const { ping } = useDialog()
+    const plannedLeaveTargetYear = ref(DateTime.now().year)
+    const yearOptions = [DateTime.now().minus({year: 1}).year, DateTime.now().year, DateTime.now().plus({year: 1}).year]
     onMounted(async() => {
         propsCheck()
         getRemainingDays()
         await fetchShiftData()
         isShiftRecord()
     })
-
     const shiftDateInstance = computed(() => DateTime.fromObject({ year: shiftYear.value, month: shiftMonth.value }))
     const dataLoad = computed(() => {
         const firstDay = shiftDateInstance.value.startOf('week')
@@ -249,18 +304,31 @@ import { useDialog } from '@/composables/dialog';
         for (const s of shiftTypes.value) g[categorize(s.name)].push(s)
         return g
     })
+    const getWorkTemp = async() => {
+        const user_code = props.usersData[0].user_code
+        const user_id = props.usersData[0].id
+        if (!user_code) return
+        const data = await api.get('/get_work_temp', {
+            planned_year: plannedLeaveTargetYear.value, 
+            user_code: user_code,
+            user_id: user_id
+        })
+        if (data) {
+            remainingDays.value = data.remaining_days
+            workTemp.value = data.workTemp
+        }
+    }
     const fetchShiftData = async() => {
         const work_group = props.chosenId ? [props.chosenId] : props.usersCheckArray
         const tempdate = props.startDate ? DateTime.fromISO(props.startDate).toISODate() : ''
        
-        const shiftData = await getShiftData(shiftDateInstance.value.toISODate(), work_group, tempdate)           
-        remainingDays.value = shiftData.remaining_days
-        workTemp.value = shiftData.workTemp
+        const shiftData = await getShiftData(shiftDateInstance.value.toISODate(), work_group, selectedShiftType.value)           
         shiftTypes.value = shiftData.shift_type
         shiftRecords.value = shiftData.shift_record
         odaCheck.value = shiftData.odaCheck
         totalHolidayInYearByMinutes.value = shiftData.total_holidays
         userWorkMinutesPerDay.value = shiftData.user_work_minutes_per_day
+        workTimeData.value = shiftData.work_time_data
     }
     const getRemainingDays = async() => {
         const user_code = props.usersData[0].user_code
@@ -309,6 +377,7 @@ import { useDialog } from '@/composables/dialog';
             const newDate = props.startDate;
             shiftYear.value = DateTime.fromISO(newDate).year;
             shiftMonth.value = DateTime.fromISO(newDate).month;
+            plannedLeaveTargetYear.value = DateTime.fromISO(newDate).year;
             selectedShiftType.value = 3;
         }
     }
@@ -316,25 +385,118 @@ import { useDialog } from '@/composables/dialog';
         return workTemp.value ? workTemp.value.date : props.startDate
     })
     const tempStartEnd = computed(() => {
-        return workTemp.value ? DateTime.fromISO(workTemp.value.date).plus({year: 1}) : DateTime.fromISO(props.startDate).plus({year: 1})
+        const start = DateTime.fromISO(tempStartDate.value)
+        return start.plus({ years: 1 }).minus({ days: 1 })
     })
     const between = computed(() => {
-        
         return (shiftDateInstance.value > DateTime.fromISO(tempStartDate.value) || shiftDateInstance.value < DateTime.fromISO(tempStartEnd.value)) && selectedShiftType.value == 3
     }) 
+    const calcBreakMinutes = (workMinutes) => {
+        if (workMinutes > 6 * 60) return 60
+        if (workMinutes >= 3 * 60) return 30
+        return 0
+    }
+
+    const minutesPerDay = computed(() => {
+        if (!startTime.value || !endTime.value) return 0
+
+        const [sh, sm] = startTime.value.split(':').map(Number)
+        const [eh, em] = endTime.value.split(':').map(Number)
+
+        let start = sh * 60 + sm
+        let end = eh * 60 + em
+
+        // overnight shift対応（必要なら）
+        if (end < start) end += 24 * 60
+
+        const gross = Math.max(0, end - start)
+        const breakMin = calcBreakMinutes(gross)
+        return Math.max(0, gross - breakMin)
+    })
+    const shiftTypeMap = computed(() => {
+        const map = new Map()
+
+        const list = Array.isArray(shiftTypes.value)
+            ? shiftTypes.value
+            : Array.isArray(shiftTypes.value?.data)
+            ? shiftTypes.value.data
+            : []
+
+        list.forEach((t) => {
+            map.set(Number(t.id), t)
+        })
+
+        return map
+    })
+    const isHolidayType = (typeId) => typeId === 0 || typeId === 18
+    const summary = computed(() => {
+        const shifts = selectedShifts.value || []
+
+        let holidayDays = 0
+        let workDays = 0
+
+        let workMinutes = 0
+        let paidLeaveDays = 0
+        let paidLeaveMinutes = 0
+
+        for (const s of shifts) {
+            const typeId = s.type
+            const type = shiftTypeMap.value.get(typeId)
+
+            // 休日（0/18）は労働も計上もしない（会社ルールで変えるならここ）
+            if (isHolidayType(typeId)) {
+            holidayDays++
+            continue
+            }
+
+            // 勤務（valueがNULLの想定） => 基本労働時間
+            // 休暇（480/240/60など） => その分を有給相当として計上
+            const typeValue = type?.value // minutes or null
+
+            // “勤務”かどうかはマスタで判定できるのが理想だけど、
+            // 今は value が null なら勤務扱いにしてしまう（休憩みたいなのが混ざるなら別判定が必要）
+            if (typeValue == null) {
+                workDays++
+                workMinutes += minutesPerDay.value
+            } else {
+                // 有給/休暇系
+                paidLeaveMinutes += Number(typeValue) || 0
+
+                // 日数カウント（full_day の仕様が謎だけどあなたの表だと 2=1日, 1=半日, 0=時間休っぽい）
+                // ここは「表示用」に割り切って、分から日数換算も出す方が安全
+                if (type?.full_day === 2) paidLeaveDays += 1
+                else if (type?.full_day === 1) paidLeaveDays += 0.5
+                // full_day 0 は日数カウントしない（時間休）
+            }
+        }
+
+        const accountedMinutes = workMinutes + paidLeaveMinutes
+
+        return {
+            holidayDays,
+            workDays,
+            workMinutes,
+            paidLeaveDays,
+            paidLeaveMinutes,
+            accountedMinutes,
+        }
+    })
+
+    const fmtHours = (mins) => (mins / 60).toFixed(1)
+
     const isShiftRecord = () => {
         if(shiftRecords.value && shiftRecords.value.length){
-            selectedShifts.value = []
+            // selectedShifts.value = []
             startTime.value = shiftRecords.value[0] ? shiftRecords.value[0].start_time : ''
             endTime.value = shiftRecords.value[0] ? shiftRecords.value[0].end_time : ''
             for(let shift of shiftRecords.value){
                 let date = {
                     day_full : shift.shift_day,
                 }
-                selectShift(date, shift)
+                selectShift(date, shift, false)
             } 
         }else{
-            selectedShifts.value = []
+            // selectedShifts.value = []
             holidayCount.value = 0
             startTime.value = '09:00'
             endTime.value = '18:00'
@@ -345,23 +507,25 @@ import { useDialog } from '@/composables/dialog';
         const type_id = record && record.shift_type ? record?.shift_type?.id : selectedShiftType.value
         let existingShift = selectedShifts.value.find(shift => shift.date === date.day_full)
         if (existingShift) {
-            if(existingShift.type == 3 && existingShift.status_flag == 1){
-                ping('計画有給を変えることができません。')   
-                return
-            }
-            selectedShifts.value = selectedShifts.value.filter(shift => shift.date !== date.day_full);
-            if(val && type_id == 3 && existingShift.type == 3){
-                remainingDays.value++
+            if (val) {
+                if(existingShift.type == 3 && existingShift.status_flag == 1){
+                    ping('計画有給を変えることができません。')   
+                    return
+                }
+                selectedShifts.value = selectedShifts.value.filter(shift => shift.date !== date.day_full);
+                if(type_id == 3 && existingShift.type == 3){
+                    remainingDays.value++
+                }
             }
         } else {
-            selectedShifts.value.push({date: date.day_full, type: type_id, status_flag: status_flag});
+            selectedShifts.value.push({date: date.day_full, type: type_id, status_flag: status_flag, planned_year: type_id === 3 ? plannedLeaveTargetYear.value : shiftYear.value});
             if(val && type_id == 3){
                 remainingDays.value--
             }
             if(type_id == 3){
                 const previousPeriodStart = DateTime.fromISO(tempStartDate.value).minus({ years: 1 });
                 const previousPeriodEnd = DateTime.fromISO(tempStartDate.value);
-                
+                if (!tempStartDate.value) return
                 if (
                     record?.planned_year !== 2023 &&
                     !(
@@ -375,7 +539,7 @@ import { useDialog } from '@/composables/dialog';
                 {
                     selectedShifts.value.pop()
                     remainingDays.value++
-                    const content = DateTime.fromISO(date.day_full).toFormat('yyyy/MM/dd') + 'は計画期間外です。<br>設定可能な期間は' + '<strong>' + DateTime.fromISO(tempStartDate.value).toFormat('yyyy/MM/dd') + '</strong>' + '-' + '<strong>' + tempStartEnd.value.format('YYYY/MM/DD') + '</strong>'
+                    const content = DateTime.fromISO(date.day_full).toFormat('yyyy/MM/dd') + 'は計画期間外です。<br>設定可能な期間は' + '<strong>' + DateTime.fromISO(tempStartDate.value).toFormat('yyyy/MM/dd') + '</strong>' + '-' + '<strong>' + DateTime.fromISO(tempStartEnd.value).toFormat('yyyy/MM/dd') + '</strong>'
 
                     ping(content)  
                     return
@@ -389,7 +553,7 @@ import { useDialog } from '@/composables/dialog';
             }
         }
         holidayCount.value = selectedShifts.value.filter(shift => (shift.type === 0 || shift.type === 18)).length
-        
+        workdayCount.value = selectedShifts.value.filter(shift => (shift.type !== 0 && shift.type !== 18)).length
     }
     const selectedShift = (date) => {
         const record = selectedShifts.value.find(shift => shift.date == date.day_full)
@@ -397,7 +561,6 @@ import { useDialog } from '@/composables/dialog';
             const shiftType = shiftTypes.value.find(type => type.id == record.type)
             return shiftType
         }
-        
     }
     const shiftAdd = async() => {
         if(props.attendanceFlag) return
@@ -465,7 +628,7 @@ import { useDialog } from '@/composables/dialog';
         
     }
     const setDate = async(date) => {
-        selectedShifts.value = []
+        // selectedShifts.value = []
         shiftYear.value = date.year
         shiftMonth.value = date.month
         await fetchShiftData()
@@ -495,4 +658,26 @@ import { useDialog } from '@/composables/dialog';
             }
         }
     }
+    const setPlannedLeaveTargetLeave = (payload) => {
+        plannedLeaveTargetYear.value = payload.year
+    }
+    watch(
+        [selectedShiftType, plannedLeaveTargetYear],
+        ([type, year]) => {
+            if (type === 3 && year) {
+                getWorkTemp();
+            }
+        },
+        { flush: "post" }
+    );
+    watch(tempStartDate, async (newVal) => {
+        if (newVal) {
+            if (DateTime.now().year !== DateTime.fromISO(newVal).year) {
+                shiftYear.value = DateTime.fromISO(newVal).year;
+                shiftMonth.value = DateTime.fromISO(newVal).month;
+            }
+            await fetchShiftData()
+            isShiftRecord()
+        }
+    })
 </script>

@@ -3,7 +3,7 @@
         <div :style="{height: signActive ? 'calc(100% - 45px)' : '100%', position: 'relative', overflow: 'hidden'}" id="mainPdfParent">            
             <pdfjs-viewer-element
                 class="viewer"
-                viewer-path="/pdfreader/pdfjs-3.11.174-dist-27"
+                viewer-path="/pdf-reader"
                 locale="ja"
                 page="1"
                 :phrase="true"

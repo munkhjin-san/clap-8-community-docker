@@ -427,7 +427,7 @@ class WorkController extends Controller
         [$currentYear, $currentMonth] = explode('-', $request->current_date);
 
         $currentMonth >= 2 && $currentMonth <= 7 ? $evaluationDate = "$currentYear-02-01" : $evaluationDate = "$currentYear-08-01";
-
+        $shift_type = $request->shift_type;
         $user = User::with(['evaluation' => function ($query) use($evaluationDate) {
                         $query->where('date', $evaluationDate);
                     }])
@@ -437,6 +437,9 @@ class WorkController extends Controller
         $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->where('user_id', $users_list[0])
+                        ->when($shift_type == 3, fn ($q) =>
+                            $q->where('shift_type', 3)
+                        )
                         ->with([
                             'shiftType' => function ($query) {
                                 $query->select('id', 'name', 'abbreviation', 'value');
@@ -456,26 +459,7 @@ class WorkController extends Controller
             ->where('shift_type', 16)
             ->whereYear('shift_day', $currentYear)
             ->exists();
-        $between_records = 0;
-        $remaining_days = 0;
-        $tempDate = $request->temp_date;
-        $now = Carbon::now();
-        $yearForTemp = (string) ($now->year + ($now->month === 12 ? 1 : 0));
-        $work_temp = workTemp::where('user_code', $user_code)
-                            ->where(function ($query) use ($yearForTemp, $tempDate) {
-                                if ($tempDate) {
-                                    $query->where('date', $tempDate);
-                                } else {
-                                    $query->whereYear('date', $yearForTemp);
-                                }
-                            })->first();
-        if($work_temp){
-            $planned_date = $work_temp->date;
-            $until_next = Carbon::parse($planned_date)->addYear()->format('Y-m-d');
-            $between_records = shiftRecord::whereBetween('shift_day', [$planned_date, $until_next])->where('shift_type', 3)->where('user_id', $users_list[0])->count();
-            $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $planned_date);
-            $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $work_temp->planned_days - $between_records;
-        }
+        
         $shift_type = shiftType::when(
             $user->position_id == 15,
             fn ($query) => $query->whereIn('id', [5, 1]),
@@ -521,22 +505,51 @@ class WorkController extends Controller
             }
         });
         
-
+        $userWorkTimeData = $this->sharedService->work_days_calculator($currentYear, $currentMonth, $user);
         $data = [
             "shift_record" => $shift_record,
             "shift_type" => $shift_type,
-            "workTemp" => $work_temp ?? null,
-            "consumed_days" => $remaining_days > 0 ? $between_records : 0,
-            "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
             "odaCheck" => $odaCheck,
             "user_work_minutes_per_day" => $user_work_minutes_per_day,
             "total_holidays" => $total_holidays,
+            "work_time_data" => $userWorkTimeData,
         ];
         
 
         return response()->json(
             $data
         );
+    }
+    public function get_work_temp(Request $request) {
+        $data = $request->validate([
+            'planned_year' => 'required',
+            'user_code'    => 'required',
+            'user_id'      => 'required',
+        ]);
+        $planned_year = $data['planned_year'];
+        $user_code = $data['user_code'];
+        $user_id = $data['user_id'];
+        $work_temp = workTemp::where('user_code', $user_code)
+                            ->where(function ($query) use ($planned_year) {
+                                
+                                $query->whereYear('date', $planned_year);
+                                
+                            })->first();
+        if($work_temp){
+            $work_temp_date = $work_temp->date;
+            $until_next = Carbon::parse($work_temp_date)->addYear()->format('Y-m-d');
+            $consumed_days = shiftRecord::where('planned_year', $planned_year)->where('shift_type', 3)->where('user_id', $user_id)->count();
+            $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $work_temp_date);
+            $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $work_temp->planned_days - $consumed_days;
+        }
+
+        $data = [
+            "workTemp" => $work_temp ?? null,
+            "consumed_days" => $consumed_days > 0 ? $consumed_days : 0,
+            "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
+        ];
+        return response()->json($data);
+
     }
     public function get_shift_with_work_group(Request $request){
         [$year, $month] = explode('-', $request->current_date);
@@ -618,10 +631,13 @@ class WorkController extends Controller
                         ->orderBy('shift_day', 'asc')
                         ->get();
         $work_group_users = collect($work_group_users);
-        $work_group_users = $work_group_users->map(function ($user) use($userShifts) {
+        $work_group_users = $work_group_users->map(function ($user) use($userShifts, $year, $month) {
             $user_shift_records = $userShifts->where('user_id', $user->id)->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
             $user_work_minutes_per_day = $user->work_time_day;
-
+            $userWorkTimeData = $this->sharedService->work_days_calculator($year, $month, $user);
+            $userPlannedTimeData = $this->sharedService->planned_shift_calculator($userShifts->where('user_id', $user->id));
+            $workdayNum = $userWorkTimeData['days'];
+            $shift_work_hours = $userWorkTimeData['work_minutes'];
             $total_holidays = $user_shift_records->sum(function ($shift) use ($user_work_minutes_per_day) {
                 $is_full_day = $shift->shiftType->full_day == 2 || $shift->shiftType->id == 0;
                 $is_half_day = $shift->shiftType->full_day == 1;
@@ -634,6 +650,9 @@ class WorkController extends Controller
                 }
             });
             $user['holiday_shifts'] = $total_holidays;
+            $user['work_day_num'] = $workdayNum;
+            $user['should_work_hours'] = $shift_work_hours;
+            $user['planned_shift_data'] = $userPlannedTimeData;
             return $user;
         });
         $shift_records = $userShifts->groupBy('shift_day')->map(function ($shifts) {
@@ -750,10 +769,10 @@ class WorkController extends Controller
             foreach ($shift_array as $shift) {
                 $date = $shift['date'];
                 $type = $shift['type'];
-
+                $planned_year = $shift['planned_year'];
                 // status_flag rule preserved; if you want special behavior for 15, tweak here
                 $status_flag = ($type === 3) || ($isSpecial) ? 1 : 2;
-                $planned_year = $type === 3 ? $request->planned_year : $request->year;
+                // $planned_year = $type === 3 ? $request->planned_year : $request->year;
 
                 if ($existing->has($date)) {
                     $rec = $existing[$date];

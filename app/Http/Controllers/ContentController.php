@@ -345,4 +345,34 @@ class ContentController extends Controller
         }, $file_name);
         
     }
+    public function pdf_reader(Request $request, $path){
+        // dd($path);
+        $base = storage_path('app/pdfjs-5.4.449-dist'); // <-- your new location
+        $full = realpath($base . DIRECTORY_SEPARATOR . $path);
+
+        if ($full === false || !str_starts_with($full, realpath($base)) || !is_file($full)) {
+            abort(404);
+        }
+
+        $ext = strtolower(pathinfo($full, PATHINFO_EXTENSION));
+
+        $mime = match ($ext) {
+            'mjs', 'js'   => 'application/javascript',
+            'wasm'        => 'application/wasm',
+            'css'         => 'text/css; charset=utf-8',
+            'html', 'htm' => 'text/html; charset=utf-8',
+            'json', 'map' => 'application/json; charset=utf-8',
+            'svg'         => 'image/svg+xml',
+            'png'         => 'image/png',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'woff2'       => 'font/woff2',
+            default       => 'application/octet-stream',
+        };
+
+        return response()->make(file_get_contents($full), 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="'.basename($full).'"',
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+        ]);
+    }
 }

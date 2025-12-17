@@ -23,13 +23,13 @@ export const getCustomFields = async () => {
         throw new Error(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
-const fetchData = async(url: string, yearMonth: string, checkedUsers: number[], selectedVehicles?: number[], tempDate?: string) => {
+const fetchData = async(url: string, yearMonth: string, checkedUsers: number[], selectedVehicles?: number[], shift_type?: number) => {
     try {
         const params = {
             current_date : yearMonth,
             work_group: checkedUsers,
             vehicles: selectedVehicles,
-            temp_date: tempDate
+            shift_type: shift_type
         }
         const response = await axios.get(url, {params: params})
         return response.data
@@ -49,8 +49,8 @@ export const getAttendanceData = async(yearMonth: string, checkedUsers: number[]
     return fetchData('/get_attendance_data', yearMonth, checkedUsers)
 }
 
-export const getShiftData = async(yearMonth: string, checkedUsers: number[], tempDate: string) => {
-    return fetchData('/get_shift_data', yearMonth, checkedUsers, [], tempDate)
+export const getShiftData = async(yearMonth: string, checkedUsers: number[], shift_type?: number) => {
+    return fetchData('/get_shift_data', yearMonth, checkedUsers, [], shift_type)
 }
 
 export const getShiftWithWorkGroup = async(yearMonth: string, checkedUsers: number[]) => {

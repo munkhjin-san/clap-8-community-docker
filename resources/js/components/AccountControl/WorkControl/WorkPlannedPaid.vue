@@ -48,7 +48,7 @@
                         <table>
                             <tr>
                                 <th>計画付与日</th>
-                                <th>変更前</th>
+                                <th>変更前（旧日付）</th>
                             </tr>
                             <tr v-for="shift in editUser.shift_records" :key="shift.id">
                                 <td><input class="taskDateTimePicker" :class="[{'date-color' : theme.dark }]"  :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)"></td>
@@ -64,30 +64,59 @@
         </div>
         <div style="height: calc(100% - 70px);overflow: hidden auto">        
             <table>
-                <thead style="position:sticky; top: -1px;z-index: 1;">
+                <thead style="position:sticky; top:-1px; z-index:1;">
                     <tr>
-                        <th>名前</th>
-                        <th>当年度有休付与日</th>
-                        <th>計画消化日数</th>
-                        <th>消化日数合計</th>
-                        <th>計画付与日 / 変更前</th>
-                        <th></th>
+                    <th>名前</th>
+                    <th>当年度有休付与日</th>
+                    <th>計画消化日数</th>
+                    <th>消化日数合計</th>
+                    <th>計画付与日</th>
+                    <th>変更前（旧日付）</th>
+                    <th></th>
                     </tr>
                 </thead>
-                <tbody>
-                    <tr v-for="user in filteredData" :key="user.id">
-                        <td>{{ user.name }}</td>
-                        <td>{{ user.work_temps ? formatDate(user.work_temps.date) : null}}</td>
-                        <td>{{ user.work_temps ? user.work_temps.planned_days : null }}</td>
-                        <td>{{ user.shift_records ? user.shift_records.length : null }}</td>
-                        <td>
-                            <div v-for="shift in user.shift_records" :key="shift.id">
-                                <td>{{ shift.shift_day }}</td>
-                                <td v-if="shift.old_shift">{{ shift?.old_shift?.shift_day }}</td>
-                            </div>
+                <!-- group by user so rowspan works cleanly -->
+                <tbody v-for="user in filteredData" :key="user.id">
+                    <!-- has shifts -->
+                    <template v-if="user.shift_records?.length">
+                    <!-- first shift row -->
+                    <tr>
+                        <td :rowspan="user.shift_records.length">{{ user.name }}</td>
+                        <td :rowspan="user.shift_records.length">
+                            {{ user.work_temps ? formatDate(user.work_temps.date) : '' }}
                         </td>
+                        <td :rowspan="user.shift_records.length">
+                            {{ user.work_temps?.planned_days ?? '' }}
+                        </td>
+                        <td :rowspan="user.shift_records.length">
+                            {{ user.shift_records.length }}
+                        </td>
+
+                        <td>{{ user.shift_records[0].shift_day }}</td>
+                        <td>{{ user.shift_records[0].old_shift?.shift_day ?? '' }}</td>
+
+                        <td :rowspan="user.shift_records.length">
+                            <CommandButton :buttons="[{ title: '変更', action: () => changePlannedShifts(user) }]" />
+                        </td>
+                    </tr>
+
+                    <!-- remaining shift rows -->
+                    <tr v-for="shift in user.shift_records.slice(1)" :key="shift.id">
+                        <td>{{ shift.shift_day }}</td>
+                        <td>{{ shift.old_shift?.shift_day ?? '' }}</td>
+                    </tr>
+                    </template>
+
+                    <!-- no shifts -->
+                    <tr v-else>
+                        <td>{{ user.name }}</td>
+                        <td>{{ user.work_temps ? formatDate(user.work_temps.date) : '' }}</td>
+                        <td>{{ user.work_temps?.planned_days ?? '' }}</td>
+                        <td>0</td>
+                        <td></td>
+                        <td></td>
                         <td>
-                            <CommandButton :buttons="[{ title: '変更', action:() => changePlannedShifts(user) }]"/>
+                            <CommandButton :buttons="[{ title: '変更', action: () => changePlannedShifts(user) }]" />
                         </td>
                     </tr>
                 </tbody>
