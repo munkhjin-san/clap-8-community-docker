@@ -2,7 +2,9 @@
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
     </IfModule>
-
+    <FilesMatch "\.(webp|png|jpg|jpeg|gif|svg)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
     # RewriteEngine On
 
     # # Handle Authorization Header

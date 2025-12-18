@@ -23,7 +23,8 @@ class FileController extends Controller
     public function fetchFileList(Request $request){ 
         $active_user = $this->active_user(); 
         $validatedData = $request->validate([
-            'board_id' => 'required',
+            'board_id' => ['required'],
+            'keyword'  => ['sometimes', 'nullable', 'string'],
         ]);
 
         $leavePeriod = userDetail::where('user_id', $active_user->id)
@@ -37,7 +38,7 @@ class FileController extends Controller
         // $messageFrom = $targetBoard->message_from;     
         $time_condition = $timeLimit;
         $view_from = $usercheck->view_from;
-
+        $keyword = mb_strtolower(trim((string) $request->input('keyword', '')));
         $allFiles = messageFile::where('board_id', $request->board_id)
         ->whereHas('message_records')
         ->when($view_from, function ($query) use ($view_from) {
@@ -49,9 +50,26 @@ class FileController extends Controller
         ->when($leavePeriod && ($targetBoard->private_flag != 3 || $targetBoard->private_flag != 1), function ($query) use ($leavePeriod) {
             $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
         })
-        ->with('user')->orderBy('created_at', 'desc')
-        ->with('unsignedUsers')
-        ->get();
+        ->when($keyword !== '', function ($q) use ($keyword) {
+            $q->where(function ($qq) use ($keyword) {
+                // name / extension
+                $qq->whereRaw('name LIKE ?', ["%{$keyword}%"])
+                ->orWhereRaw('extension LIKE ?', ["%{$keyword}%"]);
+
+                // user name (exists)
+                $qq->orWhereHas('user', function ($uq) use ($keyword) {
+                    $uq->whereRaw('name LIKE ?', ["%{$keyword}%"]);
+                });
+
+                // "inactive user" virtual label (user is null)
+                if (str_contains('非アクティブユーザー', $keyword) || str_contains($keyword, '非') || str_contains($keyword, 'アクティブ')) {
+                    $qq->orWhereDoesntHave('user');
+                }
+            });
+        })
+        ->with(['user', 'unsignedUsers'])
+        ->orderBy('created_at', 'desc')
+        ->paginate(20);
         return response()->json($allFiles);
     }
 

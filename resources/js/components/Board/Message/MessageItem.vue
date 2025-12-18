@@ -115,23 +115,51 @@
                 </div>                         
             </div>
             <div v-if="message.deleted_at == null" class="message-foot-area">
-                <div style="display:flex;width: fit-content;">                    
-                    <div v-if="reactButtonView" class="reactButton" :class="{cursorBlock : message.user_id == auth.activeUser.id, reactOn: reacting}" @click.stop="reactOrCheck(message)">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="15" viewBox="0 0 38 32" :fill="checkSendIconColor ? 'var(--primary-color)' : 'var(--check-inactive)'">
-                            <path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
+                <div class="flex w-fit relative items-end">
+                    <div v-if="emoteButtonView" @click.stop="emoteAction(message)" :class="['reactButton', {cursorBlock : message.user_id == auth.activeUser.id}]">
+                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 30 30" style="fill: var(--check-inactive)">
+                            <path d="M14.977,0C6.735-0.056-0.127,6.93,0.002,15.153c-0.028,8.165,6.816,14.938,14.975,14.811v-0.04c0.967,0.013,1.936-0.067,2.889-0.242c4.817-0.863,9.055-4.275,10.937-8.8C32.985,11.039,25.688-0.021,14.977,0 M14.977,27.902C6.08,27.658-0.075,18.755,3.433,10.373C7.814,0.291,22.13,0.293,26.49,10.386C30.002,18.61,23.886,27.788,14.977,27.902"></path><path d="M22.441,18.263c-0.623-0.436-1.479-0.284-1.917,0.338c0.007-0.011,0.002-0.006-0.001-0.004c-0.002,0.002-0.006,0.005-0.011,0.01l-0.027,0.025c-0.734,0.658-1.568,1.264-2.479,1.639c-0.291,0.123-0.596,0.222-0.9,0.292c-0.67,0.185-1.332,0.349-2.043,0.376c-2.039,0.059-4.107-0.841-5.435-2.355c-1.226-1.563-3.443,0.199-2.196,1.769c0.199,0.27,0.418,0.529,0.646,0.772c1.784,1.911,4.359,3.094,6.986,3.106c1.119,0.021,2.305-0.08,3.354-0.525c1.753-0.72,3.36-1.896,4.362-3.526C23.214,19.556,23.063,18.698,22.441,18.263"></path><path d="M18.513,14.558c0.905,0.201,1.834-0.509,2.073-1.585c0.239-1.076-0.302-2.111-1.208-2.313c-0.904-0.201-1.833,0.509-2.072,1.585C17.065,13.322,17.606,14.357,18.513,14.558"></path><path d="M11.44,14.558c0.906-0.201,1.446-1.236,1.208-2.313c-0.239-1.076-1.167-1.786-2.074-1.585c-0.906,0.203-1.446,1.238-1.208,2.313C9.605,14.049,10.534,14.759,11.44,14.558"></path>
                         </svg>
                     </div>
-                    <div v-if="message.reacted_users.length" @click.stop="viewReactedUsersList" style="display:flex;padding: 10px;margin: 5px 0 -15px -15px;height: 15px;">
-                        <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in reactedUsersListAll.slice(0,3)">  
-                            <UserPanel :title="user.name" :disableInstant="true" size="15" :user="user" imgClass="userSmallIcon"/>                                         
+                    <Transition name="downShiftPop">
+                    <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[25px] shadow-xl" :id="`iokawaReactionPop_${message.id}`" v-if="menu.parent == `iokawaReactionPop_${message.id}`">
+                        <div class="grid grid-cols-5 gap-2">
+                            <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="num in 10" @click="sendEmote(num)">
+                                <Character :size="40" :emoteId="num"/>
+                            </div>
                         </div>
-                        <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="message.reacted_users.length > 3">...({{message.reacted_users.length}})</span>
-                    </div>                                    
+                    </div>
+                    </Transition>
+                    <div @click="setEmoteUsers(message.emoted_users)" v-if="message.emoted_users && message.emoted_users.length" class="mb-[-7px]">
+                        <div class="flex items-end cursor-pointer">
+                            <Character v-for="emote in emotes.slice(0, 3)" :key="emote" :size="30" :emoteId="emote"/>
+                            <p class="text-[12px] mb-[2px]" v-if="message.emoted_users.length > 3">...({{message.emoted_users.length}})</p>
+                        </div>
+                    </div>
                 </div>
-                <div v-if="checkFunctionView" style="display: flex;margin-top: auto;gap: 15px;min-height: 25px;align-items: end;">
-                    <div @click.stop="viewCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">確認済み ({{ message.checked_users.length}})</div>
-                    <div @click.stop="viewunCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">未確認 ({{ message.unchecked_users.length}})</div> 
+                <div class="flex w-fit flex-col gap-3">  
+                    
+                    <div class="flex w-fit ml-auto">
+                        <div v-if="message.reacted_users.length" @click.stop="viewReactedUsersList" style="display:flex;padding: 10px;margin: 7px 0 -15px -15px;height: 15px;">
+                            <div :key="user.id" style="width:15px;margin: auto 0;" v-for="user in reactedUsersListAll.slice(0,3)">  
+                                <UserPanel :title="user.name" :disableInstant="true" size="15" :user="user" imgClass="userSmallIcon"/>                                         
+                            </div>
+                            <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="message.reacted_users.length > 3">...({{message.reacted_users.length}})</span>
+                        </div>                      
+                        <div v-if="reactButtonView" class="reactButton !mr-[-10px]" :class="{cursorBlock : message.user_id == auth.activeUser.id, reactOn: reacting}" @click.stop="reactOrCheck(message)">
+                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="15" viewBox="0 0 38 32" :fill="checkSendIconColor ? 'var(--primary-color)' : 'var(--check-inactive)'">
+                                <path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
+                            </svg>
+                        </div>   
+                    </div>
+                    <div v-if="checkFunctionView" style="display: flex;margin-top: auto;gap: 15px;align-items: end;">
+                        <div @click.stop="viewCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">確認済み ({{ message.checked_users.length}})</div>
+                        <div @click.stop="viewunCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">未確認 ({{ message.unchecked_users.length}})</div> 
+                    </div>
+                                                                     
                 </div>
+                
+                
                 
             </div>          
         </div>
@@ -165,9 +193,11 @@ import UserPanel from "@/components/Global/UserPanel.vue";
 import { useApi } from "@/composables/api";
 import { useDialog } from "@/composables/dialog";
 import { BoardMethodsKey, BoardMethods, MessageMethods, MessageMethodsKey } from "@/interface/keys";
-import { MenuList, MessageFile, SharingData, User } from "@/interface/globalInterface";
+import { EmoteUser, MenuList, MessageFile, SharingData, User } from "@/interface/globalInterface";
 import { useBoardList } from "@/composables/board";
 import TTSPlayer from "@/components/Global/TTSPlayer.vue";
+import { useModal } from "@/composables/modal";
+import Character from "@/components/Global/Character.vue";
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const quoteReply = useQuoteReply()
@@ -195,6 +225,7 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
     const isLongPress = ref(false)
     const messageSchedule = useMessageSchedule()
     const api = useApi()
+    const { setEmoteUsers } = useModal()
     const { ask, ping, toast } = useDialog()
     onMounted(() => {
         if((props.message.id == props.searchTargetId && props.messageListType == 'search') || urlMessage.id == props.message.id){
@@ -281,6 +312,15 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
 
         return list
     })
+    const emotes = computed(() => {
+        const list = props.message.emoted_users as EmoteUser[]
+        const emoteIds = list.map(item => item.pivot.emote_id)
+        //sort emoteIds by frequency and make unique
+        const uniqueEmoteIds = Array.from(new Set(emoteIds)).sort((a, b) => {
+            return emoteIds.filter(id => id === b).length - emoteIds.filter(id => id === a).length
+        })
+        return uniqueEmoteIds
+    })
     const readableText = computed(() => {
         const textContent = messageBoxBody.value?.textContent
         return textContent?.replace(/https?:\/\/[^\s]+/g, '') ?? '';
@@ -329,7 +369,9 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
             return DateParser(props.message.created_at)
         }
     })
-
+    const emoteButtonView = computed(() => {
+        return !(props.message.user_id == auth.activeUser.id && !props.message.emoted_users.length)
+    })
     const reactButtonView = computed(() => {
         return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users.length)
     })
@@ -465,7 +507,7 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
     const reactOrCheck = async(msg) => {        
         if(msg.user_id == auth.activeUser.id) return    
         reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
-
+        
         const message = await api.post('/send_reaction_api', {id: msg.id})
         await refreshMessages()
         const checkedMessage = message
@@ -487,7 +529,20 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
             }
         } 
            
-    }           
+    }       
+    const emoteAction = (msg) => {
+        if(msg.user_id == auth.activeUser.id) return
+        menu.setMenu({parent: `iokawaReactionPop_${msg.id}`})
+    }
+    const sendEmote = async(num) => {
+        menu.close()
+        await api.post('/send_emote', {id: props.message.id, reaction: num})
+        const alreadyReacted = props.message.reacted_users.some(ru => ru.id == auth.activeUser.id)
+        if (!alreadyReacted) {
+            await api.post('/send_reaction_api', {id: props.message.id})
+        }
+        refreshMessages()
+    }    
     const shareToTask = inject<Function>('shareToTask') as Function
 
     const shareTo = (to) => {
@@ -541,7 +596,7 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
         if (draftSending.value) return
         draftSending.value = true
         await api.put('/draft_send', {id: props.message.id, draft_flag: 0})
-        refreshMessages()
+        await refreshMessages()
         setTimeout(() => {
             draftSending.value = false
         }, 200)

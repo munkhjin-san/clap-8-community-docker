@@ -25,6 +25,12 @@ class messageRecord extends Model
                     ->wherePivot('checked', true)
                     ->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.deleted_at');
     }
+    public function emotedUsers()
+    {
+        return $this->belongsToMany(User::class, 'message_emote_users')
+                    ->withPivot(['emote_id'])
+                    ->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.deleted_at');
+    }
 
     public function uncheckedUsers()
     {

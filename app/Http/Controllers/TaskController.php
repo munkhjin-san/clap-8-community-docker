@@ -41,22 +41,28 @@ class TaskController extends Controller
         if(!empty($request)){
 
             $tasks = taskRecord::where('board_id', $request->record_id)
-            ->whereHas('executors', function($q) use($user_id, $progress_flag) {
-                if ($user_id !== null) {
-                    $q->where('users.id', $user_id);
-                    if ($progress_flag !== null && $progress_flag > -1) {
-                        $q->where('progress_flag', $progress_flag);
-                    }
-                } 
-            })->orWhereHas('supervisors', function ($q) use($user_id, $progress_flag) {
-                $q->where('users.id', $user_id)->whereNot('progress_flag', 2);
-                if ($progress_flag !== null && $progress_flag > -1) {
-                    $q->where('progress_flag', $progress_flag);
-                }
-            })
-            ->with(['executors', 'files', 'supervisors'])
-            ->orderByDesc('created_at')
-            ->get();
+                ->where(function ($q) use ($user_id, $progress_flag) {
+                    $q->whereHas('executors', function ($q2) use ($user_id, $progress_flag) {
+                        if ($user_id !== null) {
+                            $q2->where('users.id', $user_id);
+                            if ($progress_flag !== null && $progress_flag > -1) {
+                                $q2->where('progress_flag', $progress_flag);
+                            }
+                        }
+                    })
+                    ->orWhereHas('supervisors', function ($q2) use ($user_id, $progress_flag) {
+                        $q2->where('users.id', $user_id)
+                            ->where('progress_flag', '!=', 2);
+
+                        if ($progress_flag !== null && $progress_flag > -1) {
+                            $q2->where('progress_flag', $progress_flag);
+                        }
+                    });
+                })
+                ->with(['executors', 'files', 'supervisors'])
+                ->orderByDesc('created_at')
+                ->get();
+
             
             
             return response()->json($tasks);      

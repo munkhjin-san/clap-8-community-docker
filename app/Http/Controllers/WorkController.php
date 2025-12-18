@@ -535,6 +535,8 @@ class WorkController extends Controller
                                 $query->whereYear('date', $planned_year);
                                 
                             })->first();
+        $consumed_days = 0;
+        $remaining_days = 0;
         if($work_temp){
             $work_temp_date = $work_temp->date;
             $until_next = Carbon::parse($work_temp_date)->addYear()->format('Y-m-d');

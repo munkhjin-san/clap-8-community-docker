@@ -64,7 +64,7 @@
             
             <TrayComponent
                 v-if="openedBoard && !responsive.mobile"
-                :key="trayComponentKey" 
+                :key="`${trayComponentKey}_${openedBoard.id}`" 
                 :board="openedBoard"
                 :trayItemWhich="trayItemWhich"
                 @setTrayItem="setTrayItem"
@@ -575,7 +575,6 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
                 }            
             }  
             microLoader.value = false
-            trayComponentKey.value ++;
             searchWindowKey.value ++;
         });
 

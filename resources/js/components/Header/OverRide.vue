@@ -28,6 +28,9 @@
         <Transition name="modalFade">
             <SurveyUsers v-if="surveyUsers.active"/>
         </Transition>
+        <Transition name="modalFade">
+            <EmoteUsers v-if="emoteUsers.length"/>
+        </Transition>
         <WeatherPopup v-if="weatherModal" @close="weatherModal = false"/>
     </div>
 </template>
@@ -40,7 +43,7 @@ import SharingData from '../Global/SharingData.vue'
 import FilePreview from '../Board/Tray/File/FilePreview.vue'
 import CheckWork from '../Global/CheckWork.vue'
 import TaskRequest from '../Board/Tray/Task/TaskRequest.vue'
-import { onBeforeMount, onMounted, provide, ref, watch } from 'vue'
+import { onBeforeMount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useFilePreview } from "@/store/filePreview"
 import { useAuthUserStore } from '@/store/auth'
@@ -58,6 +61,8 @@ import SurveyUsers from '../Survey/SurveyUsers.vue'
 import { useSurveyUsers } from '@/store/surveyUsers'
 import WeatherPopup from '../Global/WeatherPopup.vue'
 import { isTodayDone } from '@/utils/tools'
+import { useModal } from '@/composables/modal'
+import EmoteUsers from '../Global/EmoteUsers.vue'
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()
@@ -70,6 +75,7 @@ import { isTodayDone } from '@/utils/tools'
     const auth = useAuthUserStore()
     const messageSchedule = useMessageSchedule()
     const weatherModal = ref(false)
+    const { emoteUsers } = useModal()
     onBeforeMount(() => {
         const customTheme = localStorage.getItem('dark')
         if(customTheme == 0 || customTheme == '0' || !customTheme){

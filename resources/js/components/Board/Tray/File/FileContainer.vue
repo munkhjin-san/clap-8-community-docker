@@ -1,6 +1,6 @@
 <template>
     <div class="mobileFletty">
-        <div style="height: 100%;position: relative;">
+        <div style="height: calc(100% - 30px);position: relative;">
             <Transition name="modalFade">
                 <div class="cal-month-loader" style="height: calc(100% - 60px); top: 60px;" v-if="initialLoader">
                     <div id="loaderMini">
@@ -12,7 +12,14 @@
                 <div class="file-header__inner">
                     <div class="mem-search-area" style="width:100%;">
                         <div class="searchBarInner memberSearchBar" style="width: 100%;margin-left: 0;">   
-                            <input @input="setKeyWord" id="fileSearchInput" v-model="keyword" class="searchBarArea searchInputArea memberSearch" :placeholder="'ファイル名、拡張子、ユーザー名...'" type="text" style="margin: 0;width:100%;"/>
+                            <input
+                                id="fileSearchInput"
+                                v-model="keyword"
+                                class="searchBarArea searchInputArea memberSearch"
+                                placeholder="ファイル名、拡張子、ユーザー名..."
+                                type="text"
+                                style="margin: 0;width:100%;"
+                            />
                             <div style="position: absolute;left: 10px;display: flex;height: 30px;">
                                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="margin:auto;fill:#767676">
                                     <path d="M31.875 28.185c-0.034-0.444-0.159-0.888-0.376-1.275-0.102-0.194-0.239-0.387-0.387-0.547-0.171-0.194-0.239-0.251-0.342-0.353-0.752-0.752-1.526-1.492-2.278-2.232-0.387-0.376-0.763-0.74-1.15-1.116l-0.865-0.831-0.091-0.091c-0.034-0.034-0.080-0.068-0.125-0.102-0.080-0.068-0.171-0.137-0.262-0.194-0.729-0.49-1.651-0.626-2.471-0.376-0.148 0.046-0.285 0.091-0.421 0.159-0.068 0.034-0.148 0.023-0.205-0.034-0.251-0.262-0.854-0.9-1.139-1.207-0.057-0.068-0.068-0.159-0.011-0.228 0.717-0.911 1.275-1.902 1.697-2.938 0.592-1.469 0.888-3.029 0.888-4.589s-0.296-3.12-0.888-4.601c-0.592-1.469-1.492-2.847-2.676-4.043-1.173-1.196-2.54-2.095-4.009-2.688-1.469-0.604-3.029-0.9-4.589-0.9-1.549 0-3.109 0.296-4.578 0.9-1.469 0.592-2.847 1.492-4.031 2.688-1.184 1.184-2.084 2.562-2.676 4.031s-0.888 3.041-0.888 4.601 0.296 3.12 0.888 4.589c0.592 1.469 1.492 2.847 2.676 4.043s2.562 2.084 4.031 2.688c1.469 0.604 3.029 0.9 4.589 0.9s3.12-0.296 4.578-0.9c1.036-0.421 2.038-1.002 2.949-1.72 0.046-0.034 0.114-0.034 0.159 0.011 0.273 0.273 1.002 0.957 1.253 1.196 0.034 0.034 0.046 0.091 0.023 0.137-0.205 0.444-0.307 0.945-0.285 1.446 0.023 0.421 0.137 0.854 0.342 1.23 0.102 0.194 0.228 0.376 0.364 0.535 0.171 0.194 0.228 0.251 0.33 0.353 0.74 0.774 1.469 1.549 2.209 2.3l1.116 1.15 0.558 0.569 0.376 0.376c0.034 0.034 0.080 0.080 0.125 0.114 0.080 0.068 0.171 0.137 0.262 0.205 0.74 0.512 1.708 0.683 2.574 0.444 0.433-0.114 0.843-0.319 1.196-0.615 0.046-0.034 0.091-0.068 0.125-0.114l0.114-0.102 0.421-0.421c0.319-0.319 0.558-0.706 0.717-1.127s0.216-0.877 0.182-1.321zM15.795 21.159c-1.15 0.467-2.391 0.706-3.621 0.706s-2.46-0.239-3.621-0.706c-1.15-0.467-2.243-1.173-3.177-2.118-0.945-0.945-1.64-2.027-2.118-3.189-0.467-1.162-0.706-2.403-0.706-3.633 0-1.241 0.239-2.471 0.706-3.633s1.173-2.243 2.118-3.189c0.945-0.957 2.027-1.651 3.189-2.13 1.15-0.467 2.38-0.706 3.621-0.706 1.23 0 2.46 0.239 3.621 0.706 1.15 0.467 2.232 1.173 3.177 2.118v0c0.945 0.945 1.64 2.027 2.118 3.189 0.467 1.162 0.706 2.403 0.706 3.633 0 1.241-0.239 2.471-0.706 3.633s-1.173 2.243-2.118 3.189c-0.957 0.957-2.038 1.663-3.189 2.13zM29.153 28.823l-0.478 0.478c-0.057 0.057-0.137 0.091-0.216 0.114-0.159 0.046-0.342 0.011-0.478-0.080-0.011-0.011-0.034-0.023-0.046-0.034l-0.068-0.068-0.285-0.273-1.708-1.674c-0.763-0.752-1.526-1.48-2.3-2.221-0.239-0.239-0.251-0.239-0.319-0.342-0.057-0.080-0.091-0.182-0.102-0.285-0.034-0.205 0.046-0.433 0.182-0.592 0.125-0.159 0.364-0.399 0.558-0.535 0.273-0.194 0.604-0.125 0.797 0.068s1.697 1.754 2.061 2.141c0.74 0.763 1.48 1.537 2.232 2.289 0.239 0.239 0.239 0.239 0.285 0.33 0.034 0.068 0.057 0.159 0.068 0.239 0.011 0.159-0.057 0.319-0.182 0.444z"></path>
@@ -32,7 +39,7 @@
                 <div style="height: fit-content;max-width: 100%;" 
                 :key="'file_' + file.id"                                 
                 :id="'file_' + file.id"            
-                v-for="(file, index) in fileList" 
+                v-for="(file, index) in fileListAll.data" 
                 class="fletty mblist">
                     <div class="innerContainer">            
                         <div name="fileContainer" @click="previewFile(file, index)" class="listItem-mobile">                   
@@ -64,13 +71,21 @@
                 </div> 
             </div>
         </div>
+        <div>
+            <PostSearchPager 
+                style="margin: 0;"
+                :possiblePage="fileListAll.last_page" 
+                :activePath="fileListAll.current_page" 
+                @setNavi="(index) => getFileList(fileListAll.current_page + index, false)"
+                @setActivePage="(index) => getFileList(index, false)"/>
+        </div>
     </div>
 </template>
 
 <script setup lang="ts">
 import {filesize} from 'filesize';
 import FileIcon from '../../Mixed/FileIcon.vue';
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref, watch } from 'vue';
 import { useFilePreview } from '@/store/filePreview';
 import { useMenuStore } from "@/store/menu";
 import ItemMenu from '@/components/Global/ItemMenu.vue'
@@ -78,10 +93,30 @@ import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { useBoardList } from '@/composables/board';
 import { MessageFile } from '@/interface/globalInterface';
+import PostSearchPager from '@/components/Post/PostSearchPager.vue';
+import { debounce } from '@/utils/tools';
     const menu = useMenuStore()
     const { openedBoard } = useBoardList()
     const emit = defineEmits(['jumpToMessage'])
-    const fileListAll = ref<MessageFile[]>([])
+    const fileListAll = ref<{
+        data: MessageFile[],
+        first_page_url: string,
+        next_page_url: string | null,
+        prev_page_url: string | null,
+        last_page_url: string,
+        current_page: number,
+        last_page: number,
+        total: number
+    }>({
+        data: [], 
+        first_page_url: '', 
+        next_page_url: null, 
+        prev_page_url: null, 
+        last_page_url: '', 
+        current_page: 1, 
+        last_page: 0, 
+        total: 0
+    })
     const keyword = ref('')
     const headerHidden = ref(false)
     const timeout = ref(0)
@@ -91,21 +126,21 @@ import { MessageFile } from '@/interface/globalInterface';
     const { ping } = useDialog()
     onMounted(() => {
         if(openedBoard.value){
-            getFileList()
+            getFileList(1)
         }
     })
         
     const fileList = computed(() => {
         if(keyword.value.length){
             const searchkeyword = keyword.value.toLowerCase().trim();
-            return fileListAll.value.filter((file) => {
+            return fileListAll.value.data.filter((file) => {
                 const extension = file.extension.toLowerCase();
                 const name = file.name.toLowerCase();
                 const userName = file.user && file.user.name ? file.user.name.toLowerCase() : '非アクティブユーザー';
                 return extension.includes(searchkeyword) || name.includes(searchkeyword) || userName.includes(searchkeyword);
             })
         }else{
-            return fileListAll.value
+            return fileListAll.value.data
         }
         
     })
@@ -133,7 +168,7 @@ import { MessageFile } from '@/interface/globalInterface';
     const previewFile = (file, index) => {
         let target_data = file
         if(!target_data.removed_at){
-            const files = fileList.value.map(fileData => ({
+            const files = fileListAll.value.data.map(fileData => ({
                 ...fileData,
                 source_board_id: fileData.board_id,
                 file_path: `/cdn/shared_files/${fileData.board_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`,
@@ -175,9 +210,10 @@ import { MessageFile } from '@/interface/globalInterface';
     const searchStart = (key) => {
 
     }
-    const getFileList = async() => {
+    const getFileList = async(page = 1, cancel_flag = true) => {
         if(!openedBoard.value || !openedBoard.value.id) return
-        const response = await api.post('/get_file_list', {board_id: openedBoard.value.id}, { cancel: true})
+        const searchkeyword = keyword.value.toLowerCase().trim();
+        const response = await api.post('/get_file_list', {board_id: openedBoard.value.id, page: page ?? 1, keyword: searchkeyword}, { cancel: cancel_flag })
         fileListAll.value = response
         initialLoader.value = false          
 
@@ -186,7 +222,13 @@ import { MessageFile } from '@/interface/globalInterface';
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }
-    
+    const debouncedGetFileList = debounce((page = 1) => {
+        getFileList(page)
+    }, 300)
+
+    watch(keyword, () => {
+        debouncedGetFileList(1)
+    })
 </script>
 <style lang="scss">
     

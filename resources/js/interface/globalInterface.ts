@@ -53,6 +53,11 @@ export interface Tag {
     id: number;
     occurrence: number;
 }
+export interface EmoteUser extends User {
+    pivot: {
+        emote_id: number;
+    }
+}
 export interface User {
     positions: any
     id: number;

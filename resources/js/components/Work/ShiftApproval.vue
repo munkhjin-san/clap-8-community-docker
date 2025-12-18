@@ -45,8 +45,9 @@
                                 {{ user.name }}
                             </div>
                             <div class="text-[12px] mt-[10px]">休日設定日数：{{ calculatedHoliday(user) }}</div>
-                            <div class="text-[12px] mt-[10px]">所定労働時間（参考）：{{ user.should_work_hours / 60 }}時間 ({{ user.work_day_num }}日)</div>
-                            <div class="text-[12px] mt-[10px]">合計勤務時間：{{ user.planned_shift_data.accountedMinutes / 60 }}時間 ({{ user.planned_shift_data.workDays }}日)</div>
+                            <div class="text-[12px] mt-[10px]">所定労働時間：{{ user.should_work_hours / 60 }}時間 ({{ user.work_day_num }}日)</div>
+                            <div class="text-[12px] mt-[10px]">勤務時間:{{ user.planned_shift_data.workMinutes / 60 }}時間 ({{ user.planned_shift_data.workDays }}日)</div>
+                            <div class="text-[12px] mt-[10px]">有給時間:{{ user.planned_shift_data.paidLeaveMinutes / 60 }}時間</div>
                         </th>
                     </thead>
                     <tbody>

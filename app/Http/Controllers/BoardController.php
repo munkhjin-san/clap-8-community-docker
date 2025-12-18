@@ -479,6 +479,7 @@ class BoardController extends Controller
         ->with('reactedUsers')
         ->with('checkedUsers')
         ->with('uncheckedUsers')
+        ->with('emotedUsers')
         ->with('messageRemindUsers')
         ->whereHas('messageRemindUsers', function ($query) use ($user) {
             $query->where('user_id', $user->id)
@@ -607,6 +608,7 @@ class BoardController extends Controller
             'reactedUsers',
             'checkedUsers',
             'uncheckedUsers',
+            'emotedUsers',
             'messageRemindUsers',
             'task'
         ]);
@@ -1461,6 +1463,7 @@ class BoardController extends Controller
                 'reactedUsers',
                 'checkedUsers',
                 'uncheckedUsers',
+                'emotedUsers',
                 'messageRemindUsers',
                 'task'
             ])
@@ -1487,6 +1490,7 @@ class BoardController extends Controller
                 'reactedUsers',
                 'checkedUsers',
                 'uncheckedUsers',
+                'emotedUsers',
                 'messageRemindUsers',
                 'task'
             ])
@@ -1512,6 +1516,7 @@ class BoardController extends Controller
                 'reactedUsers',
                 'checkedUsers',
                 'uncheckedUsers',
+                'emotedUsers',
                 'messageRemindUsers',
                 'task'
             ])
@@ -1554,6 +1559,7 @@ class BoardController extends Controller
                 'reactedUsers',
                 'checkedUsers',
                 'uncheckedUsers',
+                'emotedUsers',
                 'messageRemindUsers',
                 'task'
             ])
@@ -1919,6 +1925,25 @@ class BoardController extends Controller
         return response()->json($board_to_user);
     }
 
+    public function send_emote(Request $request){
+        $request->validate([
+            'reaction' => 'required|integer',
+            'id' => 'required',
+        ]);
+        $active_user = $this->active_user();
+        $message = messageRecord::with('emotedUsers')->findOrFail($request->id);
+        $existingEmote = $message->emotedUsers()->where('user_id', $active_user->id)->first();
+        if ($existingEmote && $existingEmote->pivot->emote_id == $request->reaction) {
+            $message->emotedUsers()->detach($active_user->id);            
+        } else if($existingEmote){
+            $message->emotedUsers()->updateExistingPivot($active_user->id, ['emote_id' => $request->reaction]);
+        } else {
+            $message->emotedUsers()->attach($active_user->id, ['emote_id' => $request->reaction]);            
+        }
 
+        $message = $message->fresh();
+        $message->load(['emotedUsers', 'reactedUsers']);
+        return response()->json($message);
+    }
 
 }

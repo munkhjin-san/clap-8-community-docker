@@ -75,9 +75,24 @@
                         <div :key="file.id" class="file-wrap" v-for="file in message.attached_temp_files">   
                             <div class="file-area-container" >
                                 <div class="flex-centered">   
-                                    <div v-if="file.mime_type == 'image'" style="max-width:65px;height:40px;display: flex;">
-                                        <img style="max-width:100%;margin:auto;max-height:100%;" :src="'/cdn/temp_upload/'+ file.id + '.' + file.extension">
+                                    <div v-if="file.mime_type === 'image'" style="max-width:65px;height:40px;display:flex;">
+                                        <div
+                                            style="
+                                            width:40px;
+                                            height:40px;
+                                            margin:auto;
+                                            border-radius:6px;
+                                            border:1px solid var(--normalBorder);
+                                            background: linear-gradient(90deg,
+                                                rgba(0,0,0,0.06) 25%,
+                                                rgba(0,0,0,0.12) 37%,
+                                                rgba(0,0,0,0.06) 63%);
+                                            background-size: 400% 100%;
+                                            animation: shimmer 1.2s ease-in-out infinite;
+                                            "
+                                        ></div>
                                     </div>
+
                                     
                                     <FileIcon v-if="file.mime_type !== 'image'" :ext="file.extension"/>
                                     <p class="shared-file-name">{{file.name}}</p>
@@ -222,3 +237,9 @@ import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
               
 
 </script>
+<style>
+    @keyframes shimmer {
+        0% { background-position: 100% 0; }
+        100% { background-position: 0 0; }
+    }
+</style>

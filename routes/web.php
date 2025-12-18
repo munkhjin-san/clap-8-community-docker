@@ -226,6 +226,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::put('/draft_send', [BoardController::class, 'draftSend']);
     Route::put('/set_message_schedule', [BoardController::class, 'set_message_schedule']);
     Route::put('/update_view_from', [BoardController::class, 'update_view_from']);
+    Route::post('/send_emote', [BoardController::class, 'send_emote']);
     // Task
     Route::get('/task_list', [TaskController::class, 'getTask']); 
     Route::patch('/complete_task', [TaskController::class, 'completeTask']); 
