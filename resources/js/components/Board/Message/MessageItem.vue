@@ -18,7 +18,7 @@
                 width: 'fit-content'
             }" 
         >
-            <div :class="['mobileMessageBody', 'mb-1', { 'reached' : urlMessage.id == message.id}, { emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id}]">
+            <div :class="['mobileMessageBody', 'mb-2', { 'reached' : urlMessage.id == message.id}, { emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id}]">
                 <div class="message-top-block">
                     <div class="flex items-center gap-[10px]">
                         <div class="relative">
