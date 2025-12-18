@@ -1,6 +1,6 @@
 <template>
     <div class="work-modal" @mousedown="emit('closeModal')">
-        <div class="w-[60%] h-[70%] overflow-hidden relative"  @mousedown.stop>
+        <div class="w-[60%] h-[70%] overflow-hidden relative text-[var(--primary-color)]"  @mousedown.stop>
             <Transition name="modalFade">
                 <div class="work-loader" v-if="processing">
                     <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
