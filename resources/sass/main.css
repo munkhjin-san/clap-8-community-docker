@@ -1354,7 +1354,6 @@ img {
 .mb-35 {
   margin-bottom: 35px !important;
 }
-
 .mobileMessageBody {
   border: solid 2px transparent;
   transition: transform 0.1s;
@@ -7393,7 +7392,7 @@ button.shift-button {
     font-size: 12px;
   }
 
-  .mobileMessageBody {
+  .messageBodyWrapper {
     min-width: 50%;
     max-width: 80% !important;
     width: fit-content;

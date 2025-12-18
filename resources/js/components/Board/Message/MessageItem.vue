@@ -10,7 +10,8 @@
             <p style="cursor:pointer" @click="showDate = !showDate" v-html="infoMessage"></p>        
         </div>
          <div 
-            v-else-if="message.info_flag == 0" 
+            v-else-if="message.info_flag == 0"
+            class="messageBodyWrapper" 
             :style="{
                 float: auth && auth.activeUser.id == message.user.id ? 'right' : 'left',
                 margin: '0 15px',
