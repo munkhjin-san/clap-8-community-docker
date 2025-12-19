@@ -1,5 +1,5 @@
 <template>
-    <img :src="`/images/reactions/v2/${props.emoteId}.webp`" :style="{ height: props.emoteId == 8 ? percent57 + 'px' : props.size + 'px' }" class=" w-auto cursor-pointer"/>
+    <img :src="`/images/reactions/v2/${prefix}_${props.emoteId}.webp`" :style="{ height: props.emoteId == 8 ? percent57 + 'px' : props.size + 'px' }" class=" w-auto cursor-pointer"/>
 </template>
 <script setup lang="ts">
 import { useTheme } from '@/store/theme';

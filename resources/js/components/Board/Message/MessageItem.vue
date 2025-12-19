@@ -157,7 +157,7 @@
                 </div>
                 </Transition>
                 <div @click="setEmoteUsers(message.emoted_users)" v-if="message.emoted_users && message.emoted_users.length">
-                    <div class="flex items-end cursor-pointer">
+                    <div class="flex items-end cursor-pointer text-[var(--primary-color)]">
                         <Character v-for="emote in emotes.slice(0, 3)" :key="emote" :size="40" :emoteId="emote"/>
                         <p class="text-[12px] mb-[2px]" v-if="message.emoted_users.length > 3">...({{message.emoted_users.length}})</p>
                     </div>
