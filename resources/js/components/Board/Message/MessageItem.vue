@@ -132,24 +132,19 @@
                     <div v-if="checkFunctionView" style="display: flex;margin-top: auto;gap: 15px;min-height: 25px;align-items: end;">
                         <div @click.stop="viewCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">確認済み ({{ message.checked_users.length}})</div>
                         <div @click.stop="viewunCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">未確認 ({{ message.unchecked_users.length}})</div> 
-                    </div>
-                    
-                    
-                    
-                    
-                    
+                    </div>               
                 </div>  
                     
             </div>
             <div class="flex w-fit relative items-center gap-2">
-                <div v-if="emoteButtonView" @click.stop="emoteAction(message)" :class="[{cursorBlock : message.user_id == auth.activeUser.id}]">
+                <div class="cursor-pointer" v-if="emoteButtonView" @click.stop="emoteAction(message)" :class="[{cursorBlock : message.user_id == auth.activeUser.id}]">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 30 30" style="fill: var(--check-inactive)">
                         <path d="M14.977,0C6.735-0.056-0.127,6.93,0.002,15.153c-0.028,8.165,6.816,14.938,14.975,14.811v-0.04c0.967,0.013,1.936-0.067,2.889-0.242c4.817-0.863,9.055-4.275,10.937-8.8C32.985,11.039,25.688-0.021,14.977,0 M14.977,27.902C6.08,27.658-0.075,18.755,3.433,10.373C7.814,0.291,22.13,0.293,26.49,10.386C30.002,18.61,23.886,27.788,14.977,27.902"></path><path d="M22.441,18.263c-0.623-0.436-1.479-0.284-1.917,0.338c0.007-0.011,0.002-0.006-0.001-0.004c-0.002,0.002-0.006,0.005-0.011,0.01l-0.027,0.025c-0.734,0.658-1.568,1.264-2.479,1.639c-0.291,0.123-0.596,0.222-0.9,0.292c-0.67,0.185-1.332,0.349-2.043,0.376c-2.039,0.059-4.107-0.841-5.435-2.355c-1.226-1.563-3.443,0.199-2.196,1.769c0.199,0.27,0.418,0.529,0.646,0.772c1.784,1.911,4.359,3.094,6.986,3.106c1.119,0.021,2.305-0.08,3.354-0.525c1.753-0.72,3.36-1.896,4.362-3.526C23.214,19.556,23.063,18.698,22.441,18.263"></path><path d="M18.513,14.558c0.905,0.201,1.834-0.509,2.073-1.585c0.239-1.076-0.302-2.111-1.208-2.313c-0.904-0.201-1.833,0.509-2.072,1.585C17.065,13.322,17.606,14.357,18.513,14.558"></path><path d="M11.44,14.558c0.906-0.201,1.446-1.236,1.208-2.313c-0.239-1.076-1.167-1.786-2.074-1.585c-0.906,0.203-1.446,1.238-1.208,2.313C9.605,14.049,10.534,14.759,11.44,14.558"></path>
                     </svg>
                 </div>
                 <Transition name="downShiftPop">
                 <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[25px] shadow-xl" :id="`iokawaReactionPop_${message.id}`" v-if="menu.parent == `iokawaReactionPop_${message.id}`">
-                    <div class="grid grid-cols-5 gap-2">
+                    <div class="grid grid-cols-5 gap-2">                        
                         <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="num in 10" @click="sendEmote(num)">
                             <Character :size="40" :emoteId="num"/>
                         </div>
@@ -158,7 +153,10 @@
                 </Transition>
                 <div @click="setEmoteUsers(message.emoted_users)" v-if="message.emoted_users && message.emoted_users.length">
                     <div class="flex items-end cursor-pointer text-[var(--primary-color)]">
-                        <Character v-for="emote in emotes.slice(0, 3)" :key="emote" :size="40" :emoteId="emote"/>
+                        <TransitionGroup name="downShiftPop">
+                            <Character v-for="emote in emotes.slice(0, 3)" :key="emote" :size="40" :emoteId="emote"/>
+                        </TransitionGroup>
+                        
                         <p class="text-[12px] mb-[2px]" v-if="message.emoted_users.length > 3">...({{message.emoted_users.length}})</p>
                     </div>
                 </div>
@@ -536,8 +534,53 @@ import Character from "@/components/Global/Character.vue";
         if(msg.user_id == auth.activeUser.id) return
         menu.setMenu({parent: `iokawaReactionPop_${msg.id}`})
     }
+    const fastPreCheckEmote = (num) => {
+        // pretend to send emote api for fast response
+        const checkExist = props.message.emoted_users.find(ob => ob.id == auth.activeUser.id)
+        if(checkExist){
+            if(checkExist.pivot.emote_id == num) {
+                refreshMessages({
+                    ...props.message,
+                    emoted_users: props.message.emoted_users.filter(ob => !(ob.id == auth.activeUser.id && ob.pivot.emote_id == num))
+                })
+            }else{ 
+                const newEmotedUsers = props.message.emoted_users.map(ob => {
+                    if(ob.id == auth.activeUser.id){
+                        return {
+                            ...ob,
+                            pivot: {
+                                ...ob.pivot,
+                                emote_id: num
+                            }
+                        }
+                    }
+                    return ob
+                })
+                refreshMessages({
+                    ...props.message,
+                    emoted_users: newEmotedUsers
+                })
+            }
+            
+            
+        } else {
+            refreshMessages({
+                ...props.message,
+                emoted_users: [...props.message.emoted_users, {
+                    id: auth.activeUser.id,
+                    name: auth.activeUser.name,
+                    pivot: {
+                        message_id: props.message.id,
+                        user_id: auth.activeUser.id,
+                        emote_id: num
+                    }
+                }]
+            })
+        }
+    }
     const sendEmote = async(num) => {
         menu.close()
+        fastPreCheckEmote(num)
         const data = await api.post('/send_emote', {id: props.message.id, reaction: num})
         refreshMessages(data)
     }    
