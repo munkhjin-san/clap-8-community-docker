@@ -29,7 +29,7 @@
                             </div>                   
                         </div>
                         <div class="mr-[20px]">
-                            <div @click.stop="pushInstantUser($event, message.user_id)" :class="{'!text-[12px]' :  message.actual_sender}" class="cursor-pointer text-[14px] break-keep">{{ messageUserName }}</div>
+                            <div @click.stop="pushInstantUser($event, message.user_id)" :class="{'!text-[12px]' :  message.actual_sender}" class="cursor-pointer text-[14px] break-keep under400:text-[12px]">{{ messageUserName }}</div>
                             <div v-if="message.actual_sender" class="text-[12px] mt-[3px]">{{ message.actual_sender.name }}</div>
                         </div>
                         
@@ -217,7 +217,7 @@ import Character from "@/components/Global/Character.vue";
     const messageBox = useTemplateRef('messageBox')
     const messageBoxBody = useTemplateRef('messageBoxBody')
     const { openedBoard } = useBoardList()
-    const { refreshMessages, close, reload, messageLoader } = inject(BoardMethodsKey) as BoardMethods 
+    const { refreshMessages, close, reload, messageLoader, open } = inject(BoardMethodsKey) as BoardMethods 
     const { copy, remind, check } = inject(MessageMethodsKey) as MessageMethods;
     const pushInstantUser = inject('pushInstantUser') as Function
     const itemMenuRef = useTemplateRef('itemMenuRef')
@@ -237,7 +237,8 @@ import Character from "@/components/Global/Character.vue";
     })
     const refresh = () => {
         messageLoader(true)
-        refreshMessages()
+        if(openedBoard.value)
+        open(openedBoard.value)
     }
     const startTouch = (event) => {
         isLongPress.value = false
@@ -483,11 +484,11 @@ import Character from "@/components/Global/Character.vue";
         messageUsers.setMessageUsers(data)
     }
     const deleteMessage = async (id) => {        
-        await api.post('/chat_delete_api', {id: id}, {
+        const data = await api.post('/chat_delete_api', {id: id}, {
             ask: 'メッセージを削除してもよろしいですか？',
             toast: 'メッセージを削除しました。'
         })  
-        refreshMessages()
+        refreshMessages(data)
     }
     const markUnread = async(id) => {
         menu.close()
@@ -510,17 +511,17 @@ import Character from "@/components/Global/Character.vue";
         reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
         
         const message = await api.post('/send_reaction_api', {id: msg.id})
-        await refreshMessages()
+        refreshMessages(message)
         const checkedMessage = message
         if(checkedMessage.check_flag == 1){
             const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
             const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
-            const reacted =   checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
+            const reacted = checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
             if(unchecked && reacted){     
                 const confirmed = await ask('確認済みにしますか')
                 if(confirmed.value){
-                    await api.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
-                    refreshMessages()    
+                    const data = await api.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
+                    refreshMessages(data.message)    
                     toast('確認済みにしました。') 
                     badge.getRemindBadge()     
                 }                                  
@@ -537,12 +538,8 @@ import Character from "@/components/Global/Character.vue";
     }
     const sendEmote = async(num) => {
         menu.close()
-        await api.post('/send_emote', {id: props.message.id, reaction: num})
-        const alreadyReacted = props.message.reacted_users.some(ru => ru.id == auth.activeUser.id)
-        if (!alreadyReacted) {
-            await api.post('/send_reaction_api', {id: props.message.id})
-        }
-        refreshMessages()
+        const data = await api.post('/send_emote', {id: props.message.id, reaction: num})
+        refreshMessages(data)
     }    
     const shareToTask = inject<Function>('shareToTask') as Function
 
@@ -596,8 +593,8 @@ import Character from "@/components/Global/Character.vue";
     const draftSend = async() => {
         if (draftSending.value) return
         draftSending.value = true
-        await api.put('/draft_send', {id: props.message.id, draft_flag: 0})
-        await refreshMessages()
+        const data = await api.put('/draft_send', {id: props.message.id, draft_flag: 0})
+        await refreshMessages(data)
         setTimeout(() => {
             draftSending.value = false
         }, 200)

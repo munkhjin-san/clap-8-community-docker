@@ -580,7 +580,9 @@ class BoardController extends Controller
         $messageFrom = $targetBoard->message_from;     
         $time_condition = $messageFrom == 0 && $timeLimit;   
         $view_from = $usercheck->view_from;
+        $offset = $request->offset ?? null;
         $query = messageRecord::query()->where('record_id', $request->record_id)
+        
         ->where('deleted_flag', 0)
         ->when($id, function($query) use($id){
             $query->where('id', $id);
@@ -596,6 +598,9 @@ class BoardController extends Controller
         })
         ->when($targetBoard->private_flag !== 3, function ($query) {
             $query->withTrashed();
+        })
+        ->when($offset, function ($query) use ($offset) {
+            $query->where('created_at', '>=', $offset);
         })
         ->with([
             'user',
@@ -733,7 +738,16 @@ class BoardController extends Controller
             if(!$request->override_user_id){
                 $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
             }    
-            $messageRecord = $this->get_messages(new Request(['page_index' => 1, 'record_id' => $request->record_id, 'message_id' => $chat->id, 'override_user' => $request->override_user]));          
+            $offset = $request->timestamp ?? Carbon::now()->toDateTimeString()  ;
+            $instance = Carbon::parse($offset);
+            $messageRecord = $this->get_messages(new Request([
+                'page_index' => 1, 
+                'record_id' => $request->record_id, 
+                'offset' => $instance->toDateTimeString(),
+                'override_user' => $request->override_user
+            ]));          
+            $boardRefresh = $boardRecord->load('last_message');
+            $last_message = $boardRefresh->last_message;
             // SendPusher::dispatchAfterResponse($rebound);  
             $socket = array();
             array_push($socket, ["event" => "board:{$request->record_id}", "data" => []]);
@@ -746,6 +760,7 @@ class BoardController extends Controller
                 "socket" => $socket,
                 "message" => $messageRecord->original,
                 "notified" => $not,
+                "last_message" => $last_message,
             ];          
             return response()->json($data);
 
@@ -872,7 +887,8 @@ class BoardController extends Controller
             }               
             
         }          
-        return response()->json('success', 200);
+        $mutatedMessage = $this->message_refresh($chat);
+        return response()->json($mutatedMessage);
         
          
     }
@@ -942,7 +958,8 @@ class BoardController extends Controller
                 ];
             });
             
-            return response()->json($data);
+            $mutatedMessage = $this->message_refresh($chat_record);
+            return response()->json($mutatedMessage);
                  
            
         }
@@ -979,7 +996,8 @@ class BoardController extends Controller
             $chat_record->emoji_flag = $this->containsOnlyEmojis($request->message);
             $chat_record->save();
         }
-        return response()->json('success', 200);
+        $mutatedMessage = $this->message_refresh($chat_record);
+        return response()->json($mutatedMessage);
         
     }
     public function checkSend(Request $request){
@@ -999,8 +1017,10 @@ class BoardController extends Controller
             "board_members" => $related_members
         );
         // event(new MessageSent($rebound));
+        $mutatedMessage = $this->message_refresh($message_record);
         return response()->json([
-            "socket" => $rebound
+            "socket" => $rebound,
+            "message" => $mutatedMessage
         ]);
         
 
@@ -1222,9 +1242,9 @@ class BoardController extends Controller
     }    
     public function checkRequest(Request $request){
 
-        
+        $message = messageRecord::findOrFail($request->msg_id);
         if($request->type == 'confirm'){
-            $message = messageRecord::findOrFail($request->msg_id);
+            
             $message->check_flag = 1;
             $message->check_request_at = Carbon::now();
             $message->checkUsers()->sync($request->users);
@@ -1283,8 +1303,9 @@ class BoardController extends Controller
                 return response()->json($messageFile);
             }
         }
+        $mutatedMessage = $this->message_refresh($message);
 
-        return response()->json();
+        return response()->json($mutatedMessage);
             
         
     }
@@ -1299,9 +1320,8 @@ class BoardController extends Controller
             $message->reactedUsers()->attach($active_user->id);            
         }
 
-        $message = $message->fresh();
-        $message->load('reactedUsers', 'checkedUsers', 'uncheckedUsers');
-        return response()->json($message);
+        $mutatedMessage = $mutatedMessage = $this->message_refresh($message);
+        return response()->json($mutatedMessage);
     }    
    
     
@@ -1924,6 +1944,26 @@ class BoardController extends Controller
 
         return response()->json($board_to_user);
     }
+    private function message_refresh(messageRecord $message){
+        $message->refresh();
+        $message->load([
+            'user',
+            'actual_sender',
+            'message_files.unsignedUsers',
+            'message_files.signedUsers',
+            'message_reply',
+            'message_quot',
+            'message_forward',
+            'reactedUsers',
+            'checkedUsers',
+            'uncheckedUsers',
+            'emotedUsers',
+            'messageRemindUsers',
+            'task'
+        ]);
+        return $message;
+
+    }
 
     public function send_emote(Request $request){
         $request->validate([
@@ -1938,12 +1978,14 @@ class BoardController extends Controller
         } else if($existingEmote){
             $message->emotedUsers()->updateExistingPivot($active_user->id, ['emote_id' => $request->reaction]);
         } else {
-            $message->emotedUsers()->attach($active_user->id, ['emote_id' => $request->reaction]);            
+            $message->emotedUsers()->attach($active_user->id, ['emote_id' => $request->reaction]);  
+            if(!$message->reactedUsers()->where('user_id', $active_user->id)->exists()){
+                $message->reactedUsers()->attach($active_user->id);            
+            }
         }
 
-        $message = $message->fresh();
-        $message->load(['emotedUsers', 'reactedUsers']);
-        return response()->json($message);
+        $mutatedMessage = $this->message_refresh($message);
+        return response()->json($mutatedMessage);
     }
 
 }

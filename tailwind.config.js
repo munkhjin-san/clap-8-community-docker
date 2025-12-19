@@ -11,6 +11,10 @@ export default {
             screens: {
                 'sm959' : '960px',
                 'under960': {'max': '959px'},
+                'under640': {'max': '639px'},
+                'under500': {'max': '499px'},
+                'under400': {'max': '399px'},
+                'under350': {'max': '349px'},
             }
         },
     },

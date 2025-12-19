@@ -117,10 +117,10 @@ import { useBoardList } from '@/composables/board';
             params['msg_id'] = props.message.id
         }
 
-        await api.post('/check_request_api', params, {
+        const data = await api.post('/check_request_api', params, {
             toast: '送信しました。',
         })
-        refreshMessages()           
+        refreshMessages(data)           
         processing.value = false
         emit('close')
  

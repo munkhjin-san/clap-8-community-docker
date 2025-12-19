@@ -18,16 +18,17 @@ type BoardMethods = {
     members: (item: Board) => void,
     pin: (item: Board) => void,
     leave: (item: Board) => void,
-    refreshMessages: () => void,
+    refreshMessages: (message: Message) => void,
     privateSearch: () => void,
     setNotification: (item: Board) => void
     messageLoader:(val: boolean) => void
+
 }
 type MessageMethods = {
     addQueue: (item: Message) => void,
     copy: (item: CopyData) => void,
     check: (item: Message, request?:string) => void,
-    sent: (item: Message) => void,
+    sent: (item: Message, list: Message[], last_message: any) => void,
     sendError: (item: Message) => void,
     removeError: (id: number | string | null) => void,
     resetReplyQuot: () => void,

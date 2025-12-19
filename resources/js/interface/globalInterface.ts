@@ -27,6 +27,7 @@ export interface Board {
     icon_text: string | null
     icon_bg: string | null
     messages?: Message[]
+    updated_at: string
 
 }
 interface LastMessage {

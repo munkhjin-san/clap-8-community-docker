@@ -154,6 +154,7 @@ import UserPanel from '@/components/Global/UserPanel.vue'
 import { mentionFormatter } from '@/utils/tools';
 import { useApi } from '@/composables/api';
 import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
+import { DateTime } from 'luxon';
 
     const auth = useAuthUserStore()
     const tempUnique = useTempUnique()
@@ -202,7 +203,8 @@ import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
             forwarded_files: [],
             u_id: props.message.u_id,
             sharing_files: props.message.sharing_files,
-            draft_flag: props.message.draft_flag
+            draft_flag: props.message.draft_flag,
+            timestamp: DateTime.now().toISO(),
         };       
         let u_list:number[] = []
         u_list.push(Number(props.message.u_id));
@@ -210,7 +212,7 @@ import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
         try{
             const response = await api.post('/chat_add_api', params)
             if(response  && response.success && response.u_id == props.message.u_id){
-                sent(props.message)
+                sent(props.message, response.message.messages, response.last_message)
                 resetReplyQuot()
                 resending.value = false
                 let u_list = tempUnique.ids

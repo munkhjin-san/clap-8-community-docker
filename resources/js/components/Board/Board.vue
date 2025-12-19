@@ -132,6 +132,7 @@ import { useDialog } from '@/composables/dialog'
 import { useBoardList } from '@/composables/board'
 import { Board, CopyData, Message, UnreadMessages } from '@/interface/globalInterface'
 import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
+import { DateTime } from 'luxon'
     const badge = useBadgeStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -480,11 +481,42 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         }
         openedBoard.value && getUnsentMessages(openedBoard.value.id)        
     }
-    const sentMessage = (item) => {
+    const sentMessage = (item, list: Message[], last_message:any) => {
         pageIndex.value = 1;
         pageLimiter.value = false
-        getMessageList('queue', item);
-        getBoardList()
+        if(item){
+            removeError(item.id)
+            let box = document.getElementById('queueMessage_' + item.u_id);                       
+            if(box){                            
+                box.style.display = 'none'
+            }
+            getUnsentMessages(item.record_id);
+            const data = {
+                active: false,
+                id: null,
+                count: 0
+            }
+            unreadMessages.value = data
+        }
+        list.forEach( message => {
+            const exists = messageList.value.filter( ob => ob.id == message.id)
+            if(!exists.length){
+                messageList.value.unshift(message)
+            }
+        })
+        const targetBoard = allBoardList.value.find( ob => ob.id == item.record_id)
+        if(targetBoard){
+            const stamp = list.length ? list[0].created_at : DateTime.now().toISO()
+            targetBoard.last_message = last_message
+            targetBoard.updated_at = stamp
+            allBoardList.value = allBoardList.value.sort((a, b) => {
+                return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+            });
+        }
+        // getMessageList('queue', item);
+        // getBoardList()
+        const boardId = item.record_id
+
         if(item && item.attached_temp_files && item.attached_temp_files.length){
             trayComponentKey.value ++;
         }        
@@ -599,20 +631,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         if(!boardId) return
         const response = await api.post('/get_messages', { record_id: boardId, page_index: pageIndex.value }, { cancel: true })
         if(!response) return
-        if(queue){
-            removeError(queue.id)
-            let box = document.getElementById('queueMessage_' + queue.u_id);                       
-            if(box){                            
-                box.style.display = 'none'
-            }
-            getUnsentMessages(boardId)
-            const data = {
-                active: false,
-                id: null,
-                count: 0
-            }
-            unreadMessages.value = data
-        }
+        
         listType.value = 'normal' 
         messageList.value = response.messages;
         if(source == 'infiniteLoader'){                        
@@ -740,6 +759,15 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         setTrayItem(1)
         trayComponentKey.value ++
     }
+    const refreshMessages = (message) => {
+        const find = messageList.value.filter( ob => ob.id == message.id)
+        console.log('refreshMessages', find)
+        
+        if(find.length){
+            const index = messageList.value.map( ob => ob.id).indexOf(message.id)
+            messageList.value[index] = message
+        }
+    }
     provide(BoardMethodsKey, {
         remove: (item) => boardDelete(item),
         edit: (item) => activeEditBoard.value = item,
@@ -752,7 +780,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         members: (item) => viewingMembersOf.value = item.id,
         pin: (item) => pinBoard(item.id),
         leave: (item) => leaveBoard(item),
-        refreshMessages: () => getMessageList(),
+        refreshMessages: (message) => refreshMessages(message),
         privateSearch: () => startPrivateSearch(),
         messageLoader: (item) => messageLoader.value = item,
         setNotification: (item) => setNotification(item.id)
@@ -763,7 +791,7 @@ import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
         copy: (item) => copyData.value = item,
         remind: (item) => remindRequest(item),
         check: (item, request) => checkRequest(item, request),
-        sent: (item) => sentMessage(item),
+        sent: (item, list, last_message) => sentMessage(item, list, last_message),
         sendError: (item) => sendError(item),
         removeError: (id) => removeError(id),
         resetReplyQuot: () => resetReplyQuot()

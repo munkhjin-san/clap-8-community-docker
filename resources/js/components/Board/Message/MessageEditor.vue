@@ -43,10 +43,10 @@ import { inject, onMounted, ref, useTemplateRef } from 'vue';
         if(sending.value) return
 
         sending.value = true          
-        await api.post('/chat_edit_api', {id: props.message.id, message: new_text }, {
+        const data = await api.post('/chat_edit_api', {id: props.message.id, message: new_text }, {
             toast: '保存しました。'
         })
-        refreshMessages()
+        refreshMessages(data)
         emit('cancel') 
 
         sending.value = false

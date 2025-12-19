@@ -181,13 +181,12 @@ import LoaderButton from '@/components/Global/LoaderButton.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
-import { computed, inject, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useSharingDataStore } from '@/store/sharingData'
 import OptionSelector from '@/components/Form/OptionSelector.vue';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
-import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { useBoardList } from '@/composables/board';
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
@@ -212,7 +211,6 @@ import { useBoardList } from '@/composables/board';
     const taskTitleRef = useTemplateRef('taskTitleRef')
     
     const { openedBoard } = useBoardList()
-    const { refreshMessages } = inject(BoardMethodsKey) as BoardMethods
     const api = useApi()
     const dateErrors = ref([])
     const tasktime = ref({
@@ -320,7 +318,6 @@ import { useBoardList } from '@/composables/board';
             loadingRef: loading,
         })            
         emit('close', true)
-        refreshMessages()  
         
     }
     const selectAll = (event) => {
