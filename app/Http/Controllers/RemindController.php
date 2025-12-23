@@ -584,7 +584,10 @@ class RemindController extends Controller
         $list = [];
         foreach($tempData as $temp) {
             $startDate = $temp->date;
-            $endDate = Carbon::parse($startDate)->addYear()->format('Y-m-d');
+           $endDate = Carbon::parse($startDate)
+            ->addYear()
+            ->subDay()
+            ->format('Y-m-d');
             $planned_year = Carbon::createFromFormat('Y-m-d', $startDate)->year;
             $temp['notification_user'] = $notificationUser;
             $temp['endDate'] = $endDate;
