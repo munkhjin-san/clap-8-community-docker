@@ -20,7 +20,7 @@
                 <Smile :size="18"/>
             </div>  
         </div>
-        <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="comment.emoted_users && comment.emoted_users.length && !emoteArea">
+        <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
             <div class="flex items-end cursor-pointer text-[var(--primary-color)] w-fit">
                 <TransitionGroup name="downShiftPop">
                     <Character v-for="emote in emotes.slice(0, 6)" :key="emote" :size="25" :emoteId="emote"/>
