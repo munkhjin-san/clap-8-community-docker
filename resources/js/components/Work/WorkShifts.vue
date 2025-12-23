@@ -42,7 +42,7 @@
                             </div>
                         </div> -->
                         <div class="my-4 flex gap-4 items-center justify-between flex-wrap">
-                            <div class="flex gap-3 items-center">
+                            <div class="flex gap-3 items-center flex-wrap">
                                 <select v-model="selectedShiftType" id="shift_type_selector" class="custom-a-input">
                                     <optgroup label="勤務">
                                         <option :value="type.id" v-for="type in groupedLeaves.main" :key="'m-'+type.id">{{ type.name }}</option>
