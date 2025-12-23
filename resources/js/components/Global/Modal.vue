@@ -1,6 +1,6 @@
 <template>
     <div class="overlay" @mousedown="canClose">   
-        <div :class="['chatCreate', 'relative', 'bg-inherit', '!p-0', size]">      
+        <div :class="['chatCreate', 'relative', 'bg-inherit', '!p-0', size, customClass]">      
             <Transition name="modalFade">            
                 <div v-if="loader" class="absolute w-full h-full top-0 left-0 bg-inherit z-[6] flex items-center justify-center">          
                     <div class="spinner-mini" style="border-color: transparent rgb(134, 134, 134) rgb(134, 134, 134);"></div>     
@@ -12,7 +12,7 @@
                     <div class="ml-auto">
                         <slot name="menu"></slot>
                     </div>
-                    <button class="w-[40px] min-w-[40px] h-[40px] flex items-center justify-center cursor-pointer -mr-[15px] z-[10]" @click="emit('close', false)">
+                    <button class="bg-inherit w-[40px] min-w-[40px] h-[40px] flex items-center justify-center cursor-pointer -mr-[15px] z-[10]" @click="emit('close', false)">
                         <CloseIcon size="13"/>                      
                     </button>                 
                 </div>
@@ -33,12 +33,14 @@ const props = withDefaults(defineProps<{
     bodyStyle?: string
     size?: 'medium' | 'large'
     loader?: boolean
+    customClass?: string
 }>(), {
     disableScroll: false,
     persist: false,
     bodyStyle: '',
     size: 'medium',
-    loader: false
+    loader: false,
+    customClass: ''
 })
 const emit = defineEmits(['close'])
 const canClose = (event: MouseEvent) => {

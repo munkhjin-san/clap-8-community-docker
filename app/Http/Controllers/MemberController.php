@@ -238,7 +238,8 @@ class MemberController extends Controller
                 $q->where('date', $today)
                     ->where('type_id', 43)
                     ->whereNotNull('value_text')
-                    ->select('user_id', 'date', 'type_id', 'value_text', 'value_int');
+                    ->with('emotedUsers')
+                    ->select('id', 'user_id', 'date', 'type_id', 'value_text', 'value_int');
             }])->select('id', 'name', 'icon_bg', 'icon_path')->get();
         return response()->json($items);
 
@@ -958,5 +959,39 @@ class MemberController extends Controller
         
         $responseData = $response->json();
         return response()->json($responseData['records']);
+    }
+    public function create_custom_field_emote_user(Request $request){
+        $request->validate([
+            'custom_field_data_record_id' => 'required',
+            'emote_id' => 'required',
+            'user_id' => 'required',
+        ]);
+        $user_id = $request->user_id;
+        $active_user = $this->active_user();
+        $record_id = $request->custom_field_data_record_id;
+        $targetUser = User::findorFail($user_id);
+        $record = $targetUser->custom_field_data_records()->findOrFail($record_id);
+
+
+
+        $existingEmote = $record->emotedUsers()->where('user_id', $active_user->id)->first();
+        if ($existingEmote && $existingEmote->pivot->emote_id == $request->emote_id) {
+            $record->emotedUsers()->detach($active_user->id);            
+        } else if($existingEmote){
+            $record->emotedUsers()->updateExistingPivot($active_user->id, ['emote_id' => $request->emote_id]);
+        } else {
+            $record->emotedUsers()->attach($active_user->id, ['emote_id' => $request->emote_id]);  
+        }
+
+
+        
+        $newTargetUser = User::where('id', $user_id)->with(['custom_field_data_records' => function ($q) use ($record_id) {
+                $q->where('id', $record_id)
+                    ->with('emotedUsers')
+                    ->select('id', 'user_id', 'date', 'type_id', 'value_text', 'value_int');
+            }])->select('id', 'name', 'icon_bg', 'icon_path')->first();
+
+        return response()->json($newTargetUser);
+
     }
 }

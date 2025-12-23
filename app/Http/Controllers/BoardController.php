@@ -147,6 +147,16 @@ class BoardController extends Controller
         ->when($active_user->on_leave === 1, function ($q) {
             return $q->where('private_flag', '!=', 0);
         })
+        ->orderByRaw(
+            'EXISTS (
+                SELECT 1
+                FROM board_to_users btu
+                WHERE btu.record_id = board_records.id
+                AND btu.user_id = ?
+                AND btu.pin_flag = 1
+            ) DESC',
+            [$active_user->id]
+        )
         ->orderByDesc('updated_at')
         ->orderByDesc('id');
 

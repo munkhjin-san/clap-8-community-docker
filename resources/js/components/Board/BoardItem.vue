@@ -29,7 +29,7 @@
             </div>
             <div @mouseenter="titleHoverIn" @mouseleave="titleHoverOut" style="width:100%;align-self: center;margin:0 10px;overflow:hidden">
                 
-                <BoardTitlePreLoad :item="item" titleStyle="line-height: 1.3;font-size: 16px;transition-timing-function: linear;display:inline-block"/>
+                <BoardTitlePreLoad :key="item.title" :item="item" titleStyle="line-height: 1.3;font-size: 16px;transition-timing-function: linear;display:inline-block"/>
                 <div v-html="lastMessage" class="contentsText lastMessage"></div>              
                     <div @touchstart.stop @click.stop="members(item)" v-if="item.private_flag == 0" class="sm pc" style="overflow:hidden;display: flex;align-items: center;margin-top: 3px;width: fit-content;">    
                         

@@ -1,5 +1,5 @@
 <template>
-    <div @mousedown="setEmoteUsers([])" class="overlay">
+    <div @mousedown="setEmoteUsers([])" class="overlay !z-[47]">
         <div class="users-list-popup !bg-[var(--bg2)] !p-0" @mousedown.stop>
             <div class="flex items-end overflow-x-auto">
                 <label v-for="emote in sortedEmotesByOccurence" class="p-2 flex shrink-0" :class="{'sticky left-0 right-0 bg-[var(--background-color)]' : activeEmoteId == emote.emoteId}">

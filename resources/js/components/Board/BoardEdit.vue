@@ -139,7 +139,7 @@ import Modal from '../Global/Modal.vue';
     }
     const cropComplete = async() => {
         if(loader.value) return
-        if(cropperInstance.value){
+        if(cropperInstance.value && targetBoard.icon_path == null){
             
             const { blob, source } = await cropperInstance.value.complete(); 
             if (!blob || !source) {

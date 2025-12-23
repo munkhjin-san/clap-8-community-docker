@@ -87,9 +87,9 @@ Route::get('/timecard_update', [AutoJobController::class, 'timecard_update']);
 
 Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
-Route::get('/help/{any?}', function () {
-    return view('help');
-})->where('any', '.*')->name('help');
+// Route::get('/help/{any?}', function () {
+//     return view('help');
+// })->where('any', '.*')->name('help');
 Route::match(['get', 'post'], '/cron-trigger', [AutoJobController::class, 'cronTest']);
 
 Auth::routes(['register' => false]);
@@ -160,7 +160,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'contact',
         'asset-partner',
         'survey-answers',
-        'file-preview'
+        'file-preview',
+        'help'
     ])->where('any', '.*')->name('board');
 
     Route::get('/board_default_thumbnail/{name}/{size}/{color?}', [ContentController::class, 'board_default_thumbnail']);
@@ -366,6 +367,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_job_evaluation', [MemberController::class, 'get_job_evaluation']);
         Route::get('/mark_condition_asread', [MemberController::class, 'mark_condition_asread']);
         Route::get('/get_today_comments', [MemberController::class, 'get_today_comments']);
+        Route::post('/create_custom_field_emote_user', [MemberController::class, 'create_custom_field_emote_user']);
         Route::get('/get_evaluation_levels', [ProjectController::class, 'get_evaluation_levels']);
         Route::get('/mentionable_users', [ProjectController::class, 'mentionable_users']);
         Route::post('/project_finance_comment', [ProjectController::class, 'project_finance_comment']);

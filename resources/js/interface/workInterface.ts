@@ -1,4 +1,4 @@
-import { TaskUser, User } from "./globalInterface"
+import { EmoteUser, TaskUser, User } from "./globalInterface"
 
 export type WorkItem = {
     date: string
@@ -19,9 +19,11 @@ export type ChosenDateShiftType = {
     value: number | null
 }
 export type CustomFieldData = {
+    id: number
     type_id: number
     value_text: string
     value_int: number
+    emoted_users?: EmoteUser[]
 }
 export type CustomInfoType = {
     customType: CustomType

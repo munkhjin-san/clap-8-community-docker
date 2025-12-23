@@ -719,7 +719,7 @@ class AutoJobController extends Controller
                 $q->whereDate('date', $date)
                     ->where('type_id', 43)
                     ->whereNotNull('value_text')
-                    ->select('user_id', 'date', 'type_id', 'value_text', 'value_int');
+                    ->select('id', 'user_id', 'date', 'type_id', 'value_text', 'value_int')->with('emotedUsers');
             }])->select('id', 'name', 'icon_bg', 'icon_path')->get();
         $progressExpr = "
             TIMESTAMPDIFF(SECOND, created_at, NOW()) /

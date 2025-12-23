@@ -7,55 +7,9 @@
                 </div>
                 <!-- <WeatherPopupSkeleton v-if="loading" /> -->
                 <div class="popup-body">
-                    <div class="popup-scroll">
-                        <p class="greeting-text" v-html="combinedMessage"></p>
-                        <transition-group name="modalFade" v-if="(schedules.length || tasks.length) && !isMobile" tag="div" class="popup-grid">
-                            <div v-if="schedules.length" class="flex flex-col gap-2 pb-2">
-                                <div class="section-header">
-                                    <p class="leading-normal">スケジュール</p>
-                                    <button v-if="showSchedulesMore" class="more-link" type="button" @click="toggleSchedules">
-                                        {{ showAllSchedules ? 'とじる' : `もっと見る（${schedules.length}）` }}
-                                    </button>
-                                </div>
-                                <CardWrap
-                                    v-for="record in visibleSchedules"
-                                    :record="record"
-                                    :key="record.id"
-                                    @click.prevent
-                                    class="pointer-events-none"
-                                />
-                            </div>
-                            <div v-if="tasks.length" class="flex flex-col gap-2 pb-2">
-                                <div class="section-header">
-                                    <p class="leading-normal">タスク</p>
-                                    <button v-if="showTasksMore" class="more-link" type="button" @click="toggleTasks">
-                                        {{ showAllTasks ? 'とじる' : `もっと見る（${tasks.length}）` }}
-                                    </button>
-                                </div>
-                                <SimpleBox
-                                    v-for="item in visibleTasks" 
-                                    :item="item"  
-                                    :isBoard="false"
-                                    box-class=""
-                                    @click.prevent
-                                    class="pointer-events-none"
-                                />
-                                
-                            </div>
-                        </transition-group>
-                        <transition-group
-                            v-if="members.length"
-                            name="modalFade"
-                            tag="div"
-                            >
-                            <div class="members-block" key="daily-messages">
-                                <p class="leading-normal">みんなのひとこと</p>
-                                <DailyMemberMessages :members="members" />
-                            </div>
-                        </transition-group>
-                    </div>
                     <div class="condition-block">
-                        <p class="leading-normal">コンディションを選択してください。</p>
+                        <p class="greeting-text under400:text-[14px]" v-html="combinedMessage"></p>
+                        <p class="leading-normal under400:hidden">コンディションを選択してください。</p>
                         <div :class="['condition-row', {'stacked': isMobile}]">
                             <div class="icon-row">
                                 <div @click.stop="saving = 0" :class="['icon-container', { 'selected-w-icon': saving === 0 }]">
@@ -90,6 +44,59 @@
                     <div class="footer-btn">
                         <LoaderButton @triggered="start" :content="buttonLabel"/>
                     </div>
+                    <div class="popup-scroll">
+                        
+                        <div name="modalFade" v-if="(schedules.length || tasks.length) && !isMobile" class="popup-grid">
+                            <div v-if="schedules.length" class="flex flex-col gap-2 pb-2">
+                                <div class="section-header">
+                                    <p class="leading-normal">スケジュール</p>
+                                    <button v-if="showSchedulesMore" class="more-link" type="button" @click="toggleSchedules">
+                                        {{ showAllSchedules ? 'とじる' : `もっと見る（${schedules.length}）` }}``
+                                    </button>
+                                </div>
+                                <CardWrap
+                                    v-for="record in visibleSchedules"
+                                    :record="record"
+                                    :key="record.id"
+                                    @click.prevent
+                                    class="pointer-events-none"
+                                />
+                            </div>
+                            <div v-if="tasks.length" class="flex flex-col gap-2 pb-2">
+                                <div class="section-header">
+                                    <p class="leading-normal">タスク</p>
+                                    <button v-if="showTasksMore" class="more-link" type="button" @click="toggleTasks">
+                                        {{ showAllTasks ? 'とじる' : `もっと見る（${tasks.length}）` }}
+                                    </button>
+                                </div>
+                                <SimpleBox
+                                    v-for="item in visibleTasks" 
+                                    :item="item"  
+                                    :isBoard="false"
+                                    box-class=""
+                                    @click.prevent
+                                    class="pointer-events-none"
+                                />
+                                
+                            </div>
+                        </div>
+                        <div
+                            v-if="members.length"
+                            name="modalFade"
+                            >
+                            <div class="members-block" key="daily-messages">
+                                <p class="leading-normal under400:text-[14px]">みんなのひとこと</p>
+                                <div class="bg-[var(--bg3)] p-4">
+                                    <DailyMemberMessages 
+                                        :members="members" 
+                                        @refresh="refreshDailyMessageUser"
+                                    />
+                                </div>
+                                
+                            </div>
+                        </div>
+                    </div>
+                    
                 </div>
             </div>
         </Transition>
@@ -113,7 +120,7 @@ import { markTodayDone } from '@/utils/tools';
 import CardWrap from '../Calendar/NormalMonth/CardWrap.vue';
 import { CalendarRecord } from '@/interface/calendarInterface';
 import LoaderButton from './LoaderButton.vue';
-import { Task } from '@/interface/globalInterface';
+import { DailyMessageUser, Task } from '@/interface/globalInterface';
 import SimpleBox from '../Task/List/SimpleBox.vue';
 import DailyMemberMessages from './DailyMemberMessages.vue';
 import ShortInput from '../Form/ShortInput.vue';
@@ -160,22 +167,10 @@ const tasks = ref<Task[]>([])
 const loading = ref(false)
 const showAllSchedules = ref(false)
 const showAllTasks = ref(false)
-const members = ref<{
-    id: number;
-    name: string;
-    icon_bg: string;
-    icon_path: string;
-    custom_field_data_records?: commentType[]
-    pivot: any 
-}[]>([])
-type commentType = {
-    value_text: string;
-    date: string;
-    type_id:number;
-    value_int: number;
-}
+const members = ref<DailyMessageUser[]>([])
+
 const menu = useMenuStore()
-const { toast } = useDialog()
+const { toast, ping } = useDialog()
 const schedules = ref<CalendarRecord[]>([])
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
 const isMobile = computed(() => windowWidth.value <= 959)
@@ -198,7 +193,7 @@ const pickRandomLabel = () => {
 const getTodayThings = async() => {
     const data = await api.get('/get_today_things')
     if (data) {
-        members.value = isMobile.value ? randomPick(data.members, 10) : randomPick(data.members, 20);
+        members.value = data.members
         schedules.value = data.schedules
         tasks.value = data.tasks
     }
@@ -216,15 +211,15 @@ const greetings = computed(() => {
 });
 const visibleSchedules = computed(() => {
     if (showAllSchedules.value) return schedules.value
-    return schedules.value.slice(0, 4)
+    return schedules.value.slice(0, 3)
 })
-const showSchedulesMore = computed(() => schedules.value.length > 4)
+const showSchedulesMore = computed(() => schedules.value.length > 3)
 const toggleSchedules = () => showAllSchedules.value = !showAllSchedules.value
 const visibleTasks = computed(() => {
     if (showAllTasks.value) return tasks.value
-    return tasks.value.slice(0, 4)
+    return tasks.value.slice(0, 3)
 })
-const showTasksMore = computed(() => tasks.value.length > 4)
+const showTasksMore = computed(() => tasks.value.length > 3)
 const toggleTasks = () => showAllTasks.value = !showAllTasks.value
 const randomPick = (arr: any[], count: number) => {
     const copy = [...arr];
@@ -235,7 +230,10 @@ const randomPick = (arr: any[], count: number) => {
     return copy.slice(0, count);
 }
 const start = async () => {
-    if (saving.value === null) return
+    if (saving.value === null) {
+        ping('コンディションを選択してください。')
+        return
+    }
     loading.value = true;
     const user = await api.post('/save_weather', { value: saving.value, comment: todayComment.value })
     if(user && Object.hasOwn(user, 'id')){
@@ -260,12 +258,20 @@ const closePopup = () => {
     }, 200);
 }
 const getWelcomeMessage = async() => {
+    try{
+        messageData.value = await api.get('/welcome_message', {}, {silent: true});
+    } catch(e){
+        console.log('Error fetching welcome message:', e);
+    } finally {
+        console.log('ttttttttt')
+        isOpen.value = true;
+        setTimeout(() => {
+            isOpenInner.value = true;
+        }, 0);  
+    }
 
-    messageData.value = await api.get('/welcome_message', {}, {silent: true});
-    isOpen.value = true;
-    setTimeout(() => {
-        isOpenInner.value = true;
-    }, 0);  
+    
+
 
 }
 const combinedMessage = computed(() => {
@@ -276,6 +282,17 @@ const combinedMessage = computed(() => {
 const markedConverter = (content: string) => {
     const formattedHtml = marked.parse(content)
     return formattedHtml
+}
+
+const refreshDailyMessageUser = (data: DailyMessageUser) => {
+    const find = members.value.findIndex(user => user.id === data.id)
+    console.log('find', find)
+    console.log('data', data)
+    if (find !== -1) {
+        members.value[find] = data
+    } else {
+        members.value.push(data)
+    }
 }
 </script>
 <style>
@@ -312,6 +329,7 @@ const markedConverter = (content: string) => {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    height: 100%;
 }
 .popup-scroll{
     flex: 1;

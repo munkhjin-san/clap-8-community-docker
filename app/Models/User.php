@@ -156,7 +156,7 @@ class User extends Authenticatable
     }
     public function today_comment(){
         $today = Carbon::now()->format('Y-m-d');
-        return $this->hasOne(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_text')->where('type_id', 43)->where('date', $today);
+        return $this->hasOne(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_text', 'id')->where('type_id', 43)->where('date', $today)->with(['emotedUsers']);
     }
     public function days_weathers(){
         return $this->hasMany(customFieldDataRecord::class, 'user_id')->select('user_id', 'value_int', 'date', 'id');

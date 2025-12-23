@@ -1,6 +1,7 @@
 import { Portfolio } from "./lessonInterface"
 import { Evaluation, Project } from "./projectInterface"
 import { File } from "./trayInterface";
+import { CustomFieldData } from "./workInterface";
 
 export type Dialog = {
     confirm: (question: string, options?: any) => Promise<Answer>;
@@ -58,6 +59,9 @@ export interface EmoteUser extends User {
     pivot: {
         emote_id: number;
     }
+}
+export interface DailyMessageUser extends User {
+    custom_field_data_records: CustomFieldData[]
 }
 export interface User {
     positions: any

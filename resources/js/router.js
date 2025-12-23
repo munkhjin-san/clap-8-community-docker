@@ -21,7 +21,14 @@ const routes = [
             {
                 path: 'members',
                 name: 'members',
-                component: () => import('@/components/Community/MemberContainer.vue')
+                component: () => import('@/components/Community/MemberContainer.vue'),
+                children: [
+                    {
+                        path: 'today-comments',
+                        name: 'today-comments',
+                        component: () => import('@/components/Community/MemberDailyCommentContainer.vue'),
+                    }
+                ]
             },
             {
                 path: 'offices',
@@ -550,6 +557,29 @@ const routes = [
         props: true,
         
     },
+    // {
+    //     path: '/help',
+    //     name: 'help',
+    //     meta: {
+    //         title: 'ヘルプ',
+    //     },
+    //     component: () => import('@/components/Help/HelpContainer.vue'),
+    //     redirect: { name: 'tutorial' },
+    //     children: [
+    //         {
+    //             path: 'tutorial',
+    //             name: 'tutorial',
+    //             component: () => import('@/components/Help/Tutorial.vue'),
+    //             children: [
+    //                 {
+    //                     path: 'about-project',
+    //                     name: 'about-project',
+    //                     component: () => import('@/components/Help/Project/ProjectHelp.vue'),
+    //                 },
+    //             ]
+    //         }
+    //     ]
+    // },
     {
         path: '/learning',
         name: 'learning',

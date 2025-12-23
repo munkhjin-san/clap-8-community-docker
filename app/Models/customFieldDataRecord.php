@@ -22,6 +22,12 @@ class customFieldDataRecord extends Model
     public function time_card_records(){
         return $this->belongsTo(timecardRecord::class, 'table_record_id');
     }
+    public function emotedUsers()
+    {
+        return $this->belongsToMany(User::class, 'custom_field_emote_users')
+                    ->withPivot(['emote_id'])
+                    ->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.deleted_at');
+    }
 
 
     protected $casts = [

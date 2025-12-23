@@ -1,7 +1,7 @@
 <template>
     <div :class="['side-menu-root', {sideMenuView : sideMenuView.active}]" @mouseenter="setView(true)" @mouseleave="setView(false)">
         <div class="side-menu-inner" v-if="auth.user">    
-            <router-link :to="{name: 'community'}" :class="['side-menu-route', { selectedRoute: route.fullPath.startsWith('/community')}]">
+            <router-link :to="{name: 'community'}" :class="['side-menu-route !pt-[5px]', { selectedRoute: route.fullPath.startsWith('/community')}]">
                 <div class="side-menu-route-inner -ml-[3px] relative">               
                     <svg id="a" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" style="height: auto;width: 30px;" viewBox="0 0 951.96296 588.82123">
                         <path d="M293.67254,0l181.86274,179.96296L657.39802,0l294.56493,295.29042-293.62847,293.53081-181.93646-179.82123-182.66194,179.82123L0,294.42767,293.67254,0ZM657.53528,407.90955L293.73608,46.03412,46,294.42767l247.73608,248.39356,158.33448-157.39356-157.53528-158.48187-67.48187,67.48187,89.96375,91-22.48187,22.48187-113.48187-113.48187,113.48187-113.48187,362.2008,361.87543,249.22687-247.53081-249.22687-249.2563-157.62847,158.2563,157.56493,157.56493,68.34462-67.42767-90.49142-90.45798,22.89396-23.26394,113.6896,113.78483-113.57402,113.41895Z" style="fill: #c5af72;"/>
@@ -136,6 +136,7 @@
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" to="/support/faq">サポートデスク</router-link>
                     <!-- <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'survey-answers'}">フォーム</router-link> -->
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'settings'}">設定</router-link>
+                    <!-- <router-link :to="({name: 'help'})" class="login-link jump-link" style="cursor: pointer;font-size: 15px;">ヘルプ</router-link> -->
                     <router-link v-if="auth.isPartner" class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'asset-partner'}">物品</router-link>
                     <!-- <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{path: route.fullPath, query: {remind: true} }">リマインダー表示</router-link> -->
                 </div>         

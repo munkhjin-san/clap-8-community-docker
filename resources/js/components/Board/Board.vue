@@ -207,6 +207,10 @@ import { DateTime } from 'luxon'
         }
         return openedBoard.value ? openedBoard.value.id : null
     }
+    const removeBoardFromList = (id: number) => {
+        allBoardList.value = allBoardList.value.filter(ob => ob.id !== id)
+        setList(allBoardList.value)
+    }
     const queueBoardListRefresh = () => {
         const now = Date.now()
         if(boardRefreshInFlight){
@@ -358,15 +362,24 @@ import { DateTime } from 'luxon'
         if(openedBoard.value && openedBoard.value.id == item.id){                                
             closeMessageContainer()
         }
-        getBoardList()
+        removeBoardFromList(item.id)
+        refreshBoardList()
     }
 
     const afterRequestHandled = (response, id) => {
         if(response === 'respondDeleted'){
             closeMessageContainer()
-            getBoardList()
+            refreshBoardList()
         }else if(response === 'respondConfirmed'){
-            getBoardList('', id)
+            const anchorId = getRefreshAnchorId()
+            getBoardList('refresh', anchorId, false).then(() => {
+                if(id){
+                    const target = allBoardList.value.find(ob => ob.id == id)
+                    if(target){
+                        openTargetBoard(target)
+                    }
+                }
+            })
         }
     }
     const setTrayItem = (val) => {
@@ -691,7 +704,15 @@ import { DateTime } from 'luxon'
         }
     }
     const boardEditFinished = (id) => {
-        getBoardList('', id)
+        const anchorId = getRefreshAnchorId()
+        getBoardList('refresh', anchorId, false).then(() => {
+            if(id){
+                const target = allBoardList.value.find(ob => ob.id == id)
+                if(target){
+                    openTargetBoard(target)
+                }
+            }
+        })
         activeEditBoard.value = null
         if(openedBoard.value){
             getMessageList()
@@ -704,6 +725,21 @@ import { DateTime } from 'luxon'
             if (reachedEnd.value) return
             boardLoader.value = true
         }
+    }
+    const mergeUpsertById = (list: Board[], incoming: Board[]) => {
+        const map = new Map<Board['id'], Board>()
+
+        for (const item of list) map.set(item.id, item)
+
+        for (const item of incoming) map.set(item.id, item)
+
+        const baseIds = new Set(list.map(x => x.id))
+        const merged: Board[] = []
+        for (const item of list) merged.push(map.get(item.id)!)
+        for (const item of incoming) {
+            if (!baseIds.has(item.id)) merged.push(item)
+        }
+        return merged
     }
     const getBoardList = async(atr?:string, second_atr?:any, openTarget = true) => {    
         const isRefresh = atr === 'refresh'    
@@ -736,10 +772,11 @@ import { DateTime } from 'luxon'
             const rows = res.data ?? res ?? []
             const newCursor = res?.next_cursor ?? null
             if (isRefresh) {
+                console.log('refreshing board list')
                 allBoardList.value = rows
                 nextCursor.value = newCursor
             } else {
-                allBoardList.value.push(...rows)
+                allBoardList.value = mergeUpsertById(allBoardList.value, rows)
                 nextCursor.value = newCursor
             }
             setList(allBoardList.value)
@@ -780,7 +817,7 @@ import { DateTime } from 'luxon'
     }
     const pinBoard = async(id) => {           
         const data = await api.post('/pin_board_api', {group_id: id})
-        await getBoardList()
+        refreshBoardList()
         if(data?.pin_flag === 1){
             toast('ピン留めしました。')
         }else if(data?.pin_flag === 0){
@@ -790,7 +827,7 @@ import { DateTime } from 'luxon'
     const setNotification = async(id) => {
       
         const response = await api.post('/notification_board', {group_id: id})
-        getBoardList()
+        refreshBoardList()
         const flag = response?.notification || 0
         const flags = ['OFF', 'ON']
         toast(`通知設定を${flags[flag]}にしました。`)
@@ -807,7 +844,8 @@ import { DateTime } from 'luxon'
         if(openedBoard.value && openedBoard.value.id == board.id){
             closeMessageContainer()
         }
-        getBoardList()
+        removeBoardFromList(board.id)
+        refreshBoardList()
     }
     const setInvite = (item) => {
         viewingMembersOf.value = null
@@ -843,7 +881,7 @@ import { DateTime } from 'luxon'
         remove: (item) => boardDelete(item),
         edit: (item) => activeEditBoard.value = item,
         create: () => newBoardWindow.value = true,
-        reload: () => getBoardList(),
+        reload: () => refreshBoardList(),
         close: () => closeMessageContainer(),
         open: (item, second_atr) => openBoard(item, second_atr),
         detail: (item) => detailedBoard.value = item,
@@ -871,7 +909,7 @@ import { DateTime } from 'luxon'
 
     provide('shareToTask', shareToTask)
     provide('closeMessageContainer', closeMessageContainer)   
-    provide('reload', getBoardList)      
+    provide('reload', refreshBoardList)      
     defineExpose({getBoardList, refreshBoardList, unreadLineTrigger, getMessageList, onPusher})
 </script>
     
