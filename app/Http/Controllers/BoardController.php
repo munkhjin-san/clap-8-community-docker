@@ -796,7 +796,7 @@ class BoardController extends Controller
             $messageRecord = $this->get_messages(new Request([
                 'page_index' => 1, 
                 'record_id' => $request->record_id, 
-                'offset' => $instance->toDateTimeString(),
+                'offset' => $chat->created_at->toDateTimeString(),
                 'override_user' => $request->override_user
             ]));          
             $boardRefresh = $boardRecord->load('last_message');
