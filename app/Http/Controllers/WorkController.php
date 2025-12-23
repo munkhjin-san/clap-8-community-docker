@@ -1225,35 +1225,51 @@ class WorkController extends Controller
             }
         }
     }
-    private function saveWorkCost($request, $is_exist){
-        
-        [$currentYear, $currentMonth] = explode('-', $request->day);
-        $yearMonth = $currentYear . '-' . $currentMonth;
-        $filteredCosts = array_filter($request->costsValues, function ($cost) {
+    private function saveWorkCost($request, $timecard)
+    {
+        [$y, $m] = explode('-', $request->day);
+        $yearMonth = $y . '-' . $m;
+
+        $filteredCosts = array_values(array_filter($request->costsValues, function ($cost) {
             return !(
-                $cost['content'] === null &&
-                $cost['expenses'] === null &&
-                $cost['file_path'] === null
+                ($cost['content'] ?? null) === null &&
+                ($cost['expenses'] ?? null) === null &&
+                ($cost['file_path'] ?? null) === null
             );
-        });
+        }));
+
         $this->validateCost($filteredCosts);
-        $is_exist->timecard_costs()->delete();
-        $costRecords = array_map(function ($cost) use ($is_exist, $request, $yearMonth) {
+
+        $incomingIds = collect($filteredCosts)
+            ->pluck('id')->filter()->values();
+
+        $timecard->timecard_costs()
+            ->when($incomingIds->count() > 0, fn($q) => $q->whereNotIn('id', $incomingIds))
+            ->when($incomingIds->count() === 0, fn($q) => $q->delete(), fn($q) => $q->delete());
+
+        $rows = collect($filteredCosts)->map(function ($cost) use ($request, $timecard, $yearMonth) {
             return [
-                'record_id' => $is_exist->id,
-                'user_id' => $request->userId,
-                'file_path' => $cost['file_path'],
-                'type' => $cost['type'],
+                'id'         => $cost['id'] ?? null, // null => insert
+                'record_id'  => $timecard->id,
+                'user_id'    => $request->userId,
+                'file_path'  => $cost['file_path'] ?? null,
+                'type'       => $cost['type'] ?? null,
                 'date_month' => $yearMonth,
-                'content' => $cost['content'],
-                'expenses' => $cost['expenses'],
-                'department' => $cost['department'],
+                'content'    => $cost['content'] ?? null,
+                'expenses'   => $cost['expenses'] ?? null,
+                'department' => $cost['department'] ?? null,
+                'updated_at' => now(),
                 'created_at' => now(),
-                'updated_at' => now()
             ];
-        }, $filteredCosts);
-        timecardCostRecord::insert($costRecords);
+        })->values()->all();
+
+        timecardCostRecord::upsert(
+            $rows,
+            ['id'],
+            ['file_path','type','date_month','content','expenses','department','user_id','record_id','updated_at']
+        );
     }
+
     private function validateCost($costs){
         foreach($costs as $move){
             if($move['department'] == null ){

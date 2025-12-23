@@ -154,6 +154,9 @@ import { useDialog } from '@/composables/dialog';
         loadBadges().catch(err => {
             console.error('[badges] failed to load', err)
         })
+        if(route.name === 'board'){
+            pushPwaBackGuardState()
+        }
     })
     async function loadBadges() {
         const jobs = []
@@ -216,9 +219,9 @@ import { useDialog } from '@/composables/dialog';
         window.addEventListener('click', onClick);
         window.addEventListener('touchstart', onClick);
         window.addEventListener('resize', handleResize);
-        window.addEventListener("focus", handleFocus, false);
         window.addEventListener("blur", handleBlur, false);
         document.addEventListener('visibilitychange', handleVisibilityChange)
+        window.addEventListener('popstate', handlePwaPopState)
         socket.on("post:badge", postHandler)
         socket.on(`switch:${auth.id}`, activeAccountHandler)
         socket.on("refresh:badge", boardBadgeHandler)
@@ -226,11 +229,11 @@ import { useDialog } from '@/composables/dialog';
     }
     const removeEventListener = () => {
         window.removeEventListener('resize', handleResize);
-        window.removeEventListener('focus', handleFocus, false)
         window.removeEventListener('blur', handleBlur, false)
         window.removeEventListener('click', onClick);
         window.removeEventListener('touchstart', onClick);
         document.removeEventListener('visibilitychange', handleVisibilityChange)
+        window.removeEventListener('popstate', handlePwaPopState)
         socket.off("post:badge", postHandler);
         socket.off(`switch:${auth.id}`, activeAccountHandler);
         socket.off("refresh:task_comment", taskCommentBadgeHandler)
@@ -284,10 +287,37 @@ import { useDialog } from '@/composables/dialog';
         }
         return true
     })
+    const isStandaloneMode = () => {
+        return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
+    }
+    const pushPwaBackGuardState = () => {
+        if(!isStandaloneMode()) return
+        const state = window.history.state || {}
+        if(state.pwaBackGuard) return
+        const nextState = {
+            ...state,
+            position: typeof state.position === 'number' ? state.position + 1 : state.position,
+            pwaBackGuard: true
+        }
+        window.history.pushState(nextState, '', window.location.href)
+    }
+    const handlePwaPopState = () => {
+        if(!isStandaloneMode()) return
+        const state = window.history.state || {}
+        const hasBack = state.back !== null && state.back !== undefined
+        if(route.name === 'board' && !hasBack){
+            pushPwaBackGuardState()
+        }
+    }
     watch(() => [route.fullPath], () => {
             resetInstantUser()
         }
     )
+    watch(() => route.name, (name) => {
+        if(name === 'board'){
+            pushPwaBackGuardState()
+        }
+    })
     const setActiveUser = async(id) => {
         if(id == auth.activeUser.id){
             if(id == auth.id){
@@ -359,8 +389,8 @@ import { useDialog } from '@/composables/dialog';
         if(!before || DateTime.now().diff(DateTime.fromSQL(before), 'minutes').minutes > 1){
             authCheck();
             await badge.getBoardBadge();
-            if(mainRef.value.getBoardList){
-                mainRef.value.getBoardList()
+            if(mainRef.value.refreshBoardList){
+                mainRef.value.refreshBoardList()
                 mainRef.value.unreadLineTrigger()
             }            
             const time = DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss')

@@ -138,25 +138,82 @@ class BoardController extends Controller
     } 
     public function board_list(Request $request) {       
         $active_user = $this->active_user();
-        $self_list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-            $q->where('user_id', $active_user->id)->where('deleted_status', 0);
-        })->with('user')
-        ->with(['icons' => function($q){
-            $q->select('id','extension');
-        }])->with(['board_to_users' => function($q){
-            $q->whereHas('user')
-            ->with('user');
-        }])
-        ->with('project')
-        ->with('last_message')
-        ->when($active_user->on_leave === 1, function ($query) {
-            return $query->where('private_flag', '!=', 0);
-        })
-        ->orderBy('updated_at', 'desc')
-        ->get()
-        ->values(); 
+        $perPage = 40;
 
-        return response()->json($self_list);
+        $base = boardRecord::query()
+        ->whereHas('board_to_users', function($q) use($active_user){
+            $q->where('user_id', $active_user->id)->where('deleted_status', 0);
+        })
+        ->when($active_user->on_leave === 1, function ($q) {
+            return $q->where('private_flag', '!=', 0);
+        })
+        ->orderByDesc('updated_at')
+        ->orderByDesc('id');
+
+        $with = [
+            'user',
+            'icons' => fn($q) => $q->select('id', 'extension'),
+            'board_to_users' => fn($q) => $q->whereHas('user')->with('user'),
+            'project',
+            'last_message',
+        ];
+
+        if ($request->filled('id')) {
+            $board = (clone $base)->whereKey($request->id)->first();
+
+            if (!$board) {
+                throw ValidationException::withMessages([
+                'message' => 'チャットが削除されているか、権限がないためアクセスできません。'
+                ]);
+            }
+
+            $beforeCount = (clone $base)
+                ->where(function ($q) use ($board) {
+                $q->where('updated_at', '>', $board->updated_at)
+                    ->orWhere(function ($q) use ($board) {
+                    $q->where('updated_at', '=', $board->updated_at)
+                        ->where('id', '>', $board->id);
+                    });
+                })
+                ->count();
+
+            $rank = $beforeCount + 1;
+            $bucket = (int) (ceil($rank / $perPage) * $perPage);
+
+            $bucketPage = (clone $base)
+                ->with($with)
+                ->cursorPaginate($bucket);
+
+            return response()->json($bucketPage);
+        }
+
+        // normal cursor paging
+        $board_list = (clone $base)
+            ->with($with)
+            ->cursorPaginate($perPage);
+
+        return response()->json($board_list);
+ 
+
+        // $self_list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
+        //     $q->where('user_id', $active_user->id)->where('deleted_status', 0);
+        // })->with('user')
+        // ->with(['icons' => function($q){
+        //     $q->select('id','extension');
+        // }])->with(['board_to_users' => function($q){
+        //     $q->whereHas('user')
+        //     ->with('user');
+        // }])
+        // ->with('project')
+        // ->with('last_message')
+        // ->when($active_user->on_leave === 1, function ($query) {
+        //     return $query->where('private_flag', '!=', 0);
+        // })
+        // ->orderBy('updated_at', 'desc')
+        // ->orderBy('id', 'desc')
+        // ->cursorPaginate(30); 
+
+        // return response()->json($self_list);
         
     }
     public function postRestoreMessage(Request $request){
@@ -724,20 +781,6 @@ class BoardController extends Controller
                     Storage::disk('local')->copy($origin_path, $path_shared_files . '/' . $msg_file_path);
                 }
             }
-            if ($chat->draft_flag === 1) {
-                $data = [
-                    "success" => true,
-                    "u_id" => $request->u_id,
-                    "data" => $chat,
-                ];          
-                return response()->json($data);
-            }
-            
-            $not = $this->mentionAndNotify( $boardRecord, $active_user, $chat);
-            $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
-            if(!$request->override_user_id){
-                $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
-            }    
             $offset = $request->timestamp ?? Carbon::now()->toDateTimeString()  ;
             $instance = Carbon::parse($offset);
             $messageRecord = $this->get_messages(new Request([
@@ -748,6 +791,23 @@ class BoardController extends Controller
             ]));          
             $boardRefresh = $boardRecord->load('last_message');
             $last_message = $boardRefresh->last_message;
+            if ($chat->draft_flag === 1) {
+                $data = [
+                    "success" => true,
+                    "u_id" => $request->u_id,
+                    "data" => $chat,
+                    "message" => $messageRecord->original,
+                    "last_message" => $last_message,
+                ];          
+                return response()->json($data);
+            }
+            
+            $not = $this->mentionAndNotify( $boardRecord, $active_user, $chat);
+            $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
+            if(!$request->override_user_id){
+                $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
+            }    
+            
             // SendPusher::dispatchAfterResponse($rebound);  
             $socket = array();
             array_push($socket, ["event" => "board:{$request->record_id}", "data" => []]);
@@ -887,7 +947,7 @@ class BoardController extends Controller
             }               
             
         }          
-        $mutatedMessage = $this->message_refresh($chat);
+        $mutatedMessage = $this->message_refresh($chat_record);
         return response()->json($mutatedMessage);
         
          
@@ -902,7 +962,7 @@ class BoardController extends Controller
             $socket = [];
             $data = [];
             
-            DB::transaction(function () use ($chat_record, $request, &$socket, &$data) {
+           
                 $new_chat_record = $chat_record->replicate();
                 $chat_record->deleted_flag = 1;
                 $chat_record->save();
@@ -956,9 +1016,10 @@ class BoardController extends Controller
                     "socket" => $socket,
                     "message" => $messageRecord?->original
                 ];
-            });
+                
             
-            $mutatedMessage = $this->message_refresh($chat_record);
+            
+            $mutatedMessage = $this->message_refresh($new_chat_record);
             return response()->json($mutatedMessage);
                  
            

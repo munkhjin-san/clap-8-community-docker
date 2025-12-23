@@ -154,7 +154,7 @@
                 <div @click="setEmoteUsers(message.emoted_users)" v-if="message.emoted_users && message.emoted_users.length">
                     <div class="flex items-end cursor-pointer text-[var(--primary-color)]">
                         <TransitionGroup name="downShiftPop">
-                            <Character v-for="emote in emotes.slice(0, 3)" :key="emote" :size="40" :emoteId="emote"/>
+                            <Character v-for="emote in emotes.slice(0, 6)" :key="emote" :size="40" :emoteId="emote"/>
                         </TransitionGroup>
                         
                         <p class="text-[12px] mb-[2px]" v-if="message.emoted_users.length > 3">...({{message.emoted_users.length}})</p>
@@ -490,7 +490,7 @@ import Character from "@/components/Global/Character.vue";
     }
     const markUnread = async(id) => {
         menu.close()
-        await api.post('/chat_mark_unread', {
+        const response = await api.post('/chat_mark_unread', {
             message_id: id,
             user_id: auth.activeUser.id,
             board_id: openedBoard.value?.id
@@ -498,6 +498,7 @@ import Character from "@/components/Global/Character.vue";
             ask: 'メッセージを未読にしますか？',
             toast: '未読にしました。'
         })
+        if (!response) return
         badge.getBoardBadge() 
         reload()    
         router.push({name: 'board'})     
@@ -637,7 +638,7 @@ import Character from "@/components/Global/Character.vue";
         if (draftSending.value) return
         draftSending.value = true
         const data = await api.put('/draft_send', {id: props.message.id, draft_flag: 0})
-        await refreshMessages(data)
+        refreshMessages(data, props.message.id)
         setTimeout(() => {
             draftSending.value = false
         }, 200)

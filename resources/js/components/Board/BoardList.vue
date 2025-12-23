@@ -1,7 +1,7 @@
 <template>
     <div id="leftPanel" class="left-panel" :style="{height: 'calc(100% - 60px)'}"> 
         <div id="leftModal" style="height: 100%;display: flex;flex-direction: column;position:relative">                            
-            <div id="searchContainer" class="left-panel-outer" ref="panelContainer">      
+            <div id="searchContainer" class="left-panel-outer" ref="panelContainer" @scroll="(e) => emit('onScroll', e)">      
                 <div 
                     :key="item.id" 
                     @mouseenter="boardListDropEnterFromFile(item)" 
@@ -60,6 +60,10 @@ import { useRoute } from 'vue-router';
     interface Props {
         failedMessagesList: Message[];
     }
+    const emit = defineEmits<{
+        (e: 'onScroll', event: Event): void
+    }>()
+
     const props = defineProps<Props>();
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()

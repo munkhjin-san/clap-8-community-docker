@@ -26,11 +26,9 @@
                         v-for="comment in commentsList" 
                         :comment="comment"
                         :editable="editingCommentId"
-                        :replyable="replyingId"
                         :mentionableUsers="mentionableUsers" 
                         @replyComment="(val) => replyComment = val"
                         @edit="(val) => editingCommentId = val"
-                        @reply="(val) => replyingId = val"
                         @deleted="onDeletedComment"
                         @reload="getComments"
                     />
@@ -100,7 +98,6 @@ type MentionBoxExpose = {
 const commentText = useTemplateRef<HTMLElement>('commentText')
 const mentionBox = useTemplateRef<MentionBoxExpose>('mentionBox')
 const editingCommentId = ref<number | null>(null)
-const replyingId = ref<number | null>(null)
 const replyComment = ref<FinanceComment | null>(null)
 const badge = useBadgeStore()
 const mentionNameToId = computed<Record<string, number>>(() => {

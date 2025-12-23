@@ -163,6 +163,10 @@ class NoticeController extends Controller
             $mails = User::where('partner_flag','=', 0)->where('id', '>', 105)->where('deleted_flag', '=', 0)->where('retire', '=', 0)->where('email', '!=', '')->where('hide_flag', '=', 0)->whereNotNull('email')->pluck('email')->toArray();
      
             foreach($mails as $to){
+                if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                    Log::warning('Skip invalid email', ['email' => $to]);
+                    continue;
+                }
                 Mail::to($to)->send(new Notice($record->id, $record->title));
             }
         }

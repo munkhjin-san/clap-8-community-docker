@@ -1,6 +1,6 @@
 <template>
         <div class="boardOuterContainer" style="width: 100%;height: 100%;display:flex;flex-grow: 1;overflow: hidden;">     
-            <div class="boardInnerContainer">        
+            <div class="boardInnerContainer relative">        
                 <Transition name="searchHide">
                 <BoardSearchBar 
                     v-if="searchView"
@@ -11,8 +11,12 @@
                 <BoardList 
                     v-show="!responsive.mobile || (responsive.mobile && route.name == 'board')"  
                     :failedMessagesList="failedMessagesList"  
-                    :key="listKey"  
+                    :key="listKey"
+                    @onScroll="onScroll"  
                 />
+                <div v-if="boardLoader" id="infiniteLoader" style="top: auto; bottom: 20px;">
+                    <div class="spinner-micro color-change"></div>
+                </div>
             </div>
             <Transition name="modalFade">
                 <BoardDetails v-if="detailedBoard" :board="detailedBoard" @close="detailedBoard = null"/>
@@ -147,6 +151,8 @@ import { DateTime } from 'luxon'
     const router = useRouter()
     const mainLoader = ref(false)
     const allBoardList = ref<Board[]>([])
+    const nextCursor = ref<string | null>(null)
+    const reachedEnd = ref(false)
     const activeEditBoard = ref<Board | null>(null)
     const pageIndex = ref(1)
     const pageLimiter = ref(false)
@@ -154,6 +160,7 @@ import { DateTime } from 'luxon'
     const copyData = ref<CopyData | null>(null)
     const checkRequestData = ref(null)
     const microLoader = ref(false)
+    const boardLoader = ref(false)
     const currentLen = ref(0)
     const infiniteLock = ref(false)
     const messageContainerKey = ref(0)
@@ -194,9 +201,19 @@ import { DateTime } from 'luxon'
     let boardRefreshInFlight = false
     let boardRefreshPending = false
     let lastBoardRefreshAt = 0
+    const getRefreshAnchorId = () => {
+        if(allBoardList.value.length){
+            return allBoardList.value[allBoardList.value.length - 1].id
+        }
+        return openedBoard.value ? openedBoard.value.id : null
+    }
     const queueBoardListRefresh = () => {
         const now = Date.now()
         if(boardRefreshInFlight){
+            boardRefreshPending = true
+            return
+        }
+        if(mainLoader.value){
             boardRefreshPending = true
             return
         }
@@ -210,7 +227,8 @@ import { DateTime } from 'luxon'
             return
         }
         boardRefreshInFlight = true
-        getBoardList().finally(() => {
+        const anchorId = getRefreshAnchorId()
+        getBoardList('refresh', anchorId, false).finally(() => {
             lastBoardRefreshAt = Date.now()
             boardRefreshInFlight = false
             if(boardRefreshPending){
@@ -218,6 +236,9 @@ import { DateTime } from 'luxon'
                 queueBoardListRefresh()
             }
         })
+    }
+    const refreshBoardList = () => {
+        queueBoardListRefresh()
     }
     watch(() => focused.active, (after) => {
         if(after){            
@@ -676,34 +697,85 @@ import { DateTime } from 'luxon'
             getMessageList()
         }
     }
-    const getBoardList = async(atr?:string, second_atr?:any) => {        
-        if (mainLoader.value) return
+    const onScroll = (e) => {
+        const el = e.currentTarget as HTMLElement
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
+            getBoardList()
+            if (reachedEnd.value) return
+            boardLoader.value = true
+        }
+    }
+    const getBoardList = async(atr?:string, second_atr?:any, openTarget = true) => {    
+        const isRefresh = atr === 'refresh'    
+        if (mainLoader.value && !isRefresh) return
+        if (reachedEnd.value && !isRefresh) return
+
+        if (isRefresh) {
+            reachedEnd.value = false
+            nextCursor.value = null
+        }
         
         mainLoader.value = true
-        const data = await api.post('/board_list')
-        allBoardList.value = data 
-        setList(data)
-        if(second_atr){
-            const target = allBoardList.value.filter(ob => ob.id == second_atr)
-            if(target.length){
-                openTargetBoard(target[0])
-            }                            
-        }
-        if(atr == 'mounted'){
-            if (route.params.hasOwnProperty('chatId')) {
-                const targetBoard = allBoardList.value.filter(ob => ob.id == Number(route.params.chatId))
-                if(targetBoard.length){
-                    openTargetBoard(targetBoard[0])                                                
-                }else{     
-                    await ask('チャットが削除されているか、権限がないためアクセスできません。', {answers: [{label: 'OK', value: true}]})
-                    router.push({name: 'board'})
+        try {
+            let chatId: number | null = null
+            if (second_atr) {
+                chatId = second_atr
+            }
+            if (atr == 'mounted' && route.params.chatId) {
+                chatId = Number(route.params.chatId) ?? null
+            }
+            console.log('Fetching board list with atr:', atr, 'and chatId:', chatId);
+            
+            const payload: any = {}
+            
+            if (!isRefresh && nextCursor.value) payload.cursor = nextCursor.value
+            
+            if (chatId) payload.id = chatId
+            const res = await api.post('/board_list', payload)
+            if(!res) return
+            const rows = res.data ?? res ?? []
+            const newCursor = res?.next_cursor ?? null
+            if (isRefresh) {
+                allBoardList.value = rows
+                nextCursor.value = newCursor
+            } else {
+                allBoardList.value.push(...rows)
+                nextCursor.value = newCursor
+            }
+            setList(allBoardList.value)
+            if(second_atr && openTarget){
+                const target = allBoardList.value.find(ob => ob.id == second_atr)
+                if(target){
+                    openTargetBoard(target)
+                }                            
+            }
+            if(atr == 'mounted'){
+                if (route.params.hasOwnProperty('chatId')) {
+                    const targetBoard = allBoardList.value.find(ob => ob.id == Number(route.params.chatId))
+                    if(targetBoard){
+                        openTargetBoard(targetBoard)                                                
+                    }else{     
+                        await ask('チャットが削除されているか、権限がないためアクセスできません。', {answers: [{label: 'OK', value: true}]})
+                        router.push({name: 'board'})
+                    }
                 }
             }
+            skeleton.setSkeleton(skeleton.active + 1)
+        
+            if (newCursor) {
+                nextCursor.value = newCursor
+            } else {
+                reachedEnd.value = true
+                nextCursor.value = null
+            }
+        } finally {
+            boardLoader.value = false
+            mainLoader.value = false
+            if(boardRefreshPending && !boardRefreshInFlight){
+                boardRefreshPending = false
+                queueBoardListRefresh()
+            }
         }
-        skeleton.setSkeleton(skeleton.active + 1)
-    
-
-        mainLoader.value = false
        
     }
     const pinBoard = async(id) => {           
@@ -759,12 +831,11 @@ import { DateTime } from 'luxon'
         setTrayItem(1)
         trayComponentKey.value ++
     }
-    const refreshMessages = (message) => {
-        const find = messageList.value.filter( ob => ob.id == message.id)
-        console.log('refreshMessages', find)
-        
-        if(find.length){
-            const index = messageList.value.map( ob => ob.id).indexOf(message.id)
+    const refreshMessages = (message, oldId) => {
+        console.log(message, oldId)
+        const targetId = oldId ? oldId : message.id
+        const index = messageList.value.map( ob => ob.id).indexOf(targetId)
+        if (index > -1) {
             messageList.value[index] = message
         }
     }
@@ -780,7 +851,7 @@ import { DateTime } from 'luxon'
         members: (item) => viewingMembersOf.value = item.id,
         pin: (item) => pinBoard(item.id),
         leave: (item) => leaveBoard(item),
-        refreshMessages: (message) => refreshMessages(message),
+        refreshMessages: (message, oldId) => refreshMessages(message, oldId),
         privateSearch: () => startPrivateSearch(),
         messageLoader: (item) => messageLoader.value = item,
         setNotification: (item) => setNotification(item.id)
@@ -801,7 +872,7 @@ import { DateTime } from 'luxon'
     provide('shareToTask', shareToTask)
     provide('closeMessageContainer', closeMessageContainer)   
     provide('reload', getBoardList)      
-    defineExpose({getBoardList, unreadLineTrigger, getMessageList, onPusher})
+    defineExpose({getBoardList, refreshBoardList, unreadLineTrigger, getMessageList, onPusher})
 </script>
     
     
