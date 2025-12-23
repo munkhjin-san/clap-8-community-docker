@@ -193,7 +193,7 @@ class RemindController extends Controller
             'files', 
             'supervisors', 
             'project', 
-            'board.board_to_users'
+            'board.board_to_users.user'
         ])
         ->whereRaw('NOW() > DATE_ADD(created_at, INTERVAL TIMESTAMPDIFF(SECOND, created_at, CONCAT(end_at, " 23:59:59")) / 2 SECOND)')
         ->orderBy('created_at', 'desc')
