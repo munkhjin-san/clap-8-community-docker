@@ -113,6 +113,7 @@ import { useBoardList } from '@/composables/board';
             params['msg_file_id'] = props.file.id
             params['prepare'] = prepare.value
             params['board_id'] = openedBoard.value?.id
+            params['msg_id'] = props.message.id
         }else{
             params['msg_id'] = props.message.id
         }

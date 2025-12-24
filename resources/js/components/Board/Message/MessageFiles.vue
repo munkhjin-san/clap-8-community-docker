@@ -35,7 +35,7 @@
             </div>                                             
         </div>
         <Teleport to="#override">
-            <ConfirmWindow v-if="confirmWindow" :requestType="requestType" :file="currentFile" @close="confirmWindow = false"/>
+            <ConfirmWindow v-if="confirmWindow" :requestType="requestType" :message="signRequestData" :file="currentFile" @close="confirmWindow = false"/>
         </Teleport>
     </div>
 </template>
