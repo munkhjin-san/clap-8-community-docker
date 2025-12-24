@@ -156,8 +156,6 @@
                         <TransitionGroup name="downShiftPop">
                             <Character v-for="emote in emotes" :key="emote" :size="40" :emoteId="emote"/>
                         </TransitionGroup>
-                        
-                        <p class="text-[12px] mb-[2px]" v-if="message.emoted_users.length > 3">...({{message.emoted_users.length}})</p>
                     </div>
                 </div>
             </div> 
