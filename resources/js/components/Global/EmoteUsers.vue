@@ -5,7 +5,7 @@
                 <label v-for="emote in sortedEmotesByOccurence" class="p-2 flex shrink-0" :class="{'sticky left-0 right-0 bg-[var(--background-color)]' : activeEmoteId == emote.emoteId}">
                     <input type="radio" v-model="activeEmoteId" :value="emote.emoteId" class="hidden"/>
                     <Character :size="40" :emoteId="emote.emoteId"/>
-                    <div class="num-block">{{ emote.occurence }}</div>
+                    <!-- <div class="num-block">{{ emote.occurence }}</div> -->
                 </label>
             </div>
             <div v-if="activeEmoteId" class="min-h-[180px] bg-[var(--background-color)] flex flex-col gap-2 p-4 max-h-[300px] overflow-y-auto">                

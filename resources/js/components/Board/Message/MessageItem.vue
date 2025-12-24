@@ -154,7 +154,7 @@
                 <div :class="{'mt-[40px]' : editing}" @click="setEmoteUsers(message.emoted_users)" v-if="message.emoted_users && message.emoted_users.length">
                     <div class="flex items-end cursor-pointer text-[var(--primary-color)]">
                         <TransitionGroup name="downShiftPop">
-                            <Character v-for="emote in emotes.slice(0, 6)" :key="emote" :size="40" :emoteId="emote"/>
+                            <Character v-for="emote in emotes" :key="emote" :size="40" :emoteId="emote"/>
                         </TransitionGroup>
                         
                         <p class="text-[12px] mb-[2px]" v-if="message.emoted_users.length > 3">...({{message.emoted_users.length}})</p>

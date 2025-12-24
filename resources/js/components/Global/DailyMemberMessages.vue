@@ -1,14 +1,18 @@
 <template>
-    <div>
-        <div ref="girdParent" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+    <div ref="girdParent">
+        <!-- <div ref="girdParent" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5"> -->
+        <masonry-wall :items="members" :ssr-columns="1" :column-width="200" :gap="16">
+            <template #default="{ item, index }">
             <DailyMessageItem 
                 :left-edge="horizontalLimit.left" 
                 :right-edge="horizontalLimit.right" 
-                :user="member" v-for="member in members" 
-                :key="member.id"
+                :user="item" 
+                :key="item.id"
                 @refresh="(data) => emit('refresh', data)"
-            />            
-        </div>
+            />        
+            </template>
+        </masonry-wall>    
+        <!-- </div> -->
     </div>
 </template>
 <script setup lang="ts">

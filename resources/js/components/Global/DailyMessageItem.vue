@@ -2,7 +2,7 @@
 <div class="relative flex flex-col gap-2 min-h-[70px]" :id="`daily-expanded-${user.id}`">
     <div class="mb-overlay" v-if="expanded" @click.stop="menu.close()"></div>
     <div :class="{'expanded': expanded}" ref="commentBox"  @click.stop="toggleComment">
-        <div class="bg-[var(--background-color)]" :class="[expanded ? 'p-5 shade' : 'p-3 h-[70px]']">
+        <div class="bg-[var(--background-color)]" :class="[expanded ? 'p-5 shade' : 'p-3']">
             <div class="flex items-center" v-if="comment">
                 <UserPanel :user="user" size="25" with-name :disable-instant="!expanded"/>
                 <WeatherIcon v-if="comment.value_int" :which="comment.value_int" size="15" class="min-w-[15px] ml-1" />
@@ -16,21 +16,19 @@
                     {{ comment.value_text ?? '' }}
                 </div>
             </div>  
-            <div class="cursor-pointer mt-3" @click.stop="emoteArea = !emoteArea" v-if="expanded">
-                <Smile :size="18"/>
-            </div>  
+            <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
+                <div class="flex items-end cursor-pointer text-[var(--primary-color)] w-fit">
+                    <TransitionGroup name="downShiftPop">
+                        <Character v-for="emote in emotes" :key="emote" :size="20" :emoteId="emote"/>
+                    </TransitionGroup>
+                    
+                    <p class="text-[12px] mb-[2px]" v-if="comment.emoted_users.length > 3">...({{comment.emoted_users.length}})</p>
+                </div>
+            </div> 
         </div>
-        <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
-            <div class="flex items-end cursor-pointer text-[var(--primary-color)] w-fit">
-                <TransitionGroup name="downShiftPop">
-                    <Character v-for="emote in emotes.slice(0, 6)" :key="emote" :size="25" :emoteId="emote"/>
-                </TransitionGroup>
-                
-                <p class="text-[12px] mb-[2px]" v-if="comment.emoted_users.length > 3">...({{comment.emoted_users.length}})</p>
-            </div>
-        </div> 
 
-        <div v-if="expanded && emoteArea" class="bg-[var(--bg3)] grid grid-cols-5 shade p-3 gap-3">
+
+        <div v-if="expanded" class="bg-[var(--bg3)] grid grid-cols-5 shade p-3 gap-3">
             <div @click="sendEmote(num)" v-for="num in 10" :key="num" class="flex items-end justify-center">
                 <div>
                     <Character :emote-id="num" :size="30" />

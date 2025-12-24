@@ -34,7 +34,7 @@
         "@vue-flow/core": "^1.42.1",
         "@vueuse/components": "^10.11.0",
         "@vueuse/integrations": "^12.1.0",
-        "@yeger/vue-masonry-wall": "^5.0.16",
+        "@yeger/vue-masonry-wall": "^5.1.4",
         "autolinker": "^4.0.0",
         "chart.js": "^4.4.7",
         "cropperjs": "^1.6.2",

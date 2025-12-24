@@ -407,7 +407,10 @@ const refreshDailyMessageUser = (data: DailyMessageUser) => {
     flex-wrap: nowrap;
     overflow-x: auto;
     min-width: fit-content;
-    padding: 4px;
+    overflow: hidden;
+    height: 60px;
+    align-items: center;
+    padding: 0 5px;
 }
 .comment-row{
     width: 100%;
@@ -427,7 +430,7 @@ const refreshDailyMessageUser = (data: DailyMessageUser) => {
     height: 44px;
     min-width: 44px;
     border-radius: 9999px;
-    /* background-color: var(--bg3); */
+    border: solid thin transparent;
     transition: background-color 0.3s, transform 0.3s;
     cursor: pointer;
 }
@@ -443,6 +446,7 @@ const refreshDailyMessageUser = (data: DailyMessageUser) => {
 .selected-w-icon{
     transform: scale(1.2);
     background-color: var(--bg3);
+    border: solid thin var(--hoverBorder);
 }
 .selected-w-icon:hover{
     transform: scale(1.2);
