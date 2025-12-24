@@ -311,13 +311,8 @@ import Character from "@/components/Global/Character.vue";
         return list
     })
     const emotes = computed(() => {
-        const list = props.message.emoted_users as EmoteUser[]
-        const emoteIds = list.map(item => item.pivot.emote_id)
-        //sort emoteIds by frequency and make unique
-        const uniqueEmoteIds = Array.from(new Set(emoteIds)).sort((a, b) => {
-            return emoteIds.filter(id => id === b).length - emoteIds.filter(id => id === a).length
-        })
-        return uniqueEmoteIds
+        if(!props.message.emoted_users || !props.message.emoted_users.length) return []
+        return props.message.emoted_users.map(item => item.pivot.emote_id)
     })
     const readableText = computed(() => {
         const textContent = messageBoxBody.value?.textContent
@@ -565,7 +560,7 @@ import Character from "@/components/Global/Character.vue";
         } else {
             refreshMessages({
                 ...props.message,
-                emoted_users: [...props.message.emoted_users, {
+                emoted_users: [{
                     id: auth.activeUser.id,
                     name: auth.activeUser.name,
                     pivot: {
@@ -573,7 +568,7 @@ import Character from "@/components/Global/Character.vue";
                         user_id: auth.activeUser.id,
                         emote_id: num
                     }
-                }]
+                }, ...props.message.emoted_users]
             })
         }
     }

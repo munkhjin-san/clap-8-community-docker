@@ -17,7 +17,7 @@
                 </div>
             </div>  
             <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
-                <div class="flex items-end cursor-pointer text-[var(--primary-color)] w-fit">
+                <div class="flex items-end cursor-pointer text-[var(--primary-color)] w-fit overflow-hidden">
                     <TransitionGroup name="downShiftPop">
                         <Character v-for="emote in emotes" :key="emote" :size="20" :emoteId="emote"/>
                     </TransitionGroup>
@@ -137,10 +137,10 @@ const fastPreCheckEmote = (num) => {
             ...props.user,
             custom_field_data_records: [{
                 ...comment.value,
-                emoted_users: [...comment.value.emoted_users, {
+                emoted_users: [{
                     ...auth.activeUser as User,
                     pivot: {emote_id: num   }
-                }]
+                },...comment.value.emoted_users]
             }]
         })
     }
@@ -159,13 +159,7 @@ const sendEmote = async (emoteId: number) => {
 
 const emotes = computed(() => {
     if(comment.value === null || comment.value.emoted_users === undefined || comment.value.emoted_users.length === 0) return [];
-    const list = comment.value.emoted_users;
-    const emoteIds = list.map(item => item.pivot.emote_id)
-    //sort emoteIds by frequency and make unique
-    const uniqueEmoteIds = Array.from(new Set(emoteIds)).sort((a, b) => {
-        return emoteIds.filter(id => id === b).length - emoteIds.filter(id => id === a).length
-    })
-    return uniqueEmoteIds
+    return comment.value.emoted_users.map(item => item.pivot.emote_id)
 })
 </script>
 <style scoped>
