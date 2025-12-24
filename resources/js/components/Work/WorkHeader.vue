@@ -5,13 +5,13 @@
         <button class="work-button" @click="emit('selectShift')">
             勤怠予定
         </button>
-        <button class="work-button pc" @click="emit('approveShift')" v-if="auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608">
+        <button class="work-button pc" @click="emit('approveShift')" v-if="hasPrivilage">
             勤怠予定承認
         </button>
-        <button class="work-button" :class="{'pc' : !auth.isRegistered}" @click="emit('confirmAttendance')">
+        <button class="work-button" :class="{'pc' : !auth.isRegistered && hasPrivilage}" @click="emit('confirmAttendance')">
             勤怠確定
         </button>
-        <button class="work-button mobile" v-if="!auth.isRegistered" @click="modal = true">
+        <button class="work-button mobile" v-if="!auth.isRegistered && hasPrivilage" @click="modal = true">
             勤怠報告
         </button>
         <div class="work-modal" v-if="modal" @mousedown="modal = false">
@@ -105,24 +105,22 @@
         });
         return uniqueMemberObjects
     })
+    const hasPrivilage = computed(() => {
+        return auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608
+    })
     const buttonCollection = computed(() => {
         const buttons: { action: () => void, order: number, title: string }[] = []
-        buttons.push({
-            title: '勤怠予定', 
-            action: () => emit('selectShift'), 
-            order: 1
-        })
 
         buttons.push({
             title: '勤怠確定', 
             action: () => emit('confirmAttendance'),
-            order: 3
+            order: 2
         })
-        if(auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608){
+        if(hasPrivilage.value){
             buttons.push({
                 title: '勤怠予定承認', 
                 action: () => emit('approveShift'),
-                order: 2
+                order: 1
             })
         }
         buttons.sort((a, b) => a.order - b.order);
