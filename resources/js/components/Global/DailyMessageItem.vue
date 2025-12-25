@@ -5,7 +5,7 @@
         <div class="bg-[var(--background-color)]" :class="[expanded ? 'p-5 shade' : 'p-3']">
             <div class="flex items-center" v-if="comment">
                 <UserPanel :user="user" size="25" with-name :disable-instant="!expanded"/>
-                <WeatherIcon v-if="comment.value_int" :which="comment.value_int" size="15" class="min-w-[15px] ml-1" />
+                <WeatherIcon v-if="comment.value_int !== null" :which="comment.value_int" size="15" class="min-w-[15px] ml-1" />
             </div>
             
             <div class="cursor-pointer min-w-0 mt-[10px]" v-if="comment">
