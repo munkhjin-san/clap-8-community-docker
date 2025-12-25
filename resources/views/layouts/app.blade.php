@@ -3,37 +3,23 @@
 <head>
     <meta name="title" content="{{ __('meta.og_title') }}"/>
     <meta name="description" content="{{ __('meta.description') }}"/>
-
-
     <meta name="google" content="notranslate">
     <meta charset="utf-8">
     <meta name="robots" content="noindex">
     <meta name="theme-color" content="#262626"/>
     <meta name="csrf-token" content="{{ csrf_token() }}">    
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
-    {{-- <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" /> --}}
-    <!-- <link rel="apple-touch-icon" size="152x152" href="/glowd_icon_192.png">
-    <link rel="icon" type="image/png" size="152x152" href="/glowd_icon_192-152.png"> 
-    <link rel="apple-touch-icon" sizes="180x180" href="/glowd_icon_180.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="icon" type="image/x-icon" sizes="36x36" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="36x36" href="/favicon.png"> -->
-    <!-- <link rel="apple-touch-icon" size="152x152" href="/app/public/logo152.png">
-    <link rel="icon" type="image/png" size="152x152" href="/app/public/logo152.png"> -->
-    <link rel="icon" href="/logo-black.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
-    <!-- Dark mode -->
-    <link rel="icon" href="/logo-white.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+
+    <link rel="icon" href="/dark2.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="/light2.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+
     <link rel="manifest" href="/manifest.json">
-    <!-- <link rel="canonical" href="https://glowd.app/auth"> -->
-    <title>MISO</title>
+    <title>GLOWD</title>
+
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
-    <!-- Styles -->
-    {{-- <link href="{{ mix('css/app.css') }}" rel="stylesheet"> --}}
     <link rel="preconnect" href="https://fonts.gstatic.com">
-    <!-- <link href="https://fonts.googleapis.com/css2?family=Noto+Sans" rel="stylesheet"> -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
     <script>
         /* ピッチインピッチアウトによる拡大縮小を禁止 */
@@ -53,7 +39,7 @@
         if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
             artwork: [
-            { src: '/maskable_icon.png', sizes: '512x512', type: 'image/png' },
+            { src: '/android/icon512.png', sizes: '512x512', type: 'image/png' },
             ],
         });
         }

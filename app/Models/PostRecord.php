@@ -34,7 +34,7 @@ class PostRecord extends Model
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'post')->with('user');
     }
     public function to_users(){
-        return $this->belongsToMany(User::class, 'post_to_users', 'record_id', 'user_id')->withPivot('id')->select(['users.id as id', 'users.name', 'users.icon_path','users.icon_bg']);
+        return $this->belongsToMany(User::class, 'post_to_users', 'record_id', 'user_id')->withPivot('id')->select(['users.id as id', 'users.name', 'users.icon_path','users.icon_bg', 'users.email']);
     }
     public function comments(){
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'post')->where('deleted_flag', 0);
@@ -43,7 +43,7 @@ class PostRecord extends Model
         return $this->hasMany(ClapRecord::class, 'record_id')->where('app_name', 'post')->where('deleted_flag', 0)->select('record_id', 'from_user');;
     }
     public function awards(){
-        return $this->belongsToMany(User::class, 'post_awards', 'record_id', 'user_id')->withPivot('award_bet')->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg']);
+        return $this->belongsToMany(User::class, 'post_awards', 'record_id', 'user_id')->withPivot('award_bet')->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.email']);
     }
     public function entries() {
         return $this->hasMany(PostEntry::class)->with(['user' => function($query) {

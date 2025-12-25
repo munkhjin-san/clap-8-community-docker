@@ -3,7 +3,11 @@ import { useAuthUserStore } from "./auth";
 import axios from "axios";
 interface State {
     board: any[]
-    post: number
+    post: {
+        changed: number,
+        created: number,
+        changed_ids: number[],
+    }
     task: number[]
     notice: number
     remind: any,
@@ -24,7 +28,11 @@ const BOARD_BADGE_CACHE_MS = 2000;
 export const useBadgeStore = defineStore('badge', {
     state: (): State => ({
         board: [],
-        post: 0,
+        post: {
+            changed: 0,
+            created: 0,
+            changed_ids: [],
+        },
         task: [],
         notice: 0,
         remind: {},
@@ -48,13 +56,6 @@ export const useBadgeStore = defineStore('badge', {
         async getGoalIssueCommentBadge(){
             const data = await axios.get('/goal_issue_comment_badge').then(response => response.data)
             this.goal_issue_comment = data
-        },
-        async getPostBadge(){
-            const auth = useAuthUserStore()  
-            if(!auth.isPartner && !auth.isRegistered){
-                const response = await axios.get('/post_badge')
-                this.post = response.data         
-            }   
         },
         async updatePostBadge(which:string){
             const response = await axios.patch('/post_badge', {which: which})
@@ -179,7 +180,7 @@ export const useBadgeStore = defineStore('badge', {
                     }                    
                 }
                 if(auth.id == userId){
-                    const postBadge = state.post
+                    const postBadge = state.post.changed + state.post.created   
                     value = value + postBadge
                 }
                 return value

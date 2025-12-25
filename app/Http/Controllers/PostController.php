@@ -13,18 +13,25 @@ use App\Models\FileRecord;
 use App\Models\ClapRecord;
 use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
-use App\Models\UserLastRecord;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Comment;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use App\Events\MessageSent;
+use App\Jobs\PostStatusChangeNotification;
+use App\Services\BadgeService;
 use Illuminate\Support\Facades\Auth;
 
 
 class PostController extends Controller
 {
+    protected $badgeService;
+    public function __construct(
+        BadgeService $badgeService, 
+    ){
+        $this->badgeService = $badgeService;
+    } 
     public function post_delete_file(Request $request){
         $validatedData = $request->validate([
             'list' => 'required',
@@ -146,7 +153,7 @@ class PostController extends Controller
             $q->orderByRaw('status_flag != 0')
             ->orderBy('created_at', 'desc');
         })
-        ->orderBy('created_at', 'desc')
+        ->orderBy('updated_at', 'desc')
         ->with('awards')
         ->with('result_files')
         
@@ -356,7 +363,12 @@ class PostController extends Controller
             $record->referrer = $request->referrer; 
             $record->app_type = $request->app_type;    
             $record->refresh_amount = $request->refresh_amount;     
+            if($request->edit_id){
+                $record->timestamps = false;
+            }
             $record->save();
+            $user = Auth::user();
+            $user->user_last_record()->firstOrCreate()->touch();
             if($request->app_type == 2 || $request->app_type == 0){
                 $record->to_users()->sync($request->to_users);
             }           
@@ -372,12 +384,8 @@ class PostController extends Controller
             }
             $record->tags()->sync($tagIds);
 
-                $record->files()->sync($request->file_ids);
-                if(!$request->edit_id){
-                    UserLastRecord::where('user_id', '=', Auth::id())->where('deleted_flag', '=', 0)->update([
-                        'last_' . $request->path => $record->id
-                    ]);
-                }
+            $record->files()->sync($request->file_ids);
+                
             if($request->receipt_ids) {
                 $record->receipts()->sync($request->receipt_ids);
             }
@@ -554,10 +562,13 @@ class PostController extends Controller
         return response()->json();  
     }
     public function post_status_update(Request $request){
+        
         $request->validate([
             'id' => 'required',
             'status' => 'required'
         ]);
+
+        
         $record = PostRecord::findOrFail($request->id);
         
         $fileIds = $request->resultFiles;
@@ -570,9 +581,14 @@ class PostController extends Controller
         //     "status_flag" => $request->status,
         //     "result" => $request->result
         // ]);
+        
         $record->status_flag = $request->status;
         $record->result = $request->result;
         $record->save();
+        $user = Auth::user();
+        $user->user_last_record()->firstOrCreate()->touch();
+        PostStatusChangeNotification::dispatch($record, [Auth::id()]);
+        
         return response()->json($record);  
     }
     public function post_get_all_possible_users(Request $request){
@@ -587,67 +603,11 @@ class PostController extends Controller
         $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '!=', Auth::id())->where('id', '>', 99)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
         return response()->json($other_users); 
     }
-    public function get_post_badge(Request $request){
-        $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
-        $result = [];
-        if(!empty($auth_user_id)){
-            $list = $request->last_update ? $request->last_update : UserLastRecord::where('user_id', '=', $auth_user_id)->where('deleted_flag', '=', 0)->first();
-            $recordTypes = [
-                'post' => PostRecord::class,
-            ];
-            
-            foreach ($recordTypes as $type => $modelClass) {
-                if ($request->which == $type) {
-                    ${$type} = $request->rec;
-                } else {
-                    ${$type} = $modelClass::latest('created_at')->first();
-                }
-            }
-            if(empty($list)){
-                $newls = new UserLastRecord;
-                $newls->user_id = $auth_user_id;
-                $newls->last_post = $post->id;
-                $newls->save();
-                $list = $newls;
-            }
-            
-            $post_from = $list->last_post;            
-            $post_to = $post?->id;
-            $post_difference = PostRecord::whereBetween('id', [$post_from, $post_to])->count(); 
-            if($post_difference > 0){
-                $post_difference -= 1 ;
-            }
-            $result =  $post_difference;
-
-            
-            
-
-            return response()->json($result);
-        }
-        
-    }
     public function update_post_badge(Request $request){
         $auth_user = Auth::user();
-        $auth_user_id = Auth::id();
-        if(!empty($auth_user_id)){
-            $last_update = UserLastRecord::where('user_id', '=', $auth_user_id)->where('deleted_flag', '=', 0)->first();
-            $nameSpace = '\\App\\Models\\'; 
-            $model = $nameSpace . ucfirst($request->which) . 'Record'; 
-            $rec = $model::latest('created_at')->first();
-            if(!empty($rec)){                
-                if(!empty($last_update)){
-                    $last_update['last_' . $request->which] = $rec->id;
-                    $last_update->save();
-                }
-            }
-            $parameters = [
-                'last_update' => $last_update,
-                'rec' => $rec
-            ];
-
-            $requestData = array_merge($request->all(), $parameters);
-            $update = $this->get_post_badge(new Request($requestData));
+        if(!empty($auth_user)){
+            $auth_user->user_last_record()->firstOrCreate()->touch();
+            $update = $this->badgeService->post($auth_user);
             return $update;         
             
         }
@@ -912,6 +872,11 @@ class PostController extends Controller
             ],
             'post_count' => $user->post_entries->count(),
             'sum_calories' => $user->post_entries->sum('calories'),
+            'post_donation_targets' => $user->post_entries
+                ->pluck('post.donation_target')
+                ->filter(fn($v) => filled($v))
+                ->unique()
+                ->values(),
         ]);
 
 

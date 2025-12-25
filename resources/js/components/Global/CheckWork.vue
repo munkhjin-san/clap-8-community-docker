@@ -36,14 +36,16 @@
     </div>
 </template>
 <script setup>
-import { onMounted, computed, ref, provide } from 'vue';
-import WorkNotSubmitted from '../Work/WorkNotSubmitted.vue';
+import { onMounted, computed, ref, provide, defineAsyncComponent } from 'vue';
+// import WorkNotSubmitted from '../Work/WorkNotSubmitted.vue';
 import { useRoute } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 
 import { DateTime, Interval } from 'luxon';
 import { useApi } from '@/composables/api';
-import DepartureReportSend from '../Work/DepartureReportSend.vue';
+// import DepartureReportSend from '../Work/DepartureReportSend.vue';
+const WorkNotSubmitted = defineAsyncComponent(() => import('../Work/WorkNotSubmitted.vue'));
+const DepartureReportSend = defineAsyncComponent(() => import('../Work/DepartureReportSend.vue'));
     const auth = useAuthUserStore()
     const shiftNotSubmittedList = ref([])
     const nextShiftNotSubmittedList = ref([])

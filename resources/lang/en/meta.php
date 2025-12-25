@@ -1,6 +1,6 @@
 <?php
 
 return [
-    'og_title' => 'MISO',
+    'og_title' => 'GLOWD',
     'description' => 'Circulate the Business',
 ];

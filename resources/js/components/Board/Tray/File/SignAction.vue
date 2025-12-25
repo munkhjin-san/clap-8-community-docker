@@ -85,6 +85,7 @@ import { useResponsive } from '@/store/responsive';
 import { useBadgeStore } from '@/store/badge';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { BoardMethodsKey } from '@/interface/keys';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const props = defineProps(['file', 'viewer', 'source'])
@@ -105,7 +106,7 @@ import { useDialog } from '@/composables/dialog';
     const filePreview = useFilePreview()
     const api = useApi()
     const { ask, ping } = useDialog()
-    
+    const refreshMessage = inject('refreshMessage')
     const signableFile = computed(() => {
         const unsignedUsers = props.file.unsigned_users;
         const includesUser = Object.values(unsignedUsers).some(user => user.id === auth.activeUser.id && user.pivot.cancel_flag === 0);
@@ -274,16 +275,16 @@ import { useDialog } from '@/composables/dialog';
         const formData = new FormData()
         const name = props.file.name
         const file = new File([modifiedPdf], name, { type: 'application/pdf' });
-        formData.append(0, file)
+        formData.append('file', file)
         formData.append('file_id', props.file.id)
         formData.append('board_id', props.file.board_id)
-        await api.post('/signature_upload_api', formData)   
+        const data = await api.post('/signature_upload_api', formData)   
                     
         closePdf()
         modifiedPdfBytes.value = null
         processing.value = false 
         ping('サインを保存しました。')
-     
+        refreshMessage()
     }
 
     const signImageAdd = async() => {

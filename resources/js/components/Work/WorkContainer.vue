@@ -98,21 +98,26 @@
 <script setup>
 import WorkHeader from './WorkHeader.vue'
 import WorkRecords from './WorkRecords.vue'
-import WorkShifts from './WorkShifts.vue'
-import WorkAttendance from './WorkAttendance.vue'
-import WorkReport from './WorkReport.vue'
-import ShiftApproval from './ShiftApproval.vue'
-import { computed, onMounted, ref, provide, inject, watch, nextTick } from 'vue'
+// import WorkShifts from './WorkShifts.vue'
+// import WorkAttendance from './WorkAttendance.vue'
+// import WorkReport from './WorkReport.vue'
+// import ShiftApproval from './ShiftApproval.vue'
+import { computed, onMounted, ref, provide, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useElementSize } from '@vueuse/core'
-import { getWorkGroup, getCustomFields, getWorkData, getShiftDataTable } from '../../utils/workApi'
+import { getWorkGroup, getWorkData, getShiftDataTable } from '../../utils/workApi'
 import { useBreakTime } from '@/store/breakTime'
-import DepartmentField from './DepartmentField.vue'
+// import DepartmentField from './DepartmentField.vue'
 import { DateTime } from 'luxon'
 import MonthPickerNew from '../Global/MonthPickerNew.vue'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
+    const WorkShifts = defineAsyncComponent(() => import('./WorkShifts.vue'));
+    const WorkAttendance = defineAsyncComponent(() => import('./WorkAttendance.vue'));
+    const WorkReport = defineAsyncComponent(() => import('./WorkReport.vue'));
+    const ShiftApproval = defineAsyncComponent(() => import('./ShiftApproval.vue'));
+    const DepartmentField = defineAsyncComponent(() => import('./DepartmentField.vue'));
     const firstUser = computed(() => {
         return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
     })

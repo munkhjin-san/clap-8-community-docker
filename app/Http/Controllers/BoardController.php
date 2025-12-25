@@ -197,33 +197,11 @@ class BoardController extends Controller
             return response()->json($bucketPage);
         }
 
-        // normal cursor paging
         $board_list = (clone $base)
             ->with($with)
             ->cursorPaginate($perPage);
 
         return response()->json($board_list);
- 
-
-        // $self_list = boardRecord::whereHas('board_to_users', function($q) use($active_user){
-        //     $q->where('user_id', $active_user->id)->where('deleted_status', 0);
-        // })->with('user')
-        // ->with(['icons' => function($q){
-        //     $q->select('id','extension');
-        // }])->with(['board_to_users' => function($q){
-        //     $q->whereHas('user')
-        //     ->with('user');
-        // }])
-        // ->with('project')
-        // ->with('last_message')
-        // ->when($active_user->on_leave === 1, function ($query) {
-        //     return $query->where('private_flag', '!=', 0);
-        // })
-        // ->orderBy('updated_at', 'desc')
-        // ->orderBy('id', 'desc')
-        // ->cursorPaginate(30); 
-
-        // return response()->json($self_list);
         
     }
     public function postRestoreMessage(Request $request){
@@ -504,33 +482,60 @@ class BoardController extends Controller
         return response()->json($data);
     }
     public function signFile(Request $request){
+        $validated = $request->validate([
+            'file_id'   => ['required', 'integer', 'exists:message_files,id'],
+            'board_id'  => ['required', 'integer'],
+            'file'      => ['required', 'file', 'max:51200'], // 50MB example
+        ]);
         $active_user = $this->active_user();
-        foreach($request->file() as $file){           
-            $newFile = messageFile::find($request->file_id);
-            $set_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
-            Storage::disk('local')->putFileAs(
-                'shared_files/' . $request->board_id, $file, $set_path
-            );
-            $sizeAfter = Storage::disk('local')->size('shared_files/' . $request->board_id .'/'. $set_path);
-            $newFile->size = $sizeAfter;
-            $newFile->edit_flag = null;
-            $newFile->save();
-            
+        $newFile = messageFile::with(['signUsers'])
+        ->findOrFail($validated['file_id']);
+
+        // Optional: authorize user can edit this file
+        // $this->authorize('update', $newFile);
+
+        $uploaded = $request->file('file');
+
+        $setPath = "{$newFile->id}_{$newFile->user_id}_{$newFile->message_id}.{$newFile->extension}";
+        $dir = "shared_files/{$validated['board_id']}";
+        $fullPath = "{$dir}/{$setPath}";
+
+        return DB::transaction(function () use ($newFile, $active_user, $uploaded, $dir, $setPath, $fullPath) {
+
+            // Write file first (or you can write after DB, but then you need rollback logic)
+            Storage::disk('local')->putFileAs($dir, $uploaded, $setPath);
+
+            $sizeAfter = Storage::disk('local')->size($fullPath);
+
+            $newFile->fill([
+                'size'      => $sizeAfter,
+                'edit_flag' => null,
+            ])->save();
+
+            // Mark signed for current file
             $signUser = $newFile->signUsers()->where('user_id', $active_user->id)->first();
-            if($newFile->multiple_flag == 2){
-                $originalFile = messageFile::find($newFile->original_file_id);
-                $originalSignUser = $originalFile->signUsers()->where('user_id', $active_user->id)->first();
-                if($originalSignUser){
-                    $originalSignUser->pivot->signed = true;
-                    $originalSignUser->pivot->save();
-                }
-            }
             if ($signUser) {
                 $signUser->pivot->signed = true;
                 $signUser->pivot->save();
-            }         
-        }      
-        return response()->json("success");
+            }
+
+            // If multiple_flag == 2, also mark original as signed
+            if ((int)$newFile->multiple_flag === 2 && $newFile->original_file_id) {
+                $originalFile = messageFile::find($newFile->original_file_id);
+                if ($originalFile) {
+                    $originalSignUser = $originalFile->signUsers()->where('user_id', $active_user->id)->first();
+                    if ($originalSignUser) {
+                        $originalSignUser->pivot->signed = true;
+                        $originalSignUser->pivot->save();
+                    }
+                }
+            }
+
+            $messageRecord = messageRecord::findOrFail($newFile->message_id);
+            $mutatedMessage = $this->message_refresh($messageRecord);
+
+            return response()->json($mutatedMessage);
+        });
     }
     public function incomplete_check(Request $request) {
         $user = $this->active_user();
@@ -632,76 +637,87 @@ class BoardController extends Controller
         ->where('active', 2)
         ->first();
     }
-    public function get_messages(Request $request){
-        $id = $request->message_id ?? null;
-        $pagenate = 30 * $request->page_index;       
+    public function get_messages(Request $request)
+    {
+        $limit = 30;
         $active_user = $request->override_user ?? $this->active_user();
         $auth_user_id = $active_user->id;
-        $leavePeriod = $this->user_onleave($auth_user_id);
-        $usercheck = boardToUser::where('user_id','=', $auth_user_id)->where('record_id', '=', $request->record_id)->first();   
-        if(empty($usercheck)){
-            throw ValidationException::withMessages(['message' => 'チャットメンバーではありません。']); 
+
+        $usercheck = boardToUser::where('user_id', $auth_user_id)
+            ->where('record_id', $request->record_id)
+            ->first();
+
+        if (!$usercheck) {
+            throw ValidationException::withMessages(['message' => 'チャットメンバーではありません。']);
         }
-        $timeLimit = $usercheck->created_at;    
+
         $targetBoard = boardRecord::findOrFail($request->record_id);
-        $messageFrom = $targetBoard->message_from;     
-        $time_condition = $messageFrom == 0 && $timeLimit;   
-        $view_from = $usercheck->view_from;
-        $offset = $request->offset ?? null;
-        $query = messageRecord::query()->where('record_id', $request->record_id)
-        
-        ->where('deleted_flag', 0)
-        ->when($id, function($query) use($id){
-            $query->where('id', $id);
-        })
-        ->when($view_from, function ($query) use ($view_from) {
-            $query->where('created_at', '>=', $view_from);
-        })
-        ->when(!$view_from && $time_condition, function ($query) use ($timeLimit) {
-            $query->where('created_at', '>=',  $timeLimit );
-        })
-        ->when($leavePeriod && $targetBoard->private_flag != 1, function ($query) use ($leavePeriod) {
-            $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
-        })
-        ->when($targetBoard->private_flag !== 3, function ($query) {
-            $query->withTrashed();
-        })
-        ->when($offset, function ($query) use ($offset) {
-            $query->where('created_at', '>=', $offset);
-        })
-        ->with([
-            'user',
-            'actual_sender',
-            'message_files.unsignedUsers',
-            'message_files.signedUsers',
-            'message_reply',
-            'message_quot',
-            'message_forward',
-            'reactedUsers',
-            'checkedUsers',
-            'uncheckedUsers',
-            'emotedUsers',
-            'messageRemindUsers',
-            'task'
-        ]);
-        $draft_messages = (clone $query)->where('draft_flag', 1)->orderBy('created_at', 'desc')->get();
 
-        $comment_list_pre = $query
-        ->where('draft_flag', 0)
-        
-        
-        // ->latest('created_at')
-        // ->orderBy('created_at', 'desc')
-        ->orderByDesc('id') 
-        ->take($pagenate)
-        ->get();
-        $comment_list = $draft_messages->merge(items: $comment_list_pre);
-        $data = [
-            'messages' => $comment_list,
+        // build your base constraints once
+        $base = messageRecord::query()
+            ->where('record_id', $request->record_id)
+            ->where('deleted_flag', 0)
+            ->when($targetBoard->private_flag !== 3, fn ($q) => $q->withTrashed());
+
+        // apply your time rules to BOTH queries
+        $leavePeriod = $this->user_onleave($auth_user_id);
+        $timeLimit   = $usercheck->created_at;
+        $view_from   = $usercheck->view_from;
+        $messageFrom = $targetBoard->message_from;
+        $time_condition = $messageFrom == 0 && $timeLimit;
+
+        $base = $base
+        ->when($view_from, fn($q) => $q->where('created_at', '>=', $view_from))
+        ->when(!$view_from && $time_condition, fn($q) => $q->where('created_at', '>=', $timeLimit))
+        ->when($leavePeriod && $targetBoard->private_flag != 1,
+            fn($q) => $q->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end])
+        );
+        $with = [
+            'user','actual_sender',
+            'message_files.unsignedUsers','message_files.signedUsers',
+            'message_reply','message_quot','message_forward',
+            'reactedUsers','checkedUsers','uncheckedUsers','emotedUsers',
+            'messageRemindUsers','task'
         ];
-        return response()->json($data);
+        if ($request->filled('message_id') && !$request->filled('cursor')) {
+            $message = (clone $base)->whereKey($request->message_id)->first();
 
+
+            $beforeCount = (clone $base)
+                ->where(function ($q) use ($message) {
+                $q->where('updated_at', '>', $message->updated_at)
+                    ->orWhere(function ($q) use ($message) {
+                    $q->where('updated_at', '=', $message->updated_at)
+                        ->where('id', '>', $message->id);
+                    });
+                })
+                ->count();
+
+            $rank = $beforeCount + 1;
+            $bucket = (int) (ceil($rank / $limit) * $limit);
+
+            $bucketPage = (clone $base)
+                ->with($with)
+                ->orderByDesc('draft_flag')
+                ->orderByDesc('id')
+                ->cursorPaginate($bucket);
+
+             return response()->json([
+                'messages' => $bucketPage,
+            ]);
+        }
+        $messages = (clone $base)
+            ->with($with)
+            ->orderByDesc('draft_flag')
+            ->orderByDesc('id')
+            ->cursorPaginate($limit);
+
+        return response()->json([
+            'messages' => $messages,
+        
+        ]);
     }
+
     public function chatAdd(Request $request){
 
 
@@ -1668,15 +1684,20 @@ class BoardController extends Controller
             })
             ->when($leavePeriod && ($targetBoard->private_flag != 3 || $targetBoard->private_flag != 1), function ($query) use ($leavePeriod) {
                 $query->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
-            })
-            ->with('user')
-            ->with('message_files')
-            ->with('message_reply')
-            ->with('message_quot')
-            ->with('message_forward')
-            ->with('reactedUsers')
-            ->with('checkedUsers')
-            ->with('uncheckedUsers')
+            })->with([
+                'user',
+                'message_files.unsignedUsers',
+                'message_files.signedUsers',
+                'message_reply',
+                'message_quot',
+                'message_forward',
+                'reactedUsers',
+                'checkedUsers',
+                'uncheckedUsers',
+                'emotedUsers',
+                'messageRemindUsers',
+                'task'
+            ])
             ->take(30)->get();
         }
         return response()->json($bottom_messages);

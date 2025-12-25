@@ -205,15 +205,15 @@
 <script setup lang="ts">
 import HamBurger from '../Global/HamBurger.vue';
 import PostSearchBar from '../Post/PostSearchBar.vue'
-import NormalHourLayout from './NormalHour/NormalHourLayout.vue';
-import { nextTick, ref, computed, onMounted, provide, onUnmounted, inject } from 'vue'
-import CalendarCreate from './CalendarCreate.vue';
+// import NormalHourLayout from './NormalHour/NormalHourLayout.vue';
+import { nextTick, ref, computed, onMounted, provide, onUnmounted, inject, defineAsyncComponent } from 'vue'
+// import CalendarCreate from './CalendarCreate.vue';
 import TopBar from './TopBar.vue'
-import NormalMonthLayout from './NormalMonth/NormalMonthLayout.vue'
-import MemberMonthLayout from './MemberMonth/MemberMonthLayout.vue'
-import MemberHourLayout from './MemberHour/MemberHourLayout.vue'
+// import NormalMonthLayout from './NormalMonth/NormalMonthLayout.vue'
+// import MemberMonthLayout from './MemberMonth/MemberMonthLayout.vue'
+// import MemberHourLayout from './MemberHour/MemberHourLayout.vue'
 import DayPicker from './DayPicker.vue';
-import SearchResult from './SearchResult.vue';
+// import SearchResult from './SearchResult.vue';
 import DragItem from './DragItem.vue';
 import ShiftButton from './ShiftButton.vue';
 import holiday_jp from '@holiday-jp/holiday_jp'
@@ -224,19 +224,27 @@ import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { useSharingDataStore } from '@/store/sharingData'
 import { useTempRecord } from '@/store/tempRecord';
-import MeetingSummary from './MeetingSummary.vue';
+// import MeetingSummary from './MeetingSummary.vue';
 import { User } from '@/interface/globalInterface';
 import { DateTime, DayNumbers, MonthNumbers } from 'luxon';
 import { CalendarRecord, FacilityItem, FastCreateData, GoogleEventItem, NormalHourDay } from '@/interface/calendarInterface';
 import MonthPickerNew from '../Global/MonthPickerNew.vue';
 import { useCalendar } from '@/composables/calendar';
-import TempReserve from './TempReserve.vue';
+// import TempReserve from './TempReserve.vue';
 import FloatButton from '../Global/FloatButton.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
 import Gear from '../Icons/Gear.vue';
 import CalendarSettings from './CalendarSettings.vue';
+    const NormalHourLayout = defineAsyncComponent(() => import('./NormalHour/NormalHourLayout.vue'))
+    const NormalMonthLayout = defineAsyncComponent(() => import('./NormalMonth/NormalMonthLayout.vue'))
+    const MemberMonthLayout = defineAsyncComponent(() => import('./MemberMonth/MemberMonthLayout.vue'))
+    const MemberHourLayout = defineAsyncComponent(() => import('./MemberHour/MemberHourLayout.vue'))
+    const CalendarCreate = defineAsyncComponent(() => import('./CalendarCreate.vue'))
+    const SearchResult = defineAsyncComponent(() => import('./SearchResult.vue'))
+    const MeetingSummary = defineAsyncComponent(() => import('./MeetingSummary.vue'))
+    const TempReserve = defineAsyncComponent(() => import('./TempReserve.vue'))
     const { ask, ping, toast } = useDialog()
     const api = useApi()
     const viewMenu = [

@@ -1,7 +1,7 @@
 <template>
     <div 
         :title="title ? title : '新規作成'" 
-        id="boardCreate" 
+        :id="id ?? 'boardCreate'" 
         :class="[{'float-b': !plain}, {'inverse-float': inverse}, {'hiddenButton' : createHidden}]" 
         @click="emit('action')" 
         :style="{bottom: order ? `${(order * 20) + ((order - 1) * 35)}px` : '20px'}"
@@ -22,6 +22,7 @@ import { onUnmounted, onMounted, shallowRef } from 'vue';
         order?: number;
         inverse?: boolean;
         plain?: boolean;
+        id?: string;
     }>()
     const emit = defineEmits<{
         action: []

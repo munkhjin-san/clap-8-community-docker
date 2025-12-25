@@ -106,12 +106,12 @@
     
 <script setup lang="ts">
 import BoardList from './BoardList.vue'
-import { onMounted, onUnmounted, watch, computed, nextTick, ref, provide, onBeforeUnmount, useTemplateRef } from 'vue'
+import { onMounted, onUnmounted, watch, computed, nextTick, ref, provide, onBeforeUnmount, useTemplateRef, defineAsyncComponent } from 'vue'
 import TrayComponent from './Tray.vue'
 import BoardSearchBar from './Search/BoardSearchBar.vue'
-import InviteMember from './InviteMember.vue'
-import BoardCreateWindow from './BoardCreateWindow.vue'
-import BoardMembers from './BoardMembers.vue'
+// import InviteMember from './InviteMember.vue'
+// import BoardCreateWindow from './BoardCreateWindow.vue'
+// import BoardMembers from './BoardMembers.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive'
@@ -124,11 +124,11 @@ import { useUrlTaskEdit } from '@/store/urlTaskEdit'
 import { useSkeleton } from '@/store/skeleton'
 import { useBadgeStore } from '@/store/badge'
 
-import BoardDetails from './BoardDetails.vue'
-import SearchMessage from './Search/SearchMessage.vue'
-import BoardEdit from './BoardEdit.vue'
-import CopyWindow from './Message/CopyWindow.vue'
-import ConfirmWindow from './Message/ConfirmWindow.vue'
+// import BoardDetails from './BoardDetails.vue'
+// import SearchMessage from './Search/SearchMessage.vue'
+// import BoardEdit from './BoardEdit.vue'
+// import CopyWindow from './Message/CopyWindow.vue'
+// import ConfirmWindow from './Message/ConfirmWindow.vue'
 import { instance } from '@/utils/broadcaster'
 import { useKeyboardStore } from '@/store/keyboardStore'
 import { useApi } from '@/composables/api'
@@ -137,6 +137,15 @@ import { useBoardList } from '@/composables/board'
 import { Board, CopyData, Message, UnreadMessages } from '@/interface/globalInterface'
 import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
 import { DateTime } from 'luxon'
+    const BoardDetails = defineAsyncComponent(() => import('./BoardDetails.vue'))
+    const SearchMessage = defineAsyncComponent(() => import('./Search/SearchMessage.vue'))
+    const BoardEdit = defineAsyncComponent(() => import('./BoardEdit.vue'))
+    const CopyWindow = defineAsyncComponent(() => import('./Message/CopyWindow.vue'))
+    const ConfirmWindow = defineAsyncComponent(() => import('./Message/ConfirmWindow.vue'))
+    const InviteMember = defineAsyncComponent(() => import('./InviteMember.vue'))
+    const BoardCreateWindow = defineAsyncComponent(() => import('./BoardCreateWindow.vue'))
+    const BoardMembers = defineAsyncComponent(() => import('./BoardMembers.vue'))
+    
     const badge = useBadgeStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -153,6 +162,8 @@ import { DateTime } from 'luxon'
     const allBoardList = ref<Board[]>([])
     const nextCursor = ref<string | null>(null)
     const reachedEnd = ref(false)
+    const nextMessageCursor = ref<string | null>(null)
+    const reachedMessageEnd = ref(false)
     const activeEditBoard = ref<Board | null>(null)
     const pageIndex = ref(1)
     const pageLimiter = ref(false)
@@ -439,7 +450,6 @@ import { DateTime } from 'luxon'
         jumpToMessage(target)                
     }
     const jumpToMessage = async(message) => {
-        
         messageLoader.value = true
         const data = await api.post('/get_target_message', message)
         if(data){              
@@ -533,8 +543,8 @@ import { DateTime } from 'luxon'
             unreadMessages.value = data
         }
         list.forEach( message => {
-            const exists = messageList.value.filter( ob => ob.id == message.id)
-            if(!exists.length){
+            const exists = messageList.value.find( ob => ob.id == message.id)
+            if(!exists){
                 messageList.value.unshift(message)
             }
         })
@@ -562,6 +572,7 @@ import { DateTime } from 'luxon'
     }
     const reachedTop = () => {
         currentLen.value = messageList.value.length
+        if(reachedMessageEnd.value) return
         if(!pageLimiter.value && !infiniteLock.value){
             pageLimiter.value = true
             pageIndex.value ++ 
@@ -598,6 +609,8 @@ import { DateTime } from 'luxon'
     const openBoard = (item: Board, second_atr?:any) => {
         messageLoader.value = true        
         pageIndex.value = 1;
+        pageLimiter.value = false;
+        microLoader.value = false;
         currentLen.value = 0;
         unreadMessages.value = {
             active: false,
@@ -608,11 +621,11 @@ import { DateTime } from 'luxon'
             const count = badge.activeUsersBoardBadge[item.id]                    
             const index = Math.ceil(count / 30)
             pageIndex.value = index
-            const self = item.board_to_users.filter( ob => ob.user_id == auth.activeUser.id)
-            if(self.length){
+            const self = item.board_to_users.find( ob => ob.user_id == auth.activeUser.id)
+            if(self){
                 const data = {
                     active: true,
-                    id: self[0].last_message,
+                    id: self.last_message,
                     count: badge.activeUsersBoardBadge[item.id]
                 }
                 unreadMessages.value = data
@@ -620,6 +633,8 @@ import { DateTime } from 'luxon'
         }
         infiniteLock.value = false
         queuedMessages.value = []
+        nextMessageCursor.value = null
+        reachedMessageEnd.value = false
         getUnsentMessages(item.id)
         resetReplyQuot()
                  
@@ -663,11 +678,42 @@ import { DateTime } from 'luxon'
     const getMessageList = async(source?:string, queue?:any, chatId?:number) => {
         const boardId = Number(route.params.chatId) || chatId 
         if(!boardId) return
-        const response = await api.post('/get_messages', { record_id: boardId, page_index: pageIndex.value }, { cancel: true })
-        if(!response) return
         
+        const payload: any = {}
+        const useCursor = source !== 'pusher' && nextMessageCursor.value
+        if (useCursor) payload.cursor = nextMessageCursor.value
+        payload.record_id = boardId
+        const message_id = unreadMessages.value?.id ?? null
+        const message_count = unreadMessages.value?.count ?? 0
+        if (message_id && message_count > 30) payload.message_id = message_id
+        const response = await api.post('/get_messages', payload, { cancel: source !== 'pusher' })
+        if(!response) {
+            if(source == 'infiniteLoader'){
+                pageLimiter.value = false
+                microLoader.value = false
+            }
+            return
+        }
+        const rows = response?.messages?.data ?? []
         listType.value = 'normal' 
-        messageList.value = response.messages;
+        if (source == 'first_load') {
+            messageList.value = []
+            messageList.value = rows
+        } else if (source == 'pusher') {
+            if(!messageList.value.length){
+                messageList.value = rows
+                nextMessageCursor.value = response?.messages?.next_cursor ?? null
+                reachedMessageEnd.value = !nextMessageCursor.value
+            }else if(rows.length){
+                const existingIds = new Set(messageList.value.map(ob => ob.id))
+                const freshRows = rows.filter(ob => !existingIds.has(ob.id))
+                if(freshRows.length){
+                    messageList.value = freshRows.concat(messageList.value)
+                }
+            }
+        } else {
+            messageList.value.push(...rows)
+        }
         if(source == 'infiniteLoader'){                        
             setTimeout(() => { 
                 pageLimiter.value = false
@@ -677,12 +723,15 @@ import { DateTime } from 'luxon'
         infiniteLock.value = currentLen.value == messageList.value.length
         if(source == 'first_load'){        
             const hasUnread = badge.activeUsersBoardBadge[boardId] || 0   
-            console.log('hasUnread', hasUnread) 
             if(hasUnread){
                 badge.updateBoardBadge(boardId)
             }         
             
-        }                  
+        }            
+        if(source !== 'pusher'){
+            nextMessageCursor.value = response?.messages?.next_cursor ?? null
+            reachedMessageEnd.value = !nextMessageCursor.value    
+        }
         messageLoader.value = false
         
     }
@@ -772,7 +821,6 @@ import { DateTime } from 'luxon'
             const rows = res.data ?? res ?? []
             const newCursor = res?.next_cursor ?? null
             if (isRefresh) {
-                console.log('refreshing board list')
                 allBoardList.value = rows
                 nextCursor.value = newCursor
             } else {
@@ -870,7 +918,6 @@ import { DateTime } from 'luxon'
         trayComponentKey.value ++
     }
     const refreshMessages = (message, oldId) => {
-        console.log(message, oldId)
         const targetId = oldId ? oldId : message.id
         const index = messageList.value.map( ob => ob.id).indexOf(targetId)
         if (index > -1) {

@@ -6013,29 +6013,11 @@ input:autofill {
   margin: 0 auto;
 }
 
-.login-btn-change {
-  margin: 0 auto;
-  display: block;
-  height: 50px;
-  text-align: center;
-  line-height: 50px;
-  color: #fff;
-  background-color: var(--primary-button);
-  cursor: pointer;
-  margin-top: 30px;
-  margin-bottom: 20px;
-  width: 100%;
-}
-
 .login-header {
   width: 50%;
   text-align: center;
 }
 
-.login-content {
-  width: 35%;
-  min-height: 494px;
-}
 
 .login-form {
   background-color: var(--background-color);
@@ -6901,11 +6883,6 @@ button.shift-button {
 
   .login-header__p {
     font-size: 18px;
-  }
-
-  .login-content {
-    font-size: 14px;
-    width: 90%;
   }
 
   .component-wrapper {

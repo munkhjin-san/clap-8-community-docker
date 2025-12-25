@@ -101,9 +101,21 @@
             </div>
                     
             
-            <div class="si-box" v-if="appName == 'challenge' || app_type == 0 || app_type == 2">
+            <div class="si-box" v-if="app_type == 0">
                 <MemberSelector 
-                    :placeHolder="app_type == 2 ?  'プレイヤー選択（必須）' : appName == 'post' ? '宛先選択（必須）' : ''"
+                    :placeHolder="'宛先選択（必須）'"
+                    rules="required"
+                    name="recordUsers"
+                    :multiple="true"
+                    ref="recordUsers"
+                    :path="possiblePath"
+                    :closeOnSelect="false"
+                    v-model="to_users"
+                />
+            </div>
+            <div class="si-box" v-if="app_type == 2">
+                <MemberSelector 
+                    :placeHolder="'プレイヤー選択（必須）'"
                     rules="required"
                     name="recordUsers"
                     :multiple="true"
@@ -258,10 +270,10 @@ import PostIcon from './PostIcon.vue'
 import { DateTime } from 'luxon'
 import { useApi } from '@/composables/api'
 import { Post, PostQuery } from '@/interface/postInterface'
-import OptionSelector from '../Form/OptionSelector.vue'
 import { useDialog } from '@/composables/dialog'
 import PostExpenses from './PostExpenses.vue'
 import ItemSelector from '../Form/ItemSelector.vue'
+import { User } from '@/interface/globalInterface'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -280,7 +292,7 @@ import ItemSelector from '../Form/ItemSelector.vue'
     const content = ref(props.editTarget && props.editTarget.content ? props.editTarget.content : "")
     const content_rule = ref(props.editTarget && props.editTarget.content_rule ? props.editTarget.content_rule : "")
     const content_goal = ref(props.editTarget && props.editTarget.content_goal ? props.editTarget.content_goal : "")
-    const to_users = ref(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : app_type.value === 2 ? [auth.user] : [])
+    const to_users = ref<User[]>(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : [])
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     const refresh_amount = ref(props.editTarget && props.editTarget.refresh_amount ? props.editTarget.refresh_amount : "")
     
@@ -377,6 +389,16 @@ import ItemSelector from '../Form/ItemSelector.vue'
     watch(donatable, (newVal) => {
         if (newVal) {
             confirmDonate()
+        }
+    })
+    watch(app_type, (newVal) => {
+        if(newVal == 0 && auth.user){
+            to_users.value = to_users.value.filter(user => user && user.id != auth.id)
+        }
+        if(newVal == 2 && auth.user && !to_users.value.length){
+            if(!to_users.value.find(user => user && user.id == auth.id)){
+                to_users.value.push(auth.user as unknown as User)
+            }
         }
     })
     const confirmDonate = async() => {

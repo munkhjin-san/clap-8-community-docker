@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\ProjectMemberReportNotification;
-use App\Models\UserLastRecord;
 use App\Models\PostRecord;
 use App\Models\NoticeRecord;
 use App\Models\taskRecord;
@@ -28,30 +27,28 @@ final class BadgeService
     }
     public function post(User $user) {
         if(!empty($user)){
-            $list = UserLastRecord::where('user_id', '=', $user->id)->where('deleted_flag', '=', 0)->first();
-            $recordTypes = [
-                'post' => PostRecord::class,
-            ];
-            
-            $post = PostRecord::latest('created_at')->first();
-             
-            if(empty($list)){
-                $newls = new UserLastRecord;
-                $newls->user_id = $auth_user_id;
-                $newls->last_post = $post->id;
-                $newls->save();
-                $list = $newls;
-            }
-            
-            $post_from = $list->last_post;            
-            $post_to = $post?->id;
-            $post_difference = PostRecord::whereBetween('id', [$post_from, $post_to])->count(); 
-            if($post_difference > 0){
-                $post_difference -= 1 ;
-            }
-            $result =  $post_difference;
+            $list = $user->user_last_record()->firstOrCreate();
 
+            $created = PostRecord::where('created_at', '>', $list->updated_at ?? now())->count();
+           
+            $changed = PostRecord::where(function($q) use($list) {
+                $q->where('app_type', 2)
+                ->where('updated_at', '>', $list->updated_at ?? now());
+            })
+            ->where(function($q) use($user){
+                $q->whereHas('comment_records', function($q) use($user){
+                    $q->where('user_id', $user->id);
+                })->orWhereHas('awards', function($q) use($user){
+                    $q->where('users.id', $user->id);
+                });
+            }) 
+            ->pluck('id')->toArray();
             
+            $result = [
+                'created' => $created,
+                'changed' => count($changed),
+                'changed_ids' => $changed
+            ];       
             
 
             return $result;

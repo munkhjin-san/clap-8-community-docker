@@ -1,69 +1,66 @@
 <template>
-<div class="login-wrapper" style="display: flex;height: 100%;">
-    <div class="login-body">
-        <form class="login-form" action="/login" method="post" ref="loginForm">
-            <div class="login-header" style="display: flex;justify-content: center;margin-bottom: 20px;">   
-                <Logo/>
-            </div>
-            <div class="login-content">                
-                <div class="login-group row">
-                    <div class="form-wrapper">
-                        <input 
-                            id="login" 
-                            type="text"   
-                            class="login-plc" 
-                            name="login" 
-                            rules="required|max:100" 
-                            required 
-                            autocomplete="login" 
-                            autofocus
-                        />
-                        <label class="form-plc">アカウント名</label>
-                    </div>
-                </div>
-                <input type="text" name="username" hidden autocomplete="login"/>
-                
-                <div class="login-group row" style="margin-top: 30px;">                         
-                    <div class="form-wrapper">
-                        <input 
-                            id="password" 
-                            type="password" 
-                            class="login-plc" 
-                            name="password" 
-                            rules="required" 
-                            required 
-                            autocomplete="current-password"
-                        />
-                        <label class="form-plc">パスワード</label>
-                    </div>
-                </div>
-                <div class="form-group row mb-0">
-                    <div class="si-box">
-                        <button class="btn btn-primary login-btn-change" type="submit">ログイン</button>
-                    </div>
-                    <input type="hidden" name="_token" :value="csrfToken">
-                </div>
-                <div class="login-group" v-if="errorMessage">
-                    <p class="valid-error">{{ errorMessage }}</p>
-                </div>
-                <div class="login-group" v-if="errors && errors.length">
-                    <p class="valid-error" v-for="error in errors">{{ error }}</p>
+<div class="login-wrapper" style="display: flex;height: 100dvh">
+    <form class="login-form" action="/login" method="post" ref="loginForm">
+        <div class="login-header flex flex-col items-center gap-2 mb-5">   
+            <img :src="`/lg_${theme.dark ? 'white' : 'black'}.webp`" style="max-width: min(160px, 40vw);">
+        </div>
+        <div class="login-content">                
+            <div class="login-group row">
+                <div class="form-wrapper">
+                    <input 
+                        id="login" 
+                        type="text"   
+                        class="login-plc" 
+                        name="login" 
+                        rules="required|max:100" 
+                        required 
+                        autocomplete="login" 
+                        autofocus
+                    />
+                    <label class="form-plc">アカウント名</label>
                 </div>
             </div>
-        </form>
-    </div>
+            <input type="text" name="username" hidden autocomplete="login"/>
+            
+            <div class="login-group row" style="margin-top: 30px;">                         
+                <div class="form-wrapper">
+                    <input 
+                        id="password" 
+                        type="password" 
+                        class="login-plc" 
+                        name="password" 
+                        rules="required" 
+                        required 
+                        autocomplete="current-password"
+                    />
+                    <label class="form-plc">パスワード</label>
+                </div>
+            </div>
+            <div class="form-group row mb-0">
+                <div class="si-box">
+                    <button class="btn btn-primary login-btn-change" style="max-width: min(160px, 40vw);" type="submit">ログイン</button>
+                </div>
+                <input type="hidden" name="_token" :value="csrfToken">
+            </div>
+            <div class="login-group" v-if="errorMessage">
+                <p class="valid-error">{{ errorMessage }}</p>
+            </div>
+            <div class="login-group" v-if="errors && errors.length">
+                <p class="valid-error" v-for="error in errors">{{ error }}</p>
+            </div>
+        </div>
+    </form>
 </div>
 </template>
 <script setup>
-    import Logo from '../Global/Logo.vue'
+    import { useTheme } from '@/store/theme';
     import { onMounted, ref } from 'vue';
     const props = defineProps(['message', 'errors'])
     const errorMessage = ref(null)
-    const tempNum = ref(null)
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content
-    const loginForm = ref(null)
+    const theme = useTheme()
     onMounted(() => {
-        window.document.title = `ログイン`; 
+        window.document.title = `GLOWD - ログイン`; 
         if(props.message){
             errorMessage.value = props.message
         } else {
@@ -125,17 +122,16 @@
         height: 50px;
         text-align: center;
         line-height: 50px;
-        color: #fff;
+        color: #fff !important;
         background-color: var(--primary-button);
         cursor:pointer;
         margin-top:30px; 
         margin-bottom:20px;
         width:100%;
-        font-size: 13px;
+        font-size: 16px;
     }
     .login-content{
         width: 35%;
-        min-height: 494px;
     }
     .login-form{
         background-color:var(--background-color);
@@ -144,11 +140,12 @@
         flex-direction: column;
         align-items: center;
         color: var(--primary-color);
+        justify-content: center;
+        height: 100dvh;
     }
     .login-body{
         display:block;
         width: 80%;
-        margin: auto;
         position: relative;
     }
     .list-wrapper {

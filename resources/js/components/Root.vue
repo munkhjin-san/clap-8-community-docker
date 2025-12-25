@@ -57,7 +57,7 @@
                 copy-subtitle="https://clap-glowd.com"
                 copy-share-step="下の「シェア」ボタンを押してください。"
                 copy-add-to-home-screen-step="「ホーム画面に追加」ボタンを押してください。"
-                appIconPath="/icon-152x152.png"
+                appIconPath="/androidv4/icon192.png"
                 @close="savePWAStatus"
             />
         </Transition>
@@ -165,7 +165,6 @@ import { useDialog } from '@/composables/dialog';
 
         if(!auth.isPartner){
             // jobs.push(badge.getNoticeBadge())
-            // jobs.push(badge.getPostBadge())
             jobs.push(badge.getRemindBadge())
         }
         jobs.push(badge.getbadgeSummary())
@@ -192,7 +191,7 @@ import { useDialog } from '@/composables/dialog';
 
     const postHandler = () => {
         if(!auth.isPartner){
-            badge.getPostBadge()
+            badge.getbadgeSummary()
         }
     }
     const activeAccountHandler = (e) => {
@@ -201,7 +200,7 @@ import { useDialog } from '@/composables/dialog';
         }
     }
     const docTitle = computed(() => {       
-        const name = route.meta && route.meta.title ? route.meta.title : 'MISO'
+        const name = route.meta && route.meta.title ? route.meta.title : 'GLOWD'
         const total = badge.sumOfAll
         const badgeCount = total && total > 0 ?  `【${total}】` : ''
         const space = badgeCount ? ' ' : ''

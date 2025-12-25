@@ -212,7 +212,7 @@ import { DateTime } from 'luxon';
         try{
             const response = await api.post('/chat_add_api', params)
             if(response  && response.success && response.u_id == props.message.u_id){
-                sent(props.message, response.message.messages, response.last_message)
+                sent(props.message, response.message.messages.data, response.last_message)
                 resetReplyQuot()
                 resending.value = false
                 let u_list = tempUnique.ids

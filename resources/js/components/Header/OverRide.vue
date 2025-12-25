@@ -38,31 +38,41 @@
 <script setup>
 
 import theme from 'assets/theme.json'
-import MessageUsers from '../Board/Message/MessageUsers.vue'
-import SharingData from '../Global/SharingData.vue'
-import FilePreview from '../Board/Tray/File/FilePreview.vue'
+// import MessageUsers from '../Board/Message/MessageUsers.vue'
+// import SharingData from '../Global/SharingData.vue'
+// import FilePreview from '../Board/Tray/File/FilePreview.vue'
 import CheckWork from '../Global/CheckWork.vue'
-import TaskRequest from '../Board/Tray/Task/TaskRequest.vue'
-import { onBeforeMount, onMounted, ref, watch } from 'vue'
+// import TaskRequest from '../Board/Tray/Task/TaskRequest.vue'
+import { defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useFilePreview } from "@/store/filePreview"
 import { useAuthUserStore } from '@/store/auth'
 import { useTheme } from '@/store/theme'
 import { useMessageUsers } from '@/store/messageUsers'
 import { useSharingDataStore } from '@/store/sharingData'
-import TaskUsers from '../Board/Tray/Task/TaskUsers.vue'
+// import TaskUsers from '../Board/Tray/Task/TaskUsers.vue'
 import { useTaskUsers } from '@/store/taskUsers'
 import { useTaskRequest } from '@/store/taskRequest'
-import ProjectUsers from '../AccountControl/ProjectControl/ProjectUsers.vue'
-import DateTimeSelect from '../Global/DateTimeSelect.vue'
+// import ProjectUsers from '../AccountControl/ProjectControl/ProjectUsers.vue'
+// import DateTimeSelect from '../Global/DateTimeSelect.vue'
 import { useProjectUsers } from '@/store/projectUsers'
 import { useMessageSchedule } from '@/store/messageSchedule'
-import SurveyUsers from '../Survey/SurveyUsers.vue'
+// import SurveyUsers from '../Survey/SurveyUsers.vue'
 import { useSurveyUsers } from '@/store/surveyUsers'
-import WeatherPopup from '../Global/WeatherPopup.vue'
+// import WeatherPopup from '../Global/WeatherPopup.vue'
 import { isTodayDone } from '@/utils/tools'
 import { useModal } from '@/composables/modal'
-import EmoteUsers from '../Global/EmoteUsers.vue'
+// import EmoteUsers from '../Global/EmoteUsers.vue'
+const TaskUsers = defineAsyncComponent(() => import('../Board/Tray/Task/TaskUsers.vue'))
+const ProjectUsers = defineAsyncComponent(() => import('../AccountControl/ProjectControl/ProjectUsers.vue'))
+const DateTimeSelect = defineAsyncComponent(() => import('../Global/DateTimeSelect.vue'))
+const SurveyUsers = defineAsyncComponent(() => import('../Survey/SurveyUsers.vue'))
+const WeatherPopup = defineAsyncComponent(() => import('../Global/WeatherPopup.vue'))
+const EmoteUsers = defineAsyncComponent(() => import('../Global/EmoteUsers.vue'))
+const MessageUsers = defineAsyncComponent(() => import('../Board/Message/MessageUsers.vue'))
+const SharingData = defineAsyncComponent(() => import('../Global/SharingData.vue'))
+const FilePreview = defineAsyncComponent(() => import('../Board/Tray/File/FilePreview.vue'))
+const TaskRequest = defineAsyncComponent(() => import('../Board/Tray/Task/TaskRequest.vue'))
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()
@@ -76,20 +86,7 @@ import EmoteUsers from '../Global/EmoteUsers.vue'
     const messageSchedule = useMessageSchedule()
     const weatherModal = ref(false)
     const { emoteUsers } = useModal()
-    onBeforeMount(() => {
-        const customTheme = localStorage.getItem('dark')
-        if(customTheme == 0 || customTheme == '0' || !customTheme){
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                themeStore.setDark(true)
-            } else {
-                themeStore.setDark(false)
-            }
-        }else if(parseInt(customTheme) == 1 ){
-            themeStore.setDark(true)
-        }else if(parseInt(customTheme) == 2 ){
-            themeStore.setDark(false)
-        }
-    })
+    
     watch(() => themeStore.dark, (newVal) => {
         if(theme){
             theme.forEach(pallete => {

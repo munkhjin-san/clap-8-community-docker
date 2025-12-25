@@ -116,7 +116,7 @@
                         <path class="cls-1" d="m21.54.32c-.25-.3-.67-.39-1.04-.25h0c-.84.33-1.68.66-2.51,1-.84.34-1.67.68-2.5,1.02-1.67.68-3.33,1.38-4.99,2.07l-4.99,2.08L.52,8.35c-.27.11-.48.37-.52.71s.18.7.51.84h.01c.69.31,1.39.6,2.08.89l2.09.86c.7.28,3.95,1.5,4.24,1.6s.6.06.86-.17,6.1-6.39,6.1-6.39c.23-.23.22-.61-.02-.83s-.6-.2-.83.02l-5.71,5.43c-.16.15-.39.19-.59.1-.42-.19-4.51-1.88-5.16-2.14-.16-.06-.16-.28,0-.35l2.59-1.04,5.01-2.02c1.67-.68,3.34-1.35,5.01-2.03.59-.24,1.74-.72,2.42-1,.2-.08.4.12.31.31l-3.04,7.42-2.04,5.01c-.36.9-.73,1.79-1.09,2.69-.06.15-.28.16-.34,0l-1.52-3.53c-.15-.31-.56-.46-.92-.32s-.5.5-.37.81l2.22,6c.1.26.33.48.65.54.39.07.78-.16.94-.53h0c.7-1.67,1.39-3.33,2.08-4.99l2.07-4.99L21.69,1.26c.12-.29.09-.66-.15-.95Z"/>
                     </svg>
                     <span v-if="sideMenuView.active">ポスト</span>    
-                    <span v-if="badge.post" class="side-notification">{{ badgeFilter(badge.post)}}</span>                 
+                    <span v-if="badge.post.changed + badge.post.created" class="side-notification">{{ badge.post.changed + badge.post.created }}</span>                 
                 </div>                
             </router-link>
             <router-link :to="adminRoute" v-if="[608, 610].includes(auth.activeUser.id) || auth.activeUser.position_id <= 6" :class="['side-menu-route', { selectedRoute: route.path.includes('admin_control')}]">
@@ -136,7 +136,7 @@
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" to="/support/faq">サポートデスク</router-link>
                     <!-- <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'survey-answers'}">フォーム</router-link> -->
                     <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'settings'}">設定</router-link>
-                    <!-- <router-link :to="({name: 'help'})" class="login-link jump-link" style="cursor: pointer;font-size: 15px;">ヘルプ</router-link> -->
+                    <router-link :to="({name: 'help'})" class="login-link jump-link" style="cursor: pointer;font-size: 15px;">ヘルプ</router-link>
                     <router-link v-if="auth.isPartner" class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{name: 'asset-partner'}">物品</router-link>
                     <!-- <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" :to="{path: route.fullPath, query: {remind: true} }">リマインダー表示</router-link> -->
                 </div>         

@@ -1,7 +1,7 @@
 <div class="container">
     <div  style="display: flex;justify-content:center;align-items:center;height:100%;background-color:rgb(243 244 246);line-height:35px;">
         <div class="card">
-            <h1 style="text-align:center;font-size: 3em;margin-bottom: 25px;">MISO</h1>
+            <h1 style="text-align:center;font-size: 3em;margin-bottom: 25px;">GLOWD</h1>
             <div class="card-body" style="border-radius: 0.5rem; display:block;margin:auto;padding: 1rem 1.5rem; max-width:28rem;background-color:#fff; box-shadow: var(0 4px 6px -1px rgb(0 0 0 / .1), 0 2px 4px -2px rgb(0 0 0 / .1));">
                 <div class="card-header" style="font-weight: 600">{{ __('Мэйл хаягаа баталгаажуулна уу') }}</div>
                 @if (session('resent'))

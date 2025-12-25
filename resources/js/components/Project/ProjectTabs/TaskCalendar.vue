@@ -94,10 +94,6 @@
                                 :project="project" @setFullText="(data) => Object.assign(quickEdit, data)"
                                 @setCommentingTaskId="(id) => commentView = id"/>
                         </template>
-
-                        <template #edge-custom="edgeProps">
-                            <CustomEdge v-bind="edgeProps" />
-                        </template>
                     </VueFlow>
                 </div>
             </div>
@@ -130,7 +126,6 @@
 
 import { useElementSize, useWindowSize } from '@vueuse/core'
 import { VueFlow, useVueFlow, type Node, type Edge, VueFlowStore, MarkerType, EdgeMouseEvent } from '@vue-flow/core'
-import CustomEdge from '@/components/Task/Gantt/CustomEdge.vue'
 import { Handle, Position } from '@vue-flow/core'
 import { GanttProjectMethodsKey } from '@/interface/keys';
 import { computed, ref, onMounted, reactive, provide, inject, useTemplateRef, onUnmounted } from 'vue';

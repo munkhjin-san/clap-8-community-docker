@@ -63,7 +63,7 @@ class User extends Authenticatable
     }
 
     public function user_last_record(){
-        return $this->hasOne(userLastRecord::class, 'user_id');
+        return $this->hasOne(UserLastRecord::class, 'user_id');
     }
     public function messageRecords()
     {

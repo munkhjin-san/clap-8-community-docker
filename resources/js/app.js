@@ -10,11 +10,15 @@ const app = createApp({});
 import '../sass/main.css'
 import 'vue3-emoji-picker/css'
 import { Settings } from 'luxon';
+import { useTheme } from './store/theme';
 Settings.defaultLocale = 'ja';
 
 import { createPinia } from 'pinia'
 const pinia = createPinia()
 import router from './router'
+
+
+
 if (screen.orientation && screen.orientation.lock) {
   screen.orientation.lock('portrait').then(() => {
     console.log("Portrait mode locked");
@@ -27,20 +31,24 @@ const customTheme = localStorage.getItem('dark')
 if(customTheme == 0 || customTheme == '0' || !customTheme){
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         dark = true
+
     } else {
         dark = false
+
     }
 }else if(parseInt(customTheme) == 1 ){
     dark = true
+
 }else if(parseInt(customTheme) == 2 ){
     dark = false
+
 }
 if(theme){
     theme.forEach(pallete => {
         document.documentElement.style.setProperty(pallete.className, dark ? pallete.dark : pallete.light);
     });
 } 
-
+console.log(`Theme: ${dark ? 'dark' : 'light'}`)
 import Vue3TouchEvents from "vue3-touch-events";
 import { createVuetify } from 'vuetify'
 const vuetify = createVuetify()
@@ -58,3 +66,6 @@ app
 .use(vuetify)
 app.mount('#app');
 
+
+const themeStore = useTheme()
+themeStore.setDark(dark)

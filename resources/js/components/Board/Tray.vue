@@ -35,13 +35,16 @@
 </template>
 <script setup lang="ts">
 
-import FileContainer from './Tray/File/FileContainer.vue'
-import { computed } from 'vue';
-import TaskComponent from '../Task/TaskComponent.vue';
+// import FileContainer from './Tray/File/FileContainer.vue'
+import { computed, defineAsyncComponent } from 'vue';
+// import TaskComponent from '../Task/TaskComponent.vue';
 import { useBadgeStore } from '@/store/badge'
 import { DateTime, Interval } from 'luxon'
 import { Board } from '@/interface/globalInterface';
-import FormContainer from './Tray/Form/FormContainer.vue';
+// import FormContainer from './Tray/Form/FormContainer.vue';
+const FileContainer = defineAsyncComponent(() => import('./Tray/File/FileContainer.vue'));
+const TaskComponent = defineAsyncComponent(() => import('../Task/TaskComponent.vue'));
+const FormContainer = defineAsyncComponent(() => import('./Tray/Form/FormContainer.vue'));
     const badge = useBadgeStore()
     const props = defineProps<{
         trayItemWhich: number
