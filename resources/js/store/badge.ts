@@ -196,7 +196,7 @@ export const useBadgeStore = defineStore('badge', {
             });
             const projectBadge = this.projectTotal + this.projectCommentTotal;
             const remindBadge = this.remind.total
-            const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : this.post; 
+            const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : (this.post.changed + this.post.created); 
             sum = sum + postBadge + projectBadge + remindBadge
             return sum
         },
