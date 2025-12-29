@@ -51,11 +51,11 @@
         <div v-if="data.form_type == 'checkbox'">
             <div class="report-field">
                 <p class="report-header">{{ data.title }}</p>
-                <div class="report-input">
+                <div class="report-input flex-wrap md:flex-nowrap">
                     <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records.filter(part => part.parts_value != 2 || shift_type?.id == 0)" :key="index">
                         <div>
                             <input :id="'workAllowance' + index" type="checkbox" name="allowance" v-model="value" :value="customPart.parts_value">
-                            <label :for="'workAllowance' + index">{{ customPart.parts_lavel }}</label> 
+                            <label class="allowance-label" :for="'workAllowance' + index">{{ customPart.parts_lavel }}</label> 
                         </div>
                     </div>
                 </div>

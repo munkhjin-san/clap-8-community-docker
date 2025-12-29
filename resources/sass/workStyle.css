@@ -804,6 +804,9 @@
     transform: rotate(180deg);
   }
   @media screen and (max-width: 959px) {
+    .allowance-label {
+        font-size: 11px !important;
+    }
     .condition-area{
         align-items: center;
         justify-content: unset;
