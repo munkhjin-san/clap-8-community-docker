@@ -39,7 +39,7 @@
         if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
             artwork: [
-            { src: '/android/icon512.png', sizes: '512x512', type: 'image/png' },
+            { src: '/v7/512.png', sizes: '512x512', type: 'image/png' },
             ],
         });
         }

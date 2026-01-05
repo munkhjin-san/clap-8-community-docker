@@ -6,39 +6,39 @@
   "lang": "ja",
   "icons": [
     {
-      "src": "androidv4/icon512.png",
+      "src": "v7/512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
     },
     {
-      "src": "androidv4/icon512.png",
+      "src": "v7/512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "androidv4/icon192.png",
+      "src": "v7/512.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "androidv4/icon144.png",
+      "src": "v7/512.png",
       "type": "image/png",
       "sizes": "144x144"
     },
     {
-      "src": "androidv4/icon96.png",
+      "src": "v7/512.png",
       "type": "image/png",
       "sizes": "96x96"
     },
     {
-      "src": "androidv4/icon72.png",
+      "src": "v7/512.png",
       "type": "image/png",
       "sizes": "72x72"
     },
     {
-      "src": "androidv4/icon48.png",
+      "src": "v7/512.png",
       "type": "image/png",
       "sizes": "48x48"
     }
