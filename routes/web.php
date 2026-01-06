@@ -491,6 +491,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_salary_options', [ProjectController::class, 'get_salary_options']);
         Route::post('/get_evaluations', [ProjectController::class, 'get_evaluations']);
         Route::post('/save_evaluation_grade', [ProjectController::class, 'save_evaluation_grade']);
+        Route::post('/upload_evaluation_csv', [ProjectController::class, 'upload_evaluation_csv']);
         Route::put('/save_member_role', [ProjectController::class, 'save_member_role']);
         Route::post('/set_increase_request', [ProjectController::class, 'set_increase_request']);
         Route::post('/get_evaluation_data', [ProjectController::class, 'get_evaluation_data']);
@@ -595,7 +596,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_my_surveys', [CustomFormController::class, 'get_my_surveys']);
         Route::get('/get_board_forms', [CustomFormController::class, 'get_board_forms']);
         Route::put('/save_form_prize', [CustomFormController::class, 'save_form_prize']);
-
+        Route::post('/update_custom_form_status', [CustomFormController::class, 'update_custom_form_status']);
 
         //Contact
         Route::post('contact_item', [ContactController::class, 'create_contact']);

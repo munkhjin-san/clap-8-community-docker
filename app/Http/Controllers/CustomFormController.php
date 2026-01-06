@@ -75,8 +75,9 @@ class CustomFormController extends Controller
     public function get_custom_forms(Request $request){
         $active_user = $this->active_user();
 
-        $forms = CustomForm::where(function($q) {
-            $q->whereNull('board_record_id')->orWhere('board_record_id', 3758);
+        $forms = CustomForm::where(function($q) use($request) {
+            $q->where('status', $request->status)
+                ->whereNull('board_record_id')->orWhere('board_record_id', 3758);
         })->with(['blocks'])->orderBy('created_at', 'desc')
         ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
             $q->whereHas('admins', function($q) use($active_user){
@@ -179,6 +180,17 @@ class CustomFormController extends Controller
         $form->blocks()->delete();
         $form->delete();
         return response('Form deleted successfully', 200);
+    }
+    public function update_custom_form_status(Request $request){
+        $request->validate([
+            'id' => 'required|integer',
+            'status' => 'required|integer',
+        ]);
+        $form = CustomForm::findOrFail($request->id);
+        $form->update([
+            'status' => $request->status,
+        ]);
+        return response()->json($form);
     }
     private function saveBlocks($form, array $blocks)
     {
@@ -405,11 +417,11 @@ class CustomFormController extends Controller
         ]);
         $forms = CustomForm::where('board_record_id', $request->board_id)
             ->with(['blocks'])
-            ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
-                $q->whereHas('admins', function($q) use($active_user){
-                    $q->where('user_id', $active_user->id);
-                });
-            })
+            // ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
+            //     $q->whereHas('admins', function($q) use($active_user){
+            //         $q->where('user_id', $active_user->id);
+            //     });
+            // })
             ->with(['users', 'admins', 'survey_answers' => function($q){
                 $q->with(['user' => function($q){
                     $q->select('id', 'name', 'icon_path', 'icon_bg');

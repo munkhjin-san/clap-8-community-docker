@@ -1,6 +1,15 @@
 <template>
     <div class="admin-window">
+        <Transition name="modalFade">
+            <div v-if="loading" class="control-loader">
+                <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+            </div> 
+        </Transition>
         <div class="h-full w-full overflow-auto p-[20px]">
+            <div class="sub-tab-container" style="margin-bottom: 20px;">
+                <div @click="formStatus = 0" :class="['sub-tab-item', { 'selected-sub-tab': formStatus == 0}]">進行中</div>
+                <div @click="formStatus = 1" :class="['sub-tab-item', { 'selected-sub-tab': formStatus == 1}]">完了</div>
+            </div> 
             <div class="w-[calc(100%-40px)] flex flex-col gap-[20px]">
                 <div @click="router.push({name: 'formDetail', params: {formId: form.id}})" v-for="form in forms" class="relative bg-[var(--background-color)] cursor-pointer p-[20px] ">
                     <div class="w-full">{{ form.title }}</div>
@@ -9,6 +18,7 @@
                             {title: '編集', action: () => {editData = form; openModal = true}},
                             {title: '削除', action: () => {deleteForm(form.id)}},
                             {title: '再利用', action: () => {duplicateForm(form.id)}},
+                            {title: formStatus == 0 ? '完了' : '再開', action: () => {updateFormStatus(form.id, formStatus == 0 ? 1 : 0)}},
                         ]"/>
                     </div>
                     <div class="mt-[20px] w-fit">
@@ -73,7 +83,7 @@
 </template>
 <script setup lang="ts">
 import { CustomForm, CustomFormUser } from '@/interface/customFormInterface';
-import { computed, inject, ref } from 'vue';
+import { computed, inject, ref, watch } from 'vue';
 import { onMounted } from 'vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import CustomFormCreate from './CustomFormCreate.vue';
@@ -95,14 +105,17 @@ const route = useRoute()
 const forms = ref<CustomForm[]>([])
 const openModal = ref(false)
 const editData = ref<CustomForm | null>(null)
+const formStatus = ref(0)
+const loading = ref(true)
 const selectedForm = computed(() => {
     const selectedId = route.params?.formId ? Number(route.params.formId) : null
     
     return selectedId ? forms.value.find( f => f.id == selectedId) ?? null : null 
 })
 const getForms = async() => {
-    const data = await api.get('/get_custom_forms')
+    const data = await api.get('/get_custom_forms', { status: formStatus.value})
     data && (forms.value = data as CustomForm[])
+    loading.value = false
 }
 const closeCreate = (flag:boolean) => {
     editData.value = null
@@ -125,9 +138,19 @@ const duplicateForm = async(id: number) => {
     data && getForms()
     
 }
+const updateFormStatus = async(id: number, status: number) => {
+    const data = await api.post('/update_custom_form_status', {id: id, status: status}, {
+        toast: status == 1 ? 'フォームを完了しました。' : 'フォームを再開しました。',
+    })
+    data && getForms()    
+}
 const setViewUsers = (payload: {title: string, users: CustomFormUser[]}) => {
     viewUsers.value = payload
 }
+watch(formStatus, () => {
+    loading.value = true
+    getForms()
+})
 </script>
 <style scoped>
     .c-button{

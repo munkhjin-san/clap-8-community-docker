@@ -1567,6 +1567,7 @@ class WorkController extends Controller
             $this->respond_overtime(new Request ($data));
         }
         if(!empty($time_card_record)){
+            $time_card_record->approved_by = $user->id;
             $time_card_record->status_flag = 2;
             $time_card_record->save();
         }
@@ -1577,10 +1578,11 @@ class WorkController extends Controller
 
 
     public function cancelTimeCard(Request $request){
-
+        $active_user = $this->active_user();
         $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', $request->record_day )->first();
 
         if(!empty($time_card_record)){
+            $time_card_record->approved_by = $active_user->id;
             $time_card_record->status_flag = 1;
             $time_card_record->save();
         }
@@ -1591,6 +1593,7 @@ class WorkController extends Controller
     }
     public function attendanceConfirm(Request $request){
         if(!empty($request)){
+            $active_user = $this->active_user();
             [$currentYear, $currentMonth] = explode('-', $request->date_year_month);
             $shift_records = shiftRecord::whereYear('shift_day', $currentYear)
                             ->whereMonth('shift_day', $currentMonth)
@@ -1645,6 +1648,7 @@ class WorkController extends Controller
             $attendance_record->absence_hour = $absence_hours >= 0 ? $absence_hours : 0;
             $attendance_record->date_year_month = $request->date_year_month;
             $attendance_record->user_id = $request->user['id'];
+            $attendance_record->confirmed_by = $active_user->id;
             $attendance_record->user_code = $request->user['user_code'];
             $attendance_record->name = $request->user['name'];
             $attendance_record->pay_day = 20;
@@ -1694,7 +1698,7 @@ class WorkController extends Controller
         $user_id = $request->user['id'];
 
         $attendance_record = attendanceRecord::where('user_id', '=' , $user_id )->where('date_year_month', '=' , $request->date_year_month )->first();
-
+        $active_user = $this->active_user();
         $work_type_flag = $request->user['work_type'];
         $work_type = $work_type_flag == 0 ? 'フレックス' : '通常';
         $month_petition = '済';
@@ -1702,6 +1706,7 @@ class WorkController extends Controller
         if(empty($attendance_record)){
             $attendance_record = new attendanceRecord;
             $attendance_record->user_id = $user_id;
+            $attendance_record->confirmed_by = $active_user->id;
             $attendance_record->name = $request->user['name'];
             $attendance_record->user_code = $user_code;
             $attendance_record->date_year_month = $request->date;
