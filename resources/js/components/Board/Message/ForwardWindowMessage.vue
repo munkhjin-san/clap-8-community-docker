@@ -18,8 +18,8 @@ import { computed } from 'vue';
     const emit = defineEmits(['close'])
     const forwardText = computed(() => {
         let text = '';
-        if(props.item.message_text){
-            text = props.item.message_text
+        if(props.item.message){
+            text = props.item.message
         }else if(props.item.message_files){
             text = 'ファイルメッセージ'
         }

@@ -64,7 +64,7 @@
                         <p class="dateText" style="font-size:12px;color:grey">{{ DateParser(message.created_at) }}</p>
                     </div>
                 </div>
-                <div style="white-space: break-spaces;line-height: 1.4;" v-html="searchMessageBody(message.message_text)"></div>                
+                <div style="white-space: break-spaces;line-height: 1.4;" v-html="searchMessageBody(message.message)"></div>                
             </div>
         </div>
         <div style="height: -webkit-fill-available;overflow: hidden auto;font-size:13px;padding: 0 20px;" v-if="messageResult.data.length && !searchLoader && !searchMiniLoader && resultGroupBy == 'board'">
@@ -113,7 +113,6 @@ import { useBoardList } from '@/composables/board';
         record_id: number
         created_at: string
         message: string
-        message_text: string
         user: User
     }
     interface BoardResult {

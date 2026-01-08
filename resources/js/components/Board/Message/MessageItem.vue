@@ -600,7 +600,7 @@ import Character from "@/components/Global/Character.vue";
                 active: true,
                 message: props.message,
                 title: '',
-                text: props.message.message_text,
+                text: props.message.message,
                 files: files,
                 from: 'message',
                 to: to,

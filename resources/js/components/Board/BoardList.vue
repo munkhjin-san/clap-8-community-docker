@@ -7,26 +7,13 @@
                     @mouseenter="boardListDropEnterFromFile(item)" 
                     @mouseleave="boardListDropLeaveFromFile(item)" 
                     class="left-panel-inner cursor-pointer" 
-                    v-for="(item) in pinnedBoards"
+                    v-for="(item) in boardList"
                 >                  
                     <BoardItem 
                         :item="item"               
                         :hasFailedMessage="failedMessageLen(item.id)"
                     />
-                </div>
-                <div 
-                    :key="item.id" 
-                    @mouseenter="boardListDropEnterFromFile(item)" 
-                    @mouseleave="boardListDropLeaveFromFile(item)" 
-                    class="left-panel-inner cursor-pointer" 
-                    v-for="(item) in unPinnedBoards"
-                >
-                    <BoardItem 
-                        :item="item"               
-                        :hasFailedMessage="failedMessageLen(item.id)"
-                    />
-                </div>
-                
+                </div>                
                  <FloatButton 
                     v-if="auth.user && auth.user.partner_flag !== 1"
                     :hide-on="panelContainer"
@@ -46,7 +33,7 @@
 <script setup lang="ts">
 import BoardItem from './BoardItem.vue'
 import SkeletonBoard from './SkeletonBoard.vue'
-import { computed, inject, ref, useTemplateRef } from 'vue';
+import { inject, ref, useTemplateRef } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive'
 import { useSharingDataStore } from '@/store/sharingData'
@@ -73,10 +60,6 @@ import { useRoute } from 'vue-router';
     const route = useRoute()
     const panelContainer = useTemplateRef('panelContainer')
 
-    const pinnedBoards = computed(() => boardList.value.filter( board => board.board_to_users.find(user => user.user_id === auth.activeUser.id)?.pin_flag === 1))
-
-    const unPinnedBoards = computed(() => boardList.value.filter( board => board.board_to_users.find(user => user.user_id === auth.activeUser.id)?.pin_flag === 0))
-     
     const boardListDropEnterFromFile = (board) => {
         if(responsive.mobile) return 
         bounceId.value = board.id

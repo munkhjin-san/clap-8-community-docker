@@ -34,7 +34,6 @@ export interface Board {
 }
 interface LastMessage {
     message: string | null
-    message_text: string | null
     message_files_exists: boolean
 }
 export interface BoardMember {
@@ -165,7 +164,6 @@ export interface Message {
     quot_flag?: boolean | null;
     attached_temp_files?: MessageFile[] | [];
     message: string | null;
-    message_text?: string | null;
     check_flag?: number;
     emoji_flag?: number;
     info_flag?: number;

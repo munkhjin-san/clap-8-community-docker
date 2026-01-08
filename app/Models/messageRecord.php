@@ -90,4 +90,12 @@ class messageRecord extends Model
         'emoji_flag' => 'int',    
         'info_flag' => 'int',
     ];
+    protected $hidden = [
+        'message_text',
+        'reacted_users',
+        'checked_users',
+        'unchecked_users',
+        'app_export'
+    ];
+
 }

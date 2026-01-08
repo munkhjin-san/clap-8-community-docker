@@ -219,7 +219,7 @@ import { useBoardList } from '@/composables/board';
     })
     onMounted(() => {
         if(!props.editTaskData && sharingData.active){
-            content.value = sharingData?.message?.message_text
+            content.value = sharingData?.message?.message
             const shareData = {
                 active: false,
                 title: '',

@@ -38,7 +38,6 @@ class boardRecord extends Model
         ->select([
             'message_records.id',
             'message_records.message',
-            'message_records.message_text',
             'message_records.record_id',
             'message_records.created_at',
         ])
