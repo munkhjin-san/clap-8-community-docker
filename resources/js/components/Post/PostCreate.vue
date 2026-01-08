@@ -361,14 +361,25 @@ import { User } from '@/interface/globalInterface'
         return app_type.value === 2 ? 'post_get_challenge_users' : `post_get_post_users`
     })
     const dateComparsionError = computed(() =>{
-        if(date_start.value && date_end.value){
-            const wrongDuration = (DateTime.fromISO(date_start.value).diff(DateTime.fromISO(date_end.value), 'days').toObject().days ?? 0) > 0               
+        const duration = (DateTime.fromISO(date_end.value).diff(DateTime.fromISO(date_start.value), 'days').toObject().days ?? 0)
+        if (!DateTime.fromISO(date_start.value).isValid || !DateTime.fromISO(date_end.value).isValid) {
+            return {
+                hasError: false,
+                message: ''
+            }
+        }
+        if (duration < 0) {
             return{
-                hasError: wrongDuration,
-                message: wrongDuration ? '終了日は開始日より前にすることはできません。' : ''
+                hasError: duration < 0,
+                message: '終了日は開始日より前にすることはできません。'
             }                      
 
-        }else{
+        } else if (duration < 10) {
+            return {
+                hasError: duration < 10,
+                message: '実施期間は最低10日間以上必要です。'
+            }
+        } else {
             return {
                 hasError: false,
                 message: ''

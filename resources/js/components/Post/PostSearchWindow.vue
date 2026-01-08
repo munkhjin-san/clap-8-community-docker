@@ -293,10 +293,12 @@ import { Post } from '@/interface/postInterface';
     const status = (record) => {
         if (record.app_type !== 2) return;
         const statusMap = {
-            0: DateTime.now() <= customParser(record.date_end) ? '実施中' : '結果待ち',
+            0: DateTime.now() <= customParser(record.date_end) ? 'チャージ受付中' : '結果待ち',
             1: '達成',
             2: '未達成',
-            3: '中止'
+            3: '中止',
+            4: '不成立',
+            5: 'チャレンジ進行中'
         };
         return statusMap[record.status_flag];
     }

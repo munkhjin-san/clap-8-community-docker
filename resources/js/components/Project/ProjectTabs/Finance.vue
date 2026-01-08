@@ -3,8 +3,8 @@
         <div class="flex justify-between items-center p-4">
             <div class="sub-tab-container">
                 <div @click="changeBetweenTabs('check')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'check'}]">収支確認</div>
-                <div v-if="selectedProject.has_actual_func" @click="changeBetweenTabs('case')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'case'}]">実績管理</div>
-                <!-- <div v-if="hasPrivilage" @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算</div> -->
+                <div v-if="selectedProject.has_actual_func" id="performanceManagement" @click="changeBetweenTabs('case')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'case'}]">実績管理</div>
+                <div v-if="hasPrivilage" @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算</div>
             </div>
         </div>
         
@@ -296,26 +296,11 @@
                 :select-project="selectedProject" 
                 :refresh-key="caseRefreshKey"
                 :has-privilage="hasPrivilage"
-                @view="viewCase"
+                :year="year"
+                :month="month"
             />
         
-            <FloatButton v-if="selectedProject.has_goals && hasPrivilage" @action="caseWindow = true">
-                <template #icon>
-                    <AddIcon size="15" fill="black"/>
-                </template>
-            </FloatButton>
-
-            <CaseCreate 
-                v-if="caseWindow && selectedProject"
-                :project-id="selectedProject.id"
-                :selected-project="selectedProject"
-                :report-year="year"
-                :report-month="month"
-                :has-privilage="hasPrivilage"
-                :selected-case="selectedCaseMeta"
-                @close="caseWindow = false, selectedCaseMeta = null"
-                @saved="handleCaseSaved"
-            />
+            
         </div>
         
         
@@ -358,12 +343,11 @@ import { User } from '@/interface/globalInterface';
 import { Project } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge';
 import YearlyBudget from './Finance/YearlyBudget.vue';
-import CaseCreate from './Finance/CaseCreate.vue';
-import FloatButton from '@/components/Global/FloatButton.vue';
-import AddIcon from '@/components/Form/AddIcon.vue';
 import CaseConfirm from './Finance/CaseConfirm.vue';
 import PeriodRangePicker from './Finance/PeriodRangePicker.vue';
 import { isMobile } from '@/utils/tools';
+import { useTutorialStore } from '@/store/tutorial';
+import { useTour } from '@/composables/useTour';
 const auth = useAuthUserStore()
 const props = defineProps<{
     userList: any;
@@ -395,7 +379,7 @@ const initialEnd =
   parsePeriodParam(route.query.period) ??
   DateTime.now().startOf('month')
 
-const defaultFiscalYear = initialEnd.month >= 3 ? initialEnd.year : initialEnd.year - 1
+const defaultFiscalYear = initialEnd.year
 const parsedStart = parsePeriodParam(route.query.period_start)
 const fallbackStart = DateTime.fromObject({ year: defaultFiscalYear, month: initialEnd.month, day: 1 }).startOf('month')
 
@@ -471,27 +455,11 @@ const thisMonthCount = computed(() => {
 const year = ref<number>(periodEnd.value.year)
 const month = ref<MonthNumbers>(periodEnd.value.month as MonthNumbers)
 
-const handleCaseSaved = () => {
-    caseWindow.value = false
-    caseRefreshKey.value += 1
-    selectedCaseMeta.value = null
-}
+
 const commentCount = ref(0)
 const metrics_list = ref<MetricDTO[]>([])
-type CaseTimelineEntry = { id: number; reportDate: string | null }
-type CaseDetailPayload = {
-  memberId: number
-  memberName: string
-  status: string
-  activeCase: CaseTimelineEntry | null
-  reportDate: string | null
-  timeline: Record<string, CaseTimelineEntry[]>
-}
-const selectedCaseMeta = ref<CaseDetailPayload | null>(null)
-const viewCase = (payload: CaseDetailPayload) => {
-    selectedCaseMeta.value = payload
-    caseWindow.value = true
-}
+
+
 
 type Line = 'sales'|'expense'|'profit'|'profit_rate'
 type ValueType = 'currency'|'amount'|'rate'
@@ -623,10 +591,17 @@ const openComment = (period: string) => {
   selectedCommentPeriod.value = period
   commentView.value = true
 }
-
+const tutorialStore = useTutorialStore()
+const { startTour } = useTour()
 onMounted(async() => {
     updateRouteQuery()
     refreshFinanceData()
+    // if (tutorialStore.state.active && tutorialStore.state.name.includes('project.details.finance')) {
+    //     setTimeout(() => {
+    //         startTour('project.details.finance.performance', { version: '2025-09' });
+    //     }, 200);
+    //     tutorialStore.setTutorial({ active: true, name: ['project.details.finance.performance'] });
+    // }
 })
 const pad2 = (n:number) => String(n).padStart(2, '0')
 const monthLabel = (m:number) => ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'][m-1]

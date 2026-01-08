@@ -6,39 +6,39 @@
   "lang": "ja",
   "icons": [
     {
-      "src": "v7/512.png",
+      "src": "v8/512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
     },
     {
-      "src": "v7/512.png",
+      "src": "v8/512.png",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "v7/512.png",
+      "src": "v8/512.png",
       "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "v7/512.png",
+      "src": "v8/512.png",
       "type": "image/png",
       "sizes": "144x144"
     },
     {
-      "src": "v7/512.png",
+      "src": "v8/512.png",
       "type": "image/png",
       "sizes": "96x96"
     },
     {
-      "src": "v7/512.png",
+      "src": "v8/512.png",
       "type": "image/png",
       "sizes": "72x72"
     },
     {
-      "src": "v7/512.png",
+      "src": "v8/512.png",
       "type": "image/png",
       "sizes": "48x48"
     }

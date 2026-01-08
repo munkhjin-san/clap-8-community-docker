@@ -136,8 +136,9 @@ interface ProjectGoal {
     miso: string;
     steps: ProjectGoalStep[]
     reports: ProjectGoalReport[]
-    
-
+    stakeholder_name: string | null;
+    stakeholder_point: number | null;
+    stakeholder_review: string | null;
 }
 interface ProjectGoalReport {
     content: string;

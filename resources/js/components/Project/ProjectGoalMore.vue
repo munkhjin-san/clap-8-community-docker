@@ -69,6 +69,10 @@
                         <div class="text-[13px] font-semibold">タイトル</div>
                         <div class="kadai-content">{{ goal?.title }}</div>
                     </div>
+                    <div v-if="goal?.stakeholder_name">
+                        <div class="text-[13px] font-semibold">主なステークホルダー（価値提供先）</div>
+                        <div class="kadai-content">{{ goal?.stakeholder_name }}</div>
+                    </div>
                     <div>
                         <div class="text-[13px] font-semibold">期間</div>
                         <div class="kadai-content">{{ `${DateTime.fromISO(goal.start_date).toLocaleString()} ~ ${DateTime.fromISO(goal.end_date).toLocaleString()}` }}</div>
@@ -153,6 +157,11 @@
                     <div v-if="goal?.result">
                         <div class="text-[13px] font-semibold">結果報告</div>
                         <div class="kadai-content">{{ goal?.result }}</div>
+                    </div>
+                    <div v-if="goal?.stakeholder_review">
+                        <div class="text-[13px] font-semibold">ステークホルダーからの反応</div>
+                        <div v-if="goal?.stakeholder_point" class="mt-[10px]">{{ scoreMap[goal.stakeholder_point] }}</div>
+                        <div class="kadai-content">{{ goal?.stakeholder_review }}</div>
                     </div>
                     <MessageArea which="goal" :item="goal" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
                         
@@ -271,7 +280,7 @@
                     <div v-if="salaryIssueRecord?.status >= 6">
                         <div class="post-separetor mt-[10px]"></div>
                         <div class="mb-[10px] font-semibold text-[13px]">開発能力検証報告</div>
-                        <div class="kadai-content">{{ salaryIssueRecord.result }}</div>
+                        <div class="kadai-content">{{ salaryIssueRecord.result }}</div>                        
                         <Files style="margin-top: 15px;" v-if="salaryIssueRecord?.files?.length" :items="salaryIssueRecord?.files" :path="'project_files'"/>
                     </div>
                     <MessageArea which="salary_issue" :item="salaryIssueRecord" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
@@ -434,7 +443,14 @@ const selectedSalaryIssueStatus = ref<number | null>(props.goal?.salary_issue?.s
 
 const projectGoalReportCreate = ref<ProjectGoal | null>(null)
 const badge = useBadgeStore()
-const router = useRouter()    
+const router = useRouter()   
+const scoreMap = {
+    1: '明確に悪化',
+    2: '悪化傾向',
+    3: '変化なし・未確認',
+    4: '好転傾向',
+    5: '明確に好転'
+} 
 onMounted(() => {
     setTimeout(() => {
         badge.clearGoalIssue({column: 'project_goal_id', value: props.goal?.id})

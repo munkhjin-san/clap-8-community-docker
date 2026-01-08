@@ -37,12 +37,23 @@
                         <span>{{ 'メッセージから検索する' }}</span>
                     </div>   
                                 
-                    <div v-if="boardSearchResult.length">
-                        <p style="padding: 10px;font-size: 13px;">検索結果</p>
-                        <div @click="open(board), searchBoxFocus = false" style="padding:10px;cursor:pointer" v-for="board in boardSearchResult">
-                            <div style="display:flex;align-items:center;font-size:14px;overflow: hidden;">
-                                <BoardIcon :item="board" size="30"/> 
-                                 <div class="ml-1.5 whitespace-nowrap">{{ useBoardTitle(board) }}</div>
+                    <div v-if="boardSearchResult.length && !searching">
+                        <div class="flex flex-col gap-3 pb-3">                        
+                            <div @click="fetchChatList(board), searchBoxFocus = false" class="px-3 cursor-pointer" v-for="board in boardSearchResult">
+                                <div class="flex items-center text-[12px] overflow-hidden">
+                                    <BoardIcon :item="board" size="30"/> 
+                                    <div class="ml-1.5 whitespace-nowrap">{{ useBoardTitle(board) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-else-if="searching">
+                        <div class="flex flex-col gap-3 pb-3">                        
+                            <div class="px-3 cursor-pointer" v-for="num in 3">
+                                <div class="flex items-center text-[12px] overflow-hidden">
+                                    <div class="w-[30px] h-[30px] bg-[lightgray] rounded-full animate-pulse"></div>
+                                    <div class="ml-1.5 whitespace-nowrap animate-pulse bg-[lightgray] h-4 rounded" :style="{width: randomWidth()}"></div>
+                                </div>
                             </div>
                         </div>
                     </div>                
@@ -59,54 +70,58 @@ import BoardIcon from '../Mixed/BoardIcon.vue'
 import HamBurger from '../../Global/HamBurger.vue'
 import { useResponsive } from '@/store/responsive';
 import { useBoardList } from '@/composables/board';
-import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { useBoardTitle } from '@/composables/boardTitle';
 import { Board } from '@/interface/globalInterface';
+import { debounce } from '@/utils/tools';
+import { useApi } from '@/composables/api';
+import SkeletonBoard from '../SkeletonBoard.vue';
     const responsive = useResponsive()
-    const emit = defineEmits(['openMessageSearch'])
-    const { open } = inject(BoardMethodsKey) as BoardMethods
+    const emit = defineEmits(['openMessageSearch', 'openBoard'])
 
     const searchWord = ref('')
     const searchBoxFocus = ref(false)
-    const possibleWords = ref<string[]>([]);
     const boardSearchArea = ref<HTMLInputElement | null>(null) 
-    const { boardList, openedBoard } = useBoardList()
-
-    const boardSearchResult = computed(() => {
-        if(!searchWord.value.length || !boardList.value) return []
-        let res: Board[] = [];
-        boardList.value.forEach((board:Board) => {
-            let title = useBoardTitle(board);
-            if (possibleWords.value.some(v => title && title.toLowerCase().includes(v.toLowerCase()))) {
-                res.push(board)
+    const { boardList, setList, setNextCursor, setReachEnd } = useBoardList()
+    const api = useApi()
+    const boardSearchResult = ref([])
+    const searching = ref(false)
+    const fetchChatList = async(item: Board) => {
+        const chat = boardList.value.find(chat => chat.id === item.id)
+        if (chat) {
+            emit('openBoard', chat)
+        } else {
+            const res = await api.post('/board_list', { id: item.id })
+            setList(res.data)
+            emit('openBoard', item)
+            const newCursor = res?.next_cursor ?? null
+            if (newCursor) {
+                setNextCursor(newCursor)
+            } else {
+                setReachEnd(true)
+                setNextCursor(newCursor)
             }
-        });
-        return res 
-    })
-    const chatTitle = computed(() =>  openedBoard?.value ? useBoardTitle(openedBoard.value) : '')       
-
-    const inputStart = async(event: Event) => {
-        const target = event.target as HTMLInputElement
-        searchWord.value = target.value ? target.value : ''
-        if(!searchWord.value) return
-        const encoded = encodeURI(searchWord.value);
-        try{
-            const url_add = 'https://www.google.com/transliterate?langpair=ja-Hira|ja&text='
-            const data = await fetch(url_add + encoded).then((response) => response.json())                   
-            possibleWords.value = []
-            data.forEach(ob => {
-                if(ob.length > 1){
-                    const list = ob[1]
-                    if(list.length){
-                        list.forEach(word => {
-                            possibleWords.value.push(word)
-                        })
-                    }
-                }                
-            })
-        } catch (e) {
-            possibleWords.value.push(target.value)
         }
+    }
+    const randomWidth = () => {
+        const x = window.innerWidth
+        return x > 959 ? 
+        Math.floor(Math.random() * (90 - 70 + 1)) + 70 + '%' : 
+        Math.floor(Math.random() * (60 - 40 + 1)) + 40 + '%'
+    }
+    const getSearchResult = async () => {
+        const q = searchWord.value.trim()
+        if (!q) {
+            boardSearchResult.value = []
+            return
+        }
+        const data = await api.post('/search_board_list', { keyword: q })
+        if (data) boardSearchResult.value = data
+        searching.value = false
+    }
+    const inputStart = (event: Event) => {
+        searching.value = true
+        searchWord.value = (event.target as HTMLInputElement).value || ''
+        debounceSearchResult()
     }
     const searchWindowView = () => {
         if(boardSearchArea.value){
@@ -117,8 +132,9 @@ import { Board } from '@/interface/globalInterface';
     const openMessageSearch = () => {
         emit('openMessageSearch', searchWord.value)
     }
-        
-    
+    const debounceSearchResult = debounce(() => {
+        getSearchResult()
+    }, 300)
 </script>
 
 

@@ -42,10 +42,10 @@
                 </div>
                 <input type="hidden" name="_token" :value="csrfToken">
             </div>
-            <div class="login-group" v-if="errorMessage">
+            <div class="login-group text-center" v-if="errorMessage">
                 <p class="valid-error">{{ errorMessage }}</p>
             </div>
-            <div class="login-group" v-if="errors && errors.length">
+            <div class="login-group text-center" v-if="errors && errors.length">
                 <p class="valid-error" v-for="error in errors">{{ error }}</p>
             </div>
         </div>

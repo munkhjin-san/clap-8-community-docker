@@ -37,7 +37,7 @@
                     </template>
                  </FloatButton>
             </div>                           
-            <SkeletonBoard v-if="skeleton.active == 0"/>
+            <SkeletonBoard v-if="skeletonLoader == 0"/>
                         
         </div>                    
     </div> 
@@ -50,7 +50,6 @@ import { computed, inject, ref, useTemplateRef } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive'
 import { useSharingDataStore } from '@/store/sharingData'
-import { useSkeleton } from '@/store/skeleton';
 import FloatButton from '../Global/FloatButton.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
@@ -68,9 +67,8 @@ import { useRoute } from 'vue-router';
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
-    const skeleton = useSkeleton()
     const { open, create } = inject(BoardMethodsKey) as BoardMethods
-    const { boardList } = useBoardList()
+    const { boardList, skeletonLoader } = useBoardList()
     const bounceId = ref(null)
     const route = useRoute()
     const panelContainer = useTemplateRef('panelContainer')

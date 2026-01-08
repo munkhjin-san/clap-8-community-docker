@@ -121,7 +121,6 @@ import { useFocused } from '@/store/focused'
 import { useUrlTask } from '@/store/urlTask'
 import { useUrlMessage } from '@/store/urlMessage'
 import { useUrlTaskEdit } from '@/store/urlTaskEdit'
-import { useSkeleton } from '@/store/skeleton'
 import { useBadgeStore } from '@/store/badge'
 
 // import BoardDetails from './BoardDetails.vue'
@@ -155,13 +154,10 @@ import { DateTime } from 'luxon'
     const urlTask = useUrlTask()
     const urlMessage = useUrlMessage()
     const urlTaskEdit = useUrlTaskEdit()
-    const skeleton = useSkeleton()
     const route = useRoute()
     const router = useRouter()
     const mainLoader = ref(false)
     const allBoardList = ref<Board[]>([])
-    const nextCursor = ref<string | null>(null)
-    const reachedEnd = ref(false)
     const nextMessageCursor = ref<string | null>(null)
     const reachedMessageEnd = ref(false)
     const activeEditBoard = ref<Board | null>(null)
@@ -206,7 +202,7 @@ import { DateTime } from 'luxon'
     const activeListeners = new Set<string>();
     const api = useApi()
     const { toast, ask } = useDialog()
-    const { openedBoard, setList, boardList } = useBoardList()
+    const { openedBoard, setList, boardList, setNextCursor, setReachEnd, nextCursor, reachEnd, setSkeleton } = useBoardList()
     const BOARD_REFRESH_COOLDOWN_MS = 2000
     let boardRefreshTimer: ReturnType<typeof setTimeout> | null = null
     let boardRefreshInFlight = false
@@ -299,6 +295,7 @@ import { DateTime } from 'luxon'
         }
         instance.off('refresh:board', updateBoardHandler)    
         clearListeners()
+        setNextCursor(null)
     })
     onMounted(() => {
         const trayIndex = localStorage.getItem('favorite_tray');
@@ -453,11 +450,11 @@ import { DateTime } from 'luxon'
         messageLoader.value = true
         const data = await api.post('/get_target_message', message)
         if(data){              
-            let board = filteredAllBoard.value.filter( obj => obj.id == message.record_id);
-            if(board.length){
-                openBoard(board[0], 'search')
+            let board = filteredAllBoard.value.find( obj => obj.id == message.record_id);
+            if(board){
+                openBoard(board, 'search')
                 setTimeout(() => {
-                    document.getElementById('board_item_' + board[0].id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) 
+                    document.getElementById('board_item_' + board?.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }) 
                 },100)                         
                 messageList.value = data;
                 messageContainerKey.value ++;
@@ -606,7 +603,7 @@ import { DateTime } from 'luxon'
         }
     }
 
-    const openBoard = (item: Board, second_atr?:any) => {
+    const openBoard = async(item: Board, second_atr?:any) => {
         messageLoader.value = true        
         pageIndex.value = 1;
         pageLimiter.value = false;
@@ -771,7 +768,7 @@ import { DateTime } from 'luxon'
         const el = e.currentTarget as HTMLElement
         if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
             getBoardList()
-            if (reachedEnd.value) return
+            if (reachEnd.value) return
             boardLoader.value = true
         }
     }
@@ -793,11 +790,11 @@ import { DateTime } from 'luxon'
     const getBoardList = async(atr?:string, second_atr?:any, openTarget = true) => {    
         const isRefresh = atr === 'refresh'    
         if (mainLoader.value && !isRefresh) return
-        if (reachedEnd.value && !isRefresh) return
+        if (reachEnd.value && !isRefresh) return
 
         if (isRefresh) {
-            reachedEnd.value = false
-            nextCursor.value = null
+            setReachEnd(false)
+            setNextCursor(null)
         }
         
         mainLoader.value = true
@@ -822,10 +819,8 @@ import { DateTime } from 'luxon'
             const newCursor = res?.next_cursor ?? null
             if (isRefresh) {
                 allBoardList.value = rows
-                nextCursor.value = newCursor
             } else {
                 allBoardList.value = mergeUpsertById(allBoardList.value, rows)
-                nextCursor.value = newCursor
             }
             setList(allBoardList.value)
             if(second_atr && openTarget){
@@ -845,13 +840,14 @@ import { DateTime } from 'luxon'
                     }
                 }
             }
-            skeleton.setSkeleton(skeleton.active + 1)
+            
+            setSkeleton(1)
         
             if (newCursor) {
-                nextCursor.value = newCursor
+                setNextCursor(newCursor)
             } else {
-                reachedEnd.value = true
-                nextCursor.value = null
+                setReachEnd(true)
+                setNextCursor(null)
             }
         } finally {
             boardLoader.value = false

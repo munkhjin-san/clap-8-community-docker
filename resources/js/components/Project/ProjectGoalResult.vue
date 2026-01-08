@@ -25,6 +25,7 @@
                         <span>{{ sliderValue }}%</span>
                     </div>
                 </div>
+                
                 <div class="si-box">
                     <LongInput 
                         placeHolder="結果"
@@ -37,6 +38,35 @@
                     <FileUploader 
                         v-model="uploadedFiles"
                         path="/project_files"
+                    />
+                </div>
+                <div v-if="chosenGoal?.stakeholder_name" class="flex flex-col gap-3 mt-7">
+                    <div class="text-[14px] under640:mb-5">ステークホルダーからの反応</div>
+                    <v-slider
+                        :max="5"
+                        :min="1"
+                        v-model="stakeHolderPoint"
+                        :ticks="mobile ? {} : tickLabel"
+                        show-ticks="always"
+                        step="1"
+                        tick-size="4"
+                        :ripple="false"
+                        track-fill-color="var(--bg2)"
+                        track-color="var(--bg3)"
+                        thumb-color="var(--primary-color)"
+                        :thumb-label="mobile ? 'always' : undefined"
+                        thumb-size="15"
+                    >
+                    <template v-slot:thumb-label="{ modelValue }">
+                        {{ tickLabel[modelValue] }}
+                    </template>
+                    </v-slider>
+                    
+                </div>
+                <div v-if="chosenGoal?.stakeholder_name" class="si-box">
+                    <LongInput 
+                        placeHolder="反応の根拠事例（ステークホルダーからの声、数字、出来事など）"
+                        v-model="stakeHolderReview"
                     />
                 </div>
                 <div v-if="!reviewing" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
@@ -71,6 +101,8 @@ const result = ref(props.chosenGoal?.result ?? '')
 const report = ref(props.chosenGoal?.report ?? '')
 const reportRef = ref<InstanceType<typeof LongInput> | null>(null)
 const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
+const stakeHolderPoint = ref(props.chosenGoal?.stakeholder_point && props.chosenGoal?.stakeholder_point > 0 ? props.chosenGoal?.stakeholder_point : 3)
+const stakeHolderReview = ref(props.chosenGoal?.stakeholder_review ?? '')
 const loading = ref([false, false, false, false])
 const auth = useAuthUserStore()
 const refresh = inject('refresh') as Function
@@ -78,6 +110,14 @@ const badge = useBadgeStore()
 const api = useApi()
 const { ask } = useDialog()
 const uploadedFiles = ref<File[]>(props.chosenGoal?.files ?? [])
+const mobile = window.innerWidth <= 640;
+const tickLabel = {
+    1: '明確に悪化',
+    2: '悪化傾向',
+    3: '変化なし・未確認',
+    4: '好転傾向',
+    5: '明確に好転'
+}
 const progressReport = async(status: number) => {
     const validateTargets = [resultRef.value, reportRef.value]
     const targets = validateTargets.filter(ob => ob !== null)
@@ -103,7 +143,9 @@ const progressReport = async(status: number) => {
             report: report.value,
             result: result.value,
             achievement_rate: sliderValue.value,
-            status: status
+            status: status,
+            stakeholder_point: stakeHolderPoint.value,
+            stakeholder_review: stakeHolderReview.value,
         },
         file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [], 
     }
@@ -120,3 +162,18 @@ const progressReport = async(status: number) => {
 
 }
 </script>
+<style>
+    .v-slider-track__tick-label {
+        font-size: 12px;
+        /* white-space: unset !important; */
+    }
+    .v-slider-thumb__label {
+        width: max-content !important;
+        background: var(--primary-color) !important;
+        color: var(--background-color) !important;
+    }
+    .v-slider-thumb__label:before {
+        color: var(--primary-color) !important;
+    }
+
+</style>

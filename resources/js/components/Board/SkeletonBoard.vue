@@ -1,17 +1,12 @@
 <template>
-<div  class="left-panel-outer" style="overflow:hidden;position: absolute;
-    left: 0;
-    top: -1px;
-    width: 100%;
-    height: 100%;
-    z-index: 10;">                    
+<div class="left-panel-outer !overflow-hidden absolute left-0 top-[-1px] w-full h-full z-10">                    
     <div class="left-panel-inner cursor-pointer">                  
-        <div class="left-panel-wrap" style="height:65px;" v-for="num in 50">       
+        <div class="left-panel-wrap" style="height:65px;" v-for="num in length">       
             <div class="left-panel-items skeleton-items">
-                <div class="sk-i1"></div>
+                <div class="sk-i1" :style="`min-width: ${width}px; min-height: ${height}px`"></div>
                 <div style="width:100%;align-self: center;margin:0 10px;overflow:hidden">
                     <p class="sk-t1" :style="{width: randomWidth()}"></p>
-                    <div class="sk-t2 contentsText"  :style="{width: randomWidthLs()}"></div>
+                    <div v-if="secondLine" class="sk-t2 contentsText"  :style="{width: randomWidthLs()}"></div>
                 </div>                                       
             </div>                                    
         </div>
@@ -19,7 +14,17 @@
 </div> 
 </template>
 <script setup lang="ts">
-
+    withDefaults(defineProps<{
+        width?: number
+        height?: number
+        secondLine?: boolean
+        length?: number
+    }>(), {
+        width: 45,
+        height: 45,
+        secondLine: true,
+        length: 50
+    })
     const randomWidth = () => {
         const x = window.innerWidth
         return x > 959 ? 
@@ -52,8 +57,6 @@
         
     }
     .sk-i1 {
-        min-width:45px;
-        min-height:45px;
         border-radius:50px;
         animation: pulse-bg 1s infinite;
         

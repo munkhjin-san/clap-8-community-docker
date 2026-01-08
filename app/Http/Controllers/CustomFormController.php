@@ -75,22 +75,23 @@ class CustomFormController extends Controller
     public function get_custom_forms(Request $request){
         $active_user = $this->active_user();
 
-        $forms = CustomForm::where(function($q) use($request) {
-            $q->where('status', $request->status)
-                ->whereNull('board_record_id')->orWhere('board_record_id', 3758);
-        })->with(['blocks'])->orderBy('created_at', 'desc')
-        ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
-            $q->whereHas('admins', function($q) use($active_user){
-                $q->where('user_id', $active_user->id);
-            });
-        })
-        ->with(
-        [
-            'users', 
-            'admins', 
-            'survey_answers'
-            ]
-        )->get();
+        $forms = CustomForm::when($request->filled('status'), function ($q) use ($request) {
+                $q->where('status', $request->input('status'));
+            })
+            ->where(function ($q) {
+                $q->whereNull('board_record_id')
+                ->orWhere('board_record_id', 3758);
+            })
+            ->with(['blocks'])
+            ->orderBy('created_at', 'desc')
+            ->when($active_user->position_id <= 6 && !in_array($active_user->id, [610, 608]), function ($q) use ($active_user) {
+                $q->whereHas('admins', function ($q) use ($active_user) {
+                    $q->where('user_id', $active_user->id);
+                });
+            })
+            ->with(['users', 'admins', 'survey_answers'])
+            ->get();
+
 
         $forms->map(function($form){
             $form->users->map(function($user) use($form){

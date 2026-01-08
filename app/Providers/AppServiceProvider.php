@@ -11,6 +11,8 @@ use GuzzleHttp\Client as Http;
 use App\Domain\Contracts\{PlanProvider,ActualProvider};
 use App\Infrastructure\Kintone\{KintoneClient,KintonePlanProvider};
 use App\Infrastructure\Sheets\{GoogleSheetsClient,GoogleSheetsActualProvider};
+use Illuminate\Support\Facades\Gate;
+use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -45,6 +47,9 @@ class AppServiceProvider extends ServiceProvider
         if($this->app->environment('production')) {
             \URL::forceScheme('https');
         }
+        Gate::define('viewPulse', function (User $user) {
+            return true;
+        });
         // ResetPassword::createUrlUsing(function ($user, string $token) {
         //     return url(route('password.reset', [
         //         'token' => $token,

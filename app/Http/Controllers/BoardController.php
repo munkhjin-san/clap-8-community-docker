@@ -136,6 +136,44 @@ class BoardController extends Controller
         return view('board')->with(array('initialDate'=> $date, 'user' => $user));
 
     } 
+    public function search_board_list(Request $request) {
+        $active_user = $this->active_user();
+        $query = boardRecord::query()
+            ->whereHas('board_to_users', function($q) use($active_user){
+                $q->where('user_id', $active_user->id)->where('deleted_status', 0);
+            })
+            ->when($active_user->on_leave === 1, function ($q) {
+                return $q->where('private_flag', '!=', 0);
+            })
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id');
+        $keyword = $request->keyword;
+        $keyword = mb_convert_kana($keyword, 'asKV', 'UTF-8');
+        $with = [
+            'board_to_users' => fn($q) => $q->whereHas('user')->with('user'),
+        ];
+        if ($keyword) {
+            $query->where(function ($outer) use ($keyword) {
+                $outer->orWhere(function ($q) use ($keyword) {
+                    $q->where(function ($pub) use ($keyword) {
+                        $pub->where('private_flag', 0)
+                            ->where('title', 'like', "%{$keyword}%");
+                    })
+
+                    ->orWhere(function ($priv) use ($keyword) {
+                        $priv->where('private_flag', 1)
+                            ->whereHas('board_to_users.user', function ($q) use ($keyword) {
+                                $q->where('name', 'like', "%{$keyword}%");
+                            });
+                    });
+                });
+            });
+            $search_list = $query
+                ->with($with)->get();
+            
+            return response()->json($search_list);
+        }
+    }
     public function board_list(Request $request) {       
         $active_user = $this->active_user();
         $perPage = 40;
@@ -167,7 +205,7 @@ class BoardController extends Controller
             'project',
             'last_message',
         ];
-
+        
         if ($request->filled('id')) {
             $board = (clone $base)->whereKey($request->id)->first();
 
@@ -1511,21 +1549,29 @@ class BoardController extends Controller
         }
         $per_page = 10;
         $div = $result->sortByDesc('created_at')->forPage($request->index, $per_page);
-        $board_ids = $result->pluck('record_id')->toArray();
-        $board_ids_unique = array_unique($board_ids);
-        $indexed = array_count_values($board_ids);
+        $boardIds = $result->pluck('record_id')->all();   
+        $counts   = array_count_values($boardIds);
+        $uniqueIds = array_keys($counts); 
+        $boards = boardRecord::query()
+        ->whereIn('id', $uniqueIds)
+        ->with(['board_to_users.user:id,name'])              
+        ->get(['id', 'title', 'private_flag'])
+        ->keyBy('id');
         $t_list = [];
         foreach($div as $d){
             $t_list[] = $d;
         }
-        $id_list = [];
-        foreach($board_ids_unique as $id){
-            $data01 = [
-                "id" => $id,
-                "occurence" => $indexed[$id]
+        $id_list = collect($uniqueIds)->map(function ($id) use ($counts, $boards) {
+            $board = $boards->get($id);
+
+            return [
+                'id'         => $id,
+                'occurence'  => $counts[$id] ?? 0,
+                'title'      => $board?->title,
+                'private_flag' => $board?->private_flag,
+                'board_to_users' => $board->board_to_users ?? [],
             ];
-            $id_list[] = $data01;
-        }
+        })->values()->all();
         $pages = ceil(count($result)/$per_page);
         $backData = [
             "total" => count($result),

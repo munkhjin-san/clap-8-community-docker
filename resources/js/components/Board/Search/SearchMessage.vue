@@ -35,8 +35,8 @@
         </div>
         <div v-if="targetedSearch" style="padding: 0 20px;margin-bottom: 15px;">
             <div v-for="board in targetBoards" class="chat-search-select">
-                <BoardIcon :item="boardItem(board.id)" size="25"/>
-                <BoardTitlePreLoad style="overflow:hidden" :item="boardItem(board.id)" titleStyle="line-height: 1.3;font-size: 12px;"/>
+                <BoardIcon :item="board" size="25"/>
+                <BoardTitlePreLoad style="overflow:hidden" :item="board" titleStyle="line-height: 1.3;font-size: 12px;"/>
                 <span style="white-space: nowrap;font-size:12px;">({{board.occurence}}件)</span>
                 <div @click="resetTargetSearch" style="width:15px;height:15px;margin:auto 0;display: flex;cursor:pointer">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 32 32" class="dot-menu" style="margin: auto;">
@@ -47,7 +47,7 @@
         </div>
   
         <div style="height: -webkit-fill-available;overflow: hidden auto;font-size:13px;padding: 0 20px;" v-if="allResult.length && !searchLoader && !searchMiniLoader && resultGroupBy == 'all'">
-            <div @click="emit('jumpToMessage', message)"  style="padding:10px;margin-bottom:10px; border:solid thin var(--normalBorder);position:relative;cursor:pointer" :key="message.id" v-for="message in allResult">
+            <div @click="fetchChatList(message)"  style="padding:10px;margin-bottom:10px; border:solid thin var(--normalBorder);position:relative;cursor:pointer" :key="message.id" v-for="message in allResult">
                 <div v-if="message.user" style="display:flex;align-items:center;margin-bottom:10px;">
                     <div style="display:flex;align-items:center">
                         <div v-if="message.user.deleted_at == null" class="column-01 cursor-pointer">                        
@@ -71,9 +71,9 @@
             <div :key="board.id" class="srgByBoard" v-for="board in viewBoardList">
                 <div @click="searchInTarget(board)" style="display:flex;align-items:center;cursor:pointer;padding:10px">
                     
-                    <BoardIcon size="30" :item="boardItem(board.id)"/>
+                    <BoardIcon size="30" :item="board"/>
                     <div style="max-width:80%">
-                        <BoardTitle :item="boardItem(board.id)" titleStyle="margin-left:5px;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;"/>  
+                        <BoardTitle :item="board" titleStyle="margin-left:5px;text-overflow: ellipsis;white-space: nowrap;overflow: hidden;"/>  
                     </div>
                     
                     <span style="margin-left:auto;white-space: nowrap;">({{board.occurence}}件)</span>
@@ -106,6 +106,7 @@ import { DateParser, urlCheck } from '@/utils/tools';
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { useApi } from '@/composables/api';
 import { Board, User } from '@/interface/globalInterface';
+import { useBoardList } from '@/composables/board';
     interface MessageResult {
         id: number,
         user_id: number
@@ -124,7 +125,7 @@ import { Board, User } from '@/interface/globalInterface';
         total: number
         currentPage: number
         totalPage: number
-        board_list: BoardResult[]
+        board_list: Board[]
     }
 
     const props = defineProps<{
@@ -151,7 +152,7 @@ import { Board, User } from '@/interface/globalInterface';
         board_list: []
     })
     const targetedSearch = ref(false)
-    const targetBoards = ref<BoardResult[]>([])
+    const targetBoards = ref<Board[]>([])
     const fetched = ref(false)
     const api = useApi()
     const advancedSearchInput = useTemplateRef('advancedSearchInput')
@@ -173,8 +174,24 @@ import { Board, User } from '@/interface/globalInterface';
         });
         return list
     })  
-    
-
+    const { boardList, setList, setNextCursor, setReachEnd } = useBoardList()
+    const fetchChatList = async(item: MessageResult) => {
+        const chat = boardList.value.find(chat => chat.id === item.record_id)
+        if (chat) {
+            emit('jumpToMessage', item)
+        } else {
+            const res = await api.post('/board_list', { id: item.record_id })
+            setList(res.data)
+            emit('jumpToMessage', item)
+            const newCursor = res?.next_cursor ?? null
+            if (newCursor) {
+                setNextCursor(newCursor)
+            } else {
+                setReachEnd(true)
+                setNextCursor(newCursor)
+            }
+        }
+    }
         
     watch(() => resultSortDateReverse, (after) => {
         if(after){                    

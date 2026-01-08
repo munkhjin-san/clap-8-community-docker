@@ -280,6 +280,7 @@ class RemindController extends Controller
         $month = $date->month;
         $prev_month = $month == 1 ? $month : $date->clone()->subMonth()->month;
         $shift_month = $day >= 25 ? $date->clone()->addMonthNoOverflow()->month : $month;
+        $prev_month_start = $date->clone()->subMonthNoOverflow()->startOfMonth()->format('Y-m-d');
         $ids = [608, 610];
         $active_user = $this->active_user();
         $target_users = [];
@@ -309,12 +310,8 @@ class RemindController extends Controller
         }
         $user_list = User::whereIn('id', $target_users)
                         ->with([
-                            'time_card_records' => function ($q) use($year, $month, $workGroupIds, $prev_month) {
-                                $q->whereYear('day', $year)
-                                    ->where(function ($query) use ($month, $prev_month) {
-                                        $query->whereMonth('day', $month)
-                                            ->orWhereMonth('day', $prev_month);
-                                    })
+                            'time_card_records' => function ($q) use($year, $month, $workGroupIds, $prev_month, $prev_month_start) {
+                                $q->where('day', '>=', $prev_month_start)
                                     ->where('status_flag', 1)
                                     ->whereIn('work_group_id', $workGroupIds);
                             },
@@ -862,10 +859,17 @@ class RemindController extends Controller
         $user = $this->active_user();
         $cacheKey = "badge_summary:user:{$user->id}";
         $ttl     = 60;
+        $post_result = [
+            'created' => 0,
+            'changed' => 0,
+            'changed_ids' => [],
+            'last_chargeable' => 0,
+            'last_chargeable_ids' => [],
+        ]; 
         $data = Cache::remember($cacheKey, $ttl, function () use ($user) {
             return [
                 'notice' => $user->partner_flag === 0 && $user->position_id !== 15 ? $this->badgeService->notice($user) : 0,
-                'post' => $user->partner_flag === 0 && $user->position_id !== 15 && $user->linkable === 0 ? $this->badgeService->post($user) : 0,
+                'post' => $user->partner_flag === 0 && $user->position_id !== 15 && $user->linkable === 0 ? $this->badgeService->post($user) : $post_result,
                 'members_goals' => $this->badgeService->membersGoals($user),
                 'managers_goals' => $user->position_id < 6 ? $this->badgeService->managersGoals($user) : [],
                 'salary_issue' => $this->badgeService->salaryIssue($user),

@@ -277,6 +277,25 @@
         </div>
       </Transition>
     </section>
+    <FloatButton id="goalCreation" v-if="hasGoals && hasPrivilage" @action="caseWindow = true">
+          <template #icon>
+              <AddIcon size="15" fill="black"/>
+          </template>
+      </FloatButton>
+      <Teleport to="body">
+        <CaseCreate 
+            v-if="caseWindow && selectProject"
+            :project-id="selectProject.id"
+            :selected-project="selectProject"
+            :report-year="year"
+            :report-month="month"
+            :has-privilage="hasPrivilage"
+            :selected-case="selectedCaseMeta"
+            @close="caseWindow = false, selectedCaseMeta = null"
+            @saved="handleCaseSaved"
+        />
+      </Teleport>
+      
   </div>
 </template>
 <script setup lang="ts">
@@ -285,6 +304,9 @@ import { Project } from '@/interface/projectInterface';
 import { DateTime } from 'luxon';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import LineChart from './LineChart.vue';
+import CaseCreate from './CaseCreate.vue';
+import FloatButton from '@/components/Global/FloatButton.vue';
+import AddIcon from '@/components/Form/AddIcon.vue';
 import {
   STAGE_PIPELINE_LIST,
   STAGE_LABEL,
@@ -296,6 +318,9 @@ import {
 } from '@/utils/case';
 import { useRouter } from 'vue-router';
 import Back from '@/components/Icons/Back.vue';
+import { useTutorialStore } from '@/store/tutorial';
+import { useTour } from '@/composables/useTour';
+import { useAuthUserStore } from '@/store/auth';
 
 const pipelineStatusLabels: string[] = [];
 const fallbackStatus = '未分類';
@@ -323,8 +348,9 @@ type CaseDetailPayload = {
 
 const props = defineProps<{
     selectProject: Project;
-    refreshKey?: number;
     hasPrivilage: boolean;
+    year: number;
+    month: number;
 }>();
 const unitCode = computed(() => props.selectProject?.unit_id ?? 'JPY');
 const unitLabel = computed(() => {
@@ -333,6 +359,8 @@ const unitLabel = computed(() => {
   if (unitCode.value === 'CUSTOM') return props.selectProject?.custom_unit_label || '単位';
   return '円';
 });
+const caseWindow = ref(false)
+const caseRefreshKey = ref(0)
 const hasForecast = computed(() => false);
 const hasGoals = computed(() => props.selectProject?.has_goals ?? false);
 const emit = defineEmits<{
@@ -386,8 +414,20 @@ const handleSettingsClickOutside = (event: MouseEvent) => {
   }
   settingsOpen.value = false;
 };
+const auth = useAuthUserStore()
+const tutorialStore = useTutorialStore()
+const { startTour } = useTour()
 onMounted(() => {
   document.addEventListener('click', handleSettingsClickOutside);
+  // if (tutorialStore.state.active && tutorialStore.state.name.includes('project.details.finance.performance')) {
+  //     if (auth.user?.position_id != null && auth.user.position_id <= 6) {
+  //       setTimeout(() => {
+  //           startTour('project.details.finance.performance.create', { version: '2025-09' });
+  //       }, 200);
+  //       tutorialStore.setTutorial({ active: true, name: ['project.details.finance.performance.create'] });
+  //     }
+        
+  // }
 });
 onBeforeUnmount(() => {
   if (switchTimer) clearTimeout(switchTimer);
@@ -483,7 +523,7 @@ const loadCases = async() => {
   
 }
 watch(
-  () => [props.selectProject?.id, props.refreshKey],
+  () => [props.selectProject?.id, caseRefreshKey.value],
   async ([projectId]) => {
     if (!projectId) {
       cases.value = [];
@@ -1194,7 +1234,7 @@ const statusToneClass = (status: string) => {
 const router = useRouter()
 const requestDetail = (row: Row, status: string) => {
   if (status === '目標値') {
-    emit('view', {
+    viewCase({
       memberId: row.memberId,
       memberName: row.memberName,
       status,
@@ -1208,6 +1248,16 @@ const requestDetail = (row: Row, status: string) => {
 };
 
 const hasData = computed(() => grouped.value.some(group => group.rows.length > 0));
+const handleCaseSaved = () => {
+    caseWindow.value = false
+    caseRefreshKey.value += 1
+    selectedCaseMeta.value = null
+}
+const selectedCaseMeta = ref<CaseDetailPayload | null>(null)
+const viewCase = (payload: CaseDetailPayload) => {
+    selectedCaseMeta.value = payload
+    caseWindow.value = true
+}
 </script>
 <style scoped>
 .case-confirm {

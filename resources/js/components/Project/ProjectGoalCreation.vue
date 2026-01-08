@@ -54,7 +54,7 @@
                 <div>
                     <div class="si-box">
                         <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">期日</p>
-                        <div style="display:flex;position: relative;width:100%">
+                        <div class="flex flex-wrap relative w-full gap-5 items-center">
                             <ShortInput 
                                 name="startDate" 
                                 :rules="'required'"
@@ -63,7 +63,7 @@
                                 type="date"
                                 v-model="goalParams.start_date"
                             />
-                            <div style="align-self: center;margin: 0 20px;font-size: 14px;color: gray;">ー</div>
+                            <div class="text-[14px] text-[gray]">〜</div>
                             <ShortInput 
                                 name="endDate" 
                                 :rules="'required'"
@@ -114,6 +114,16 @@
                     type="text"
                     v-model="goalParams.title"
                 />
+                <div class="si-box">
+                    <ShortInput 
+                        place-holder="本目標のステークホルダー（顧客名、部署、チーム、役割など具体的に）"
+                        name="stakeholderName" 
+                        :rules="'required'"
+                        ref="stakeholderNameRef"
+                        type="text"
+                        v-model="goalParams.stakeholder_name"
+                    />
+                </div>
 
                 <div class="si-box">
                     <LongInput 
@@ -151,7 +161,7 @@
                 
                 <div class="si-box">
                     <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">期日</p>
-                    <div style="display:flex;position: relative;width:100%">
+                    <div class="flex flex-wrap relative w-full gap-5 items-center">
                         <ShortInput 
                             name="startDate" 
                             :rules="'required'"
@@ -160,7 +170,7 @@
                             ref="startDateRef"
                             type="date"
                         />
-                        <div style="align-self: center;margin: 0 20px;font-size: 14px;color: gray;">ー</div>
+                        <div class="text-[14px] text-[gray]">~</div>
                         <ShortInput 
                             name="endDate" 
                             :rules="'required'"
@@ -227,6 +237,7 @@ const goalParams = reactive<Partial<ProjectGoal>>( props.editGoalData ? {...prop
 const loading = ref(false)
 const startDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const endDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
+const stakeholderNameRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const { getProjects } = useProject()
 const refresh = inject('refresh') as Function
 const badge = useBadgeStore()
@@ -429,6 +440,7 @@ const checkFields = async() => {
         goalTitleRef.value,
         misoRef.value,
         kgiRef.value,
+        stakeholderNameRef.value,
         ...(kpiRef.value || []),
     ]
     const validateTargets = targets.filter( target => target !== null)
@@ -472,6 +484,7 @@ const saveOutcomeGoal = async(status: number) => {
             miso: goalParams.miso,    
             custom_instruction: goalParams.custom_instruction,
             private_memo: goalParams.private_memo,
+            stakeholder_name: goalParams.stakeholder_name,
         }
         
     }

@@ -19,7 +19,7 @@
                 <LongInput
                     :initialValue="resultMessage"   
                     ref="recordBody"
-                    :placeHolder="`結果発表を入力`"
+                    :placeHolder="selected == 5 ? `現在の進捗を入力` : `結果内容を入力`"
                     name="recordBody"
                     rules="max:2000"
                     label="タイトル"
@@ -59,11 +59,11 @@ import { useBadgeStore } from '@/store/badge';
     const api = useApi()
     const statuses = computed(() => {           
         return [
-            { id: 0, state : DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち' },
+            { id: 0, state : DateTime.now() <= customParser(props.record.date_end) ? 'チャージ受付中' : '結果待ち' },
             { id: 1, state : '達成' },
             { id: 2, state : '未達成' },
             { id: 3, state : '中止' },
-            { id: 5, state : '進捗'}
+            { id: 5, state : 'チャレンジ進行中'}
         ]           
     })
     const badge = useBadgeStore()

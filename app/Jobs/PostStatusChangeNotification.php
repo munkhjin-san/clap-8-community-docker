@@ -64,6 +64,9 @@ class PostStatusChangeNotification implements ShouldQueue
             ->values()
             ->all();
 
+        if (!count($emails)) {
+            return;
+        }
         Mail::to([])
             ->bcc($emails)
             ->send(new PostStatusChangeEmail($this->post));

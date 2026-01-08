@@ -2,7 +2,7 @@
     <div>
         <div>
             <p class="text-[13px] font-semibold mb-[10px]">進捗報告・メッセージ</p>
-            <div ref="messageContainer" class="max-h-[50vh] overflow-auto bg-[var(--bg2)] px-[20px] py-[40px] m-[10px]">
+            <div ref="messageContainer" class="max-h-[50vh] overflow-auto bg-[var(--bg2)] px-[20px] py-[40px]">
                 <div v-if="commentText" class="p-[15px] bg-[var(--message-background)] max-w-[80%] w-fit min-w-[40%] mb-[50px]">
                     <div class="text-[14px] text-[gray] mb-[20px]">過去のコメント</div>
                     <div class="whitespace-break-spaces leading-normal mt-[15px]" v-html="mentionFormatter(commentText, true)"></div>
@@ -52,7 +52,7 @@
                     @close="aiEditing = false"
                 />
             </Transition>
-            <div class="typeContainer">        
+            <div class="typeContainer" style="margin: 10px -10px;width: calc(100% + 20px)">        
                 
                 <div v-show="successUploadedFiles.length">
                     <div class="preUploadImage">    

@@ -60,7 +60,7 @@
             <PostFiles class="mt-4" v-if="record.files.length" :items="record.files"/>
             <div v-if="result" class="mt-4">
                 <div class="post-separetor">
-                    <div>結 果 発 表</div>
+                    <div>{{ record.status_flag == 5 ? '進 捗 状 況' : '結 果 発 表'}}</div>
                 </div>
                 <div class="record-content" v-html="result"></div>
                 <span @click="showAll('result')" class="jump-link" v-if="truncated.find(t => t.type === 'result')?.active">{{ truncated.find(t => t.type === 'result')?.expand ? '閉じる' : '続きを表示する' }}</span>
@@ -72,8 +72,8 @@
                 </div>
                 <div v-for="grant in record.grants" :key="grant.id">
                     <div>{{ grant.content }}</div>
-                    <div v-if="grant.expenses">{{ grant.expenses }}円</div>
-                    <div v-if="grant.file_path">
+                    <div v-if="grant.expenses" class="text-[14px]">金額：{{ amountOfMoneyParser(grant.expenses) }}円</div>
+                    <div v-if="grant.file_path" class="mt-2 mb-4">
                         <div v-if="grant.file_path?.split('.').pop() == 'webp'">
                             <img @click="workFilePreview(grant.file_path, 'image', '/cdn/post_grant_files')" style="height:120px;cursor: pointer;" v-if="grant?.file_path" :src="`/cdn/post_grant_files/${grant?.file_path}`"/>
                         </div>
@@ -94,7 +94,7 @@
             </div>
 
             <div class="post-url" v-if="record.referrer">
-                参照元 : <a :href="record.referrer">{{ record.referrer }}</a>
+                参照元 : <a :href="record.referrer" target="_blank" rel="noopener noreferrer">{{ record.referrer }}</a>
             </div>
             <div v-if="tags.length" class="flex gap-x-2.5 gap-y-2 flex-wrap">
                 <PostTag
@@ -130,7 +130,8 @@
                     </button>
                 </div> -->
             </div>
-            <div v-if="challengeButtonView">                                    
+            <div class="flex flex-col justify-center items-center gap-2 my-10 mx-auto" v-if="challengeButtonView">
+                <span v-once v-if="badge.post.last_chargeable_ids.some(id => id === record.id)" class="text-sm text-[tomato] inline-block mx-1">チャージする最終日</span>    
                 <button @click="emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
                 <button v-else class="chargeFormeAddButton" disabled>{{canNotCharge}}</button>
             </div>  
@@ -138,14 +139,14 @@
                 <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
             </div>  
         </div>
-        <div class="post-footer mb-2.5 text-sm" v-if="record.app_type == 2 && record.chargeable">
+        <div class="post-footer mb-2.5 text-sm" v-if="record.app_type == 2">
             <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
         </div>
         <div class="post-footer">
              <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable && totalExpenses > 0">
-                <div class="text-[14px]">経費合計: {{ totalExpenses }}円</div>
+                <div class="text-[14px]">経費合計: {{ amountOfMoneyParser(totalExpenses) }}円</div>
             </div>
-            <div v-if="record.app_type == 2 && record.chargeable" class="post-footer-wrap">
+            <div v-if="record.app_type == 2" class="post-footer-wrap">
                 <div class="text-[14px] cursor-pointer" @click="viewSupporters" v-if="supporters.length">サポーター {{ supporters.length }}人</div>
             </div>
             <div v-if="record.app_type == 5" class="post-footer-wrap">
@@ -294,12 +295,12 @@ import { useBadgeStore } from '@/store/badge';
     const status = computed(() => {
         if (props.record.app_type !== 2) return;
         const statusMap = {
-            0: DateTime.now() <= customParser(props.record.date_end) ? '実施中' : '結果待ち',
+            0: DateTime.now() <= customParser(props.record.date_end) ? 'チャージ受付中' : '結果待ち',
             1: '達成',
             2: '未達成',
             3: '中止',
             4: '不成立',
-            5: '進捗中'
+            5: 'チャレンジ進行中'
         };
         return statusMap[props.record.status_flag];
     });
@@ -321,17 +322,21 @@ import { useBadgeStore } from '@/store/badge';
         return ''
     })
     const challengeButtonSwitch = computed(() => {               
-        var charged_user = props.record.awards.filter(obj => obj.id == auth.id);
-        if(DateTime.now() <= customParser(props.record.date_end) && props.record.status_flag == 0 && charged_user.length == 0){
+        var charged_user = props.record.awards.some(obj => obj.id == auth.id);
+        if (!props.record.chargeable) return false
+        if(DateTime.now() <= customParser(props.record.date_end) && (props.record.status_flag == 0 || props.record.status_flag == 5) && !charged_user){
             return true
         }                
     })
     const canNotCharge = computed(() => {
-        if(props.record.status_flag > 0){
+        if (!props.record.chargeable) {
+            return 'チャージ期間を終了しました'
+        }
+        if(props.record.status_flag > 0 && props.record.status_flag < 5){
             return 'チャレンジの結果が確定しました'
         }else{
-            const charged_user = props.record.awards.filter(obj => obj.id == auth.id);
-            if(charged_user.length){
+            const charged_user = props.record.awards.find(obj => obj.id == auth.id);
+            if(charged_user){
                 return '既にチャージしています'
             }else if(DateTime.now() > customParser(props.record.date_end)){
                 return 'チャージ期間を終了しました'
@@ -339,17 +344,17 @@ import { useBadgeStore } from '@/store/badge';
         }
     })
     const challengeButtonView = computed(() => {
-        if(props.record.app_type == 2 && props.record.chargeable){
-            let flag = props.record.to_users.filter(obj => obj.id == auth.id);  
-            return !flag.length ? true : false   
+        if(props.record.app_type == 2){
+            let flag = props.record.to_users.some(obj => obj.id == auth.id);  
+            return !flag  
         }
         return false  
     })
     const isOwner = computed(() => {
         if(props.record && auth.user){
             if(props.record.app_type == 2){
-                const player = props.record.to_users.filter(ob => ob.id == auth.id)
-                return player && player.length ? true : false
+                const player = props.record.to_users.some(ob => ob.id == auth.id)
+                return player
             }else {
                 return props.record.user_id == auth.id
             }

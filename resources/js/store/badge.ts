@@ -7,6 +7,8 @@ interface State {
         changed: number,
         created: number,
         changed_ids: number[],
+        last_chargeable: number,
+        last_chargeable_ids: number[],
     }
     task: number[]
     notice: number
@@ -32,6 +34,8 @@ export const useBadgeStore = defineStore('badge', {
             changed: 0,
             created: 0,
             changed_ids: [],
+            last_chargeable: 0,
+            last_chargeable_ids: [],
         },
         task: [],
         notice: 0,
@@ -180,7 +184,7 @@ export const useBadgeStore = defineStore('badge', {
                     }                    
                 }
                 if(auth.id == userId){
-                    const postBadge = state.post.changed + state.post.created   
+                    const postBadge = state.post.changed + state.post.created + state.post.last_chargeable   
                     value = value + postBadge
                 }
                 return value
@@ -196,7 +200,7 @@ export const useBadgeStore = defineStore('badge', {
             });
             const projectBadge = this.projectTotal + this.projectCommentTotal;
             const remindBadge = this.remind.total
-            const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : (this.post.changed + this.post.created); 
+            const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : (this.post.changed + this.post.created + this.post.last_chargeable); 
             sum = sum + postBadge + projectBadge + remindBadge
             return sum
         },

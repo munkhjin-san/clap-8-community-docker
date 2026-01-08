@@ -43,11 +43,37 @@ final class BadgeService
                 });
             }) 
             ->pluck('id')->toArray();
+
+            $date = Carbon::now()->startOfDay();
+            $targetEnd = $date->copy()->addDays(8);
+            $chargeEnd = $date->copy()->addDays(7);
+            $last_chargeable = [];
+            $query = PostRecord::query()
+                ->where('user_id', '!=', $user->id)
+                ->where('app_type', 2)
+                ->whereDate('date_end', $targetEnd)
+                ->whereDoesntHave('awards', function ($q) use ($user) {
+                    $q->where('user_id', $user->id);
+                });
+            $exists = $query->exists();
             
+            $showBadge = $exists && (optional($list->updated_at)->toDateString() !== $date->toDateString());
+            
+            if ($showBadge) {
+                $last_chargeable = $query->pluck('id')->toArray();
+            }
+            PostRecord::withoutTimestamps(function () use ($chargeEnd) {
+                PostRecord::where('app_type', 2)
+                    ->whereDate('date_end', $chargeEnd)
+                    ->update(['chargeable' => 0]);
+            });
+
             $result = [
                 'created' => $created,
                 'changed' => count($changed),
-                'changed_ids' => $changed
+                'changed_ids' => $changed,
+                'last_chargeable' => count($last_chargeable),
+                'last_chargeable_ids' => $last_chargeable,
             ];       
             
 

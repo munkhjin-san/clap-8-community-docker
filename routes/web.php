@@ -187,6 +187,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         // Board
     Route::post('/board_list', [BoardController::class, 'board_list']); // 一覧表示API
+    Route::post('/search_board_list', [BoardController::class, 'search_board_list']);
     Route::post('/board_create', [BoardController::class, 'board_create']); // 作成API
     Route::post('/board_edit', [BoardController::class, 'board_edit']); // 編集API
     Route::post('/board_delete', [BoardController::class, 'board_delete']); // 削除API

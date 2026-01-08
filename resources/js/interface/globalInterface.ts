@@ -29,6 +29,7 @@ export interface Board {
     icon_bg: string | null
     messages?: Message[]
     updated_at: string
+    occurence?: number
 
 }
 interface LastMessage {

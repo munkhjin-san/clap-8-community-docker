@@ -4,6 +4,7 @@
             <div class="sub-tab-container" style="margin-bottom: 20px;">
                 <div @click="router.push({name: 'projectlist'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'projectlist'}]">プロジェクト一覧</div>
                 <div @click="router.push({name: 'mentorcontrol'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'mentorcontrol'}]">人事考課管理</div>
+                <div @click="router.push({name: 'accountcontrol'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'accountcontrol'}]">科目管理</div>
                 <!-- <div @click="router.push({name: 'targetperiod'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'targetperiod'}]">評価指標期間管理</div> -->
                 <!-- <div @click="router.push({name: 'metriccontrol'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'metriccontrol'}]">マトリクス</div> -->
             </div>  
