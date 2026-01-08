@@ -32,13 +32,13 @@
       >
         <option v-for="m in 12" :key="m" :value="m">{{ monthLabel(m) }}</option>
       </select> -->
-      <button class="px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition" @click="downloadTemplate">テンプレートDL</button>
-      <label class="px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition cursor-pointer">
+      <button class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition" @click="downloadTemplate">テンプレートDL</button>
+      <label class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition cursor-pointer">
         アップロード
         <input type="file" class="hidden" accept=".xlsx,.xls" :disabled="isReadOnly" @change="uploadTemplate" />
       </label>
       <button
-        class="px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+        class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="isReadOnly"
         @click="clearAll"
       >クリア</button>
@@ -61,24 +61,24 @@
       <div class="flex items-center gap-2 ml-auto">
         <button
           v-if="lockState.is_locked && isHQ"
-          class="ml-auto px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
+          class="ml-auto text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
           @click="unlockPlan"
         >確定解除</button>
         <button
           v-if="!lockState.is_locked"
-          class="px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+          class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="isReadOnly"
           @click="confirmAndLock"
         >確定</button>
         <button
-          class="bg-[var(--bg3)] px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+          class="text-sm bg-[var(--bg3)] px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="isReadOnly"
           @click="save"
         >保存</button>
         <input
           v-model="filterTerm"
           type="text"
-          placeholder="科目検索 (コード/名称)"
+          placeholder="科目検索 (名称)"
           class="px-2 py-1 text-[var(--primary-color)] bg-[var(--background-color)] border border-solid border-[var(--normalBorder)] focus:outline-none focus:border-[var(--hoverBorder)]"
         />
       </div>
