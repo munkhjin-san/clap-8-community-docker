@@ -53,19 +53,16 @@ class messageRecord extends Model
         return $this->hasMany(messageFile::class, 'message_id');
     }
     public function message_reply(){
-        return $this->hasOne(messageRecord::class, 'id', 'reply_id')->with('message_files')->with('user');
+        return $this->belongsTo(self::class, 'reply_id', 'id')->with('message_files')->with('user');
     }
     public function board_record(){
         return $this->hasOne(boardRecord::class, 'id', 'record_id');
     }
     public function message_quot(){
-        return $this->hasOne(messageRecord::class, 'id', 'quot_id')->with('message_files')->with('user');
+        return $this->belongsTo(self::class, 'quot_id', 'id')->with('message_files')->with('user');
     }
     public function message_forward(){
-        return $this->hasOne(messageRecord::class, 'id', 'forward_id')->with('message_files')->with('user');
-    }
-    public function message_quot_child(){
-        return $this->belongsTo(messageRecord::class, 'quot_id', 'id');
+        return $this->belongsTo(self::class, 'forward_id', 'id')->with('message_files')->with('user');
     }
     public function board_users(){
         return $this->hasMany(boardToUser::class, 'record_id', 'record_id');

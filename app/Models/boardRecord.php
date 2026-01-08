@@ -31,13 +31,18 @@ class boardRecord extends Model
         return $this->belongsTo(messageRecord::class, 'id');
     }
     public function last_message(){
-        return $this->hasOne(messageRecord::class, 'record_id')
-        ->latest('created_at')
-        ->select('id', 'message', 'message_text', 'record_id')
-        ->where('draft_flag', 0)
-        ->withExists('message_files')
-        ->withExists('message_forward')
-        ->withExists('message_quot');
+        return $this->hasOne(messageRecord::class, 'record_id', 'id')
+        ->ofMany(['created_at' => 'max'], function ($q) {
+            $q->where('draft_flag', 0)->whereNull('deleted_at');
+        })
+        ->select([
+            'message_records.id',
+            'message_records.message',
+            'message_records.message_text',
+            'message_records.record_id',
+            'message_records.created_at',
+        ])
+        ->withExists(['message_files', 'message_forward', 'message_quot']);
     }
     public function icons(){
         return $this->hasOne(Icons::class, 'id', 'icon_path');
