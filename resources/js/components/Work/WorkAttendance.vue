@@ -44,6 +44,14 @@
                     </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
+                            <span>法定上の所定労働時間</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ mustDay(attendanceData) }}</span>
+                        </div>
+                    </div>
+                    <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
+                        <div class="attendance-title">
                             <span>予定稼働日数 / 所定労働時間</span>
                         </div>
                         <div class="attendance-value">
@@ -276,9 +284,14 @@ import Modal from '../Global/Modal.vue';
     const monthFormat = computed(() => {
         return dateInstance.value.toFormat('yyyy年M月')
     })
+    const mustDay = (data) => {
+        let days = data.should_work_days + '日'
+        let hours = data.should_work/60 + '時間'
+        return `${days} / ${hours}`
+    }
     const shiftDay = (data) => {
         let days = data.shift_count + '日'
-        let hours = data.should_work/60 + '時間'
+        let hours = data.planned_work/60 + '時間'
         return `${days} / ${hours}`
     }
     const workedDay = (data) => {

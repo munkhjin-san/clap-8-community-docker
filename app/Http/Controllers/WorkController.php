@@ -1399,6 +1399,7 @@ class WorkController extends Controller
         $working_shifts = [1, 6, 7, 8, 9, 10, 11, 12, 13];
         $should_calculate_month_hours = $user->position_id == 12 || $user->position_id == 15;
         $shift_count = $should_calculate_month_hours ? $user->shift_records->whereIn('shift_type', $working_shifts)->count() : $user->shift_records->whereNotIn('shift_type', [0, 18])->count();
+        $planned_work_hours = $shift_work_hours;
         if($should_calculate_month_hours){
             // $planned_work_shifts = $user->shift_records->whereIn('shift_type', $working_shifts)->get();
             $planned_work_shifts = collect($user->shift_records->whereIn('shift_type', $working_shifts)->values());
@@ -1422,7 +1423,7 @@ class WorkController extends Controller
                         break;
                 }
             }
-            $shift_work_hours = $calculated_planned_minutes;
+            $planned_work_hours = $calculated_planned_minutes;
         }
         $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
         $shift_workdays = $user->shift_records->whereIn('shift_type', [1, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 26])->pluck('shift_day');
@@ -1504,6 +1505,7 @@ class WorkController extends Controller
             'shift_count' => $shift_count,
             'should_work' => $shift_work_hours,
             'should_work_days' => $workdayNum,
+            'planned_work' => $planned_work_hours,
             'shift_holidays' => $shift_holidays->count(),
             'holiday_count' => $worked_holiday_count,
             'workedday_count' => $workedday_count,
@@ -1656,7 +1658,7 @@ class WorkController extends Controller
             $attendance_record->prescribed_working_hours = $request->shift_working_hours / 60;
             $attendance_record->work_type = $request->user['work_type'] == 0 ? 'フレックス' : '通常';
             $attendance_record->working_days_shift = $request->shift_working_days;
-            $attendance_record->normal_working_days = $request->worked_days + $hours_count;
+            $attendance_record->normal_working_days = $request->worked_days;
             $attendance_record->holiday_working_days = $request->holiday_worked_days;
             $attendance_record->paid_holiday_hours = $request->annual_leave;
             $attendance_record->condolence_holiday = $request->condolence_leave;
