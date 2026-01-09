@@ -121,12 +121,10 @@ export const vehicleAsOptions = ([
     { label: '弘前580い7008', value: 18},
     { label: '仙台580よ8134', value: 19},
     { label: '郡山580け8503', value: 20},
-    { label: '福岡582ち7350', value: 21},
     { label: '愛媛581な1880', value: 22},
     { label: '盛岡580さ6353', value: 23},
     { label: '福岡582そ1234', value: 24},
     { label: '仙台580ひ6191', value: 25},
-    { label: 'なにわ502の1116', value: 26},
     { label: 'なにわ581き9917', value: 27},
     { label: '久留米581と3345', value: 28},
 ])
