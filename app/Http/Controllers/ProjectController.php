@@ -4436,5 +4436,95 @@ class ProjectController extends Controller
             || $project->members->contains('id', $user->id)
             || $project->director_id === $user->id;
     }
+
+    public function get_resources_kintone(Request $request)
+    {
+        $interval = $request->input('interval', []);
+        $startYear  = (int)($interval['startYear']  ?? 0);
+        $startMonth = (int)($interval['startMonth'] ?? 0);
+        $endYear    = (int)($interval['endYear']    ?? 0);
+        $endMonth   = (int)($interval['endMonth']   ?? 0);
+
+        if (
+            $startYear <= 0 || $endYear <= 0 ||
+            $startMonth < 1 || $startMonth > 12 ||
+            $endMonth < 1 || $endMonth > 12
+        ) {
+            return response()->json(['message' => 'Invalid interval'], 422);
+        }
+
+        $startInstance = Carbon::createFromDate($startYear, $startMonth, 1)->startOfDay();
+        $endInstance   = Carbon::createFromDate($endYear, $endMonth, 1)->startOfDay();
+
+        if ($endInstance->lt($startInstance)) {
+            [$startInstance, $endInstance] = [$endInstance, $startInstance];
+        }
+
+        $maxMonths = 12;
+        $monthsApart = $startInstance->diffInMonths($endInstance);
+        if ($monthsApart > $maxMonths - 1) {
+            $endInstance = $startInstance->copy()->addMonths($maxMonths - 1);
+        }
+
+        $startDate = $startInstance->copy()->startOfMonth()->toDateString();
+        $endDate   = $endInstance->copy()->endOfMonth()->toDateString();
+        // 部門 in (\"{$project_names_str}\")
+        $query = "日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\"";
+        $fields = ["給料手当テーブル", "部門", "日付"];
+
+        $limit = 500;
+        $offset = 0;
+
+        $out = [];
+
+        while (true) {
+            $q = $query . " limit {$limit} offset {$offset}";
+            $recs = $this->api->getRecords(1068, $q, $fields);
+
+            if (empty($recs)) {
+                break;
+            }
+
+            foreach ($recs as $r) {
+                $date = (string)($r['日付']['value'] ?? '');
+                if ($date === '') continue;
+
+                $ym = date('Y-m', strtotime($date));
+
+                $dept = (string)($r['部門']['value'] ?? '');
+                if ($dept === '') $dept = '_no_dept_';
+
+                $rows = $r['給料手当テーブル']['value'] ?? [];
+                foreach ($rows as $row) {
+                    $v = $row['value'] ?? [];
+
+                    $name = (string)($v['ルックアップ_4']['value'] ?? '');
+                    if ($name === '') continue;
+                    // $out[$name] = [
+                    //     '社員コード'   => $v['社員コード']['value'] ?? null,
+                    // ];
+                    $out[$name][$dept][$ym] = [
+                        '給料手当数量' => (float)($v['給料手当数量']['value'] ?? 0),
+                        '所定労働日数' => (float)($v['所定労働日数']['value'] ?? 0),
+                        '給料手当出金' => (float)($v['給料手当出金']['value'] ?? 0),
+                    ];
+                }
+            }
+
+            if (count($recs) < $limit) {
+                break;
+            }
+
+            $offset += $limit;
+        }
+
+        return response()->json([
+            'interval' => [
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+            ],
+            'data' => $out,
+        ]);
+    }
 }
 

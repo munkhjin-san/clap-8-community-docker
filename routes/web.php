@@ -551,6 +551,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/project_metrics/{project}/values', [ProjectController::class, 'metric_values_store']);
         Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
         Route::get('/project_actual_status_suggestions', [ProjectController::class, 'project_actual_status_suggestions']);
+        Route::post('/get_resources_kintone', [ProjectController::class, 'get_resources_kintone']);
 
         // Project plan (accounts/amounts) - new prefixed schema
         Route::get('/projects/{project}/plan/grid', [ProjectPlanController::class, 'grid']);
@@ -565,6 +566,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/projects/{project}/plan/template', [ProjectPlanController::class, 'uploadTemplate']);
         Route::get('/projects/{project}/accounts', [ProjectPlanController::class, 'accounts']);
         Route::post('/projects/{project}/accounts', [ProjectPlanController::class, 'accountStore']);
+        Route::post('/projects/{project}/accounts/sync-template', [ProjectPlanController::class, 'syncTemplate']);
         Route::put('/projects/{project}/accounts/{account}', [ProjectPlanController::class, 'accountUpdate']);
         Route::delete('/projects/{project}/accounts/{account}', [ProjectPlanController::class, 'accountDestroy']);
         Route::get('/projects/{project}/cases', [ProjectController::class, 'project_cases']);

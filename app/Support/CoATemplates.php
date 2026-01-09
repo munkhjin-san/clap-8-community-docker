@@ -66,55 +66,66 @@ class CoATemplates
                     ['code' => '6250', 'name' => '研修費', 'is_postable' => true],
                     ['code' => '6260', 'name' => '販売管理費計', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6010]+[6020]+[6030]+[6035]+[6040]+[6050]+[6060]+[6070]+[6080]+[6090]+[6100]+[6110]+[6120]+[6130]+[6140]+[6150]+[6155]+[6160]+[6170]+[6180]+[6190]+[6200]+[6210]+[6220]+[6230]+[6240]+[6250]'],
                     ['code' => '6270', 'name' => '営業損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[5050]-[6260]'],
+                    ['code' => '6280', 'name' => '間接費配賦', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6260]*0.1'],
                 ],
             ],
+            // [
+            //     'code' => '7000',
+            //     'name' => '[営業外収益]',
+            //     'is_postable' => false,
+            //     'children' => [
+            //         ['code' => '7010', 'name' => '受取利息', 'is_postable' => true],
+            //         ['code' => '7020', 'name' => '受取配当金', 'is_postable' => true],
+            //         ['code' => '7030', 'name' => '雑収入', 'is_postable' => true],
+            //         ['code' => '7040', 'name' => '営業外収益合計', 'is_postable' => false, 'is_formula' => true, 'formula' => '[7010]+[7020]+[7030]'],
+            //     ],
+            // ],
+            // [
+            //     'code' => '7100',
+            //     'name' => '[営業外費用]',
+            //     'is_postable' => false,
+            //     'children' => [
+            //         ['code' => '7110', 'name' => '支払利息', 'is_postable' => true],
+            //         ['code' => '7120', 'name' => '営業外費用合計', 'is_postable' => false, 'is_formula' => true, 'formula' => '[7110]'],
+            //         ['code' => '7130', 'name' => '経常損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6270]+[7040]-[7120]'],
+            //     ],
+            // ],
+            // [
+            //     'code' => '8000',
+            //     'name' => '[特別利益]',
+            //     'is_postable' => false,
+            //     'children' => [
+            //         ['code' => '8010', 'name' => '特別利益合計', 'is_postable' => true],
+            //     ],
+            // ],
+            // [
+            //     'code' => '8100',
+            //     'name' => '[特別損失]',
+            //     'is_postable' => false,
+            //     'children' => [
+            //         ['code' => '8110', 'name' => '特別損失合計', 'is_postable' => true],
+            //     ],
+            // ],
+            // [
+            //     'code' => '9000',
+            //     'name' => '[当期純損益]',
+            //     'is_postable' => false,
+            //     'children' => [
+            //         ['code' => '9010', 'name' => '税引前当期純損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[7130]+[8010]-[8110]'],
+            //         ['code' => '9020', 'name' => '法人税、住民税及び事業税', 'is_postable' => true],
+            //         ['code' => '9030', 'name' => '当期純損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9010]-[9020]'],
+            //     ],
+            // ],
             [
-                'code' => '7000',
-                'name' => '[営業外収益]',
+                'code' => '9100',
+                'name' => '利益',
                 'is_postable' => false,
                 'children' => [
-                    ['code' => '7010', 'name' => '受取利息', 'is_postable' => true],
-                    ['code' => '7020', 'name' => '受取配当金', 'is_postable' => true],
-                    ['code' => '7030', 'name' => '雑収入', 'is_postable' => true],
-                    ['code' => '7040', 'name' => '営業外収益合計', 'is_postable' => false, 'is_formula' => true, 'formula' => '[7010]+[7020]+[7030]'],
-                ],
-            ],
-            [
-                'code' => '7100',
-                'name' => '[営業外費用]',
-                'is_postable' => false,
-                'children' => [
-                    ['code' => '7110', 'name' => '支払利息', 'is_postable' => true],
-                    ['code' => '7120', 'name' => '営業外費用合計', 'is_postable' => false, 'is_formula' => true, 'formula' => '[7110]'],
-                    ['code' => '7130', 'name' => '経常損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6270]+[7040]-[7120]'],
-                ],
-            ],
-            [
-                'code' => '8000',
-                'name' => '[特別利益]',
-                'is_postable' => false,
-                'children' => [
-                    ['code' => '8010', 'name' => '特別利益合計', 'is_postable' => true],
-                ],
-            ],
-            [
-                'code' => '8100',
-                'name' => '[特別損失]',
-                'is_postable' => false,
-                'children' => [
-                    ['code' => '8110', 'name' => '特別損失合計', 'is_postable' => true],
-                ],
-            ],
-            [
-                'code' => '9000',
-                'name' => '[当期純損益]',
-                'is_postable' => false,
-                'children' => [
-                    ['code' => '9010', 'name' => '税引前当期純損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[7130]+[8010]-[8110]'],
-                    ['code' => '9020', 'name' => '法人税、住民税及び事業税', 'is_postable' => true],
-                    ['code' => '9030', 'name' => '当期純損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9010]-[9020]'],
-                ],
-            ],
+                    ['code' => '9110', 'name' => '通常利益', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6270]-[6280]'],
+                    ['code' => '9120', 'name' => '業績連動賞与積立金', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9110]*0.2'],
+                    ['code' => '9130', 'name' => '利益', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9110]-[9120]'],
+                ]
+            ]
         ];
     }
 }

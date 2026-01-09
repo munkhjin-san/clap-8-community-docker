@@ -5,11 +5,17 @@
         <div class="flex items-center gap-2">
           <label class="text-xs text-[var(--primary-color)]">プロジェクト</label>
           <select v-model="selectedProjectId" class="px-2 py-1 border border-solid border-[var(--normalBorder)] bg-[var(--background-color)] text-[var(--primary-color)]" @change="load">
-            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }}</option>
+            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }} ({{ p.is_new ? '新規' : '既存' }})</option>
           </select>
         </div>
         <button class="px-3 py-1 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] text-xs" @click="load">
           再読込
+        </button>
+        <button
+          class="px-3 py-1 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] text-xs"
+          @click="syncTemplate"
+        >
+          テンプレ再同期
         </button>
       </div>
 
@@ -160,7 +166,7 @@ type Account = {
   formula?: string | null
 }
 
-type ProjectItem = { id: number; name: string }
+type ProjectItem = { id: number; name: string, is_new: number }
 
 const props = defineProps<{
   projectId?: number
@@ -168,7 +174,7 @@ const props = defineProps<{
 
 const api = useApi()
 const route = useRoute()
-const { toast, askInput } = useDialog()
+const { toast, askInput, ask } = useDialog()
 const openModal = ref(false)
 const projects = ref<ProjectItem[]>([])
 const selectedProjectId = ref<number | null>(null)
@@ -197,7 +203,7 @@ const loadProjects = async () => {
   // Uses existing projects endpoint; adjust if you have a dedicated admin list
   const data = await api.get('/get_projects')
   const rows = Array.isArray(data) ? data : []
-  projects.value = rows.map((p: any) => ({ id: p.id, name: p.name }))
+  projects.value = rows.map((p: any) => ({ id: p.id, name: p.name, is_new: p.is_new }))
   if (!selectedProjectId.value && projects.value.length) {
     selectedProjectId.value = projects.value[0].id
   }
@@ -212,6 +218,21 @@ const load = async () => {
     // keep root as selectable
     form.parent_id = null
   }
+}
+
+const syncTemplate = async () => {
+  const projectId = currentProjectId()
+  if (!projectId) return
+  const ok = await ask('CoATemplates を再同期します。未登録の科目のみ追加します。よろしいですか？', {
+    answers: [
+      { value: true, label: '実行' },
+      { value: false, label: 'キャンセル' },
+    ],
+  })
+  if (!ok.value) return
+  const res = await api.post(`/projects/${projectId}/accounts/sync-template`)
+  toast(`テンプレ再同期: ${res?.added ?? 0}件追加`)
+  await load()
 }
 
 const appendCode = (code: string) => {

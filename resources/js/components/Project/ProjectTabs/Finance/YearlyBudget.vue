@@ -104,20 +104,26 @@
           </tr>
         </thead>
         <tbody>
-          <!-- DYNAMIC SECTIONS -->
-          <template v-for="section in sections" :key="section.code">
-            <tr class="section-row">
-              <td class="sticky left-0 section-cell z-10 px-4 py-2">{{ section.label }}</td>
-              <td v-for="p in periods" :key="section.code + '-h-'+p.period_index"></td>
+          <template v-for="acct in displayAccounts" :key="acct.id">
+            <tr v-if="isGroupRow(acct)" class="section-row">
+              <td class="sticky left-0 section-cell z-10 px-4 py-2">{{ acct.name }}</td>
+              <td v-for="p in periods" :key="acct.id + '-h-' + p.period_index"></td>
             </tr>
-            <tr v-for="acct in section.items" :key="acct.id" class="sheet-row">
-              <td class="sticky left-0 sheet-label z-10 px-4 py-2">{{ acct.name }}</td>
+            <tr v-else class="sheet-row">
+              <td
+                class="sticky left-0 sheet-label z-10 py-2"
+                :style="{ paddingLeft: `${16 + Math.max(acct.depth, 0) * 12}px` }"
+              >
+                {{ acct.name }}
+                <span v-if="acct.is_formula" class="ml-1 text-[11px] opacity-70">式</span>
+              </td>
               <td
                 v-for="p in periods"
                 :key="acct.id + '-' + p.period_index"
-                class="sheet-cell px-2 py-2"
+                class="sheet-cell px-2 py-2 text-right"
               >
                 <input
+                  v-if="acct.is_postable"
                   type="text"
                   class="w-full px-2 py-1 text-right table-input"
                   :disabled="isReadOnly"
@@ -125,26 +131,13 @@
                   :value="formatNumber(payload[p.period_index][acct.id])"
                   @input="onAmountInput($event, p.period_index, acct.id)"
                 />
+                <template v-else-if="acct.is_formula">
+                  {{ fmt(formulaValues[p.period_index]?.[acct.id]) }}
+                </template>
+                <template v-else>—</template>
               </td>
             </tr>
           </template>
-
-          <!-- FORMULAS -->
-          <tr v-if="formulaAccounts.length" class="section-row">
-            <td class="sticky left-0 section-cell z-10 px-4 py-2">計算科目</td>
-            <td v-for="p in periods" :key="'formula-h-'+p.period_index"></td>
-          </tr>
-          <tr v-for="acct in formulaAccounts" :key="acct.id" class="sheet-row">
-            <td class="sticky left-0 sheet-label z-10 px-4 py-2">{{ acct.name }}</td>
-            <td
-              v-for="p in periods"
-              :key="acct.id + '-' + p.period_index"
-              class="sheet-cell px-2 py-2 text-right"
-            >
-              {{ fmt(formulaValues[p.period_index]?.[acct.id]) }}
-            </td>
-          </tr>
-
         </tbody>
 
         <!-- Annual totals -->
@@ -294,36 +287,12 @@ const filterMatch = (a: Account) => {
 const formulaAccounts = computed(() => accounts.value.filter(a => a.is_active && a.is_formula && filterMatch(a)))
 const postableAccounts = computed(() => accounts.value.filter(a => a.is_active && a.is_postable && filterMatch(a)))
 const inputAccounts = postableAccounts
-const topLabels = computed<Record<string, string>>(() => {
-  const labels: Record<string, string> = {}
-  accounts.value.forEach(a => {
-    const parts = a.path.split('/').filter(Boolean)
-    const top = parts[0]
-    if (!labels[top] && a.depth === 0) {
-      labels[top] = `${a.code} ${a.name}`
-    }
-  })
-  return labels
+const displayAccounts = computed(() => {
+  return accounts.value
+    .filter(a => a.is_active && filterMatch(a))
+    .sort((a, b) => a.code.localeCompare(b.code, 'ja', { numeric: true }))
 })
-const labelCleaner = (str: string) => {
-  return str.replace(/^\s*\d+\s*/, '')
-}
-const sections = computed(() => {
-  const map: Record<string, { code: string; label: string; items: Account[] }> = {}
-  for (const acct of postableAccounts.value) {
-    const parts = acct.path.split('/').filter(Boolean)
-    const top = parts[0]
-    if (!map[top]) {
-      map[top] = {
-        code: top,
-        label: labelCleaner(topLabels.value[top]) || labelCleaner(top),
-        items: [],
-      }
-    }
-    map[top].items.push(acct)
-  }
-  return Object.values(map).sort((a, b) => a.code.localeCompare(b.code))
-})
+const isGroupRow = (acct: Account) => acct.depth === 0 && !acct.is_postable && !acct.is_formula
 
 const ensurePayload = () => {
   for (const p of periods.value) {
@@ -369,7 +338,7 @@ const annualTotals = computed(() => {
     sales += s
   }
   const sgaId = accountByCode.value.get('6260')?.id
-  const profitId = accountByCode.value.get('6270')?.id
+  const profitId = accountByCode.value.get('9120')?.id
   const expenses = sgaId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[sgaId] ?? 0), 0) : 0
   const profit = profitId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[profitId] ?? 0), 0) : sales - expenses
   return { sales, expenses, profit }
@@ -842,6 +811,10 @@ watch(selectedScenarioId, async (n, o) => {
 </script>
 
 <style scoped>
+.sheet-row {
+    background-color: var(--background-color);
+    font-size: 13px;
+}
 .section-row {
     background-color: var(--bg3);
     color: var(--primary-color);
@@ -850,10 +823,6 @@ watch(selectedScenarioId, async (n, o) => {
 .section-cell {
     background-color: var(--bg3);
     border-bottom: 1px solid var(--normalBorder);
-}
-.sheet-row {
-    background-color: var(--background-color);
-    font-size: 13px;
 }
 tfoot {
     font-size: 13px;
@@ -891,9 +860,6 @@ tfoot {
     outline: none;
 }
 @media screen and (max-width:959px) {
-    .section-row {
-      font-size: 12px;
-    }
     .sheet-row {
       font-size: 12px;
     }
