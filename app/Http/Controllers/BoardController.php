@@ -177,6 +177,7 @@ class BoardController extends Controller
     public function board_list(Request $request) {       
         $active_user = $this->active_user();
         $perPage = 40;
+        
 
         $base = boardRecord::query()
         ->whereHas('board_to_users', function($q) use($active_user){
@@ -200,7 +201,6 @@ class BoardController extends Controller
 
         $with = [
             'user',
-            'icons' => fn($q) => $q->select('id', 'extension'),
             'board_to_users' => fn($q) => $q->whereHas('user')->with('user'),
             'project',
             'last_message',
@@ -210,9 +210,7 @@ class BoardController extends Controller
             $board = (clone $base)->whereKey($request->id)->first();
 
             if (!$board) {
-                throw ValidationException::withMessages([
-                'message' => 'チャットが削除されているか、権限がないためアクセスできません。'
-                ]);
+                throw ValidationException::withMessages(['message' => 'チャットが削除されているか、権限がないためアクセスできません。']);
             }
 
             $beforeCount = (clone $base)
@@ -680,20 +678,23 @@ class BoardController extends Controller
         $limit = 30;
         $active_user = $request->override_user ?? $this->active_user();
         $auth_user_id = $active_user->id;
+       $targetBoard = boardRecord::query()
+            ->select(['id','private_flag']) // only what you use
+            ->findOrFail($request->record_id);
 
-        $usercheck = boardToUser::where('user_id', $auth_user_id)
-            ->where('record_id', $request->record_id)
+        $usercheck = $targetBoard->board_to_users()
+            ->select(['id','record_id','user_id','created_at','view_from']) // only what you use
+            ->where('user_id', $auth_user_id)
             ->first();
 
-        if (!$usercheck) {
+        if (! $usercheck) {
             throw ValidationException::withMessages(['message' => 'チャットメンバーではありません。']);
         }
 
-        $targetBoard = boardRecord::findOrFail($request->record_id);
+        
 
         // build your base constraints once
-        $base = messageRecord::query()
-            ->where('record_id', $request->record_id)
+        $base = $targetBoard->messages()
             ->where('deleted_flag', 0)
             ->when($targetBoard->private_flag !== 3, fn ($q) => $q->withTrashed());
 
@@ -701,8 +702,7 @@ class BoardController extends Controller
         $leavePeriod = $this->user_onleave($auth_user_id);
         $timeLimit   = $usercheck->created_at;
         $view_from   = $usercheck->view_from;
-        $messageFrom = $targetBoard->message_from;
-        $time_condition = $messageFrom == 0 && $timeLimit;
+        $time_condition = $timeLimit;
 
         $base = $base
         ->when($view_from, fn($q) => $q->where('created_at', '>=', $view_from))
@@ -1555,7 +1555,7 @@ class BoardController extends Controller
         $boards = boardRecord::query()
         ->whereIn('id', $uniqueIds)
         ->with(['board_to_users.user:id,name'])              
-        ->get(['id', 'title', 'private_flag'])
+        ->get(['id', 'title', 'private_flag', 'icon_bg', 'icon_path', 'icon_text'])
         ->keyBy('id');
         $t_list = [];
         foreach($div as $d){
@@ -1570,6 +1570,9 @@ class BoardController extends Controller
                 'title'      => $board?->title,
                 'private_flag' => $board?->private_flag,
                 'board_to_users' => $board->board_to_users ?? [],
+                'icon_bg' => $board?->icon_bg,
+                'icon_path' => $board?->icon_path,
+                'icon_text' => $board?->icon_text
             ];
         })->values()->all();
         $pages = ceil(count($result)/$per_page);
