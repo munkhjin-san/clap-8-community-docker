@@ -337,8 +337,8 @@ const annualTotals = computed(() => {
     const s = sumBy(p.period_index, a => a.path.startsWith('/4000/'))
     sales += s
   }
-  const sgaId = accountByCode.value.get('6260')?.id
-  const profitId = accountByCode.value.get('9120')?.id
+  const sgaId = accountByCode.value.get('6270')?.id
+  const profitId = accountByCode.value.get('9130')?.id
   const expenses = sgaId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[sgaId] ?? 0), 0) : 0
   const profit = profitId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[profitId] ?? 0), 0) : sales - expenses
   return { sales, expenses, profit }
