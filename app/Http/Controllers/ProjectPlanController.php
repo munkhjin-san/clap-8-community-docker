@@ -358,6 +358,25 @@ class ProjectPlanController extends Controller
     }
 
     /**
+     * Sync template accounts into an existing project (add missing entries).
+     */
+    public function syncTemplate(ProjectRecord $project, Request $request)
+    {
+        $data = $request->validate([
+            'overwrite' => ['sometimes', 'boolean'],
+        ]);
+
+        $before = ProjectAccount::where('project_record_id', $project->id)->count();
+        $this->coaInstaller->syncForProject($project, (bool) ($data['overwrite'] ?? false));
+        $after = ProjectAccount::where('project_record_id', $project->id)->count();
+
+        return response()->json([
+            'ok' => true,
+            'added' => max(0, $after - $before),
+        ]);
+    }
+
+    /**
      * Download a plan template for Excel input (accounts x 12 months).
      */
     public function downloadTemplate(ProjectRecord $project, Request $request)
