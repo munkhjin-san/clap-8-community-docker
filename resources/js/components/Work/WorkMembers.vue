@@ -5,7 +5,7 @@
                 <div class="sub-tab-container">
                     <div @click="byWorkGroups = 0" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 0}]">メンバー</div>
                     <div @click="byWorkGroups = 1" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1}]">プロジェクト</div>
-                    <div v-if="auth.activeUser.id === 610" @click="byWorkGroups = 2" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 2}]">車両</div>
+                    <div v-if="auth.activeUser.id === 610 || auth.activeUser.id === 608" @click="byWorkGroups = 2" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 2}]">車両</div>
                 </div>
                 <div class="searchBarInner" style="margin: 10px 15px 0;width: auto;min-width: 270px"> 
                     <PostSearchBar  
