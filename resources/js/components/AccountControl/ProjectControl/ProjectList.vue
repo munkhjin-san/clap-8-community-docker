@@ -3,6 +3,7 @@
         <div class="project-table">
             <div class="project-header-row">
                 <div class="project-cell">プロジェクト名</div>
+                <div class="project-cell">部門</div>
                 <div class="project-cell">期間</div>
                 <div class="project-cell">サービスカテゴリ</div>
                 <div class="project-cell">顧客企業</div>
@@ -16,6 +17,11 @@
                 <div class="project-cell">
                     <div>
                         {{ project.name }}
+                    </div>
+                </div>
+                <div class="project-cell whitespace-nowrap">
+                    <div>
+                        {{ project.is_new ? '新規' : '既存' }}
                     </div>
                 </div>
                 <div class="project-cell pc">

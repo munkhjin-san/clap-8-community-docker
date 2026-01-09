@@ -51,8 +51,7 @@
               </td>
               <td class="px-3 py-2">{{ a.sort_order }}</td>
               <td class="px-3 py-2">
-                <button class="text-xs px-2 py-1 border border-solid border-[var(--normalBorder)] mr-1" @click="promptRename(a)">名称変更</button>
-                <button v-if="a.is_formula" class="text-xs px-2 py-1 border border-solid border-[var(--normalBorder)] mr-1" @click="promptFormula(a)">式編集</button>
+                <button class="text-xs px-2 py-1 border border-solid border-[var(--normalBorder)] mr-1" @click="openEdit(a)">編集</button>
                 <button class="text-xs px-2 py-1 border border-solid border-[var(--normalBorder)] text-red-500" @click="deleteAccount(a)">削除</button>
               </td>
             </tr>
@@ -70,7 +69,7 @@
         </table>
       </div>
 
-      <FloatButton title="科目追加" @action="openModal = true">
+      <FloatButton title="科目追加" @action="openCreate">
         <template #icon>
           <AddIcon size="15" fill="black"/>
         </template>
@@ -80,14 +79,20 @@
     </div>
     <Modal v-if="openModal" @close="openModal = false">
         <template #title>
-          <div class="text-[var(--primary-color)] font-semibold">新規科目</div>
+          <div class="text-[var(--primary-color)] font-semibold">
+            {{ isEditing ? '科目編集' : '新規科目' }}
+          </div>
         </template>
         <template #content>
           <div class="space-y-4 text-[var(--primary-color)]">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label class="text-xs text-[var(--primary-color)]">親科目</label>
-              <select v-model="form.parent_id" class="w-full px-2 py-1 border border-solid border-[var(--normalBorder)] bg-[var(--background-color)] text-[var(--primary-color)]">
+              <select
+                v-model="form.parent_id"
+                class="w-full px-2 py-1 border border-solid border-[var(--normalBorder)] bg-[var(--background-color)] text-[var(--primary-color)]"
+                :disabled="isEditing"
+              >
                 <option :value="null">ルート</option>
                 <option v-for="a in parentOptions" :key="a.id" :value="a.id">
                   {{ indent(a.depth) }}{{ a.code }} {{ a.name }}
@@ -96,7 +101,11 @@
             </div>
               <div>
                 <label class="text-xs text-[var(--primary-color)]">コード</label>
-                <input v-model="form.code" class="w-full px-2 py-1 border border-solid border-[var(--normalBorder)] bg-[var(--background-color)] text-[var(--primary-color)]" />
+                <input
+                  v-model="form.code"
+                  :disabled="isEditing"
+                  class="w-full px-2 py-1 border border-solid border-[var(--normalBorder)] bg-[var(--background-color)] text-[var(--primary-color)]"
+                />
               </div>
               <div>
                 <label class="text-xs text-[var(--primary-color)]">名称</label>
@@ -134,7 +143,7 @@
             </div>
             <div class="flex justify-end gap-2">
               <button class="px-3 py-2 border border-solid border-[var(--normalBorder)]" @click="openModal = false">キャンセル</button>
-              <button class="px-3 py-2 border border-solid border-[var(--normalBorder)] bg-[var(--bg3)]" @click="create">保存</button>
+              <button class="px-3 py-2 border border-solid border-[var(--normalBorder)] bg-[var(--bg3)]" @click="saveAccount">保存</button>
             </div>
           </div>
         </template>
@@ -191,6 +200,8 @@ const form = reactive({
   is_formula: false,
   formula: '',
 })
+const editingAccountId = ref<number | null>(null)
+const isEditing = computed(() => editingAccountId.value !== null)
 
 const currentProjectId = () => {
   if (selectedProjectId.value) return selectedProjectId.value
@@ -255,32 +266,69 @@ const validateFormula = (formula: string): { ok: boolean; unknown: string[] } =>
   return { ok: unknown.length === 0, unknown }
 }
 
-const create = async () => {
+const resetForm = () => {
+  form.parent_id = null
+  form.code = ''
+  form.name = ''
+  form.is_postable = true
+  form.is_formula = false
+  form.formula = ''
+}
+
+const openCreate = () => {
+  editingAccountId.value = null
+  resetForm()
+  openModal.value = true
+}
+
+const openEdit = (acct: Account) => {
+  editingAccountId.value = acct.id
+  form.parent_id = acct.parent_id
+  form.code = acct.code
+  form.name = acct.name
+  form.is_postable = !!acct.is_postable
+  form.is_formula = !!acct.is_formula
+  form.formula = acct.formula || ''
+  openModal.value = true
+}
+
+const saveAccount = async () => {
   const projectId = currentProjectId()
   if (!projectId) return
   if (!form.code.trim() || !form.name.trim()) return
   if (form.is_formula) {
+    if (!form.formula.trim()) {
+      toast('式を入力してください')
+      return
+    }
     const check = validateFormula(form.formula || '')
     if (!check.ok) {
       toast(`不明なコードがあります: ${check.unknown.join(', ')}`)
       return
     }
   }
-  await api.post(`/projects/${projectId}/accounts`, {
-    parent_id: form.parent_id,
-    code: form.code.trim(),
-    name: form.name.trim(),
-    is_postable: !!form.is_postable,
-    is_formula: !!form.is_formula,
-    formula: form.is_formula ? form.formula : null,
-  })
-  form.code = ''
-  form.name = ''
-  form.is_postable = true
-  form.is_formula = false
-  form.formula = ''
+  if (editingAccountId.value) {
+    await api.put(`/projects/${projectId}/accounts/${editingAccountId.value}`, {
+      name: form.name.trim(),
+      is_postable: !!form.is_postable,
+      is_formula: !!form.is_formula,
+      formula: form.is_formula ? form.formula : null,
+    })
+    toast('科目を更新しました')
+  } else {
+    await api.post(`/projects/${projectId}/accounts`, {
+      parent_id: form.parent_id,
+      code: form.code.trim(),
+      name: form.name.trim(),
+      is_postable: !!form.is_postable,
+      is_formula: !!form.is_formula,
+      formula: form.is_formula ? form.formula : null,
+    })
+    toast('科目を追加しました')
+  }
+  resetForm()
+  editingAccountId.value = null
   openModal.value = false
-  toast('科目を追加しました')
   await load()
 }
 
@@ -309,46 +357,6 @@ const toggleFormula = async (acct: Account) => {
     is_formula: !acct.is_formula,
     is_postable: acct.is_formula, // disable postable when turning on
   })
-  await load()
-}
-
-const promptRename = async (acct: Account) => {
-  const projectId = currentProjectId()
-  if (!projectId) return
-  const { input, decision } = await askInput('名称変更', {
-    label: '新しい名称',
-    required: true,
-    placeholder: acct.name,
-    value: acct.name,
-  })
-  if (!decision.value || !input || input.trim() === acct.name) return
-  await api.put(`/projects/${projectId}/accounts/${acct.id}`, { name: input.trim() })
-  toast('名称を更新しました')
-  await load()
-}
-
-const promptFormula = async (acct: Account) => {
-  const projectId = currentProjectId()
-  if (!projectId) return
-  const { input, decision } = await askInput('式編集', {
-    label: '式（例: [7010]+[7020]、セクションは [6000/*]）',
-    required: true,
-    placeholder: '[7010]+[7020]',
-    value: acct.formula || '',
-  })
-  if (!decision.value || input === null) return
-  const formula = input.trim()
-  const check = validateFormula(formula)
-  if (!check.ok) {
-    toast(`不明なコードがあります: ${check.unknown.join(', ')}`)
-    return
-  }
-  await api.put(`/projects/${projectId}/accounts/${acct.id}`, {
-    is_formula: true,
-    is_postable: false,
-    formula: formula.trim(),
-  })
-  toast('式を更新しました')
   await load()
 }
 
