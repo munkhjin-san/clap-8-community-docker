@@ -15,7 +15,7 @@
                     />
                 </div> 
             </div>         
-            <div v-if="searchUsers.length">
+            <div v-if="searchUsers.length || searchVehicles.length">
                 <div style="padding:0 15px;display:flex;" v-if="byWorkGroups == 0">                                
                     <label class="work-member-check" style="align-self: center;padding-left: 30px;padding-bottom: 0;margin-bottom: 0;">
                         <input @change="selectAll"  name="memberCheckBox" type="checkbox">
