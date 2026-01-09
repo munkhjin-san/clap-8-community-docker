@@ -118,10 +118,12 @@
                 class="sheet-cell px-2 py-2"
               >
                 <input
-                  type="number"
+                  type="text"
                   class="w-full px-2 py-1 text-right table-input"
                   :disabled="isReadOnly"
-                  v-model.number="payload[p.period_index][acct.id]"
+                  inputmode="numeric"
+                  :value="formatNumber(payload[p.period_index][acct.id])"
+                  @input="onAmountInput($event, p.period_index, acct.id)"
                 />
               </td>
             </tr>
@@ -475,7 +477,7 @@ const save = async () => {
       })
     }
   }
-
+  if (!months.length) return
   await api.post(`/projects/${projectId}/plan/grid`, {
     plan_year_id: planYearId.value,
     fiscal_year: fiscalYear.value,
@@ -794,7 +796,25 @@ const toNumOrNull = (v: unknown) => {
   const n = typeof v === 'string' ? Number(v.replace(/,/g, '')) : Number(v)
   return Number.isFinite(n) ? n : null
 }
+const formatNumber = (v: unknown) => {
+  const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(/,/g, ''))
+  return Number.isFinite(n) ? n.toLocaleString('ja-JP') : ''
+}
 
+const parseNumber = (s: string) => {
+  const cleaned = s.replace(/,/g, '').trim()
+  if (cleaned === '') return 0
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? n : 0
+}
+
+const onAmountInput = (e: Event, periodIndex: number, acctId: string | number) => {
+  const el = e.target as HTMLInputElement
+  const cleaned = el.value.replace(/[^\d,]/g, '')
+  el.value = cleaned
+
+  payload[periodIndex][acctId] = parseNumber(cleaned)
+}
 onMounted(load)
 watch(payload, () => {
   if (!initialized.value) return
