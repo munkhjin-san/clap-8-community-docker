@@ -64,9 +64,10 @@ class CoATemplates
                     ['code' => '6230', 'name' => '寄付金', 'is_postable' => true],
                     ['code' => '6240', 'name' => '減価償却費', 'is_postable' => true],
                     ['code' => '6250', 'name' => '研修費', 'is_postable' => true],
-                    ['code' => '6260', 'name' => '販売管理費計', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6010]+[6020]+[6030]+[6035]+[6040]+[6050]+[6060]+[6070]+[6080]+[6090]+[6100]+[6110]+[6120]+[6130]+[6140]+[6150]+[6155]+[6160]+[6170]+[6180]+[6190]+[6200]+[6210]+[6220]+[6230]+[6240]+[6250]'],
-                    ['code' => '6270', 'name' => '営業損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[5050]-[6260]'],
-                    ['code' => '6280', 'name' => '間接費配賦', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6260]*0.1'],
+                    ['code' => '6260', 'name' => '間接費配賦', 'is_postable' => false, 'is_formula' => true, 'formula' => '([6010]+[6020]+[6030]+[6035]+[6040]+[6050]+[6060]+[6070]+[6080]+[6090]+[6100]+[6110]+[6120]+[6130]+[6140]+[6150]+[6155]+[6160]+[6170]+[6180]+[6190]+[6200]+[6210]+[6220]+[6230]+[6240]+[6250])*0.1'],
+                    ['code' => '6270', 'name' => '販売管理費計', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6010]+[6020]+[6030]+[6035]+[6040]+[6050]+[6060]+[6070]+[6080]+[6090]+[6100]+[6110]+[6120]+[6130]+[6140]+[6150]+[6155]+[6160]+[6170]+[6180]+[6190]+[6200]+[6210]+[6220]+[6230]+[6240]+[6250]+[6260]'],
+                    // ['code' => '6280', 'name' => '営業損益金額', 'is_postable' => false, 'is_formula' => true, 'formula' => '[5050]-[6270]'],
+                    
                 ],
             ],
             // [
@@ -121,7 +122,7 @@ class CoATemplates
                 'name' => '利益',
                 'is_postable' => false,
                 'children' => [
-                    ['code' => '9110', 'name' => '通常利益', 'is_postable' => false, 'is_formula' => true, 'formula' => '[6270]-[6280]'],
+                    ['code' => '9110', 'name' => '通常利益', 'is_postable' => false, 'is_formula' => true, 'formula' => '[5050]-[6270]'],
                     ['code' => '9120', 'name' => '業績連動賞与積立金', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9110]*0.2'],
                     ['code' => '9130', 'name' => '利益', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9110]-[9120]'],
                 ]

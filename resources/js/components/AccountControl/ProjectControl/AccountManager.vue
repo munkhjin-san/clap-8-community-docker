@@ -363,8 +363,9 @@ const toggleFormula = async (acct: Account) => {
 const deleteAccount = async (acct: Account) => {
   const projectId = currentProjectId()
   if (!projectId) return
-  if (!window.confirm(`「${acct.code} ${acct.name}」を削除しますか？関連する金額も削除されます。`)) return
-  await api.del(`/projects/${projectId}/accounts/${acct.id}`)
+  await api.del(`/projects/${projectId}/accounts/${acct.id}`, {}, {
+    ask: `「${acct.code} ${acct.name}」を削除しますか？関連する金額も削除されます。`
+  })
   await load()
 }
 
