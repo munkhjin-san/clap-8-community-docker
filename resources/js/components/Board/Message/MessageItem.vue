@@ -37,7 +37,7 @@
                     </div>                                     
                     <div class="m-date">{{messageKind}}</div>  
                     <div class="messageIconContainer">
-                        <div v-if="message.deleted_at == null && message.message" title="読み上げる" class="relative min-w-[25px]">
+                        <div v-if="message.deleted_at == null && message.message" title="読み上げる" class="h-[25px] flex justify-center relative min-w-[25px]">
                             <TTSPlayer 
                                 :text="readableText" 
                                 :key="`tts_message_${message.id}`"
