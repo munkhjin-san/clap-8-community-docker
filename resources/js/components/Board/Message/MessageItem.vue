@@ -14,9 +14,7 @@
             class="messageBodyWrapper" 
             :style="{
                 float: auth && auth.activeUser.id == message.user.id ? 'right' : 'left',
-                margin: '0 15px',
-                maxWidth: message.message == null || !message.message || !message.message.length ? '50%' : '80%',
-                width: 'fit-content'
+                maxWidth: message.message == null || !message.message || !message.message.length ? '50%' : '',
             }" 
         >
             <div :class="['mobileMessageBody', 'mb-2', { 'reached' : urlMessage.id == message.id}, { emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id}]">

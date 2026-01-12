@@ -6378,11 +6378,8 @@ input:autofill {
 
 .message-top-block {
   display: flex;
-  align-items: center;
   position: relative;
   margin-bottom: 15px;
-
-
 }
 
 .m-date {
