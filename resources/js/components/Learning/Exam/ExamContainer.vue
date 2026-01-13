@@ -82,7 +82,11 @@
                     <LoaderButton :loading="submitting" :content="'提出する'" @triggered="submitExam"/>
                 </div>
                 <div v-else class="exam-status text-center">
-                    <p>受験可能回数を超えました。管理者へご連絡ください。</p>
+                    <label class="flex items-center justify-center gap-[10px] cursor-pointer">
+                        <input :class="['custom-f-checkbox', { 'invalid-box' : !complete && validate }]" type="checkbox" v-model="complete">
+                        <div>回答と解説を確認しました<span class="text-[gray] text-[12px] ml-[5px]">(必須)</span></div>
+                    </label>
+                    <!-- <p>受験可能回数を超えました。管理者へご連絡ください。</p> -->
                     <p v-if="shouldRevealAnswers" class="exam-status-note">以下の正解と解説を確認してください。</p>
                     <div class="si-box">
                         <LoaderButton :content="'完了'" @triggered="goBack"/>
@@ -115,7 +119,8 @@ const formError = ref('')
 const submissionResult = ref(null)
 const finalAnswers = ref([])
 const revealAnswers = ref(false)
-
+const complete = ref(false)
+const validate = ref(false)
 const examPassed = computed(() => attempts.value.some(attempt => attempt.status === 'passed'))
 
 const finalAnswersMap = computed(() => {
@@ -162,6 +167,8 @@ const fetchExam = async() => {
 }
 
 const goBack = () => {
+    validate.value = true
+    if (!complete.value) return
     router.push({name: 'basic', params: {lessonThemeId: route.params.lessonThemeId}})
 }
 
