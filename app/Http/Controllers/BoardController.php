@@ -807,8 +807,14 @@ class BoardController extends Controller
             if($request->attached_temp_files){ 
                 foreach($request->attached_temp_files as $item){
                     $path_shared_files = $request->record_id;       
-                    $path_temp_files = 'shared_files/temp_upload';   
+                    $path_temp_files = 'shared_files/temp_upload';
                     $file = messageFile::findOrFail($item['id']);
+                    $srcPath = $file->id . '.' .$file->extension;
+                    $temp_path = storage_path('app/temp_upload/' . $srcPath);
+                    if (!file_exists($temp_path)) {
+                        continue;
+                    }
+                    
                     $file->board_id = $chat->record_id;
 
                     $file->message_id = $chat->id;                            
@@ -817,9 +823,9 @@ class BoardController extends Controller
                     File::isDirectory(storage_path('app') . '/' . $path) or File::makeDirectory(storage_path('app') . '/' . $path, 0755, true, true);             
                     
 
-                    $srcPath = $file->id . '.' .$file->extension;
+                    
                     $destPath = $chat->record_id . '/' . $file->id . '_' . $file->user_id . '_' . $chat->id . '.' . $file->extension;
-                    $temp_path = storage_path('app/temp_upload/' . $srcPath);
+                    
                     Storage::disk('local')->move('temp_upload/' .  $file->id . '.' .$file->extension, 'shared_files/' . $destPath);
                         
                     

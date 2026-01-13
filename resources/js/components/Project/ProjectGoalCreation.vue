@@ -116,7 +116,7 @@
                 />
                 <div class="si-box">
                     <ShortInput 
-                        place-holder="本目標のステークホルダー（顧客名、部署、チーム、役割など具体的に）"
+                        place-holder="主なステークホルダー（顧客名、部署、チーム、役割など具体的に）"
                         name="stakeholderName" 
                         :rules="'required'"
                         ref="stakeholderNameRef"
