@@ -30,13 +30,6 @@ export default defineConfig({
             'utils': '/resources/js/utils'
         },
     },
-    server: {
-        hmr: {
-            host: 'xs954629.xsrv.jp',
-            port: 3000
-        },
-        https: true
-    },
     build: {
         target: 'esnext',
         chunkSizeWarningLimit: 600 
