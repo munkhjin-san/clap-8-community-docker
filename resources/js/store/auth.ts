@@ -8,7 +8,6 @@ interface State {
   isRegistered: boolean
   isOnLeave: boolean
   linked: Array<subUser>
-  hasPrivilage: boolean
 }
 interface subUser {
     position_id: number
@@ -48,7 +47,6 @@ export const useAuthUserStore = defineStore('authUser', {
     isRegistered: false,
     isOnLeave: false,
     linked: [],
-    hasPrivilage: false,
   }),
   actions: {
     setUser(payload: any){
@@ -59,7 +57,6 @@ export const useAuthUserStore = defineStore('authUser', {
         this.isRegistered = payload.position_id == 15
         this.isOnLeave = payload.on_leave
         this.linked = payload?.linked
-        this.hasPrivilage = payload.position_id <= 6 || payload.id === 610 || payload.id === 608
     },
     setFooterView(payload: boolean){
         this.user.footer_view = payload
@@ -77,5 +74,8 @@ export const useAuthUserStore = defineStore('authUser', {
         }
         return this.user        
     },
+    hasPrivilage():boolean{
+      return this.activeUser?.position_id <= 6 || this.activeUser.id === 610 || this.activeUser.id === 608
+    }
   }
 })
