@@ -2,13 +2,13 @@
     <div class="h-full relative bg-[var(--background-color)]">
         <div class="flex justify-between items-center p-4">
             <div class="sub-tab-container">
-                <div @click="changeBetweenTabs('check')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'check'}]">収支確認</div>
-                <div v-if="selectedProject.has_actual_func" id="performanceManagement" @click="changeBetweenTabs('case')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'case'}]">実績管理</div>
-                <div v-if="hasPrivilage" @click="changeBetweenTabs('yearly')" :class="['sub-tab-item', { 'selected-sub-tab': activeTab === 'yearly'}]">年度予算</div>
+                <div @click="router.push({name: 'finance'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'finance'}]">収支確認</div>
+                <div v-if="selectedProject.has_actual_func" id="performanceManagement" @click="router.push({name: 'result'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'result'}]">実績管理</div>
+                <div v-if="hasPrivilage" @click="router.push({name: 'plan'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'plan'}]">年度予算</div>
             </div>
         </div>
         
-        <div v-if="activeTab === 'check'" class="h-[calc(100%-60px)] overflow-y-auto">
+        <div v-if="route.name === 'finance'" class="h-[calc(100%-60px)] overflow-y-auto">
             <div class="flex items-center gap-4 static flex-wrap md:flex-nowrap px-5 md:justify-normal justify-center">
                 <div class="text-sm"><span class="p-[5px] text-xs bg-[var(--bg3)] mr-[10px]">期間</span> {{ selectedProject?.date_start && selectedProject.date_end ? `${DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
                 <div class="work-monthpicker">
@@ -290,28 +290,7 @@
                 </ul>
             </div> -->
             
-        </div>
-        <div class="overflow-auto h-[calc(100%-100px)]" v-if="activeTab === 'case'">
-            <CaseConfirm 
-                :select-project="selectedProject" 
-                :refresh-key="caseRefreshKey"
-                :has-privilage="hasPrivilage"
-                :year="year"
-                :month="month"
-            />
-        
-            
-        </div>
-        
-        
-        
-        <YearlyBudget 
-            v-else-if="activeTab === 'yearly'"
-            :year="year"
-            :selectedProjectName="selectedProject.name"
-            :selectedProjectId="selectedProject.id"
-            :selectedProjectIsNew="selectedProject.is_new"
-        />
+        </div>   
         <Transition name="smLoad">
             <CommentWindow 
                 v-if="commentView && selectedCommentPeriod"  
@@ -323,7 +302,14 @@
             />
         </Transition>
         <router-view 
-            :selected-project="selectedProject"
+            :select-project="selectedProject" 
+            :refresh-key="caseRefreshKey"
+            :has-privilage="hasPrivilage"
+            :selectedProjectName="selectedProject.name"
+            :selectedProjectId="selectedProject.id"
+            :selectedProjectIsNew="selectedProject.is_new"
+            :year="year"
+            :month="month"
         />
     </div>
 </template>
@@ -333,7 +319,7 @@ import { DateTime, MonthNumbers } from 'luxon';
 import { computed, inject, onMounted, ref } from 'vue';
 import { amountOfMoneyParser } from '@/utils/tools';
 import CellLoader from './Finance/CellLoader.vue';
-import { useRoute, useRouter } from 'vue-router';
+import { RouterView, useRoute, useRouter } from 'vue-router';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import DeltaNumbers from './Finance/DeltaNumbers.vue';
 import { useApi } from '@/composables/api';

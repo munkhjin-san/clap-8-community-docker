@@ -141,9 +141,8 @@ class ContentController extends Controller
 
     public function user_default_thumbnail($char, $size, $color = '#000')
     {
-        $regex = '/[А-Яа-яЁёөү]/u';
-        $is_mn = preg_match($regex, $char);
-        $font_path = $is_mn ? 'fonts/NotoSans-Bold.ttf' : 'fonts/Noto_Sans_CJK-Bold.otf';
+    
+        $font_path = 'fonts/Noto_Sans_CJK-Bold.otf';
 
         $bg = $color;
         $text_color = '#fff';

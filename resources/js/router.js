@@ -244,20 +244,20 @@ const routes = [
                         name: 'finance',
                         props: true,
                         component: () => import('./components/Project/ProjectTabs/Finance.vue'),
-                        // children: [
-                        //     {
-                        //         name: 'plan',
-                        //         path: 'plan',
-                        //         props: true,
-                        //         component: () => import('./components/Project/ProjectTabs/Finance/PlanScreen.vue')
-                        //     },
-                        //     {
-                        //         name: 'report',
-                        //         path: 'report',
-                        //         props: true,
-                        //         component: () => import('./components/Project/ProjectTabs/Finance/ScenarioReport.vue')
-                        //     }
-                        // ]
+                        children: [
+                            {
+                                name: 'plan',
+                                path: 'plan',
+                                props: true,
+                                component: () => import('./components/Project/ProjectTabs/Finance/YearlyBudget.vue')
+                            },
+                            {
+                                name: 'result',
+                                path: 'result',
+                                props: true,
+                                component: () => import('./components/Project/ProjectTabs/Finance/CaseConfirm.vue')
+                            }
+                        ]
                     },
                     {
                         path: 'dispatch',
@@ -294,6 +294,12 @@ const routes = [
                 name: 'total-finance',
                 props: true,
                 component: () => import('@/components/Project/ProjectTotalFinance.vue'),
+            },
+            {
+                path: 'resource',
+                name: 'resource',
+                props: true,
+                component: () => import('@/components/Project/ProjectResource.vue'),
             }
             // {
             //     path: 'gantt-chart',
@@ -442,13 +448,6 @@ const routes = [
                         props: true,
                         component: () => import('./components/AccountControl/ProjectControl/AccountManager.vue')
                     },
-                    // {
-                    //     path: 'metriccontrol',
-                    //     name: 'metriccontrol',
-                    //     props: true,
-                    //     component: () => import('./components/AccountControl/ProjectControl/MetricControl/MetricList.vue')
-                    // }
-
                 ]
             },
             {
@@ -557,29 +556,29 @@ const routes = [
         props: true,
         
     },
-    // {
-    //     path: '/help',
-    //     name: 'help',
-    //     meta: {
-    //         title: 'ヘルプ',
-    //     },
-    //     component: () => import('@/components/Help/HelpContainer.vue'),
-    //     redirect: { name: 'tutorial' },
-    //     children: [
-    //         {
-    //             path: 'tutorial',
-    //             name: 'tutorial',
-    //             component: () => import('@/components/Help/Tutorial.vue'),
-    //             children: [
-    //                 {
-    //                     path: 'about-project',
-    //                     name: 'about-project',
-    //                     component: () => import('@/components/Help/Project/ProjectHelp.vue'),
-    //                 },
-    //             ]
-    //         }
-    //     ]
-    // },
+    {
+        path: '/help',
+        name: 'help',
+        meta: {
+            title: 'ヘルプ',
+        },
+        component: () => import('@/components/Help/HelpContainer.vue'),
+        redirect: { name: 'tutorial' },
+        children: [
+            {
+                path: 'tutorial',
+                name: 'tutorial',
+                component: () => import('@/components/Help/Tutorial.vue'),
+                children: [
+                    {
+                        path: 'about-project',
+                        name: 'about-project',
+                        component: () => import('@/components/Help/Project/ProjectHelp.vue'),
+                    },
+                ]
+            }
+        ]
+    },
     {
         path: '/learning',
         name: 'learning',

@@ -113,6 +113,7 @@ import { DateTime } from 'luxon'
 import MonthPickerNew from '../Global/MonthPickerNew.vue'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
+import { useTutorialStore } from '@/store/tutorial'
     const WorkShifts = defineAsyncComponent(() => import('./WorkShifts.vue'));
     const WorkAttendance = defineAsyncComponent(() => import('./WorkAttendance.vue'));
     const WorkReport = defineAsyncComponent(() => import('./WorkReport.vue'));
@@ -148,6 +149,7 @@ import { useDialog } from '@/composables/dialog'
     const selectedVehicles = ref([])
     const api = useApi()
     const { ask, ping, toast } = useDialog() 
+    const tutorialStore = useTutorialStore()
     onMounted(async() => {
         const query = route.query
         if(query.user_id){
@@ -159,6 +161,17 @@ import { useDialog } from '@/composables/dialog'
         if(query.startDate){
             startDate.value = query.startDate
             selectShift()
+        }
+        if (tutorialStore.state.active && tutorialStore.state.name.includes('timesheet.dailyreport')) {
+            setTimeout(() => {
+                console.log(recordsArray.value)
+                const todayItem = recordsArray.value.find(item => item.user_id === auth.id && item.day_full === DateTime.now().toISODate());
+                console.log('todayItem', todayItem);
+                if (todayItem) {
+                    timeStampEdit(todayItem)
+                }
+            }, 500)
+            
         }
     })
     let isClearing = false

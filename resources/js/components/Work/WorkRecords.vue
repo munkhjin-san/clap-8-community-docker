@@ -4,7 +4,7 @@
         <div v-if="!records.length" class="absolute-div">
             メンバーを選択してください。
         </div>  
-        <v-data-table-virtual
+        <VDataTableVirtual
             :headers="headers"
             :items="records"
             height="100%"
@@ -45,7 +45,7 @@
             </template>            
                 
             
-        </v-data-table-virtual>
+        </VDataTableVirtual>
         <Transition name="modalFade">
             <WorkProcedureButtons 
                 :item="tempItem"

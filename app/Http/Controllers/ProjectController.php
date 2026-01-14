@@ -27,6 +27,7 @@ use App\Models\ProjectSale;
 use App\Models\messageFile;
 use App\Models\ProjectMemberReportNotification;
 use App\Models\ProjectContract;
+use App\Models\ProjectResourceComment;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
@@ -3170,6 +3171,90 @@ class ProjectController extends Controller
         return response()->json($comment);
     }
 
+    public function project_resource_comment(Request $req) {
+        $user = $this->active_user();
+        $data = $req->validate([
+            'member_name'        => ['required','string','max:255'],
+            'comment'            => ['required','string','max:20000'],
+            'period'             => ['required', 'date_format:Y-m'],
+        ]);
+
+        DB::transaction(function () use (&$comment, $data, $user) {
+            $comment = ProjectResourceComment::create([
+                'member_name' => $data['member_name'],
+                'user_id'     => $user->id,
+                'comment'     => $data['comment'],
+                'reply_id'    => $data['reply_id'] ?? null,
+                'period'      => $data['period'],
+            ]);
+
+        });
+
+        $comment->load(['author:id,name,icon_path,icon_bg']);
+
+        return response()->json($comment, 201);
+    }
+
+    public function get_project_resource_comments(Request $req) {
+        $data = $req->validate([
+            'member_name' => ['required','string','max:255'],
+            'period'      => ['required','date_format:Y-m'],
+        ]);
+
+        $comment = ProjectResourceComment::where('member_name', $data['member_name'])
+            ->where('period', $data['period'])
+            ->with(['author:id,name,icon_path,icon_bg'])
+            ->get();
+
+        return response()->json($comment);
+    }
+
+    public function resource_comment_update(Request $request){
+        $request->validate([
+            'id' => 'required',
+            'comment' => 'required',
+        ]); 
+        $comment = ProjectResourceComment::findOrFail($request->id);
+        $comment->update(['comment' => $request->comment]);
+        return response(200);
+    }
+
+    public function resource_comment_delete(Request $request){
+        $request->validate([
+            'id' => 'required',
+        ]); 
+        $comment = ProjectResourceComment::findOrFail($request->id);
+        $comment->delete();
+        return response(200);
+    }
+
+    public function get_resource_comment_counts(Request $req) {
+        $data = $req->validate([
+            'member_names'   => ['required', 'array'],
+            'member_names.*' => ['string'],
+            'period'         => ['required', 'date_format:Y-m'],
+        ]);
+
+        $names = collect($data['member_names'])
+            ->filter(fn ($v) => $v !== null && $v !== '')
+            ->map(fn ($v) => (string) $v)
+            ->unique()
+            ->values();
+
+        if ($names->isEmpty()) {
+            return response()->json((object)[]);
+        }
+
+        $counts = DB::table('project_resource_comments as c')
+            ->whereIn('c.member_name', $names)
+            ->whereNull('c.deleted_at')
+            ->where('c.period', $data['period'])
+            ->groupBy('c.member_name')
+            ->pluck(DB::raw('COUNT(*) as comment_count'), 'c.member_name');
+
+        return response()->json($counts);
+    }
+
     // #Metrics
 
     public function project_metrics(Request $req)
@@ -4470,7 +4555,7 @@ class ProjectController extends Controller
         $endDate   = $endInstance->copy()->endOfMonth()->toDateString();
         // 部門 in (\"{$project_names_str}\")
         $query = "日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\"";
-        $fields = ["給料手当テーブル", "部門", "日付"];
+        $fields = ["給料手当テーブル", "部門", "日付", "新部門ｺｰﾄﾞ", "レコード番号"];
 
         $limit = 500;
         $offset = 0;
@@ -4507,6 +4592,8 @@ class ProjectController extends Controller
                         '給料手当数量' => (float)($v['給料手当数量']['value'] ?? 0),
                         '所定労働日数' => (float)($v['所定労働日数']['value'] ?? 0),
                         '給料手当出金' => (float)($v['給料手当出金']['value'] ?? 0),
+                        '部門コード'   => (string)($r['新部門ｺｰﾄﾞ']['value'] ?? ''),
+                        'レコード番号' => (int)($r['レコード番号']['value'] ?? 0),
                     ];
                 }
             }
@@ -4526,5 +4613,48 @@ class ProjectController extends Controller
             'data' => $out,
         ]);
     }
+    public function update_resource_kintone(Request $request) 
+    {
+        $data = $request->validate([
+            'quantity' => 'required|numeric',
+            'member'   => 'required|string',
+            'recordId' => 'required|integer'
+        ],[
+            'quantity.required' => '給料手当数量は必須です。',
+            'member.required'   => 'メンバー名は必須です。',
+            'recordId.required' => 'レコード番号は必須です。'
+        ]);
+
+        $record = $this->api->getRecord(1068, $data['recordId']);
+        $table  = data_get($record, '給料手当テーブル.value', []);
+
+        $index = collect($table)->search(fn ($row) =>
+            data_get($row, 'value.ルックアップ_4.value') === $data['member']
+        );
+        
+        if ($index === false) {
+            abort(404);
+        }
+        $tableForPut = array_map(function ($row, $i) use ($index, $data) {
+            return [
+                'id' => (string) $row['id'],
+                'value' => [
+                    '給料手当数量' => [
+                        'value' => $i === $index
+                            ? (string) $data['quantity']
+                            : (string) data_get($row, 'value.給料手当数量.value', ''),
+                    ],
+                ],
+            ];
+        }, $table, array_keys($table));
+
+        
+        $updated = $this->api->putRecord(1068, $data['recordId'], [
+            '給料手当テーブル' => ['value' => $tableForPut],
+        ]);
+
+        return response()->json($updated);
+    }
+    
 }
 

@@ -18,7 +18,7 @@
             </div>  
         </div>
         <div class="mx-[20px] flex whitespace-nowrap overflow-auto hide-scrollbar">
-            <router-link :to="{name : tab.path}" v-for="tab in tabs" :key="tab.name" class="tab tab-link flex items-center gap-[5px]" :class="{active: tab.path ? route.fullPath.includes(tab.path) : false}">
+            <router-link :id="tab.path == 'finance' ? 'financeSelection' : ''" :to="{name : tab.path}" v-for="tab in tabs" :key="tab.name" class="tab tab-link flex items-center gap-[5px]" :class="{active: tab.path ? route.fullPath.includes(tab.path) : false}">
 
                 <div class="tab-name">{{ tab.name }}</div>
                 <div class="flex items-center gap-1">
@@ -82,9 +82,11 @@
 <script setup lang="ts">
 import { useApi } from '@/composables/api';
 import { useProject } from '@/composables/project';
+import { useTour } from '@/composables/useTour';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
-import { computed, provide, ref } from 'vue';
+import { useTutorialStore } from '@/store/tutorial';
+import { computed, onMounted, provide, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
     const props = defineProps(['userList'])
@@ -199,7 +201,17 @@ import { useRoute, useRouter } from 'vue-router';
     provide('setLoader', (value: boolean) => {
         initialLoader.value = value
     })
-
+    const tutorialStore = useTutorialStore()
+    const { startTour } = useTour()  
+    onMounted(() => {
+        if(tutorialStore.state.active && tutorialStore.state.name.includes('project.details')){
+            
+            setTimeout(() => {
+                startTour('project.details.finance', { version: '2025-09' });
+            }, 200);
+            tutorialStore.setTutorial({ active: true, name: ['project.details.finance'] });
+        }
+    })
 </script>
 <style scoped>
     .tab{

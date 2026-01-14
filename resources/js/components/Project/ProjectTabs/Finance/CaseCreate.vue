@@ -22,7 +22,7 @@
                             <button class="ghost-button" type="button" @click="stepPeriod(-1)">
                                 <Back size="12" />
                             </button>
-                            <select v-model="params.period" class="period-select">
+                            <select v-model="params.period" id="periodSelection" class="period-select">
                                 <option v-for="month in monthsArray" :key="month" :value="month">
                                     {{ DateTime.fromISO(month).toFormat('yyyy年M月') }}
                                 </option>
@@ -77,7 +77,7 @@
                 </section>
 
                 <section v-else class="case-form">
-                    <div v-if="hasPrivilage" class="si-box">
+                    <div v-if="hasPrivilage" id="memberSelection" class="si-box">
                         <MemberSelector 
                             placeHolder="メンバー"
                             :options="members"
@@ -123,14 +123,14 @@
                             </label>
                         </div>
                     </div> -->
-                    <div class="si-box">
+                    <div class="si-box" id="resultInput">
                         <ShortInput 
                             v-model="params.amount"
                             :place-holder="`成果（${unitLabel}）`"
                             type="number"
                         />
                     </div>
-                    <div class="si-box">
+                    <div class="si-box" id="noteInput">
                         <LongInput 
                             v-model="params.notes"
                             place-holder="ノート"
@@ -138,6 +138,7 @@
                     </div>
                     <div class="si-box flex gap-4 justify-center">
                         <LoaderButton
+                            id="saveButton"
                             style="margin: 0"
                             :loading="savingType === 2"
                             @triggered="submitCase(2)"
@@ -155,7 +156,7 @@ import ItemSelector from '@/components/Form/ItemSelector.vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Modal from '@/components/Global/Modal.vue';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { DateTime, Interval } from 'luxon';
 import { useApi } from '@/composables/api';
 import LongInput from '@/components/Form/LongInput.vue';
@@ -164,6 +165,8 @@ import MemberSelector from '@/components/Form/MemberSelector.vue';
 import { User } from '@/interface/globalInterface';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { useAuthUserStore } from '@/store/auth';
+import { useTutorialStore } from '@/store/tutorial';
+import { useTour } from '@/composables/useTour';
 
 const props = defineProps<{
     selectedProject: Project
@@ -404,6 +407,16 @@ const handleClose = () => {
     resetForm();
     emit('close');
 };
+const tutorialStore = useTutorialStore()
+const { startTour } = useTour()
+onMounted(() => {
+    if (tutorialStore.state.active && tutorialStore.state.name.includes('project.details.finance.performance.create')) {
+        setTimeout(() => {
+            startTour('project.details.finance.performance.details', { version: '2025-09' });
+        }, 200);
+        tutorialStore.setTutorial({ active: true, name: [] });
+  }
+})
 </script>
 
 <style scoped>

@@ -92,7 +92,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div id="performance" class="mb-[60px] section-hd">
+                        <div id="projectCreateAchievements" class="mb-[60px] section-hd">
                             <p class="mb-[20px]"><strong>実績管理機能</strong></p>
                             <div class="selectSwitchArea" style="width: fit-content;">    
                                 <input type="checkbox" id="set_actual" v-model="projectParams.has_actual_func">
@@ -104,7 +104,7 @@
                                 実績確認機能をONにすると、メンバーの日々の実績（件数など）を記録・集計できるようになります。
                             </p>
                             <div v-if="projectParams.has_actual_func">
-                                <div class="si-box">
+                                <div class="si-box" id="goalSetting">
                                     <p class="text-[14px]">目標</p>
                                     <div class="mt-[10px] flex flex-wrap gap-[15px]">
                                         <label class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer">
@@ -114,7 +114,7 @@
                                     </div>
                                     <p class="text-[12px] text-[gray] mt-[8px] leading-normal">メンバーごとの月次目標値を設定できます。設定した目標は、月・四半期・年間の実績画面で比較表示されます。</p>
                                 </div>
-                                <div class="si-box">
+                                <div class="si-box" id="unitSelection">
                                     <p class="text-[14px]">成果単位</p>
                                     <div class="mt-[10px] flex flex-wrap gap-[15px]">
                                         <label v-for="unit in unitOptions" :key="unit.value" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer">
@@ -131,20 +131,20 @@
                                         />
                                     </div>
                                 </div>
-                            <div class="si-box">
-                                <p class="text-[14px]">実績項目</p>
+                                <div class="si-box" id="achievementItems">
+                                    <p class="text-[14px]">実績項目</p>
                                 
-                                <div class="flex flex-col gap-[10px] mt-[10px]">
-                                    <div v-for="(row, index) in statusRows" :key="`status-${index}`" class="flex flex-wrap items-center gap-[10px]">
-                                        <input class="custom-f-checkbox" type="checkbox" v-model="row.selected"/>
-                                        <span v-if="row.is_system_default" class="text-[13px]">{{ row.label }}</span>
-                                        <input
-                                            v-else
-                                            v-model="row.label"
-                                            type="text"
-                                            class="flex-1 border border-solid border-[var(--normalBorder)] px-[10px] py-[8px] text-[13px] min-w-[200px] text-[var(--primary-color)]"
-                                            placeholder="実績を分類する項目名を設定してください。"
-                                        />
+                                    <div class="flex flex-col gap-[10px] mt-[10px]">
+                                        <div v-for="(row, index) in statusRows" :key="`status-${index}`" class="flex flex-wrap items-center gap-[10px]">
+                                            <input class="custom-f-checkbox" type="checkbox" v-model="row.selected"/>
+                                            <span v-if="row.is_system_default" class="text-[13px]">{{ row.label }}</span>
+                                            <input
+                                                v-else
+                                                v-model="row.label"
+                                                type="text"
+                                                class="flex-1 border border-solid border-[var(--normalBorder)] px-[10px] py-[8px] text-[13px] min-w-[200px] text-[var(--primary-color)]"
+                                                placeholder="実績を分類する項目名を設定してください。"
+                                            />
                                             <button
                                                 v-if="!row.is_system_default"
                                                 type="button"
@@ -406,9 +406,6 @@
                                                 />
                                         </template>
 
-                                        <template #edge-custom="edgeProps">
-                                            <CustomEdge v-bind="edgeProps" />
-                                        </template>
                                     </VueFlow>
                         </div> 
                     </div>                            
@@ -578,7 +575,7 @@
                         </div>
                     </div>
                     <div class="si-box">
-                        <LoaderButton @triggered="createProject" :loading="loading" content="保存する"/>
+                        <LoaderButton @triggered="createProject" id="projectCreateButton" :loading="loading" content="保存する"/>
                     </div>
                 </div>
                     </div>
@@ -593,8 +590,8 @@ import LongInput from '@/components/Form/LongInput.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import PartnerSelector from '@/components/Form/PartnerSelector.vue';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, toRaw, useTemplateRef } from 'vue';
-import { CommonFile, Task } from '@/interface/globalInterface';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, toRaw, useTemplateRef, watch } from 'vue';
+import { Task } from '@/interface/globalInterface';
 import { ComponentExposed } from 'vue-component-type-helpers';
 import { Project } from '@/interface/projectInterface';  
 import SampleTask from '@/components/Task/Gantt/SampleTask.vue';
@@ -604,7 +601,6 @@ import CloseIcon from '@/components/Form/CloseIcon.vue';
 import 'styles/selector.css'
 import { useAuthUserStore } from '@/store/auth';
 import { type Node, type Edge, MarkerType, VueFlow, VueFlowStore, Position, Handle } from '@vue-flow/core';
-import CustomEdge from '@/components/Task/Gantt/CustomEdge.vue';
 import AiLoader from '@/components/Global/AiLoader.vue';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
 import ProjectIndustryTypes from 'assets/ProjectIndustryTypes.json'
@@ -617,6 +613,8 @@ import { useFilePreview } from '@/store/filePreview';
 import { filesize } from 'filesize';
 import ProjectContract from './ProjectContract.vue';
 import { contractTypeDefaults, contractRoleDefaults } from '@/utils/tools';
+import { useTour } from '@/composables/useTour';
+import { useTutorialStore } from '@/store/tutorial';
 
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
@@ -639,19 +637,12 @@ const unitOptions = [
     { value: 'CUSTOM', label: 'カスタム' },
 ] as const
 type StatusRow = { status_id: number | null; label: string; selected: boolean; sort_order: number; is_system_default: boolean }
-const SYSTEM_STATUS_DEFAULTS: StatusRow[] = [
-    { status_id: 1, label: '新規契約', selected: true, sort_order: 1, is_system_default: true },
-    { status_id: 2, label: '継続契約', selected: true, sort_order: 2, is_system_default: true },
-    { status_id: 3, label: 'リプレイス・アップグレード', selected: true, sort_order: 3, is_system_default: true },
-    { status_id: 4, label: 'オプション契約', selected: true, sort_order: 4, is_system_default: true },
-    { status_id: 5, label: 'アポイント取得', selected: true, sort_order: 5, is_system_default: true },
-]
 const statusRows = ref<StatusRow[]>([])
 const suggestedStatuses = ref<string[]>([])
 
 const stepTitles = [
     {name: '基本情報', hash: '#basic'},
-    {name: '実績管理', hash: '#performance'},
+    {name: '実績管理', hash: '#projectCreateAchievements'},
     {name: '概要', hash: '#overview'},
     {name: 'MISO', hash: '#miso'},
     {name: 'タスク自動生成', hash: '#tasks'},
@@ -688,6 +679,8 @@ type ContractResp = {
 }
 const contract = ref<ContractResp | null>(null)
 const flowInstance = ref<VueFlowStore | null>(null)
+const { startTour, stopTour } = useTour()
+const tutorialStore = useTutorialStore()
 const hydrateStatusRows = () => {
     if (props.editData?.actual_statuses && Array.isArray(props.editData.actual_statuses)) {
         statusRows.value = props.editData.actual_statuses.map((status, idx) => ({
@@ -743,6 +736,13 @@ onMounted(() => {
             projectManager.value.selectBy([auth.activeUser])
         }
         
+    }
+    if(tutorialStore.state.active && tutorialStore.state.name.includes('project.create')){
+        
+        setTimeout(() => {
+            startTour('project.create.achievements', { version: '2025-09' });
+        }, 100);
+        tutorialStore.setTutorial({ active: true, name: [] });
     }
 
 })
@@ -1149,6 +1149,18 @@ const updateTask = (data) => {
             }
         });
     }
+}
+watch(() => projectParams.has_actual_func, (val) => {
+    if (val) setTutorialStep('project.create.achievements.detail')
+})
+const setTutorialStep = (key:string) => {
+    if(!tutorialStore.state.active) return; 
+    jumpTo('#projectCreateAchievements')
+    stopTour()
+    setTimeout(() => {
+        startTour(key, { version: '2025-09' });
+    }, 300);       
+    tutorialStore.setTutorial({ active: false, name: [] })
 }
 </script>
 <style scoped>

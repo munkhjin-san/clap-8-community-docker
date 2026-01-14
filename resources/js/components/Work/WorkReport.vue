@@ -5,7 +5,7 @@
         </template>
         <template #content>
             <div class="report-wrapper" style="background:inherit;">
-                <div class="report-field">
+                <div class="report-field" id="timesheetProjectSelect">
                     <p class="report-header">プロジェクト</p>
                     <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="todayWorkGroup">
                         <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
@@ -77,26 +77,26 @@
                     />
                 </div>
                 <IncentiveField v-if="item.position_id === 15" v-model="incentives"/>
-                <div class="report-field">
-                    <p class="report-header">マイカーの走行距離（往復）</p>
-                    <div class="flex gap-4 items-center">
+                <div class="report-field !mb-[35px]">
+                    <p class="report-header !mb-4">マイカーの走行距離（往復）</p>
+                    <div class="flex gap-4 items-center flex-wrap">
                         <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="car_used_project">
                             <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
                         </select>
-                        <div class="relative w-fit my-[15px]">
+                        <div class="relative w-fit">
                             <input type="number" style="padding: 0px 40px 0 10px;height: 38px;border: 1px solid var(--primary-color);color: var(--primary-color);max-width: 100px;" name="work-mileage" v-model="car_mileage" min="0">
                             <span data-v-73d35938="" style="position: absolute; height: 100%; top: 0px; right: 5px; line-height: 38px;">km</span>
                         </div>
                     </div>
                 </div>
-                <div class="report-field" v-if="selectedProject && selectedProject.has_actual_func">
+                <div id="performanceReport" class="report-field" v-if="selectedProject && selectedProject.has_actual_func">
                     <p class="report-header">実績報告</p>
 
                     <div class="space-y-2">
                         <div class="flex items-center gap-4"
                             v-for="(row, index) in actualRows"
                             :key="row.status ?? index">
-                            <div v-if="row.status" class="min-w-[120px]">
+                            <div v-if="row.status" class="min-w-[120px] text-sm">
                                 {{ row.status }}
                             </div>
 
@@ -141,7 +141,7 @@
                     v-model:vehicle="vehicleData"
                     ref="customFieldRef"
                 />              
-                <div class="si-box" style="display: flex; justify-content: center; gap: 20px;">
+                <div id="saveButton" class="si-box" style="display: flex; justify-content: center; gap: 20px;">
                     <LoaderButton style="margin: 0" :loading="loading[0]" content="一時保存" @triggered="saveTimeCard(0)" />
                     <LoaderButton style="margin: 0" :loading="loading[1]" content="申請する" @triggered="saveTimeCard(1)" />
                 </div>
@@ -163,6 +163,8 @@ import { customParser, useDebouncedRef } from '@/utils/tools';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { getCustomFields, getWorkGroup } from '../../utils/workApi';
+import { useTutorialStore } from '@/store/tutorial';
+import { useTour } from '@/composables/useTour';
     const auth = useAuthUserStore()
     const emit = defineEmits(['reload', 'closeModal'])
     const theme = useTheme()
@@ -333,6 +335,8 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
         car_data.value = data
         
     }
+    const tutorialStore = useTutorialStore()
+    const { startTour } = useTour()
     onMounted(async() => {
         fields.value = await getCustomFields()
         workGroups.value = await getWorkGroup()
@@ -362,6 +366,14 @@ import { getCustomFields, getWorkGroup } from '../../utils/workApi';
         }
         costsFill()
         customFieldFill()
+        if (tutorialStore.state.active && tutorialStore.state.name.includes('timesheet.dailyreport')) {
+            console.log(todayWorkGroup.value)
+            setTimeout(() => {
+                todayWorkGroup.value = workGroupAsOptions.value.find(group => group.has_actual_func === true)?.id
+                startTour('timesheet.dailyreport.create.details')
+            }, 500)
+            tutorialStore.setTutorial({ active: true, name: [] })
+        }
     })
     const costsFill = () => {
         if(timeCard.value?.timecard_costs?.length){

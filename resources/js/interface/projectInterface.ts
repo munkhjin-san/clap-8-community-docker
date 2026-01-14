@@ -209,6 +209,17 @@ export interface FinanceComment {
     checked_users: User[];
     reply: FinanceComment;
 }
+export interface ResourceComment {
+    id: number;
+    member_name: string;
+    user_id: number;
+    comment: string;
+    period?: string;
+    author: User;
+    created_at: string;
+    checked_users: User[];
+    reply: ResourceComment;
+}
 interface QuickEditText {
     text:string, 
     id: number | null, 

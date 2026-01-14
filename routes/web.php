@@ -374,6 +374,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/project_finance_comment', [ProjectController::class, 'project_finance_comment']);
         Route::get('/get_project_finance_comments', [ProjectController::class, 'get_project_finance_comments']);
         Route::get('/get_total_finance_badge', [ProjectController::class, 'get_total_finance_badge']);
+        Route::post('/project_resource_comment', [ProjectController::class, 'project_resource_comment']);
+        Route::get('/get_project_resource_comments', [ProjectController::class, 'get_project_resource_comments']);
+        Route::put('/resource_comment_update', [ProjectController::class, 'resource_comment_update']);
+        Route::delete('/resource_comment_delete', [ProjectController::class, 'resource_comment_delete']);
+        Route::post('/get_resource_comment_counts', [ProjectController::class, 'get_resource_comment_counts']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
@@ -552,6 +557,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
         Route::get('/project_actual_status_suggestions', [ProjectController::class, 'project_actual_status_suggestions']);
         Route::post('/get_resources_kintone', [ProjectController::class, 'get_resources_kintone']);
+        Route::post('/update_resource_kintone', [ProjectController::class, 'update_resource_kintone']);
 
         // Project plan (accounts/amounts) - new prefixed schema
         Route::get('/projects/{project}/plan/grid', [ProjectPlanController::class, 'grid']);

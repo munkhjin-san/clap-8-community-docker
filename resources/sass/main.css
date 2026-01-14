@@ -4698,6 +4698,8 @@ input:-webkit-autofill:active {
   gap: 5px;
   margin-left: auto;
   height: 25px;
+  margin-top: -5px;
+  margin-right: -10px;
 }
 
 .bell-icon {
@@ -6379,6 +6381,7 @@ input:autofill {
 .message-top-block {
   display: flex;
   position: relative;
+  flex-wrap: wrap-reverse;
   margin-bottom: 15px;
 }
 
@@ -6721,7 +6724,12 @@ button.shift-button {
   background: var(--primary-button);
   color: #e4e6eb;
 }
-
+.messageBodyWrapper {
+    min-width: 50%;
+    max-width: 80%;
+    width: fit-content;
+    margin: 0 15px;
+}
 @media screen and (max-width: 959px) {
     .messageBodyWrapper {
         max-width: 88%;
@@ -7366,12 +7374,6 @@ button.shift-button {
 
   .file-label {
     font-size: 12px;
-  }
-
-  .messageBodyWrapper {
-    min-width: 50%;
-    max-width: 80%;
-    width: fit-content;
   }
 
   .quotBody,

@@ -9,9 +9,15 @@
                     @search-start="(word) => {keywords = word}"
                 />                
             </div>
-            <div class="c-bar-button mr-4" @click="router.push({name: 'total-finance'})">
-                集計
-            </div>            
+            <div class="flex gap-4 mr-4">
+                <div v-if="auth.hasPrivilage" class="c-bar-button" @click="router.push({name: 'resource'})">
+                    リソース
+                </div>
+                <div class="c-bar-button" @click="router.push({name: 'total-finance'})">
+                    集計
+                </div>
+            </div>
+                        
         </div>
         <Transition name="modalFade">
             <div class="cal-month-loader" style="height: calc(100% - 60px); top: 60px;" v-if="initialLoader && route.name === 'project'">
@@ -22,7 +28,7 @@
         </Transition>
         <div class="post-container scrollable">
             
-            <div class="project-table">
+            <div class="project-table" id="projectTable">
                 <div class="project-header-row">
                     <div class="project-cell" style="min-width: 230px;">プロジェクト名</div>
                     <div class="project-cell cursor-pointer relative">
@@ -162,7 +168,7 @@
             </Transition>
 
         </div>
-        <FloatButton @action="createWindow = true" v-if="auth.activeUser.position_id <= 6 && (route.name == 'gantt-chart' || route.name == 'project')">
+        <FloatButton @action="createWindow = true" id="projectCreate" v-if="auth.activeUser.position_id <= 6 && (route.name == 'gantt-chart' || route.name == 'project')">
             <template #icon>
                 <AddIcon size="15" fill="black"/>
             </template>
@@ -214,6 +220,8 @@ import AddIcon from '../Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
 import ProjectDateSort from './ProjectDateSort.vue';
 import { useDialog } from '@/composables/dialog';
+import { useTour } from '@/composables/useTour';
+import { useTutorialStore } from '@/store/tutorial';
 const keywords = ref('')
 const initialLoader = ref(true)
 const menu = useMenuStore()
@@ -235,9 +243,17 @@ const start = ref<DateTime | null>(null)
 const end = ref<DateTime | null>(null)
 const { getProjects, projectList, usersProjects } = useProject()
 const { ping } = useDialog()
+const { startTour } = useTour() 
+const tutorialStore = useTutorialStore()
 onMounted(async() => {
     await getProjectData();
     getSelectableUsers()
+    if(tutorialStore.state.active && tutorialStore.state.name.includes('project.create')){
+        startTour('project.create', { version: '2025-09' });
+    }
+    if(tutorialStore.state.active && tutorialStore.state.name.includes('project.details')){
+        startTour('project.details', { version: '2025-09'})
+    }
 })
 const ownProjectIds = computed(() => {
     const savedIds = JSON.parse(localStorage.getItem('projectIds') || '[]')

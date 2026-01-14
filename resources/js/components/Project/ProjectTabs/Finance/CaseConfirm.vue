@@ -1,5 +1,5 @@
 <template>
-  <div class="case-confirm space-y-4">
+  <div class="case-confirm space-y-4 overflow-auto h-[calc(100%-100px)]">
     <section class="case-card case-header">
       <div class="case-header__project">
         <p class="case-eyebrow">期間</p>
