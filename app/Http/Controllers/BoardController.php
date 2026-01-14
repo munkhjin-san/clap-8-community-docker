@@ -678,7 +678,7 @@ class BoardController extends Controller
         $limit = 30;
         $active_user = $request->override_user ?? $this->active_user();
         $auth_user_id = $active_user->id;
-       $targetBoard = boardRecord::query()
+        $targetBoard = boardRecord::query()
             ->select(['id','private_flag']) // only what you use
             ->findOrFail($request->record_id);
 
@@ -703,12 +703,15 @@ class BoardController extends Controller
         $timeLimit   = $usercheck->created_at;
         $view_from   = $usercheck->view_from;
         $time_condition = $timeLimit;
-
+        
         $base = $base
         ->when($view_from, fn($q) => $q->where('created_at', '>=', $view_from))
         ->when(!$view_from && $time_condition, fn($q) => $q->where('created_at', '>=', $timeLimit))
         ->when($leavePeriod && $targetBoard->private_flag != 1,
-            fn($q) => $q->whereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end])
+            fn ($q) => $q->where(function ($q) use ($leavePeriod) {
+                $q->where('created_at', '<', $leavePeriod->leave_start)
+                ->orWhere('created_at', '>', $leavePeriod->leave_end);
+            })
         );
         $with = [
             'user','actual_sender',
