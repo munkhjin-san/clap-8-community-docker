@@ -74,7 +74,27 @@
                             <th data-cell="right-border">所定労働日数</th>
                             <th data-cell="right-border">給料手当出金</th>
                             <th data-cell="right-border">数量合計</th>
-                            <th>数量残り</th>
+                            <th>
+                              <div class="relative">
+                                <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="toggleRemainingFilterMenu">
+                                  数量残り
+                                  <Filter v-if="allowRemainingFilter" class="filter-icon" size="12"/>
+                                </div>
+                                <Transition name="slidePop">
+                                  <div v-if="menu.parent == 'minusPlusFilter'" id="minusPlusFilter" class="pc shadow-me absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[12px] p-[10px] top-0">
+                                      <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="selectedFilter = [], menu.close()">リセット</button>
+                                      <div v-for="option in filterOptions">
+                                          <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
+                                              <input type="checkbox" class="custom-f-checkbox" name="class-selector"  v-model="selectedFilter" :value="option"/>
+                                              {{ option }}
+                                          </label>
+                                      </div>
+                                  </div>
+                              </Transition>
+                              </div>
+                              
+                              
+                            </th>
                         </template>
                     </tr>
                   </thead>
@@ -198,7 +218,7 @@ import { useRouter } from 'vue-router';
 import CloseIcon from '../Form/CloseIcon.vue';
 import { useApi } from '@/composables/api';
 import { DateTime, MonthNumbers } from 'luxon';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 import PeriodRangePicker from './ProjectTabs/Finance/PeriodRangePicker.vue';
 import Back from '../Icons/Back.vue';
 import { User } from '@/interface/globalInterface';
@@ -207,6 +227,8 @@ import CommentWindow from './Resource/CommentWindow.vue';
 import { useAuthUserStore } from '@/store/auth';
 import CommandButton from '../Global/CommandButton.vue';
 import ResourceEdit from './Resource/ResourceEdit.vue';
+import Filter from '../Icons/Filter.vue';
+import { useMenuStore } from '@/store/menu';
 type PeriodCell = { year:number; month:number; period:string; fiscalYear:number }
 
 const router = useRouter()
@@ -232,9 +254,12 @@ const resourceData = ref<Record<string, Record<string, Record<string, ResourceVa
 const commentCount = ref<Record<string, number>>({})
 const selectedCommentMember = ref<string | null>(null)
 const auth = useAuthUserStore()
+const menu = useMenuStore()
 const loader = ref(true)
 const editData = ref<EditResourceValue | null>(null)
 const editModal = ref(false)
+const filterOptions = ['－', '0', '＋']
+const selectedFilter = ref<string[]>([])
 const editQuantity = (data: ResourceValue, member: string, project: string) => {
   editData.value = {
     ...data,
@@ -274,6 +299,7 @@ const normalizedRange = computed(() => normalizeRange(periodStart.value, periodE
 const monthCount = computed(() =>
   Math.round(normalizedRange.value.end.diff(normalizedRange.value.start, 'months').months ?? 0) + 1
 )
+const allowRemainingFilter = computed(() => monthCount.value === 1)
 const managementAccounts = computed(() => {
   return auth.activeUser.id === 608 || auth.activeUser.id === 610 
 })
@@ -312,25 +338,31 @@ const resourceRows = computed(() =>
 )
 const searchResults = computed(() => {
   const keyword = keywords.value.trim().toLowerCase()
-  if (!keyword) {
-    return resourceRows.value
+  let results = resourceRows.value
+  if (keyword) {
+    results = resourceRows.value.reduce((acc, member) => {
+      const memberName = String(member.member ?? '').toLowerCase()
+      if (memberName.includes(keyword)) {
+        acc.push(member)
+        return acc
+      }
+
+      const projects = member.projects.filter((project) =>
+        String(project.project ?? '').toLowerCase().includes(keyword)
+      )
+      if (projects.length) {
+        acc.push({ ...member, projects })
+      }
+      return acc
+    }, [] as typeof resourceRows.value)
   }
 
-  return resourceRows.value.reduce((acc, member) => {
-    const memberName = String(member.member ?? '').toLowerCase()
-    if (memberName.includes(keyword)) {
-      acc.push(member)
-      return acc
-    }
+  if (!allowRemainingFilter.value || selectedFilter.value.length === 0) {
+    return results
+  }
 
-    const projects = member.projects.filter((project) =>
-      String(project.project ?? '').toLowerCase().includes(keyword)
-    )
-    if (projects.length) {
-      acc.push({ ...member, projects })
-    }
-    return acc
-  }, [] as typeof resourceRows.value)
+  const period = periodStartIso.value
+  return results.filter((member) => matchesRemainingFilter(member.projects, period))
 })
 const intervalPayload = computed(() => ({
   startYear: normalizedRange.value.start.year,
@@ -431,12 +463,36 @@ const remainingQuantity = (
   projects: Array<{ periods: Record<string, ResourceValue> }>,
   period: string
 ) => {
+  const remaining = remainingQuantityValue(projects, period)
+  return remaining === null ? '' : formatNumber(remaining)
+}
+const remainingQuantityValue = (
+  projects: Array<{ periods: Record<string, ResourceValue> }>,
+  period: string
+) => {
   const workingDays = getWorkingDaysValue(projects, period)
   if (workingDays === null) {
-    return ''
+    return null
   }
-  const remaining = workingDays - totalQuantityValue(projects, period)
-  return formatNumber(remaining)
+  return workingDays - totalQuantityValue(projects, period)
+}
+const matchesRemainingFilter = (
+  projects: Array<{ periods: Record<string, ResourceValue> }>,
+  period: string
+) => {
+  if (!allowRemainingFilter.value || selectedFilter.value.length === 0) {
+    return true
+  }
+  const remaining = remainingQuantityValue(projects, period)
+  if (remaining === null) {
+    return false
+  }
+  return selectedFilter.value.some((option) => {
+    if (option === '－') return remaining < 0
+    if (option === '0') return remaining === 0
+    if (option === '＋') return remaining > 0
+    return false
+  })
 }
 const parsePeriod = (value: string): DateTime => {
   const dt = DateTime.fromFormat(`${value}-01`, 'yyyy-MM-dd', { zone: 'Asia/Tokyo' })
@@ -455,6 +511,10 @@ const handleRangeChange = ({ start, end }: { start: string; end: string }) => {
 const shiftRange = (months: number) => {
   applyRange(periodStart.value.plus({ months }), periodEnd.value.plus({ months }))
 }
+const toggleRemainingFilterMenu = () => {
+  if (!allowRemainingFilter.value) return
+  menu.setMenu({parent: 'minusPlusFilter'})
+}
 watch([periodStartIso, periodEndIso], async () => {
     await fetchData()
     await fetchCommentCounts()
@@ -462,6 +522,14 @@ watch([periodStartIso, periodEndIso], async () => {
 watch(showComment, (value) => {
     if (!value) {
         selectedCommentMember.value = null
+    }
+})
+watch(allowRemainingFilter, (value) => {
+    if (!value) {
+        selectedFilter.value = []
+        if (menu.parent === 'minusPlusFilter') {
+            menu.close()
+        }
     }
 })
 onMounted(async () => {
@@ -557,6 +625,13 @@ td[data-cell=right-border], th[data-cell=right-border] {
     min-width: var(--second-col-width);
     border-right: solid thin var(--calendarBorder);
     z-index: 3;
+}
+.filter-icon {
+  opacity: 0;
+}
+.h-p:hover .filter-icon {
+    fill: var(--primary-color);
+    opacity: 1;
 }
 @media screen and (max-width: 959px) {
   table {
