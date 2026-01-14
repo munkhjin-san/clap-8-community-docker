@@ -270,17 +270,21 @@ import { useBadgeStore } from '@/store/badge';
         })
     }
     const postMenu = computed(() => {
-        const items = [    
-            {title: `${props.apps[props.record.app_type]}を編集する`, action: () => emit('editRecord', props.record)},
-            {title: `${props.apps[props.record.app_type]}を削除する`, action: () => emit('deleteRecord', props.record)}
+        const appName = props.apps?.[props.record.app_type] ?? 'アプリ'
+
+        const items = [
+            { title: `${appName}を削除する`, action: () => emit('deleteRecord', props.record) },
         ]
-        if(props.record.app_type == 2){
-            items.push({
-                title: 'ステータスを変更する', action: () => updateStatus()
-            })
+
+        if (props.record.app_type !== 2) {
+            items.push({ title: `${appName}を編集する`, action: () => emit('editRecord', props.record) })
+        } else {
+            items.push({ title: 'ステータスを変更する', action: updateStatus })
         }
+
         return items
     })
+
     const totalExpenses = computed(() => {
         if(props.record.grants && props.record.grants.length){
             const amounts = props.record.grants.map(ob => ob.expenses ? ob.expenses : 0)
