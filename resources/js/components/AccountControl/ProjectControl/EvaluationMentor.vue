@@ -314,7 +314,7 @@ const positions = computed(() => {
     //make unique
     const uniquePositions = Array.from(new Set(pos.map(p => p.id))).map(id => {
         return pos.find(p => p.id === id)
-    })
+    }).sort((a, b) => a.id - b.id)
     return uniquePositions
     // const posSet = new Set<{id: number, name: string}>()
     // props.userList.forEach(user => {
