@@ -141,10 +141,9 @@
                         <div ref="copyTemplateRef" class="mt-3 leading-normal text-[14px]">                        
                             <div v-for="item in copyTemplate">
                                 <div>
-                                    {{ item.name }}→<span v-if="item.must_create">未作成{{ item.must_create }}件 </span>
-                                    <span v-if="item.refused">、差戻中{{ item.refused }}件 </span>
-                                    <span v-if="item.must_apply">、作成中{{ item.must_apply }}件 </span>
-                                    <span v-if="item.must_approve">、申請中{{ item.must_approve }}件 </span>
+                                    {{ item.name }}→
+                                    <span v-if="statusText(item)">{{ statusText(item) }}</span>
+
                                 </div>
                             </div>
                         </div>
@@ -300,6 +299,16 @@ const generateEvaluationCsv = () => {
         return
     }
 }
+
+  const statusText = (item:any) => {
+    const parts: string[] = []
+    if (item.must_create) parts.push(`未作成${item.must_create}件`)
+    if (item.refused) parts.push(`差戻中${item.refused}件`)
+    if (item.must_apply) parts.push(`作成中${item.must_apply}件`)
+    if (item.must_approve) parts.push(`申請中${item.must_approve}件`)
+    return parts.join('、') // 必要なときだけ「、」が入る
+  }
+
 const positions = computed(() => {
     const pos = props.userList.map(user => user?.positions).filter(pos => pos !== null && pos !== undefined)
     //make unique
