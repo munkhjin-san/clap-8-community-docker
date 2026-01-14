@@ -115,6 +115,17 @@
 
                 </template>
                 <template #content>
+                    <div class="mb-5">
+                        <p class="mb-2">対象メンバー</p>
+                        <div class="flex flex-wrap gap-3">
+                            <div v-for="position in positions" :key="position.id">
+                                <label class="flex items-center gap-2">
+                                    <input type="checkbox" :value="position.id" v-model="selectedUserPositions" />
+                                    <span class="text-sm">{{ position.name }}</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                     <div class="flex gap-2 flex-col">                     
                         <label class="text-[14px]" for="wantedNumber">必須目標数</label>
                         <div class="flex items-center gap-3">
@@ -171,7 +182,7 @@ const announceWindow = ref(false)
 const wantedNumber = ref(1)
 const copyTemplate = ref<any>(null)
 const copyTemplateRef = useTemplateRef('copyTemplateRef')
-
+const selectedUserPositions = ref<Array<number>>([11,12])
 const mentorSelectorData = reactive<{
         view: boolean,
         user: User | null,
@@ -289,6 +300,29 @@ const generateEvaluationCsv = () => {
         return
     }
 }
+const positions = computed(() => {
+    const pos = props.userList.map(user => user?.positions).filter(pos => pos !== null && pos !== undefined)
+    //make unique
+    const uniquePositions = Array.from(new Set(pos.map(p => p.id))).map(id => {
+        return pos.find(p => p.id === id)
+    })
+    return uniquePositions
+    // const posSet = new Set<{id: number, name: string}>()
+    // props.userList.forEach(user => {
+    //     if(user?.positions?.name){
+    //         posSet.add({
+    //             id: user.positions.id,
+    //             name: user.positions.name
+    //         })
+    //     }
+    // })
+    // return Array.from(posSet).map(position => {
+    //     return {
+    //         id: position.id,
+    //         name: position.name
+    //     }
+    // })
+})
 const uploadUploadCsv = async(ev: Event) => {
     const input = ev.target as HTMLInputElement
     if (!input.files?.length) return
@@ -326,7 +360,9 @@ const findTargetUsers = async() => {
         return
     }
     let d: any[] = []
-    props.userList.forEach(user => {
+    const users = props.userList.filter(u => selectedUserPositions.value.includes(u?.position_id))
+    console.log(users)
+    users.forEach(user => {
         const goalCount = user?.outcome_goals?.length || 0
         let u = {
             name: `[To:${user.name}:]`,
@@ -336,26 +372,48 @@ const findTargetUsers = async() => {
             must_approve: 0,
 
         }
-        if(goalCount < wantedNumber.value){
-            u.must_create = wantedNumber.value - goalCount
+        const validGoals = user?.outcome_goals?.filter(g => [2,3,4,5,6,7,9].includes(g.status)) || []
+        if(validGoals.length < wantedNumber.value){
+            if(goalCount < wantedNumber.value){
+                u.must_create = wantedNumber.value - goalCount
+            }
+            const creatingGoals = user?.outcome_goals?.filter(g => g.status === 0 ) || []
+            if(creatingGoals.length){
+                u.must_apply = creatingGoals.length
+            }
+            const refusedGoals = user?.outcome_goals?.filter(g => g.status === 1 || g.status === 7 ) || []
+            if(refusedGoals.length){
+                u.refused = refusedGoals.length
+            }
+            const applyingGoals = user?.outcome_goals?.filter(g => g.status === 2 || g.status === 8 ) || []
+            if(applyingGoals.length){
+                u.must_approve = applyingGoals.length
+            }
+            if(u.must_create || u.refused || u.must_apply || u.must_approve){
+                d.push(u)
+            }
         }
-        const creatingGoals = user?.outcome_goals?.filter(g => g.status === 0 ) || []
-        if(creatingGoals.length){
-            u.must_apply = creatingGoals.length
-        }
-        const refusedGoals = user?.outcome_goals?.filter(g => g.status === 1 || g.status === 7 ) || []
-        if(refusedGoals.length){
-            u.refused = refusedGoals.length
-        }
-        const applyingGoals = user?.outcome_goals?.filter(g => g.status === 2 || g.status === 8 ) || []
-        if(applyingGoals.length){
-            u.must_approve = applyingGoals.length
-        }
-        if(u.must_create || u.refused || u.must_apply || u.must_approve){
-            d.push(u)
-        }
-        copyTemplate.value = d
+        // if(goalCount < wantedNumber.value){
+        //     u.must_create = wantedNumber.value - goalCount
+        // }
+        // const creatingGoals = user?.outcome_goals?.filter(g => g.status === 0 ) || []
+        // if(creatingGoals.length){
+        //     u.must_apply = creatingGoals.length
+        // }
+        // const refusedGoals = user?.outcome_goals?.filter(g => g.status === 1 || g.status === 7 ) || []
+        // if(refusedGoals.length){
+        //     u.refused = refusedGoals.length
+        // }
+        // const applyingGoals = user?.outcome_goals?.filter(g => g.status === 2 || g.status === 8 ) || []
+        // if(applyingGoals.length){
+        //     u.must_approve = applyingGoals.length
+        // }
+        // if(u.must_create || u.refused || u.must_apply || u.must_approve){
+        //     d.push(u)
+        // }
+        // copyTemplate.value = d
     })
+    copyTemplate.value = d
 
 }
 const copy = () => {
